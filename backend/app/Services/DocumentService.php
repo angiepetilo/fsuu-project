@@ -16,7 +16,7 @@ class DocumentService
         string $documentType,
         ?User $uploadedBy = null
     ): Document {
-        $document = Document::create([
+        $document = Document::forceCreate([
             'reference_type' => $referenceType,
             'reference_id' => $referenceId,
             'file_path' => $filePath,
@@ -31,7 +31,7 @@ class DocumentService
 
     public function approve(Document $document, User $staff, ?string $remarks = null): Document
     {
-        $document->update(['status' => 'approved', 'remarks' => $remarks]);
+        $document->forceFill(['status' => 'approved', 'remarks' => $remarks])->save();
 
         $this->auditLog->log($staff, 'document_approved', $document->reference_type, $document->reference_id, [
             'document_id' => $document->id,
@@ -42,7 +42,7 @@ class DocumentService
 
     public function reject(Document $document, User $staff, string $remarks): Document
     {
-        $document->update(['status' => 'rejected', 'remarks' => $remarks]);
+        $document->forceFill(['status' => 'rejected', 'remarks' => $remarks])->save();
 
         $this->auditLog->log($staff, 'document_rejected', $document->reference_type, $document->reference_id, [
             'document_id' => $document->id,

@@ -14,7 +14,7 @@ class NotificationService
         string $recipient,
         string $status = 'pending'
     ): NotificationLog {
-        return NotificationLog::create([
+        return NotificationLog::forceCreate([
             'reference_type' => $referenceType,
             'reference_id' => $referenceId,
             'notification_type' => $notificationType,

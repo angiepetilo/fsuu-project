@@ -15,4 +15,5 @@ class NotificationLog extends Model
         'channel',
         'recipient',
     ];
+    protected $table = 'notification_log';
 }

@@ -23,7 +23,7 @@ class EntryVerificationService
             throw new AuthorizationException('Invalid PIN.');
         }
 
-        $verification = EntryVerification::create([
+        $verification = EntryVerification::forceCreate([
             'avr_venue_booking_id' => $booking->id,
             'verified_by' => $staff->id,
             'contact_method_verified' => $contactMethodVerified,

@@ -18,7 +18,7 @@ class InspectionService
         bool $hasDamage = false,
         ?float $damageChargeAmount = null
     ): Inspection {
-        $inspection = Inspection::create([
+        $inspection = Inspection::forceCreate([
             'reference_type' => $referenceType,
             'reference_id' => $referenceId,
             'inspected_by' => $staff->id,
