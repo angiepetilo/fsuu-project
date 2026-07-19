@@ -47,4 +47,39 @@ class User extends Authenticatable
             'password' => 'hashed',
         ];
     }
+
+    public function office()
+    {
+        return $this->belongsTo(Office::class);
+    }
+
+    public function isSuperAdmin(): bool
+    {
+        return $this->role === 'super_admin';
+    }
+
+    public function isHead(): bool
+    {
+        return $this->role === 'head';
+    }
+
+    public function isStaff(): bool
+    {
+        return $this->role === 'staff';
+    }
+    public function hasPermission(string $key): bool
+{
+    if ($this->isSuperAdmin() || $this->isHead()) {
+        return true;
+    }
+
+    return $this->permissions()->where('key', $key)->exists();
+    }
+
+    public function permissions()
+    {
+        return $this->belongsToMany(Permission::class, 'user_permissions')
+            ->withPivot('granted_by')
+            ->withTimestamps();
+    }
 }

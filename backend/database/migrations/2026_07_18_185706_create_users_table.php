@@ -19,6 +19,8 @@ return new class extends Migration
             $table->string('password');
             $table->rememberToken();
             $table->timestamps();
+            $table->foreignId('office_id')->nullable()->constrained('offices')->nullOnDelete();
+            $table->string('role'); // super_admin, head, staff
         });
 
         Schema::create('password_reset_tokens', function (Blueprint $table) {
