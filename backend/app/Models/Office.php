@@ -9,13 +9,26 @@ class Office extends Model
 {
     use HasFactory;
 
-    protected $fillable = [
+        protected $fillable = [
         'name',
         'code',
         'type',
         'can_view_office_id',
     ];
 
+    protected $hidden = [
+        'pin_hash',
+    ];
+
+    public function setPin(string $rawPin): void
+    {
+        $this->update(['pin_hash' => bcrypt($rawPin)]);
+    }
+
+    public function checkPin(string $rawPin): bool
+    {
+        return $this->pin_hash && \Illuminate\Support\Facades\Hash::check($rawPin, $this->pin_hash);
+    }
     public function viewableOffice()
     {
         return $this->belongsTo(Office::class, 'can_view_office_id');

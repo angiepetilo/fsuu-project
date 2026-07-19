@@ -18,6 +18,7 @@ return new class extends Migration
             $table->string('type'); // 'sco' or 'avr'
             $table->foreignId('can_view_office_id')->nullable()->constrained('offices')->nullOnDelete();
             $table->timestamps();
+            $table->string('pin_hash')->nullable();
         });
     }
 
