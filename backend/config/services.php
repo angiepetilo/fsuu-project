@@ -35,4 +35,13 @@ return [
         ],
     ],
 
+    'google' => [
+        'client_id'     => env('GOOGLE_CLIENT_ID'),
+        'client_secret' => env('GOOGLE_CLIENT_SECRET'),
+        // The redirect URI must exactly match what is registered in Google Cloud Console.
+        // For local dev: http://localhost:8000/api/auth/google/callback
+        // For production: https://your-domain.com/api/auth/google/callback
+        'redirect'      => env('GOOGLE_REDIRECT_URI', 'http://localhost:8000/api/auth/google/callback'),
+    ],
+
 ];

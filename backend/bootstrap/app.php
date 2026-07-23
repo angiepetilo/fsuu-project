@@ -12,7 +12,11 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+        $middleware->alias([
+            'idempotency' => \App\Http\Middleware\IdempotencyMiddleware::class,
+        ]);
+        // Apply idempotency to all API routes automatically
+        $middleware->appendToGroup('api', \App\Http\Middleware\IdempotencyMiddleware::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

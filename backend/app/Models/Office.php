@@ -22,7 +22,7 @@ class Office extends Model
 
     public function setPin(string $rawPin): void
     {
-        $this->update(['pin_hash' => bcrypt($rawPin)]);
+        $this->forceFill(['pin_hash' => bcrypt($rawPin)])->save();
     }
 
     public function checkPin(string $rawPin): bool

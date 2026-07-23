@@ -5,6 +5,9 @@ namespace App\Services;
 use App\Exceptions\BookingActionNotAllowedException;
 use App\Exceptions\EquipmentUnavailableException;
 use App\Exceptions\ExternalRequiresVenueBookingException;
+use App\Enums\UnitStatus;
+use App\Jobs\SendBookingConfirmationJob;
+use App\Jobs\SendBookingStatusUpdateJob;
 use App\Models\Approval;
 use App\Models\AvrVenueBooking;
 use App\Models\EquipmentBorrowing;
@@ -25,6 +28,7 @@ class AvrEquipmentBorrowingService
     {
         return DB::transaction(function () use ($data) {
             $this->assertExternalHasVenueBooking($data);
+            $this->assertSingleOffice($data['items']);
 
             foreach ($data['items'] as $item) {
                 $this->assertQuantityAvailable(
@@ -63,6 +67,9 @@ class AvrEquipmentBorrowingService
                 ]);
             }
 
+            // Dispatch confirmation email asynchronously
+            SendBookingConfirmationJob::dispatch('equipment', $borrowing->load('items'));
+
             return $borrowing->fresh('items');
         });
     }
@@ -90,6 +97,9 @@ class AvrEquipmentBorrowingService
                 $borrowing->contact_preference === 'email' ? $borrowing->requestor_email : $borrowing->requestor_contact_number
             );
 
+            // Dispatch status update email asynchronously
+            SendBookingStatusUpdateJob::dispatch('equipment', $borrowing->fresh(), 'approved', $remarks);
+
             return $borrowing->fresh();
         });
     }
@@ -116,6 +126,9 @@ class AvrEquipmentBorrowingService
                 $borrowing->contact_preference,
                 $borrowing->contact_preference === 'email' ? $borrowing->requestor_email : $borrowing->requestor_contact_number
             );
+
+            // Dispatch status update email asynchronously
+            SendBookingStatusUpdateJob::dispatch('equipment', $borrowing->fresh(), 'rejected', $remarks);
 
             return $borrowing->fresh();
         });
@@ -146,6 +159,9 @@ class AvrEquipmentBorrowingService
                 $borrowing->contact_preference === 'email' ? $borrowing->requestor_email : $borrowing->requestor_contact_number
             );
 
+            // Dispatch status update email asynchronously
+            SendBookingStatusUpdateJob::dispatch('equipment', $borrowing->fresh(), 'cancelled', $remarks);
+
             return $borrowing->fresh();
         });
     }
@@ -174,6 +190,19 @@ class AvrEquipmentBorrowingService
         }
     }
 
+    private function assertSingleOffice(array $items): void
+    {
+        $equipmentTypeIds = array_column($items, 'equipment_type_id');
+        
+        $officeIds = EquipmentType::whereIn('id', $equipmentTypeIds)
+            ->pluck('office_id')
+            ->unique();
+
+        if ($officeIds->count() > 1) {
+            throw new BookingActionNotAllowedException('A single request cannot contain equipment from multiple different offices.');
+        }
+    }
+
     private function assertQuantityAvailable(
         int $equipmentTypeId,
         int $requestedQuantity,
@@ -195,5 +224,47 @@ class AvrEquipmentBorrowingService
         if (($alreadyCommitted + $requestedQuantity) > $type->total_quantity) {
             throw new EquipmentUnavailableException();
         }
+    }
+
+    public function assignUnit(EquipmentBorrowingItem $item, string $barcode, User $actor): \App\Models\EquipmentBorrowingUnit
+    {
+        $unit = \App\Models\EquipmentUnit::where('barcode', $barcode)->firstOrFail();
+
+        if ($unit->equipment_type_id !== $item->equipment_type_id) {
+            throw new \App\Exceptions\BookingActionNotAllowedException('This unit does not match the requested equipment type.');
+        }
+
+        if (! $unit->isAvailableForBorrowing()) {
+            throw new \App\Exceptions\EquipmentUnavailableException('This equipment unit is not available for borrowing.');
+        }
+
+        $borrowing = $item->equipmentBorrowing;
+
+        // Check if unit is already assigned during this timeframe
+        $isConflict = \App\Models\EquipmentBorrowingUnit::where('equipment_unit_id', $unit->id)
+            ->whereHas('item.equipmentBorrowing', function ($query) use ($borrowing) {
+                $query->whereIn('status', ['pending', 'approved'])
+                    ->where('start_datetime', '<', $borrowing->end_datetime)
+                    ->where('end_datetime', '>', $borrowing->start_datetime);
+            })
+            ->exists();
+
+        if ($isConflict) {
+            throw new \App\Exceptions\EquipmentUnavailableException('This unit is already assigned to another booking during this time.');
+        }
+
+        // Create the assignment
+        $assignment = \App\Models\EquipmentBorrowingUnit::forceCreate([
+            'equipment_borrowing_item_id' => $item->id,
+            'equipment_unit_id' => $unit->id,
+        ]);
+
+        $this->auditLog->log($actor, 'equipment_unit_assigned', 'equipment_borrowing', $borrowing->id, [
+            'item_id' => $item->id,
+            'unit_id' => $unit->id,
+            'barcode' => $barcode,
+        ]);
+
+        return $assignment;
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\UnitStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -39,6 +40,6 @@ class EquipmentType extends Model
 
     public function availableUnitsCount(): int
     {
-        return $this->units()->where('is_available', true)->count();
+        return $this->units()->where('unit_status', UnitStatus::Available)->count();
     }
 }

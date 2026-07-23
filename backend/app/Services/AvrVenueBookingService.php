@@ -4,6 +4,8 @@ namespace App\Services;
 
 use App\Exceptions\BookingActionNotAllowedException;
 use App\Exceptions\VenueOverlapException;
+use App\Jobs\SendBookingConfirmationJob;
+use App\Jobs\SendBookingStatusUpdateJob;
 use App\Models\Approval;
 use App\Models\AvrVenueBooking;
 use App\Models\User;
@@ -21,6 +23,8 @@ class AvrVenueBookingService
     public function create(array $data): AvrVenueBooking
     {
         return DB::transaction(function () use ($data) {
+            $this->assertAtLeastThreeDaysAhead($data['start_datetime']);
+
             $venue = Venue::where('id', $data['venue_id'])
                 ->lockForUpdate()
                 ->firstOrFail();
@@ -38,26 +42,31 @@ class AvrVenueBookingService
 
             $referenceCode = $this->referenceCodeService->generate('VN');
 
-            return AvrVenueBooking::forceCreate([
-                'reference_code' => $referenceCode,
-                'venue_id' => $venue->id,
-                'requestor_name' => $data['requestor_name'],
-                'requestor_email' => $data['requestor_email'],
-                'requestor_contact_number' => $data['requestor_contact_number'],
-                'requestor_program_office' => $data['requestor_program_office'],
-                'requestor_identity_type' => $data['requestor_identity_type'],
-                'booking_classification' => $data['booking_classification'],
-                'purpose' => $data['purpose'],
-                'number_of_persons' => $data['number_of_persons'],
-                'title_of_reservation' => $data['title_of_reservation'],
-                'event_type' => $data['event_type'],
-                'equipment_notes' => $data['equipment_notes'] ?? null,
-                'contact_preference' => $data['contact_preference'],
-                'start_datetime' => $data['start_datetime'],
-                'end_datetime' => $data['end_datetime'],
-                'status' => 'pending',
-                'submitted_by' => $data['submitted_by'] ?? null,
+            $booking = AvrVenueBooking::forceCreate([
+                'reference_code'             => $referenceCode,
+                'venue_id'                   => $venue->id,
+                'requestor_name'             => $data['requestor_name'],
+                'requestor_email'            => $data['requestor_email'],
+                'requestor_contact_number'   => $data['requestor_contact_number'],
+                'requestor_program_office'   => $data['requestor_program_office'],
+                'requestor_identity_type'    => $data['requestor_identity_type'],
+                'booking_classification'     => $data['booking_classification'],
+                'purpose'                    => $data['purpose'],
+                'number_of_persons'          => $data['number_of_persons'],
+                'title_of_reservation'       => $data['title_of_reservation'],
+                'event_type'                 => $data['event_type'],
+                'equipment_notes'            => $data['equipment_notes'] ?? null,
+                'contact_preference'         => $data['contact_preference'],
+                'start_datetime'             => $data['start_datetime'],
+                'end_datetime'               => $data['end_datetime'],
+                'status'                     => 'pending',
+                'submitted_by'               => $data['submitted_by'] ?? null,
             ]);
+
+            // Dispatch confirmation email asynchronously
+            SendBookingConfirmationJob::dispatch('venue', $booking->load('venue'));
+
+            return $booking;
         });
     }
 
@@ -88,6 +97,9 @@ class AvrVenueBookingService
                 $booking->contact_preference === 'email' ? $booking->requestor_email : $booking->requestor_contact_number
             );
 
+            // Send status update email asynchronously
+            SendBookingStatusUpdateJob::dispatch('venue', $booking->fresh('venue'), 'approved', $remarks);
+
             return $booking->fresh();
         });
     }
@@ -114,6 +126,9 @@ class AvrVenueBookingService
                 $booking->contact_preference,
                 $booking->contact_preference === 'email' ? $booking->requestor_email : $booking->requestor_contact_number
             );
+
+            // Send status update email asynchronously
+            SendBookingStatusUpdateJob::dispatch('venue', $booking->fresh(), 'rejected', $remarks);
 
             return $booking->fresh();
         });
@@ -144,6 +159,9 @@ class AvrVenueBookingService
                 $booking->contact_preference === 'email' ? $booking->requestor_email : $booking->requestor_contact_number
             );
 
+            // Send status update email asynchronously
+            SendBookingStatusUpdateJob::dispatch('venue', $booking->fresh(), 'cancelled', $remarks);
+
             return $booking->fresh();
         });
     }
@@ -156,6 +174,15 @@ class AvrVenueBookingService
             throw new BookingActionNotAllowedException(
                 'Staff can no longer cancel this booking within 24 hours of the event. Only Head or Admin can proceed.'
             );
+        }
+    }
+
+    private function assertAtLeastThreeDaysAhead(string $startDatetime): void
+    {
+        $hoursUntilStart = now()->diffInHours($startDatetime, false);
+
+        if ($hoursUntilStart < 72) {
+            throw new \App\Exceptions\VenueReservationTooSoonException();
         }
     }
 }
