@@ -78,7 +78,7 @@ export default function Step3Details({
         <div className="flex flex-col gap-1.5">
           <label className="text-xs font-bold text-slate-900">Program / Department / Office <span className="text-red-500">*</span></label>
           <select required value={department} onChange={e => setDepartment(e.target.value)} className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all">
-            <option value="">Select Department...</option>
+            <option value="" disabled hidden>Select Department...</option>
             {programs.map(p => (
               <option key={p.id} value={p.name}>{p.name}</option>
             ))}
@@ -91,7 +91,7 @@ export default function Step3Details({
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-bold text-slate-900">Booking Classification <span className="text-red-500">*</span></label>
               <select required value={classification} onChange={e => setClassification(e.target.value)} className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600">
-                <option value="">Select Classification...</option>
+                <option value="" disabled hidden>Select Classification...</option>
                 <option value="organization">Student Organization Event</option>
                 <option value="academic">Academic Class / Exam / Defense</option>
                 <option value="admin">Administrative Meeting / Assembly</option>

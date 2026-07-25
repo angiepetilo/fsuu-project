@@ -13,10 +13,9 @@ import GoogleCallback from "./pages/auth/GoogleCallback";
 import ForgotPassword from "./pages/auth/ForgotPassword";
 
 // System Admin (Sysad) pages
-import SysadLayout from "./pages/admin/sysad/SysadLayout";
-import SysadDashboard from "./pages/admin/sysad/SysadDashboard";
+import SysadLayout         from "./pages/admin/sysad/SysadLayout";
 import SysadUserManagement from "./pages/admin/sysad/SysadUserManagement";
-import SysadSettings from "./pages/admin/sysad/SysadSettings";
+import SysadSettings       from "./pages/admin/sysad/SysadSettings";
 
 // AVR Admin pages
 import AvrLayout           from "./pages/admin/avr/AvrLayout";
@@ -85,8 +84,7 @@ function AppContent() {
 
           {/* System Admin (Sysad) — nested under SysadLayout */}
           <Route path="/sysad" element={<SysadLayout />}>
-            <Route index          element={<Navigate to="/sysad/dashboard" replace />} />
-            <Route path="dashboard"       element={<SysadDashboard />} />
+            <Route index          element={<Navigate to="/sysad/user-management" replace />} />
             <Route path="user-management" element={<SysadUserManagement />} />
             <Route path="settings"        element={<SysadSettings />} />
           </Route>

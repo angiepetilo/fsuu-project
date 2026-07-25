@@ -38,16 +38,74 @@ class UserSeeder extends Seeder
         );
 
         // ── System Administrator ───────────────────────────────────────────────
-        // Has NO office_id — the portal auto-routes to /sysad/dashboard on login.
-        // Manages all offices, user accounts, settings, and reports.
+        // Role: admin (User Management only — creates and manages staff accounts)
         User::updateOrCreate(
             ['email' => 'admin'],
             [
                 'name'           => 'System Administrator',
-                'personal_email' => null,
+                'personal_email' => 'admin@fsuu.edu.ph',
                 'password'       => Hash::make('admin123'),
-                'office_id'      => null,   // null = system-level, not tied to any office
+                'office_id'      => null,   // null = system-level, no office
                 'role'           => 'admin',
+            ]
+        );
+
+        User::updateOrCreate(
+            ['email' => 'admin@fsuu.edu.ph'],
+            [
+                'name'           => 'System Administrator',
+                'personal_email' => 'admin@fsuu.edu.ph',
+                'password'       => Hash::make('admin123'),
+                'office_id'      => null,
+                'role'           => 'admin',
+            ]
+        );
+
+        // ── AVR Office Administrator ──────────────────────────────────────────
+        // Role: staff (Manages AVR venue bookings, equipment borrowing & inventory)
+        User::updateOrCreate(
+            ['email' => 'avradmin'],
+            [
+                'name'           => 'AVR Manager',
+                'personal_email' => 'avr@fsuu.edu.ph',
+                'password'       => Hash::make('admin123'),
+                'office_id'      => $avrOffice->id,
+                'role'           => 'staff',
+            ]
+        );
+
+        User::updateOrCreate(
+            ['email' => 'avr@fsuu.edu.ph'],
+            [
+                'name'           => 'AVR Manager',
+                'personal_email' => 'avr@fsuu.edu.ph',
+                'password'       => Hash::make('admin123'),
+                'office_id'      => $avrOffice->id,
+                'role'           => 'staff',
+            ]
+        );
+
+        // ── SCO Office Administrator ──────────────────────────────────────────
+        // Role: staff (Manages SCO studio reservations & equipment)
+        User::updateOrCreate(
+            ['email' => 'scoadmin'],
+            [
+                'name'           => 'SCO Manager',
+                'personal_email' => 'sco@fsuu.edu.ph',
+                'password'       => Hash::make('admin123'),
+                'office_id'      => $scoOffice->id,
+                'role'           => 'staff',
+            ]
+        );
+
+        User::updateOrCreate(
+            ['email' => 'sco@fsuu.edu.ph'],
+            [
+                'name'           => 'SCO Manager',
+                'personal_email' => 'sco@fsuu.edu.ph',
+                'password'       => Hash::make('admin123'),
+                'office_id'      => $scoOffice->id,
+                'role'           => 'staff',
             ]
         );
     }

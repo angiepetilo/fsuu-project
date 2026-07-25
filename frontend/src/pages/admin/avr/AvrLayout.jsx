@@ -1,46 +1,25 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate, Outlet } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
-import api from "@/lib/axios";
+import { NotificationBell } from "@/components/ui/notification-bell";
 import {
-  LayoutDashboard, CalendarCheck, PackageOpen, Settings,
-  ChevronRight, LogOut, Bell, Menu, X, Box, Building2,
-  FileBarChart2, User, ChevronDown, History, Warehouse,
-  AlertTriangle, Clock, CheckCircle, Users
+  LayoutDashboard, Building2, PackageOpen, Settings,
+  ChevronRight, LogOut, Menu, X, User, ChevronDown, History, Warehouse,
+  FileBarChart2, Landmark, SlidersHorizontal
 } from "lucide-react";
 
+// Best suited icons for Venue Booking & Equipment Borrowing
 const NAV_ITEMS = [
-  { label: "Dashboard",           icon: LayoutDashboard, path: "/avr/dashboard" },
-  { label: "Venue Bookings",      icon: Building2,        path: "/avr/venue-bookings" },
-  { label: "Equipment Borrowing", icon: PackageOpen,      path: "/avr/equipment-borrowing" },
-  { label: "Manage Venue",        icon: CalendarCheck,    path: "/avr/manage-venue" },
-  { label: "Manage Equipment",    icon: Box,              path: "/avr/manage-equipment" },
-  { label: "History Log",         icon: History,          path: "/avr/history-log" },
-  { label: "Inventory",           icon: Warehouse,        path: "/avr/inventory" },
-  { label: "Reports",             icon: FileBarChart2,    path: "/avr/reports" },
-  { label: "Settings",            icon: Settings,         path: "/avr/settings" },
+  { label: "Dashboard",           icon: LayoutDashboard,    path: "/avr/dashboard",           subtitle: "Real-time overview of venue reservations, equipment loans, and inventory health." },
+  { label: "Venue Bookings",      icon: Landmark,           path: "/avr/venue-bookings",      subtitle: "Review, approve, and manage campus venue reservation requests." },
+  { label: "Equipment Borrowing", icon: SlidersHorizontal,  path: "/avr/equipment-borrowing", subtitle: "Track multimedia equipment requests, issue items, and record returns." },
+  { label: "Manage Venue",        icon: Building2,          path: "/avr/manage-venue",        subtitle: "Configure venue schedules, availability calendars, and room rules." },
+  { label: "Manage Equipment",    icon: PackageOpen,        path: "/avr/manage-equipment",    subtitle: "Manage technical equipment inventory units, barcodes, and statuses." },
+  { label: "History Log",         icon: History,            path: "/avr/history-log",         subtitle: "Complete audit trail of all venue bookings and equipment transactions." },
+  { label: "Inventory",           icon: Warehouse,          path: "/avr/inventory",           subtitle: "Real-time stock levels, maintenance logs, and damage reports." },
+  { label: "Reports",             icon: FileBarChart2,      path: "/avr/reports",             subtitle: "Generate statistical reports and utilization metrics for campus assets." },
+  { label: "Settings",            icon: Settings,           path: "/avr/settings",            subtitle: "Configure operational settings, program rules, and user profile." },
 ];
-
-const NOTIF_TYPE_CONFIG = {
-  pending_booking:   { icon: Clock,         color: "text-amber-500",  bg: "bg-amber-50" },
-  pending_borrowing: { icon: PackageOpen,   color: "text-blue-500",   bg: "bg-blue-50" },
-  damage_report:     { icon: AlertTriangle, color: "text-red-500",    bg: "bg-red-50" },
-  overdue_return:    { icon: Clock,         color: "text-orange-500", bg: "bg-orange-50" },
-};
-
-function Tooltip({ label, children }) {
-  return (
-    <div className="relative group">
-      {children}
-      <div className="absolute left-full ml-3 top-1/2 -translate-y-1/2 z-50 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-150">
-        <div className="bg-slate-900 text-white text-xs font-semibold px-2.5 py-1.5 rounded-lg whitespace-nowrap shadow-lg">
-          {label}
-          <div className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-slate-900" />
-        </div>
-      </div>
-    </div>
-  );
-}
 
 export default function AvrLayout() {
   const { user, logout } = useAuth();
@@ -50,78 +29,51 @@ export default function AvrLayout() {
   const [sidebarOpen, setSidebarOpen]   = useState(true);
   const [mobileOpen, setMobileOpen]     = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const [notifOpen, setNotifOpen]       = useState(false);
-  const [notifications, setNotifications] = useState([]);
-  const [notifCount, setNotifCount]     = useState(0);
-  const notifRef = useRef(null);
 
   useEffect(() => {
-    if (!user) { navigate("/login", { replace: true }); return; }
-    fetchNotifications();
-    const interval = setInterval(fetchNotifications, 30000);
-    return () => clearInterval(interval);
+    if (!user) { navigate("/login", { replace: true }); }
   }, [user, navigate]);
 
-  const fetchNotifications = async () => {
-    try {
-      const { data } = await api.get("/avr/notifications");
-      setNotifications(data.data ?? []);
-      setNotifCount(data.count ?? 0);
-    } catch { /* silent fail */ }
+  const handleLogout = async () => {
+    await logout();
+    navigate("/login");
   };
 
-  // Close notification panel on outside click
-  useEffect(() => {
-    const handler = (e) => {
-      if (notifRef.current && !notifRef.current.contains(e.target)) setNotifOpen(false);
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
-
-  const handleLogout = async () => { await logout(); navigate("/login"); };
   const isActive = (path) => location.pathname === path || location.pathname.startsWith(path + "/");
+  const currentNav = NAV_ITEMS.find(n => isActive(n.path)) ?? NAV_ITEMS[0];
 
   const avatar = user?.avatar
     ? <img src={user.avatar} alt={user.name} className="w-8 h-8 rounded-full object-cover" />
-    : <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center text-white text-xs font-bold">{user?.name?.charAt(0)?.toUpperCase() ?? "A"}</div>;
+    : <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center text-white text-xs font-bold">{user?.name?.charAt(0)?.toUpperCase() ?? "A"}</div>;
 
   if (!user) return null;
 
   return (
-    <div className="min-h-screen bg-[#f3f6fa] flex font-sans">
-
+    <div className="min-h-screen bg-[#f3f6fa] flex font-sans overflow-x-hidden">
       {/* ── Sidebar ── */}
-      <aside
-        className={`
-          fixed inset-y-0 left-0 z-40 flex flex-col bg-[#0f1c3f] text-white transition-all duration-300 ease-in-out
-          ${sidebarOpen ? "w-64" : "w-[72px]"}
-          ${mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
-        `}
-      >
-        {/* Logo */}
-        <div className={`flex items-center gap-3 px-5 py-5 border-b border-white/10 ${!sidebarOpen && "justify-center px-0"}`}>
+      <aside className={`fixed inset-y-0 left-0 z-40 flex flex-col bg-[#0b1329] text-white transition-all duration-300 ${sidebarOpen ? "w-64" : "w-[72px]"}`}>
+        {/* Logo Header */}
+        <div className="flex items-center gap-3 px-5 py-5 border-b border-white/10">
           <img src="/fsuu_logo.png" alt="FSUU" className="h-9 w-9 flex-shrink-0" />
           {sidebarOpen && (
             <div>
-              <p className="font-extrabold text-sm tracking-tight leading-tight">AVR Admin</p>
-              <p className="text-[10px] text-white/50 font-medium">System Administrator</p>
+              <p className="font-black text-sm tracking-tight leading-tight">FSUU Reserve</p>
+              <p className="text-[10px] text-blue-300 font-semibold uppercase tracking-wider">AVR Admin Portal</p>
             </div>
           )}
         </div>
 
-        {/* Nav */}
-        <nav className="flex-1 overflow-y-auto py-4 px-2 space-y-0.5">
+        {/* Navigation Items */}
+        <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
           {NAV_ITEMS.map(({ label, icon: Icon, path }) => {
             const active = isActive(path);
-            const item = (
+            return (
               <Link
                 key={path}
                 to={path}
-                onClick={() => setMobileOpen(false)}
                 className={`
-                  flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all duration-150
-                  ${active ? "bg-blue-600 text-white shadow-lg shadow-blue-600/30" : "text-white/60 hover:text-white hover:bg-white/10"}
+                  flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-semibold transition-all duration-150
+                  ${active ? "bg-blue-600 text-white shadow-lg shadow-blue-600/30 font-bold" : "text-white/60 hover:text-white hover:bg-white/10"}
                   ${!sidebarOpen && "justify-center px-2"}
                 `}
               >
@@ -130,43 +82,32 @@ export default function AvrLayout() {
                 {sidebarOpen && active && <ChevronRight size={14} className="ml-auto" />}
               </Link>
             );
-            return !sidebarOpen
-              ? <Tooltip key={path} label={label}>{item}</Tooltip>
-              : item;
           })}
         </nav>
 
-        {/* Collapse toggle */}
-        <button
-          onClick={() => setSidebarOpen(v => !v)}
-          className="hidden lg:flex items-center justify-center h-10 mx-3 mb-3 rounded-xl text-white/40 hover:text-white hover:bg-white/10 transition-all text-xs gap-1.5"
-          title={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
-        >
-          {sidebarOpen ? <><ChevronRight size={14} className="rotate-180" /><span>Collapse</span></> : <ChevronRight size={14} />}
-        </button>
-
-        {/* User card */}
-        <div className={`border-t border-white/10 p-3 ${!sidebarOpen && "flex justify-center"}`}>
-          {sidebarOpen ? (
-            <div className="flex items-center gap-3 px-2 py-2 rounded-xl hover:bg-white/10 transition-all cursor-pointer" onClick={() => setUserMenuOpen(v => !v)}>
-              {avatar}
+        {/* Sidebar Footer User Card */}
+        <div className="border-t border-white/10 p-3">
+          <div className="flex items-center gap-3 px-2 py-2 rounded-xl hover:bg-white/10 transition-all cursor-pointer" onClick={() => setUserMenuOpen(v => !v)}>
+            {avatar}
+            {sidebarOpen && (
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-bold text-white truncate">{user?.name ?? "Admin"}</p>
-                <p className="text-[10px] text-white/40 truncate">System Administrator</p>
+                <p className="text-[10px] text-blue-300 truncate font-medium">AVR Manager</p>
               </div>
-              <ChevronDown size={12} className={`text-white/40 transition-transform ${userMenuOpen ? "rotate-180" : ""}`} />
-            </div>
-          ) : (
-            <div title={user?.name}>{avatar}</div>
-          )}
-          {sidebarOpen && userMenuOpen && (
-            <div className="mt-1 mx-1 bg-white/10 rounded-xl overflow-hidden">
-              <Link to="/avr/settings" onClick={() => { setUserMenuOpen(false); setMobileOpen(false); }}
-                className="w-full flex items-center gap-2 px-3 py-2 text-xs text-white/70 hover:bg-white/10 transition-all font-semibold">
+            )}
+            {sidebarOpen && <ChevronDown size={12} className={`text-white/40 transition-transform ${userMenuOpen ? "rotate-180" : ""}`} />}
+          </div>
+
+          {userMenuOpen && (
+            <div className="mt-1 mx-1 bg-white/10 rounded-xl overflow-hidden animate-in fade-in duration-150">
+              <Link
+                to="/avr/settings?tab=profile"
+                onClick={() => setUserMenuOpen(false)}
+                className="w-full flex items-center gap-2 px-3 py-2 text-xs text-white/90 hover:bg-white/10 transition-all font-semibold"
+              >
                 <User size={13} /> Profile
               </Link>
-              <button onClick={handleLogout}
-                className="w-full flex items-center gap-2 px-3 py-2 text-xs text-red-400 hover:bg-white/10 transition-all font-semibold">
+              <button onClick={handleLogout} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-red-400 hover:bg-white/10 transition-all font-semibold">
                 <LogOut size={13} /> Sign Out
               </button>
             </div>
@@ -174,87 +115,41 @@ export default function AvrLayout() {
         </div>
       </aside>
 
-      {/* Mobile overlay */}
+      {/* Mobile Overlay */}
       {mobileOpen && <div className="fixed inset-0 bg-black/60 z-30 lg:hidden" onClick={() => setMobileOpen(false)} />}
 
       {/* ── Main Content ── */}
       <div className={`flex-1 flex flex-col min-h-screen transition-all duration-300 ${sidebarOpen ? "lg:ml-64" : "lg:ml-[72px]"}`}>
 
-        {/* Top Nav */}
-        <header className="sticky top-0 z-20 bg-white/80 backdrop-blur-md border-b border-slate-200 shadow-sm">
-          <div className="flex items-center justify-between px-5 h-14">
+        {/* Top Navbar Header */}
+        <header className="sticky top-0 z-20 bg-white/90 backdrop-blur-md border-b border-slate-200/80 shadow-sm py-2">
+          <div className="flex items-center justify-between px-6 min-h-[56px]">
+            
+            {/* Left: Collapse Toggle + Page Title & Subtitle aligned with sidebar line */}
             <div className="flex items-center gap-3">
-              <button className="lg:hidden p-2 rounded-xl hover:bg-slate-100 transition-all" onClick={() => setMobileOpen(v => !v)}>
-                {mobileOpen ? <X size={18} /> : <Menu size={18} />}
+              <button
+                onClick={() => setSidebarOpen(v => !v)}
+                className="p-2 rounded-xl hover:bg-slate-100 transition-all text-slate-600 hover:text-slate-900 shrink-0"
+                title={sidebarOpen ? "Collapse Sidebar" : "Expand Sidebar"}
+              >
+                <Menu size={18} />
               </button>
-              <div className="flex items-center gap-2 text-sm">
-                <span className="text-slate-400 font-medium">AVR Admin</span>
-                <ChevronRight size={14} className="text-slate-300" />
-                <span className="text-slate-900 font-bold">
-                  {NAV_ITEMS.find(n => isActive(n.path))?.label ?? "Dashboard"}
-                </span>
+
+              <div>
+                <h1 className="text-slate-900 font-extrabold text-base tracking-tight leading-tight">
+                  {currentNav.label}
+                </h1>
+                <p className="text-[11px] text-slate-500 font-medium leading-tight mt-0.5">
+                  {currentNav.subtitle}
+                </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-3" ref={notifRef}>
-              {/* Notification Bell */}
-              <div className="relative">
-                <button
-                  onClick={() => setNotifOpen(v => !v)}
-                  className="relative p-2 rounded-xl hover:bg-slate-100 transition-all"
-                  title="Notifications"
-                >
-                  <Bell size={18} className="text-slate-600" />
-                  {notifCount > 0 && (
-                    <span className="absolute top-1 right-1 min-w-[18px] h-[18px] rounded-full bg-red-500 ring-2 ring-white flex items-center justify-center text-[10px] font-bold text-white px-0.5">
-                      {notifCount > 9 ? "9+" : notifCount}
-                    </span>
-                  )}
-                </button>
-
-                {/* Notification Panel */}
-                {notifOpen && (
-                  <div className="absolute right-0 top-12 w-80 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 overflow-hidden animate-in slide-in-from-top-2 duration-200">
-                    <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
-                      <p className="font-bold text-slate-900 text-sm">Notifications</p>
-                      <button onClick={() => setNotifOpen(false)} className="text-slate-400 hover:text-slate-700"><X size={14} /></button>
-                    </div>
-                    <div className="max-h-80 overflow-y-auto divide-y divide-slate-50">
-                      {notifications.length === 0 ? (
-                        <div className="p-6 text-center text-slate-400 text-sm">All clear — no alerts</div>
-                      ) : notifications.slice(0, 12).map((n) => {
-                        const cfg = NOTIF_TYPE_CONFIG[n.type] ?? { icon: Bell, color: "text-slate-500", bg: "bg-slate-50" };
-                        const Icon = cfg.icon;
-                        return (
-                          <Link key={n.id} to={n.link} onClick={() => setNotifOpen(false)}
-                            className="flex items-start gap-3 px-4 py-3 hover:bg-slate-50 transition-colors">
-                            <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5 ${cfg.bg}`}>
-                              <Icon size={14} className={cfg.color} />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-xs font-bold text-slate-800">{n.title}</p>
-                              <p className="text-xs text-slate-500 truncate">{n.message}</p>
-                              <p className="text-[10px] text-slate-300 mt-0.5">
-                                {n.time ? new Date(n.time).toLocaleString() : ""}
-                              </p>
-                            </div>
-                          </Link>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* User */}
-              <div className="flex items-center gap-2 pl-2 border-l border-slate-200">
-                {avatar}
-                <div className="hidden sm:block">
-                  <p className="text-xs font-bold text-slate-800">{user?.name ?? "Admin"}</p>
-                  <p className="text-[10px] text-slate-400">System Administrator</p>
-                </div>
-              </div>
+            {/* Right: Notification Bell */}
+            <div className="flex items-center gap-2">
+              <NotificationBell />
             </div>
+
           </div>
         </header>
 

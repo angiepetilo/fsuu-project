@@ -16,9 +16,14 @@ class AuthController extends Controller
         ]);
 
         if (!Auth::attempt($request->only('email', 'password'))) {
-            throw ValidationException::withMessages([
-                'email' => ['Invalid credentials.'],
-            ]);
+            $userByPersonal = \App\Models\User::where('personal_email', $request->email)->first();
+            if ($userByPersonal && \Illuminate\Support\Facades\Hash::check($request->password, $userByPersonal->password)) {
+                Auth::login($userByPersonal);
+            } else {
+                throw ValidationException::withMessages([
+                    'email' => ['Invalid credentials.'],
+                ]);
+            }
         }
 
         $user = auth()->user()->load('office');

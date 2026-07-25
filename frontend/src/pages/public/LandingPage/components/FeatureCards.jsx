@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Building2, Camera, AlertTriangle, ArrowRight } from "lucide-react";
+import { Building2, Camera, Info, ArrowRight } from "lucide-react";
 import { AppCard } from "@/components/ui/app-card";
 
 export default function FeatureCards() {
@@ -14,10 +14,10 @@ export default function FeatureCards() {
             <Building2 size={26} className="stroke-[2]" />
           </div>
 
-          {/* Warning Badge */}
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-50 text-red-600 border border-red-200/60 text-[11px] font-extrabold uppercase tracking-wider mb-4">
-            <AlertTriangle size={12} className="shrink-0" />
-            <span>Strictly 3 Days Booking. No Excuses!</span>
+          {/* Info Notice Badge */}
+          <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-blue-50/80 text-blue-700 border border-blue-100 text-[11px] font-bold mb-4">
+            <Info size={13} className="shrink-0 text-blue-600" />
+            <span>Bookings require at least 3 days advance notice</span>
           </div>
 
           {/* Title */}
@@ -49,8 +49,8 @@ export default function FeatureCards() {
             <Camera size={26} className="stroke-[2]" />
           </div>
 
-          {/* Badge Placeholder for vertical balance */}
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-50 text-slate-500 border border-slate-200/60 text-[11px] font-extrabold uppercase tracking-wider mb-4 opacity-0 pointer-events-none select-none">
+          {/* Badge Placeholder for vertical alignment */}
+          <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-slate-50 text-slate-500 border border-slate-200/60 text-[11px] font-bold mb-4 opacity-0 pointer-events-none select-none">
             <span>Placeholder</span>
           </div>
 

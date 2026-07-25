@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import api from "@/lib/axios";
 import { useDataCache } from "@/hooks/useDataCache";
 import { Settings, Loader2, AlertCircle, Plus, Trash2, Clock, Tag, User, ClipboardList, ImagePlus, Pencil, X } from "lucide-react";
@@ -291,14 +292,22 @@ function ProfileTab() {
 function ProgramsTab() {
   const [programs, setPrograms] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [form, setForm] = useState({ name: "", description: "" });
   const [saving, setSaving] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(null);
 
   const fetch = async () => {
     setLoading(true);
-    try { const { data } = await api.get("/programs"); setPrograms(data); }
-    catch { } finally { setLoading(false); }
+    setError(null);
+    try {
+      const { data } = await api.get("/programs");
+      setPrograms(data);
+    } catch {
+      setError("Could not load registered programs. Please check your connection and try again.");
+    } finally {
+      setLoading(false);
+    }
   };
   useEffect(() => { fetch(); }, []);
 
@@ -338,6 +347,19 @@ function ProgramsTab() {
         </button>
       </div>
 
+      {/* Error Fallback Notice */}
+      {error && (
+        <div className="p-4 bg-red-50 border border-red-200 rounded-2xl flex items-center justify-between text-xs text-red-700 font-semibold">
+          <div className="flex items-center gap-2">
+            <AlertCircle size={16} className="shrink-0" />
+            <span>{error}</span>
+          </div>
+          <button onClick={fetch} className="px-3 py-1 bg-red-600 text-white rounded-lg font-bold hover:bg-red-700 transition-colors">
+            Retry
+          </button>
+        </div>
+      )}
+
       {/* List */}
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
@@ -351,9 +373,9 @@ function ProgramsTab() {
             </thead>
             <tbody className="divide-y divide-slate-50">
               {loading
-                ? <tr><td colSpan={3} className="text-center py-8 text-slate-400"><Loader2 size={16} className="animate-spin inline mr-1" />Loading…</td></tr>
-                : programs.length === 0
-                  ? <tr><td colSpan={3} className="text-center py-8 text-slate-400">No programs registered.</td></tr>
+                ? <tr><td colSpan={3} className="text-center py-8 text-slate-400"><Loader2 size={16} className="animate-spin inline mr-1" />Loading programs…</td></tr>
+                : programs.length === 0 && !error
+                  ? <tr><td colSpan={3} className="text-center py-8 text-slate-400 text-xs">No programs registered. Use the form above to add a new academic program.</td></tr>
                   : programs.map(p => (
                     <tr key={p.id} className="hover:bg-slate-50/60 transition-colors">
                       <td className="px-4 py-3 font-semibold text-slate-800 text-xs">{p.name}</td>
@@ -376,7 +398,14 @@ function ProgramsTab() {
 }
 
 export default function AvrSettings() {
-  const [activeTab, setActiveTab] = useState("categories");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialTab = searchParams.get("tab") || "profile";
+  const [activeTab, setActiveTab] = useState(initialTab);
+
+  const handleTabChange = (key) => {
+    setActiveTab(key);
+    setSearchParams({ tab: key });
+  };
 
   const renderTab = () => {
     switch (activeTab) {
@@ -399,7 +428,7 @@ export default function AvrSettings() {
         {TABS.map(t => {
           const Icon = t.icon;
           return (
-            <button key={t.key} onClick={() => setActiveTab(t.key)}
+            <button key={t.key} onClick={() => handleTabChange(t.key)}
               className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-lg transition-all ${activeTab === t.key ? "bg-white shadow-sm text-slate-900" : "text-slate-500 hover:text-slate-700"}`}>
               <Icon size={13} /> {t.label}
             </button>
