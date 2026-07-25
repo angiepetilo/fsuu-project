@@ -13,8 +13,15 @@ class EquipmentUnit extends Model
     protected $fillable = [
         'equipment_type_id',
         'barcode',
+        'brand_model',
+        'condition_status',
+        'is_available',
         'unit_status',
         'unit_status_notes',
+        'updated_by',
+        'purchased_date',
+        'lifespan_years',
+        'image_path',
     ];
 
     protected function casts(): array
@@ -32,6 +39,11 @@ class EquipmentUnit extends Model
     public function borrowingUnit()
     {
         return $this->hasOne(EquipmentBorrowingUnit::class);
+    }
+
+    public function updater()
+    {
+        return $this->belongsTo(User::class, 'updated_by');
     }
 
     /** Units that can be assigned to a borrowing request. */

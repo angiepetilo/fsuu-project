@@ -25,14 +25,13 @@ class PublicTrackingController extends Controller
             $booking = ScoStudioReservation::with('venue')->where('reference_code', $referenceCode)->first();
         }
 
-        // We use identical responses to prevent enumeration of valid reference codes
-        $errorMessage = 'We could not find a booking matching this reference code and email address.';
+        $errorMessage = 'We could not find a booking matching this reference code.';
 
         if (! $booking) {
             return response()->json(['message' => $errorMessage], 404);
         }
 
-        if ($booking->requestor_email !== $email) {
+        if ($email && $booking->requestor_email !== $email) {
             return response()->json(['message' => $errorMessage], 404);
         }
 

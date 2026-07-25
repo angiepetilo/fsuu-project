@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import { useDataCache } from "@/hooks/useDataCache";
 import {
   ChevronDown, ChevronUp, User, Users, GraduationCap, PackageOpen,
   UploadCloud, ShieldCheck, Download, Check, Sparkles, Camera,
@@ -17,8 +18,6 @@ import Step4Verification from "./components/Step4Verification";
 export default function EquipmentBorrowing() {
   const [activeStep, setActiveStep] = useState(1);
   const [completedSteps, setCompletedSteps] = useState([]);
-  const [catalog, setCatalog] = useState([]);
-  const [catalogLoading, setCatalogLoading] = useState(true);
 
   // Selection States
   const [identity, setIdentity] = useState("");
@@ -46,12 +45,12 @@ export default function EquipmentBorrowing() {
     setContactNumber(e.target.value.replace(/\D/g, '').slice(0, 11));
   };
 
-  useEffect(() => {
-    api.get('/public/equipment-types')
-      .then(res => setCatalog(res.data ?? []))
-      .catch(() => setCatalog([]))
-      .finally(() => setCatalogLoading(false));
-  }, []);
+  const { data: cData, loading: cLoading } = useDataCache('public_equipment_types', '/public/equipment-types');
+  const { data: pData, loading: pLoading } = useDataCache('public_programs', '/public/programs');
+
+  const catalog = cData ?? [];
+  const programs = pData ?? [];
+  const catalogLoading = cLoading || pLoading;
 
   const filteredCatalog = equipmentCategory === "all"
     ? catalog
@@ -124,11 +123,29 @@ export default function EquipmentBorrowing() {
       const { data } = await api.post(endpoint, payload);
       
       setReferenceCode(data.reference_code || 'REF-SUCCESS');
+
+      // 2-Step Upload
+      if (endorsementFile) {
+        const formData = new FormData();
+        formData.append('file', endorsementFile);
+        formData.append('reference_type', 'equipment_borrowing');
+        formData.append('reference_code', data.reference_code || 'REF-SUCCESS');
+        formData.append('requestor_email', email);
+
+        try {
+          await api.post('/public/documents', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+          });
+        } catch (uploadError) {
+          console.error("Failed to upload endorsement letter:", uploadError);
+        }
+      }
+
       setShowSuccess(true);
     } catch (error) {
-      const msg = error.response?.data?.message || error.response?.data?.errors
+      const msg = error.response?.data?.errors
         ? Object.values(error.response.data.errors).flat().join(' ')
-        : 'Network error. Please try again.';
+        : error.response?.data?.message || 'Network error. Please try again.';
       alert("Failed to submit request: " + msg);
     } finally {
       setIsSubmitting(false);
@@ -138,127 +155,146 @@ export default function EquipmentBorrowing() {
 // StepHeader component moved to separate file
 
   return (
-    <div className="flex flex-col items-center w-full max-w-4xl mx-auto relative animate-in fade-in slide-in-from-bottom-5 duration-700 pb-12">
+    <div className="flex flex-col items-center w-full max-w-5xl mx-auto relative animate-in fade-in slide-in-from-bottom-5 duration-700 pb-12">
 
-      {/* Background aura */}
+      {/* Ambient background aura */}
       <div className="absolute top-[-5%] left-[20%] w-[500px] h-[500px] bg-gradient-to-tr from-amber-400/15 via-blue-400/10 to-indigo-300/10 rounded-full blur-3xl z-[-1] pointer-events-none"></div>
 
-      {/* Header Title */}
-      <div className="text-center mb-10 w-full">
-        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-50 border border-amber-200 text-amber-800 text-xs font-semibold mb-4 shadow-sm">
-          <PackageOpen size={14} className="text-amber-600" />
-          <span>Equipment Requisition System</span>
-        </div>
-        <h1 className="text-4xl sm:text-5xl font-extrabold text-slate-900 mb-3 tracking-tight">
-          Equipment Borrowing
-        </h1>
-        <p className="text-slate-500 font-medium max-w-xl mx-auto text-sm sm:text-base leading-relaxed text-center block w-full">
-          Request AV gear from AVR or professional video/audio broadcast equipment from SCO.
-        </p>
-      </div>
+      <div className="w-full relative z-10">
 
-      <div className="w-full flex flex-col gap-6 relative z-10">
+        {/* MAIN INTEGRATED WIZARD CARD CONTAINER */}
+        <div className="bg-white/95 backdrop-blur-xl border border-slate-200/80 rounded-3xl shadow-xl overflow-hidden transition-all duration-300">
 
-        {/* STEP 1: Identity Selection */}
-        <div className={`bg-white/80 backdrop-blur-md border border-slate-200/80 rounded-3xl shadow-sm transition-all overflow-hidden ${activeStep === 1 ? 'ring-2 ring-blue-600/20 shadow-md' : ''}`}>
-          <StepHeader 
-            stepNum={1} 
-            title="Identity Selection" 
-            subtitle="Choose requester classification" 
-            activeStep={activeStep}
-            completedSteps={completedSteps}
-            toggleStep={toggleStep}
-          />
+          {/* STEPPER PROGRESS TRACKER HEADER */}
+          <div className="bg-white border-b border-slate-100 px-6 pt-6 pb-4 sm:px-8 relative overflow-hidden">
+            {/* Centered Title */}
+            <h1 className="font-extrabold text-2xl sm:text-3xl tracking-tight text-slate-900 leading-tight mb-4 text-center">
+              Equipment Borrowing
+            </h1>
 
-          {activeStep === 1 && (
-            <Step1Identity 
-              identity={identity} 
-              handleIdentitySelect={handleIdentitySelect} 
-            />
-          )}
-        </div>
+            <div className="relative flex justify-between items-center max-w-2xl mx-auto px-2 sm:px-6">
+              {/* Connecting progress background line */}
+              <div className="absolute top-5 left-10 right-10 h-1 bg-slate-100 -translate-y-1/2 z-0 rounded-full"></div>
 
-        {/* STEP 2: Equipment Selection */}
-        <div className={`bg-white/80 backdrop-blur-md border border-slate-200/80 rounded-3xl shadow-sm transition-all overflow-hidden ${activeStep === 2 ? 'ring-2 ring-blue-600/20 shadow-md' : ''}`}>
-          <StepHeader 
-            stepNum={2} 
-            title="Equipment Catalog Selection" 
-            subtitle="Select AV items or SCO Media broadcast equipment" 
-            activeStep={activeStep}
-            completedSteps={completedSteps}
-            toggleStep={toggleStep}
-          />
+              {/* Active progress fill line */}
+              <div
+                className="absolute top-5 left-10 h-1 bg-gradient-to-r from-blue-600 to-indigo-600 -translate-y-1/2 z-0 rounded-full transition-all duration-500 ease-out"
+                style={{
+                  width: activeStep === 1 ? '0%' : activeStep === 2 ? '33.33%' : activeStep === 3 ? '66.66%' : 'calc(100% - 5rem)'
+                }}
+              ></div>
 
-          {activeStep === 2 && (
-            catalogLoading ? (
-              <div className="p-8 text-center text-slate-400 text-sm animate-pulse">
-                Loading equipment catalog…
-              </div>
-            ) : (
-              <Step2Equipment 
-                equipmentCategory={equipmentCategory}
-                setEquipmentCategory={setEquipmentCategory}
-                filteredCatalog={filteredCatalog}
-                selectedItems={selectedItems}
-                handleEquipmentToggle={handleEquipmentToggle}
-                isScoSelected={isScoSelected}
-                isAvrSelected={isAvrSelected}
-                handleEquipmentSubmit={handleEquipmentSubmit}
+              {/* Stepper Nodes */}
+              {[
+                { num: 1, label: "Identity", subtitle: "Role" },
+                { num: 2, label: "Equipment", subtitle: "Catalog" },
+                { num: 3, label: "Details", subtitle: "Form Info" },
+                { num: 4, label: "Verification", subtitle: "Security" },
+              ].map((s) => {
+                const isCompleted = completedSteps.includes(s.num) && activeStep !== s.num;
+                const isActive = activeStep === s.num;
+                const isClickable = completedSteps.includes(s.num) || s.num < activeStep;
+
+                return (
+                  <div
+                    key={s.num}
+                    onClick={() => isClickable && setActiveStep(s.num)}
+                    className={`relative z-10 flex flex-col items-center select-none transition-all ${isClickable ? 'cursor-pointer group' : 'cursor-default'}`}
+                  >
+                    <div className={`w-10 h-10 sm:w-11 sm:h-11 rounded-2xl flex items-center justify-center text-xs sm:text-sm font-black transition-all duration-300 shadow-md ${isCompleted
+                      ? 'bg-blue-600 text-white shadow-blue-600/20 group-hover:scale-110'
+                      : isActive
+                        ? 'bg-blue-600 text-white ring-4 ring-blue-600/20 shadow-blue-600/30 scale-110'
+                        : 'bg-white border-2 border-slate-200 text-slate-400'
+                      }`}>
+                      {isCompleted ? <CheckCircle2 size={20} /> : s.num}
+                    </div>
+                    <div className="text-center mt-3 hidden sm:block">
+                      <p className={`text-xs font-bold transition-colors ${isActive ? 'text-slate-900 font-extrabold' : isCompleted ? 'text-slate-700' : 'text-slate-400'}`}>
+                        {s.label}
+                      </p>
+                      <p className="text-[10px] text-slate-400 font-medium">{s.subtitle}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* STEP CONTENT AREA */}
+          <div className="p-6 md:p-10 animate-in fade-in duration-300">
+            {activeStep === 1 && (
+              <Step1Identity
+                identity={identity}
+                handleIdentitySelect={handleIdentitySelect}
               />
-            )
-          )}
-        </div>
+            )}
 
-        {/* STEP 3: Dynamic Fill Details (AVR vs SCO Equipment Forms) */}
-        <div className={`bg-white/80 backdrop-blur-md border border-slate-200/80 rounded-3xl shadow-sm transition-all overflow-hidden ${activeStep === 3 ? 'ring-2 ring-blue-600/20 shadow-md' : ''}`}>
-          <StepHeader
-            stepNum={3}
-            title={primaryDept === "sco" ? "SCO Media Equipment Borrowing Form" : "AVR Equipment Requisition Form"}
-            subtitle="Specify event venue location, transport details, and return timeframe"
-            activeStep={activeStep}
-            completedSteps={completedSteps}
-            toggleStep={toggleStep}
-          />
+            {activeStep === 2 && (
+              catalogLoading ? (
+                <div className="p-12 text-center text-slate-400 text-sm animate-pulse font-medium">
+                  Loading equipment catalog…
+                </div>
+              ) : (
+                <Step2Equipment
+                  equipmentCategory={equipmentCategory}
+                  setEquipmentCategory={setEquipmentCategory}
+                  filteredCatalog={filteredCatalog}
+                  selectedItems={selectedItems}
+                  handleEquipmentToggle={handleEquipmentToggle}
+                  isScoSelected={isScoSelected}
+                  isAvrSelected={isAvrSelected}
+                  handleEquipmentSubmit={handleEquipmentSubmit}
+                />
+              )
+            )}
 
-          {activeStep === 3 && (
-            <Step3Details 
-              primaryDept={primaryDept}
-              selectedItems={selectedItems}
-              handleDetailsSubmit={handleDetailsSubmit}
-              fullName={fullName} setFullName={setFullName}
-              email={email} setEmail={setEmail}
-              contactNumber={contactNumber} handleContactChange={handleContactChange}
-              startTime={startTime} setStartTime={setStartTime}
-              department={department} setDepartment={setDepartment}
-              endTime={endTime} setEndTime={setEndTime}
-              placeOfUse={placeOfUse} setPlaceOfUse={setPlaceOfUse}
-              handlerName={handlerName} setHandlerName={setHandlerName}
-              purpose={purpose} setPurpose={setPurpose}
-            />
-          )}
-        </div>
+            {activeStep === 3 && (
+              <Step3Details
+                primaryDept={primaryDept}
+                selectedItems={selectedItems}
+                handleDetailsSubmit={handleDetailsSubmit}
+                fullName={fullName} setFullName={setFullName}
+                email={email} setEmail={setEmail}
+                contactNumber={contactNumber} handleContactChange={handleContactChange}
+                startTime={startTime} setStartTime={setStartTime}
+                department={department} setDepartment={setDepartment}
+                endTime={endTime} setEndTime={setEndTime}
+                placeOfUse={placeOfUse} setPlaceOfUse={setPlaceOfUse}
+                handlerName={handlerName} setHandlerName={setHandlerName}
+                purpose={purpose} setPurpose={setPurpose}
+                programs={programs}
+              />
+            )}
 
-        {/* STEP 4: Requirements & Verification */}
-        <div className={`bg-white/80 backdrop-blur-md border border-slate-200/80 rounded-3xl shadow-sm transition-all overflow-hidden ${activeStep === 4 ? 'ring-2 ring-blue-600/20 shadow-md' : ''}`}>
-          <StepHeader 
-            stepNum={4} 
-            title="Requirements & Security Verification" 
-            subtitle="Upload borrower ID or endorsement and verify email" 
-            activeStep={activeStep}
-            completedSteps={completedSteps}
-            toggleStep={toggleStep}
-          />
+            {activeStep === 4 && (
+              <Step4Verification
+                email={email}
+                contactNumber={contactNumber}
+                otp={otp} setOtp={setOtp}
+                isOtpSent={isOtpSent} setIsOtpSent={setIsOtpSent}
+                isSubmitting={isSubmitting} handleVerifySubmit={handleVerifySubmit}
+                endorsementFile={endorsementFile} setEndorsementFile={setEndorsementFile}
+              />
+            )}
+          </div>
 
-          {activeStep === 4 && (
-            <Step4Verification 
-              email={email}
-              contactNumber={contactNumber}
-              otp={otp} setOtp={setOtp}
-              isOtpSent={isOtpSent} setIsOtpSent={setIsOtpSent}
-              isSubmitting={isSubmitting} handleVerifySubmit={handleVerifySubmit}
-              endorsementFile={endorsementFile} setEndorsementFile={setEndorsementFile}
-            />
-          )}
+          {/* WIZARD NAVIGATION FOOTER */}
+          <div className="px-6 md:px-10 py-5 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
+            {activeStep > 1 ? (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setActiveStep(activeStep - 1)}
+                className="px-5 py-2.5 rounded-xl border-slate-200 text-slate-700 font-bold text-xs hover:bg-white shadow-sm flex items-center gap-2"
+              >
+                ← Back to Step {activeStep - 1}
+              </Button>
+            ) : (
+              <span className="text-xs font-semibold text-slate-400">Step 1 of 4: Requester Role</span>
+            )}
+          </div>
+
         </div>
       </div>
 
@@ -282,12 +318,15 @@ export default function EquipmentBorrowing() {
             </div>
 
             <div className="flex flex-col gap-3">
-              <Button className="w-full py-6 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-blue-600/20">
+              <Button onClick={() => window.open(`${api.defaults.baseURL}/public/requisition-slip/equipment/${referenceCode}`, '_blank')} className="w-full py-6 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-blue-600/20">
                 <Download size={18} />
                 Download Requisition Slip (PDF)
               </Button>
               <Button asChild variant="outline" className="w-full py-6 rounded-xl border-slate-200 text-slate-700 font-bold text-sm hover:bg-slate-50">
                 <Link to="/track">Track Borrowing Status</Link>
+              </Button>
+              <Button variant="ghost" onClick={() => window.location.href = "/"} className="w-full py-4 rounded-xl text-slate-500 font-bold text-sm hover:bg-slate-100">
+                Exit / Done
               </Button>
             </div>
           </div>

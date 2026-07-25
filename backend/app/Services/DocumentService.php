@@ -22,6 +22,7 @@ class DocumentService
             'file_path' => $filePath,
             'document_type' => $documentType,
             'uploaded_by' => $uploadedBy?->id,
+            'status' => 'pending', // 3. STATUS: Hardcode status = 'pending'
         ]);
 
         $this->auditLog->log($uploadedBy, 'document_uploaded', $referenceType, $referenceId);

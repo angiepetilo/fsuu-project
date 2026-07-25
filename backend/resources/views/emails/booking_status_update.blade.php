@@ -71,8 +71,8 @@
       <div class="row"><span class="row-label">Reference Code</span><span class="row-value">{{ $booking->reference_code }}</span></div>
       <div class="row"><span class="row-label">Type</span><span class="row-value">{{ $type === 'venue' ? 'Venue Reservation' : 'Equipment Borrowing' }}</span></div>
       <div class="row"><span class="row-label">Status</span><span class="row-value" style="text-transform:capitalize;">{{ $status }}</span></div>
-      <div class="row"><span class="row-label">Start</span><span class="row-value">{{ \Carbon\Carbon::parse($booking->start_datetime)->format('M d, Y h:i A') }}</span></div>
-      <div class="row"><span class="row-label">End</span><span class="row-value">{{ \Carbon\Carbon::parse($booking->end_datetime)->format('M d, Y h:i A') }}</span></div>
+      <div class="row"><span class="row-label">Start</span><span class="row-value">{{ \Carbon\Carbon::parse($booking->start_datetime)->timezone('Asia/Manila')->format('M d, Y h:i A') }}</span></div>
+      <div class="row"><span class="row-label">End</span><span class="row-value">{{ \Carbon\Carbon::parse($booking->end_datetime)->timezone('Asia/Manila')->format('M d, Y h:i A') }}</span></div>
     </div>
 
     @if($remarks)

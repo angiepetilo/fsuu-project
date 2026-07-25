@@ -19,7 +19,8 @@ class InspectionController extends Controller
             $request->input('inspection_type'),
             $request->input('condition_notes'),
             $request->boolean('has_damage'),
-            $request->input('damage_charge_amount')
+            $request->input('damage_charge_amount'),
+            $request->file('evidences')
         );
 
         return response()->json($inspection, 201);

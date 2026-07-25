@@ -29,14 +29,20 @@ class AvrVenueBookingService
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            $hasOverlap = AvrVenueBooking::where('venue_id', $venue->id)
+            $hasBookingOverlap = AvrVenueBooking::where('venue_id', $venue->id)
                 ->whereIn('status', ['pending', 'approved'])
                 ->where('start_datetime', '<', $data['end_datetime'])
                 ->where('end_datetime', '>', $data['start_datetime'])
                 ->lockForUpdate()
                 ->exists();
 
-            if ($hasOverlap) {
+            $hasClosureOverlap = \App\Models\VenueClosure::where('venue_id', $venue->id)
+                ->where('start_time', '<', $data['end_datetime'])
+                ->where('end_time', '>', $data['start_datetime'])
+                ->lockForUpdate()
+                ->exists();
+
+            if ($hasBookingOverlap || $hasClosureOverlap) {
                 throw new VenueOverlapException();
             }
 
@@ -179,9 +185,12 @@ class AvrVenueBookingService
 
     private function assertAtLeastThreeDaysAhead(string $startDatetime): void
     {
-        $hoursUntilStart = now()->diffInHours($startDatetime, false);
+        $today = now()->timezone('Asia/Manila')->startOfDay();
+        $startDate = \Carbon\Carbon::parse($startDatetime, 'Asia/Manila')->startOfDay();
 
-        if ($hoursUntilStart < 72) {
+        $daysUntilStart = $today->diffInDays($startDate, false);
+
+        if ($daysUntilStart < 3) {
             throw new \App\Exceptions\VenueReservationTooSoonException();
         }
     }

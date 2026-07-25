@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import { useDataCache } from "@/hooks/useDataCache";
 import {
   ChevronDown, ChevronUp, User, Users, GraduationCap, MapPin,
   UploadCloud, ShieldCheck, Download, Check, Sparkles, Video,
@@ -15,10 +16,8 @@ import Step3Details from "./components/Step3Details";
 import Step4Verification from "./components/Step4Verification";
 
 export default function VenueBooking() {
-  const [activeStep, setActiveStep]       = useState(1);
+  const [activeStep, setActiveStep] = useState(1);
   const [completedSteps, setCompletedSteps] = useState([]);
-  const [venues, setVenues]               = useState([]);
-  const [venuesLoading, setVenuesLoading] = useState(true);
 
   // Form & Selection States
   const [identity, setIdentity] = useState("");
@@ -34,8 +33,8 @@ export default function VenueBooking() {
   const [email, setEmail] = useState("");
   const [department, setDepartment] = useState("");
   const [purpose, setPurpose] = useState("");
-  const [otp, setOtp]                   = useState("");
-  const [isOtpSent, setIsOtpSent]       = useState(false);
+  const [otp, setOtp] = useState("");
+  const [isOtpSent, setIsOtpSent] = useState(false);
   const [endorsementFile, setEndorsementFile] = useState(null);
 
   // AVR Specific Fields
@@ -63,13 +62,13 @@ export default function VenueBooking() {
     setContactNumber(e.target.value.replace(/\D/g, '').slice(0, 11));
   };
 
-  // Fetch real venues from backend
-  useEffect(() => {
-    api.get('/public/venues')
-      .then(res => setVenues(res.data ?? []))
-      .catch(() => setVenues([]))
-      .finally(() => setVenuesLoading(false));
-  }, []);
+  // Fetch real venues and programs from backend
+  const { data: vData, loading: vLoading } = useDataCache('public_venues', '/public/venues');
+  const { data: pData, loading: pLoading } = useDataCache('public_programs', '/public/programs');
+
+  const venues = vData ?? [];
+  const programs = pData ?? [];
+  const venuesLoading = vLoading || pLoading;
 
   const filteredVenues = venueCategory === "all"
     ? venues
@@ -101,11 +100,7 @@ export default function VenueBooking() {
         setShowPinModal(true);
         setPinError(false);
         setPinInput("");
-        return;
       }
-
-      if (!completedSteps.includes(2)) setCompletedSteps([...completedSteps, 2]);
-      setActiveStep(3);
     }
   };
 
@@ -116,9 +111,6 @@ export default function VenueBooking() {
       setIsPinVerified(true);
       setShowPinModal(false);
       setPinError(false);
-
-      if (!completedSteps.includes(2)) setCompletedSteps([...completedSteps, 2]);
-      setActiveStep(3);
     } else {
       setPinError(true);
     }
@@ -171,11 +163,30 @@ export default function VenueBooking() {
 
       const { data } = await api.post(endpoint, payload);
       setReferenceCode(data.reference_code || 'REF-SUCCESS');
+
+      // 2-Step Upload: If there is an endorsement file, upload it immediately after booking creation
+      if (endorsementFile) {
+        const formData = new FormData();
+        formData.append('file', endorsementFile);
+        formData.append('reference_type', selectedVenue?.type === 'avr' ? 'avr_venue_booking' : 'sco_studio_reservation');
+        formData.append('reference_code', data.reference_code || 'REF-SUCCESS');
+        formData.append('requestor_email', email);
+
+        try {
+          await api.post('/public/documents', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+          });
+        } catch (uploadError) {
+          console.error("Failed to upload endorsement letter:", uploadError);
+          // We can still proceed to show success, but maybe notify the user it failed
+        }
+      }
+
       setShowSuccess(true);
     } catch (error) {
-      const msg = error.response?.data?.message || error.response?.data?.errors
+      const msg = error.response?.data?.errors
         ? Object.values(error.response.data.errors).flat().join(' ')
-        : 'Network error. Please try again.';
+        : error.response?.data?.message || 'Network error. Please try again.';
       alert("Failed to submit: " + msg);
     } finally {
       setIsSubmitting(false);
@@ -190,115 +201,170 @@ export default function VenueBooking() {
       {/* Dynamic Background aura */}
       <div className="absolute top-[-5%] left-[20%] w-[500px] h-[500px] bg-gradient-to-tr from-blue-400/15 via-indigo-400/10 to-amber-300/10 rounded-full blur-3xl z-[-1] pointer-events-none"></div>
 
-      {/* Header Badge & Title */}
-      <div className="text-center mb-10 w-full">
-        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-50 border border-blue-100 text-blue-700 text-xs font-semibold mb-4 shadow-sm">
-          <Sparkles size={14} className="text-blue-600" />
-          <span>Official Campus Portal</span>
-        </div>
-        <h1 className="text-4xl sm:text-5xl font-extrabold text-slate-900 mb-3 tracking-tight">
-          Venue Reservation
-        </h1>
-        <p className="text-slate-500 font-medium max-w-xl mx-auto text-sm sm:text-base leading-relaxed text-center block w-full">
-          Book AVR Auditoriums or SCO Webcast Studios with real-time availability and instant tracking.
-        </p>
-      </div>
+      <div className="w-full relative z-10 pt-4">
 
-      <div className="w-full flex flex-col gap-6 relative z-10">
+        {/* MAIN INTEGRATED WIZARD CARD CONTAINER */}
+        <div className="bg-white/95 backdrop-blur-xl border border-slate-200/80 rounded-3xl shadow-xl overflow-hidden transition-all duration-300">
 
-        {/* STEP 1: Identity Selection */}
-        <div className={`bg-white/80 backdrop-blur-md border border-slate-200/80 rounded-3xl shadow-sm transition-all overflow-hidden ${activeStep === 1 ? 'ring-2 ring-blue-600/20 shadow-md' : ''}`}>
-          <StepHeader 
-            stepNum={1} 
-            title="Identity Selection" 
-            subtitle="Select your role to ensure proper booking permissions" 
-            activeStep={activeStep}
-            completedSteps={completedSteps}
-            toggleStep={toggleStep}
-          />
+          {/* STEPPER PROGRESS TRACKER HEADER */}
+          <div className="bg-white border-b border-slate-100 px-6 pt-6 pb-4 sm:px-8 relative overflow-hidden">
+            {/* Title matching FSUU logo font scale - centered */}
+            <h1 className="font-extrabold text-base tracking-tight text-slate-900 leading-tight mb-4 text-center">
+              Venue Booking
+            </h1>
 
-          {activeStep === 1 && (
-            <Step1Identity 
-              identity={identity} 
-              handleIdentitySelect={handleIdentitySelect} 
-            />
-          )}
-        </div>
+            <div className="relative flex justify-between items-center max-w-2xl mx-auto px-2 sm:px-6">
+              {/* Connecting progress background line */}
+              <div className="absolute top-5 left-10 right-10 h-1 bg-slate-100 -translate-y-1/2 z-0 rounded-full"></div>
 
-        {/* STEP 2: Venue Selection & Interactive Calendar */}
-        <div className={`bg-white/80 backdrop-blur-md border border-slate-200/80 rounded-3xl shadow-sm transition-all overflow-hidden ${activeStep === 2 ? 'ring-2 ring-blue-600/20 shadow-md' : ''}`}>
-          <StepHeader stepNum={2} title="Venue Selection & Availability" subtitle="Choose between AVR Auditoriums or SCO Media Studios" activeStep={activeStep} completedSteps={completedSteps} toggleStep={toggleStep} />
+              {/* Active progress fill line */}
+              <div
+                className="absolute top-5 left-10 h-1 bg-gradient-to-r from-blue-600 to-indigo-600 -translate-y-1/2 z-0 rounded-full transition-all duration-500 ease-out"
+                style={{
+                  width: activeStep === 1 ? '0%' : activeStep === 2 ? '33.33%' : activeStep === 3 ? '66.66%' : 'calc(100% - 5rem)'
+                }}
+              ></div>
 
-          {activeStep === 2 && (
-            venuesLoading ? (
-              <div className="p-8 text-center text-slate-400 text-sm animate-pulse">
-                Loading available venues…
-              </div>
-            ) : (
-              <Step2Venue 
-                venueCategory={venueCategory}
-                setVenueCategory={setVenueCategory}
-                filteredVenues={filteredVenues}
-                selectedVenue={selectedVenue}
-                handleVenueSelect={handleVenueSelect}
-                selectedDate={selectedDate}
-                handleDateSelect={handleDateSelect}
-                bookedDates={[]}
+              {/* Stepper Nodes */}
+              {[
+                { num: 1, label: "Identity", subtitle: "Role" },
+                { num: 2, label: "Venue & Date", subtitle: "Availability" },
+                { num: 3, label: "Details", subtitle: "Form Info" },
+                { num: 4, label: "Verification", subtitle: "Security" },
+              ].map((s) => {
+                const isCompleted = completedSteps.includes(s.num) && activeStep !== s.num;
+                const isActive = activeStep === s.num;
+                const isClickable = completedSteps.includes(s.num) || s.num < activeStep;
+
+                return (
+                  <div
+                    key={s.num}
+                    onClick={() => isClickable && setActiveStep(s.num)}
+                    className={`relative z-10 flex flex-col items-center select-none transition-all ${isClickable ? 'cursor-pointer group' : 'cursor-default'}`}
+                  >
+                    <div className={`w-10 h-10 sm:w-11 sm:h-11 rounded-2xl flex items-center justify-center text-xs sm:text-sm font-black transition-all duration-300 shadow-md ${isCompleted
+                      ? 'bg-blue-600 text-white shadow-blue-600/20 group-hover:scale-110'
+                      : isActive
+                        ? 'bg-blue-600 text-white ring-4 ring-blue-600/20 shadow-blue-600/30 scale-110'
+                        : 'bg-white border-2 border-slate-200 text-slate-400'
+                      }`}>
+                      {isCompleted ? <CheckCircle2 size={20} /> : s.num}
+                    </div>
+                    <div className="text-center mt-3 hidden sm:block">
+                      <p className={`text-xs font-bold transition-colors ${isActive ? 'text-slate-900 font-extrabold' : isCompleted ? 'text-slate-700' : 'text-slate-400'}`}>
+                        {s.label}
+                      </p>
+                      <p className="text-[10px] text-slate-400 font-medium">{s.subtitle}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+
+
+          {/* STEP CONTENT AREA */}
+          <div className="p-6 md:p-10 animate-in fade-in duration-300">
+            {activeStep === 1 && (
+              <Step1Identity
+                identity={identity}
+                handleIdentitySelect={handleIdentitySelect}
               />
-            )
-          )}
-        </div>
+            )}
 
-        {/* STEP 3: Dynamic Fill Details (AVR vs SCO Forms) */}
-        <div className={`bg-white/80 backdrop-blur-md border border-slate-200/80 rounded-3xl shadow-sm transition-all overflow-hidden ${activeStep === 3 ? 'ring-2 ring-blue-600/20 shadow-md' : ''}`}>
-          <StepHeader
-            stepNum={3}
-            title={selectedVenue?.type === "sco" ? "SCO Studio Reservation Request Form" : "AVR Venue Request Form"}
-            subtitle={selectedVenue ? `Tailored form for ${selectedVenue.name} (${selectedVenue.type === "sco" ? "SCO Department" : "AVR Department"})` : "Fill required reservation details"}
-            activeStep={activeStep} completedSteps={completedSteps} toggleStep={toggleStep}
-          />
+            {activeStep === 2 && (
+              venuesLoading ? (
+                <div className="p-12 text-center text-slate-400 text-sm animate-pulse font-medium">
+                  Loading available venues…
+                </div>
+              ) : (
+                <Step2Venue
+                  venueCategory={venueCategory}
+                  setVenueCategory={setVenueCategory}
+                  filteredVenues={filteredVenues}
+                  selectedVenue={selectedVenue}
+                  handleVenueSelect={handleVenueSelect}
+                  selectedDate={selectedDate}
+                  handleDateSelect={handleDateSelect}
+                  startTime={startTime}
+                  setStartTime={setStartTime}
+                  endTime={endTime}
+                  setEndTime={setEndTime}
+                  bookedDates={[]}
+                />
+              )
+            )}
 
-          {activeStep === 3 && (
-            <Step3Details
-              selectedVenue={selectedVenue}
-              selectedDate={selectedDate}
-              handleDetailsSubmit={handleDetailsSubmit}
-              fullName={fullName} setFullName={setFullName}
-              email={email} setEmail={setEmail}
-              contactNumber={contactNumber} handleContactChange={handleContactChange}
-              department={department} setDepartment={setDepartment}
-              identity={identity}
-              classification={classification} setClassification={setClassification}
-              persons={persons} setPersons={setPersons}
-              startTime={startTime} setStartTime={setStartTime}
-              endTime={endTime} setEndTime={setEndTime}
-              purpose={purpose} setPurpose={setPurpose}
-              avrEquipment={avrEquipment} setAvrEquipment={setAvrEquipment}
-              productionType={productionType} setProductionType={setProductionType}
-              targetAudience={targetAudience} setTargetAudience={setTargetAudience}
-              scoSupport={scoSupport} setScoSupport={setScoSupport}
-            />
-          )}
-        </div>
+            {activeStep === 3 && (
+              <Step3Details
+                selectedVenue={selectedVenue}
+                selectedDate={selectedDate}
+                handleDetailsSubmit={handleDetailsSubmit}
+                fullName={fullName} setFullName={setFullName}
+                email={email} setEmail={setEmail}
+                contactNumber={contactNumber} handleContactChange={handleContactChange}
+                department={department} setDepartment={setDepartment}
+                identity={identity}
+                classification={classification} setClassification={setClassification}
+                persons={persons} setPersons={setPersons}
+                startTime={startTime} setStartTime={setStartTime}
+                endTime={endTime} setEndTime={setEndTime}
+                purpose={purpose} setPurpose={setPurpose}
+                avrEquipment={avrEquipment} setAvrEquipment={setAvrEquipment}
+                productionType={productionType} setProductionType={setProductionType}
+                targetAudience={targetAudience} setTargetAudience={setTargetAudience}
+                scoSupport={scoSupport} setScoSupport={setScoSupport}
+                programs={programs}
+              />
+            )}
 
-        {/* STEP 4: Requirements & Verification */}
-        <div className={`bg-white/80 backdrop-blur-md border border-slate-200/80 rounded-3xl shadow-sm transition-all overflow-hidden ${activeStep === 4 ? 'ring-2 ring-blue-600/20 shadow-md' : ''}`}>
-          <StepHeader stepNum={4} title="Requirements & Security Verification" subtitle="Upload endorsement documents and verify request authenticity" activeStep={activeStep} completedSteps={completedSteps} toggleStep={toggleStep} />
+            {activeStep === 4 && (
+              <Step4Verification
+                email={email}
+                contactNumber={contactNumber}
+                isOtpSent={isOtpSent}
+                setIsOtpSent={setIsOtpSent}
+                otp={otp}
+                setOtp={setOtp}
+                handleVerifySubmit={handleVerifySubmit}
+                isSubmitting={isSubmitting}
+                endorsementFile={endorsementFile}
+                setEndorsementFile={setEndorsementFile}
+              />
+            )}
+          </div>
 
-          {activeStep === 4 && (
-            <Step4Verification
-              email={email}
-              contactNumber={contactNumber}
-              isOtpSent={isOtpSent}
-              setIsOtpSent={setIsOtpSent}
-              otp={otp}
-              setOtp={setOtp}
-              handleVerifySubmit={handleVerifySubmit}
-              isSubmitting={isSubmitting}
-              endorsementFile={endorsementFile}
-              setEndorsementFile={setEndorsementFile}
-            />
-          )}
+          {/* WIZARD NAVIGATION FOOTER */}
+          <div className="px-6 md:px-10 py-5 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
+            {activeStep > 1 ? (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setActiveStep(activeStep - 1)}
+                className="px-5 py-2.5 rounded-xl border-slate-200 text-slate-700 font-bold text-xs hover:bg-white shadow-sm flex items-center gap-2"
+              >
+                ← Back to Step {activeStep - 1}
+              </Button>
+            ) : (
+              <span className="text-xs font-semibold text-slate-400">Step 1 of 4: Role Selection</span>
+            )}
+
+            {activeStep === 2 && selectedVenue && selectedDate && startTime && endTime && (
+              <Button
+                type="button"
+                onClick={() => {
+                  if (!completedSteps.includes(2)) setCompletedSteps([...completedSteps, 2]);
+                  setActiveStep(3);
+                }}
+                className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md shadow-blue-600/20 flex items-center gap-2"
+              >
+                <span>Continue to Form</span>
+                <span>→</span>
+              </Button>
+            )}
+          </div>
+
         </div>
       </div>
 
@@ -384,12 +450,15 @@ export default function VenueBooking() {
             </div>
 
             <div className="flex flex-col gap-3">
-              <Button className="w-full py-6 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-blue-600/20">
+              <Button onClick={() => window.open(`${api.defaults.baseURL}/public/requisition-slip/venue/${referenceCode}`, '_blank')} className="w-full py-6 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-blue-600/20">
                 <Download size={18} />
                 Download Slip (PDF)
               </Button>
-              <Button asChild variant="outline" className="w-full py-6 rounded-xl border-slate-200 text-slate-700 font-bold text-sm hover:bg-slate-50">
-                <Link to="/track">Track Reservation Status</Link>
+              <Button variant="outline" className="w-full py-6 rounded-xl border-slate-200 text-slate-700 font-bold text-sm hover:bg-slate-50">
+                <Link to="/track" className="w-full h-full flex items-center justify-center">Track Reservation Status</Link>
+              </Button>
+              <Button variant="ghost" onClick={() => window.location.href = "/"} className="w-full py-4 rounded-xl text-slate-500 font-bold text-sm hover:bg-slate-100">
+                Exit / Done
               </Button>
             </div>
           </div>

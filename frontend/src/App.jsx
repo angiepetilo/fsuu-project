@@ -10,14 +10,25 @@ import EquipmentBorrowing from "./pages/public/EquipmentBorrowing/EquipmentBorro
 // Auth pages
 import StaffLogin from "./pages/auth/StaffLogin";
 import GoogleCallback from "./pages/auth/GoogleCallback";
+import ForgotPassword from "./pages/auth/ForgotPassword";
 
-// Admin pages
-import AdminLayout from "./pages/admin/AdminLayout";
-import Dashboard from "./pages/admin/Dashboard";
-import VenueBookings from "./pages/admin/VenueBookings";
-import EquipmentBorrowings from "./pages/admin/EquipmentBorrowings";
-import { ManageEquipments, ManageVenues, Reports } from "./pages/admin/UnderConstruction";
-import Settings from "./pages/admin/Settings";
+// System Admin (Sysad) pages
+import SysadLayout from "./pages/admin/sysad/SysadLayout";
+import SysadDashboard from "./pages/admin/sysad/SysadDashboard";
+import SysadUserManagement from "./pages/admin/sysad/SysadUserManagement";
+import SysadSettings from "./pages/admin/sysad/SysadSettings";
+
+// AVR Admin pages
+import AvrLayout           from "./pages/admin/avr/AvrLayout";
+import AvrDashboard        from "./pages/admin/avr/AvrDashboard";
+import AvrVenueBookings    from "./pages/admin/avr/AvrVenueBookings";
+import AvrEquipmentBorrowing from "./pages/admin/avr/AvrEquipmentBorrowing";
+import AvrManageVenue      from "./pages/admin/avr/AvrManageVenue";
+import AvrManageEquipment  from "./pages/admin/avr/AvrManageEquipment";
+import AvrHistoryLog       from "./pages/admin/avr/AvrHistoryLog";
+import AvrReports          from "./pages/admin/avr/AvrReports";
+import AvrInventory        from "./pages/admin/avr/AvrInventory";
+import AvrSettings         from "./pages/admin/avr/AvrSettings";
 
 import { Toaster } from "@/components/ui/sonner";
 
@@ -25,26 +36,26 @@ function AppContent() {
   const location = useLocation();
   const { user } = useAuth();
   const isAuthPage    = location.pathname.startsWith("/login") || location.pathname.startsWith("/auth");
-  const isAdminPage   = location.pathname.startsWith("/admin");
+  const isAdminPage   = location.pathname.startsWith("/sysad") || location.pathname.startsWith("/avr");
   const hideHeaderFooter = isAuthPage || isAdminPage;
 
   return (
     <>
       {/* Navigation — only on public pages */}
       {!hideHeaderFooter && (
-        <header className="fixed top-0 left-0 w-full z-50 bg-white/85 backdrop-blur-md border-b border-slate-200 transition-all shadow-sm">
-          <div className="max-w-[1280px] mx-auto px-8 py-4 flex justify-between items-center">
-            <Link to="/" className="flex items-center gap-3.5 text-slate-900 group">
-              <img src="/fsuu_logo.png" alt="FSUU Seal" className="h-12 w-auto transition-transform duration-300 group-hover:scale-105" />
+        <header className="fixed top-0 left-0 w-full z-50 bg-white/90 backdrop-blur-md border-b border-slate-200/80 transition-all shadow-sm">
+          <div className="max-w-[1280px] mx-auto px-6 sm:px-8 py-3.5 flex justify-between items-center">
+            <Link to="/" className="flex items-center gap-3 text-slate-900 group">
+              <img src="/fsuu_logo.png" alt="FSUU Seal" className="h-10 w-auto transition-transform duration-300 group-hover:scale-105" />
               <div className="flex flex-col">
-                <span className="font-extrabold text-xl tracking-tight text-slate-900 leading-tight">FSUU</span>
-                <span className="text-xs text-slate-500 font-semibold">Reserve and Booking System</span>
+                <span className="font-black text-lg tracking-tight text-slate-900 leading-tight">FSUU</span>
+                <span className="text-[11px] text-slate-500 font-medium">Reserve and Booking System</span>
               </div>
             </Link>
-            <div className="flex gap-6 items-center">
+            <div className="flex gap-4 items-center">
               <Link
                 to="/track"
-                className="bg-white border border-slate-200 text-slate-900 px-6 py-2.5 rounded-full font-semibold text-sm cursor-pointer transition-all shadow-sm hover:bg-slate-50 hover:border-slate-300 hover:-translate-y-[1px] hover:shadow-md"
+                className="bg-white border border-slate-200 text-slate-700 px-5 py-2 rounded-full font-bold text-xs cursor-pointer transition-all shadow-sm hover:bg-slate-50 hover:border-slate-300"
               >
                 Track Booking
               </Link>
@@ -69,18 +80,29 @@ function AppContent() {
 
           {/* Auth */}
           <Route path="/login"                 element={<StaffLogin />} />
+          <Route path="/forgot-password"       element={<ForgotPassword />} />
           <Route path="/auth/google/callback"  element={<GoogleCallback />} />
 
-          {/* Admin — nested under AdminLayout */}
-          <Route path="/admin" element={<AdminLayout />}>
-            <Route index              element={<Navigate to="/admin/dashboard" replace />} />
-            <Route path="dashboard"           element={<Dashboard />} />
-            <Route path="venue-bookings"      element={<VenueBookings />} />
-            <Route path="equipment-borrowing" element={<EquipmentBorrowings />} />
-            <Route path="manage-equipments"   element={<ManageEquipments />} />
-            <Route path="manage-venues"       element={<ManageVenues />} />
-            <Route path="reports"             element={<Reports />} />
-            <Route path="settings"            element={<Settings />} />
+          {/* System Admin (Sysad) — nested under SysadLayout */}
+          <Route path="/sysad" element={<SysadLayout />}>
+            <Route index          element={<Navigate to="/sysad/dashboard" replace />} />
+            <Route path="dashboard"       element={<SysadDashboard />} />
+            <Route path="user-management" element={<SysadUserManagement />} />
+            <Route path="settings"        element={<SysadSettings />} />
+          </Route>
+
+          {/* AVR Admin — nested under AvrLayout */}
+          <Route path="/avr" element={<AvrLayout />}>
+            <Route index                    element={<Navigate to="/avr/dashboard" replace />} />
+            <Route path="dashboard"         element={<AvrDashboard />} />
+            <Route path="venue-bookings"    element={<AvrVenueBookings />} />
+            <Route path="equipment-borrowing" element={<AvrEquipmentBorrowing />} />
+            <Route path="manage-venue"      element={<AvrManageVenue />} />
+            <Route path="manage-equipment"  element={<AvrManageEquipment />} />
+            <Route path="history-log"       element={<AvrHistoryLog />} />
+            <Route path="inventory"         element={<AvrInventory />} />
+            <Route path="reports"           element={<AvrReports />} />
+            <Route path="settings"          element={<AvrSettings />} />
           </Route>
         </Routes>
       </main>

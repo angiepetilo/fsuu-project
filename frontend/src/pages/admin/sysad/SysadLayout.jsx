@@ -4,20 +4,16 @@ import { useAuth } from "@/context/AuthContext";
 import {
   LayoutDashboard, CalendarCheck, PackageOpen, Settings,
   ChevronRight, LogOut, Bell, Menu, X, Box, Building2,
-  FileBarChart2, User, ChevronDown
+  FileBarChart2, User, ChevronDown, Users
 } from "lucide-react";
 
 const ALL_NAV_ITEMS = [
-  { label: "Dashboard",           icon: LayoutDashboard, path: "/admin/dashboard",          roles: ["admin", "staff"] },
-  { label: "Venue Bookings",      icon: Building2,        path: "/admin/venue-bookings",     roles: ["admin", "staff"] },
-  { label: "Equipment Borrowing", icon: PackageOpen,      path: "/admin/equipment-borrowing",roles: ["admin", "staff"] },
-  { label: "Manage Equipment",    icon: Box,              path: "/admin/manage-equipments",  roles: ["admin"] },
-  { label: "Manage Venues",       icon: CalendarCheck,    path: "/admin/manage-venues",      roles: ["admin"] },
-  { label: "Reports",             icon: FileBarChart2,    path: "/admin/reports",            roles: ["admin"] },
-  { label: "Settings",            icon: Settings,         path: "/admin/settings",           roles: ["admin"] },
+  { label: "Dashboard",       icon: LayoutDashboard, path: "/sysad/dashboard",       roles: ["admin", "staff"] },
+  { label: "User Management", icon: Users,            path: "/sysad/user-management", roles: ["admin"] },
+  { label: "Settings",        icon: Settings,         path: "/sysad/settings",        roles: ["admin"] },
 ];
 
-export default function AdminLayout() {
+export default function SysadLayout() {
   const { user, logout, isAdmin } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -46,7 +42,7 @@ export default function AdminLayout() {
   if (!user) return null;
 
   return (
-    <div className="min-h-screen bg-[#f0f2f8] flex font-sans">
+    <div className="min-h-screen bg-[#f3f6fa] flex font-sans">
 
       {/* ── Sidebar ── */}
       <aside
@@ -61,7 +57,7 @@ export default function AdminLayout() {
           <img src="/fsuu_logo.png" alt="FSUU" className="h-9 w-9 flex-shrink-0" />
           {sidebarOpen && (
             <div>
-              <p className="font-extrabold text-sm tracking-tight leading-tight">FSUU Admin</p>
+              <p className="font-extrabold text-sm tracking-tight leading-tight">System Admin</p>
               <p className="text-[10px] text-white/50 font-medium">Reserve & Booking System</p>
             </div>
           )}
@@ -159,7 +155,7 @@ export default function AdminLayout() {
 
               {/* Breadcrumb */}
               <div className="flex items-center gap-2 text-sm">
-                <span className="text-slate-400 font-medium">Admin</span>
+                <span className="text-slate-400 font-medium">System Admin</span>
                 <ChevronRight size={14} className="text-slate-300" />
                 <span className="text-slate-900 font-bold">
                   {NAV_ITEMS.find(n => isActive(n.path))?.label ?? "Dashboard"}

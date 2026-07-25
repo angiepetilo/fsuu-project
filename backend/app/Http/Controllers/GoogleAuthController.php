@@ -47,7 +47,7 @@ class GoogleAuthController extends Controller
      * Step 2 — Google redirects back here with ?code=...
      * Exchange code → Google user profile → find/update local User → issue Sanctum token.
      */
-    public function callback(Request $request): JsonResponse
+    public function callback(Request $request)
     {
         try {
             $googleUser = Socialite::driver('google')->stateless()->user();
@@ -55,9 +55,11 @@ class GoogleAuthController extends Controller
             return response()->json(['message' => 'Google authentication failed.'], 401);
         }
 
-        // Prefer lookup by google_id (stable, never changes), fall back to email
+        // Prefer lookup by google_id (stable, never changes), fall back to email or personal_email
         $user = User::where('google_id', $googleUser->getId())->first()
-            ?? User::where('email', $googleUser->getEmail())->first();
+            ?? User::where('email', $googleUser->getEmail())
+                   ->orWhere('personal_email', $googleUser->getEmail())
+                   ->first();
 
         // Only pre-created accounts are allowed. No self-registration.
         if (! $user) {
@@ -76,18 +78,20 @@ class GoogleAuthController extends Controller
         $user->tokens()->delete();
 
         $token = $user->createToken('google-auth-token')->plainTextToken;
+        
+        $userData = [
+            'id'        => $user->id,
+            'name'      => $user->name,
+            'email'     => $user->email,
+            'avatar'    => $user->avatar,
+            'role'      => $user->role,
+            'office_id' => $user->office_id,
+            'office'    => $user->load('office')->office?->only(['id', 'name', 'code', 'type']),
+        ];
+        
+        $frontendUrl = env('FRONTEND_URL', 'http://localhost:5173');
+        $userEncoded = base64_encode(json_encode($userData));
 
-        return response()->json([
-            'token' => $token,
-            'user'  => [
-                'id'        => $user->id,
-                'name'      => $user->name,
-                'email'     => $user->email,
-                'avatar'    => $user->avatar,
-                'role'      => $user->role,
-                'office_id' => $user->office_id,
-                'office'    => $user->load('office')->office?->only(['id', 'name', 'code', 'type']),
-            ],
-        ]);
+        return redirect()->to("{$frontendUrl}/auth/google/callback?token={$token}&user={$userEncoded}");
     }
 }

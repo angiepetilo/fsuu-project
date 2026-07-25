@@ -16,6 +16,9 @@ class EquipmentType extends Model
         'description',
         'total_quantity',
         'is_active',
+        'purchased_date',
+        'lifespan_years',
+        'image_path',
     ];
 
     public function office()

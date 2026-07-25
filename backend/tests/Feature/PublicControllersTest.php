@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 
 uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
 use App\Models\Office;
@@ -35,11 +35,10 @@ it('allows booking submission', function () {
 it('returns generic error when tracking a non-existent code', function () {
     $response = $this->postJson('/api/public/track', [
         'reference_code' => 'VN-999999',
-        'requestor_email' => 'juan@test.com',
     ]);
 
     $response->assertStatus(404)
-        ->assertJsonPath('message', 'We could not find a booking matching this reference code and email address.');
+        ->assertJsonPath('message', 'We could not find a booking matching this reference code.');
 });
 
 it('returns identical generic error for valid code but wrong email', function () {
@@ -68,7 +67,7 @@ it('returns identical generic error for valid code but wrong email', function ()
     ]);
 
     $response->assertStatus(404)
-        ->assertJsonPath('message', 'We could not find a booking matching this reference code and email address.');
+        ->assertJsonPath('message', 'We could not find a booking matching this reference code.');
 });
 
 it('returns booking when tracking with correct code and email', function () {

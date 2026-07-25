@@ -16,6 +16,7 @@ class Venue extends Model
         'capacity',
         'external_price',
         'is_active',
+        'image_path',
     ];
 
     public function office()

@@ -57,14 +57,14 @@
       @if($type === 'venue')
         <div class="row"><span class="row-label">Venue</span><span class="row-value">{{ $booking->venue->name ?? 'N/A' }}</span></div>
         <div class="row"><span class="row-label">Purpose</span><span class="row-value">{{ $booking->purpose }}</span></div>
-        <div class="row"><span class="row-label">Start</span><span class="row-value">{{ \Carbon\Carbon::parse($booking->start_datetime)->format('M d, Y h:i A') }}</span></div>
-        <div class="row"><span class="row-label">End</span><span class="row-value">{{ \Carbon\Carbon::parse($booking->end_datetime)->format('M d, Y h:i A') }}</span></div>
+        <div class="row"><span class="row-label">Start</span><span class="row-value">{{ \Carbon\Carbon::parse($booking->start_datetime)->timezone('Asia/Manila')->format('M d, Y h:i A') }}</span></div>
+        <div class="row"><span class="row-label">End</span><span class="row-value">{{ \Carbon\Carbon::parse($booking->end_datetime)->timezone('Asia/Manila')->format('M d, Y h:i A') }}</span></div>
         <div class="row"><span class="row-label">Attendees</span><span class="row-value">{{ $booking->number_of_persons }}</span></div>
       @else
         <div class="row"><span class="row-label">Purpose</span><span class="row-value">{{ $booking->purpose }}</span></div>
         <div class="row"><span class="row-label">Place of Use</span><span class="row-value">{{ $booking->place_of_use }}</span></div>
-        <div class="row"><span class="row-label">Start</span><span class="row-value">{{ \Carbon\Carbon::parse($booking->start_datetime)->format('M d, Y h:i A') }}</span></div>
-        <div class="row"><span class="row-label">End</span><span class="row-value">{{ \Carbon\Carbon::parse($booking->end_datetime)->format('M d, Y h:i A') }}</span></div>
+        <div class="row"><span class="row-label">Start</span><span class="row-value">{{ \Carbon\Carbon::parse($booking->start_datetime)->timezone('Asia/Manila')->format('M d, Y h:i A') }}</span></div>
+        <div class="row"><span class="row-label">End</span><span class="row-value">{{ \Carbon\Carbon::parse($booking->end_datetime)->timezone('Asia/Manila')->format('M d, Y h:i A') }}</span></div>
       @endif
       <div class="row"><span class="row-label">Submitted By</span><span class="row-value">{{ $booking->requestor_name }}</span></div>
     </div>

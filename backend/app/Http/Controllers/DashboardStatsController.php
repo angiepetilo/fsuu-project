@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 use App\Models\AvrVenueBooking;
 use App\Models\EquipmentBorrowing;
 use App\Models\ScoStudioReservation;
@@ -18,11 +19,13 @@ class DashboardStatsController extends Controller
         $user = $request->user();
         $isSCO = $user->office && $user->office->code === 'SCO';
 
-        if ($isSCO) {
-            return response()->json($this->getScoStats($user));
-        }
+        $cacheKey = $isSCO ? 'sco_dashboard_stats_' . $user->id : 'avr_dashboard_stats_' . $user->id;
 
-        return response()->json($this->getAvrStats($user));
+        $stats = Cache::remember($cacheKey, 300, function () use ($user, $isSCO) {
+            return $isSCO ? $this->getScoStats($user) : $this->getAvrStats($user);
+        });
+
+        return response()->json($stats);
     }
 
     private function getScoStats($user)

@@ -15,7 +15,7 @@ class TrackBookingRequest extends FormRequest
     {
         return [
             'reference_code' => ['required', 'string', 'max:50'],
-            'requestor_email' => ['required', 'email', 'max:255'],
+            'requestor_email' => ['nullable', 'email', 'max:255'],
         ];
     }
 }

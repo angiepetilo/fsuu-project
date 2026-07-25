@@ -11,6 +11,8 @@ class UserSeeder extends Seeder
 {
     /**
      * Run the database seeds.
+     *
+     * Only updates/creates users and offices. Safe to re-run without wiping data.
      */
     public function run(): void
     {
@@ -35,14 +37,16 @@ class UserSeeder extends Seeder
             ]
         );
 
-        // Single Admin User — email is the login username, personal_email is for notifications
+        // ── System Administrator ───────────────────────────────────────────────
+        // Has NO office_id — the portal auto-routes to /sysad/dashboard on login.
+        // Manages all offices, user accounts, settings, and reports.
         User::updateOrCreate(
             ['email' => 'admin'],
             [
-                'name'           => 'Admin',
+                'name'           => 'System Administrator',
                 'personal_email' => null,
                 'password'       => Hash::make('admin123'),
-                'office_id'      => $scoOffice->id,
+                'office_id'      => null,   // null = system-level, not tied to any office
                 'role'           => 'admin',
             ]
         );

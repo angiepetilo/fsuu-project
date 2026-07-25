@@ -25,9 +25,20 @@ class AvrEquipmentBorrowingController extends Controller
 
         $user = auth()->user();
 
-        $borrowings = EquipmentBorrowing::with('items.equipmentType')
+        $status = request('status');
+
+        $borrowings = EquipmentBorrowing::with(['items.equipmentType', 'documents'])
             ->when(! $user->isSuperAdmin(), function ($query) use ($user) {
                 $query->whereHas('items.equipmentType', fn ($q) => $q->where('office_id', $user->office_id));
+            })
+            ->when($status, function ($query, $status) {
+                if ($status === 'in_use') {
+                    $query->whereIn('status', ['approved', 'in_use', 'ongoing']);
+                } elseif ($status === 'completed') {
+                    $query->whereIn('status', ['completed', 'completed_with_damage']);
+                } else {
+                    $query->where('status', $status);
+                }
             })
             ->latest()
             ->paginate(20);

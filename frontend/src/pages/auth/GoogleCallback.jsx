@@ -23,22 +23,54 @@ export default function GoogleCallback() {
 
     const code  = params.get("code");
     const error = params.get("error");
+    const token = params.get("token");
+    const user  = params.get("user");
 
-    if (error || !code) {
+    if (error) {
       navigate("/login?error=google_denied", { replace: true });
       return;
     }
 
-    // Forward the ?code= to the backend — it exchanges with Google and returns a token
+    /**
+     * Determine the correct portal based on the user's office:
+     *   - No office_id  → System Administrator → /sysad/dashboard
+     *   - office.type=avr → /avr/dashboard
+     *   - Default fallback → /sysad/dashboard
+     */
+    const getRedirect = (userData) => {
+      if (!userData?.office_id) return "/sysad/dashboard";       // System admin
+      if (userData?.office?.type === "avr") return "/avr/dashboard";
+      return "/sysad/dashboard";
+    };
+
+    // New Flow: Backend handles the exchange and redirects back with token & user payload
+    if (token && user) {
+        try {
+            const userData = JSON.parse(atob(user));
+            login(userData, token);
+            navigate(getRedirect(userData), { replace: true });
+        } catch (e) {
+            navigate("/login?error=auth_failed", { replace: true });
+        }
+        return;
+    }
+
+    // Fallback Flow: Frontend handles the code and forwards to backend
+    if (!code) {
+      navigate("/login?error=invalid_callback", { replace: true });
+      return;
+    }
+
     api.get(`/auth/google/callback?code=${code}`)
       .then(({ data }) => {
         login(data.user, data.token);
-        navigate("/dashboard", { replace: true });
+        navigate(getRedirect(data.user), { replace: true });
       })
       .catch(() => {
         navigate("/login?error=auth_failed", { replace: true });
       });
   }, [params, login, navigate]);
+
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-white font-sans">

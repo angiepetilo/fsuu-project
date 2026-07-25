@@ -25,7 +25,7 @@ class ScoStudioReservationController extends Controller
 
         $user = auth()->user();
 
-        $reservations = ScoStudioReservation::with('venue')
+        $reservations = ScoStudioReservation::with(['venue', 'documents'])
             ->when(! $user->isSuperAdmin(), function ($query) use ($user) {
                 $query->whereHas('venue', fn ($q) => $q->where('office_id', $user->office_id));
             })

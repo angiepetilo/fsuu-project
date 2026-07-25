@@ -21,6 +21,8 @@ class StoreInspectionRequest extends FormRequest
             'condition_notes' => ['nullable', 'string', 'max:500'],
             'has_damage' => ['required', 'boolean'],
             'damage_charge_amount' => ['nullable', 'numeric', 'min:0'],
+            'evidences' => ['nullable', 'array', 'max:5'],
+            'evidences.*' => ['image', 'max:5120'], // max 5MB per image
         ];
     }
 }

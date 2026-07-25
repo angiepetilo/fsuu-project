@@ -163,9 +163,12 @@ class ScoStudioReservationService
 
     private function assertAtLeastThreeDaysAhead(string $startDatetime): void
     {
-        $hoursUntilStart = now()->diffInHours($startDatetime, false);
+        $today = now()->timezone('Asia/Manila')->startOfDay();
+        $startDate = \Carbon\Carbon::parse($startDatetime, 'Asia/Manila')->startOfDay();
 
-        if ($hoursUntilStart < 72) {
+        $daysUntilStart = $today->diffInDays($startDate, false);
+
+        if ($daysUntilStart < 3) {
             throw new StudioReservationTooSoonException();
         }
     }

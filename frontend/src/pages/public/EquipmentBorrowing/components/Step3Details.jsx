@@ -13,7 +13,8 @@ export default function Step3Details({
   endTime, setEndTime,
   placeOfUse, setPlaceOfUse,
   handlerName, setHandlerName,
-  purpose, setPurpose
+  purpose, setPurpose,
+  programs = []
 }) {
   return (
     <div className="p-6 sm:p-8 animate-in slide-in-from-top-2 duration-300">
@@ -81,12 +82,9 @@ export default function Step3Details({
           <label className="text-xs font-bold text-slate-900">Department / Office <span className="text-red-500">*</span></label>
           <select required value={department} onChange={e => setDepartment(e.target.value)} className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all">
             <option value="">Select Department...</option>
-            <option value="CITE">College of Information Tech Education (CITE)</option>
-            <option value="CAS">College of Arts & Sciences (CAS)</option>
-            <option value="CBA">College of Business Admin (CBA)</option>
-            <option value="CED">College of Education (CED)</option>
-            <option value="SHS">Senior High School (SHS)</option>
-            <option value="External">External Organization</option>
+            {programs.map(p => (
+              <option key={p.id} value={p.name}>{p.name}</option>
+            ))}
           </select>
         </div>
 
@@ -121,11 +119,12 @@ export default function Step3Details({
         </div>
 
         <div className="sm:col-span-2 flex justify-end mt-4">
-          <Button type="submit" className={`px-8 py-6 rounded-xl font-extrabold text-white text-base shadow-lg transition-all ${primaryDept === "sco"
+          <Button type="submit" className={`px-6 py-2.5 rounded-xl font-bold text-white text-xs shadow-md transition-all flex items-center gap-2 ${primaryDept === "sco"
             ? 'bg-purple-600 hover:bg-purple-700 shadow-purple-600/20'
             : 'bg-blue-600 hover:bg-blue-700 shadow-blue-600/20'
             }`}>
-            Proceed to Verification & Submit
+            <span>Proceed to Requirements & Verification</span>
+            <span>→</span>
           </Button>
         </div>
       </form>

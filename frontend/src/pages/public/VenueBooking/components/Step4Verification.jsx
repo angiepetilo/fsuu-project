@@ -24,7 +24,7 @@ export default function Step4Verification({
 
     const allowed = ["application/pdf", "image/png", "image/jpeg", "image/jpg"];
     if (!allowed.includes(file.type)) {
-      alert("Only PDF, PNG, or JPG files are allowed.");
+      alert("Only PDF, PNG, or JPG files are allowed for the endorsement letter.");
       return;
     }
     if (file.size > 10 * 1024 * 1024) {
@@ -209,16 +209,38 @@ export default function Step4Verification({
               }
             </Button>
 
-            {/* Code input */}
-            <input
-              type="text"
-              inputMode="numeric"
-              maxLength={6}
-              value={otp}
-              onChange={e => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
-              placeholder="Enter 6-digit verification code"
-              className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-sm font-mono text-center tracking-widest focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10"
-            />
+            {/* 6-Digit OTP Box Cards */}
+            <div className="space-y-1.5 mt-2">
+              <label className="text-[11px] font-bold text-slate-600 block">Enter the code you received:</label>
+              <div className="flex justify-between items-center gap-2">
+                {[0, 1, 2, 3, 4, 5].map((index) => (
+                  <input
+                    key={index}
+                    id={`otp-box-${index}`}
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={1}
+                    value={otp[index] || ""}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, "");
+                      const newOtp = (otp || "").split("");
+                      newOtp[index] = val;
+                      const combined = newOtp.join("").slice(0, 6);
+                      setOtp(combined);
+                      if (val && index < 5) {
+                        document.getElementById(`otp-box-${index + 1}`)?.focus();
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Backspace" && !otp[index] && index > 0) {
+                        document.getElementById(`otp-box-${index - 1}`)?.focus();
+                      }
+                    }}
+                    className="w-10 h-12 sm:w-11 sm:h-12 border-2 border-slate-200 rounded-xl text-center text-base font-extrabold font-mono text-slate-900 bg-white focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all shadow-sm"
+                  />
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -231,9 +253,10 @@ export default function Step4Verification({
         <Button
           onClick={handleVerifySubmit}
           disabled={isSubmitting}
-          className="bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-6 rounded-xl font-extrabold text-base shadow-xl shadow-emerald-600/20 transition-all hover:scale-105 disabled:opacity-70 disabled:hover:scale-100"
+          className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2.5 rounded-xl font-bold text-xs shadow-md shadow-emerald-600/20 transition-all disabled:opacity-70 flex items-center gap-2"
         >
-          {isSubmitting ? "Submitting…" : "Submit Reservation Request"}
+          <span>{isSubmitting ? "Submitting…" : "Submit Reservation Request"}</span>
+          <span>✓</span>
         </Button>
       </div>
     </div>

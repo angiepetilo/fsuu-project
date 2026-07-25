@@ -30,4 +30,10 @@ class Inspection extends Model
     {
         return $this->belongsTo(User::class, 'inspected_by');
     }
+
+    public function documents()
+    {
+        return $this->hasMany(Document::class, 'reference_id')
+            ->where('reference_type', 'inspection');
+    }
 }

@@ -1,13 +1,13 @@
 export default function Hero() {
   return (
-    <section className="text-center mb-[5rem] sm:mb-[6rem] animate-in fade-in slide-in-from-top-5 duration-700">
-      <h1 className="text-[2.5rem] sm:text-[3.5rem] font-[800] tracking-[-0.03em] leading-[1.2] text-[#0f172a] mb-[1.25rem]">
+    <section className="text-center mb-10 sm:mb-12 animate-in fade-in slide-in-from-top-3 duration-500">
+      <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900 mb-3">
         What would you like{" "}
-        <span className="bg-gradient-to-br from-[#2563eb] to-[#8b5cf6] bg-clip-text text-transparent">
+        <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent font-black">
           to reserve?
         </span>
       </h1>
-      <p className="text-[1.125rem] text-[#64748b] max-w-[680px] mx-auto leading-[1.7] font-[500] text-center">
+      <p className="text-xs sm:text-sm text-slate-500 max-w-lg mx-auto leading-relaxed font-medium">
         Streamlined booking for University facilities and technical equipment. Choose your path to begin the reservation process.
       </p>
     </section>

@@ -16,7 +16,8 @@ class InspectionService
         string $inspectionType,
         ?string $conditionNotes,
         bool $hasDamage = false,
-        ?float $damageChargeAmount = null
+        ?float $damageChargeAmount = null,
+        ?array $evidences = null
     ): Inspection {
         $inspection = Inspection::forceCreate([
             'reference_type' => $referenceType,
@@ -27,6 +28,20 @@ class InspectionService
             'has_damage' => $hasDamage,
             'damage_charge_amount' => $damageChargeAmount,
         ]);
+
+        if ($evidences) {
+            foreach ($evidences as $file) {
+                if ($file instanceof \Illuminate\Http\UploadedFile) {
+                    $path = $file->store("inspections/{$referenceType}/{$referenceId}", 'public');
+                    \App\Models\Document::create([
+                        'reference_type' => 'inspection',
+                        'reference_id' => $inspection->id,
+                        'file_path' => $path,
+                        'document_type' => 'evidence',
+                    ]);
+                }
+            }
+        }
 
         $this->auditLog->log($staff, 'inspection_recorded', $referenceType, $referenceId, [
             'inspection_id' => $inspection->id,

@@ -51,6 +51,8 @@ it('allows admins to create a user with an image and dispatches a job', function
     $response = $this->actingAs($this->admin, 'sanctum')->postJson('/api/admin/users', [
         'name' => 'Jane Doe',
         'email' => 'jane@example.com',
+        'personal_email' => 'jane.personal@example.com',
+        'role' => 'staff',
         'image' => $file
     ]);
 
@@ -73,7 +75,9 @@ it('allows admins to create a user with an image and dispatches a job', function
 it('allows admins to update a user', function () {
     $response = $this->actingAs($this->admin, 'sanctum')->putJson('/api/admin/users/' . $this->staff->id, [
         'name' => 'Updated Staff',
-        'email' => 'updated@test.com'
+        'email' => 'updated@test.com',
+        'personal_email' => 'updated.personal@test.com',
+        'role' => 'staff',
     ]);
 
     $response->assertStatus(200);
