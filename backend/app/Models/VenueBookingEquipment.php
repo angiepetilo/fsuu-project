@@ -6,26 +6,25 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class Document extends Model
+class VenueBookingEquipment extends Model
 {
     use HasFactory;
 
-    /**
-     * Note: status is excluded from $fillable and updated by administrative workflows.
-     */
+    protected $table = 'venue_booking_equipment';
+
     protected $fillable = [
         'venue_booking_id',
-        'document_type',
-        'file_path',
-        'uploaded_at',
-    ];
-
-    protected $casts = [
-        'uploaded_at' => 'datetime',
+        'equipment_type_id',
+        'others_specify',
     ];
 
     public function venueBooking(): BelongsTo
     {
         return $this->belongsTo(VenueBooking::class);
+    }
+
+    public function equipmentType(): BelongsTo
+    {
+        return $this->belongsTo(EquipmentType::class);
     }
 }

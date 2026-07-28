@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Info } from "lucide-react";
 
 export default function FeatureCards() {
   return (
@@ -74,7 +74,11 @@ export default function FeatureCards() {
             </svg>
           </div>
 
-          <div className="h-[1.5rem] mb-[1.5rem]"></div> {/* Spacing alignment */}
+          {/* Notice Pill Badge */}
+          <div className="inline-flex items-center justify-center gap-1.5 text-[0.75rem] font-[700] text-[#92400e] tracking-[0.03em] mb-[1.5rem] px-[1rem] py-[0.35rem] rounded-full bg-[#fef3c7] border border-[#fde68a]">
+            <Info size={14} className="text-[#92400e] shrink-0" />
+            <span>School ID required for pickup.</span>
+          </div>
 
           <h2 className="text-[1.875rem] font-[800] mb-[1rem] text-[#0f172a]">
             <span className="text-[#d97706]">Equipment</span> Borrowing

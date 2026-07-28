@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useOutletContext } from "react-router-dom";
 import api from "@/lib/axios";
 import {
   Users, PlusCircle, Pencil, Trash2, X, Loader2,
@@ -228,6 +229,10 @@ function UserForm({ initial, offices, onSubmit, loading, onClose }) {
 }
 
 export default function Settings() {
+  const context = useOutletContext();
+  const selectedOffice = context?.selectedOffice ?? "All Offices";
+  const setSelectedOffice = context?.setSelectedOffice;
+
   const [users, setUsers]             = useState([]);
   const [offices, setOffices]         = useState([]);
   const [loading, setLoading]         = useState(true);
@@ -321,8 +326,8 @@ export default function Settings() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-extrabold text-slate-900">Settings</h1>
-        <p className="text-sm text-slate-400 mt-0.5">Manage system users and account settings</p>
+        <h1 className="text-xl sm:text-2xl font-medium text-slate-800 tracking-tight">System Settings</h1>
+        <p className="text-sm text-slate-400 mt-0.5">Manage system users, access roles, and account settings</p>
       </div>
 
       <div className="flex gap-1 bg-slate-100 p-1 rounded-2xl w-fit">

@@ -4,63 +4,34 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Office extends Model
 {
     use HasFactory;
 
-        protected $fillable = [
+    protected $fillable = [
         'name',
-        'code',
-        'type',
-        'can_view_office_id',
+        'slug',
     ];
 
-    protected $hidden = [
-        'pin_hash',
-    ];
-
-    public function setPin(string $rawPin): void
-    {
-        $this->forceFill(['pin_hash' => bcrypt($rawPin)])->save();
-    }
-
-    public function checkPin(string $rawPin): bool
-    {
-        return $this->pin_hash && \Illuminate\Support\Facades\Hash::check($rawPin, $this->pin_hash);
-    }
-    public function viewableOffice()
-    {
-        return $this->belongsTo(Office::class, 'can_view_office_id');
-    }
-
-    public function viewedByOffices()
-    {
-        return $this->hasMany(Office::class, 'can_view_office_id');
-    }
-
-    public function users()
+    public function users(): HasMany
     {
         return $this->hasMany(User::class);
     }
 
-    public function venues()
+    public function venues(): HasMany
     {
         return $this->hasMany(Venue::class);
     }
 
-    public function equipmentTypes()
+    public function equipmentTypes(): HasMany
     {
         return $this->hasMany(EquipmentType::class);
     }
 
-    public function isSco(): bool
+    public function equipmentBorrows(): HasMany
     {
-        return $this->type === 'sco';
-    }
-
-    public function isAvr(): bool
-    {
-        return $this->type === 'avr';
+        return $this->hasMany(EquipmentBorrow::class);
     }
 }

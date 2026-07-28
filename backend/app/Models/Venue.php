@@ -4,32 +4,30 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Venue extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
+    public const DELETED_AT = 'archived_at';
+
+    /**
+     * Note: office_id and status are excluded from $fillable.
+     */
     protected $fillable = [
-        'office_id',
         'name',
-        'location',
-        'capacity',
-        'external_price',
-        'is_active',
     ];
 
-    public function office()
+    public function office(): BelongsTo
     {
         return $this->belongsTo(Office::class);
     }
 
-    public function equipmentTypes()
+    public function venueBookings(): HasMany
     {
-        return $this->belongsToMany(EquipmentType::class, 'venue_equipment_types');
-    }
-
-    public function scopeForOffice($query, $officeId)
-    {
-        return $query->where('office_id', $officeId);
+        return $this->hasMany(VenueBooking::class);
     }
 }

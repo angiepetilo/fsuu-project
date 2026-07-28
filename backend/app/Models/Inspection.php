@@ -4,29 +4,33 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 class Inspection extends Model
 {
     use HasFactory;
 
     protected $fillable = [
-        'reference_type',
-        'reference_id',
+        'inspectable_type',
+        'inspectable_id',
+        'inspected_by',
         'inspection_type',
-        'condition_notes',
-        'has_damage',
-        'damage_charge_amount',
+        'condition',
+        'notes',
+        'inspected_at',
     ];
 
-    protected function casts(): array
+    protected $casts = [
+        'inspected_at' => 'datetime',
+    ];
+
+    public function inspectable(): MorphTo
     {
-        return [
-            'has_damage' => 'boolean',
-            'damage_charge_amount' => 'decimal:2',
-        ];
+        return $this->morphTo();
     }
 
-    public function inspectedBy()
+    public function inspectedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'inspected_by');
     }

@@ -2,47 +2,34 @@
 
 namespace App\Models;
 
-use App\Enums\UnitStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class EquipmentUnit extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
+    public const DELETED_AT = 'archived_at';
+
+    /**
+     * Note: status is excluded from $fillable.
+     */
     protected $fillable = [
         'equipment_type_id',
-        'barcode',
-        'unit_status',
-        'unit_status_notes',
+        'unit_code',
+        'purchased_at',
+        'eq_lifespan',
     ];
 
-    protected function casts(): array
-    {
-        return [
-            'unit_status' => UnitStatus::class,
-        ];
-    }
+    protected $casts = [
+        'purchased_at' => 'date',
+        'eq_lifespan'   => 'integer',
+    ];
 
-    public function equipmentType()
+    public function equipmentType(): BelongsTo
     {
         return $this->belongsTo(EquipmentType::class);
-    }
-
-    public function borrowingUnit()
-    {
-        return $this->hasOne(EquipmentBorrowingUnit::class);
-    }
-
-    /** Units that can be assigned to a borrowing request. */
-    public function scopeAvailable($query)
-    {
-        return $query->where('unit_status', UnitStatus::Available);
-    }
-
-    /** True if this unit can be assigned right now. */
-    public function isAvailableForBorrowing(): bool
-    {
-        return $this->unit_status === UnitStatus::Available;
     }
 }

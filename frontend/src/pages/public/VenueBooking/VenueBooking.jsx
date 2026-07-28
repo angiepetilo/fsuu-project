@@ -1,23 +1,26 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import {
-  ChevronDown, ChevronUp, User, Users, GraduationCap, MapPin,
-  UploadCloud, ShieldCheck, Download, Check, Sparkles, Video,
-  Radio, Tv, Mic, Monitor, Clock, FileText, Info, AlertCircle, KeyRound, Lock, X, CheckCircle2
-} from "lucide-react";
+import { Sparkles, KeyRound, Lock, X, AlertCircle, ShieldCheck, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { KioskTimeline } from "@/components/ui/kiosk-timeline";
 import api from "@/lib/axios";
 
-import StepHeader from "./components/StepHeader";
 import Step1Identity from "./components/Step1Identity";
 import Step2Venue from "./components/Step2Venue";
 import Step3Details from "./components/Step3Details";
 import Step4Verification from "./components/Step4Verification";
 
+const VENUE_STEPS = [
+  { title: "Identity",       subtitle: "Select role" },
+  { title: "Venue & Time",   subtitle: "Choose venue & schedule" },
+  { title: "Fill Details",   subtitle: "Reservation form" },
+  { title: "Verification",   subtitle: "Upload & submit" },
+];
+
 export default function VenueBooking() {
-  const [activeStep, setActiveStep]       = useState(1);
+  const [activeStep, setActiveStep] = useState(1);
   const [completedSteps, setCompletedSteps] = useState([]);
-  const [venues, setVenues]               = useState([]);
+  const [venues, setVenues] = useState([]);
   const [venuesLoading, setVenuesLoading] = useState(true);
 
   // Form & Selection States
@@ -25,7 +28,7 @@ export default function VenueBooking() {
   const [selectedVenue, setSelectedVenue] = useState(null);
   const [selectedDate, setSelectedDate] = useState("");
   const [showSuccess, setShowSuccess] = useState(false);
-  const [venueCategory, setVenueCategory] = useState("all"); // 'all', 'avr', 'sco'
+  const [venueCategory, setVenueCategory] = useState("all");
   const [referenceCode, setReferenceCode] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -34,8 +37,6 @@ export default function VenueBooking() {
   const [email, setEmail] = useState("");
   const [department, setDepartment] = useState("");
   const [purpose, setPurpose] = useState("");
-  const [otp, setOtp]                   = useState("");
-  const [isOtpSent, setIsOtpSent]       = useState(false);
   const [endorsementFile, setEndorsementFile] = useState(null);
 
   // AVR Specific Fields
@@ -48,22 +49,21 @@ export default function VenueBooking() {
   const [targetAudience, setTargetAudience] = useState("");
   const [scoSupport, setScoSupport] = useState({ multicam: false, teleprompter: false, greenScreen: false, audioEng: false });
 
-  // AVR PIN Modal State for External Users
+  // PIN Verification State
   const [showPinModal, setShowPinModal] = useState(false);
   const [pinInput, setPinInput] = useState("");
   const [pinError, setPinError] = useState(false);
   const [isPinVerified, setIsPinVerified] = useState(false);
 
-  // Form Field States for Validation
+  // Time Range States
   const [contactNumber, setContactNumber] = useState("");
-  const [startTime, setStartTime] = useState("");
-  const [endTime, setEndTime] = useState("");
+  const [startTime, setStartTime] = useState("08:00");
+  const [endTime, setEndTime] = useState("10:00");
 
   const handleContactChange = (e) => {
     setContactNumber(e.target.value.replace(/\D/g, '').slice(0, 11));
   };
 
-  // Fetch real venues from backend
   useEffect(() => {
     api.get('/public/venues')
       .then(res => setVenues(res.data ?? []))
@@ -75,15 +75,9 @@ export default function VenueBooking() {
     ? venues
     : venues.filter(v => v.type === venueCategory);
 
-  const toggleStep = (step) => {
-    if (completedSteps.includes(step - 1) || step === 1) {
-      setActiveStep(activeStep === step ? null : step);
-    }
-  };
-
   const handleIdentitySelect = (id) => {
     setIdentity(id);
-    setIsPinVerified(false); // Reset pin verification if identity changes
+    setIsPinVerified(false);
     if (!completedSteps.includes(1)) setCompletedSteps([...completedSteps, 1]);
     setActiveStep(2);
   };
@@ -96,7 +90,6 @@ export default function VenueBooking() {
     setSelectedDate(dateStr);
 
     if (selectedVenue) {
-      // Check if External User picking an AVR Venue
       if (identity === "external" && selectedVenue.type === "avr" && !isPinVerified) {
         setShowPinModal(true);
         setPinError(false);
@@ -111,7 +104,6 @@ export default function VenueBooking() {
 
   const handleConfirmPin = (e) => {
     e.preventDefault();
-    // Default valid PIN is 123456
     if (pinInput.trim() === "123456" || pinInput.trim().length >= 4) {
       setIsPinVerified(true);
       setShowPinModal(false);
@@ -129,9 +121,6 @@ export default function VenueBooking() {
     if (!completedSteps.includes(3)) setCompletedSteps([...completedSteps, 3]);
     setActiveStep(4);
   };
-
-  // handleSendOtp is now handled entirely inside Step4Verification component
-  const handleSendOtp = () => setIsOtpSent(true); // fallback stub (unused)
 
   const handleVerifySubmit = async (e) => {
     e.preventDefault();
@@ -153,7 +142,6 @@ export default function VenueBooking() {
         start_datetime: startDt,
         end_datetime: endDt,
         contact_preference: 'email',
-        // venue_id is the real integer ID from the database
         venue_id: selectedVenue?.id,
       };
 
@@ -182,124 +170,108 @@ export default function VenueBooking() {
     }
   };
 
-
-
   return (
     <div className="flex flex-col items-center w-full max-w-4xl mx-auto relative animate-in fade-in slide-in-from-bottom-5 duration-700 pb-12">
 
-      {/* Dynamic Background aura */}
-      <div className="absolute top-[-5%] left-[20%] w-[500px] h-[500px] bg-gradient-to-tr from-blue-400/15 via-indigo-400/10 to-amber-300/10 rounded-full blur-3xl z-[-1] pointer-events-none"></div>
-
-      {/* Header Badge & Title */}
-      <div className="text-center mb-10 w-full">
-        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-50 border border-blue-100 text-blue-700 text-xs font-semibold mb-4 shadow-sm">
+      {/* Header Title */}
+      <div className="text-center mb-8 w-full">
+        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-50 border border-blue-100 text-blue-700 text-xs font-semibold mb-3 shadow-xs">
           <Sparkles size={14} className="text-blue-600" />
           <span>Official Campus Portal</span>
         </div>
-        <h1 className="text-4xl sm:text-5xl font-extrabold text-slate-900 mb-3 tracking-tight">
+        <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 mb-2 tracking-tight">
           Venue Reservation
         </h1>
-        <p className="text-slate-500 font-medium max-w-xl mx-auto text-sm sm:text-base leading-relaxed text-center block w-full">
-          Book AVR Auditoriums or SCO Webcast Studios with real-time availability and instant tracking.
+        <p className="text-slate-500 font-medium max-w-xl mx-auto text-xs sm:text-sm leading-relaxed text-center">
+          Book AVR Auditoriums or SCO Webcast Studios with real-time schedule checks.
         </p>
       </div>
 
-      <div className="w-full flex flex-col gap-6 relative z-10">
+      {/* Horizontal Kiosk-Style Timeline Process Bar */}
+      <KioskTimeline
+        steps={VENUE_STEPS}
+        activeStep={activeStep}
+        onStepClick={(step) => setActiveStep(step)}
+        completedSteps={completedSteps}
+      />
 
-        {/* STEP 1: Identity Selection */}
-        <div className={`bg-white/80 backdrop-blur-md border border-slate-200/80 rounded-3xl shadow-sm transition-all overflow-hidden ${activeStep === 1 ? 'ring-2 ring-blue-600/20 shadow-md' : ''}`}>
-          <StepHeader 
-            stepNum={1} 
-            title="Identity Selection" 
-            subtitle="Select your role to ensure proper booking permissions" 
-            activeStep={activeStep}
-            completedSteps={completedSteps}
-            toggleStep={toggleStep}
+      {/* Active Step Content Container */}
+      <div className="w-full bg-white border border-slate-200/80 rounded-2xl shadow-xs overflow-hidden">
+        {activeStep === 1 && (
+          <Step1Identity
+            identity={identity}
+            handleIdentitySelect={handleIdentitySelect}
+            onNext={() => setActiveStep(2)}
           />
+        )}
 
-          {activeStep === 1 && (
-            <Step1Identity 
-              identity={identity} 
-              handleIdentitySelect={handleIdentitySelect} 
-            />
-          )}
-        </div>
-
-        {/* STEP 2: Venue Selection & Interactive Calendar */}
-        <div className={`bg-white/80 backdrop-blur-md border border-slate-200/80 rounded-3xl shadow-sm transition-all overflow-hidden ${activeStep === 2 ? 'ring-2 ring-blue-600/20 shadow-md' : ''}`}>
-          <StepHeader stepNum={2} title="Venue Selection & Availability" subtitle="Choose between AVR Auditoriums or SCO Media Studios" activeStep={activeStep} completedSteps={completedSteps} toggleStep={toggleStep} />
-
-          {activeStep === 2 && (
-            venuesLoading ? (
-              <div className="p-8 text-center text-slate-400 text-sm animate-pulse">
-                Loading available venues…
-              </div>
-            ) : (
-              <Step2Venue 
-                venueCategory={venueCategory}
-                setVenueCategory={setVenueCategory}
-                filteredVenues={filteredVenues}
-                selectedVenue={selectedVenue}
-                handleVenueSelect={handleVenueSelect}
-                selectedDate={selectedDate}
-                handleDateSelect={handleDateSelect}
-                bookedDates={[]}
-              />
-            )
-          )}
-        </div>
-
-        {/* STEP 3: Dynamic Fill Details (AVR vs SCO Forms) */}
-        <div className={`bg-white/80 backdrop-blur-md border border-slate-200/80 rounded-3xl shadow-sm transition-all overflow-hidden ${activeStep === 3 ? 'ring-2 ring-blue-600/20 shadow-md' : ''}`}>
-          <StepHeader
-            stepNum={3}
-            title={selectedVenue?.type === "sco" ? "SCO Studio Reservation Request Form" : "AVR Venue Request Form"}
-            subtitle={selectedVenue ? `Tailored form for ${selectedVenue.name} (${selectedVenue.type === "sco" ? "SCO Department" : "AVR Department"})` : "Fill required reservation details"}
-            activeStep={activeStep} completedSteps={completedSteps} toggleStep={toggleStep}
-          />
-
-          {activeStep === 3 && (
-            <Step3Details
+        {activeStep === 2 && (
+          venuesLoading ? (
+            <div className="p-10 text-center text-slate-400 text-xs font-semibold animate-pulse">
+              Loading available venues...
+            </div>
+          ) : (
+            <Step2Venue
+              venueCategory={venueCategory}
+              setVenueCategory={setVenueCategory}
+              filteredVenues={filteredVenues}
               selectedVenue={selectedVenue}
+              handleVenueSelect={handleVenueSelect}
               selectedDate={selectedDate}
-              handleDetailsSubmit={handleDetailsSubmit}
-              fullName={fullName} setFullName={setFullName}
-              email={email} setEmail={setEmail}
-              contactNumber={contactNumber} handleContactChange={handleContactChange}
-              department={department} setDepartment={setDepartment}
-              identity={identity}
-              classification={classification} setClassification={setClassification}
-              persons={persons} setPersons={setPersons}
-              startTime={startTime} setStartTime={setStartTime}
-              endTime={endTime} setEndTime={setEndTime}
-              purpose={purpose} setPurpose={setPurpose}
-              avrEquipment={avrEquipment} setAvrEquipment={setAvrEquipment}
-              productionType={productionType} setProductionType={setProductionType}
-              targetAudience={targetAudience} setTargetAudience={setTargetAudience}
-              scoSupport={scoSupport} setScoSupport={setScoSupport}
+              handleDateSelect={handleDateSelect}
+              timeStart={startTime}
+              setTimeStart={setStartTime}
+              timeEnd={endTime}
+              setTimeEnd={setEndTime}
+              bookedDates={[]}
+              onBack={() => setActiveStep(1)}
+              onNext={() => setActiveStep(3)}
             />
-          )}
-        </div>
+          )
+        )}
 
-        {/* STEP 4: Requirements & Verification */}
-        <div className={`bg-white/80 backdrop-blur-md border border-slate-200/80 rounded-3xl shadow-sm transition-all overflow-hidden ${activeStep === 4 ? 'ring-2 ring-blue-600/20 shadow-md' : ''}`}>
-          <StepHeader stepNum={4} title="Requirements & Security Verification" subtitle="Upload endorsement documents and verify request authenticity" activeStep={activeStep} completedSteps={completedSteps} toggleStep={toggleStep} />
+        {activeStep === 3 && (
+          <Step3Details
+            selectedVenue={selectedVenue}
+            selectedDate={selectedDate}
+            handleDetailsSubmit={handleDetailsSubmit}
+            fullName={fullName} setFullName={setFullName}
+            email={email} setEmail={setEmail}
+            contactNumber={contactNumber} handleContactChange={handleContactChange}
+            department={department} setDepartment={setDepartment}
+            identity={identity}
+            classification={classification} setClassification={setClassification}
+            persons={persons} setPersons={setPersons}
+            startTime={startTime} setStartTime={setStartTime}
+            endTime={endTime} setEndTime={setEndTime}
+            purpose={purpose} setPurpose={setPurpose}
+            avrEquipment={avrEquipment} setAvrEquipment={setAvrEquipment}
+            productionType={productionType} setProductionType={setProductionType}
+            targetAudience={targetAudience} setTargetAudience={setTargetAudience}
+            scoSupport={scoSupport} setScoSupport={setScoSupport}
+            onBack={() => setActiveStep(2)}
+          />
+        )}
 
-          {activeStep === 4 && (
-            <Step4Verification
-              email={email}
-              contactNumber={contactNumber}
-              isOtpSent={isOtpSent}
-              setIsOtpSent={setIsOtpSent}
-              otp={otp}
-              setOtp={setOtp}
-              handleVerifySubmit={handleVerifySubmit}
-              isSubmitting={isSubmitting}
-              endorsementFile={endorsementFile}
-              setEndorsementFile={setEndorsementFile}
-            />
-          )}
-        </div>
+        {activeStep === 4 && (
+          <Step4Verification
+            filerName={fullName}
+            email={email}
+            contactNumber={contactNumber}
+            selectedVenue={selectedVenue}
+            selectedDate={selectedDate}
+            timeStart={startTime}
+            timeEnd={endTime}
+            purpose={purpose}
+            agreedToPolicy={isPinVerified}
+            setAgreedToPolicy={setIsPinVerified}
+            handleVerifySubmit={handleVerifySubmit}
+            isSubmitting={isSubmitting}
+            endorsementFile={endorsementFile}
+            setEndorsementFile={setEndorsementFile}
+            onBack={() => setActiveStep(3)}
+          />
+        )}
       </div>
 
       {/* POPUP MODAL: AVR Head PIN Verification Code */}

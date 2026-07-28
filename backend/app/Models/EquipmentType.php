@@ -2,44 +2,30 @@
 
 namespace App\Models;
 
-use App\Enums\UnitStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class EquipmentType extends Model
 {
     use HasFactory;
 
+    /**
+     * Note: office_id is excluded from $fillable.
+     */
     protected $fillable = [
-        'office_id',
-        'name',
-        'description',
-        'total_quantity',
-        'is_active',
+        'eq_name',
+        'eq_type',
     ];
 
-    public function office()
+    public function office(): BelongsTo
     {
         return $this->belongsTo(Office::class);
     }
 
-    public function units()
+    public function equipmentUnits(): HasMany
     {
         return $this->hasMany(EquipmentUnit::class);
-    }
-
-    public function venues()
-    {
-        return $this->belongsToMany(Venue::class, 'venue_equipment_types');
-    }
-
-    public function scopeForOffice($query, $officeId)
-    {
-        return $query->where('office_id', $officeId);
-    }
-
-    public function availableUnitsCount(): int
-    {
-        return $this->units()->where('unit_status', UnitStatus::Available)->count();
     }
 }

@@ -6,24 +6,20 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         Schema::create('equipment_units', function (Blueprint $table) {
             $table->id();
             $table->foreignId('equipment_type_id')->constrained('equipment_types')->cascadeOnDelete();
-            $table->string('barcode')->unique();
-            $table->string('condition_status')->default('good');
-            $table->boolean('is_available')->default(true);
+            $table->string('unit_code')->unique();
+            $table->date('purchased_at');
+            $table->integer('eq_lifespan'); // in months
+            $table->string('status')->default('available');
             $table->timestamps();
+            $table->timestamp('archived_at')->nullable();
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('equipment_units');

@@ -2,29 +2,29 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
-use App\Enums\PermissionArea;
-use App\Enums\PermissionAction;
-use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
 {
-    /** @use HasFactory<UserFactory> */
-    use HasApiTokens, HasFactory, Notifiable;
+    use HasApiTokens, HasFactory, Notifiable, SoftDeletes;
 
+    public const DELETED_AT = 'archived_at';
+
+    /**
+     * Note: office_id, role_id, and is_active are excluded from $fillable
+     * and must be assigned via forceFill/forceCreate in trusted service code.
+     */
     protected $fillable = [
         'name',
         'email',
-        'personal_email',
         'password',
-        'office_id',
-        'role',
-        'google_id',
-        'avatar',
+        'created_by',
     ];
 
     protected $hidden = [
@@ -32,88 +32,38 @@ class User extends Authenticatable
         'remember_token',
     ];
 
-    protected function casts(): array
-    {
-        return [
-            'email_verified_at' => 'datetime',
-            'password'          => 'hashed',
-        ];
-    }
+    protected $casts = [
+        'is_active' => 'boolean',
+        'password'  => 'hashed',
+    ];
 
-    // ─── Relationships ────────────────────────────────────────────────────────
-
-    public function office()
+    public function office(): BelongsTo
     {
         return $this->belongsTo(Office::class);
     }
 
-    /** New staff_permissions relationship (area + action model). */
-    public function staffPermissions()
+    public function role(): BelongsTo
     {
-        return $this->hasMany(StaffPermission::class, 'staff_id');
+        return $this->belongsTo(Role::class);
     }
 
-    /**
-     * Legacy relationship — kept until permissions + user_permissions tables
-     * are confirmed dropped. Do NOT use in new code.
-     *
-     * @deprecated Use staffPermissions() instead.
-     */
-    public function permissions()
+    public function creator(): BelongsTo
     {
-        return $this->belongsToMany(Permission::class, 'user_permissions')
-            ->withPivot('granted_by');
+        return $this->belongsTo(User::class, 'created_by');
     }
 
-    // ─── Role Helpers ─────────────────────────────────────────────────────────
-
-    /**
-     * New role model: 'admin' is the only privileged role.
-     * Accepts legacy 'head' and 'super_admin' for backward compatibility
-     * during seeder migration.
-     */
-    public function isAdmin(): bool
+    public function createdUsers(): HasMany
     {
-        return in_array($this->role, ['admin', 'head', 'super_admin'], true);
+        return $this->hasMany(User::class, 'created_by');
     }
 
-    /** @deprecated Use isAdmin() — kept for legacy Policy references during transition. */
     public function isSuperAdmin(): bool
     {
-        return $this->role === 'super_admin';
+        return $this->role_id === 1 || $this->role?->slug === 'super_admin' || $this->role?->name === 'super_admin';
     }
 
-    /** @deprecated Use isAdmin() — kept for legacy Policy references during transition. */
-    public function isHead(): bool
+    public function isAdmin(): bool
     {
-        return $this->role === 'head';
-    }
-
-    public function isStaff(): bool
-    {
-        return $this->role === 'staff';
-    }
-
-    // ─── Permission Check ─────────────────────────────────────────────────────
-
-    /**
-     * Check if this user has a specific area + action permission.
-     *
-     * Admin (incl. legacy head/super_admin) → always true.
-     * Staff → must have an explicit row in staff_permissions for this office/area/action.
-     */
-    public function hasPermission(PermissionArea|string $area, PermissionAction|string $action): bool
-    {
-        if ($this->isAdmin()) {
-            return true;
-        }
-
-        $areaValue   = $area   instanceof PermissionArea   ? $area->value   : $area;
-        $actionValue = $action instanceof PermissionAction ? $action->value : $action;
-
-        return $this->staffPermissions()
-            ->where('area', $areaValue)
-            ->where('action', $actionValue)
-            ->exists();
+        return $this->isSuperAdmin() || $this->role_id === 2 || $this->role?->slug === 'admin' || $this->role?->name === 'admin';
     }
 }

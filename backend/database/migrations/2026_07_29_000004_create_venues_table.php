@@ -6,27 +6,20 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
-        Schema::create('equipment_types', function (Blueprint $table) {
-    $table->id();
+        Schema::create('venues', function (Blueprint $table) {
+            $table->id();
             $table->foreignId('office_id')->constrained('offices')->cascadeOnDelete();
             $table->string('name');
-            $table->text('description')->nullable();
-            $table->integer('total_quantity')->default(0);
-            $table->boolean('is_active')->default(true);
+            $table->string('status')->default('available');
             $table->timestamps();
+            $table->timestamp('archived_at')->nullable();
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
-        Schema::dropIfExists('equipment_types');
+        Schema::dropIfExists('venues');
     }
 };

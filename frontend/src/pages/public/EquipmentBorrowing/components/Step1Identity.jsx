@@ -1,9 +1,10 @@
-import { GraduationCap, Users, User } from "lucide-react";
+import { GraduationCap, Users, User, ArrowRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
-export default function Step1Identity({ identity, handleIdentitySelect }) {
+export default function Step1Identity({ identity, handleIdentitySelect, onNext }) {
   return (
     <div className="p-6 sm:p-8 animate-in slide-in-from-top-2 duration-300">
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         <div
           onClick={() => handleIdentitySelect("Student")}
           className={`group relative border-2 rounded-2xl p-6 text-center cursor-pointer transition-all duration-300 ${identity === "student"
@@ -45,6 +46,18 @@ export default function Step1Identity({ identity, handleIdentitySelect }) {
           <h3 className="font-bold text-slate-900 mb-1 text-base">External User</h3>
           <p className="text-xs text-slate-500">Guest or Partner entity borrowing with department clearance.</p>
         </div>
+      </div>
+
+      {/* Next Switch Bar */}
+      <div className="flex justify-end pt-4 border-t border-slate-100">
+        <Button
+          disabled={!identity}
+          onClick={() => identity && onNext && onNext()}
+          className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-5 rounded-xl font-extrabold text-xs flex items-center gap-2 shadow-md disabled:opacity-50"
+        >
+          <span>Next: Select Equipment</span>
+          <ArrowRight size={16} />
+        </Button>
       </div>
     </div>
   );

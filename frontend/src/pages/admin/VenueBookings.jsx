@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
+import { useOutletContext } from "react-router-dom";
 import api from "@/lib/axios";
-import { CheckCircle, XCircle, Loader2, RefreshCw, AlertCircle, ChevronLeft, ChevronRight, Eye } from "lucide-react";
+import { CheckCircle, XCircle, Loader2, RefreshCw, AlertCircle, ChevronLeft, ChevronRight, Eye, Building } from "lucide-react";
 
 function StatusBadge({ status }) {
   const map = {
@@ -17,6 +18,10 @@ function StatusBadge({ status }) {
 }
 
 export default function VenueBookings() {
+  const context = useOutletContext();
+  const selectedOffice = context?.selectedOffice ?? "All Offices";
+  const setSelectedOffice = context?.setSelectedOffice;
+
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(null);
@@ -61,15 +66,17 @@ export default function VenueBookings() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-extrabold text-slate-900">Venue Bookings</h1>
+          <h1 className="text-xl sm:text-2xl font-medium text-slate-800 tracking-tight">Venue Bookings</h1>
           <p className="text-sm text-slate-400 mt-0.5">Manage AVR and SCO venue reservation requests</p>
         </div>
-        <button onClick={fetchBookings} disabled={loading} className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-all shadow-sm disabled:opacity-60">
-          <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
-          Refresh
-        </button>
+        <div className="flex items-center gap-3">
+          <button onClick={fetchBookings} disabled={loading} className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-all shadow-xs disabled:opacity-60">
+            <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
+            Refresh
+          </button>
+        </div>
       </div>
 
       {error && (

@@ -61,9 +61,10 @@ export default function StaffLogin() {
       {/* Login Panel */}
       <div className="w-full max-w-[420px] bg-white rounded-3xl p-8 sm:p-10 border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.06)] animate-in fade-in slide-in-from-bottom-5 duration-500 relative z-10 m-6">
 
-        <div className="text-center mb-8">
+        <div className="text-center mb-8 flex flex-col items-center">
+          <img src="/fsuu_logo.png" alt="FSUU Seal" className="h-16 w-auto mb-3 object-contain" />
           <h2 className="text-2xl font-[800] text-slate-900 leading-tight">Staff Portal</h2>
-          <p className="text-sm text-slate-500 mt-1">Sign in to access your dashboard</p>
+          <p className="text-xs text-slate-500 font-semibold mt-1">Father Saturnino Urios University</p>
         </div>
 
         {/* ── Google Sign In ── */}

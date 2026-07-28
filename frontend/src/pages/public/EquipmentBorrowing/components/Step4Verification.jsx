@@ -10,6 +10,7 @@ export default function Step4Verification({
   isOtpSent, setIsOtpSent,
   isSubmitting, handleVerifySubmit,
   endorsementFile, setEndorsementFile,
+  onBack,
 }) {
   const [verificationMethod, setVerificationMethod] = useState("email");
   const [otpSending, setOtpSending]   = useState(false);
@@ -144,11 +145,17 @@ export default function Step4Verification({
       </div>
 
       <div className="mt-8 pt-6 border-t border-slate-100 flex items-center justify-between">
-        <p className="text-xs text-slate-400 max-w-sm">
-          Borrowers are fully accountable for equipment safety, loss, or damage during the borrowing duration.
-        </p>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => onBack && onBack()}
+          className="border-slate-200 text-slate-700 hover:bg-slate-50 px-5 py-5 rounded-xl font-bold text-xs"
+        >
+          ← Back to Details
+        </Button>
+
         <Button onClick={handleVerifySubmit} disabled={isSubmitting}
-          className="bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-6 rounded-xl font-extrabold text-base shadow-xl shadow-emerald-600/20 transition-all hover:scale-105 disabled:opacity-70 disabled:hover:scale-100">
+          className="bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-5 rounded-xl font-extrabold text-xs shadow-xl shadow-emerald-600/20 transition-all hover:scale-105 disabled:opacity-70 disabled:hover:scale-100">
           {isSubmitting ? "Submitting…" : "Submit Borrowing Request"}
         </Button>
       </div>

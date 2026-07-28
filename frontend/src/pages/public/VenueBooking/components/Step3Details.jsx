@@ -18,7 +18,8 @@ export default function Step3Details({
   avrEquipment, setAvrEquipment,
   productionType, setProductionType,
   targetAudience, setTargetAudience,
-  scoSupport, setScoSupport
+  scoSupport, setScoSupport,
+  onBack,
 }) {
   return (
     <div className="p-6 sm:p-8 animate-in slide-in-from-top-2 duration-300">
@@ -119,6 +120,7 @@ export default function Step3Details({
               <label className="text-xs font-bold text-slate-900">Start Time <span className="text-red-500">*</span></label>
               <input 
                 type="time" 
+                step="300"
                 required 
                 value={startTime}
                 onChange={(e) => setStartTime(e.target.value)}
@@ -130,6 +132,7 @@ export default function Step3Details({
               <label className="text-xs font-bold text-slate-900">End Time <span className="text-red-500">*</span></label>
               <input 
                 type="time" 
+                step="300"
                 required 
                 value={endTime}
                 onChange={(e) => setEndTime(e.target.value)}
@@ -192,6 +195,7 @@ export default function Step3Details({
               <label className="text-xs font-bold text-slate-900">Setup & Technical Call Time <span className="text-red-500">*</span></label>
               <input 
                 type="time" 
+                step="300"
                 required 
                 value={startTime}
                 onChange={(e) => setStartTime(e.target.value)}
@@ -203,6 +207,7 @@ export default function Step3Details({
               <label className="text-xs font-bold text-slate-900">Broadcast End Time <span className="text-red-500">*</span></label>
               <input 
                 type="time" 
+                step="300"
                 required 
                 value={endTime}
                 onChange={(e) => setEndTime(e.target.value)}
@@ -237,12 +242,21 @@ export default function Step3Details({
           </>
         )}
 
-        <div className="sm:col-span-2 flex justify-end mt-4">
-          <Button type="submit" className={`px-8 py-6 rounded-xl font-extrabold text-white text-base shadow-lg transition-all ${selectedVenue?.type === "sco"
+        <div className="sm:col-span-2 flex items-center justify-between mt-6 pt-4 border-t border-slate-100">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onBack && onBack()}
+            className="border-slate-200 text-slate-700 hover:bg-slate-50 px-5 py-5 rounded-xl font-bold text-xs"
+          >
+            ← Back to Venue Selection
+          </Button>
+
+          <Button type="submit" className={`px-8 py-5 rounded-xl font-extrabold text-white text-xs shadow-lg transition-all ${selectedVenue?.type === "sco"
             ? 'bg-purple-600 hover:bg-purple-700 shadow-purple-600/20'
             : 'bg-blue-600 hover:bg-blue-700 shadow-blue-600/20'
             }`}>
-            Proceed to Requirements & Verification
+            Next: Verification →
           </Button>
         </div>
       </form>

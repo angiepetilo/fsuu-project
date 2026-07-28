@@ -1,0 +1,77 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
+
+class VenueBooking extends Model
+{
+    use HasFactory, SoftDeletes;
+
+    public const DELETED_AT = 'archived_at';
+
+    protected $fillable = [
+        'tracking_number_id',
+        'venue_id',
+        'submitted_by',
+        'submission_channel',
+        'filer_name',
+        'email_address',
+        'program_office',
+        'contact_number',
+        'province',
+        'city',
+        'barangay',
+        'street',
+        'classification',
+        'place_of_use',
+        'purpose',
+        'no_of_person',
+        'date_of_usage',
+        'time_start',
+        'time_end',
+        'school_id',
+        'agreed_to_policy',
+    ];
+
+    protected $casts = [
+        'agreed_to_policy' => 'boolean',
+        'no_of_person'     => 'integer',
+        'date_of_usage'    => 'date',
+    ];
+
+    public function trackingNumber(): BelongsTo
+    {
+        return $this->belongsTo(TrackingNumber::class);
+    }
+
+    public function venue(): BelongsTo
+    {
+        return $this->belongsTo(Venue::class);
+    }
+
+    public function submittedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'submitted_by');
+    }
+
+    public function documents(): HasMany
+    {
+        return $this->hasMany(Document::class);
+    }
+
+    public function venueBookingEquipment(): HasMany
+    {
+        return $this->hasMany(VenueBookingEquipment::class);
+    }
+
+    public function inspections(): MorphMany
+    {
+        return $this->morphMany(Inspection::class, 'inspectable');
+    }
+}
