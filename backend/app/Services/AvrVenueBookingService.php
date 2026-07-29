@@ -73,15 +73,25 @@ class AvrVenueBookingService
     public function approve(AvrVenueBooking $booking, User $actor, ?string $remarks = null): AvrVenueBooking
     {
         return DB::transaction(function () use ($booking, $actor, $remarks) {
-            $booking->forceFill(['status' => 'approved'])->save();
+            if (\Illuminate\Support\Facades\Schema::hasColumn('venue_bookings', 'status')) {
+                $booking->forceFill(['status' => 'approved'])->save();
+            }
 
-            Approval::forceCreate([
-                'reference_type' => 'avr_venue_booking',
-                'reference_id' => $booking->id,
-                'action' => 'approved',
-                'remarks' => $remarks,
-                'approved_by' => $actor->id,
-            ]);
+            if ($booking->tracking_number_id) {
+                DB::table('tracking_numbers')->where('id', $booking->tracking_number_id)->update(['status' => 'approved']);
+            }
+
+            if (\Illuminate\Support\Facades\Schema::hasTable('approvals')) {
+                DB::table('approvals')->insert([
+                    'reference_type' => 'avr_venue_booking',
+                    'reference_id'   => $booking->id,
+                    'action'         => 'approved',
+                    'remarks'        => $remarks,
+                    'approved_by'    => $actor->id,
+                    'created_at'     => now(),
+                    'updated_at'     => now(),
+                ]);
+            }
 
             $this->auditLog->log($actor, 'booking_approved', 'avr_venue_booking', $booking->id);
 
@@ -93,8 +103,8 @@ class AvrVenueBookingService
                 'avr_venue_booking',
                 $booking->id,
                 $notificationType,
-                $booking->contact_preference,
-                $booking->contact_preference === 'email' ? $booking->requestor_email : $booking->requestor_contact_number
+                $booking->contact_preference ?? 'email',
+                $booking->email_address ?? $booking->requestor_email
             );
 
             // Send status update email asynchronously
@@ -107,15 +117,25 @@ class AvrVenueBookingService
     public function reject(AvrVenueBooking $booking, User $actor, string $remarks): AvrVenueBooking
     {
         return DB::transaction(function () use ($booking, $actor, $remarks) {
-            $booking->forceFill(['status' => 'rejected'])->save();
+            if (\Illuminate\Support\Facades\Schema::hasColumn('venue_bookings', 'status')) {
+                $booking->forceFill(['status' => 'rejected'])->save();
+            }
 
-            Approval::forceCreate([
-                'reference_type' => 'avr_venue_booking',
-                'reference_id' => $booking->id,
-                'action' => 'rejected',
-                'remarks' => $remarks,
-                'approved_by' => $actor->id,
-            ]);
+            if ($booking->tracking_number_id) {
+                DB::table('tracking_numbers')->where('id', $booking->tracking_number_id)->update(['status' => 'rejected']);
+            }
+
+            if (\Illuminate\Support\Facades\Schema::hasTable('approvals')) {
+                DB::table('approvals')->insert([
+                    'reference_type' => 'avr_venue_booking',
+                    'reference_id'   => $booking->id,
+                    'action'         => 'rejected',
+                    'remarks'        => $remarks,
+                    'approved_by'    => $actor->id,
+                    'created_at'     => now(),
+                    'updated_at'     => now(),
+                ]);
+            }
 
             $this->auditLog->log($actor, 'booking_rejected', 'avr_venue_booking', $booking->id);
 
@@ -123,11 +143,11 @@ class AvrVenueBookingService
                 'avr_venue_booking',
                 $booking->id,
                 'booking_rejected',
-                $booking->contact_preference,
-                $booking->contact_preference === 'email' ? $booking->requestor_email : $booking->requestor_contact_number
+                $booking->contact_preference ?? 'email',
+                $booking->email_address ?? $booking->requestor_email
             );
 
-            // Send status update email asynchronously
+            // Send status update email asynchronously with rejection comments directly to requestor email
             SendBookingStatusUpdateJob::dispatch('venue', $booking->fresh(), 'rejected', $remarks);
 
             return $booking->fresh();

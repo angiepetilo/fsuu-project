@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { AlertTriangle, Info } from "lucide-react";
+import { Tooltip } from "@/components/ui/tooltip";
 
 export default function FeatureCards() {
   return (
@@ -26,27 +27,29 @@ export default function FeatureCards() {
             </svg>
           </div>
 
-          {/* Warning Pill Badge */}
-          <div className="inline-flex items-center justify-center gap-1.5 text-[0.75rem] font-[700] text-[#b91c1c] uppercase tracking-[0.05em] mb-[1.5rem] px-[1rem] py-[0.35rem] rounded-full bg-[#fef2f2] border border-[#fecaca]">
-            <AlertTriangle size={14} className="text-[#b91c1c] shrink-0" />
-            <span>Strictly 3 Days Booking. No Excuses!</span>
-          </div>
+          {/* Warning Pill Badge with Tooltip */}
+          <Tooltip text="All venue reservations must be submitted at least 72 hours prior to the event start date.">
+            <div className="inline-flex items-center justify-center gap-1.5 text-[0.75rem] font-[700] text-[#b91c1c] uppercase tracking-[0.05em] mb-[1.5rem] px-[1rem] py-[0.35rem] rounded-full bg-[#fef2f2] border border-[#fecaca] cursor-help">
+              <AlertTriangle size={14} className="text-[#b91c1c] shrink-0" />
+              <span>Strictly 3 Days Booking. No Excuses!</span>
+            </div>
+          </Tooltip>
 
           <h2 className="text-[1.875rem] font-[800] mb-[1rem] text-[#0f172a]">
             <span className="text-[#2563eb]">Venue</span> Booking
           </h2>
 
-          <p className="text-[#64748b] text-[1.05rem] leading-[1.6] mb-[2.5rem] font-[500]">
+          <p className="text-[#64748b] text-xs sm:text-sm leading-[1.6] mb-[2rem] font-[500] text-center mx-auto max-w-sm">
             Reserve AVR rooms, Hagenburg Hall, Webcast Studio, or Mini Theater at FSUU campuses for events, classes, and recordings.
           </p>
         </div>
 
         <Link
           to="/book-venue"
-          className="w-full p-[1.125rem] rounded-[16px] border-none font-[700] text-[1.05rem] cursor-pointer transition-all duration-300 flex items-center justify-center gap-[0.5rem] text-[#ffffff] bg-[#2563eb] hover:bg-[#1d4ed8] hover:-translate-y-[2px] shadow-[0_4px_6px_-1px_rgba(0,0,0,0.1)] hover:shadow-[0_10px_15px_-3px_rgba(37,99,235,0.3)] text-decoration-none"
+          className="w-full p-[0.75rem_1.25rem] rounded-[14px] border-none font-[700] text-xs sm:text-sm cursor-pointer transition-all duration-300 flex items-center justify-center gap-[0.5rem] text-[#ffffff] bg-[#2563eb] hover:bg-[#1d4ed8] hover:-translate-y-[2px] shadow-[0_4px_6px_-1px_rgba(0,0,0,0.1)] hover:shadow-[0_10px_15px_-3px_rgba(37,99,235,0.3)] text-decoration-none"
         >
           <span>Proceed to Venue Booking</span>
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <line x1="5" y1="12" x2="19" y2="12" />
             <polyline points="12 5 19 12 12 19" />
           </svg>
@@ -74,27 +77,29 @@ export default function FeatureCards() {
             </svg>
           </div>
 
-          {/* Notice Pill Badge */}
-          <div className="inline-flex items-center justify-center gap-1.5 text-[0.75rem] font-[700] text-[#92400e] tracking-[0.03em] mb-[1.5rem] px-[1rem] py-[0.35rem] rounded-full bg-[#fef3c7] border border-[#fde68a]">
-            <Info size={14} className="text-[#92400e] shrink-0" />
-            <span>School ID required for pickup.</span>
-          </div>
+          {/* Notice Pill Badge with Tooltip */}
+          <Tooltip text="A physical FSUU Student or Faculty ID must be presented upon equipment collection.">
+            <div className="inline-flex items-center justify-center gap-1.5 text-[0.75rem] font-[700] text-[#92400e] tracking-[0.03em] mb-[1.5rem] px-[1rem] py-[0.35rem] rounded-full bg-[#fef3c7] border border-[#fde68a] cursor-help">
+              <Info size={14} className="text-[#92400e] shrink-0" />
+              <span>School ID required for pickup.</span>
+            </div>
+          </Tooltip>
 
           <h2 className="text-[1.875rem] font-[800] mb-[1rem] text-[#0f172a]">
             <span className="text-[#d97706]">Equipment</span> Borrowing
           </h2>
 
-          <p className="text-[#64748b] text-[1.05rem] leading-[1.6] mb-[2.5rem] font-[500]">
+          <p className="text-[#64748b] text-xs sm:text-sm leading-[1.6] mb-[2rem] font-[500] text-center mx-auto max-w-sm">
             Borrow multimedia items including projectors, projector screens, microphones, cameras, and corresponding extension items.
           </p>
         </div>
 
         <Link
           to="/borrow-equipment"
-          className="w-full p-[1.125rem] rounded-[16px] border-none font-[700] text-[1.05rem] cursor-pointer transition-all duration-300 flex items-center justify-center gap-[0.5rem] text-[#ffffff] bg-[#d97706] hover:bg-[#b45309] hover:-translate-y-[2px] shadow-[0_4px_6px_-1px_rgba(0,0,0,0.1)] hover:shadow-[0_10px_15px_-3px_rgba(217,119,6,0.3)] text-decoration-none"
+          className="w-full p-[0.75rem_1.25rem] rounded-[14px] border-none font-[700] text-xs sm:text-sm cursor-pointer transition-all duration-300 flex items-center justify-center gap-[0.5rem] text-[#ffffff] bg-[#d97706] hover:bg-[#b45309] hover:-translate-y-[2px] shadow-[0_4px_6px_-1px_rgba(0,0,0,0.1)] hover:shadow-[0_10px_15px_-3px_rgba(217,119,6,0.3)] text-decoration-none"
         >
           <span>Proceed to Equipment Borrowing</span>
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <line x1="5" y1="12" x2="19" y2="12" />
             <polyline points="12 5 19 12 12 19" />
           </svg>

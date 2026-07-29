@@ -204,21 +204,6 @@ export default function AdminLayout() {
             </div>
 
             <div className="flex items-center gap-3">
-              {/* Office Filter Dropdown */}
-              <div className="flex items-center bg-slate-50 border border-slate-200/80 rounded-xl px-3 py-1.5 text-xs">
-                <select
-                  value={selectedOffice}
-                  onChange={(e) => setSelectedOffice(e.target.value)}
-                  className="bg-transparent font-semibold text-slate-800 focus:outline-none cursor-pointer"
-                >
-                  <option value="All Offices">All Offices</option>
-                  <option value="FSUU Main (AVR Center)">FSUU Main (AVR Center)</option>
-                  <option value="FSUU Morelos (SCO Center)">FSUU Morelos (SCO Center)</option>
-                  <option value="Property & Inventory Office">Property & Inventory Office</option>
-                  <option value="IT & Technology Services">IT & Technology Services</option>
-                </select>
-              </div>
-
               {/* Notification Bell */}
               <button className="relative p-2 rounded-xl text-slate-600 hover:bg-slate-100 transition-all" title="Notifications">
                 <Bell size={18} />

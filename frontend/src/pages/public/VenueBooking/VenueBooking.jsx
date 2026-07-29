@@ -182,7 +182,7 @@ export default function VenueBooking() {
         <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 mb-2 tracking-tight">
           Venue Reservation
         </h1>
-        <p className="text-slate-500 font-medium max-w-xl mx-auto text-xs sm:text-sm leading-relaxed text-center">
+        <p className="text-slate-500 font-medium max-w-md sm:max-w-lg mx-auto text-xs sm:text-sm leading-relaxed text-center">
           Book AVR Auditoriums or SCO Webcast Studios with real-time schedule checks.
         </p>
       </div>

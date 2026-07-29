@@ -14,11 +14,12 @@ class Venue extends Model
 
     public const DELETED_AT = 'archived_at';
 
-    /**
-     * Note: office_id and status are excluded from $fillable.
-     */
     protected $fillable = [
+        'office_id',
         'name',
+        'location',
+        'capacity',
+        'status',
     ];
 
     public function office(): BelongsTo

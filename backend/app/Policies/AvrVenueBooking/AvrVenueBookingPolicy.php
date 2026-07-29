@@ -27,14 +27,22 @@ class AvrVenueBookingPolicy
 
     public function approve(User $user, AvrVenueBooking $booking): bool
     {
+        if ($user->isAdmin()) {
+            return true;
+        }
+
         return $this->belongsToUsersOffice($user, $booking)
-            && $user->hasPermission(PermissionArea::VenueBooking, PermissionAction::Approve);
+            && method_exists($user, 'hasPermission') && $user->hasPermission(PermissionArea::VenueBooking, PermissionAction::Approve);
     }
 
     public function reject(User $user, AvrVenueBooking $booking): bool
     {
+        if ($user->isAdmin()) {
+            return true;
+        }
+
         return $this->belongsToUsersOffice($user, $booking)
-            && $user->hasPermission(PermissionArea::VenueBooking, PermissionAction::Approve);
+            && method_exists($user, 'hasPermission') && $user->hasPermission(PermissionArea::VenueBooking, PermissionAction::Approve);
     }
 
     public function cancel(User $user, AvrVenueBooking $booking): bool

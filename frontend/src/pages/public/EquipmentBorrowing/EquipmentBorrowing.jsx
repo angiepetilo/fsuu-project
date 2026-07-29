@@ -139,7 +139,7 @@ export default function EquipmentBorrowing() {
         <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 mb-2 tracking-tight">
           Equipment Borrowing
         </h1>
-        <p className="text-slate-500 font-medium max-w-xl mx-auto text-xs sm:text-sm leading-relaxed text-center">
+        <p className="text-slate-500 font-medium max-w-md sm:max-w-lg mx-auto text-xs sm:text-sm leading-relaxed text-center">
           Request AV gear from AVR or professional video/audio broadcast equipment from SCO.
         </p>
       </div>
