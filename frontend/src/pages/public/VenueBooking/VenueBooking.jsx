@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { Sparkles, KeyRound, Lock, X, AlertCircle, ShieldCheck, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { KioskTimeline } from "@/components/ui/kiosk-timeline";
+import { PinModal } from "@/components/ui/pin-modal";
 import api from "@/lib/axios";
 
 import Step1Identity from "./components/Step1Identity";
@@ -11,10 +12,10 @@ import Step3Details from "./components/Step3Details";
 import Step4Verification from "./components/Step4Verification";
 
 const VENUE_STEPS = [
-  { title: "Identity",       subtitle: "Select role" },
-  { title: "Venue & Time",   subtitle: "Choose venue & schedule" },
-  { title: "Fill Details",   subtitle: "Reservation form" },
-  { title: "Verification",   subtitle: "Upload & submit" },
+  { title: "Identity", subtitle: "Select role" },
+  { title: "Venue & Time", subtitle: "Choose venue & schedule" },
+  { title: "Fill Details", subtitle: "Reservation form" },
+  { title: "Verification", subtitle: "Upload & submit" },
 ];
 
 export default function VenueBooking() {
@@ -27,6 +28,7 @@ export default function VenueBooking() {
   const [identity, setIdentity] = useState("");
   const [selectedVenue, setSelectedVenue] = useState(null);
   const [selectedDate, setSelectedDate] = useState("");
+  const [selectedEndDate, setSelectedEndDate] = useState("");
   const [showSuccess, setShowSuccess] = useState(false);
   const [venueCategory, setVenueCategory] = useState("all");
   const [referenceCode, setReferenceCode] = useState("");
@@ -59,16 +61,61 @@ export default function VenueBooking() {
   const [contactNumber, setContactNumber] = useState("");
   const [startTime, setStartTime] = useState("08:00");
   const [endTime, setEndTime] = useState("10:00");
+  const [existingBookings, setExistingBookings] = useState([]);
 
   const handleContactChange = (e) => {
     setContactNumber(e.target.value.replace(/\D/g, '').slice(0, 11));
   };
 
+  const getMergedVenues = (apiVenues = []) => {
+    let localVenues = [];
+    try {
+      const saved = localStorage.getItem("fsuu_venue_availability");
+      if (saved) localVenues = JSON.parse(saved);
+    } catch { }
+
+    if (localVenues.length > 0) {
+      return localVenues.map(lv => ({
+        id: lv.id,
+        name: lv.name,
+        location: lv.location || (lv.name.includes("SCO") ? "FSUU Morelos Campus" : "FSUU Main Campus"),
+        capacity: lv.capacity || 100,
+        type: (lv.name.includes("SCO") || lv.name.includes("Studio")) ? "sco" : "avr",
+        photo: lv.photo || null,
+        image: lv.photo || null,
+        status: lv.status || "Available",
+        schedule: lv.schedule || null,
+      }));
+    }
+
+    return apiVenues;
+  };
+
   useEffect(() => {
-    api.get('/public/venues')
-      .then(res => setVenues(res.data ?? []))
-      .catch(() => setVenues([]))
-      .finally(() => setVenuesLoading(false));
+    const fetchVenues = () => {
+      api.get('/public/venues')
+        .then(res => setVenues(getMergedVenues(res.data ?? [])))
+        .catch(() => setVenues(getMergedVenues([])))
+        .finally(() => setVenuesLoading(false));
+    };
+
+    fetchVenues();
+
+    const handleUpdate = () => setVenues(getMergedVenues([]));
+    window.addEventListener("venue_availability_updated", handleUpdate);
+    window.addEventListener("storage", handleUpdate);
+
+    api.get('/public/venue-bookings')
+      .then(res => {
+        const data = Array.isArray(res.data) ? res.data : (res.data?.data ?? []);
+        setExistingBookings(data);
+      })
+      .catch(() => setExistingBookings([]));
+
+    return () => {
+      window.removeEventListener("venue_availability_updated", handleUpdate);
+      window.removeEventListener("storage", handleUpdate);
+    };
   }, []);
 
   const filteredVenues = venueCategory === "all"
@@ -88,18 +135,19 @@ export default function VenueBooking() {
 
   const handleDateSelect = (dateStr) => {
     setSelectedDate(dateStr);
+  };
 
-    if (selectedVenue) {
-      if (identity === "external" && selectedVenue.type === "avr" && !isPinVerified) {
-        setShowPinModal(true);
-        setPinError(false);
-        setPinInput("");
-        return;
-      }
-
-      if (!completedSteps.includes(2)) setCompletedSteps([...completedSteps, 2]);
-      setActiveStep(3);
+  const handleStep2Next = () => {
+    const isMultiDay = selectedEndDate && selectedEndDate > selectedDate;
+    if ((identity === "external" || isMultiDay) && selectedVenue?.type === "avr" && !isPinVerified) {
+      setShowPinModal(true);
+      setPinError(false);
+      setPinInput("");
+      return;
     }
+
+    if (!completedSteps.includes(2)) setCompletedSteps([...completedSteps, 2]);
+    setActiveStep(3);
   };
 
   const handleConfirmPin = (e) => {
@@ -127,16 +175,17 @@ export default function VenueBooking() {
     setIsSubmitting(true);
     try {
       let endpoint = '';
+      const targetEndDate = selectedEndDate || selectedDate;
       const startDt = `${selectedDate} ${startTime}:00`;
-      const endDt = `${selectedDate} ${endTime}:00`;
+      const endDt = `${targetEndDate} ${endTime}:00`;
 
-      let payload = {
+      const payload = {
         requestor_name: fullName,
         requestor_email: email,
         requestor_contact_number: contactNumber,
         requestor_program_office: department,
-        requestor_identity_type: identity,
-        title_of_reservation: purpose.substring(0, 100) || 'Reservation',
+        requestor_identity_type: classification === 'external' ? 'external' : 'student',
+        title_of_reservation: purpose,
         purpose: purpose,
         event_type: 'general',
         start_datetime: startDt,
@@ -157,13 +206,25 @@ export default function VenueBooking() {
         payload.number_of_persons = parseInt(persons, 10) || 1;
       }
 
-      const { data } = await api.post(endpoint, payload);
-      setReferenceCode(data.reference_code || 'REF-SUCCESS');
+      const formData = new FormData();
+      Object.keys(payload).forEach(key => {
+        if (payload[key] !== undefined && payload[key] !== null) {
+          formData.append(key, payload[key]);
+        }
+      });
+      if (endorsementFile) {
+        formData.append('endorsement_file', endorsementFile);
+      }
+
+      const { data } = await api.post(endpoint, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      const ref = data.tracking_number?.reference_code || data.reference_code || (data.id ? `TRK-AVR${data.id}` : 'TRK-SUCCESS');
+      setReferenceCode(ref);
       setShowSuccess(true);
     } catch (error) {
-      const msg = error.response?.data?.message || error.response?.data?.errors
-        ? Object.values(error.response.data.errors).flat().join(' ')
-        : 'Network error. Please try again.';
+      const errObj = error.response?.data?.errors;
+      const msg = error.response?.data?.message || (errObj ? Object.values(errObj).flat().join(' ') : 'Reservation submission failed. Please check form inputs.');
       alert("Failed to submit: " + msg);
     } finally {
       setIsSubmitting(false);
@@ -219,13 +280,15 @@ export default function VenueBooking() {
               handleVenueSelect={handleVenueSelect}
               selectedDate={selectedDate}
               handleDateSelect={handleDateSelect}
+              selectedEndDate={selectedEndDate}
+              setSelectedEndDate={setSelectedEndDate}
               timeStart={startTime}
               setTimeStart={setStartTime}
               timeEnd={endTime}
               setTimeEnd={setEndTime}
-              bookedDates={[]}
+              existingBookings={existingBookings}
               onBack={() => setActiveStep(1)}
-              onNext={() => setActiveStep(3)}
+              onNext={handleStep2Next}
             />
           )
         )}
@@ -275,66 +338,17 @@ export default function VenueBooking() {
       </div>
 
       {/* POPUP MODAL: AVR Head PIN Verification Code */}
-      {showPinModal && (
-        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[2500] flex items-center justify-center p-4 animate-in fade-in duration-300">
-          <div className="bg-white rounded-3xl p-8 max-w-md w-full text-center shadow-2xl relative border border-slate-100 animate-in zoom-in-95 duration-200">
-            <button
-              onClick={() => setShowPinModal(false)}
-              className="absolute top-5 right-5 text-slate-400 hover:text-slate-600 transition-colors p-1"
-            >
-              <X size={20} />
-            </button>
-
-            <div className="w-16 h-16 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center mx-auto mb-5 border-2 border-amber-300/40 shadow-inner">
-              <KeyRound size={32} />
-            </div>
-
-            <h3 className="text-xl font-extrabold text-slate-900 mb-2">AVR Head PIN Required</h3>
-            <p className="text-xs text-slate-500 leading-relaxed mb-6 font-medium">
-              External Users must verify an authorized PIN issued by the <span className="font-bold text-slate-800">AVR Head</span> before requesting AVR Auditoriums.
-            </p>
-
-            {pinError && (
-              <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-600 text-xs font-bold rounded-xl flex items-center justify-center gap-2">
-                <AlertCircle size={16} />
-                <span>Invalid PIN Code. Default PIN: 123456</span>
-              </div>
-            )}
-
-            <form onSubmit={handleConfirmPin} className="flex flex-col gap-4">
-              <div className="relative">
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                <input
-                  type="password"
-                  value={pinInput}
-                  onChange={(e) => setPinInput(e.target.value)}
-                  placeholder="Enter 6-digit PIN"
-                  required
-                  autoFocus
-                  className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-center text-slate-900 font-mono tracking-widest text-lg focus:outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 shadow-sm"
-                />
-              </div>
-
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setShowPinModal(false)}
-                  className="flex-1 py-5 rounded-xl border-slate-200 text-slate-600 font-bold text-xs"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  className="flex-1 py-5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs shadow-lg shadow-amber-600/20"
-                >
-                  Confirm & Verify PIN
-                </Button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <PinModal
+        isOpen={showPinModal}
+        onClose={() => setShowPinModal(false)}
+        onVerify={() => {
+          setIsPinVerified(true);
+          setShowPinModal(false);
+          if (!completedSteps.includes(2)) setCompletedSteps([...completedSteps, 2]);
+          setActiveStep(3);
+        }}
+        description="AVR Head PIN Required"
+      />
 
       {/* Confirmation Success Modal */}
       {showSuccess && (
@@ -343,24 +357,13 @@ export default function VenueBooking() {
             <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-6 border-4 border-emerald-500/20 shadow-inner">
               <ShieldCheck size={42} />
             </div>
-            <h2 className="text-2xl font-extrabold text-slate-900 mb-2">Request Submitted!</h2>
-            <p className="text-slate-500 mb-6 font-medium text-xs leading-relaxed">
-              Your request for <span className="font-bold text-slate-800">{selectedVenue?.name}</span> has been logged and sent to the <span className="font-bold text-blue-600">{selectedVenue?.type === "sco" ? "SCO Office" : "AVR Office"}</span> for review.
+            <h2 className="text-2xl font-extrabold text-slate-900 mb-3">Thank You!</h2>
+            <p className="text-slate-600 mb-6 font-medium text-xs sm:text-sm leading-relaxed">
+              The venue booking will be released once you receive the tracking number sent via email or SMS to claim your reservation. Please check your registered email or phone number.
             </p>
 
-            <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-4 mb-6 shadow-inner">
-              <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">Your Tracking Reference Number</p>
-              <p className="text-2xl font-black text-amber-600 tracking-wider font-mono">
-                {referenceCode}
-              </p>
-            </div>
-
             <div className="flex flex-col gap-3">
-              <Button className="w-full py-6 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-blue-600/20">
-                <Download size={18} />
-                Download Slip (PDF)
-              </Button>
-              <Button asChild variant="outline" className="w-full py-6 rounded-xl border-slate-200 text-slate-700 font-bold text-sm hover:bg-slate-50">
+              <Button asChild className="w-full py-6 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-blue-600/20">
                 <Link to="/track">Track Reservation Status</Link>
               </Button>
             </div>

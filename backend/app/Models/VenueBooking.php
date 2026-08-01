@@ -62,7 +62,7 @@ class VenueBooking extends Model
 
     public function documents(): HasMany
     {
-        return $this->hasMany(Document::class);
+        return $this->hasMany(Document::class, 'venue_booking_id');
     }
 
     public function venueBookingEquipment(): HasMany
@@ -73,5 +73,10 @@ class VenueBooking extends Model
     public function inspections(): MorphMany
     {
         return $this->morphMany(Inspection::class, 'inspectable');
+    }
+
+    public function approvals(): HasMany
+    {
+        return $this->hasMany(Approval::class, 'reference_id')->where('reference_type', 'avr_venue_booking');
     }
 }

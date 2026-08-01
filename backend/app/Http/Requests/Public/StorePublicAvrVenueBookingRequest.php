@@ -27,8 +27,9 @@ class StorePublicAvrVenueBookingRequest extends FormRequest
             'event_type' => ['required', 'string', 'max:255'],
             'equipment_notes' => ['nullable', 'string'],
             'contact_preference' => ['required', 'in:sms,email'],
-            'start_datetime' => ['required', 'date', 'after:now'],
-            'end_datetime' => ['required', 'date', 'after:start_datetime'],
+            'start_datetime' => ['required', 'date'],
+            'end_datetime' => ['required', 'date'],
+            'endorsement_file' => ['nullable', 'file', 'mimes:pdf,png,jpg,jpeg', 'max:10240'],
         ];
     }
 }

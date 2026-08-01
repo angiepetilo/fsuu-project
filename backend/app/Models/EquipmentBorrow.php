@@ -55,6 +55,6 @@ class EquipmentBorrow extends Model
 
     public function items(): HasMany
     {
-        return $this->hasMany(EquipmentBorrowItem::class);
+        return $this->hasMany(EquipmentBorrowItem::class, 'equipment_borrow_id');
     }
 }

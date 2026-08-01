@@ -25,7 +25,7 @@ function UnderConstruction({ title, description }) {
             >
               <option value="All Offices">All Offices</option>
               <option value="FSUU Main (AVR Center)">FSUU Main (AVR Center)</option>
-              <option value="FSUU Morelos (SCO Center)">FSUU Morelos (SCO Center)</option>
+              <option value="FSUU Morelos Campus">FSUU Morelos Campus</option>
               <option value="Property & Inventory Office">Property & Inventory Office</option>
               <option value="IT & Technology Services">IT & Technology Services</option>
             </select>

@@ -17,8 +17,14 @@ class PublicTrackingController extends Controller
 
         $booking = null;
 
-        if (str_starts_with($referenceCode, 'VN-')) {
-            $booking = AvrVenueBooking::with('venue')->where('reference_code', $referenceCode)->first();
+        if (str_starts_with($referenceCode, 'VN-') || str_starts_with($referenceCode, 'TRK-')) {
+            $tracking = \Illuminate\Support\Facades\DB::table('tracking_numbers')->where('reference_code', $referenceCode)->first();
+            if ($tracking && $tracking->reservation_type === 'venue_booking') {
+                $booking = AvrVenueBooking::with('venue', 'trackingNumber')->where('id', $tracking->reservation_id)->first();
+            }
+            if (!$booking) {
+                $booking = AvrVenueBooking::with('venue', 'trackingNumber')->where('reference_code', $referenceCode)->first();
+            }
         } elseif (str_starts_with($referenceCode, 'EQ-')) {
             $booking = EquipmentBorrowing::with('items.equipmentType')->where('reference_code', $referenceCode)->first();
         } elseif (str_starts_with($referenceCode, 'ST-')) {
@@ -32,12 +38,15 @@ class PublicTrackingController extends Controller
             return response()->json(['message' => $errorMessage], 404);
         }
 
-        if ($booking->requestor_email !== $email) {
+        $requestorEmail = $booking->requestor_email ?? $booking->email_address ?? '';
+        if (strtolower($requestorEmail) !== strtolower($email)) {
             return response()->json(['message' => $errorMessage], 404);
         }
 
         // If matched, load approvals so user can see timeline
-        $booking->load('approvals');
+        if (\Illuminate\Support\Facades\Schema::hasTable('approvals')) {
+            $booking->load('approvals');
+        }
 
         return response()->json($booking);
     }

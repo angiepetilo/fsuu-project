@@ -13,14 +13,14 @@ class EquipmentUnit extends Model
 
     public const DELETED_AT = 'archived_at';
 
-    /**
-     * Note: status is excluded from $fillable.
-     */
     protected $fillable = [
         'equipment_type_id',
+        'name',
         'unit_code',
         'purchased_at',
         'eq_lifespan',
+        'status',
+        'description',
     ];
 
     protected $casts = [

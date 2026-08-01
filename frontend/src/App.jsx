@@ -11,12 +11,20 @@ import EquipmentBorrowing from "./pages/public/EquipmentBorrowing/EquipmentBorro
 import StaffLogin from "./pages/auth/StaffLogin";
 import GoogleCallback from "./pages/auth/GoogleCallback";
 
+// SysAd pages
+import SysadLayout from "./pages/sysad/SysadLayout";
+import SysadDashboard from "./pages/sysad/SysadDashboard";
+import SysadSettings from "./pages/sysad/SysadSettings";
+
 // Admin pages
 import AdminLayout from "./pages/admin/AdminLayout";
 import Dashboard from "./pages/admin/Dashboard";
 import VenueBookings from "./pages/admin/VenueBookings";
 import EquipmentBorrowings from "./pages/admin/EquipmentBorrowings";
-import { ManageEquipments, ManageVenues, Reports } from "./pages/admin/UnderConstruction";
+import ManageEquipments from "./pages/admin/ManageEquipments";
+import ManageVenues from "./pages/admin/ManageVenues";
+import Reports from "./pages/admin/Reports";
+import HistoryLog from "./pages/admin/HistoryLog";
 import Settings from "./pages/admin/Settings";
 
 import { Toaster } from "@/components/ui/sonner";
@@ -24,9 +32,10 @@ import { Toaster } from "@/components/ui/sonner";
 function AppContent() {
   const location = useLocation();
   const { user } = useAuth();
-  const isAuthPage    = location.pathname.startsWith("/login") || location.pathname.startsWith("/auth");
-  const isAdminPage   = location.pathname.startsWith("/admin");
-  const hideHeaderFooter = isAuthPage || isAdminPage;
+  const isAuthPage     = location.pathname.startsWith("/login") || location.pathname.startsWith("/auth");
+  const isAdminPage    = location.pathname.startsWith("/admin");
+  const isSysadPage    = location.pathname.startsWith("/sysad");
+  const hideHeaderFooter = isAuthPage || isAdminPage || isSysadPage;
 
   return (
     <>
@@ -47,7 +56,7 @@ function AppContent() {
       )}
 
       <main className={
-        isAdminPage
+        (isAdminPage || isSysadPage)
           ? "w-full min-h-screen"
           : isAuthPage
             ? "w-full min-h-screen"
@@ -64,6 +73,19 @@ function AppContent() {
           <Route path="/login"                 element={<StaffLogin />} />
           <Route path="/auth/google/callback"  element={<GoogleCallback />} />
 
+          {/* SysAd Portal — dedicated route for Super Administrator */}
+          <Route path="/sysad" element={<SysadLayout />}>
+            <Route index              element={<Navigate to="/sysad/dashboard" replace />} />
+            <Route path="dashboard"           element={<SysadDashboard />} />
+            <Route path="venue-bookings"      element={<VenueBookings />} />
+            <Route path="equipment-borrowing" element={<EquipmentBorrowings />} />
+            <Route path="manage-equipments"   element={<ManageEquipments />} />
+            <Route path="manage-venues"       element={<ManageVenues />} />
+            <Route path="reports"             element={<Reports />} />
+            <Route path="history-log"         element={<HistoryLog />} />
+            <Route path="settings"            element={<SysadSettings />} />
+          </Route>
+
           {/* Admin — nested under AdminLayout */}
           <Route path="/admin" element={<AdminLayout />}>
             <Route index              element={<Navigate to="/admin/dashboard" replace />} />
@@ -73,6 +95,7 @@ function AppContent() {
             <Route path="manage-equipments"   element={<ManageEquipments />} />
             <Route path="manage-venues"       element={<ManageVenues />} />
             <Route path="reports"             element={<Reports />} />
+            <Route path="history-log"         element={<HistoryLog />} />
             <Route path="settings"            element={<Settings />} />
           </Route>
         </Routes>

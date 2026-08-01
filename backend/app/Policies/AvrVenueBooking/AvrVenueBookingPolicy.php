@@ -31,8 +31,15 @@ class AvrVenueBookingPolicy
             return true;
         }
 
-        return $this->belongsToUsersOffice($user, $booking)
-            && method_exists($user, 'hasPermission') && $user->hasPermission(PermissionArea::VenueBooking, PermissionAction::Approve);
+        if (!$this->belongsToUsersOffice($user, $booking)) {
+            return false;
+        }
+
+        if (method_exists($user, 'hasPermission')) {
+            return $user->hasPermission(PermissionArea::VenueBooking, PermissionAction::Approve);
+        }
+
+        return true;
     }
 
     public function reject(User $user, AvrVenueBooking $booking): bool
@@ -41,8 +48,15 @@ class AvrVenueBookingPolicy
             return true;
         }
 
-        return $this->belongsToUsersOffice($user, $booking)
-            && method_exists($user, 'hasPermission') && $user->hasPermission(PermissionArea::VenueBooking, PermissionAction::Approve);
+        if (!$this->belongsToUsersOffice($user, $booking)) {
+            return false;
+        }
+
+        if (method_exists($user, 'hasPermission')) {
+            return $user->hasPermission(PermissionArea::VenueBooking, PermissionAction::Approve);
+        }
+
+        return true;
     }
 
     public function cancel(User $user, AvrVenueBooking $booking): bool
@@ -70,7 +84,8 @@ class AvrVenueBookingPolicy
             return true;
         }
 
-        return $user->office_id === $booking->venue->office_id;
+        $venueOfficeId = $booking->venue?->office_id ?? \App\Models\Venue::where('id', $booking->venue_id)->value('office_id');
+        return (int)$user->office_id === (int)$venueOfficeId;
     }
 
     private function userCanViewViaOversight(User $user, AvrVenueBooking $booking): bool

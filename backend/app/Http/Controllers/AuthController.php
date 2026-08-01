@@ -15,15 +15,21 @@ class AuthController extends Controller
             'password' => 'required'
         ]);
 
-        if (!Auth::attempt($request->only('email', 'password'))) {
-            throw ValidationException::withMessages([
-                'email' => ['Invalid credentials.'],
-            ]);
+        $loginInput = $request->email;
+        $fieldType = filter_var($loginInput, FILTER_VALIDATE_EMAIL) ? 'email' : 'username';
+
+        if (!Auth::attempt([$fieldType => $loginInput, 'password' => $request->password])) {
+            // Secondary attempt checking username if email was provided or vice-versa
+            if (!Auth::attempt([$fieldType === 'email' ? 'username' : 'email' => $loginInput, 'password' => $request->password])) {
+                throw ValidationException::withMessages([
+                    'email' => ['Invalid credentials.'],
+                ]);
+            }
         }
 
-        $user = auth()->user()->load('office');
+        $user = auth()->user()->load(['office', 'role']);
 
-        // Delete old tokens to keep things clean for our SPA
+        // Delete old tokens to keep things clean for SPA
         $user->tokens()->delete();
 
         $token = $user->createToken('staff-auth-token')->plainTextToken;

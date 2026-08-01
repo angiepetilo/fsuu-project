@@ -1,5 +1,7 @@
-import { FileText, Sparkles, CheckCircle2 } from "lucide-react";
+import { FileText, Sparkles, CheckCircle2, FileCheck, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useState, useEffect } from "react";
+import api from "@/lib/axios";
 
 export default function Step3Details({
   selectedVenue,
@@ -21,10 +23,22 @@ export default function Step3Details({
   scoSupport, setScoSupport,
   onBack,
 }) {
+  const [requirements, setRequirements] = useState([]);
+
+  useEffect(() => {
+    api.get("/public/booking-requirements")
+      .then(res => setRequirements(Array.isArray(res.data) ? res.data : []))
+      .catch(() => {
+        api.get("/admin/booking-requirements")
+          .then(res => setRequirements(Array.isArray(res.data) ? res.data : []))
+          .catch(() => setRequirements([]));
+      });
+  }, []);
+
   return (
-    <div className="p-6 sm:p-8 animate-in slide-in-from-top-2 duration-300">
+    <div className="p-6 sm:p-8 animate-in slide-in-from-top-2 duration-300 space-y-6">
       {/* Context Banner indicating which form is active */}
-      <div className={`p-4 rounded-2xl mb-6 border flex items-center justify-between ${selectedVenue?.type === "sco"
+      <div className={`p-4 rounded-2xl border flex items-center justify-between ${selectedVenue?.type === "sco"
         ? 'bg-purple-50/80 border-purple-100 text-purple-900'
         : 'bg-blue-50/80 border-blue-100 text-blue-900'
         }`}>
@@ -45,6 +59,53 @@ export default function Step3Details({
         <span className="text-[11px] font-extrabold uppercase px-3 py-1 bg-white rounded-full border shadow-sm">
           {selectedVenue?.type === "sco" ? "SCO Studio Spec" : "AVR Hall Spec"}
         </span>
+      </div>
+
+      {/* DYNAMIC REQUIREMENTS NEEDED BEFORE VENUE BOOKING (Item 3) */}
+      <div className="bg-amber-50/90 border-2 border-amber-200 p-5 rounded-2xl space-y-3">
+        <div className="flex items-center justify-between pb-2 border-b border-amber-200/80">
+          <h4 className="font-extrabold text-amber-900 text-xs flex items-center gap-2 uppercase tracking-wide">
+            <FileCheck size={16} className="text-amber-700" />
+            3. Requirements Needed Before Venue Booking
+          </h4>
+          <span className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-amber-200 text-amber-900 border border-amber-300">
+            Mandatory Verification
+          </span>
+        </div>
+        <p className="text-xs text-amber-800 font-medium leading-relaxed">
+          Please prepare the mandatory document approvals set up by the System Admin in Settings prior to final submission:
+        </p>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+          {requirements.length > 0 ? (
+            requirements.map((req, idx) => (
+              <div key={req.id || idx} className="bg-white p-3 rounded-xl border border-amber-200/80 shadow-xs flex items-start gap-2.5">
+                <CheckCircle2 size={16} className="text-emerald-600 shrink-0 mt-0.5" />
+                <div>
+                  <h5 className="font-extrabold text-slate-900 text-xs">{req.label}</h5>
+                  <p className="text-[11px] text-slate-500 font-medium mt-0.5">{req.description || "Required approval document"}</p>
+                </div>
+              </div>
+            ))
+          ) : (
+            <>
+              <div className="bg-white p-3 rounded-xl border border-amber-200/80 shadow-xs flex items-start gap-2.5">
+                <CheckCircle2 size={16} className="text-emerald-600 shrink-0 mt-0.5" />
+                <div>
+                  <h5 className="font-extrabold text-slate-900 text-xs">Activity Endorsement Letter</h5>
+                  <p className="text-[11px] text-slate-500 font-medium mt-0.5">Signed by Dean / Department Chairperson</p>
+                </div>
+              </div>
+              <div className="bg-white p-3 rounded-xl border border-amber-200/80 shadow-xs flex items-start gap-2.5">
+                <CheckCircle2 size={16} className="text-emerald-600 shrink-0 mt-0.5" />
+                <div>
+                  <h5 className="font-extrabold text-slate-900 text-xs">AVR / SCO Facility Form</h5>
+                  <p className="text-[11px] text-slate-500 font-medium mt-0.5">Approved by Building Administrator</p>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
       {/* DYNAMIC FORM RENDERING */}
@@ -101,15 +162,7 @@ export default function Step3Details({
               </select>
             </div>
 
-            {identity === "external" && (
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold text-slate-900">AVR Head PIN Verification Status <span className="text-red-500">*</span></label>
-                <div className="flex items-center gap-2 p-3 bg-amber-50 border border-amber-300 rounded-xl text-xs text-amber-800 font-bold">
-                  <CheckCircle2 size={16} className="text-emerald-600" />
-                  <span>PIN Verified by AVR Head (123456)</span>
-                </div>
-              </div>
-            )}
+
 
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-bold text-slate-900">Expected Person Count <span className="text-red-500">*</span></label>

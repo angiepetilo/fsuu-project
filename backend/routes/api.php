@@ -2,232 +2,179 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\AvrVenueBookingController;
-use App\Http\Controllers\AvrEquipmentBorrowingController;
+
+// ─── Controllers ──────────────────────────────────────────────────────────────
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\GoogleAuthController;
 use App\Http\Controllers\DashboardStatsController;
-use App\Http\Controllers\AdminUserController;
 
-// ─── Authentication Routes ───────────────────────────────────────────────────
+// Admin: Core
+use App\Http\Controllers\AdminUserController;
+use App\Http\Controllers\AdminOfficeController;
+use App\Http\Controllers\AdminLocationController;
+use App\Http\Controllers\AdminVenueController;
+use App\Http\Controllers\AdminEquipmentTypeController;
+use App\Http\Controllers\AdminEquipmentUnitController;
+use App\Http\Controllers\AdminEquipmentDamageController;
+use App\Http\Controllers\AdminDepartmentAnalyticsController;
+use App\Http\Controllers\AdminHistoryLogController;
+use App\Http\Controllers\AdminNotificationController;
+
+// Admin: New (Phase 1)
+use App\Http\Controllers\DepartmentController;
+use App\Http\Controllers\OperatingHoursController;
+use App\Http\Controllers\BookingRequirementController;
+use App\Http\Controllers\VenueAvailabilityController;
+
+// Bookings & Borrowings
+use App\Http\Controllers\AvrVenueBookingController;
+use App\Http\Controllers\AvrEquipmentBorrowingController;
+use App\Http\Controllers\DocumentController;
+use App\Http\Controllers\InspectionController;
+
+// SysAd
+use App\Http\Controllers\SysadNotificationController;
+
+// Public
+use App\Http\Controllers\PublicListingController;
+use App\Http\Controllers\PublicAvrVenueBookingController;
+use App\Http\Controllers\PublicAvrEquipmentBorrowingController;
+use App\Http\Controllers\PublicScoStudioReservationController;
+use App\Http\Controllers\PublicTrackingController;
+use App\Http\Controllers\PublicOtpController;
+
+// ─── Authentication ────────────────────────────────────────────────────────────
 Route::get('/auth/google/redirect', [GoogleAuthController::class, 'redirect']);
 Route::get('/auth/google/callback', [GoogleAuthController::class, 'callback']);
 Route::post('/login', [AuthController::class, 'login']);
 
-// ─── Authenticated Staff & Admin Routes ──────────────────────────────────────
+// ─── Authenticated Routes (Staff & Admin) ─────────────────────────────────────
 Route::middleware('auth:sanctum')->group(function () {
+
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/dashboard/stats', [DashboardStatsController::class, 'index']);
-    
-    // Admin User Management
+
+    // ── Admin: Users & Offices ─────────────────────────────────────────────────
     Route::apiResource('admin/users', AdminUserController::class)->except(['show']);
-    Route::get('/admin/offices', function () {
-        return response()->json(\App\Models\Office::select('id', 'name', 'slug')->get());
-    });
-    
-    // Admin Venue Management (System Admin & Branch Admins)
-    Route::get('/admin/venues', function () {
-        return response()->json(\App\Models\Venue::with('office')->latest()->get());
-    });
-    Route::post('/admin/venues', function (Request $request) {
-        $data = $request->validate([
-            'office_id' => 'required|exists:offices,id',
-            'name'      => 'required|string|max:255',
-            'location'  => 'nullable|string|max:255',
-            'capacity'  => 'required|integer|min:1',
-            'status'    => 'nullable|string',
-        ]);
-        $venue = \App\Models\Venue::create($data);
-        return response()->json($venue->load('office'), 201);
-    });
-    Route::put('/admin/venues/{id}', function (Request $request, $id) {
-        $venue = \App\Models\Venue::findOrFail($id);
-        $data = $request->validate([
-            'office_id' => 'sometimes|exists:offices,id',
-            'name'      => 'sometimes|string|max:255',
-            'location'  => 'nullable|string|max:255',
-            'capacity'  => 'sometimes|integer|min:1',
-            'status'    => 'sometimes|string',
-        ]);
-        $venue->update($data);
-        return response()->json($venue->load('office'));
-    });
-    Route::delete('/admin/venues/{id}', function ($id) {
-        \App\Models\Venue::destroy($id);
-        return response()->json(['message' => 'Venue deleted']);
-    });
+    Route::get('/admin/offices',         [AdminOfficeController::class, 'index']);
+    Route::post('/admin/offices',        [AdminOfficeController::class, 'store']);
+    Route::put('/admin/offices/{id}',    [AdminOfficeController::class, 'update']);
+    Route::delete('/admin/offices/{id}', [AdminOfficeController::class, 'destroy']);
 
-    // Admin Equipment Category/Type Management
-    Route::get('/admin/equipment-types', function () {
-        return response()->json(\App\Models\EquipmentType::with('office')->latest()->get());
-    });
-    Route::post('/admin/equipment-types', function (Request $request) {
-        $data = $request->validate([
-            'office_id' => 'required|exists:offices,id',
-            'eq_name'   => 'required|string|max:255',
-            'eq_type'   => 'nullable|string|max:255',
-        ]);
-        $type = \App\Models\EquipmentType::create($data);
-        return response()->json($type->load('office'), 201);
-    });
-    Route::put('/admin/equipment-types/{id}', function (Request $request, $id) {
-        $type = \App\Models\EquipmentType::findOrFail($id);
-        $data = $request->validate([
-            'office_id' => 'sometimes|exists:offices,id',
-            'eq_name'   => 'sometimes|string|max:255',
-            'eq_type'   => 'nullable|string|max:255',
-        ]);
-        $type->update($data);
-        return response()->json($type->load('office'));
-    });
-    Route::delete('/admin/equipment-types/{id}', function ($id) {
-        \App\Models\EquipmentType::destroy($id);
-        return response()->json(['message' => 'Equipment category deleted']);
-    });
+    // ── Admin: Locations ───────────────────────────────────────────────────────
+    Route::get('/admin/locations',         [AdminLocationController::class, 'index']);
+    Route::post('/admin/locations',        [AdminLocationController::class, 'store']);
+    Route::put('/admin/locations/{id}',    [AdminLocationController::class, 'update']);
+    Route::delete('/admin/locations/{id}', [AdminLocationController::class, 'destroy']);
 
-    // Admin Equipment Damages & Inspection Reports
-    Route::get('/admin/equipment-damages', function () {
-        $damagedUnits = \App\Models\EquipmentUnit::with('equipmentType')
-            ->whereIn('status', ['damaged', 'under_maintenance'])
-            ->latest()
-            ->get();
+    // ── Admin: Venues ──────────────────────────────────────────────────────────
+    Route::get('/admin/venues',         [AdminVenueController::class, 'index']);
+    Route::post('/admin/venues',        [AdminVenueController::class, 'store']);
+    Route::put('/admin/venues/{id}',    [AdminVenueController::class, 'update']);
+    Route::delete('/admin/venues/{id}', [AdminVenueController::class, 'destroy']);
 
-        $damagedInspections = \Illuminate\Support\Facades\DB::table('inspections')
-            ->where('condition', 'damaged')
-            ->latest()
-            ->get();
+    // ── Admin: Venue Availability Calendar ────────────────────────────────────
+    Route::get('/admin/venue-availability',         [VenueAvailabilityController::class, 'index']);
+    Route::get('/admin/venues-list',                [VenueAvailabilityController::class, 'venuesList']);
+    Route::post('/admin/venue-availability',        [VenueAvailabilityController::class, 'store']);
+    Route::delete('/admin/venue-availability/{id}', [VenueAvailabilityController::class, 'destroy']);
 
-        return response()->json([
-            'total_damaged_count' => $damagedUnits->count() + $damagedInspections->count(),
-            'damaged_units'       => $damagedUnits,
-            'damaged_inspections' => $damagedInspections,
-        ]);
-    });
+    // ── Admin: Equipment Types & Units ─────────────────────────────────────────
+    Route::get('/admin/equipment-types',         [AdminEquipmentTypeController::class, 'index']);
+    Route::post('/admin/equipment-types',        [AdminEquipmentTypeController::class, 'store']);
+    Route::put('/admin/equipment-types/{id}',    [AdminEquipmentTypeController::class, 'update']);
+    Route::delete('/admin/equipment-types/{id}', [AdminEquipmentTypeController::class, 'destroy']);
 
-    // Admin Department Analytics for Rule Violations and Late Equipment Returns
-    Route::get('/admin/department-analytics', function () {
-        $dbViolations = \Illuminate\Support\Facades\DB::table('venue_bookings')
-            ->select('program_office', \Illuminate\Support\Facades\DB::raw('count(*) as total_violations'))
-            ->whereIn('classification', ['external', 'student'])
-            ->groupBy('program_office')
-            ->orderByDesc('total_violations')
-            ->get();
+    Route::get('/admin/equipment-units',         [AdminEquipmentUnitController::class, 'index']);
+    Route::post('/admin/equipment-units',        [AdminEquipmentUnitController::class, 'store']);
+    Route::put('/admin/equipment-units/{id}',    [AdminEquipmentUnitController::class, 'update']);
+    Route::delete('/admin/equipment-units/{id}', [AdminEquipmentUnitController::class, 'destroy']);
 
-        $dbLateReturns = \Illuminate\Support\Facades\DB::table('equipment_borrows')
-            ->select('program_office', \Illuminate\Support\Facades\DB::raw('count(*) as total_late_returns'))
-            ->where('date_of_usage', '<', now()->toDateString())
-            ->groupBy('program_office')
-            ->orderByDesc('total_late_returns')
-            ->get();
+    // ── Admin: Analytics & Reports ────────────────────────────────────────────
+    Route::get('/admin/equipment-damages',    [AdminEquipmentDamageController::class, 'index']);
+    Route::get('/admin/department-analytics', [AdminDepartmentAnalyticsController::class, 'index']);
 
-        $defaultViolations = [
-            ['department' => 'College of Engineering & Tech',   'venue_violations' => 4, 'equipment_violations' => 3, 'total_violations' => 7, 'risk' => 'High Risk'],
-            ['department' => 'Business Administration Society', 'venue_violations' => 3, 'equipment_violations' => 2, 'total_violations' => 5, 'risk' => 'High Risk'],
-            ['department' => 'Arts & Sciences Student Council', 'venue_violations' => 2, 'equipment_violations' => 1, 'total_violations' => 3, 'risk' => 'Moderate'],
-            ['department' => 'Nursing Student Body',           'venue_violations' => 1, 'equipment_violations' => 1, 'total_violations' => 2, 'risk' => 'Watch List'],
-            ['department' => 'Teacher Education Guild',       'venue_violations' => 1, 'equipment_violations' => 0, 'total_violations' => 1, 'risk' => 'Low Risk'],
-        ];
+    // ── Admin: History Log (with type filter + soft-delete) ───────────────────
+    Route::get('/admin/history-log',                        [AdminHistoryLogController::class, 'index']);
+    Route::delete('/admin/history-log/venue/{id}',      [AdminHistoryLogController::class, 'destroyVenue']);
+    Route::delete('/admin/history-log/equipment/{id}',  [AdminHistoryLogController::class, 'destroyEquipment']);
 
-        $defaultLateReturns = [
-            ['department' => 'Mass Communication Society',   'late_returns' => 12, 'avg_delay' => '2.5 hrs late', 'status' => 'Critical'],
-            ['department' => 'College of Computer Studies',   'late_returns' => 9,  'avg_delay' => '1.8 hrs late', 'status' => 'High Risk'],
-            ['department' => 'Hospitality Management Club', 'late_returns' => 6,  'avg_delay' => '1.2 hrs late', 'status' => 'Moderate'],
-            ['department' => 'Engineering Students Org',     'late_returns' => 4,  'avg_delay' => '45 mins late', 'status' => 'Watch List'],
-            ['department' => 'Crim Student Federation',     'late_returns' => 2,  'avg_delay' => '30 mins late', 'status' => 'Low Risk'],
-        ];
+    // ── Admin: Notifications (office-scoped) ──────────────────────────────────
+    Route::get('/admin/notifications', [AdminNotificationController::class, 'index']);
 
-        $violationsList = $dbViolations->count() > 0 ? $dbViolations->map(fn($v) => [
-            'department'           => $v->program_office,
-            'venue_violations'     => ceil($v->total_violations / 2),
-            'equipment_violations' => floor($v->total_violations / 2),
-            'total_violations'     => $v->total_violations,
-            'risk'                 => $v->total_violations >= 5 ? 'High Risk' : ($v->total_violations >= 3 ? 'Moderate' : 'Low Risk'),
-        ])->toArray() : $defaultViolations;
+    // ── Admin: Departments ────────────────────────────────────────────────────
+    Route::get('/admin/departments',         [DepartmentController::class, 'index']);
+    Route::post('/admin/departments',        [DepartmentController::class, 'store']);
+    Route::put('/admin/departments/{id}',    [DepartmentController::class, 'update']);
+    Route::delete('/admin/departments/{id}', [DepartmentController::class, 'destroy']);
 
-        $lateList = $dbLateReturns->count() > 0 ? $dbLateReturns->map(fn($l) => [
-            'department'   => $l->program_office,
-            'late_returns' => $l->total_late_returns,
-            'avg_delay'    => ($l->total_late_returns * 1.5) . ' hrs late',
-            'status'       => $l->total_late_returns >= 8 ? 'Critical' : ($l->total_late_returns >= 4 ? 'High Risk' : 'Moderate'),
-        ])->toArray() : $defaultLateReturns;
+    // ── Admin: Operating Hours ────────────────────────────────────────────────
+    Route::get('/admin/operating-hours',  [OperatingHoursController::class, 'show']);
+    Route::put('/admin/operating-hours',  [OperatingHoursController::class, 'update']);
 
-        return response()->json([
-            'rule_violations' => $violationsList,
-            'late_returns'    => $lateList,
-        ]);
-    });
+    // ── Admin: Booking Requirements ───────────────────────────────────────────
+    Route::get('/admin/booking-requirements',         [BookingRequirementController::class, 'index']);
+    Route::post('/admin/booking-requirements',        [BookingRequirementController::class, 'store']);
+    Route::put('/admin/booking-requirements/{id}',    [BookingRequirementController::class, 'update']);
+    Route::delete('/admin/booking-requirements/{id}', [BookingRequirementController::class, 'destroy']);
 
-    Route::get('/avr-venue-bookings', [AvrVenueBookingController::class, 'index']);
-    Route::get('/avr-venue-bookings/{avrVenueBooking}', [AvrVenueBookingController::class, 'show']);
-    Route::post('/avr-venue-bookings', [AvrVenueBookingController::class, 'store']);
-    Route::post('/avr-venue-bookings/{avrVenueBooking}/approve', [AvrVenueBookingController::class, 'approve']);
-    Route::post('/avr-venue-bookings/{avrVenueBooking}/reject', [AvrVenueBookingController::class, 'reject']);
-    Route::post('/avr-venue-bookings/{avrVenueBooking}/cancel', [AvrVenueBookingController::class, 'cancel']);
+    // ── Venue Bookings ─────────────────────────────────────────────────────────
+    Route::get('/avr-venue-bookings',                              [AvrVenueBookingController::class, 'index']);
+    Route::get('/avr-venue-bookings/{avrVenueBooking}',            [AvrVenueBookingController::class, 'show']);
+    Route::post('/avr-venue-bookings',                             [AvrVenueBookingController::class, 'store']);
+    Route::post('/avr-venue-bookings/{avrVenueBooking}/approve',   [AvrVenueBookingController::class, 'approve']);
+    Route::post('/avr-venue-bookings/{avrVenueBooking}/reject',    [AvrVenueBookingController::class, 'reject']);
+    Route::post('/avr-venue-bookings/{avrVenueBooking}/ongoing',   [AvrVenueBookingController::class, 'ongoing']);
+    Route::post('/avr-venue-bookings/{avrVenueBooking}/complete',  [AvrVenueBookingController::class, 'complete']);
+    Route::post('/avr-venue-bookings/{avrVenueBooking}/undo',      [AvrVenueBookingController::class, 'undo']);
+    Route::post('/avr-venue-bookings/{avrVenueBooking}/cancel',    [AvrVenueBookingController::class, 'cancel']);
 
-    Route::get('/avr-equipment-borrowings', [AvrEquipmentBorrowingController::class, 'index']);
-    Route::get('/avr-equipment-borrowings/{equipmentBorrowing}', [AvrEquipmentBorrowingController::class, 'show']);
-    Route::post('/avr-equipment-borrowings', [AvrEquipmentBorrowingController::class, 'store']);
+    // ── Equipment Borrowings ───────────────────────────────────────────────────
+    Route::get('/avr-equipment-borrowings',                               [AvrEquipmentBorrowingController::class, 'index']);
+    Route::get('/avr-equipment-borrowings/{equipmentBorrowing}',          [AvrEquipmentBorrowingController::class, 'show']);
+    Route::post('/avr-equipment-borrowings',                              [AvrEquipmentBorrowingController::class, 'store']);
     Route::post('/avr-equipment-borrowings/{equipmentBorrowing}/approve', [AvrEquipmentBorrowingController::class, 'approve']);
-    Route::post('/avr-equipment-borrowings/{equipmentBorrowing}/reject', [AvrEquipmentBorrowingController::class, 'reject']);
-    Route::post('/avr-equipment-borrowings/{equipmentBorrowing}/cancel', [AvrEquipmentBorrowingController::class, 'cancel']);
+    Route::post('/avr-equipment-borrowings/{equipmentBorrowing}/reject',  [AvrEquipmentBorrowingController::class, 'reject']);
+    Route::post('/avr-equipment-borrowings/{equipmentBorrowing}/ongoing', [AvrEquipmentBorrowingController::class, 'ongoing']);
+    Route::post('/avr-equipment-borrowings/{equipmentBorrowing}/complete',[AvrEquipmentBorrowingController::class, 'complete']);
+    Route::post('/avr-equipment-borrowings/{equipmentBorrowing}/undo',    [AvrEquipmentBorrowingController::class, 'undo']);
+    Route::post('/avr-equipment-borrowings/{equipmentBorrowing}/cancel',  [AvrEquipmentBorrowingController::class, 'cancel']);
 
-    Route::post('/documents', [\App\Http\Controllers\DocumentController::class, 'store']);
-    Route::post('/documents/{document}/approve', [\App\Http\Controllers\DocumentController::class, 'approve']);
-    Route::post('/documents/{document}/reject', [\App\Http\Controllers\DocumentController::class, 'reject']);
+    // ── Documents & Inspections ────────────────────────────────────────────────
+    Route::post('/documents',                    [DocumentController::class, 'store']);
+    Route::post('/documents/{document}/approve', [DocumentController::class, 'approve']);
+    Route::post('/documents/{document}/reject',  [DocumentController::class, 'reject']);
+    Route::post('/inspections',                  [InspectionController::class, 'store']);
 
-    Route::post('/inspections', [\App\Http\Controllers\InspectionController::class, 'store']);
+    // ── SysAd (global-scope notifications) ────────────────────────────────────
+    Route::get('/sysad/notifications', [SysadNotificationController::class, 'index']);
 });
 
-Route::get('/ping', function () {
-    return response()->json(['message' => 'Laravel says hello']);
-});
+// ─── Utility ──────────────────────────────────────────────────────────────────
+Route::get('/ping', fn () => response()->json(['message' => 'Laravel says hello']));
+Route::get('/user', fn (Request $request) => $request->user())->middleware('auth:sanctum');
 
-Route::get('/user', function (Request $request) {
-    return $request->user();
-})->middleware('auth:sanctum');
-
-// ─── Public Unauthenticated Routes ───────────────────────────────────────────
+// ─── Public (Unauthenticated) Routes ──────────────────────────────────────────
 Route::prefix('public')->group(function () {
 
-    // Public Venues Listing
-    Route::get('/venues', function () {
-        return response()->json(
-            \App\Models\Venue::with('office')
-                ->where('status', '!=', 'maintenance')
-                ->get()
-                ->map(fn ($v) => [
-                    'id'       => $v->id,
-                    'name'     => $v->name,
-                    'location' => $v->location ?? $v->office?->name ?? 'FSUU Campus',
-                    'capacity' => $v->capacity ?? 100,
-                    'type'     => ($v->office?->slug === 'fsuu-morelos' || str_contains(strtolower($v->name), 'studio') || str_contains(strtolower($v->name), 'theater')) ? 'sco' : 'avr',
-                    'office'   => $v->office,
-                ])
-        );
-    });
+    // Listings for public forms & availability calendar
+    Route::get('/venues',          [PublicListingController::class, 'venues']);
+    Route::get('/equipment-types', [PublicListingController::class, 'equipmentTypes']);
+    Route::get('/venue-bookings',  [PublicListingController::class, 'venueBookings']);
 
-    // Public Equipment Types Listing
-    Route::get('/equipment-types', function () {
-        return response()->json(
-            \App\Models\EquipmentType::with('office')
-                ->get()
-                ->map(fn ($e) => [
-                    'id'          => $e->id,
-                    'name'        => $e->eq_name ?? $e->name ?? 'Equipment',
-                    'description' => $e->eq_type ?? 'Standard AV Gear',
-                    'dept'        => ($e->office?->slug === 'fsuu-morelos' || str_contains(strtolower($e->eq_type ?? ''), 'broadcast')) ? 'sco' : 'avr',
-                    'category'    => ($e->office?->slug === 'fsuu-morelos' || str_contains(strtolower($e->eq_type ?? ''), 'broadcast')) ? 'SCO Equipment' : 'AVR Equipment',
-                ])
-        );
-    });
+    // Venue availability for public booking calendar
+    Route::get('/venue-availability', [VenueAvailabilityController::class, 'index']);
 
-    Route::post('/avr-venue-bookings', [\App\Http\Controllers\PublicAvrVenueBookingController::class, 'store']);
-    Route::post('/avr-equipment-borrowings', [\App\Http\Controllers\PublicAvrEquipmentBorrowingController::class, 'store']);
-    Route::post('/sco-studio-reservations', [\App\Http\Controllers\PublicScoStudioReservationController::class, 'store']);
-    
-    Route::post('/track', [\App\Http\Controllers\PublicTrackingController::class, 'track']);
+    // Booking requirements for public booking form & landing page
+    Route::get('/booking-requirements', [BookingRequirementController::class, 'publicIndex']);
 
-    // Email Verification Code (OTP)
-    Route::post('/send-otp',   [\App\Http\Controllers\PublicOtpController::class, 'send']);
-    Route::post('/verify-otp', [\App\Http\Controllers\PublicOtpController::class, 'verify']);
+    // Form submissions
+    Route::post('/avr-venue-bookings',       [PublicAvrVenueBookingController::class, 'store']);
+    Route::post('/avr-equipment-borrowings', [PublicAvrEquipmentBorrowingController::class, 'store']);
+    Route::post('/sco-studio-reservations',  [PublicScoStudioReservationController::class, 'store']);
+
+    // Tracking & OTP
+    Route::post('/track',       [PublicTrackingController::class, 'track'])->middleware('throttle:10,1');
+    Route::post('/send-otp',    [PublicOtpController::class, 'send']);
+    Route::post('/verify-otp',  [PublicOtpController::class, 'verify']);
 });

@@ -5,18 +5,19 @@ import { cn } from "@/lib/utils";
 export function KioskTimeline({ steps, activeStep, onStepClick, completedSteps = [] }) {
   return (
     <div className="w-full bg-white border border-slate-200/80 rounded-2xl p-4 sm:p-6 mb-8 shadow-xs">
-      <div className="relative flex items-center justify-between">
+      <div className="relative flex items-start justify-between">
         
-        {/* Background Connecting Line */}
-        <div className="absolute top-1/2 left-6 right-6 -translate-y-1/2 h-1 bg-slate-100 rounded-full z-0" />
-        
-        {/* Active Progress Connecting Line */}
-        <div
-          className="absolute top-1/2 left-6 h-1 bg-blue-600 -translate-y-1/2 z-0 rounded-full transition-all duration-500 ease-out"
-          style={{
-            width: `${((activeStep - 1) / (steps.length - 1)) * 100}%`,
-          }}
-        />
+        {/* Background & Active Connecting Line Track - Centered at top-5 (20px) through circle midpoint */}
+        <div className="absolute top-5 left-[20px] right-[20px] -translate-y-1/2 h-1.5 z-0">
+          <div className="w-full h-full bg-slate-200/80 rounded-full relative overflow-hidden">
+            <div
+              className="h-full bg-blue-600 rounded-full transition-all duration-500 ease-out shadow-xs"
+              style={{
+                width: `${((activeStep - 1) / (steps.length - 1)) * 100}%`,
+              }}
+            />
+          </div>
+        </div>
 
         {/* Step Nodes */}
         {steps.map((step, idx) => {
@@ -41,7 +42,7 @@ export function KioskTimeline({ steps, activeStep, onStepClick, completedSteps =
                   isCompleted
                     ? "bg-blue-600 border-blue-600 text-white shadow-xs"
                     : isActive
-                      ? "bg-slate-900 border-blue-600 text-white ring-4 ring-blue-600/20 scale-110 shadow-md"
+                      ? "bg-blue-600 border-blue-600 text-white ring-4 ring-blue-600/25 scale-110 shadow-md shadow-blue-600/30"
                       : "bg-white border-slate-300 text-slate-400 group-hover:border-slate-400"
                 )}
               >

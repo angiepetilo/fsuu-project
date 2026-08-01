@@ -23,7 +23,12 @@ class User extends Authenticatable
     protected $fillable = [
         'name',
         'email',
+        'username',
+        'personal_email',
         'password',
+        'office_id',
+        'location',
+        'role_id',
         'created_by',
     ];
 
@@ -59,11 +64,17 @@ class User extends Authenticatable
 
     public function isSuperAdmin(): bool
     {
-        return $this->role_id === 1 || $this->role?->slug === 'super_admin' || $this->role?->name === 'super_admin';
+        if ($this->role) {
+            return in_array($this->role->slug ?? $this->role->name, ['super_admin', 'super-admin', 'Super Admin']);
+        }
+        return $this->role_id === 1;
     }
 
     public function isAdmin(): bool
     {
-        return $this->isSuperAdmin() || $this->role_id === 2 || $this->role?->slug === 'admin' || $this->role?->name === 'admin';
+        if ($this->role) {
+            return in_array($this->role->slug ?? $this->role->name, ['admin', 'Admin', 'super_admin', 'super-admin', 'Super Admin']);
+        }
+        return $this->isSuperAdmin() || $this->role_id === 2;
     }
 }

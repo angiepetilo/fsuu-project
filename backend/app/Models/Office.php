@@ -13,6 +13,7 @@ class Office extends Model
     protected $fillable = [
         'name',
         'slug',
+        'location',
     ];
 
     public function users(): HasMany

@@ -1,162 +1,183 @@
-import { UploadCloud, X, FileText, Image, CheckCircle2, Loader2, Mail, Phone } from "lucide-react";
+import { ShieldCheck, PackageOpen, User, Calendar, MapPin, Mail, Phone, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useState, useRef } from "react";
-import api from "@/lib/axios";
 
 export default function Step4Verification({
+  fullName,
   email,
   contactNumber,
-  otp, setOtp,
-  isOtpSent, setIsOtpSent,
-  isSubmitting, handleVerifySubmit,
-  endorsementFile, setEndorsementFile,
+  department,
+  selectedItems = [],
+  catalog = [],
+  itemQuantities = {},
+  startTime,
+  endTime,
+  placeOfUse,
+  purpose,
+  handlerName,
+  notificationChannel = "email",
+  isSubmitting,
+  handleVerifySubmit,
   onBack,
 }) {
-  const [verificationMethod, setVerificationMethod] = useState("email");
-  const [otpSending, setOtpSending]   = useState(false);
-  const [otpError, setOtpError]       = useState("");
-  const [otpSuccess, setOtpSuccess]   = useState("");
-  const fileInputRef = useRef(null);
-
-  // ── File Upload ──────────────────────────────────────────────────────────
-  const handleFileChange = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const allowed = ["application/pdf", "image/png", "image/jpeg", "image/jpg"];
-    if (!allowed.includes(file.type)) { alert("Only PDF, PNG, or JPG files are allowed."); return; }
-    if (file.size > 10 * 1024 * 1024) { alert("File must be under 10 MB."); return; }
-    setEndorsementFile(file);
-  };
-
-  const handleDrop = (e) => {
-    e.preventDefault();
-    if (e.dataTransfer.files?.[0]) handleFileChange({ target: { files: e.dataTransfer.files } });
-  };
-
-  const removeFile = (e) => {
-    e.stopPropagation();
-    setEndorsementFile(null);
-    if (fileInputRef.current) fileInputRef.current.value = "";
-  };
-
-  // ── OTP ──────────────────────────────────────────────────────────────────
-  const handleSendOtp = async () => {
-    const recipient = verificationMethod === "email" ? email : contactNumber;
-    if (!recipient) {
-      setOtpError(`No ${verificationMethod === "email" ? "email" : "phone number"} provided. Complete Step 3 first.`);
-      return;
-    }
-    if (verificationMethod === "phone") {
-      setOtpError("SMS is not configured yet. Please use Email verification.");
-      return;
-    }
-    setOtpSending(true); setOtpError(""); setOtpSuccess("");
-    try {
-      await api.post("/public/send-otp", { email: recipient });
-      setIsOtpSent(true);
-      setOtpSuccess(`Verification code sent to ${recipient}. Check your inbox.`);
-    } catch (err) {
-      setOtpError(err.response?.data?.message ?? "Failed to send code. Please try again.");
-    } finally { setOtpSending(false); }
-  };
-
-  const isPdf   = endorsementFile?.type === "application/pdf";
+  // Find selected equipment item details
+  const selectedDetails = selectedItems.map(id => {
+    const found = catalog.find(c => c.id === id);
+    const qty = itemQuantities[id] || 1;
+    return {
+      id,
+      name: found?.name || `Equipment Item #${id}`,
+      dept: found?.dept || "avr",
+      quantity: qty,
+    };
+  });
 
   return (
     <div className="p-6 sm:p-8 animate-in slide-in-from-top-2 duration-300">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-
-        {/* 1. Borrower ID / Endorsement */}
-        <div>
-          <h3 className="text-xs font-bold text-slate-900 mb-3 uppercase tracking-wider">1. Borrower ID / Endorsement</h3>
-          <input ref={fileInputRef} type="file" accept=".pdf,.png,.jpg,.jpeg" onChange={handleFileChange} className="hidden" />
-          <div
-            onClick={() => fileInputRef.current?.click()}
-            onDrop={handleDrop}
-            onDragOver={(e) => e.preventDefault()}
-            className={`border-2 border-dashed rounded-2xl p-6 text-center cursor-pointer transition-all group ${
-              endorsementFile ? "border-emerald-400 bg-emerald-50/50" : "border-slate-200 bg-slate-50/60 hover:border-blue-500 hover:bg-blue-50/50"
-            }`}
-          >
-            {!endorsementFile ? (
-              <>
-                <UploadCloud size={40} className="mx-auto text-slate-400 group-hover:text-blue-600 group-hover:scale-110 transition-all mb-3" />
-                <p className="text-sm font-semibold text-slate-700 mb-1">Upload FSUU ID or Adviser Endorsement</p>
-                <p className="text-xs text-slate-400">PDF, PNG, JPG up to 10 MB — click or drag &amp; drop</p>
-              </>
-            ) : (
-              <div className="flex items-center gap-3 justify-between">
-                <div className="flex items-center gap-3">
-                  {isPdf ? <FileText size={32} className="text-red-500 shrink-0" /> : <Image size={32} className="text-blue-500 shrink-0" />}
-                  <div className="text-left">
-                    <p className="text-sm font-bold text-slate-800 truncate max-w-[180px]">{endorsementFile.name}</p>
-                    <p className="text-xs text-slate-400">{(endorsementFile.size / 1024).toFixed(1)} KB</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 size={20} className="text-emerald-500" />
-                  <button type="button" onClick={removeFile} className="p-1 rounded-full bg-slate-200 hover:bg-red-100 hover:text-red-600 transition-all">
-                    <X size={14} />
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* 2. Security Verification */}
-        <div>
-          <h3 className="text-xs font-bold text-slate-900 mb-3 uppercase tracking-wider">2. Security Verification</h3>
-          <div className="bg-slate-50/60 border border-slate-200/80 rounded-2xl p-5">
-            <div className="flex gap-2 mb-4 bg-slate-200/50 p-1 rounded-xl">
-              <button type="button" onClick={() => { setVerificationMethod("email"); setOtpError(""); setOtpSuccess(""); }}
-                className={`flex-1 flex items-center justify-center gap-1.5 text-xs font-bold py-1.5 rounded-lg transition-all ${verificationMethod === "email" ? "bg-white shadow-sm text-slate-900" : "text-slate-500 hover:text-slate-700"}`}>
-                <Mail size={12} /> Email
-              </button>
-              <button type="button" onClick={() => { setVerificationMethod("phone"); setOtpError(""); setOtpSuccess(""); }}
-                className={`flex-1 flex items-center justify-center gap-1.5 text-xs font-bold py-1.5 rounded-lg transition-all ${verificationMethod === "phone" ? "bg-white shadow-sm text-slate-900" : "text-slate-500 hover:text-slate-700"}`}>
-                <Phone size={12} /> SMS / Phone
-              </button>
-            </div>
-
-            <p className="text-xs text-slate-500 mb-3 leading-relaxed">
-              A 6-digit verification code will be sent to your{" "}
-              <strong className="text-slate-700">
-                {verificationMethod === "email" ? (email || "email (not provided)") : (contactNumber || "phone (not provided)")}
-              </strong>.
+      
+      {/* Header Banner */}
+      <div className="mb-6 bg-gradient-to-r from-blue-950 via-slate-900 to-indigo-950 rounded-2xl p-6 text-white shadow-xl relative overflow-hidden">
+        <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <span className="text-[10px] font-extrabold uppercase tracking-widest text-blue-400 bg-blue-500/20 px-2.5 py-1 rounded-full border border-blue-400/30 mb-2 inline-block">
+              Final Step • Requisition Review
+            </span>
+            <h3 className="text-lg sm:text-xl font-black text-white tracking-tight">Review & Submit Equipment Request</h3>
+            <p className="text-xs text-slate-300 font-medium mt-1">
+              Please double check your borrowing details below before final submission.
             </p>
-
-            {otpError && <div className="bg-red-50 border border-red-200 rounded-xl p-2.5 text-xs text-red-700 mb-3 font-medium">{otpError}</div>}
-            {otpSuccess && <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-2.5 text-xs text-emerald-700 mb-3 font-medium">✅ {otpSuccess}</div>}
-
-            <Button onClick={handleSendOtp} type="button" variant="outline" disabled={otpSending}
-              className="w-full border-blue-200 text-blue-700 bg-white hover:bg-blue-50 mb-3 text-xs font-bold py-2.5">
-              {otpSending ? <><Loader2 size={12} className="animate-spin mr-1.5" />Sending…</> : isOtpSent ? "Resend Verification Code" : "Send Verification Code"}
-            </Button>
-
-            <input
-              type="text" inputMode="numeric" maxLength={6}
-              value={otp} onChange={e => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
-              placeholder="Enter 6-digit verification code"
-              className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-sm font-mono text-center tracking-widest focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10"
-            />
+          </div>
+          <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center text-emerald-400 shrink-0 shadow-inner">
+            <ShieldCheck size={28} />
           </div>
         </div>
       </div>
 
-      <div className="mt-8 pt-6 border-t border-slate-100 flex items-center justify-between">
+      {/* Summary Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 text-xs">
+        
+        {/* Card 1: Borrower Details */}
+        <div className="bg-slate-50/80 rounded-2xl p-5 border border-slate-200/80 space-y-4">
+          <h4 className="font-extrabold text-slate-900 text-sm flex items-center gap-2 border-b border-slate-200 pb-2">
+            <User size={16} className="text-blue-600" />
+            <span>Borrower Identity & Contact</span>
+          </h4>
+
+          <div className="space-y-3 font-semibold text-slate-700">
+            <div>
+              <span className="text-slate-400 text-[10px] uppercase font-bold block">Full Name</span>
+              <span className="text-sm font-extrabold text-slate-900">{fullName || "—"}</span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <span className="text-slate-400 text-[10px] uppercase font-bold block">Department / Program</span>
+                <span className="font-bold text-slate-800">{department || "General"}</span>
+              </div>
+              <div>
+                <span className="text-slate-400 text-[10px] uppercase font-bold block">Tracking Notification</span>
+                <span className="font-bold text-emerald-700 capitalize flex items-center gap-1 mt-0.5">
+                  {notificationChannel === "sms" ? <Phone size={12} /> : <Mail size={12} />}
+                  Via {notificationChannel === "sms" ? "SMS" : "Email"}
+                </span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-200/60">
+              <div>
+                <span className="text-slate-400 text-[10px] uppercase font-bold block">Email</span>
+                <span className="font-semibold text-slate-800 truncate block">{email || "—"}</span>
+              </div>
+              <div>
+                <span className="text-slate-400 text-[10px] uppercase font-bold block">Contact Phone</span>
+                <span className="font-semibold text-slate-800">{contactNumber || "—"}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Card 2: Requisition Schedule & Location */}
+        <div className="bg-slate-50/80 rounded-2xl p-5 border border-slate-200/80 space-y-4">
+          <h4 className="font-extrabold text-slate-900 text-sm flex items-center gap-2 border-b border-slate-200 pb-2">
+            <Calendar size={16} className="text-blue-600" />
+            <span>Usage Schedule & Location</span>
+          </h4>
+
+          <div className="space-y-3 font-semibold text-slate-700">
+            <div>
+              <span className="text-slate-400 text-[10px] uppercase font-bold block">Place of Use / Venue</span>
+              <span className="text-sm font-extrabold text-blue-700 flex items-center gap-1.5 mt-0.5">
+                <MapPin size={14} className="text-blue-600 shrink-0" />
+                {placeOfUse || "Inside Campus"}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <span className="text-slate-400 text-[10px] uppercase font-bold block">Start Datetime</span>
+                <span className="font-bold text-slate-900">{startTime ? startTime.replace("T", " ") : "—"}</span>
+              </div>
+              <div>
+                <span className="text-slate-400 text-[10px] uppercase font-bold block">Expected Return Datetime</span>
+                <span className="font-bold text-slate-900">{endTime ? endTime.replace("T", " ") : "—"}</span>
+              </div>
+            </div>
+
+            <div className="pt-2 border-t border-slate-200/60">
+              <span className="text-slate-400 text-[10px] uppercase font-bold block">Purpose</span>
+              <p className="font-medium text-slate-800 mt-0.5 leading-relaxed">
+                {purpose || "Academic / Event Requisition"} {handlerName ? `(Handler: ${handlerName})` : ""}
+              </p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      {/* Selected Items Card */}
+      <div className="bg-slate-50/80 rounded-2xl p-5 border border-slate-200/80 mb-8">
+        <h4 className="font-extrabold text-slate-900 text-sm flex items-center gap-2 mb-3">
+          <PackageOpen size={16} className="text-blue-600" />
+          <span>Selected Equipment Items ({selectedDetails.reduce((acc, curr) => acc + curr.quantity, 0)} Total Units)</span>
+        </h4>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+          {selectedDetails.map((item) => (
+            <div key={item.id} className="bg-white p-3.5 rounded-xl border border-slate-200 flex items-center justify-between shadow-2xs">
+              <div className="flex items-center gap-2.5">
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-xs ${
+                  item.dept === "sco" ? "bg-purple-100 text-purple-700" : "bg-blue-100 text-blue-700"
+                }`}>
+                  {item.quantity}x
+                </div>
+                <div>
+                  <h5 className="font-extrabold text-slate-900 text-xs truncate max-w-[150px]">{item.name}</h5>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase">{item.dept === "sco" ? "SCO Asset" : "AVR Resource"}</span>
+                </div>
+              </div>
+              <CheckCircle size={16} className="text-emerald-500 shrink-0" />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Action Buttons */}
+      <div className="pt-6 border-t border-slate-100 flex items-center justify-between flex-wrap gap-4">
         <Button
           type="button"
           variant="outline"
           onClick={() => onBack && onBack()}
-          className="border-slate-200 text-slate-700 hover:bg-slate-50 px-5 py-5 rounded-xl font-bold text-xs"
+          className="border-slate-200 text-slate-700 hover:bg-slate-50 px-6 py-5 rounded-xl font-bold text-xs cursor-pointer"
         >
           ← Back to Details
         </Button>
 
-        <Button onClick={handleVerifySubmit} disabled={isSubmitting}
-          className="bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-5 rounded-xl font-extrabold text-xs shadow-xl shadow-emerald-600/20 transition-all hover:scale-105 disabled:opacity-70 disabled:hover:scale-100">
-          {isSubmitting ? "Submitting…" : "Submit Borrowing Request"}
+        <Button
+          onClick={handleVerifySubmit}
+          disabled={isSubmitting}
+          className="bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-5 rounded-xl font-extrabold text-xs shadow-xl shadow-emerald-600/20 transition-all hover:scale-105 disabled:opacity-70 disabled:hover:scale-100 flex items-center gap-2 cursor-pointer"
+        >
+          <ShieldCheck size={18} />
+          <span>{isSubmitting ? "Submitting Request…" : "Submit Borrowing Request"}</span>
         </Button>
       </div>
     </div>

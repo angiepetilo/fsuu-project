@@ -11,10 +11,12 @@ return new class extends Migration
         Schema::create('equipment_units', function (Blueprint $table) {
             $table->id();
             $table->foreignId('equipment_type_id')->constrained('equipment_types')->cascadeOnDelete();
+            $table->string('name')->nullable();
             $table->string('unit_code')->unique();
-            $table->date('purchased_at');
-            $table->integer('eq_lifespan'); // in months
+            $table->date('purchased_at')->nullable();
+            $table->integer('eq_lifespan')->default(5); // in years
             $table->string('status')->default('available');
+            $table->text('description')->nullable();
             $table->timestamps();
             $table->timestamp('archived_at')->nullable();
         });

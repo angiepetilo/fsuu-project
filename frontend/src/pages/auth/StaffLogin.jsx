@@ -45,7 +45,12 @@ export default function StaffLogin() {
     try {
       const { data } = await api.post("/login", { email, password });
       login(data.user, data.token);
-      navigate("/admin/dashboard");
+      const isSuper = data.user?.role === "superadmin" || data.user?.role?.name === "superadmin" || email === "superadmin@fsuu.edu.ph";
+      if (isSuper) {
+        navigate("/sysad/dashboard");
+      } else {
+        navigate("/admin/dashboard");
+      }
     } catch {
       setPassError("Invalid email or password.");
     } finally {

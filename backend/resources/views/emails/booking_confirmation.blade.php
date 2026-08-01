@@ -46,27 +46,35 @@
 
     <div class="ref-box">
       <div>
-        <div class="ref-label">Reference Code</div>
-        <div class="ref-code">{{ $booking->reference_code }}</div>
+        <div class="ref-label">Tracking Number</div>
+        <div class="ref-code">{{ $booking->reference_code ?? ($booking->trackingNumber->reference_code ?? 'TRK-AVR1234') }}</div>
       </div>
       <span class="status-pill">⏳ Pending Review</span>
     </div>
 
     <div class="details-box">
-      <h3>📋 Booking Details</h3>
-      @if($type === 'venue')
-        <div class="row"><span class="row-label">Venue</span><span class="row-value">{{ $booking->venue->name ?? 'N/A' }}</span></div>
-        <div class="row"><span class="row-label">Purpose</span><span class="row-value">{{ $booking->purpose }}</span></div>
-        <div class="row"><span class="row-label">Start</span><span class="row-value">{{ \Carbon\Carbon::parse($booking->start_datetime)->format('M d, Y h:i A') }}</span></div>
-        <div class="row"><span class="row-label">End</span><span class="row-value">{{ \Carbon\Carbon::parse($booking->end_datetime)->format('M d, Y h:i A') }}</span></div>
-        <div class="row"><span class="row-label">Attendees</span><span class="row-value">{{ $booking->number_of_persons }}</span></div>
-      @else
-        <div class="row"><span class="row-label">Purpose</span><span class="row-value">{{ $booking->purpose }}</span></div>
-        <div class="row"><span class="row-label">Place of Use</span><span class="row-value">{{ $booking->place_of_use }}</span></div>
-        <div class="row"><span class="row-label">Start</span><span class="row-value">{{ \Carbon\Carbon::parse($booking->start_datetime)->format('M d, Y h:i A') }}</span></div>
-        <div class="row"><span class="row-label">End</span><span class="row-value">{{ \Carbon\Carbon::parse($booking->end_datetime)->format('M d, Y h:i A') }}</span></div>
-      @endif
-      <div class="row"><span class="row-label">Submitted By</span><span class="row-value">{{ $booking->requestor_name }}</span></div>
+      <div class="row">
+        <span class="row-label">Filer Name</span>
+        <span class="row-value">{{ $booking->requestor_name ?? $booking->filer_name ?? 'N/A' }}</span>
+      </div>
+      <div class="row">
+        <span class="row-label">Email / Contact</span>
+        <span class="row-value">{{ $booking->requestor_email ?? $booking->email_address ?? 'N/A' }} | {{ $booking->requestor_contact_number ?? $booking->contact_number ?? 'N/A' }}</span>
+      </div>
+      <div class="row">
+        <span class="row-label">{{ $type === 'venue' ? 'Venue' : 'Equipment' }}</span>
+        <span class="row-value">{{ $type === 'venue' ? ($booking->venue->name ?? 'AVR 1') : 'AV Equipment' }}</span>
+      </div>
+      <div class="row">
+        <span class="row-label">Schedule</span>
+        <span class="row-value">
+          {{ \Carbon\Carbon::parse($booking->start_datetime ?? ($booking->date_of_usage . ' ' . ($booking->time_start ?? '08:00')))->format('Y-m-d (H:i') }} - {{ \Carbon\Carbon::parse($booking->end_datetime ?? ($booking->date_of_usage . ' ' . ($booking->time_end ?? '17:00')))->format('H:i)') }}
+        </span>
+      </div>
+      <div class="row">
+        <span class="row-label">Purpose</span>
+        <span class="row-value">{{ $booking->purpose ?? 'N/A' }}</span>
+      </div>
     </div>
 
     <a class="cta-btn" href="http://localhost:5173/track">Track Your Request →</a>

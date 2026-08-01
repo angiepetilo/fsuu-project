@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Models\Role;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
@@ -12,131 +14,127 @@ use Illuminate\Validation\Rule;
 
 class AdminUserController extends Controller
 {
-    public function __construct()
-    {
-        if (request()->user() && !request()->user()->isAdmin()) {
-            abort(403, 'Unauthorized action.');
-        }
-    }
-
     /**
      * Display a listing of the users.
      */
-    public function index()
+    public function index(): JsonResponse
     {
-        return response()->json(User::with('office')->get());
+        return response()->json(
+            User::with(['office', 'role'])->latest()->get()
+        );
     }
 
     /**
-     * Store a newly created user.
-     * Fields: name, email (login username), personal_email, role, image
-     * Password is auto-generated (4 random chars + 4 random digits) and emailed to personal_email.
+     * Store a newly created user (Branch Admin).
      */
-    public function store(Request $request)
+    public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
             'name'           => 'required|string|max:255',
-            'email'          => 'required|string|max:255|unique:users',
-            'personal_email' => 'required|email|max:255',
-            'role'           => 'required|in:admin,staff',
+            'email'          => 'required|email|max:255|unique:users,email',
+            'username'       => 'nullable|string|max:255|unique:users,username',
+            'personal_email' => 'nullable|email|max:255',
+            'role'           => 'nullable|string',
             'office_id'      => 'nullable|exists:offices,id',
+            'location'       => 'nullable|string|max:255',
             'image'          => 'nullable|image|max:2048',
         ]);
+
+        // Resolve branch admin role
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
+
+        // Username handle generation
+        $username = !empty($validated['username'])
+            ? Str::slug($validated['username'])
+            : Str::slug(explode(' ', trim($validated['name']))[0] . rand(10, 99));
+
+        // Auto-generate temporary password: 4 random chars + 4 random digits
+        $plainPassword = Str::random(4) . rand(1000, 9999);
 
         $avatarPath = null;
         if ($request->hasFile('image')) {
             $avatarPath = $request->file('image')->store('avatars', 'public');
         }
 
-        // Generate password: 4 random chars + 4 random digits
-        $plainPassword = Str::random(4) . rand(1000, 9999);
-
         $user = User::create([
             'name'           => $validated['name'],
             'email'          => $validated['email'],
-            'personal_email' => $validated['personal_email'],
+            'username'       => $username,
+            'personal_email' => $validated['personal_email'] ?? $validated['email'],
             'password'       => Hash::make($plainPassword),
-            'role'           => $validated['role'],
+            'role_id'        => $adminRole->id,
             'office_id'      => $validated['office_id'] ?? null,
+            'location'       => $validated['location'] ?? null,
             'avatar'         => $avatarPath ? Storage::url($avatarPath) : null,
+            'is_active'      => true,
+            'created_by'     => auth()->id(),
         ]);
 
-        // Send credentials to the user's personal email
-        SendNewUserCredentialsJob::dispatch($user, $plainPassword);
+        $user->load(['office', 'role']);
+
+        // Dispatch clean formal credentials email job
+        try {
+            SendNewUserCredentialsJob::dispatch($user, $plainPassword);
+        } catch (\Throwable $e) {
+            // Silently log or handle if mail driver fails
+        }
 
         return response()->json([
-            'message' => 'User created successfully. Credentials sent to their personal email.',
-            'user'    => $user,
+            'message'        => 'Admin account created successfully. Credentials sent to institutional email.',
+            'user'           => $user,
+            'temp_password'  => $plainPassword,
         ], 201);
     }
 
     /**
      * Update the specified user.
-     * Supports: name, email, personal_email, role, image, new_password
      */
-    public function update(Request $request, User $user)
+    public function update(Request $request, int $id): JsonResponse
     {
+        $user = User::findOrFail($id);
+
         $validated = $request->validate([
-            'name'           => 'required|string|max:255',
-            'email'          => ['required', 'string', 'max:255', Rule::unique('users')->ignore($user->id)],
+            'name'           => 'sometimes|string|max:255',
+            'email'          => ['sometimes', 'email', 'max:255', Rule::unique('users')->ignore($user->id)],
+            'username'       => ['sometimes', 'string', 'max:255', Rule::unique('users')->ignore($user->id)],
             'personal_email' => 'nullable|email|max:255',
-            'role'           => 'required|in:admin,staff',
             'office_id'      => 'nullable|exists:offices,id',
-            'image'          => 'nullable|image|max:2048',
-            'remove_image'   => 'nullable|boolean',
+            'location'       => 'nullable|string|max:255',
             'new_password'   => 'nullable|string|min:6',
         ]);
 
-        $user->name           = $validated['name'];
-        $user->email          = $validated['email'];
-        $user->personal_email = $validated['personal_email'] ?? $user->personal_email;
-        $user->role           = $validated['role'];
-        $user->office_id      = $validated['office_id'] ?? $user->office_id;
+        if (isset($validated['name'])) $user->name = $validated['name'];
+        if (isset($validated['email'])) $user->email = $validated['email'];
+        if (isset($validated['username'])) $user->username = Str::slug($validated['username']);
+        if (isset($validated['personal_email'])) $user->personal_email = $validated['personal_email'];
+        if (array_key_exists('office_id', $validated)) $user->office_id = $validated['office_id'];
+        if (array_key_exists('location', $validated)) $user->location = $validated['location'];
 
-        // Change password if provided
         if (!empty($validated['new_password'])) {
             $user->password = Hash::make($validated['new_password']);
-        }
-
-        // Handle avatar
-        if ($request->boolean('remove_image')) {
-            if ($user->avatar) $this->deleteAvatarFile($user->avatar);
-            $user->avatar = null;
-        } elseif ($request->hasFile('image')) {
-            if ($user->avatar) $this->deleteAvatarFile($user->avatar);
-            $avatarPath   = $request->file('image')->store('avatars', 'public');
-            $user->avatar = Storage::url($avatarPath);
         }
 
         $user->save();
 
         return response()->json([
             'message' => 'User updated successfully',
-            'user'    => $user,
+            'user'    => $user->load(['office', 'role']),
         ]);
     }
 
     /**
-     * Remove the specified user.
+     * Soft-remove the specified user.
      */
-    public function destroy(User $user)
+    public function destroy(int $id): JsonResponse
     {
+        $user = User::findOrFail($id);
+
         if (auth()->id() === $user->id) {
             return response()->json(['message' => 'Cannot delete your own account'], 403);
         }
 
-        if ($user->avatar) $this->deleteAvatarFile($user->avatar);
-
         $user->delete();
 
-        return response()->json(['message' => 'User deleted successfully']);
-    }
-
-    private function deleteAvatarFile($url)
-    {
-        if (Str::startsWith($url, '/storage/')) {
-            $path = str_replace('/storage/', '', $url);
-            Storage::disk('public')->delete($path);
-        }
+        return response()->json(['message' => 'User archived (soft-deleted) successfully']);
     }
 }

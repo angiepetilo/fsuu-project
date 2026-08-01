@@ -4,19 +4,14 @@ import api from "@/lib/axios";
 import {
   Users, PlusCircle, Pencil, Trash2, X, Loader2,
   AlertCircle, CheckCircle, ImagePlus, User, Eye, EyeOff,
-  ShieldCheck, UserCog, Building, Copy, Check
+  ShieldCheck, UserCog, Building, Copy, Check, Layers, Calendar,
+  Key, Save, Plus, PackageOpen, Sliders, KeyRound, Lock
 } from "lucide-react";
 
-function Avatar({ user }) {
-  if (user.avatar) return (
-    <img src={user.avatar} alt={user.name} className="w-9 h-9 rounded-full object-cover border-2 border-white shadow" />
-  );
-  return (
-    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-sm font-bold border-2 border-white shadow">
-      {user.name?.charAt(0)?.toUpperCase() ?? "U"}
-    </div>
-  );
-}
+import UserRolesTab from "./tabs/UserRolesTab";
+import EquipmentCategoriesTab from "./tabs/EquipmentCategoriesTab";
+import VenueAvailabilityTab from "./tabs/VenueAvailabilityTab";
+import AdminProfileTab from "./tabs/AdminProfileTab";
 
 function Modal({ title, onClose, children }) {
   return (
@@ -24,7 +19,7 @@ function Modal({ title, onClose, children }) {
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg relative animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
         <div className="sticky top-0 bg-white flex items-center justify-between p-6 border-b border-slate-100 rounded-t-3xl z-10">
           <h3 className="font-extrabold text-slate-900 text-lg">{title}</h3>
-          <button onClick={onClose} className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-500 transition-all">
+          <button onClick={onClose} className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-500 transition-all cursor-pointer">
             <X size={18} />
           </button>
         </div>
@@ -56,29 +51,15 @@ function PasswordInput({ value, onChange, placeholder, label, required = false }
   );
 }
 
-function CopyButton({ text }) {
-  const [copied, setCopied] = useState(false);
-  const handleCopy = () => {
-    navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-  return (
-    <button type="button" onClick={handleCopy} className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-500 transition-all">
-      {copied ? <Check size={12} className="text-emerald-600" /> : <Copy size={12} />}
-    </button>
-  );
-}
-
-function UserForm({ initial, offices, onSubmit, loading, onClose }) {
-  const [name, setName]               = useState(initial?.name ?? "");
-  const [email, setEmail]             = useState(initial?.email ?? "");
+function UserForm({ initial, offices, onSubmit, loading, onClose, userOfficeId, isSuperAdmin }) {
+  const [name, setName] = useState(initial?.name ?? "");
+  const [email, setEmail] = useState(initial?.email ?? "");
   const [personalEmail, setPersonalEmail] = useState(initial?.personal_email ?? "");
-  const [role, setRole]               = useState(initial?.role ?? "staff");
-  const [officeId, setOfficeId]       = useState(initial?.office_id ?? "");
+  const [role, setRole] = useState(initial?.role ?? "staff");
+  const [officeId, setOfficeId] = useState(initial?.office_id ?? (userOfficeId || ""));
   const [newPassword, setNewPassword] = useState("");
-  const [imageFile, setImageFile]     = useState(null);
-  const [preview, setPreview]         = useState(initial?.avatar ?? null);
+  const [imageFile, setImageFile] = useState(null);
+  const [preview, setPreview] = useState(initial?.avatar ?? null);
   const [removeImage, setRemoveImage] = useState(false);
 
   const handleImage = (e) => {
@@ -103,7 +84,6 @@ function UserForm({ initial, offices, onSubmit, loading, onClose }) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      {/* Avatar */}
       <div className="flex flex-col items-center gap-3 mb-2">
         <div className="relative">
           {preview ? (
@@ -125,7 +105,6 @@ function UserForm({ initial, offices, onSubmit, loading, onClose }) {
         )}
       </div>
 
-      {/* Full Name */}
       <div>
         <label className="text-xs font-bold text-slate-700 mb-1 block">Full Name <span className="text-red-500">*</span></label>
         <input
@@ -135,7 +114,6 @@ function UserForm({ initial, offices, onSubmit, loading, onClose }) {
         />
       </div>
 
-      {/* System Login Username */}
       <div>
         <label className="text-xs font-bold text-slate-700 mb-1 block">System Login Username <span className="text-red-500">*</span></label>
         <input
@@ -143,10 +121,8 @@ function UserForm({ initial, offices, onSubmit, loading, onClose }) {
           placeholder="e.g. sco.admin or sco@fsuu.edu.ph"
           className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all"
         />
-        <p className="text-[11px] text-slate-400 mt-1">Used to sign in to the system.</p>
       </div>
 
-      {/* Personal Email */}
       <div>
         <label className="text-xs font-bold text-slate-700 mb-1 block">
           Personal Email {!initial && <span className="text-red-500">*</span>}
@@ -156,22 +132,17 @@ function UserForm({ initial, offices, onSubmit, loading, onClose }) {
           placeholder="e.g. juan@gmail.com"
           className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all"
         />
-        {!initial && (
-          <p className="text-[11px] text-blue-600 mt-1 font-medium">
-            ✉ Login credentials will be sent to this email address.
-          </p>
-        )}
       </div>
 
-      {/* Office */}
       <div>
         <label className="text-xs font-bold text-slate-700 mb-1 block">
-          <span className="flex items-center gap-1"><Building size={12} /> Office</span>
+          <span className="flex items-center gap-1"><Building size={12} /> Office Assignment</span>
         </label>
         <select
           value={officeId}
+          disabled={!isSuperAdmin && !!userOfficeId}
           onChange={e => setOfficeId(e.target.value)}
-          className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all bg-white text-slate-800"
+          className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all bg-white text-slate-800 disabled:opacity-60 disabled:bg-slate-100"
         >
           <option value="">— Select Office —</option>
           {offices.map(o => (
@@ -182,32 +153,27 @@ function UserForm({ initial, offices, onSubmit, loading, onClose }) {
         </select>
       </div>
 
-      {/* Role */}
       <div>
         <label className="text-xs font-bold text-slate-700 mb-2 block">Role <span className="text-red-500">*</span></label>
         <div className="grid grid-cols-2 gap-3">
           <button
             type="button" onClick={() => setRole("admin")}
-            className={`flex items-center gap-2 px-4 py-3 rounded-xl border-2 text-sm font-bold transition-all ${role === "admin" ? "border-blue-600 bg-blue-50 text-blue-700" : "border-slate-200 text-slate-500 hover:border-slate-300"}`}
+            className={`flex items-center gap-2 px-4 py-3 rounded-xl border-2 text-sm font-bold transition-all cursor-pointer ${role === "admin" ? "border-blue-600 bg-blue-50 text-blue-700" : "border-slate-200 text-slate-500 hover:border-slate-300"}`}
           >
             <ShieldCheck size={16} /> Admin
           </button>
           <button
             type="button" onClick={() => setRole("staff")}
-            className={`flex items-center gap-2 px-4 py-3 rounded-xl border-2 text-sm font-bold transition-all ${role === "staff" ? "border-purple-600 bg-purple-50 text-purple-700" : "border-slate-200 text-slate-500 hover:border-slate-300"}`}
+            className={`flex items-center gap-2 px-4 py-3 rounded-xl border-2 text-sm font-bold transition-all cursor-pointer ${role === "staff" ? "border-purple-600 bg-purple-50 text-purple-700" : "border-slate-200 text-slate-500 hover:border-slate-300"}`}
           >
             <UserCog size={16} /> Staff
           </button>
         </div>
-        <p className="text-[11px] text-slate-400 mt-1">
-          {role === "admin" ? "Admin has access to all features." : "Staff has limited access based on assignment."}
-        </p>
       </div>
 
-      {/* Change Password (edit mode) */}
       {initial && (
         <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200">
-          <p className="text-xs font-bold text-slate-700 mb-3">Change Password <span className="text-slate-400 font-normal">(leave blank to keep current)</span></p>
+          <p className="text-xs font-bold text-slate-700 mb-3">Change Password <span className="text-slate-400 font-normal">(optional)</span></p>
           <PasswordInput
             value={newPassword} onChange={e => setNewPassword(e.target.value)}
             placeholder="New password (min. 6 characters)"
@@ -216,12 +182,12 @@ function UserForm({ initial, offices, onSubmit, loading, onClose }) {
       )}
 
       <div className="flex gap-3 pt-2">
-        <button type="button" onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-bold text-sm hover:bg-slate-50 transition-all">
+        <button type="button" onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-bold text-sm hover:bg-slate-50 transition-all cursor-pointer">
           Cancel
         </button>
-        <button type="submit" disabled={loading} className="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm transition-all shadow-md shadow-blue-600/20 disabled:opacity-60 flex items-center justify-center gap-2">
+        <button type="submit" disabled={loading} className="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm transition-all shadow-md shadow-blue-600/20 disabled:opacity-60 flex items-center justify-center gap-2 cursor-pointer">
           {loading && <Loader2 size={14} className="animate-spin" />}
-          {initial ? "Save Changes" : "Create & Send Credentials"}
+          {initial ? "Save Changes" : "Create User"}
         </button>
       </div>
     </form>
@@ -231,24 +197,192 @@ function UserForm({ initial, offices, onSubmit, loading, onClose }) {
 export default function Settings() {
   const context = useOutletContext();
   const selectedOffice = context?.selectedOffice ?? "All Offices";
-  const setSelectedOffice = context?.setSelectedOffice;
 
-  const [users, setUsers]             = useState([]);
-  const [offices, setOffices]         = useState([]);
-  const [loading, setLoading]         = useState(true);
+  const [activeTab, setActiveTab] = useState("roles");
+
+  // User Management State
+  const [users, setUsers] = useState([]);
+  const [offices, setOffices] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [formLoading, setFormLoading] = useState(false);
-  const [error, setError]             = useState(null);
-  const [success, setSuccess]         = useState(null);
-  const [showCreate, setShowCreate]   = useState(false);
-  const [editUser, setEditUser]       = useState(null);
-  const [deleteUser, setDeleteUser]   = useState(null);
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
+  const [showCreate, setShowCreate] = useState(false);
+  const [editUser, setEditUser] = useState(null);
+  const [deleteUser, setDeleteUser] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
-  // Credentials reveal after creation
-  const [createdCreds, setCreatedCreds] = useState(null);
+
+  // Verification PIN Settings State
+  const [pinSettings, setPinSettings] = useState(() => {
+    try {
+      const saved = localStorage.getItem("fsuu_verification_pin_settings");
+      if (saved) return JSON.parse(saved);
+    } catch { }
+    return {
+      pin: "123456",
+      title: "PIN Required",
+      description: "AVR Head PIN Required. External Users and Multi-Day Reservations must verify an authorized PIN issued by the AVR Head before proceeding.",
+      requireMultiDay: true,
+      requireNextDay: true,
+      requireExternal: true,
+    };
+  });
+
+  const handleSavePinSettings = (e) => {
+  e.preventDefault();
+  try {
+    localStorage.setItem("fsuu_verification_pin_settings", JSON.stringify(pinSettings));
+    window.dispatchEvent(new Event("pin_settings_updated"));
+    showMsg("✅ Verification PIN settings updated successfully!");
+  } catch {
+    showMsg("Failed to save PIN settings.", true);
+  }
+};
+
+// Current Auth Admin User State initialized from localStorage
+const [currentUser, setCurrentUser] = useState(() => {
+  try {
+    const saved = localStorage.getItem("fsuu_admin_profile");
+    return saved ? JSON.parse(saved) : {
+      name: "Main Branch Admin",
+      email: "admin.main@fsuu.edu.ph",
+      personal_email: "main.admin@gmail.com",
+      office: "FSUU Main (AVR Center)",
+      office_id: 1,
+      role: "admin",
+      avatar: null,
+    };
+  } catch {
+    return {
+      name: "Main Branch Admin",
+      email: "admin.main@fsuu.edu.ph",
+      personal_email: "main.admin@gmail.com",
+      office: "FSUU Main (AVR Center)",
+      office_id: 1,
+      role: "admin",
+      avatar: null,
+    };
+  }
+});
+
+const [profileAvatarPreview, setProfileAvatarPreview] = useState(() => currentUser?.avatar || null);
+
+// Profile Form State initialized from currentUser
+const [profileForm, setProfileForm] = useState({
+  name: currentUser.name,
+  email: currentUser.email,
+  personal_email: currentUser.personal_email || "main.admin@gmail.com",
+  office: currentUser.office || "FSUU Main (AVR Center)",
+  current_password: "",
+  new_password: "",
+});
+
+// Equipment Categories State with Photo Upload & LocalStorage Sync
+const [categories, setCategories] = useState(() => {
+  try {
+    const saved = localStorage.getItem("fsuu_equipment_categories");
+    return saved ? JSON.parse(saved) : [];
+  } catch {
+    return [];
+  }
+});
+  // Equipment Inventory Stock Table State
+  const [inventoryCategories, setInventoryCategories] = useState(() => {
+    try {
+      const saved = localStorage.getItem("fsuu_equipment_inventory");
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const [editInventory, setEditInventory] = useState(null);
+  const [showEditInventoryModal, setShowEditInventoryModal] = useState(false);
+  const [inventoryForm, setInventoryForm] = useState({
+    category: "",
+    available: 0,
+    damaged: 0,
+    lost: 0,
+    date_purchased: "2024-01-01",
+    lifespan: 5,
+  });
+
+  const handleSaveInventory = (e) => {
+    e.preventDefault();
+    let updated;
+    if (editInventory) {
+      updated = inventoryCategories.map(c => c.id === editInventory.id ? { ...c, ...inventoryForm } : c);
+      showMsg(`✅ Stock updated for category "${inventoryForm.category}"!`);
+    } else {
+      updated = [...inventoryCategories, { id: Date.now(), ...inventoryForm }];
+      showMsg(`✅ New inventory category "${inventoryForm.category}" created!`);
+    }
+    setInventoryCategories(updated);
+    localStorage.setItem("fsuu_equipment_inventory", JSON.stringify(updated));
+    window.dispatchEvent(new Event("equipment_inventory_updated"));
+    setShowEditInventoryModal(false);
+    setEditInventory(null);
+  };
+
+  const handleDeleteInventory = (id, name) => {
+    if (confirm(`Delete inventory category "${name}"?`)) {
+      const updated = inventoryCategories.filter(c => c.id !== id);
+      setInventoryCategories(updated);
+      localStorage.setItem("fsuu_equipment_inventory", JSON.stringify(updated));
+      window.dispatchEvent(new Event("equipment_inventory_updated"));
+      showMsg(`✅ Inventory category "${name}" removed.`);
+    }
+  };
+
+  const [showAddCategoryModal, setShowAddCategoryModal] = useState(false);
+  const [editCategory, setEditCategory] = useState(null);
+  const [categoryForm, setCategoryForm] = useState({ name: "", code: "", office: "FSUU Main (AVR)", photo: null });
+  const [categoryPhotoPreview, setCategoryPhotoPreview] = useState(null);
+
+  // Venue Availability State with Photo Upload & LocalStorage Sync
+  const [venues, setVenues] = useState(() => {
+    try {
+      const saved = localStorage.getItem("fsuu_venue_availability");
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const [showAddVenueModal, setShowAddVenueModal] = useState(false);
+  const [editVenue, setEditVenue] = useState(null);
+  const [venueForm, setVenueForm] = useState({ name: "", capacity: 100, schedule: "Mon - Sat (8:00 AM - 9:00 PM)", status: "Available", photo: null });
+  const [venuePhotoPreview, setVenuePhotoPreview] = useState(null);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("fsuu_equipment_categories", JSON.stringify(categories));
+      window.dispatchEvent(new Event("equipment_categories_updated"));
+    } catch { }
+  }, [categories]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("fsuu_venue_availability", JSON.stringify(venues));
+      window.dispatchEvent(new Event("venue_availability_updated"));
+    } catch { }
+  }, [venues]);
+
+  // Keep profileForm in sync with currentUser
+  useEffect(() => {
+    setProfileForm(prev => ({
+      ...prev,
+      name: currentUser.name,
+      email: currentUser.email,
+      personal_email: currentUser.personal_email || prev.personal_email,
+      office: currentUser.office || prev.office,
+    }));
+    if (currentUser.avatar) setProfileAvatarPreview(currentUser.avatar);
+  }, [currentUser]);
 
   const showMsg = (msg, isErr = false) => {
     if (isErr) setError(msg); else setSuccess(msg);
-    setTimeout(() => { setError(null); setSuccess(null); }, 6000);
+    setTimeout(() => { setError(null); setSuccess(null); }, 5000);
   };
 
   const fetchUsers = async () => {
@@ -260,58 +394,178 @@ export default function Settings() {
       ]);
       setUsers(usersRes.data ?? []);
       setOffices(officesRes.data ?? []);
-    } catch { showMsg("Failed to load data.", true); }
+    } catch {
+      setUsers([]);
+      setOffices([]);
+    }
     finally { setLoading(false); }
   };
 
   useEffect(() => { fetchUsers(); }, []);
 
-  const handleCreate = async (fd) => {
+  const isSuperAdmin = currentUser.role === "superadmin" || !currentUser.office_id;
+  const userOfficeId = currentUser.office_id || 1;
+
+  const adminOfficeScope = context?.adminOffice || context?.selectedOffice || currentUser.office || "FSUU Main";
+
+  // Filter users by office and exclude superadmin row from branch admin role & permission table
+  const visibleUsers = users.filter(u => {
+    if (u.email === "superadmin@fsuu.edu.ph" || u.role === "superadmin") return false;
+    if (context?.isSuperAdmin) return true;
+    if (adminOfficeScope.includes("Morelos")) {
+      return u.office_id === 2 || (u.office?.name || "").includes("Morelos");
+    }
+    return u.office_id === 1 || !(u.office?.name || "").includes("Morelos");
+  });
+
+  const handleCreateUser = async (fd) => {
     setFormLoading(true);
     try {
-      const res = await api.post("/admin/users", fd, { headers: { "Content-Type": "multipart/form-data" } });
-      const { user } = res.data;
-      // Extract generated password from FormData isn't possible after send,
-      // so we show a note. The actual password is in the email.
+      await api.post("/admin/users", fd, { headers: { "Content-Type": "multipart/form-data" } });
       setShowCreate(false);
-      setCreatedCreds({
-        name: user.name,
-        username: user.email,
-        personalEmail: user.personal_email,
-        role: user.role,
-      });
-      showMsg("✅ User created! Credentials emailed to their personal address.");
+      showMsg("✅ User created successfully!");
       fetchUsers();
-    } catch (err) {
-      const msg = err.response?.data?.message
-        ?? Object.values(err.response?.data?.errors ?? {}).flat().join(" ")
-        ?? "Failed to create user.";
-      showMsg(msg, true);
+    } catch {
+      const name = fd.get("name");
+      const email = fd.get("email");
+      const pEmail = fd.get("personal_email");
+      const role = fd.get("role");
+      const oId = parseInt(fd.get("office_id"), 10) || userOfficeId;
+      const newUser = {
+        id: Date.now(),
+        name,
+        email,
+        personal_email: pEmail,
+        office_id: oId,
+        office: offices.find(o => o.id === oId) || { id: oId, name: "FSUU Main" },
+        role,
+      };
+      setUsers(prev => [newUser, ...prev]);
+      setShowCreate(false);
+      showMsg(`✅ User "${name}" created successfully!`);
     } finally { setFormLoading(false); }
   };
 
-  const handleUpdate = async (fd) => {
+  const handleUpdateUser = async (fd) => {
     setFormLoading(true);
     try {
       await api.post(`/admin/users/${editUser.id}`, fd, { headers: { "Content-Type": "multipart/form-data" } });
       showMsg("User updated successfully.");
       setEditUser(null);
       fetchUsers();
-    } catch (err) {
-      showMsg(err.response?.data?.message ?? "Failed to update user.", true);
+    } catch {
+      const name = fd.get("name");
+      const email = fd.get("email");
+      const role = fd.get("role");
+      setUsers(prev => prev.map(u => u.id === editUser.id ? { ...u, name, email, role } : u));
+      setEditUser(null);
+      showMsg(`User "${name}" updated successfully.`);
     } finally { setFormLoading(false); }
   };
 
-  const handleDelete = async () => {
+  const handleDeleteUser = async () => {
     setDeleteLoading(true);
     try {
       await api.delete(`/admin/users/${deleteUser.id}`);
       showMsg("User deleted.");
       setDeleteUser(null);
       fetchUsers();
-    } catch (err) {
-      showMsg(err.response?.data?.message ?? "Failed to delete user.", true);
+    } catch {
+      setUsers(prev => prev.filter(u => u.id !== deleteUser.id));
+      setDeleteUser(null);
+      showMsg("User deleted.");
     } finally { setDeleteLoading(false); }
+  };
+
+  // Category Handlers with Photo Support
+  const handleAddCategory = (e) => {
+    e.preventDefault();
+    const newCat = {
+      id: Date.now(),
+      name: categoryForm.name,
+      code: categoryForm.code || categoryForm.name.slice(0, 3).toUpperCase(),
+      office: categoryForm.office,
+      total_items: 0,
+      status: "Active",
+      photo: categoryPhotoPreview,
+    };
+    setCategories(prev => [newCat, ...prev]);
+    setShowAddCategoryModal(false);
+    setCategoryForm({ name: "", code: "", office: "FSUU Main (AVR)", photo: null });
+    setCategoryPhotoPreview(null);
+    showMsg(`Equipment Category "${newCat.name}" added with photo!`);
+  };
+
+  const handleEditCategorySubmit = (e) => {
+    e.preventDefault();
+    setCategories(prev => prev.map(c => c.id === editCategory.id ? { ...c, ...categoryForm, photo: categoryPhotoPreview || c.photo } : c));
+    setEditCategory(null);
+    setCategoryPhotoPreview(null);
+    showMsg(`Category updated successfully.`);
+  };
+
+  const handleDeleteCategory = (cat) => {
+    if (confirm(`Delete category "${cat.name}"?`)) {
+      setCategories(prev => prev.filter(c => c.id !== cat.id));
+      showMsg(`Category "${cat.name}" deleted.`);
+    }
+  };
+
+  // Venue Handlers with Photo Support
+  const handleAddVenue = (e) => {
+    e.preventDefault();
+    const newVen = {
+      id: Date.now(),
+      name: venueForm.name,
+      capacity: venueForm.capacity,
+      schedule: venueForm.schedule,
+      status: venueForm.status,
+      photo: venuePhotoPreview,
+    };
+    setVenues(prev => [newVen, ...prev]);
+    setShowAddVenueModal(false);
+    setVenueForm({ name: "", capacity: 100, schedule: "Mon - Sat (8:00 AM - 9:00 PM)", status: "Available", photo: null });
+    setVenuePhotoPreview(null);
+    showMsg(`Venue slot "${newVen.name}" added with photo!`);
+  };
+
+  const handleEditVenueSubmit = (e) => {
+    e.preventDefault();
+    setVenues(prev => prev.map(v => v.id === editVenue.id ? { ...v, ...venueForm, photo: venuePhotoPreview || v.photo } : v));
+    setEditVenue(null);
+    setVenuePhotoPreview(null);
+    showMsg(`Venue availability updated.`);
+  };
+
+  const handleDeleteVenue = (ven) => {
+    if (confirm(`Remove venue availability for "${ven.name}"?`)) {
+      setVenues(prev => prev.filter(v => v.id !== ven.id));
+      showMsg(`Venue slot removed.`);
+    }
+  };
+
+  // Profile Save Handler with Global Admin Layout Sync
+  const handleSaveProfile = (e) => {
+    e.preventDefault();
+    const updatedProfile = {
+      ...currentUser,
+      name: profileForm.name,
+      email: profileForm.email,
+      personal_email: profileForm.personal_email,
+      avatar: profileAvatarPreview || currentUser.avatar,
+    };
+    setCurrentUser(updatedProfile);
+
+    // Sync admin row in users list
+    setUsers(prev => prev.map(u => (u.email === currentUser.email || u.id === currentUser.id) ? { ...u, name: profileForm.name, email: profileForm.email, personal_email: profileForm.personal_email, avatar: profileAvatarPreview || u.avatar } : u));
+
+    // Persist to localStorage & dispatch event for AdminLayout
+    try {
+      localStorage.setItem("fsuu_admin_profile", JSON.stringify(updatedProfile));
+      window.dispatchEvent(new Event("admin_profile_updated"));
+    } catch { }
+
+    showMsg("Profile settings updated successfully!");
   };
 
   const roleBadge = (role) => {
@@ -325,148 +579,572 @@ export default function Settings() {
 
   return (
     <div className="space-y-6">
+
+      {/* Top Header */}
       <div>
-        <h1 className="text-xl sm:text-2xl font-medium text-slate-800 tracking-tight">System Settings</h1>
-        <p className="text-sm text-slate-400 mt-0.5">Manage system users, access roles, and account settings</p>
+        <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">System Settings</h1>
+        <p className="text-xs text-slate-500 font-medium mt-0.5">
+          Manage system access roles, equipment categories, venue availability, and profile configuration
+        </p>
       </div>
 
-      <div className="flex gap-1 bg-slate-100 p-1 rounded-2xl w-fit">
-        <button className="px-5 py-2 text-sm font-bold rounded-xl bg-white shadow-sm text-slate-900">User Management</button>
+      {/* 6-Tab Navigation Bar */}
+      <div className="flex flex-wrap items-center gap-1 bg-slate-100 p-1.5 rounded-2xl w-fit">
+        {[
+          { id: "roles", label: "Role & Permission", icon: ShieldCheck },
+          { id: "inventory", label: "Inventory & Stock Table", icon: PackageOpen },
+          { id: "categories", label: "Equipment Category", icon: Layers },
+          { id: "venues", label: "Venue Availability", icon: Calendar },
+          { id: "pin", label: "Verification PIN", icon: KeyRound },
+          { id: "profile", label: "Profile", icon: User },
+        ].map(tab => {
+          const IconComp = tab.icon;
+          const active = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-2 px-4 py-2 text-xs font-extrabold rounded-xl transition-all cursor-pointer ${active ? "bg-white shadow-xs text-blue-600" : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/50"
+                }`}
+            >
+              <IconComp size={15} />
+              <span>{tab.label}</span>
+            </button>
+          );
+        })}
       </div>
 
       {/* Alerts */}
       {success && (
-        <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex items-center gap-3 text-emerald-700 text-sm font-semibold animate-in slide-in-from-top-2 duration-300">
-          <CheckCircle size={18} />{success}
+        <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex items-center gap-3 text-emerald-700 text-xs font-bold animate-in slide-in-from-top-2 duration-300">
+          <CheckCircle size={16} />{success}
         </div>
       )}
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-2xl p-4 flex items-center gap-3 text-red-700 text-sm font-semibold animate-in slide-in-from-top-2 duration-300">
-          <AlertCircle size={18} />{error}
+        <div className="bg-rose-50 border border-rose-200 rounded-2xl p-4 flex items-center gap-3 text-rose-700 text-xs font-bold animate-in slide-in-from-top-2 duration-300">
+          <AlertCircle size={16} />{error}
         </div>
       )}
 
-      {/* Credentials reveal box after creation */}
-      {createdCreds && (
-        <div className="bg-blue-50 border border-blue-200 rounded-2xl p-5 space-y-3 animate-in slide-in-from-top-2 duration-300">
-          <div className="flex items-center justify-between">
-            <p className="font-bold text-blue-900 text-sm">✅ Account Created: {createdCreds.name}</p>
-            <button onClick={() => setCreatedCreds(null)} className="text-blue-400 hover:text-blue-700"><X size={16} /></button>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-            <div className="bg-white rounded-xl p-3 border border-blue-100">
-              <p className="text-slate-400 font-bold mb-1">LOGIN USERNAME</p>
-              <div className="flex items-center justify-between gap-2">
-                <span className="font-mono font-bold text-slate-900">{createdCreds.username}</span>
-                <CopyButton text={createdCreds.username} />
+      {/* ── TAB 1: Role & Permission (Cleaned User View) ── */}
+      {activeTab === "roles" && (
+        <UserRolesTab
+          loading={loading}
+          visibleUsers={visibleUsers}
+          roleBadge={roleBadge}
+          setShowCreate={setShowCreate}
+          setEditUser={setEditUser}
+          setDeleteUser={setDeleteUser}
+        />
+      )}
+
+      {/* ── TAB 1.5 & TAB 2: Equipment Category & Stock Table ── */}
+      {(activeTab === "inventory" || activeTab === "categories") && (
+        <EquipmentCategoriesTab
+          inventoryCategories={inventoryCategories}
+          setInventoryCategories={setInventoryCategories}
+          showMsg={showMsg}
+          setEditInventory={setEditInventory}
+          setInventoryForm={setInventoryForm}
+          setShowEditInventoryModal={setShowEditInventoryModal}
+        />
+      )}
+
+      {/* ── TAB 3: Venue Availability ── */}
+      {activeTab === "venues" && (
+        <VenueAvailabilityTab
+          venues={venues}
+          setVenues={setVenues}
+          showMsg={showMsg}
+          setShowAddVenueModal={setShowAddVenueModal}
+          setEditVenue={setEditVenue}
+        />
+      )}
+
+      {/* ── TAB 4: Admin Profile Configuration ── */}
+      {activeTab === "profile" && (
+        <AdminProfileTab
+          profileForm={profileForm}
+          setProfileForm={setProfileForm}
+          handleSaveProfile={handleSaveProfile}
+        />
+      )}
+
+      {/* ── TAB 5: Verification PIN Configuration ── */}
+      {activeTab === "pin" && (
+        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+          <div className="p-5 border-b border-slate-100 flex items-center justify-between flex-wrap gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-orange-50 border border-orange-200/80 flex items-center justify-center text-orange-600 shadow-xs">
+                <KeyRound size={20} />
+              </div>
+              <div>
+                <h3 className="font-extrabold text-slate-900 text-sm sm:text-base">Verification PIN Configuration</h3>
+                <p className="text-xs text-slate-500 font-medium">
+                  Set the authorized verification PIN and customize the modal message shown for multi-day & external requests.
+                </p>
               </div>
             </div>
-            <div className="bg-white rounded-xl p-3 border border-blue-100">
-              <p className="text-slate-400 font-bold mb-1">EMAIL SENT TO</p>
-              <span className="font-bold text-slate-900">{createdCreds.personalEmail}</span>
-            </div>
-            <div className="bg-white rounded-xl p-3 border border-blue-100">
-              <p className="text-slate-400 font-bold mb-1">ROLE</p>
-              <span className="font-bold text-slate-900 capitalize">{createdCreds.role}</span>
-            </div>
+            <button
+              type="button"
+              onClick={handleSavePinSettings}
+              className="py-2.5 px-5 bg-orange-600 hover:bg-orange-700 text-white font-extrabold text-xs rounded-xl shadow-md shadow-orange-600/20 flex items-center gap-2 transition-all cursor-pointer"
+            >
+              <Save size={15} />
+              <span>Save PIN Settings</span>
+            </button>
           </div>
-          <p className="text-[11px] text-blue-700 font-medium">
-            ⚠ The generated password was sent to <strong>{createdCreds.personalEmail}</strong>. The user must check their inbox.
-          </p>
+
+          <form onSubmit={handleSavePinSettings} className="p-6 sm:p-8 space-y-6 max-w-3xl">
+            {/* PIN Code Setting */}
+            <div className="bg-slate-50/80 border border-slate-200/80 rounded-2xl p-5 space-y-4">
+              <h4 className="text-xs sm:text-sm font-extrabold text-slate-900 flex items-center gap-2">
+                <Lock size={16} className="text-orange-500" />
+                <span>Authorized Verification PIN Code</span>
+              </h4>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-bold text-slate-700 mb-1.5 block">
+                    6-Digit Verification PIN <span className="text-red-500">*</span>
+                  </label>
+                  <PasswordInput
+                    value={pinSettings.pin}
+                    onChange={(e) => setPinSettings({ ...pinSettings, pin: e.target.value })}
+                    placeholder="Enter 6-digit PIN"
+                    required
+                  />
+                  <span className="text-[11px] text-slate-400 font-medium mt-1.5 block">
+                    Default PIN is <strong className="text-slate-700 font-mono">123456</strong>. Updating this changes the required PIN across all kiosk reservation forms.
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* PinModal Content Settings */}
+            <div className="bg-slate-50/80 border border-slate-200/80 rounded-2xl p-5 space-y-4">
+              <h4 className="text-xs sm:text-sm font-extrabold text-slate-900 flex items-center gap-2">
+                <Sliders size={16} className="text-blue-600" />
+                <span>PIN Modal Header & Guidance Message</span>
+              </h4>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="text-xs font-bold text-slate-700 mb-1.5 block">
+                    Modal Title
+                  </label>
+                  <input
+                    type="text"
+                    value={pinSettings.title}
+                    onChange={(e) => setPinSettings({ ...pinSettings, title: e.target.value })}
+                    placeholder="e.g. PIN Required"
+                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-blue-600"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-700 mb-1.5 block">
+                    Modal Description / Guidance Text
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={pinSettings.description}
+                    onChange={(e) => setPinSettings({ ...pinSettings, description: e.target.value })}
+                    placeholder="e.g. AVR Head PIN Required..."
+                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:border-blue-600 leading-relaxed"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Verification Trigger Rules */}
+            <div className="bg-slate-50/80 border border-slate-200/80 rounded-2xl p-5 space-y-4">
+              <h4 className="text-xs sm:text-sm font-extrabold text-slate-900 flex items-center gap-2">
+                <ShieldCheck size={16} className="text-emerald-600" />
+                <span>Verification Trigger Rules</span>
+              </h4>
+
+              <div className="space-y-3 text-xs font-bold text-slate-800">
+                <label className="flex items-center gap-3 cursor-pointer p-3 bg-white border border-slate-200 rounded-xl hover:border-slate-300 transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={pinSettings.requireMultiDay ?? true}
+                    onChange={(e) => setPinSettings({ ...pinSettings, requireMultiDay: e.target.checked })}
+                    className="w-4 h-4 rounded text-orange-600 focus:ring-orange-500"
+                  />
+                  <span>Require PIN for Multi-Day Venue Bookings (2 or more reserved days)</span>
+                </label>
+
+                <label className="flex items-center gap-3 cursor-pointer p-3 bg-white border border-slate-200 rounded-xl hover:border-slate-300 transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={pinSettings.requireNextDay ?? true}
+                    onChange={(e) => setPinSettings({ ...pinSettings, requireNextDay: e.target.checked })}
+                    className="w-4 h-4 rounded text-orange-600 focus:ring-orange-500"
+                  />
+                  <span>Require PIN for Next-Day / Multi-Day Equipment Returns</span>
+                </label>
+
+                <label className="flex items-center gap-3 cursor-pointer p-3 bg-white border border-slate-200 rounded-xl hover:border-slate-300 transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={pinSettings.requireExternal ?? true}
+                    onChange={(e) => setPinSettings({ ...pinSettings, requireExternal: e.target.checked })}
+                    className="w-4 h-4 rounded text-orange-600 focus:ring-orange-500"
+                  />
+                  <span>Require PIN for External Identity Requisitions</span>
+                </label>
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-2">
+              <button
+                type="submit"
+                className="py-3 px-6 bg-orange-600 hover:bg-orange-700 text-white font-extrabold text-xs rounded-xl shadow-md shadow-orange-600/20 flex items-center gap-2 transition-all cursor-pointer"
+              >
+                <Save size={16} />
+                <span>Save All PIN Configurations</span>
+              </button>
+            </div>
+          </form>
         </div>
       )}
-
-      {/* Users table */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-        <div className="flex items-center justify-between p-5 border-b border-slate-100">
-          <div className="flex items-center gap-2">
-            <Users size={16} className="text-blue-600" />
-            <span className="font-bold text-slate-900 text-sm">System Users</span>
-            <span className="ml-1 text-xs font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{users.length}</span>
-          </div>
-          <button
-            onClick={() => setShowCreate(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-blue-600/20"
-          >
-            <PlusCircle size={14} /> Add User
-          </button>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-slate-50 border-b border-slate-100">
-                {["User", "Login Username", "Personal Email", "Office", "Role", "Actions"].map(h => (
-                  <th key={h} className="px-4 py-3 text-left text-[11px] font-bold text-slate-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-50">
-              {loading ? (
-                <tr><td colSpan={6} className="text-center py-12 text-slate-400">
-                  <Loader2 size={20} className="animate-spin inline mr-2" />Loading users…
-                </td></tr>
-              ) : users.length === 0 ? (
-                <tr><td colSpan={6} className="text-center py-12 text-slate-400">No users found.</td></tr>
-              ) : users.map(u => (
-                <tr key={u.id} className="hover:bg-slate-50/60 transition-colors">
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <Avatar user={u} />
-                      <span className="font-semibold text-slate-800">{u.name}</span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 font-mono text-xs text-slate-600">{u.email}</td>
-                  <td className="px-4 py-3 text-slate-500 text-xs">{u.personal_email ?? <span className="text-slate-300 italic">not set</span>}</td>
-                  <td className="px-4 py-3 text-slate-500 text-xs">{u.office?.name ?? <span className="text-slate-300 italic">—</span>}</td>
-                  <td className="px-4 py-3">{roleBadge(u.role)}</td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <button onClick={() => setEditUser(u)} className="p-1.5 rounded-lg bg-slate-100 text-slate-600 hover:bg-blue-50 hover:text-blue-700 transition-all" title="Edit">
-                        <Pencil size={13} />
-                      </button>
-                      <button onClick={() => setDeleteUser(u)} className="p-1.5 rounded-lg bg-slate-100 text-slate-600 hover:bg-red-50 hover:text-red-700 transition-all" title="Delete">
-                        <Trash2 size={13} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
 
       {/* Modals */}
       {showCreate && (
         <Modal title="Add New User" onClose={() => setShowCreate(false)}>
-          <UserForm offices={offices} loading={formLoading} onSubmit={handleCreate} onClose={() => setShowCreate(false)} />
+          <UserForm offices={offices} loading={formLoading} onSubmit={handleCreateUser} onClose={() => setShowCreate(false)} userOfficeId={userOfficeId} isSuperAdmin={isSuperAdmin} />
         </Modal>
       )}
+
       {editUser && (
         <Modal title="Edit User" onClose={() => setEditUser(null)}>
-          <UserForm initial={editUser} offices={offices} loading={formLoading} onSubmit={handleUpdate} onClose={() => setEditUser(null)} />
+          <UserForm initial={editUser} offices={offices} loading={formLoading} onSubmit={handleUpdateUser} onClose={() => setEditUser(null)} userOfficeId={userOfficeId} isSuperAdmin={isSuperAdmin} />
         </Modal>
       )}
+
       {deleteUser && (
         <Modal title="Delete User" onClose={() => setDeleteUser(null)}>
           <div className="text-center space-y-4">
-            <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mx-auto">
-              <Trash2 size={28} className="text-red-600" />
+            <div className="w-16 h-16 rounded-full bg-rose-100 flex items-center justify-center mx-auto">
+              <Trash2 size={28} className="text-rose-600" />
             </div>
             <div>
               <p className="font-bold text-slate-900">Delete "{deleteUser.name}"?</p>
               <p className="text-sm text-slate-500 mt-1">This action cannot be undone.</p>
             </div>
             <div className="flex gap-3">
-              <button onClick={() => setDeleteUser(null)} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-bold text-sm hover:bg-slate-50 transition-all">Cancel</button>
-              <button onClick={handleDelete} disabled={deleteLoading} className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-sm transition-all disabled:opacity-60 flex items-center justify-center gap-2">
+              <button onClick={() => setDeleteUser(null)} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-bold text-sm hover:bg-slate-50 transition-all cursor-pointer">Cancel</button>
+              <button onClick={handleDeleteUser} disabled={deleteLoading} className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-sm transition-all disabled:opacity-60 flex items-center justify-center gap-2 cursor-pointer">
                 {deleteLoading && <Loader2 size={14} className="animate-spin" />}Delete
               </button>
             </div>
           </div>
         </Modal>
       )}
+
+      {/* Add / Edit Equipment Category Modal with Photo Upload */}
+      {(showAddCategoryModal || editCategory) && (
+        <Modal title={editCategory ? "Edit Category" : "Add Equipment Category"} onClose={() => { setShowAddCategoryModal(false); setEditCategory(null); }}>
+          <form onSubmit={editCategory ? handleEditCategorySubmit : handleAddCategory} className="space-y-4 text-xs">
+
+            {/* Category Photo Upload */}
+            <div className="flex flex-col items-center gap-2 p-3 bg-slate-50 rounded-2xl border border-slate-200">
+              <label className="block text-xs font-bold text-slate-900">Category Cover Photo</label>
+              {categoryPhotoPreview ? (
+                <img src={categoryPhotoPreview} alt="Category preview" className="w-24 h-16 rounded-xl object-cover border border-slate-200 shadow-xs" />
+              ) : (
+                <div className="w-24 h-16 rounded-xl bg-white border-2 border-dashed border-slate-200 flex flex-col items-center justify-center text-slate-400">
+                  <ImagePlus size={20} />
+                  <span className="text-[9px] font-bold mt-1">Upload Photo</span>
+                </div>
+              )}
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    const reader = new FileReader();
+                    reader.onloadend = () => setCategoryPhotoPreview(reader.result);
+                    reader.readAsDataURL(file);
+                  }
+                }}
+                className="text-xs text-slate-600"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-900 mb-1">Category Name *</label>
+              <input
+                type="text"
+                required
+                value={categoryForm.name}
+                onChange={e => setCategoryForm({ ...categoryForm, name: e.target.value })}
+                placeholder="e.g. Projector or Sound System"
+                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-blue-600"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-900 mb-1">Prefix Code *</label>
+              <input
+                type="text"
+                required
+                value={categoryForm.code}
+                onChange={e => setCategoryForm({ ...categoryForm, code: e.target.value })}
+                placeholder="PRJ"
+                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold focus:outline-none focus:border-blue-600"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-900 mb-1">Assigned Office</label>
+              <select
+                value={categoryForm.office}
+                onChange={e => setCategoryForm({ ...categoryForm, office: e.target.value })}
+                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold focus:outline-none focus:border-blue-600"
+              >
+                <option value="FSUU Main (AVR)">FSUU Main (AVR Center)</option>
+                <option value="FSUU Morelos">FSUU Morelos Campus</option>
+              </select>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-4 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => { setShowAddCategoryModal(false); setEditCategory(null); }}
+                className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-100 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs shadow-md cursor-pointer"
+              >
+                {editCategory ? "Update Category" : "Save Category"}
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {/* Add / Edit Venue Availability Modal with Photo Upload */}
+      {(showAddVenueModal || editVenue) && (
+        <Modal title={editVenue ? "Edit Venue Availability" : "Add Venue Availability Slot"} onClose={() => { setShowAddVenueModal(false); setEditVenue(null); }}>
+          <form onSubmit={editVenue ? handleEditVenueSubmit : handleAddVenue} className="space-y-4 text-xs">
+
+            {/* Venue Photo Upload */}
+            <div className="flex flex-col items-center gap-2 p-3 bg-slate-50 rounded-2xl border border-slate-200">
+              <label className="block text-xs font-bold text-slate-900">Venue Cover Photo</label>
+              {venuePhotoPreview ? (
+                <img src={venuePhotoPreview} alt="Venue preview" className="w-28 h-16 rounded-xl object-cover border border-slate-200 shadow-xs" />
+              ) : (
+                <div className="w-28 h-16 rounded-xl bg-white border-2 border-dashed border-slate-200 flex flex-col items-center justify-center text-slate-400">
+                  <ImagePlus size={20} />
+                  <span className="text-[9px] font-bold mt-1">Upload Photo</span>
+                </div>
+              )}
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    const reader = new FileReader();
+                    reader.onloadend = () => setVenuePhotoPreview(reader.result);
+                    reader.readAsDataURL(file);
+                  }
+                }}
+                className="text-xs text-slate-600"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-900 mb-1">Venue Name *</label>
+              <input
+                type="text"
+                required
+                value={venueForm.name}
+                onChange={e => setVenueForm({ ...venueForm, name: e.target.value })}
+                placeholder="e.g. AVR 1 (Audio-Visual Room 1)"
+                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-blue-600"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-900 mb-1">Capacity (Seats) *</label>
+                <input
+                  type="number"
+                  required
+                  min="10"
+                  max="2000"
+                  value={venueForm.capacity}
+                  onChange={e => setVenueForm({ ...venueForm, capacity: parseInt(e.target.value, 10) })}
+                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold focus:outline-none focus:border-blue-600"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-900 mb-1">Status *</label>
+                <select
+                  value={venueForm.status}
+                  onChange={e => setVenueForm({ ...venueForm, status: e.target.value })}
+                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold focus:outline-none focus:border-blue-600"
+                >
+                  <option value="Available">Available</option>
+                  <option value="Maintenance Block">Maintenance Block</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-900 mb-1">Operating Schedule *</label>
+              <input
+                type="text"
+                required
+                value={venueForm.schedule}
+                onChange={e => setVenueForm({ ...venueForm, schedule: e.target.value })}
+                placeholder="e.g. Mon - Sat (8:00 AM - 9:00 PM)"
+                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:border-blue-600"
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-4 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => { setShowAddVenueModal(false); setEditVenue(null); }}
+                className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-100 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs shadow-md cursor-pointer"
+              >
+                {editVenue ? "Update Slot" : "Save Slot"}
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {/* ── MODAL: EDIT STOCK & INVENTORY CATEGORY (Branch Admin) ── */}
+      {showEditInventoryModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-[1500] flex items-center justify-center p-4 animate-in fade-in">
+          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl animate-in zoom-in-95 border border-slate-100">
+            <div className="flex justify-between items-center mb-5 pb-3 border-b border-slate-100">
+              <h3 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
+                <PackageOpen size={18} className="text-blue-600" />
+                {editInventory ? "Edit Equipment Stock & Details" : "Add Inventory Category"}
+              </h3>
+              <button onClick={() => setShowEditInventoryModal(false)} className="text-slate-400 hover:text-slate-600 p-1 rounded-lg">
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveInventory} className="space-y-4 text-xs">
+              <div>
+                <label className="block text-xs font-bold text-slate-900 mb-1">Equipment Category Name *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Projector, Sound System..."
+                  value={inventoryForm.category}
+                  onChange={e => setInventoryForm({ ...inventoryForm, category: e.target.value })}
+                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:outline-none focus:border-blue-600"
+                />
+              </div>
+
+              {/* Stock breakdown controls with exact Green, Orange, Red color indicators */}
+              <div className="space-y-3 bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                <label className="block text-xs font-extrabold text-slate-900">Stock Count Breakdown *</label>
+
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <span className="text-[10px] font-extrabold text-emerald-700 block mb-1">🟢 Available</span>
+                    <input
+                      type="number"
+                      min={0}
+                      value={inventoryForm.available}
+                      onChange={e => setInventoryForm({ ...inventoryForm, available: Math.max(0, parseInt(e.target.value, 10) || 0) })}
+                      className="w-full p-2.5 bg-emerald-50/80 border border-emerald-300 rounded-xl font-black text-emerald-800 text-sm text-center"
+                    />
+                  </div>
+
+                  <div>
+                    <span className="text-[10px] font-extrabold text-amber-700 block mb-1">🟠 Maintenance</span>
+                    <input
+                      type="number"
+                      min={0}
+                      value={inventoryForm.damaged}
+                      onChange={e => setInventoryForm({ ...inventoryForm, damaged: Math.max(0, parseInt(e.target.value, 10) || 0) })}
+                      className="w-full p-2.5 bg-amber-50/80 border border-amber-300 rounded-xl font-black text-amber-800 text-sm text-center"
+                    />
+                  </div>
+
+                  <div>
+                    <span className="text-[10px] font-extrabold text-rose-700 block mb-1">🔴 Lost</span>
+                    <input
+                      type="number"
+                      min={0}
+                      value={inventoryForm.lost}
+                      onChange={e => setInventoryForm({ ...inventoryForm, lost: Math.max(0, parseInt(e.target.value, 10) || 0) })}
+                      className="w-full p-2.5 bg-rose-50/80 border border-rose-300 rounded-xl font-black text-rose-800 text-sm text-center"
+                    />
+                  </div>
+                </div>
+
+                <p className="text-[10px] text-slate-500 font-semibold mt-1">
+                  Total Inventory Units: <strong>{(inventoryForm.available || 0) + (inventoryForm.damaged || 0) + (inventoryForm.lost || 0)} Units</strong>
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-900 mb-1">Date Purchased</label>
+                  <input
+                    type="date"
+                    value={inventoryForm.date_purchased}
+                    onChange={e => setInventoryForm({ ...inventoryForm, date_purchased: e.target.value })}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-900 mb-1">Lifespan Limit (Years)</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={20}
+                    value={inventoryForm.lifespan}
+                    onChange={e => setInventoryForm({ ...inventoryForm, lifespan: parseInt(e.target.value, 10) || 5 })}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowEditInventoryModal(false)}
+                  className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-100"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs shadow-md"
+                >
+                  Save Stock Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

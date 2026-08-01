@@ -2,25 +2,19 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
 {
-    use WithoutModelEvents;
-
     /**
-     * Seed the application's database.
+     * Seed the application's database with roles and superadmin user.
      */
     public function run(): void
     {
         $this->call([
-            OfficeSeeder::class,
             RoleSeeder::class,
-            VenueSeeder::class,
+            OfficeSeeder::class,
             UserSeeder::class,
-            EquipmentSeeder::class,
-            VenueBookingSeeder::class,
         ]);
     }
 }

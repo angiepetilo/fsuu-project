@@ -14,6 +14,8 @@ export default function Step3Details({
   placeOfUse, setPlaceOfUse,
   handlerName, setHandlerName,
   purpose, setPurpose,
+  notificationChannel = "email", setNotificationChannel,
+  campusBranch = "FSUU Main (AVR Center)", setCampusBranch,
   onBack,
 }) {
   return (
@@ -79,6 +81,14 @@ export default function Step3Details({
         </div>
 
         <div className="flex flex-col gap-1.5">
+          <label className="text-xs font-bold text-slate-900">Campus Branch Office <span className="text-red-500">*</span></label>
+          <select required value={campusBranch} onChange={e => setCampusBranch && setCampusBranch(e.target.value)} className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all">
+            <option value="FSUU Main (AVR Center)">FSUU Main Campus (AVR Center)</option>
+            <option value="FSUU Morelos Campus">FSUU Morelos Campus</option>
+          </select>
+        </div>
+
+        <div className="flex flex-col gap-1.5">
           <label className="text-xs font-bold text-slate-900">Department / Office <span className="text-red-500">*</span></label>
           <select required value={department} onChange={e => setDepartment(e.target.value)} className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all">
             <option value="">Select Department...</option>
@@ -102,11 +112,47 @@ export default function Step3Details({
             disabled={!startTime}
             className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600 disabled:opacity-50 disabled:bg-slate-100" 
           />
+          {startTime && (
+            <span className="text-[11px] font-semibold text-amber-800 bg-amber-50 border border-amber-200/80 px-2.5 py-1 rounded-lg mt-0.5 inline-block">
+              📅 Flexible Return: Returns scheduled for next-day or later will require AVR Head PIN verification.
+            </span>
+          )}
         </div>
 
         <div className="flex flex-col gap-1.5">
           <label className="text-xs font-bold text-slate-900">Location / Venue of Equipment Use <span className="text-red-500">*</span></label>
           <input type="text" required value={placeOfUse} onChange={e => setPlaceOfUse(e.target.value)} placeholder="e.g. Main Gymnasium / AVR 1" className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600" />
+        </div>
+
+        <div className="sm:col-span-2 flex flex-col gap-1.5 p-4 bg-slate-50/80 border border-slate-200 rounded-xl">
+          <label className="text-xs font-bold text-slate-900">Send Tracking Number via <span className="text-red-500">*</span></label>
+          <div className="flex items-center gap-6 mt-1">
+            <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer">
+              <input
+                type="radio"
+                name="notificationChannel"
+                value="email"
+                checked={notificationChannel === 'email'}
+                onChange={() => setNotificationChannel && setNotificationChannel('email')}
+                className="accent-blue-600"
+              />
+              <span>Email ({email || 'Registered Email'})</span>
+            </label>
+            <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer">
+              <input
+                type="radio"
+                name="notificationChannel"
+                value="sms"
+                checked={notificationChannel === 'sms'}
+                onChange={() => setNotificationChannel && setNotificationChannel('sms')}
+                className="accent-blue-600"
+              />
+              <span>SMS ({contactNumber || 'Registered Phone'})</span>
+            </label>
+          </div>
+          <p className="text-[11px] text-slate-500 mt-1">
+            Your tracking number will be sent via {notificationChannel === 'sms' ? 'SMS to your phone number' : 'Email to your registered email'}.
+          </p>
         </div>
 
         {primaryDept === "sco" && (

@@ -14,8 +14,12 @@ class PublicAvrVenueBookingController extends Controller
     public function store(StorePublicAvrVenueBookingRequest $request): JsonResponse
     {
         $data = $request->validated();
-        // Force submitted_by to null for public requests
         $data['submitted_by'] = null;
+
+        if ($request->hasFile('endorsement_file')) {
+            $path = $request->file('endorsement_file')->store('endorsements', 'public');
+            $data['endorsement_url'] = '/storage/' . $path;
+        }
 
         try {
             $booking = $this->service->create($data);

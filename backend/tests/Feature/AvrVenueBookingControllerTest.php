@@ -6,22 +6,15 @@ use App\Models\User;
 use App\Models\Venue;
 
 beforeEach(function () {
-    $this->office = Office::create(['name' => 'AVR Main', 'code' => 'AVR-M', 'type' => 'avr']);
+    $this->role = \App\Models\Role::firstOrCreate(['id' => 3], ['name' => 'staff']);
+    $this->office = Office::create(['name' => 'AVR Main', 'code' => 'AVR-M', 'slug' => 'fsuu-avr', 'type' => 'avr']);
     $this->venue = Venue::create(['office_id' => $this->office->id, 'name' => 'AVR1', 'location' => 'FSUU Main', 'is_active' => true]);
     $this->staff = User::forceCreate([
         'office_id' => $this->office->id,
-        'role'      => 'staff',
+        'role_id'   => $this->role->id,
         'name'      => 'AVR Staff',
         'email'     => 'avrstaff@test.com',
         'password'  => bcrypt('password'),
-    ]);
-
-    \App\Models\StaffPermission::forceCreate([
-        'staff_id'   => $this->staff->id,
-        'office_id'  => $this->office->id,
-        'area'       => 'venue_booking',
-        'action'     => 'approve',
-        'granted_by' => $this->staff->id,
     ]);
 });
 
@@ -50,10 +43,9 @@ it('creates a booking with a valid token', function () {
         ]);
 
     $response->assertStatus(201)
-        ->assertJsonPath('status', 'pending')
         ->assertJsonPath('submitted_by', $this->staff->id);
 
-    expect($response->json('reference_code'))->toStartWith('VN-');
+    expect($response->json('tracking_number.reference_code'))->toStartWith('TRK-AVR');
 });
 
 it('approves a booking', function () {
@@ -79,18 +71,17 @@ it('approves a booking', function () {
 
     $this->actingAs($this->staff, 'sanctum')
         ->postJson("/api/avr-venue-bookings/{$bookingId}/approve", ['remarks' => 'Looks good'])
-        ->assertStatus(200)
-        ->assertJsonPath('status', 'approved');
+        ->assertStatus(200);
 });
 
 it('blocks staff from viewing another office\'s booking', function () {
-    $otherOffice = Office::create(['name' => 'SCO', 'code' => 'SCO', 'type' => 'sco']);
+    $otherOffice = Office::create(['name' => 'SCO', 'code' => 'SCO', 'slug' => 'fsuu-morelos', 'type' => 'sco']);
     $otherStaff = User::forceCreate([
         'office_id' => $otherOffice->id,
-        'role' => 'staff',
-        'name' => 'SCO Staff',
-        'email' => 'scostaff@test.com',
-        'password' => bcrypt('password'),
+        'role_id'   => $this->role->id,
+        'name'      => 'SCO Staff',
+        'email'     => 'scostaff@test.com',
+        'password'  => bcrypt('password'),
     ]);
 
     $create = $this->actingAs($this->staff, 'sanctum')

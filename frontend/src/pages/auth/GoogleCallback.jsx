@@ -33,7 +33,12 @@ export default function GoogleCallback() {
     api.get(`/auth/google/callback?code=${code}`)
       .then(({ data }) => {
         login(data.user, data.token);
-        navigate("/dashboard", { replace: true });
+        const isSuper = data.user?.role === "superadmin" || data.user?.role?.name === "superadmin" || data.user?.email === "superadmin@fsuu.edu.ph";
+        if (isSuper) {
+          navigate("/sysad/dashboard", { replace: true });
+        } else {
+          navigate("/admin/dashboard", { replace: true });
+        }
       })
       .catch(() => {
         navigate("/login?error=auth_failed", { replace: true });
