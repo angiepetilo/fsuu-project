@@ -165,4 +165,26 @@ class AvrEquipmentBorrowingController extends Controller
         }
         return response()->json($equipmentBorrowing->fresh(['items.equipmentType', 'trackingNumber']));
     }
+
+    public function resendEmail(\Illuminate\Http\Request $request, int $id): JsonResponse
+    {
+        $borrowing = \App\Models\EquipmentBorrowing::with('items')->find($id);
+        if (!$borrowing) {
+            return response()->json(['message' => 'Equipment borrowing record not found'], 404);
+        }
+
+        $status = strtolower($borrowing->status ?? $borrowing->trackingNumber?->status ?? 'pending');
+
+        try {
+            if ($status === 'pending') {
+                \App\Jobs\SendBookingConfirmationJob::dispatch('equipment', $borrowing);
+            } else {
+                \App\Jobs\SendBookingStatusUpdateJob::dispatch('equipment', $borrowing, $status, 'Resent notification by admin');
+            }
+            $recipient = $borrowing->borrower_email ?? $borrowing->requestor_email ?? $borrowing->email_address ?? 'Requestor';
+            return response()->json(['message' => '✅ Email delivery resent to ' . $recipient]);
+        } catch (\Throwable $e) {
+            return response()->json(['message' => 'Failed to resend email: ' . $e->getMessage()], 500);
+        }
+    }
 }

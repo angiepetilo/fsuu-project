@@ -9,8 +9,8 @@ export default function MetricsOverview({
   totalLost,
 }) {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-      {/* 1. Total Venue Bookings (recorded in history log) */}
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* 1. Total Venue Bookings */}
       <MetricCard
         icon={Building2}
         label="Total Venue Bookings"
@@ -20,17 +20,7 @@ export default function MetricsOverview({
         color="blue"
       />
 
-      {/* 2. Pending Approval (recorded in venue booking page) */}
-      <MetricCard
-        icon={Clock}
-        label="Pending Approval"
-        value={pendingApproval}
-        badge="Requires Admin Review"
-        badgeType={pendingApproval > 0 ? "warning" : "success"}
-        color="amber"
-      />
-
-      {/* 3. Total Equipment Borrows (recorded in history log) */}
+      {/* 2. Total Equipment Borrows */}
       <MetricCard
         icon={PackageOpen}
         label="Total Equipment Borrows"
@@ -40,24 +30,24 @@ export default function MetricsOverview({
         color="purple"
       />
 
-      {/* 4. Total Equipment Damages (recorded in inventory & stock) */}
+      {/* 3. Pending Approval */}
       <MetricCard
-        icon={AlertTriangle}
-        label="Equipment Damages"
-        value={totalDamaged}
-        badge="Recorded in Inventory"
-        badgeType={totalDamaged > 0 ? "danger" : "success"}
-        color="rose"
+        icon={Clock}
+        label="Pending Approval"
+        value={pendingApproval}
+        badge={pendingApproval > 0 ? "Action Required" : "Up to date"}
+        badgeType={pendingApproval > 0 ? "warning" : "success"}
+        color="amber"
       />
 
-      {/* 5. Total Equipment Lost (recorded in inventory & stock) */}
+      {/* 4. Equipment Damages & Lost */}
       <MetricCard
-        icon={ShieldAlert}
-        label="Equipment Lost"
-        value={totalLost}
-        badge="Recorded in Inventory"
-        badgeType={totalLost > 0 ? "danger" : "success"}
-        color="red"
+        icon={AlertTriangle}
+        label="Damaged & Lost Items"
+        value={totalDamaged + totalLost}
+        badge={totalDamaged + totalLost > 0 ? "Requires Audit" : "Clean Stock"}
+        badgeType={totalDamaged + totalLost > 0 ? "danger" : "success"}
+        color="rose"
       />
     </div>
   );

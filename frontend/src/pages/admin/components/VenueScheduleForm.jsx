@@ -1,7 +1,7 @@
-import { Building2, Save } from "lucide-react";
+import { Building2, Save, CheckCircle2, Wrench, XCircle } from "lucide-react";
 
 export default function VenueScheduleForm({
-  VENUES,
+  VENUES = [],
   selectedVenue,
   setSelectedVenue,
   setupForm,
@@ -25,9 +25,10 @@ export default function VenueScheduleForm({
         <div>
           <label className="block text-xs font-bold text-slate-900 mb-1.5">Select Venue *</label>
           <div className="grid grid-cols-2 gap-2">
-            {VENUES.length === 0 ? (
-              <div className="col-span-2 text-center py-4 text-slate-400 text-xs font-semibold bg-slate-50 rounded-xl border border-slate-200/60">
-                🏢 No venue slots available. Add venues in Settings ➔ Venue Availability.
+            {!VENUES || VENUES.length === 0 ? (
+              <div className="col-span-2 text-center py-4 text-slate-400 text-xs font-semibold bg-slate-50 rounded-xl border border-slate-200/60 flex items-center justify-center gap-2">
+                <Building2 size={16} className="text-slate-400" />
+                <span>No venue slots available. Add venues in Settings ➔ Venue Availability.</span>
               </div>
             ) : (
               VENUES.map(v => (
@@ -93,21 +94,25 @@ export default function VenueScheduleForm({
           <label className="block text-xs font-bold text-slate-900 mb-1.5">Assign Operating Status *</label>
           <div className="grid grid-cols-3 gap-2">
             {[
-              { id: "Available", label: "🟢 Available", cls: "border-emerald-600 bg-emerald-50 text-emerald-900" },
-              { id: "Maintenance", label: "🔧 Maintenance", cls: "border-purple-600 bg-purple-50 text-purple-900" },
-              { id: "Closed", label: "⛔ Closed", cls: "border-rose-600 bg-rose-50 text-rose-900" },
-            ].map(st => (
-              <button
-                key={st.id}
-                type="button"
-                onClick={() => setSetupForm({ ...setupForm, status: st.id })}
-                className={`py-2 px-1 rounded-xl border-2 text-center text-xs font-black transition-all cursor-pointer ${
-                  setupForm.status === st.id ? st.cls : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
-                }`}
-              >
-                {st.label}
-              </button>
-            ))}
+              { id: "Available", label: "Available", icon: CheckCircle2, cls: "border-emerald-600 bg-emerald-50 text-emerald-900" },
+              { id: "Maintenance", label: "Maintenance", icon: Wrench, cls: "border-purple-600 bg-purple-50 text-purple-900" },
+              { id: "Closed", label: "Closed", icon: XCircle, cls: "border-rose-600 bg-rose-50 text-rose-900" },
+            ].map(st => {
+              const IconComponent = st.icon;
+              return (
+                <button
+                  key={st.id}
+                  type="button"
+                  onClick={() => setSetupForm({ ...setupForm, status: st.id })}
+                  className={`py-2 px-1 rounded-xl border-2 text-center text-xs font-black transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                    setupForm.status === st.id ? st.cls : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                  }`}
+                >
+                  <IconComponent size={14} />
+                  <span>{st.label}</span>
+                </button>
+              );
+            })}
           </div>
         </div>
 

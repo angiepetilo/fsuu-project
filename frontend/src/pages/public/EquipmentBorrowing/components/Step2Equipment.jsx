@@ -58,8 +58,8 @@ export default function Step2Equipment({
           const isSco = item.dept === "sco";
           const isDamagedOrLostOrMaintenance = item.status === "maintenance" || item.status === "damaged" || item.status === "lost";
           const isAvailable = !isDamagedOrLostOrMaintenance && item.is_available !== false && (item.available_count === undefined || item.available_count > 0);
-          const availableCount = item.available_count ?? 3;
-          const nextTime = item.next_available_at || "Tomorrow at 3:00 PM";
+          const availableCount = item.available_count ?? 0;
+          const nextTime = item.next_available_at || null;
           const IconComp = isSco ? Sparkles : PackageOpen;
           const selectedQty = itemQuantities[item.id] || 1;
           const remainingCount = Math.max(0, availableCount - selectedQty);
@@ -160,8 +160,8 @@ export default function Step2Equipment({
                   )}
                 </div>
 
-                {/* Yellow Callout for Next Available Time matching Reference Image 3 */}
-                {!isAvailable && (
+                {/* Yellow Callout for Next Available Time */}
+                {!isAvailable && nextTime && (
                   <div className="bg-amber-50 border border-amber-200 text-amber-900 p-2.5 rounded-xl mb-3 text-[11px] font-semibold flex items-center gap-1.5">
                     <Clock size={14} className="text-amber-600 flex-shrink-0" />
                     <span><strong>Next available:</strong> {nextTime}</span>

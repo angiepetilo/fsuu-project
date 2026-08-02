@@ -23,7 +23,10 @@ export default function DepartmentsTab({ showMsg }) {
         api.get("/admin/departments"),
         api.get("/admin/locations").catch(() => ({ data: [] })),
       ]);
-      setDepartments(Array.isArray(deptRes.data) ? deptRes.data : []);
+      const deptData = Array.isArray(deptRes.data) ? deptRes.data : [];
+      setDepartments(deptData);
+      localStorage.setItem("fsuu_departments", JSON.stringify(deptData));
+      window.dispatchEvent(new Event("departments_updated"));
       const locList = Array.isArray(locRes.data) ? locRes.data : [];
       setLocations(locList);
       if (locList.length > 0 && !deptForm.campus_location) {

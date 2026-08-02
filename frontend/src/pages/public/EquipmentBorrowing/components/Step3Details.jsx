@@ -1,5 +1,7 @@
+import { useState, useEffect } from "react";
 import { Sparkles, PackageOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import api from "@/lib/axios";
 
 export default function Step3Details({
   primaryDept,
@@ -18,6 +20,42 @@ export default function Step3Details({
   campusBranch = "FSUU Main (AVR Center)", setCampusBranch,
   onBack,
 }) {
+  const [departmentsList, setDepartmentsList] = useState([]);
+
+  useEffect(() => {
+    const fetchDepts = async () => {
+      try {
+        const res = await api.get("/public/departments").catch(() => api.get("/admin/departments"));
+        let data = Array.isArray(res.data) ? res.data : [];
+
+        try {
+          const savedStr = localStorage.getItem("fsuu_departments");
+          if (savedStr) {
+            const savedList = JSON.parse(savedStr);
+            const clean = (str) => (str || "").toLowerCase().trim();
+            savedList.forEach((item) => {
+              if (item && !data.some((d) => clean(d.code) === clean(item.code) || clean(d.name) === clean(item.name))) {
+                data.push(item);
+              }
+            });
+          }
+        } catch { }
+
+        setDepartmentsList(data);
+      } catch {
+        setDepartmentsList([]);
+      }
+    };
+
+    fetchDepts();
+    window.addEventListener("departments_updated", fetchDepts);
+    window.addEventListener("storage", fetchDepts);
+    return () => {
+      window.removeEventListener("departments_updated", fetchDepts);
+      window.removeEventListener("storage", fetchDepts);
+    };
+  }, []);
+
   return (
     <div className="p-6 sm:p-8 animate-in slide-in-from-top-2 duration-300">
       {/* Context Banner */}
@@ -89,14 +127,28 @@ export default function Step3Details({
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-bold text-slate-900">Department / Office <span className="text-red-500">*</span></label>
-          <select required value={department} onChange={e => setDepartment(e.target.value)} className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all">
-            <option value="">Select Department...</option>
-            <option value="CITE">College of Information Tech Education (CITE)</option>
-            <option value="CAS">College of Arts & Sciences (CAS)</option>
-            <option value="CBA">College of Business Admin (CBA)</option>
-            <option value="CED">College of Education (CED)</option>
-            <option value="SHS">Senior High School (SHS)</option>
+          <label className="text-xs font-bold text-slate-900">Program / Department / Office <span className="text-red-500">*</span></label>
+          <select required value={department} onChange={e => setDepartment(e.target.value)} className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all font-semibold">
+            <option value="">Select Program / Department / Office...</option>
+            {(() => {
+              const defaultDepts = [
+                { code: "CITE", name: "College of Information Tech Education (CITE)" },
+                { code: "CAS",  name: "College of Arts & Sciences (CAS)" },
+                { code: "CBA",  name: "College of Business Admin (CBA)" },
+                { code: "CED",  name: "College of Education (CED)" },
+                { code: "SHS",  name: "Senior High School (SHS)" },
+              ];
+              const listToRender = departmentsList.length > 0 ? departmentsList : defaultDepts;
+              return listToRender.map((dept, idx) => {
+                const code = dept.code || dept.name;
+                const label = dept.name ? (dept.code && !dept.name.includes(dept.code) ? `${dept.code} - ${dept.name}` : dept.name) : code;
+                return (
+                  <option key={dept.id || idx} value={code}>
+                    {label}
+                  </option>
+                );
+              });
+            })()}
             <option value="External">External Organization</option>
           </select>
         </div>

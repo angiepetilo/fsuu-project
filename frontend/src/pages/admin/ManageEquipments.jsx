@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import EquipmentDetailModal from "./components/EquipmentDetailModal";
 import EquipmentModal from "./components/EquipmentModal";
+import { PageLoader } from "@/components/ui/page-loader";
 
 function StatusBadge({ status }) {
   const map = {
@@ -219,6 +220,8 @@ export default function ManageEquipments() {
     { id: "all", label: "All Categories" },
     ...categoryNames.map(c => ({ id: c, label: c }))
   ];
+
+  if (loading && units.length === 0) return <PageLoader message="Loading Equipment Inventory..." />;
 
   return (
     <div className="space-y-6">

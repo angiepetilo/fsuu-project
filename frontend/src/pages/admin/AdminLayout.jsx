@@ -10,26 +10,26 @@ import {
 
 const NAV_GROUPS = [
   {
-    title: "MAIN",
+    title: "GLOBAL OVERVIEW",
     items: [
       { label: "Dashboard",           icon: LayoutDashboard, path: "/admin/dashboard",          roles: ["super_admin", "admin", "staff"] },
-      { label: "Venue Bookings",      icon: Building2,        path: "/admin/venue-bookings",     roles: ["super_admin", "admin", "staff"] },
+      { label: "Venue Booking",       icon: Building2,        path: "/admin/venue-bookings",     roles: ["super_admin", "admin", "staff"] },
       { label: "Equipment Borrowing", icon: PackageOpen,      path: "/admin/equipment-borrowing",roles: ["super_admin", "admin", "staff"] },
     ],
   },
   {
-    title: "RECORDS",
+    title: "RECORDS & INVENTORY",
     items: [
       { label: "Manage Equipment",    icon: Box,              path: "/admin/manage-equipments",  roles: ["super_admin", "admin"] },
-      { label: "Manage Venues",       icon: CalendarCheck,    path: "/admin/manage-venues",      roles: ["super_admin", "admin"] },
-      { label: "Reports",             icon: FileBarChart2,    path: "/admin/reports",            roles: ["super_admin", "admin"] },
+      { label: "Manage Venue",        icon: CalendarCheck,    path: "/admin/manage-venues",      roles: ["super_admin", "admin"] },
+      { label: "Report",              icon: FileBarChart2,    path: "/admin/reports",            roles: ["super_admin", "admin"] },
       { label: "History Log",         icon: FileBarChart2,    path: "/admin/history-log",        roles: ["super_admin", "admin", "staff"] },
     ],
   },
   {
-    title: "CONFIG",
+    title: "SYSTEM CONTROL",
     items: [
-      { label: "System Settings",     icon: Settings,         path: "/admin/settings",           roles: ["super_admin", "admin"] },
+      { label: "Settings",            icon: Settings,         path: "/admin/settings",           roles: ["super_admin", "admin"] },
     ],
   },
 ];

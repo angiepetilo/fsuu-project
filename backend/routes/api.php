@@ -128,6 +128,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/avr-venue-bookings/{avrVenueBooking}/complete',  [AvrVenueBookingController::class, 'complete']);
     Route::post('/avr-venue-bookings/{avrVenueBooking}/undo',      [AvrVenueBookingController::class, 'undo']);
     Route::post('/avr-venue-bookings/{avrVenueBooking}/cancel',    [AvrVenueBookingController::class, 'cancel']);
+    Route::post('/avr-venue-bookings/{id}/resend-email',           [AvrVenueBookingController::class, 'resendEmail']);
 
     // ── Equipment Borrowings ───────────────────────────────────────────────────
     Route::get('/avr-equipment-borrowings',                               [AvrEquipmentBorrowingController::class, 'index']);
@@ -139,6 +140,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/avr-equipment-borrowings/{equipmentBorrowing}/complete',[AvrEquipmentBorrowingController::class, 'complete']);
     Route::post('/avr-equipment-borrowings/{equipmentBorrowing}/undo',    [AvrEquipmentBorrowingController::class, 'undo']);
     Route::post('/avr-equipment-borrowings/{equipmentBorrowing}/cancel',  [AvrEquipmentBorrowingController::class, 'cancel']);
+    Route::post('/avr-equipment-borrowings/{id}/resend-email',            [AvrEquipmentBorrowingController::class, 'resendEmail']);
 
     // ── Documents & Inspections ────────────────────────────────────────────────
     Route::post('/documents',                    [DocumentController::class, 'store']);
@@ -160,6 +162,7 @@ Route::prefix('public')->group(function () {
     // Listings for public forms & availability calendar
     Route::get('/venues',          [PublicListingController::class, 'venues']);
     Route::get('/equipment-types', [PublicListingController::class, 'equipmentTypes']);
+    Route::get('/departments',     [PublicListingController::class, 'departments']);
     Route::get('/venue-bookings',  [PublicListingController::class, 'venueBookings']);
 
     // Venue availability for public booking calendar

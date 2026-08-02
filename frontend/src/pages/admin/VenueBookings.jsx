@@ -5,6 +5,7 @@ import {
   Loader2, RefreshCw, AlertCircle, Eye, Building2
 } from "lucide-react";
 import VenueBookingDetailModal from "./components/VenueBookingDetailModal";
+import { PageLoader } from "@/components/ui/page-loader";
 
 function StatusBadge({ status }) {
   const map = {
@@ -93,13 +94,10 @@ export default function VenueBookings() {
 
   const officeScope = context?.adminOffice || context?.selectedOffice || "All Offices";
 
-  // Filter Bookings by status (Item 12)
+  // Filter active reservations (completed/rejected/cancelled transfer directly to History Log)
   const filteredBookings = bookings.filter(b => {
     const s = (b.status || b.tracking_number?.status || "").toLowerCase();
-    if (statusFilter === "pending") return s === "pending";
-    if (statusFilter === "ongoing") return s === "ongoing" || s === "on-going" || s === "approved";
-    if (statusFilter === "post-inspection") return s === "completed" || s === "post-inspection" || s === "done";
-    return true;
+    return s !== "completed" && s !== "rejected" && s !== "cancelled";
   });
 
   const handleAction = async (bookingId, action, customData = {}) => {
@@ -123,6 +121,8 @@ export default function VenueBookings() {
       setActionLoading(null);
     }
   };
+
+  if (loading && bookings.length === 0) return <PageLoader message="Loading Venue Bookings..." />;
 
   return (
     <div className="space-y-6">
@@ -153,27 +153,7 @@ export default function VenueBookings() {
         </div>
       )}
 
-      {/* Item 12: Status Filter Tabs [Pending / On-going / Post-inspection] */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 pb-3">
-        {[
-          { id: "all", label: "All Reservations" },
-          { id: "pending", label: "Pending" },
-          { id: "ongoing", label: "On-going / Approved" },
-          { id: "post-inspection", label: "Post-Inspection" },
-        ].map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setStatusFilter(tab.id)}
-            className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
-              statusFilter === tab.id
-                ? "bg-blue-600 text-white shadow-md"
-                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
+
 
       {/* Item 12 Table: [#, track number, requestor, department, Venue, Date, Time, Status, Action] */}
       <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
@@ -228,9 +208,10 @@ export default function VenueBookings() {
                       <td className="px-4 py-3.5">
                         <button
                           onClick={() => setSelected(b)}
-                          className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-xl font-extrabold text-xs transition-all cursor-pointer"
+                          title="View Details"
+                          className="p-2 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-xl font-extrabold text-xs transition-all cursor-pointer shadow-2xs"
                         >
-                          <Eye size={14} /> View Details
+                          <Eye size={16} />
                         </button>
                       </td>
                     </tr>

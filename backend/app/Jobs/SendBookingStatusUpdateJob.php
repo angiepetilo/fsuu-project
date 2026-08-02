@@ -34,10 +34,14 @@ class SendBookingStatusUpdateJob implements ShouldQueue
 
     public function handle(): void
     {
-        $email = $this->booking->requestor_email ?? null;
+        $email = $this->booking->requestor_email
+            ?? $this->booking->email_address
+            ?? $this->booking->borrower_email
+            ?? $this->booking->email
+            ?? null;
 
         if (! $email) {
-            Log::warning('SendBookingStatusUpdateJob: no requestor_email', [
+            Log::warning('SendBookingStatusUpdateJob: no email address found on booking record', [
                 'type' => $this->type,
                 'id'   => $this->booking->id ?? null,
             ]);

@@ -1,4 +1,4 @@
-import { MapPin, ChevronLeft, ChevronRight, Clock, Calendar, Info, CheckCircle2, AlertTriangle } from "lucide-react";
+import { MapPin, ChevronLeft, ChevronRight, Clock, Calendar, Info, CheckCircle2, AlertTriangle, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
 import { useState, useEffect } from "react";
@@ -190,24 +190,26 @@ export default function Step2Venue({
               const isSelected = selectedVenue?.id === v.id;
               const isMorelos = v.office?.slug === "fsuu-morelos" || v.location?.includes("Morelos");
 
-              // Helper to resolve venue photo, status, capacity & schedule from System Settings
+              // Helper to resolve venue photo, avatar, status, capacity & schedule from System Settings or API
               const getVenueData = (v) => {
-                let photo = v.image || v.photo || null;
+                let photo = v.photo || v.image || v.avatar || v.avatar_url || v.photo_url || null;
                 let status = v.status || "Available";
                 let schedule = v.schedule || null;
                 let capacity = v.capacity || null;
                 try {
-                  const saved = localStorage.getItem("fsuu_venue_availability");
+                  const saved = localStorage.getItem("fsuu_venue_availability") || localStorage.getItem("fsuu_venues");
                   if (saved) {
                     const list = JSON.parse(saved);
                     const clean = (str) => (str || "").toLowerCase().replace(/[^a-z0-9]/g, "");
                     const match = list.find(item => {
-                      const a = clean(item.name);
+                      const a = clean(item.name || item.venue_name || item.title);
                       const b = clean(v.name);
-                      return a.includes(b) || b.includes(a);
+                      return a && b && (a.includes(b) || b.includes(a));
                     });
                     if (match) {
-                      if (match.photo) photo = match.photo;
+                      if (match.photo || match.image || match.avatar || match.avatar_url) {
+                        photo = match.photo || match.image || match.avatar || match.avatar_url;
+                      }
                       if (match.status) status = match.status;
                       if (match.schedule) schedule = match.schedule;
                       if (match.capacity) capacity = match.capacity;
@@ -238,7 +240,10 @@ export default function Step2Venue({
                       {venueInfo.photo ? (
                         <img src={venueInfo.photo} alt={v.name} className="w-full h-full object-cover" />
                       ) : (
-                        <span className="text-slate-400 text-xs font-bold">{v.name}</span>
+                        <div className="flex flex-col items-center justify-center p-3 text-center bg-blue-50/50 w-full h-full">
+                          <Building2 size={32} className="text-blue-500 mb-1" />
+                          <span className="text-slate-700 text-xs font-extrabold truncate max-w-[90%]">{v.name}</span>
+                        </div>
                       )}
 
                       {/* Maintenance Block Overlay */}

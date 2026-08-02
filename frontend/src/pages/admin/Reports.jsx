@@ -43,7 +43,21 @@ export default function Reports() {
 
       // 3. Equipment inventory stock (Item 1)
       const eqData = Array.isArray(eqRes.data) ? eqRes.data : [];
-      setInventoryItems(eqData);
+      const stored = localStorage.getItem("fsuu_equipment_inventory");
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setInventoryItems(parsed);
+          } else {
+            setInventoryItems(eqData);
+          }
+        } catch {
+          setInventoryItems(eqData);
+        }
+      } else {
+        setInventoryItems(eqData);
+      }
     } catch {
       // Fallback
     } finally {
@@ -53,6 +67,9 @@ export default function Reports() {
 
   useEffect(() => {
     fetchReportsData();
+    const handleInvUpdate = () => fetchReportsData();
+    window.addEventListener("equipment_inventory_updated", handleInvUpdate);
+    return () => window.removeEventListener("equipment_inventory_updated", handleInvUpdate);
   }, []);
 
   return (
@@ -113,7 +130,9 @@ export default function Reports() {
       {activeTab === "inventory" && (
         <EquipmentStockTab
           filteredInventory={inventoryItems}
+          setInventoryItems={setInventoryItems}
           loading={loading}
+          fetchReportsData={fetchReportsData}
         />
       )}
     </div>

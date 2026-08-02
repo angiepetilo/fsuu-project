@@ -64,13 +64,41 @@ export default function VenuesTab({ showMsg }) {
     };
 
     try {
+      let savedVenue;
       if (editItem) {
-        await api.put(`/admin/venues/${editItem.id}`, payload);
+        const res = await api.put(`/admin/venues/${editItem.id}`, payload);
+        savedVenue = res.data;
         showMsg(`✅ Venue "${form.name}" updated!`);
       } else {
-        await api.post("/admin/venues", payload);
+        const res = await api.post("/admin/venues", payload);
+        savedVenue = res.data;
         showMsg(`✅ Venue "${form.name}" created and added to catalog!`);
       }
+
+      // Sync venue avatar and status to local storage
+      try {
+        const existingStr = localStorage.getItem("fsuu_venue_availability");
+        let list = existingStr ? JSON.parse(existingStr) : [];
+        const venueObj = savedVenue || payload;
+        if (venueObj) {
+          const idx = list.findIndex(item => item.id === venueObj.id || item.name === form.name);
+          const formatted = {
+            id: venueObj.id || Date.now(),
+            name: form.name,
+            photo: form.avatar || payload.avatar,
+            avatar: form.avatar || payload.avatar,
+            image: form.avatar || payload.avatar,
+            location: form.location,
+            capacity: form.capacity,
+            status: form.status || 'Available',
+          };
+          if (idx >= 0) list[idx] = { ...list[idx], ...formatted };
+          else list.push(formatted);
+          localStorage.setItem("fsuu_venue_availability", JSON.stringify(list));
+          window.dispatchEvent(new Event("venue_availability_updated"));
+        }
+      } catch { }
+
       setShowModal(false);
       setEditItem(null);
       fetchData();

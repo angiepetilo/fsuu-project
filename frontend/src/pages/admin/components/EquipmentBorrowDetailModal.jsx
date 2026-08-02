@@ -20,11 +20,28 @@ export default function EquipmentBorrowDetailModal({
 }) {
   if (!selected) return null;
 
+  const [selectedUnit, setSelectedUnit] = useState("unit_01");
   const [inspectionStatus, setInspectionStatus] = useState("clean");
   const [violationNotes, setViolationNotes] = useState("");
   const [evidencePhoto, setEvidencePhoto] = useState(null);
   const [savingInspection, setSavingInspection] = useState(false);
   const [inspectionSuccessMsg, setInspectionSuccessMsg] = useState(null);
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendMsg, setResendMsg] = useState(null);
+
+  const handleResendEmail = async () => {
+    setResendLoading(true);
+    try {
+      const res = await api.post(`/avr-equipment-borrowings/${selected.id}/resend-email`);
+      setResendMsg(res.data?.message || "✅ Email delivery resent successfully!");
+      setTimeout(() => setResendMsg(null), 4000);
+    } catch (err) {
+      setResendMsg(err.response?.data?.message || "❌ Failed to resend email.");
+      setTimeout(() => setResendMsg(null), 4000);
+    } finally {
+      setResendLoading(false);
+    }
+  };
 
   const handleEvidencePhotoUpload = (e) => {
     const file = e.target.files[0];
@@ -162,6 +179,47 @@ export default function EquipmentBorrowDetailModal({
               </div>
             </div>
 
+            {/* Equipment Unit Selection & Inspection Checklist */}
+            <div className="bg-white p-4.5 rounded-2xl border border-slate-200 shadow-2xs space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-extrabold text-slate-900 flex items-center gap-1.5">
+                  <PackageOpen size={15} className="text-purple-600" /> Equipment Unit Assignment & Serial Checklist
+                </span>
+                <span className="text-[10px] font-bold text-purple-700 bg-purple-50 px-2.5 py-0.5 rounded-full border border-purple-200">
+                  Select Unit Assignment
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-500 font-medium">
+                Select the physical inventory unit / serial number assigned for this borrower before release or inspection:
+              </p>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">Assigned Equipment Unit *</label>
+                  <select
+                    value={selectedUnit}
+                    onChange={(e) => setSelectedUnit(e.target.value)}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:outline-none focus:border-purple-600 text-xs"
+                  >
+                    <option value="unit_01">Unit 01 — (SN: MIC-2026-001)</option>
+                    <option value="unit_02">Unit 02 — (SN: MIC-2026-002)</option>
+                    <option value="unit_03">Unit 03 — (SN: MIC-2026-003)</option>
+                    <option value="unit_04">Unit 04 — (SN: PROJ-2026-010)</option>
+                    <option value="unit_05">Unit 05 — (SN: SPK-2026-008)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">Unit Working Condition *</label>
+                  <select className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-emerald-700 focus:outline-none focus:border-purple-600 text-xs">
+                    <option value="good">Good Working Condition (Tested)</option>
+                    <option value="minor">Minor Wear (Functional)</option>
+                    <option value="maintenance">Pending Maintenance Check</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
             {/* Item 17: Post-Event Inspection Document Record */}
             <form onSubmit={handleSaveInspection} className="p-5 bg-slate-50 rounded-2xl border border-slate-200 space-y-4">
               <div className="flex items-center justify-between border-b border-slate-200 pb-2">
@@ -206,7 +264,31 @@ export default function EquipmentBorrowDetailModal({
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Inspection Reason / Condition Notes *</label>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Violation Category & Notes *</label>
+                  <select
+                    value={
+                      ["", "Late Return Overtime", "Physical Damage to Equipment", "Lost / Unreturned Accessories", "Broken Cables / Connectors"].includes(violationNotes)
+                        ? violationNotes
+                        : "Other"
+                    }
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === "Other") {
+                        setViolationNotes("Custom equipment violation details...");
+                      } else {
+                        setViolationNotes(val);
+                      }
+                    }}
+                    className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold mb-2 focus:outline-none focus:border-purple-600"
+                  >
+                    <option value="">No Violation (Clean Return)</option>
+                    <option value="Late Return Overtime">⏰ Late Return Overtime</option>
+                    <option value="Physical Damage to Equipment">🔧 Physical Damage to Equipment</option>
+                    <option value="Lost / Unreturned Accessories">🔴 Lost / Unreturned Accessories</option>
+                    <option value="Broken Cables / Connectors">🔌 Broken Cables / Connectors</option>
+                    <option value="Other">📝 Other (Custom Details)</option>
+                  </select>
+
                   <textarea
                     rows={2}
                     required
@@ -273,7 +355,7 @@ export default function EquipmentBorrowDetailModal({
                     className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-extrabold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
                   >
                     {actionLoading === `${selected.id}-approve` ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle size={15} />}
-                    <span>Approve Borrowing</span>
+                    <span>Approve (Ready to Claim)</span>
                   </button>
                   <button
                     onClick={() => handleAction(selected.id, "reject")}
@@ -286,14 +368,52 @@ export default function EquipmentBorrowDetailModal({
                 </div>
               )}
 
-              {selected.status !== "pending" && (
-                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-center">
-                  <span className="text-xs font-bold text-slate-600">Current Loan Status:</span>
-                  <div className="mt-1">
-                    <StatusBadge status={selected.status || "approved"} />
-                  </div>
+              {(selected.status === "approved" || selected.status === "ready_to_claim") && (
+                <div className="p-3 bg-purple-50 rounded-xl border border-purple-200 space-y-2">
+                  <span className="text-[11px] font-extrabold text-purple-900 block">Switch for Release</span>
+                  <p className="text-[10px] text-purple-700">Toggle switch to release physical units to borrower:</p>
+                  <button
+                    onClick={() => handleAction(selected.id, "ongoing")}
+                    disabled={!!actionLoading}
+                    className="w-full py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-extrabold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+                  >
+                    {actionLoading === `${selected.id}-ongoing` ? <Loader2 size={15} className="animate-spin" /> : <Play size={15} />}
+                    <span>Release Equipment</span>
+                  </button>
                 </div>
               )}
+
+              {(selected.status === "ongoing" || selected.status === "released") && (
+                <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200 space-y-2">
+                  <span className="text-[11px] font-extrabold text-emerald-900 block">Post-Event Inspection</span>
+                  <button
+                    onClick={() => handleAction(selected.id, "complete")}
+                    disabled={!!actionLoading}
+                    className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-extrabold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+                  >
+                    {actionLoading === `${selected.id}-complete` ? <Loader2 size={15} className="animate-spin" /> : <FileCheck size={15} />}
+                    <span>Done (Complete & Transfer to History)</span>
+                  </button>
+                </div>
+              )}
+
+              {/* Resend Email Delivery Button */}
+              <div className="pt-3 border-t border-slate-100">
+                {resendMsg && (
+                  <p className="text-[11px] font-bold text-emerald-800 bg-emerald-50 p-2.5 rounded-xl border border-emerald-200 mb-2">
+                    {resendMsg}
+                  </p>
+                )}
+                <button
+                  type="button"
+                  onClick={handleResendEmail}
+                  disabled={resendLoading}
+                  className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-extrabold transition-all border border-slate-200 flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-60 shadow-2xs"
+                >
+                  {resendLoading ? <Loader2 size={15} className="animate-spin" /> : <Mail size={15} className="text-purple-600" />}
+                  <span>Resend Email Delivery</span>
+                </button>
+              </div>
             </div>
 
           </div>

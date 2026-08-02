@@ -84,11 +84,10 @@ class VenueAvailabilityController extends Controller
      */
     public function venuesList(Request $request): JsonResponse
     {
-        $user = $request->user();
         $query = Venue::with('office')->orderBy('name');
 
-        if (!$user->isSuperAdmin()) {
-            $query->where('office_id', $user->office_id);
+        if ($request->has('office_id') && $request->office_id !== 'all') {
+            $query->where('office_id', $request->office_id);
         }
 
         return response()->json($query->get());

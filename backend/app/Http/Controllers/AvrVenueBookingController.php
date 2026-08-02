@@ -137,4 +137,26 @@ class AvrVenueBookingController extends Controller
 
         return response()->json($booking);
     }
+
+    public function resendEmail(\Illuminate\Http\Request $request, int $id): JsonResponse
+    {
+        $booking = AvrVenueBooking::with('venue', 'trackingNumber')->find($id);
+        if (!$booking) {
+            return response()->json(['message' => 'Venue booking record not found'], 404);
+        }
+
+        $status = strtolower($booking->status ?? $booking->trackingNumber?->status ?? 'pending');
+        
+        try {
+            if ($status === 'pending') {
+                \App\Jobs\SendBookingConfirmationJob::dispatch('venue', $booking);
+            } else {
+                \App\Jobs\SendBookingStatusUpdateJob::dispatch('venue', $booking, $status, 'Resent notification by admin');
+            }
+            $recipient = $booking->email_address ?? $booking->requestor_email ?? 'Requestor';
+            return response()->json(['message' => '✅ Email delivery resent to ' . $recipient]);
+        } catch (\Throwable $e) {
+            return response()->json(['message' => 'Failed to resend email: ' . $e->getMessage()], 500);
+        }
+    }
 }

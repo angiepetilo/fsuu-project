@@ -13,8 +13,8 @@ const SYSAD_NAV_GROUPS = [
   {
     title: "GLOBAL OVERVIEW",
     items: [
-      { label: "SysAd Dashboard", icon: LayoutDashboard, path: "/sysad/dashboard" },
-      { label: "Venue Bookings", icon: Building2, path: "/sysad/venue-bookings" },
+      { label: "Dashboard", icon: LayoutDashboard, path: "/sysad/dashboard" },
+      { label: "Venue Booking", icon: Building2, path: "/sysad/venue-bookings" },
       { label: "Equipment Borrowing", icon: PackageOpen, path: "/sysad/equipment-borrowing" },
     ],
   },
@@ -22,15 +22,15 @@ const SYSAD_NAV_GROUPS = [
     title: "RECORDS & INVENTORY",
     items: [
       { label: "Manage Equipment", icon: Box, path: "/sysad/manage-equipments" },
-      { label: "Manage Venues", icon: CalendarCheck, path: "/sysad/manage-venues" },
-      { label: "Global Reports", icon: FileBarChart2, path: "/sysad/reports" },
-      { label: "Audit History Log", icon: FileBarChart2, path: "/sysad/history-log" },
+      { label: "Manage Venue", icon: CalendarCheck, path: "/sysad/manage-venues" },
+      { label: "Report", icon: FileBarChart2, path: "/sysad/reports" },
+      { label: "History Log", icon: FileBarChart2, path: "/sysad/history-log" },
     ],
   },
   {
     title: "SYSTEM CONTROL",
     items: [
-      { label: "SysAd Settings", icon: Settings, path: "/sysad/settings" },
+      { label: "Settings", icon: Settings, path: "/sysad/settings" },
     ],
   },
 ];

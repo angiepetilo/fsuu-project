@@ -24,6 +24,8 @@ export default function Step3Details({
   onBack,
 }) {
   const [requirements, setRequirements] = useState([]);
+  const [departmentsList, setDepartmentsList] = useState([]);
+  const [equipmentCatalog, setEquipmentCatalog] = useState([]);
 
   useEffect(() => {
     api.get("/public/booking-requirements")
@@ -33,6 +35,69 @@ export default function Step3Details({
           .then(res => setRequirements(Array.isArray(res.data) ? res.data : []))
           .catch(() => setRequirements([]));
       });
+
+    const fetchDepts = async () => {
+      try {
+        const res = await api.get("/public/departments").catch(() => api.get("/admin/departments"));
+        let data = Array.isArray(res.data) ? res.data : [];
+
+        try {
+          const savedStr = localStorage.getItem("fsuu_departments");
+          if (savedStr) {
+            const savedList = JSON.parse(savedStr);
+            const clean = (str) => (str || "").toLowerCase().trim();
+            savedList.forEach((item) => {
+              if (item && !data.some((d) => clean(d.code) === clean(item.code) || clean(d.name) === clean(item.name))) {
+                data.push(item);
+              }
+            });
+          }
+        } catch { }
+
+        setDepartmentsList(data);
+      } catch {
+        setDepartmentsList([]);
+      }
+    };
+
+    const fetchEquipment = async () => {
+      try {
+        const res = await api.get("/public/equipment-types").catch(() => api.get("/admin/equipment-types"));
+        let data = Array.isArray(res.data) ? res.data : [];
+
+        try {
+          const savedStr = localStorage.getItem("fsuu_equipment_inventory") || localStorage.getItem("fsuu_equipment_types");
+          if (savedStr) {
+            const savedList = JSON.parse(savedStr);
+            const clean = (str) => (str || "").toLowerCase().trim();
+            savedList.forEach((item) => {
+              const name = item.eq_name || item.name || item.category;
+              if (name && !data.some((d) => clean(d.eq_name || d.name) === clean(name))) {
+                data.push(item);
+              }
+            });
+          }
+        } catch { }
+
+        setEquipmentCatalog(data);
+      } catch {
+        setEquipmentCatalog([]);
+      }
+    };
+
+    fetchDepts();
+    fetchEquipment();
+
+    window.addEventListener("departments_updated", fetchDepts);
+    window.addEventListener("equipment_inventory_updated", fetchEquipment);
+    window.addEventListener("storage", fetchDepts);
+    window.addEventListener("storage", fetchEquipment);
+    return () => {
+      window.removeEventListener("departments_updated", fetchDepts);
+      window.removeEventListener("equipment_inventory_updated", fetchEquipment);
+      window.removeEventListener("storage", fetchDepts);
+      window.removeEventListener("storage", fetchEquipment);
+    };
   }, []);
 
   return (
@@ -138,13 +203,27 @@ export default function Step3Details({
 
         <div className="flex flex-col gap-1.5">
           <label className="text-xs font-bold text-slate-900">Program / Department / Office <span className="text-red-500">*</span></label>
-          <select required value={department} onChange={e => setDepartment(e.target.value)} className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all">
-            <option value="">Select Department...</option>
-            <option value="CITE">College of Information Tech Education (CITE)</option>
-            <option value="CAS">College of Arts & Sciences (CAS)</option>
-            <option value="CBA">College of Business Admin (CBA)</option>
-            <option value="CED">College of Education (CED)</option>
-            <option value="SHS">Senior High School (SHS)</option>
+          <select required value={department} onChange={e => setDepartment(e.target.value)} className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all font-semibold">
+            <option value="">Select Program / Department / Office...</option>
+            {(() => {
+              const defaultDepts = [
+                { code: "CITE", name: "College of Information Tech Education (CITE)" },
+                { code: "CAS",  name: "College of Arts & Sciences (CAS)" },
+                { code: "CBA",  name: "College of Business Admin (CBA)" },
+                { code: "CED",  name: "College of Education (CED)" },
+                { code: "SHS",  name: "Senior High School (SHS)" },
+              ];
+              const listToRender = departmentsList.length > 0 ? departmentsList : defaultDepts;
+              return listToRender.map((dept, idx) => {
+                const code = dept.code || dept.name;
+                const label = dept.name ? (dept.code && !dept.name.includes(dept.code) ? `${dept.code} - ${dept.name}` : dept.name) : code;
+                return (
+                  <option key={dept.id || idx} value={code}>
+                    {label}
+                  </option>
+                );
+              });
+            })()}
             <option value="External">External Organization</option>
           </select>
         </div>
@@ -201,20 +280,42 @@ export default function Step3Details({
             </div>
 
             <div className="sm:col-span-2 flex flex-col gap-2 bg-slate-50 p-4 rounded-2xl border border-slate-200/60">
-              <label className="text-xs font-bold text-slate-900">AVR Built-in Equipment Needed:</label>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-                <label className="flex items-center gap-2 cursor-pointer font-medium text-slate-700">
-                  <input type="checkbox" checked={avrEquipment.mic} onChange={e => setAvrEquipment({...avrEquipment, mic: e.target.checked})} className="rounded text-blue-600 focus:ring-blue-500 accent-blue-600" /> Wireless Microphones
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer font-medium text-slate-700">
-                  <input type="checkbox" checked={avrEquipment.proj} onChange={e => setAvrEquipment({...avrEquipment, proj: e.target.checked})} className="rounded text-blue-600 focus:ring-blue-500 accent-blue-600" /> HD Projector
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer font-medium text-slate-700">
-                  <input type="checkbox" checked={avrEquipment.sound} onChange={e => setAvrEquipment({...avrEquipment, sound: e.target.checked})} className="rounded text-blue-600 focus:ring-blue-500 accent-blue-600" /> Sound System
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer font-medium text-slate-700">
-                  <input type="checkbox" checked={avrEquipment.podium} onChange={e => setAvrEquipment({...avrEquipment, podium: e.target.checked})} className="rounded text-blue-600 focus:ring-blue-500 accent-blue-600" /> Podium Setup
-                </label>
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-slate-900">AVR Built-in Equipment Needed:</label>
+                <span className="text-[10px] font-extrabold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">
+                  Equipment Catalog Checklist
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 text-xs pt-1">
+                {(() => {
+                  const defaultItems = [
+                    { id: "mic", name: "Wireless Microphones" },
+                    { id: "proj", name: "HD Projector & Screen" },
+                    { id: "sound", name: "AVR Sound System" },
+                    { id: "podium", name: "Podium Setup" },
+                  ];
+                  const catalogToRender = equipmentCatalog.length > 0
+                    ? equipmentCatalog.map(e => ({ id: e.id || e.eq_name || e.name, name: e.eq_name || e.name || e.category }))
+                    : defaultItems;
+
+                  return catalogToRender.map((item) => {
+                    const key = String(item.id || item.name);
+                    const isChecked = Boolean(avrEquipment[key]);
+
+                    return (
+                      <label key={key} className="flex items-center gap-2 cursor-pointer font-semibold text-slate-800 bg-white p-2.5 rounded-xl border border-slate-200 hover:border-blue-300 shadow-2xs transition-all">
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={(e) => setAvrEquipment({ ...avrEquipment, [key]: e.target.checked })}
+                          className="rounded text-blue-600 focus:ring-blue-500 accent-blue-600 w-4 h-4 cursor-pointer"
+                        />
+                        <span className="truncate">{item.name}</span>
+                      </label>
+                    );
+                  });
+                })()}
               </div>
             </div>
           </>

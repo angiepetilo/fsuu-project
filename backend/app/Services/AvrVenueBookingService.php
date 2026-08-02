@@ -111,6 +111,13 @@ class AvrVenueBookingService
 
             $booking = AvrVenueBooking::with('venue', 'trackingNumber', 'documents')->find($bookingId);
 
+            // Dispatch email confirmation to requestor
+            try {
+                SendBookingConfirmationJob::dispatch('venue', $booking);
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::error('Failed to dispatch venue booking confirmation email: ' . $e->getMessage());
+            }
+
             return $booking;
         });
     }

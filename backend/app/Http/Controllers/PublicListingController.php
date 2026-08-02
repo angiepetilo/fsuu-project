@@ -22,6 +22,9 @@ class PublicListingController extends Controller
                 ->map(fn ($v) => [
                     'id'       => $v->id,
                     'name'     => $v->name,
+                    'avatar'   => $v->avatar,
+                    'photo'    => $v->avatar,
+                    'image'    => $v->avatar,
                     'location' => $v->location ?? $v->office?->name ?? 'FSUU Campus',
                     'capacity' => $v->capacity ?? 100,
                     'type'     => ($v->office?->slug === 'fsuu-morelos'
@@ -29,7 +32,19 @@ class PublicListingController extends Controller
                         || str_contains(strtolower($v->name), 'theater'))
                         ? 'sco' : 'avr',
                     'office'   => $v->office,
+                    'status'   => $v->status ?? 'Available',
                 ])
+        );
+    }
+
+    /**
+     * GET /public/departments
+     * Lists all departments created in the Department / Program catalog.
+     */
+    public function departments(): JsonResponse
+    {
+        return response()->json(
+            \App\Models\Department::with('office')->orderBy('name')->get()
         );
     }
 

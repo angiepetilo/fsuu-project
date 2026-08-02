@@ -7,11 +7,12 @@ import SysadMetricsGrid from "./components/SysadMetricsGrid";
 import SysadCalendarWidget from "./components/SysadCalendarWidget";
 import SysadActivityTable from "./components/SysadActivityTable";
 import SysadDetailModal from "./components/SysadDetailModal";
+import { PageLoader } from "@/components/ui/page-loader";
 import {
   Building2, PackageOpen, Clock, AlertTriangle, AlertCircle,
   ShieldCheck, Globe, Filter, Calendar as CalendarIcon,
   ChevronLeft, ChevronRight, Eye, RefreshCw, X, CheckCircle2,
-  PieChart, Tag, MapPin, User, Mail, Phone, FileText
+  PieChart, Tag, MapPin, User, Mail, Phone, FileText, LayoutDashboard
 } from "lucide-react";
 
 export default function SysadDashboard() {
@@ -164,6 +165,8 @@ export default function SysadDashboard() {
     }
   };
 
+  if (loading) return <PageLoader message="Loading System Dashboard..." />;
+
   return (
     <div className="space-y-6">
 
@@ -172,15 +175,15 @@ export default function SysadDashboard() {
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-              <ShieldCheck className="text-amber-500" size={24} />
-              Super Administrator Global Dashboard
+              <LayoutDashboard className="text-blue-600" size={24} />
+              System Dashboard Overview
             </h1>
-            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-900 border border-amber-300">
+            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-blue-100 text-blue-900 border border-blue-200">
               {selectedOffice}
             </span>
           </div>
           <p className="text-xs text-slate-500 font-medium mt-0.5">
-            World-class SaaS analytics overview for FSUU Main and FSUU Morelos campus operations
+            Global management, combined analytics, office reports & inventory filter
           </p>
         </div>
 
@@ -193,10 +196,10 @@ export default function SysadDashboard() {
               onChange={(e) => setSelectedOffice(e.target.value)}
               className="bg-transparent text-slate-900 text-xs font-extrabold focus:outline-none cursor-pointer pr-2"
             >
-              <option value="All Offices">🏢 All Offices (Combined)</option>
+              <option value="All Offices">All Offices (Combined)</option>
               {campusOffices.map((office) => (
                 <option key={office.id || office.code} value={office.name}>
-                  🏫 {office.name}
+                  {office.name}
                 </option>
               ))}
             </select>

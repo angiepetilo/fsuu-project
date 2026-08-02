@@ -1,7 +1,7 @@
 import { useState } from "react";
 import {
   X, CheckCircle, User, Building2, FileText, Send, Loader2, Play,
-  AlertTriangle, Bell, Mail, Phone, Calendar, Clock, Camera, FileCheck
+  AlertTriangle, Bell, Mail, Phone, Calendar, Clock, Camera, FileCheck, PackageOpen, Eye
 } from "lucide-react";
 import { StatusBadge } from "@/components/ui/status-badge";
 import api from "@/lib/axios";
@@ -33,6 +33,24 @@ export default function VenueBookingDetailModal({
 
   const [savingInspection, setSavingInspection] = useState(false);
   const [inspectionSuccessMsg, setInspectionSuccessMsg] = useState(null);
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendMsg, setResendMsg] = useState(null);
+  const [selectedUnit, setSelectedUnit] = useState("unit_01");
+
+
+  const handleResendEmail = async () => {
+    setResendLoading(true);
+    try {
+      const res = await api.post(`/avr-venue-bookings/${selected.id}/resend-email`);
+      setResendMsg(res.data?.message || "✅ Email delivery resent successfully!");
+      setTimeout(() => setResendMsg(null), 4000);
+    } catch (err) {
+      setResendMsg(err.response?.data?.message || "❌ Failed to resend email.");
+      setTimeout(() => setResendMsg(null), 4000);
+    } finally {
+      setResendLoading(false);
+    }
+  };
 
   const handleEvidencePhotoUpload = (e) => {
     const file = e.target.files[0];
@@ -175,34 +193,60 @@ export default function VenueBookingDetailModal({
               </div>
             </div>
 
-            {/* Uploaded Endorsement Document Store (Item 13) */}
-            <div>
-              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                <FileText size={14} className="text-blue-600" /> Uploaded Endorsement Document Store
-              </h4>
-              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-xs">
-                    PDF
-                  </div>
-                  <div>
-                    <p className="text-xs font-extrabold text-slate-900">
-                      {selected.endorsement_letter || selected.document_name || "official_endorsement_letter.pdf"}
-                    </p>
-                    <p className="text-[11px] text-slate-500 font-semibold">
-                      Classification: <strong className="capitalize">{selected.classification || "Academic"}</strong>
-                    </p>
+            {/* Equipment Unit Selection & Inspection Checklist */}
+            <div className="bg-white p-4.5 rounded-2xl border border-slate-200 shadow-2xs space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-extrabold text-slate-900 flex items-center gap-1.5">
+                  <PackageOpen size={15} className="text-blue-600" /> Equipment Catalog Unit Assignment
+                </span>
+                <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${selected.status === 'pending' ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>
+                  {selected.status === 'pending' ? 'Select Equipment Units' : 'Assigned Equipment Units'}
+                </span>
+              </div>
+
+              {selected.status === "pending" ? (
+                <div className="space-y-3 text-xs">
+                  <p className="text-[11px] text-slate-500 font-medium">
+                    Assign specific physical inventory units / serial numbers for each requested equipment item:
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">Wireless Microphones Unit *</label>
+                      <select
+                        value={selectedUnit}
+                        onChange={(e) => setSelectedUnit(e.target.value)}
+                        className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:outline-none focus:border-blue-600 text-xs"
+                      >
+                        <option value="unit_01">Unit 01 — (SN: MIC-2026-001)</option>
+                        <option value="unit_02">Unit 02 — (SN: MIC-2026-002)</option>
+                        <option value="unit_03">Unit 03 — (SN: MIC-2026-003)</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">HD Projector Unit *</label>
+                      <select
+                        defaultValue="proj_01"
+                        className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:outline-none focus:border-blue-600 text-xs"
+                      >
+                        <option value="proj_01">Unit 01 — (SN: PROJ-2026-010)</option>
+                        <option value="proj_02">Unit 02 — (SN: PROJ-2026-011)</option>
+                      </select>
+                    </div>
                   </div>
                 </div>
-                <a
-                  href={selected.endorsement_letter_url || "#"}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="px-3.5 py-2 bg-white hover:bg-slate-100 border border-slate-300 text-slate-800 rounded-xl text-xs font-bold transition-all shadow-2xs"
-                >
-                  View File
-                </a>
-              </div>
+              ) : (
+                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs space-y-2">
+                  <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Assigned Equipment Reflection</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-slate-800 font-bold">
+                    <div className="bg-white p-2 rounded-lg border border-slate-200">
+                      🎤 Wireless Microphones: <span className="text-blue-700 font-mono">Unit 01 (SN: MIC-2026-001)</span>
+                    </div>
+                    <div className="bg-white p-2 rounded-lg border border-slate-200">
+                      📹 HD Projector: <span className="text-blue-700 font-mono">Unit 01 (SN: PROJ-2026-010)</span>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Item 14: Post-Event Inspection Panel */}
@@ -226,22 +270,20 @@ export default function VenueBookingDetailModal({
                     <button
                       type="button"
                       onClick={() => setInspectionStatus("clean")}
-                      className={`p-2.5 rounded-xl border text-xs font-extrabold cursor-pointer flex items-center justify-center gap-2 ${
-                        inspectionStatus === "clean"
+                      className={`p-2.5 rounded-xl border text-xs font-extrabold cursor-pointer flex items-center justify-center gap-2 ${inspectionStatus === "clean"
                           ? "bg-emerald-600 text-white border-emerald-600 shadow-xs"
                           : "bg-white text-slate-700 border-slate-200 hover:bg-slate-100"
-                      }`}
+                        }`}
                     >
                       <CheckCircle size={14} /> Good (Done with No Damage)
                     </button>
                     <button
                       type="button"
                       onClick={() => setInspectionStatus("violation")}
-                      className={`p-2.5 rounded-xl border text-xs font-extrabold cursor-pointer flex items-center justify-center gap-2 ${
-                        inspectionStatus === "violation"
+                      className={`p-2.5 rounded-xl border text-xs font-extrabold cursor-pointer flex items-center justify-center gap-2 ${inspectionStatus === "violation"
                           ? "bg-rose-600 text-white border-rose-600 shadow-xs"
                           : "bg-white text-slate-700 border-slate-200 hover:bg-slate-100"
-                      }`}
+                        }`}
                     >
                       <AlertTriangle size={14} /> Done with Damage / Lost Equipment
                     </button>
@@ -249,7 +291,32 @@ export default function VenueBookingDetailModal({
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Inspection Reason / Notes *</label>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Violation Category & Notes *</label>
+                  <select
+                    value={
+                      ["", "Late Event Overtime", "Venue Facility Damage / Broken Items", "Unauthorized Extension", "Noise & Disruption Breach", "Trash & Cleanliness Violation"].includes(violationNotes)
+                        ? violationNotes
+                        : "Other"
+                    }
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === "Other") {
+                        setViolationNotes("Custom violation details...");
+                      } else {
+                        setViolationNotes(val);
+                      }
+                    }}
+                    className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold mb-2 focus:outline-none focus:border-blue-600"
+                  >
+                    <option value="">No Violation (Clean Return)</option>
+                    <option value="Late Event Overtime">⏰ Late Event Overtime</option>
+                    <option value="Venue Facility Damage / Broken Items">🔧 Venue Facility Damage / Broken Items</option>
+                    <option value="Unauthorized Extension">⛔ Unauthorized Extension</option>
+                    <option value="Noise & Disruption Breach">🔊 Noise & Disruption Breach</option>
+                    <option value="Trash & Cleanliness Violation">🧹 Trash & Cleanliness Violation</option>
+                    <option value="Other">📝 Other (Custom Details)</option>
+                  </select>
+
                   <textarea
                     rows={2}
                     required
@@ -299,15 +366,45 @@ export default function VenueBookingDetailModal({
 
           </div>
 
-          {/* Right Column (4/12): Quick Status Actions & Notifications */}
+          {/* Right Column (4/12): Uploaded Endorsement & Quick Status Actions */}
           <div className="lg:col-span-4 p-6 bg-slate-50/50 space-y-5">
-            
+
+            {/* Uploaded Endorsement Document Store (Item 13) */}
+            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs space-y-3">
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block flex items-center gap-1.5">
+                <FileText size={14} className="text-blue-600" /> Uploaded Endorsement Letter
+              </span>
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 space-y-2">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-xs shrink-0">
+                    PDF
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-extrabold text-slate-900 truncate">
+                      {selected.endorsement_letter || selected.document_name || "official_endorsement_letter.pdf"}
+                    </p>
+                    <p className="text-[10px] text-slate-500 font-semibold">
+                      Classification: <strong className="capitalize">{selected.classification || "Academic"}</strong>
+                    </p>
+                  </div>
+                </div>
+                <a
+                  href={selected.endorsement_letter_url || "#"}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="w-full py-2 bg-white hover:bg-slate-100 border border-slate-200 text-slate-800 rounded-xl text-xs font-bold transition-all shadow-2xs flex items-center justify-center gap-1.5"
+                >
+                  <Eye size={14} /> View Endorsement Document
+                </a>
+              </div>
+            </div>
+
             {/* Status Quick Action Controls */}
             <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs space-y-3">
               <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
                 Reservation Workflow Actions
               </span>
-              
+
               {selected.status === "pending" && (
                 <div className="space-y-2">
                   <button
@@ -350,6 +447,24 @@ export default function VenueBookingDetailModal({
                   <span>Mark Event Completed</span>
                 </button>
               )}
+
+              {/* Resend Email Delivery Button */}
+              <div className="pt-3 border-t border-slate-100">
+                {resendMsg && (
+                  <p className="text-[11px] font-bold text-emerald-800 bg-emerald-50 p-2.5 rounded-xl border border-emerald-200 mb-2">
+                    {resendMsg}
+                  </p>
+                )}
+                <button
+                  type="button"
+                  onClick={handleResendEmail}
+                  disabled={resendLoading}
+                  className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-extrabold transition-all border border-slate-200 flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-60 shadow-2xs"
+                >
+                  {resendLoading ? <Loader2 size={15} className="animate-spin" /> : <Mail size={15} className="text-blue-600" />}
+                  <span>Resend Email Delivery</span>
+                </button>
+              </div>
             </div>
 
           </div>

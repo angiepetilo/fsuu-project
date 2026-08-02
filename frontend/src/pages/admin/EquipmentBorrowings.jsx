@@ -5,6 +5,7 @@ import {
   Loader2, RefreshCw, AlertCircle, Eye, PackageOpen
 } from "lucide-react";
 import EquipmentBorrowDetailModal from "./components/EquipmentBorrowDetailModal";
+import { PageLoader } from "@/components/ui/page-loader";
 
 function StatusBadge({ status }) {
   const map = {
@@ -67,13 +68,10 @@ export default function EquipmentBorrowings() {
     fetchBorrowings();
   }, [fetchBorrowings]);
 
-  // Filter Bookings by status (Item 15)
+  // Filter active borrowings (completed/rejected/cancelled transfer directly to History Log)
   const filteredBorrowings = borrowings.filter(b => {
     const s = (b.status || b.tracking_number?.status || "").toLowerCase();
-    if (statusFilter === "pending") return s === "pending";
-    if (statusFilter === "claim") return s === "approved" || s === "claim" || s === "claimed";
-    if (statusFilter === "inspection") return s === "inspection" || s === "completed" || s === "damaged" || s === "lost";
-    return true;
+    return s !== "completed" && s !== "rejected" && s !== "cancelled";
   });
 
   const handleAction = async (id, type) => {
@@ -107,6 +105,8 @@ export default function EquipmentBorrowings() {
     setFeedbackMsg(msg);
     setTimeout(() => setFeedbackMsg(null), 3000);
   };
+
+  if (loading && borrowings.length === 0) return <PageLoader message="Loading Equipment Borrowings..." />;
 
   return (
     <div className="space-y-6">
@@ -143,27 +143,7 @@ export default function EquipmentBorrowings() {
         </div>
       )}
 
-      {/* Item 15: Status Filter Tabs [Pending / Claim / Inspection] */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 pb-3">
-        {[
-          { id: "all", label: "All Borrowings" },
-          { id: "pending", label: "Pending" },
-          { id: "claim", label: "Claim / Approved" },
-          { id: "inspection", label: "Inspection / Completed" },
-        ].map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setStatusFilter(tab.id)}
-            className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
-              statusFilter === tab.id
-                ? "bg-purple-600 text-white shadow-md"
-                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
+
 
       {/* Item 15 Table: [#, track number, requestor, department, equipment, quantity, Date, Time, Status, Action] */}
       <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
@@ -213,9 +193,10 @@ export default function EquipmentBorrowings() {
                     <td className="px-4 py-3.5">
                       <button
                         onClick={() => setSelected(b)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded-xl font-extrabold text-xs transition-all cursor-pointer"
+                        title="View Details"
+                        className="p-2 bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded-xl font-extrabold text-xs transition-all cursor-pointer shadow-2xs"
                       >
-                        <Eye size={14} /> View Details
+                        <Eye size={16} />
                       </button>
                     </td>
                   </tr>

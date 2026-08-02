@@ -74,21 +74,31 @@ export default function VenueBooking() {
       if (saved) localVenues = JSON.parse(saved);
     } catch { }
 
-    if (localVenues.length > 0) {
-      return localVenues.map(lv => ({
-        id: lv.id,
-        name: lv.name,
-        location: lv.location || (lv.name.includes("SCO") ? "FSUU Morelos Campus" : "FSUU Main Campus"),
-        capacity: lv.capacity || 100,
-        type: (lv.name.includes("SCO") || lv.name.includes("Studio")) ? "sco" : "avr",
-        photo: lv.photo || null,
-        image: lv.photo || null,
-        status: lv.status || "Available",
-        schedule: lv.schedule || null,
-      }));
+    const formatVenue = (v) => {
+      const clean = (str) => (str || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+      const match = localVenues.find(lv => lv.id === v.id || clean(lv.name) === clean(v.name));
+      const avatarPhoto = v.avatar || v.photo || v.image || v.avatar_url || v.photo_url || match?.photo || match?.avatar || match?.image || null;
+
+      return {
+        ...v,
+        id: v.id,
+        name: v.name,
+        location: v.location || match?.location || (v.name.includes("SCO") ? "FSUU Morelos Campus" : "FSUU Main Campus"),
+        capacity: v.capacity || match?.capacity || 100,
+        type: (v.name.includes("SCO") || v.name.includes("Studio")) ? "sco" : "avr",
+        photo: avatarPhoto,
+        image: avatarPhoto,
+        avatar: avatarPhoto,
+        status: match?.status || v.status || "Available",
+        schedule: match?.schedule || v.schedule || null,
+      };
+    };
+
+    if (apiVenues.length > 0) {
+      return apiVenues.map(formatVenue);
     }
 
-    return apiVenues;
+    return localVenues.map(formatVenue);
   };
 
   useEffect(() => {

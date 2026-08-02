@@ -31,8 +31,9 @@ export default function BreachesTab({
           <tbody className="divide-y divide-slate-100 text-xs font-semibold">
             {ruleViolations.length === 0 ? (
               <tr>
-                <td colSpan={6} className="text-center py-10 text-slate-400">
-                  🛡️ No department breaches or late return violations recorded.
+                <td colSpan={6} className="text-center py-10 text-slate-400 flex items-center justify-center gap-2">
+                  <ShieldAlert size={16} className="text-slate-400" />
+                  <span>No department breaches or late return violations recorded.</span>
                 </td>
               </tr>
             ) : (

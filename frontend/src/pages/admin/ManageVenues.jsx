@@ -6,6 +6,7 @@ import {
 import VenueScheduleCalendar from "./components/VenueScheduleCalendar";
 import VenueScheduleForm from "./components/VenueScheduleForm";
 import api from "@/lib/axios";
+import { PageLoader } from "@/components/ui/page-loader";
 
 export default function ManageVenues() {
   const context = useOutletContext();
@@ -40,11 +41,26 @@ export default function ManageVenues() {
   const fetchVenues = async () => {
     setLoading(true);
     try {
-      const res = await api.get("/admin/venues-list");
-      const data = Array.isArray(res.data) ? res.data : [];
+      const res = await api.get("/admin/venues").catch(() => api.get("/admin/venues-list"));
+      let data = Array.isArray(res.data) ? res.data : [];
+
+      // Merge with localStorage if additional catalog venues exist
+      try {
+        const savedStr = localStorage.getItem("fsuu_venue_availability") || localStorage.getItem("fsuu_venues");
+        if (savedStr) {
+          const savedList = JSON.parse(savedStr);
+          const clean = (str) => (str || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+          savedList.forEach((savedItem) => {
+            if (savedItem && !data.some((d) => d.id === savedItem.id || clean(d.name) === clean(savedItem.name))) {
+              data.push(savedItem);
+            }
+          });
+        }
+      } catch { }
+
       setVenues(data);
       if (data.length > 0) {
-        setSelectedVenue(data[0]);
+        setSelectedVenue((prev) => (prev ? data.find((d) => d.id === prev.id) || data[0] : data[0]));
         setSetupForm((p) => ({ ...p, venueId: data[0].id }));
       }
     } catch {
@@ -56,6 +72,12 @@ export default function ManageVenues() {
 
   useEffect(() => {
     fetchVenues();
+    window.addEventListener("venue_availability_updated", fetchVenues);
+    window.addEventListener("storage", fetchVenues);
+    return () => {
+      window.removeEventListener("venue_availability_updated", fetchVenues);
+      window.removeEventListener("storage", fetchVenues);
+    };
   }, []);
 
   const monthNames = [
@@ -81,9 +103,20 @@ export default function ManageVenues() {
   const firstDayOfWeek = new Date(currentYear, currentMonth, 1).getDay();
   const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
 
-  // Save Availability Control Status (Item 21)
+  // Save Availability Control Status (Item 21 & Item 15)
   const handleSaveStatus = async (e) => {
     e.preventDefault();
+    const currentDayStatus = getVenueDayStatus(setupForm.startDate);
+    if (
+      (setupForm.status === "Maintenance" || setupForm.status === "Closed") &&
+      (currentDayStatus?.status === "partial" || currentDayStatus?.status === "fully")
+    ) {
+      showMsg(
+        `❌ Action Blocked: Cannot set "${setupForm.status}" status on ${setupForm.startDate}. The venue is already ${currentDayStatus.status} booked!`
+      );
+      return;
+    }
+
     setSaveLoading(true);
     try {
       await api.post("/admin/venue-availability", {
@@ -92,7 +125,7 @@ export default function ManageVenues() {
         status: setupForm.status.toLowerCase(),
         notes: setupForm.reason || `Assigned ${setupForm.status} status`,
       });
-      showMsg(`✅ Operating status for "${selectedVenue?.name}" on ${setupForm.startDate} updated to ${setupForm.status}!`);
+      showMsg(`✅ Operating status for "${selectedVenue?.name || 'Venue'}" on ${setupForm.startDate} updated to ${setupForm.status}!`);
     } catch {
       showMsg(`✅ Local status override saved for ${setupForm.startDate}!`);
     } finally {
@@ -104,6 +137,8 @@ export default function ManageVenues() {
     // Default day status helper
     return { status: "available", reason: "Open & Available" };
   };
+
+  if (loading) return <PageLoader message="Loading Manage Venues..." />;
 
   return (
     <div className="space-y-6">
@@ -127,34 +162,7 @@ export default function ManageVenues() {
         </div>
       )}
 
-      {/* Item 20: Venue Selector Dropdown Header */}
-      <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <label className="text-xs font-bold text-slate-700">Select Desired Venue to Inspect Calendar:</label>
-          <select
-            value={selectedVenue?.id || ""}
-            onChange={(e) => {
-              const found = venues.find(v => String(v.id) === e.target.value);
-              if (found) {
-                setSelectedVenue(found);
-                setSetupForm(p => ({ ...p, venueId: found.id }));
-              }
-            }}
-            className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 text-xs focus:outline-none focus:border-blue-600"
-          >
-            {venues.map(v => (
-              <option key={v.id} value={v.id}>{v.name} ({v.office?.name || 'Main'})</option>
-            ))}
-          </select>
-        </div>
-        {selectedVenue && (
-          <span className="text-xs font-semibold text-slate-500">
-            Capacity: <strong>{selectedVenue.capacity || 100} Persons</strong>
-          </span>
-        )}
-      </div>
-
-      {/* Main Grid: Left Calendar (Item 20) & Right Availability Control Form (Item 21) */}
+      {/* Main Grid: Left Calendar & Right Availability Control Form */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         
         {/* Item 20: Color-Coded Venue Schedule Calendar */}
@@ -175,9 +183,11 @@ export default function ManageVenues() {
 
         {/* Item 21: Embedded Availability Control Form */}
         <VenueScheduleForm
+          VENUES={venues}
+          selectedVenue={selectedVenue}
+          setSelectedVenue={setSelectedVenue}
           setupForm={setupForm}
           setSetupForm={setSetupForm}
-          selectedVenue={selectedVenue}
           handleSaveStatus={handleSaveStatus}
           saveLoading={saveLoading}
         />
