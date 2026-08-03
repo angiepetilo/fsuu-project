@@ -83,7 +83,7 @@ export default function LandingPage() {
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 group-hover:scale-125 transition-transform" />
           <span>Track Booking</span>
         </Link>
-        
+
         <span className="text-slate-300 font-bold">•</span>
 
         <Link

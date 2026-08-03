@@ -24,11 +24,12 @@ class StorePublicAvrEquipmentBorrowingRequest extends FormRequest
             'place_of_use' => ['required', 'string'],
             'used_inside_campus' => ['required', 'boolean'],
             'contact_preference' => ['required', 'in:sms,email'],
-            'start_datetime' => ['required', 'date', 'after:now'],
-            'end_datetime' => ['required', 'date', 'after:start_datetime'],
+            'start_datetime' => ['required', 'date', 'after_or_equal:today'],
+            'end_datetime' => ['required', 'date', 'after_or_equal:start_datetime'],
             'items' => ['required', 'array', 'min:1'],
-            'items.*.equipment_type_id' => ['required', 'exists:equipment_types,id'],
+            'items.*.equipment_type_id' => ['required'],
             'items.*.quantity_requested' => ['required', 'integer', 'min:1'],
         ];
     }
+
 }

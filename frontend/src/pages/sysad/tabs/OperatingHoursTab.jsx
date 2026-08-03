@@ -57,8 +57,9 @@ export default function OperatingHoursTab({ showMsg }) {
 
   if (loading) {
     return (
-      <div className="bg-white p-12 rounded-2xl border border-slate-200 text-center text-slate-400">
-        <Loader2 className="animate-spin inline mr-2" size={20} /> Loading operating rules...
+      <div className="bg-white p-12 rounded-2xl border border-slate-200 flex items-center justify-center gap-2 text-slate-400">
+        <div className="w-4 h-4 rounded-full border-2 border-slate-200 border-t-blue-500 animate-spin shrink-0" />
+        <span className="text-xs font-semibold italic">Loading operating rules...</span>
       </div>
     );
   }

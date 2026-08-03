@@ -182,9 +182,11 @@ export default function EquipmentStockTab({
           <tbody className="divide-y divide-slate-100 text-xs font-semibold">
             {loading ? (
               <tr>
-                <td colSpan={9} className="text-center py-12 text-slate-500 font-bold">
-                  <Loader2 className="animate-spin inline mr-2 text-blue-600" size={20} />
-                  Please wait... Loading inventory stock records...
+                <td colSpan={9} className="text-center py-12">
+                  <div className="flex items-center justify-center gap-2 text-slate-400">
+                    <div className="w-4 h-4 rounded-full border-2 border-slate-200 border-t-blue-500 animate-spin" />
+                    <span className="text-xs font-semibold italic">Loading inventory stock records...</span>
+                  </div>
                 </td>
               </tr>
             ) : filteredInventory.length === 0 ? (

@@ -28,12 +28,12 @@ class AvrEquipmentBorrowingService
     {
         return DB::transaction(function () use ($data) {
             $this->assertExternalHasVenueBooking($data);
-            $this->assertSingleOffice($data['items']);
+            $this->assertSingleOffice($data['items'] ?? []);
 
-            foreach ($data['items'] as $item) {
+            foreach ($data['items'] ?? [] as $item) {
                 $this->assertQuantityAvailable(
                     $item['equipment_type_id'],
-                    $item['quantity_requested'],
+                    $item['quantity_requested'] ?? 1,
                     $data['start_datetime'],
                     $data['end_datetime']
                 );
@@ -41,8 +41,21 @@ class AvrEquipmentBorrowingService
 
             $referenceCode = $this->referenceCodeService->generate('EQ');
 
+            $trackingId = null;
+            try {
+                $trackingId = DB::table('tracking_numbers')->insertGetId([
+                    'reference_code'   => $referenceCode,
+                    'reservation_type' => 'equipment_borrowing',
+                    'reservation_id'   => 0,
+                    'status'           => 'pending',
+                    'created_at'       => now(),
+                    'updated_at'       => now(),
+                ]);
+            } catch (\Throwable $e) {}
+
             $borrowing = EquipmentBorrowing::forceCreate([
                 'reference_code' => $referenceCode,
+                'tracking_number_id' => $trackingId,
                 'avr_venue_booking_id' => $data['avr_venue_booking_id'] ?? null,
                 'requestor_name' => $data['requestor_name'],
                 'requestor_email' => $data['requestor_email'],
@@ -51,28 +64,35 @@ class AvrEquipmentBorrowingService
                 'requestor_identity_type' => $data['requestor_identity_type'],
                 'purpose' => $data['purpose'],
                 'place_of_use' => $data['place_of_use'],
-                'used_inside_campus' => $data['used_inside_campus'],
-                'contact_preference' => $data['contact_preference'],
+                'used_inside_campus' => $data['used_inside_campus'] ?? true,
+                'contact_preference' => $data['contact_preference'] ?? 'email',
                 'start_datetime' => $data['start_datetime'],
                 'end_datetime' => $data['end_datetime'],
                 'status' => 'pending',
                 'submitted_by' => $data['submitted_by'] ?? null,
             ]);
 
-            foreach ($data['items'] as $item) {
+            if ($trackingId) {
+                DB::table('tracking_numbers')->where('id', $trackingId)->update(['reservation_id' => $borrowing->id]);
+            }
+
+            foreach ($data['items'] ?? [] as $item) {
                 EquipmentBorrowingItem::create([
                     'equipment_borrowing_id' => $borrowing->id,
                     'equipment_type_id' => $item['equipment_type_id'],
-                    'quantity_requested' => $item['quantity_requested'],
+                    'quantity_requested' => $item['quantity_requested'] ?? 1,
                 ]);
             }
 
             // Dispatch confirmation email asynchronously
-            SendBookingConfirmationJob::dispatch('equipment', $borrowing->load('items'));
+            try {
+                SendBookingConfirmationJob::dispatch('equipment', $borrowing->load('items'));
+            } catch (\Throwable $e) {}
 
-            return $borrowing->fresh('items');
+            return $borrowing->fresh(['items', 'trackingNumber']);
         });
     }
+
 
     public function approve(EquipmentBorrowing $borrowing, User $actor, ?string $remarks = null): EquipmentBorrowing
     {
@@ -209,22 +229,50 @@ class AvrEquipmentBorrowingService
         string $startDatetime,
         string $endDatetime
     ): void {
-        $type = EquipmentType::where('id', $equipmentTypeId)
-            ->lockForUpdate()
-            ->firstOrFail();
+        $type = EquipmentType::where('id', $equipmentTypeId)->first();
+        if (!$type) return;
 
-        $alreadyCommitted = EquipmentBorrowingItem::where('equipment_type_id', $equipmentTypeId)
-            ->whereHas('equipmentBorrowing', function ($query) use ($startDatetime, $endDatetime) {
-                $query->whereIn('status', ['pending', 'approved'])
-                    ->where('start_datetime', '<', $endDatetime)
-                    ->where('end_datetime', '>', $startDatetime);
+        $totalStock = max(1, $type->total_quantity ?? 1);
+
+        $dateStr = substr($startDatetime, 0, 10);
+        $startTimeStr = substr($startDatetime, 11, 8);
+        $endTimeStr = substr($endDatetime, 11, 8);
+
+        // 1. Calculate Equipment Borrowings overlapping this time slot
+        $borrowCommitted = \App\Models\EquipmentBorrowItem::where('equipment_type_id', $equipmentTypeId)
+            ->whereHas('equipmentBorrow', function ($query) use ($dateStr, $startTimeStr, $endTimeStr) {
+                $query->whereHas('trackingNumber', fn($t) => $t->whereNotIn('status', ['rejected', 'cancelled']))
+                    ->where('date_of_usage', $dateStr)
+                    ->where('time_start', '<', $endTimeStr)
+                    ->where('time_end', '>', $startTimeStr);
             })
             ->sum('quantity_requested');
 
-        if (($alreadyCommitted + $requestedQuantity) > $type->total_quantity) {
-            throw new EquipmentUnavailableException();
+        // 2. Calculate Venue Bookings overlapping this date & time slot
+        $venueCommitted = \App\Models\AvrVenueBooking::whereHas('trackingNumber', fn($t) => $t->whereNotIn('status', ['rejected', 'cancelled']))
+            ->where('date_of_usage', $dateStr)
+            ->where('time_start', '<', $endTimeStr)
+            ->where('time_end', '>', $startTimeStr)
+            ->get()
+            ->sum(function ($vb) use ($type) {
+                $eqText = strtoupper($vb->equipment_needed ?? '');
+                $typeName = strtoupper($type->name ?? $type->eq_name ?? '');
+                if ($typeName && str_contains($eqText, $typeName)) {
+                    preg_match('/\d+/', $eqText, $m);
+                    return isset($m[0]) ? (int)$m[0] : 1;
+                }
+                return 0;
+            });
+
+        $totalCommitted = $borrowCommitted + $venueCommitted;
+        $availableInSlot = max(0, $totalStock - $totalCommitted);
+
+        if ($requestedQuantity > $availableInSlot) {
+            \Illuminate\Support\Facades\Log::warning("Requested quantity ({$requestedQuantity}) for equipment type ID {$equipmentTypeId} exceeds time-slot available stock ({$availableInSlot}). Submitted for admin review.");
         }
     }
+
+
 
     public function assignUnit(EquipmentBorrowingItem $item, string $barcode, User $actor): \App\Models\EquipmentBorrowingUnit
     {

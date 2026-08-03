@@ -21,11 +21,28 @@ export default function GoogleCallback() {
     if (called.current) return;
     called.current = true;
 
+    const token = params.get("token");
     const code  = params.get("code");
     const error = params.get("error");
 
+    if (token) {
+      const role = params.get("role") || "admin";
+      const user = {
+        name: params.get("name") || "Authenticated User",
+        email: params.get("email") || "",
+        role: role
+      };
+      login(user, token);
+      if (role === "superadmin" || role === "super_admin") {
+        navigate("/sysad/dashboard", { replace: true });
+      } else {
+        navigate("/admin/dashboard", { replace: true });
+      }
+      return;
+    }
+
     if (error || !code) {
-      navigate("/login?error=google_denied", { replace: true });
+      navigate(`/login?error=${encodeURIComponent(error || "google_denied")}`, { replace: true });
       return;
     }
 
@@ -33,17 +50,19 @@ export default function GoogleCallback() {
     api.get(`/auth/google/callback?code=${code}`)
       .then(({ data }) => {
         login(data.user, data.token);
-        const isSuper = data.user?.role === "superadmin" || data.user?.role?.name === "superadmin" || data.user?.email === "superadmin@fsuu.edu.ph";
+        const isSuper = data.user?.role === "superadmin" || data.user?.role?.name === "superadmin" || data.user?.role_id === 1 || data.user?.email === "superadmin@fsuu.edu.ph";
         if (isSuper) {
           navigate("/sysad/dashboard", { replace: true });
         } else {
           navigate("/admin/dashboard", { replace: true });
         }
       })
-      .catch(() => {
-        navigate("/login?error=auth_failed", { replace: true });
+      .catch((err) => {
+        const msg = err.response?.data?.message || "Authentication failed.";
+        navigate(`/login?error=${encodeURIComponent(msg)}`, { replace: true });
       });
   }, [params, login, navigate]);
+
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-white font-sans">

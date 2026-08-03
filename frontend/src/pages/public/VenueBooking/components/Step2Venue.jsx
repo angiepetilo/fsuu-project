@@ -437,6 +437,13 @@ export default function Step2Venue({
                   )}
                 </div>
 
+                {timeStart && timeEnd && (timeStart < "08:00" || timeEnd > "17:00") && (
+                  <p className="text-[11px] text-amber-800 font-bold bg-amber-50 p-2 rounded-lg border border-amber-200 flex items-center gap-1.5 mt-1">
+                    <AlertTriangle size={14} className="text-amber-600 shrink-0" />
+                    <span>Operating Hours Notice: Selected time ({timeStart} - {timeEnd}) is outside official campus hours (08:00 AM - 05:00 PM). AVR Head Verification PIN is required.</span>
+                  </p>
+                )}
+
                 {selectedDate && timeStart && timeEnd && (
                   <div className="space-y-2">
                     {conflictingBooking ? (

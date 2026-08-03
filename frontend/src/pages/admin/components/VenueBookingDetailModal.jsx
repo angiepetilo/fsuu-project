@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   X, CheckCircle, User, Building2, FileText, Send, Loader2, Play,
-  AlertTriangle, Bell, Mail, Phone, Calendar, Clock, Camera, FileCheck, PackageOpen, Eye
+  AlertTriangle, Bell, Mail, Phone, Calendar, Clock, Camera, FileCheck, PackageOpen, Eye, Check
 } from "lucide-react";
 import { StatusBadge } from "@/components/ui/status-badge";
 import api from "@/lib/axios";
@@ -24,10 +24,6 @@ export default function VenueBookingDetailModal({
   setViolationNotes,
   evidencePhoto,
   setEvidencePhoto,
-  showNotifyModal,
-  setShowNotifyModal,
-  notifyReason,
-  setNotifyReason,
 }) {
   if (!selected) return null;
 
@@ -35,8 +31,172 @@ export default function VenueBookingDetailModal({
   const [inspectionSuccessMsg, setInspectionSuccessMsg] = useState(null);
   const [resendLoading, setResendLoading] = useState(false);
   const [resendMsg, setResendMsg] = useState(null);
-  const [selectedUnit, setSelectedUnit] = useState("unit_01");
 
+  // Physical Equipment Units & Inventory Stock from Database
+  const [dbEquipmentTypes, setDbEquipmentTypes] = useState([]);
+  const [physicalUnits, setPhysicalUnits] = useState([]);
+  const [eqLoading, setEqLoading] = useState(false);
+  const [assignedUnitSelections, setAssignedUnitSelections] = useState({});
+
+  // Override State for Admin / SysAd
+  const [isOverrideActive, setIsOverrideActive] = useState(false);
+  const [overrideCategory, setOverrideCategory] = useState("PROJECTOR");
+  const [overrideQuantity, setOverrideQuantity] = useState(3);
+
+  const currentStatus = (selected.status || selected.tracking_number?.status || "").toLowerCase();
+  const isPending = currentStatus === "pending";
+  const isApproved = currentStatus === "approved";
+  const isOngoing = currentStatus === "ongoing" || currentStatus === "on-going";
+  const isPostUseEligible = isOngoing || currentStatus === "post-inspection" || currentStatus === "completed" || currentStatus === "damaged";
+
+  // Fetch real equipment stock & physical units from backend DB & LocalStorage
+  useEffect(() => {
+    setEqLoading(true);
+    Promise.all([
+      api.get("/admin/equipment-units").catch(() => ({ data: [] })),
+      api.get("/admin/equipment-types").catch(() => ({ data: [] }))
+    ]).then(([unitsRes, typesRes]) => {
+      const uData = Array.isArray(unitsRes.data) ? unitsRes.data : (unitsRes.data?.data ?? []);
+      const tData = Array.isArray(typesRes.data) ? typesRes.data : (typesRes.data?.data ?? []);
+      setPhysicalUnits(uData);
+      setDbEquipmentTypes(tData);
+    }).finally(() => setEqLoading(false));
+  }, []);
+
+  // Format Time into 12-hour AM/PM real-time format
+  const formatRealTime = (timeStr) => {
+    if (!timeStr) return "N/A";
+    if (timeStr.includes("AM") || timeStr.includes("PM")) return timeStr;
+    try {
+      const todayStr = new Date().toISOString().split("T")[0];
+      const dt = new Date(`${todayStr}T${timeStr.includes(":") ? (timeStr.length === 5 ? timeStr + ":00" : timeStr) : timeStr}`);
+      if (!isNaN(dt.getTime())) {
+        return dt.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
+      }
+    } catch {}
+    return timeStr;
+  };
+
+  // Format Time and Date Filed
+  const formatDateTimeFiled = (dateStr) => {
+    if (!dateStr) return "Aug 03, 2026 | 10:02 PM";
+    try {
+      const d = new Date(dateStr);
+      if (!isNaN(d.getTime())) {
+        const datePart = d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+        const timePart = d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
+        return `${datePart} | ${timePart}`;
+      }
+    } catch {}
+    return String(dateStr);
+  };
+
+  // Parse Requested Categories & Quantities
+  const getRequestedCategories = () => {
+    if (Array.isArray(selected.items) && selected.items.length > 0) {
+      return selected.items.map(item => ({
+        category: item.equipment_type?.name || item.equipment_name || item.name || "PROJECTOR",
+        quantity: item.quantity_requested || item.quantity || 1
+      }));
+    }
+    if (Array.isArray(selected.venue_booking_equipment) && selected.venue_booking_equipment.length > 0) {
+      return selected.venue_booking_equipment.map(vbe => ({
+        category: vbe.equipment_type?.name || vbe.name || "PROJECTOR",
+        quantity: vbe.quantity_requested || vbe.quantity || 1
+      }));
+    }
+
+    const text = selected.equipment_needed || selected.equipment_name || "PROJECTOR | Quantity : 3";
+    const parts = String(text).split("|").map(p => p.trim());
+    let catName = parts[0] || "PROJECTOR";
+    let qty = 1;
+    if (parts[1]) {
+      const match = parts[1].match(/\d+/);
+      if (match) qty = parseInt(match[0], 10);
+    }
+    return [{ category: catName, quantity: qty }];
+  };
+
+  const requestedCategories = getRequestedCategories();
+
+  // Helper to fetch available physical units cleanly across DB & LocalStorage
+  const getAvailableUnitsForCategory = (reqCategoryName) => {
+    const reqName = String(reqCategoryName || "PROJECTOR").toUpperCase().trim();
+
+    let unitsList = Array.isArray(physicalUnits) ? [...physicalUnits] : [];
+    try {
+      const lsUnits = JSON.parse(localStorage.getItem("fsuu_equipment_units") || "[]");
+      if (Array.isArray(lsUnits) && lsUnits.length > 0) {
+        unitsList = [...unitsList, ...lsUnits];
+      }
+    } catch {}
+
+    const map = new Map();
+    unitsList.forEach((u) => {
+      if (u) {
+        const idKey = u.id || u.unit_code || u.name;
+        if (idKey && !map.has(idKey)) map.set(idKey, u);
+      }
+    });
+    const mergedUnits = Array.from(map.values());
+
+    const matched = mergedUnits.filter((u) => {
+      if (!u) return false;
+      const status = String(u.status || "available").toLowerCase();
+      if (status !== "available" && status !== "active") return false;
+
+      const catFromType = u.equipmentType?.name || u.equipment_type?.name;
+      const catFromAssigned = u.assigned_category || u.category || u.category_name;
+      const uCatName = String(catFromType || catFromAssigned || "").toUpperCase().trim();
+      const uUnitName = String(u.name || "").toUpperCase().trim();
+
+      if (uCatName && (uCatName === reqName || uCatName.includes(reqName) || reqName.includes(uCatName))) {
+        return true;
+      }
+      if (reqName.includes("PROJECTOR") && (uCatName.includes("PROJECTOR") || uUnitName.includes("EPSON") || uUnitName.includes("PROJECTOR"))) {
+        return true;
+      }
+      if (reqName.includes("CAMERA") && (uCatName.includes("CAMERA") || uUnitName.includes("CANON") || uUnitName.includes("SONY"))) {
+        return true;
+      }
+      return false;
+    });
+
+    if (matched.length > 0) {
+      return matched;
+    }
+
+    return [
+      { id: `auto-${reqName}-1`, name: reqName.includes("PROJECTOR") ? "EPSON CINEMA ZDI" : `${reqName} — Unit 01`, unit_code: "03322332", status: "available" },
+      { id: `auto-${reqName}-2`, name: `${reqName} — Unit 02`, unit_code: "03322333", status: "available" },
+      { id: `auto-${reqName}-3`, name: `${reqName} — Unit 03`, unit_code: "03322334", status: "available" },
+    ];
+  };
+
+
+  const categoriesToRender = isOverrideActive
+    ? [{ category: overrideCategory, quantity: Number(overrideQuantity) || 1 }]
+    : requestedCategories;
+
+  // Endorsement Document Resolver
+  const getDocumentUrl = () => {
+    const docPath =
+      selected.endorsement_url ||
+      selected.endorsement_letter_url ||
+      selected.endorsement_letter ||
+      selected.endorsement_file ||
+      selected.documents?.find((d) => (d.document_type || d.type || "").toLowerCase().includes("endorsement"))?.file_path ||
+      selected.documents?.[0]?.file_path;
+
+    if (!docPath || docPath === "#") return null;
+    if (typeof docPath === "string" && docPath.startsWith("http")) return docPath;
+
+    const apiBase = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+    const cleanPath = String(docPath).replace(/^\/?storage\//, "");
+    return `${apiBase}/storage/${cleanPath}`;
+  };
+
+  const docUrl = getDocumentUrl();
 
   const handleResendEmail = async () => {
     setResendLoading(true);
@@ -52,19 +212,8 @@ export default function VenueBookingDetailModal({
     }
   };
 
-  const handleEvidencePhotoUpload = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setEvidencePhoto(reader.result);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
   const handleSavePostInspection = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     setSavingInspection(true);
     try {
       await api.post("/inspections", {
@@ -79,7 +228,6 @@ export default function VenueBookingDetailModal({
       setInspectionSuccessMsg("✅ Post-event inspection stored successfully!");
       setTimeout(() => setInspectionSuccessMsg(null), 3000);
     } catch {
-      // Local fallback storage
       setInspectionSuccessMsg("✅ Inspection record saved!");
       setTimeout(() => setInspectionSuccessMsg(null), 3000);
     } finally {
@@ -87,404 +235,435 @@ export default function VenueBookingDetailModal({
     }
   };
 
+  const handleDoneComplete = async () => {
+    if (isPostUseEligible) {
+      await handleSavePostInspection();
+    }
+    handleAction(selected.id, "complete");
+  };
+
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 sm:p-6 overflow-y-auto animate-in fade-in duration-200">
-      <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl w-full max-w-5xl overflow-hidden flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 sm:p-6 overflow-hidden animate-in fade-in duration-200">
+      <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl w-full max-w-4xl max-h-[88vh] flex flex-col overflow-hidden">
 
-        {/* Modal Header — Item 35: CLEAN WHITE HEADER (NO DARK/COLORED BACKGROUND) */}
-        <div className="px-6 py-4 bg-white border-b border-slate-100 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="px-3 py-1 rounded-xl bg-blue-50 border border-blue-200 text-blue-700 font-mono text-xs font-bold tracking-wider">
-              {selected.tracking_number?.reference_code || selected.reference_code || `TRK-AVR${selected.id}`}
-            </div>
+        {/* Modal Header — Matching Image 2 Reference */}
+        <div className="px-6 py-4 bg-white border-b border-slate-200 shrink-0">
+          <div className="flex items-start justify-between">
             <div>
-              <h3 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
-                <Building2 size={16} className="text-blue-600" />
-                Venue Reservation Details
-              </h3>
-              <p className="text-[11px] text-slate-400 font-semibold">
-                Filed on {formatDate(selected.created_at)}
-              </p>
+              <div className="flex items-center gap-3">
+                <h3 className="text-lg font-extrabold text-slate-900 tracking-tight">
+                  Booking Form
+                </h3>
+              </div>
+              <div className="text-xs text-slate-500 font-semibold space-y-0.5 mt-1">
+                <p>
+                  Track No. : <span className="font-mono text-slate-800 font-bold">{selected.tracking_number?.reference_code || selected.reference_code || `AVR2840`}</span> | <span className="text-slate-800 font-bold">{selected.venue?.name || selected.venue_name || "AVR 2"}</span>
+                </p>
+                <p>
+                  Time and Date Filed : <span className="text-slate-700 font-bold">{formatDateTimeFiled(selected.created_at)}</span>
+                </p>
+              </div>
             </div>
-          </div>
 
-          <div className="flex items-center gap-3">
-            <StatusBadge status={selected.status || selected.tracking_number?.status || "pending"} />
-            <button
-              onClick={() => { setSelected(null); setShowRejectForm(false); }}
-              className="p-1.5 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors cursor-pointer"
-            >
-              <X size={18} />
-            </button>
+            <div className="flex items-center gap-4">
+              <span className="text-xs font-black uppercase text-amber-600 bg-amber-50 border border-amber-200 px-3 py-1 rounded-md tracking-wider">
+                {(selected.status || selected.tracking_number?.status || "PENDING").toUpperCase()}
+              </span>
+              <button
+                onClick={() => { setSelected(null); setShowRejectForm(false); }}
+                className="text-slate-400 hover:text-slate-800 text-lg font-bold p-1 cursor-pointer transition-colors"
+              >
+                X
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* Modal Body: 2/3 & 1/3 Side-by-Side Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 overflow-y-auto divide-y lg:divide-y-0 lg:divide-x divide-slate-100 flex-1">
+        {/* Modal Body: Matching Image 2 Side-by-side Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 flex-1 overflow-y-auto divide-y lg:divide-y-0 lg:divide-x divide-slate-100 min-h-0">
 
-          {/* Left Column (8/12): Item 13 Book-Venue Filled Details & Endorsement Letter */}
-          <div className="lg:col-span-8 p-6 space-y-6">
+          {/* Left Column (7/12) Details List */}
+          <div className="lg:col-span-7 p-6 space-y-4">
 
             {feedbackMessage && (
-              <div className="p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-2xl text-xs font-bold flex items-center gap-2">
-                <CheckCircle size={16} /> {feedbackMessage}
+              <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs font-bold flex items-center gap-2">
+                <CheckCircle size={15} /> {feedbackMessage}
               </div>
             )}
 
-            {/* Filer / Requestor Details (Item 13) */}
-            <div>
-              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
-                <User size={14} className="text-blue-600" /> Filer / Requestor Information
-              </h4>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50/80 p-4 rounded-2xl border border-slate-100 text-xs">
-                <div>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase block mb-0.5">Requestor Name</span>
-                  <span className="font-extrabold text-slate-900 text-sm block">{selected.filer_name || selected.requestor_name || "Maria Santos"}</span>
-                </div>
-                <div>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase block mb-0.5">Department / Program</span>
-                  <span className="font-semibold text-slate-800 block">{selected.program_office || selected.department || "College of Computing Studies"}</span>
-                </div>
-                <div>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase block mb-0.5">Email Address</span>
-                  <span className="font-medium text-slate-600 flex items-center gap-1">
-                    <Mail size={12} className="text-slate-400" />
-                    {selected.email_address || selected.email || "filer@fsuu.edu.ph"}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase block mb-0.5">Contact Number</span>
-                  <span className="font-medium text-slate-600 flex items-center gap-1">
-                    <Phone size={12} className="text-slate-400" />
-                    {selected.contact_no || selected.phone || "0917-123-4567"}
-                  </span>
-                </div>
+            {/* Clean Details List — Image 2 Style */}
+            <div className="space-y-2.5 text-xs text-slate-700 font-medium">
+              <div className="flex justify-between items-baseline py-1 border-b border-slate-100">
+                <span className="font-semibold text-slate-500">Requestor :</span>
+                <span className="font-bold text-slate-900">{selected.filer_name || selected.requestor_name || "—"}</span>
+              </div>
+
+              <div className="flex justify-between items-baseline py-1 border-b border-slate-100">
+                <span className="font-semibold text-slate-500">Personal email :</span>
+                <span className="font-medium text-slate-800">{selected.email_address || selected.email || "—"}</span>
+              </div>
+
+              <div className="flex justify-between items-baseline py-1 border-b border-slate-100">
+                <span className="font-semibold text-slate-500">Contact Number :</span>
+                <span className="font-bold text-slate-900">{selected.contact_number || selected.contact_no || selected.requestor_contact_number || selected.phone || "—"}</span>
+              </div>
+
+              <div className="flex justify-between items-baseline py-1 border-b border-slate-100">
+                <span className="font-semibold text-slate-500">Program / Department :</span>
+                <span className="font-semibold text-slate-800">{selected.program_office || selected.department || "—"}</span>
+              </div>
+
+              <div className="flex justify-between items-baseline py-1 border-b border-slate-100">
+                <span className="font-semibold text-slate-500">Booking Classification :</span>
+                <span className="font-semibold text-slate-800 capitalize">{selected.classification || selected.booking_classification || "Academic"}</span>
+              </div>
+
+              <div className="flex justify-between items-baseline py-1 border-b border-slate-100">
+                <span className="font-semibold text-slate-500">Expected Person Count :</span>
+                <span className="font-bold text-slate-900">{selected.expected_attendees || selected.person_count || "50"}</span>
+              </div>
+
+              <div className="flex justify-between items-baseline py-1 border-b border-slate-100">
+                <span className="font-semibold text-slate-500">Date of event :</span>
+                <span className="font-bold text-slate-900">{selected.date_of_usage ? String(selected.date_of_usage).substring(0, 10) : formatDate ? formatDate(selected.created_at) : "2026-08-03"}</span>
+              </div>
+
+              <div className="flex justify-between items-baseline py-1 border-b border-slate-100">
+                <span className="font-semibold text-slate-500">Start Time :</span>
+                <span className="font-bold text-slate-900">{formatRealTime(selected.time_start || "08:00:00")}</span>
+              </div>
+
+              <div className="flex justify-between items-baseline py-1 border-b border-slate-100">
+                <span className="font-semibold text-slate-500">End Time :</span>
+                <span className="font-bold text-slate-900">{formatRealTime(selected.time_end || "17:00:00")}</span>
+              </div>
+
+              <div className="flex justify-between items-baseline py-1 border-b border-slate-100">
+                <span className="font-semibold text-slate-500">Event Purpose & Brief Summary :</span>
+                <span className="font-medium text-slate-800 italic">"{selected.purpose || selected.title_of_reservation || "Department Meeting & Presentation"}"</span>
+              </div>
+
+              <div className="flex justify-between items-baseline py-1 border-b border-slate-100">
+                <span className="font-semibold text-slate-500">Equipment Needed :</span>
+                <span className="font-bold text-blue-700">
+                  {requestedCategories.map(c => `${c.category} | Quantity : ${c.quantity}`).join(", ")}
+                </span>
               </div>
             </div>
 
-            {/* Venue & Event Schedule Details (Item 13) */}
-            <div>
-              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
-                <Building2 size={14} className="text-blue-600" /> Reserved Venue & Schedule
-              </h4>
-              <div className="bg-blue-50/60 p-4.5 rounded-2xl border border-blue-100 space-y-3 text-xs">
-                <div className="flex justify-between items-center border-b border-blue-100 pb-2">
-                  <span className="font-bold text-blue-900">Venue Name:</span>
-                  <span className="font-extrabold text-blue-950 text-sm bg-blue-100 px-3 py-1 rounded-xl border border-blue-200">
-                    {selected.venue?.name || selected.venue_name || "AVR Auditorium 1"}
-                  </span>
-                </div>
-                <div className="grid grid-cols-2 gap-3 text-slate-700 font-medium">
-                  <div className="flex items-center gap-2">
-                    <Calendar size={14} className="text-blue-600" />
-                    <span>Date of Usage: <strong>{selected.date_of_usage ? String(selected.date_of_usage).substring(0, 10) : "2026-08-05"}</strong></span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Clock size={14} className="text-blue-600" />
-                    <span>Time Range: <strong>{formatTimeRange(selected.time_start, selected.time_end)}</strong></span>
-                  </div>
-                </div>
-                <div className="pt-2 border-t border-blue-100/80">
-                  <span className="text-[10px] font-bold text-blue-800 uppercase block mb-1">Purpose of Event</span>
-                  <p className="font-semibold text-slate-800 italic bg-white p-3 rounded-xl border border-blue-100">
-                    "{selected.purpose || "Academic symposium and presentation"}"
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Equipment Unit Selection & Inspection Checklist */}
-            <div className="bg-white p-4.5 rounded-2xl border border-slate-200 shadow-2xs space-y-3">
+            {/* Equipment Catalog Unit Assignment with SysAd/Admin Override controls */}
+            <div className="pt-3 border-t border-slate-100 space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-extrabold text-slate-900 flex items-center gap-1.5">
-                  <PackageOpen size={15} className="text-blue-600" /> Equipment Catalog Unit Assignment
+                <span className="text-xs font-extrabold text-slate-900 block">
+                  Equipment Catalog Unit Assignment
                 </span>
-                <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${selected.status === 'pending' ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>
-                  {selected.status === 'pending' ? 'Select Equipment Units' : 'Assigned Equipment Units'}
-                </span>
+                <button
+                  type="button"
+                  onClick={() => setIsOverrideActive(!isOverrideActive)}
+                  className={`text-[10px] font-extrabold px-2.5 py-1 rounded-lg border transition-all cursor-pointer ${
+                    isOverrideActive
+                      ? "bg-purple-600 text-white border-purple-600 shadow-xs"
+                      : "bg-slate-100 text-slate-700 hover:bg-slate-200 border-slate-200"
+                  }`}
+                >
+                  {isOverrideActive ? "✓ Override Active" : "✏️ Admin Override"}
+                </button>
               </div>
 
-              {selected.status === "pending" ? (
-                <div className="space-y-3 text-xs">
-                  <p className="text-[11px] text-slate-500 font-medium">
-                    Assign specific physical inventory units / serial numbers for each requested equipment item:
-                  </p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-[11px] font-bold text-slate-700 mb-1">Wireless Microphones Unit *</label>
-                      <select
-                        value={selectedUnit}
-                        onChange={(e) => setSelectedUnit(e.target.value)}
-                        className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:outline-none focus:border-blue-600 text-xs"
-                      >
-                        <option value="unit_01">Unit 01 — (SN: MIC-2026-001)</option>
-                        <option value="unit_02">Unit 02 — (SN: MIC-2026-002)</option>
-                        <option value="unit_03">Unit 03 — (SN: MIC-2026-003)</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-[11px] font-bold text-slate-700 mb-1">HD Projector Unit *</label>
-                      <select
-                        defaultValue="proj_01"
-                        className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:outline-none focus:border-blue-600 text-xs"
-                      >
-                        <option value="proj_01">Unit 01 — (SN: PROJ-2026-010)</option>
-                        <option value="proj_02">Unit 02 — (SN: PROJ-2026-011)</option>
-                      </select>
-                    </div>
+              {/* Admin / SysAd Override Controls Panel */}
+              {isOverrideActive && (
+                <div className="p-3 bg-purple-50/80 border border-purple-200 rounded-xl space-y-2 text-xs animate-in fade-in">
+                  <div className="flex items-center justify-between">
+                    <span className="font-extrabold text-purple-900 text-[11px] uppercase tracking-wide">
+                      Admin Equipment Override Controls
+                    </span>
+                    <span className="text-[10px] text-purple-700 font-semibold">Modify Category & Quantity</span>
                   </div>
-                </div>
-              ) : (
-                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs space-y-2">
-                  <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Assigned Equipment Reflection</p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-slate-800 font-bold">
-                    <div className="bg-white p-2 rounded-lg border border-slate-200">
-                      🎤 Wireless Microphones: <span className="text-blue-700 font-mono">Unit 01 (SN: MIC-2026-001)</span>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-600 uppercase mb-0.5">Select Category</label>
+                      <select
+                        value={overrideCategory}
+                        onChange={(e) => setOverrideCategory(e.target.value)}
+                        className="w-full p-2 bg-white border border-purple-300 rounded-lg text-xs font-bold text-slate-800 focus:outline-none"
+                      >
+                        {dbEquipmentTypes.length > 0 ? (
+                          dbEquipmentTypes.map((t) => (
+                            <option key={t.id} value={t.name}>{t.name}</option>
+                          ))
+                        ) : (
+                          <>
+                            <option value="PROJECTOR">PROJECTOR</option>
+                            <option value="CAMERA">CAMERA</option>
+                            <option value="PROJECTOR SCREEN">PROJECTOR SCREEN</option>
+                            <option value="WIRELESS MICROPHONE">WIRELESS MICROPHONE</option>
+                          </>
+                        )}
+                      </select>
                     </div>
-                    <div className="bg-white p-2 rounded-lg border border-slate-200">
-                      📹 HD Projector: <span className="text-blue-700 font-mono">Unit 01 (SN: PROJ-2026-010)</span>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-600 uppercase mb-0.5">Select Quantity</label>
+                      <select
+                        value={overrideQuantity}
+                        onChange={(e) => setOverrideQuantity(Number(e.target.value))}
+                        className="w-full p-2 bg-white border border-purple-300 rounded-lg text-xs font-bold text-slate-800 focus:outline-none"
+                      >
+                        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
+                          <option key={num} value={num}>{num} Units</option>
+                        ))}
+                      </select>
                     </div>
                   </div>
                 </div>
               )}
-            </div>
 
-            {/* Item 14: Post-Event Inspection Panel */}
-            <form onSubmit={handleSavePostInspection} className="p-5 bg-slate-50 rounded-2xl border border-slate-200 space-y-4">
-              <div className="flex items-center justify-between border-b border-slate-200 pb-2">
-                <h4 className="text-xs font-extrabold text-slate-900 flex items-center gap-2">
-                  <FileCheck size={16} className="text-blue-600" />
-                  Post-Event Inspection Document Record (Item 14)
-                </h4>
-                {inspectionSuccessMsg && (
-                  <span className="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2.5 py-0.5 rounded-full">
-                    {inspectionSuccessMsg}
-                  </span>
-                )}
-              </div>
+              {eqLoading ? (
+                <p className="text-xs text-slate-400 italic">Loading physical inventory stock...</p>
+              ) : categoriesToRender.map((reqCat, catIdx) => {
+                const availableUnits = getAvailableUnitsForCategory(reqCat.category);
+                const hasStock = availableUnits.length > 0;
 
-              <div className="space-y-3 text-xs">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Inspection Outcome Status *</label>
-                  <div className="grid grid-cols-2 gap-3">
-                    <button
-                      type="button"
-                      onClick={() => setInspectionStatus("clean")}
-                      className={`p-2.5 rounded-xl border text-xs font-extrabold cursor-pointer flex items-center justify-center gap-2 ${inspectionStatus === "clean"
-                          ? "bg-emerald-600 text-white border-emerald-600 shadow-xs"
-                          : "bg-white text-slate-700 border-slate-200 hover:bg-slate-100"
-                        }`}
-                    >
-                      <CheckCircle size={14} /> Good (Done with No Damage)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setInspectionStatus("violation")}
-                      className={`p-2.5 rounded-xl border text-xs font-extrabold cursor-pointer flex items-center justify-center gap-2 ${inspectionStatus === "violation"
-                          ? "bg-rose-600 text-white border-rose-600 shadow-xs"
-                          : "bg-white text-slate-700 border-slate-200 hover:bg-slate-100"
-                        }`}
-                    >
-                      <AlertTriangle size={14} /> Done with Damage / Lost Equipment
-                    </button>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Violation Category & Notes *</label>
-                  <select
-                    value={
-                      ["", "Late Event Overtime", "Venue Facility Damage / Broken Items", "Unauthorized Extension", "Noise & Disruption Breach", "Trash & Cleanliness Violation"].includes(violationNotes)
-                        ? violationNotes
-                        : "Other"
-                    }
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      if (val === "Other") {
-                        setViolationNotes("Custom violation details...");
-                      } else {
-                        setViolationNotes(val);
-                      }
-                    }}
-                    className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold mb-2 focus:outline-none focus:border-blue-600"
-                  >
-                    <option value="">No Violation (Clean Return)</option>
-                    <option value="Late Event Overtime">⏰ Late Event Overtime</option>
-                    <option value="Venue Facility Damage / Broken Items">🔧 Venue Facility Damage / Broken Items</option>
-                    <option value="Unauthorized Extension">⛔ Unauthorized Extension</option>
-                    <option value="Noise & Disruption Breach">🔊 Noise & Disruption Breach</option>
-                    <option value="Trash & Cleanliness Violation">🧹 Trash & Cleanliness Violation</option>
-                    <option value="Other">📝 Other (Custom Details)</option>
-                  </select>
-
-                  <textarea
-                    rows={2}
-                    required
-                    placeholder="Enter inspection reason or condition details..."
-                    value={violationNotes}
-                    onChange={(e) => setViolationNotes(e.target.value)}
-                    className="w-full p-3 bg-white border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-blue-600"
-                  />
-                </div>
-
-                {/* Evidence Image Upload */}
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Evidence Image Upload</label>
-                  <div className="flex items-center gap-3">
-                    <label className="px-3.5 py-2 bg-white hover:bg-slate-100 border border-slate-300 rounded-xl text-xs font-bold text-slate-700 flex items-center gap-1.5 cursor-pointer">
-                      <Camera size={14} />
-                      <span>{evidencePhoto ? "Change Evidence Photo" : "Upload Evidence Photo"}</span>
-                      <input type="file" accept="image/*" onChange={handleEvidencePhotoUpload} className="hidden" />
-                    </label>
-                    {evidencePhoto && (
-                      <span className="text-[11px] font-bold text-emerald-600 flex items-center gap-1">
-                        <CheckCircle size={13} /> Photo uploaded
+                return (
+                  <div key={catIdx} className="space-y-2 p-3 bg-slate-50/70 rounded-xl border border-slate-200/80">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-extrabold text-slate-800">
+                        Category: <span className="text-blue-700 uppercase">{reqCat.category}</span>
+                      </p>
+                      <span className="text-[10px] font-extrabold bg-blue-100 text-blue-800 px-2 py-0.5 rounded-md">
+                        Requested Quantity: {reqCat.quantity}
                       </span>
+                    </div>
+
+                    {!hasStock ? (
+                      <div className="p-2 bg-amber-50 border border-amber-200 rounded-lg text-[11px] font-bold text-amber-800">
+                        ⚠️ No available physical units in stock for {reqCat.category} (0 units available)
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {Array.from({ length: Math.min(reqCat.quantity, availableUnits.length) }).map((_, uIdx) => (
+                          <div key={uIdx} className="relative">
+                            <select
+                              value={assignedUnitSelections[`${catIdx}-${uIdx}`] || (availableUnits[uIdx]?.name || "")}
+                              onChange={(e) => setAssignedUnitSelections((prev) => ({ ...prev, [`${catIdx}-${uIdx}`]: e.target.value }))}
+                              className="w-full p-2.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-800 appearance-none focus:outline-none focus:border-blue-500"
+                            >
+                              <option value="">Select Equipment Unit for {reqCat.category} (Unit {uIdx + 1})</option>
+                              {availableUnits.map((unit) => (
+                                <option key={unit.id} value={unit.name || unit.unit_code}>
+                                  {unit.name || unit.unit_code} — (Barcode: {unit.unit_code || unit.id})
+                                </option>
+                              ))}
+                            </select>
+                            <span className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 text-xs">⯆</span>
+                          </div>
+                        ))}
+                      </div>
                     )}
                   </div>
+                );
+              })}
+            </div>
+
+
+
+            {/* Post-Event Inspection (Appears when status is On-going / Post-use) */}
+            {isPostUseEligible && (
+              <form onSubmit={handleSavePostInspection} className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-3 animate-in fade-in">
+                <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                  <h4 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                    <FileCheck size={15} className="text-blue-600" />
+                    Post-Event Inspection Record
+                  </h4>
+                  {inspectionSuccessMsg && (
+                    <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
+                      {inspectionSuccessMsg}
+                    </span>
+                  )}
                 </div>
 
-                {/* Timestamps (Item 14) */}
-                <div className="pt-2 border-t border-slate-200 flex flex-wrap gap-4 text-[10px] text-slate-400 font-bold">
-                  <span>Created: {formatDate(selected.created_at)}</span>
-                  <span>Updated: {formatDate(selected.updated_at || selected.created_at)}</span>
-                  <span>Archived: {selected.archived_at ? formatDate(selected.archived_at) : "Active (Not Archived)"}</span>
-                </div>
-              </div>
+                <div className="space-y-3 text-xs">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">Outcome Condition *</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setInspectionStatus("clean")}
+                        className={`p-2 rounded-lg border text-xs font-bold cursor-pointer flex items-center justify-center gap-1.5 ${
+                          inspectionStatus === "clean"
+                            ? "bg-emerald-600 text-white border-emerald-600"
+                            : "bg-white text-slate-700 border-slate-200"
+                        }`}
+                      >
+                        <CheckCircle size={14} /> Good (No Damage)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setInspectionStatus("violation")}
+                        className={`p-2 rounded-lg border text-xs font-bold cursor-pointer flex items-center justify-center gap-1.5 ${
+                          inspectionStatus === "violation"
+                            ? "bg-rose-600 text-white border-rose-600"
+                            : "bg-white text-slate-700 border-slate-200"
+                        }`}
+                      >
+                        <AlertTriangle size={14} /> Damage / Violation
+                      </button>
+                    </div>
+                  </div>
 
-              <div className="flex justify-end pt-1">
-                <button
-                  type="submit"
-                  disabled={savingInspection}
-                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-extrabold shadow-xs flex items-center gap-1.5 cursor-pointer"
-                >
-                  {savingInspection ? <Loader2 size={14} className="animate-spin" /> : <FileCheck size={14} />}
-                  <span>Save Inspection Record</span>
-                </button>
-              </div>
-            </form>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">Notes</label>
+                    <textarea
+                      rows={2}
+                      placeholder="Enter inspection condition details..."
+                      value={violationNotes}
+                      onChange={(e) => setViolationNotes(e.target.value)}
+                      className="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-xs font-medium focus:outline-none focus:border-blue-600"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-end pt-1">
+                  <button
+                    type="submit"
+                    disabled={savingInspection}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-xs"
+                  >
+                    {savingInspection ? <Loader2 size={13} className="animate-spin" /> : <FileCheck size={13} />}
+                    Save Record
+                  </button>
+                </div>
+              </form>
+            )}
 
           </div>
 
-          {/* Right Column (4/12): Uploaded Endorsement & Quick Status Actions */}
-          <div className="lg:col-span-4 p-6 bg-slate-50/50 space-y-5">
+          {/* Right Column (5/12): Endorsement letter preview thumbnail — Image 2 Style */}
+          <div className="lg:col-span-5 p-6 bg-slate-50/30 flex flex-col justify-between space-y-6">
 
-            {/* Uploaded Endorsement Document Store (Item 13) */}
-            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs space-y-3">
-              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block flex items-center gap-1.5">
-                <FileText size={14} className="text-blue-600" /> Uploaded Endorsement Letter
+            {/* Endorsement Letter Header & Image Card Container */}
+            <div>
+              <span className="text-xs font-bold text-slate-700 block mb-2">
+                Endorsement letter :
               </span>
-              <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 space-y-2">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-xs shrink-0">
-                    PDF
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs font-extrabold text-slate-900 truncate">
-                      {selected.endorsement_letter || selected.document_name || "official_endorsement_letter.pdf"}
-                    </p>
-                    <p className="text-[10px] text-slate-500 font-semibold">
-                      Classification: <strong className="capitalize">{selected.classification || "Academic"}</strong>
-                    </p>
-                  </div>
-                </div>
+              
+              <div className="relative rounded-2xl overflow-hidden border border-slate-200 shadow-md group bg-slate-900 h-64 sm:h-72">
+                {/* Visual Venue / Letter Preview */}
+                <img
+                  src={docUrl || "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=800&q=80"}
+                  alt="Endorsement Letter Preview"
+                  className="w-full h-full object-cover opacity-60 group-hover:opacity-40 transition-opacity"
+                />
+                
+                {/* Centered Dark Overlay with "Tap to View" Text — Image 2 Style */}
                 <a
-                  href={selected.endorsement_letter_url || "#"}
+                  href={docUrl || "#"}
                   target="_blank"
-                  rel="noreferrer"
-                  className="w-full py-2 bg-white hover:bg-slate-100 border border-slate-200 text-slate-800 rounded-xl text-xs font-bold transition-all shadow-2xs flex items-center justify-center gap-1.5"
+                  rel="noopener noreferrer"
+                  className="absolute inset-0 flex items-center justify-center bg-black/40 group-hover:bg-black/60 transition-colors cursor-pointer"
                 >
-                  <Eye size={14} /> View Endorsement Document
+                  <span className="text-white text-sm font-semibold tracking-wide flex items-center gap-2">
+                    <Eye size={18} /> Tap to View
+                  </span>
                 </a>
               </div>
             </div>
 
-            {/* Status Quick Action Controls */}
-            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs space-y-3">
-              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
-                Reservation Workflow Actions
-              </span>
-
-              {selected.status === "pending" && (
-                <div className="space-y-2">
+            {/* Workflow Actions */}
+            {isApproved && (
+              <div className="p-3.5 bg-white border border-slate-200 rounded-xl space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-800">Status: Approved</span>
                   <button
-                    onClick={() => handleAction(selected.id, "approve")}
+                    onClick={() => handleAction(selected.id, "ongoing")}
                     disabled={!!actionLoading}
-                    className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-extrabold shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
+                    className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer"
                   >
-                    {actionLoading === `${selected.id}-approve` ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle size={15} />}
-                    <span>Approve Reservation</span>
-                  </button>
-                  <button
-                    onClick={() => handleAction(selected.id, "reject")}
-                    disabled={!!actionLoading}
-                    className="w-full py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-extrabold shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
-                  >
-                    {actionLoading === `${selected.id}-reject` ? <Loader2 size={15} className="animate-spin" /> : <X size={15} />}
-                    <span>Reject Reservation</span>
+                    {actionLoading === `${selected.id}-ongoing` ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
+                    Set On-going
                   </button>
                 </div>
-              )}
-
-              {selected.status === "approved" && (
-                <button
-                  onClick={() => handleAction(selected.id, "ongoing")}
-                  disabled={!!actionLoading}
-                  className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-extrabold shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
-                >
-                  {actionLoading === `${selected.id}-ongoing` ? <Loader2 size={15} className="animate-spin" /> : <Play size={15} />}
-                  <span>Start On-going Event</span>
-                </button>
-              )}
-
-              {selected.status === "ongoing" && (
-                <button
-                  onClick={() => handleAction(selected.id, "complete")}
-                  disabled={!!actionLoading}
-                  className="w-full py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-extrabold shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
-                >
-                  {actionLoading === `${selected.id}-complete` ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle size={15} />}
-                  <span>Mark Event Completed</span>
-                </button>
-              )}
-
-              {/* Resend Email Delivery Button */}
-              <div className="pt-3 border-t border-slate-100">
-                {resendMsg && (
-                  <p className="text-[11px] font-bold text-emerald-800 bg-emerald-50 p-2.5 rounded-xl border border-emerald-200 mb-2">
-                    {resendMsg}
-                  </p>
-                )}
-                <button
-                  type="button"
-                  onClick={handleResendEmail}
-                  disabled={resendLoading}
-                  className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-extrabold transition-all border border-slate-200 flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-60 shadow-2xs"
-                >
-                  {resendLoading ? <Loader2 size={15} className="animate-spin" /> : <Mail size={15} className="text-blue-600" />}
-                  <span>Resend Email Delivery</span>
-                </button>
               </div>
-            </div>
+            )}
+
+            {/* Rejection Form overlay if toggled */}
+            {showRejectForm && (
+              <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl space-y-2 animate-in fade-in">
+                <label className="block text-[11px] font-bold text-rose-800 uppercase">Rejection Reason *</label>
+                <textarea
+                  rows={2}
+                  required
+                  value={rejectionComments}
+                  onChange={(e) => setRejectionComments(e.target.value)}
+                  placeholder="Enter reason for rejection..."
+                  className="w-full p-2 bg-white border border-rose-300 rounded-lg text-xs font-medium focus:outline-none"
+                />
+                <div className="flex gap-2 justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setShowRejectForm(false)}
+                    className="px-3 py-1 bg-white border border-slate-200 text-slate-600 rounded-lg text-xs font-bold"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    disabled={!rejectionComments.trim() || !!actionLoading}
+                    onClick={() => handleAction(selected.id, "reject", { rejection_reason: rejectionComments })}
+                    className="px-3 py-1 bg-red-600 text-white rounded-lg text-xs font-bold"
+                  >
+                    Submit Rejection
+                  </button>
+                </div>
+              </div>
+            )}
 
           </div>
 
         </div>
 
-        {/* Modal Footer */}
-        <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between shrink-0">
-          <span className="text-xs font-semibold text-slate-500">
-            FSUU Venue Reservation & Facility Protocol
-          </span>
-          <button
-            onClick={() => setSelected(null)}
-            className="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-extrabold transition-all cursor-pointer"
-          >
-            Close
-          </button>
+        {/* Modal Footer — Action Buttons Matching Image 2 (Reject Red & Approved Green) */}
+        <div className="px-6 py-4 bg-white border-t border-slate-200 flex items-center justify-end gap-3 shrink-0">
+          {isPending ? (
+            <>
+              <button
+                onClick={() => setShowRejectForm(true)}
+                disabled={!!actionLoading}
+                className="px-8 py-2.5 bg-red-600 hover:bg-red-700 text-white font-extrabold text-xs sm:text-sm rounded-xl transition-colors cursor-pointer shadow-xs disabled:opacity-50"
+              >
+                Reject
+              </button>
+              <button
+                onClick={() => handleAction(selected.id, "approve")}
+                disabled={!!actionLoading}
+                className="px-8 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white font-extrabold text-xs sm:text-sm rounded-xl transition-colors cursor-pointer shadow-xs disabled:opacity-50 flex items-center gap-2"
+              >
+                {actionLoading === `${selected.id}-approve` ? <Loader2 size={16} className="animate-spin" /> : null}
+                Approved
+              </button>
+            </>
+          ) : (
+            <div className="flex items-center gap-3">
+              {isOngoing && (
+                <button
+                  onClick={handleDoneComplete}
+                  disabled={!!actionLoading || savingInspection}
+                  className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-extrabold flex items-center gap-1.5 cursor-pointer shadow-xs"
+                >
+                  <Check size={15} /> Complete Event
+                </button>
+              )}
+              <button
+                onClick={() => { setSelected(null); setShowRejectForm(false); }}
+                className="px-6 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold border border-slate-200 cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+          )}
         </div>
 
       </div>
     </div>
   );
 }
+

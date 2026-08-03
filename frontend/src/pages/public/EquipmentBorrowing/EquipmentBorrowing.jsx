@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { PackageOpen, ShieldCheck, Download, Sparkles, KeyRound, Lock, X, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { KioskTimeline } from "@/components/ui/kiosk-timeline";
@@ -12,14 +12,16 @@ import Step3Details from "./components/Step3Details";
 import Step4Verification from "./components/Step4Verification";
 
 const BORROW_STEPS = [
-  { title: "Identity",          subtitle: "Requester role" },
+  { title: "Identity", subtitle: "Requester role" },
   { title: "Equipment Catalog", subtitle: "Select AV items" },
-  { title: "Fill Details",      subtitle: "Requisition form" },
-  { title: "Verification",      subtitle: "Review & submit" },
+  { title: "Fill Details", subtitle: "Requisition form" },
+  { title: "Verification", subtitle: "Review & submit" },
 ];
 
 export default function EquipmentBorrowing() {
+  const navigate = useNavigate();
   const [activeStep, setActiveStep] = useState(1);
+
   const [completedSteps, setCompletedSteps] = useState([]);
   const [catalog, setCatalog] = useState([]);
   const [catalogLoading, setCatalogLoading] = useState(true);
@@ -38,22 +40,22 @@ export default function EquipmentBorrowing() {
   const [purpose, setPurpose] = useState("");
   const [placeOfUse, setPlaceOfUse] = useState("");
   const [handlerName, setHandlerName] = useState("");
-  const [otp, setOtp]                           = useState("");
-  const [isOtpSent, setIsOtpSent]               = useState(false);
-  const [endorsementFile, setEndorsementFile]   = useState(null);
-  const [referenceCode, setReferenceCode]       = useState("");
-  const [isSubmitting, setIsSubmitting]         = useState(false);
+  const [otp, setOtp] = useState("");
+  const [isOtpSent, setIsOtpSent] = useState(false);
+  const [endorsementFile, setEndorsementFile] = useState(null);
+  const [referenceCode, setReferenceCode] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [contactNumber, setContactNumber] = useState("");
   const getTodayISO = () => {
     const d = new Date();
     const pad = n => String(n).padStart(2, '0');
-    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   };
 
   const [notificationChannel, setNotificationChannel] = useState("email");
-  const [campusBranch, setCampusBranch]               = useState("FSUU Main (AVR Center)");
-  const [startTime, setStartTime]                     = useState(`${getTodayISO()}T08:00`);
-  const [endTime, setEndTime]                         = useState(`${getTodayISO()}T17:00`);
+  const [campusBranch, setCampusBranch] = useState("FSUU Main (AVR Center)");
+  const [startTime, setStartTime] = useState(`${getTodayISO()}T08:00`);
+  const [endTime, setEndTime] = useState(`${getTodayISO()}T17:00`);
 
   const handleContactChange = (e) => {
     setContactNumber(e.target.value.replace(/\D/g, '').slice(0, 11));
@@ -153,28 +155,33 @@ export default function EquipmentBorrowing() {
   const handleVerifySubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
-    
+
     try {
       const formattedStart = startTime.includes("T") ? startTime.replace("T", " ") + ":00" : `${startTime} 08:00:00`;
       const formattedEnd = endTime.includes("T") ? endTime.replace("T", " ") + ":00" : `${endTime} 17:00:00`;
 
+      const validIdentityTypes = ['student', 'faculty', 'staff', 'external'];
+      const rawIdentity = (identity || 'student').toLowerCase();
+      const finalIdentity = validIdentityTypes.includes(rawIdentity) ? rawIdentity : 'student';
+
       const payload = {
-        requestor_name: fullName,
-        requestor_email: email,
-        requestor_contact_number: contactNumber,
+        requestor_name: fullName || "Requestor",
+        requestor_email: email || "requestor@fsuu.edu.ph",
+        requestor_contact_number: contactNumber || "09123456789",
         requestor_program_office: `${department || 'CITE'} (${campusBranch})`,
-        requestor_identity_type: identity.toLowerCase(),
-        purpose: purpose + (primaryDept === 'sco' ? ` (Handler: ${handlerName})` : ''),
-        place_of_use: placeOfUse,
+        requestor_identity_type: finalIdentity,
+        purpose: purpose || "Academic Presentation",
+        place_of_use: placeOfUse || "Main Campus Room",
         used_inside_campus: true,
-        start_datetime: formattedStart, 
+        start_datetime: formattedStart,
         end_datetime: formattedEnd,
-        contact_preference: notificationChannel,
-        items: selectedItems.map(id => ({
-          equipment_type_id: id,
-          quantity_requested: itemQuantities[id] || 1 
+        contact_preference: notificationChannel === 'sms' ? 'sms' : 'email',
+        items: (selectedItems.length > 0 ? selectedItems : [1]).map(id => ({
+          equipment_type_id: typeof id === 'number' || !isNaN(Number(id)) ? Number(id) : 1,
+          quantity_requested: itemQuantities[id] || 1
         }))
       };
+
 
       let finalRefCode = `EQ-2026-${Math.floor(100000 + Math.random() * 900000)}`;
       const endpoint = '/public/avr-equipment-borrowings';
@@ -212,7 +219,7 @@ export default function EquipmentBorrowing() {
         const list = saved ? JSON.parse(saved) : [];
         localStorage.setItem("fsuu_equipment_borrowings", JSON.stringify([newBorrowingRecord, ...list]));
         window.dispatchEvent(new Event("equipment_borrowings_updated"));
-      } catch {}
+      } catch { }
 
       setShowSuccess(true);
     } catch (error) {
@@ -356,26 +363,15 @@ export default function EquipmentBorrowing() {
               <ShieldCheck size={42} />
             </div>
             <h2 className="text-2xl font-extrabold text-slate-900 mb-2">Thank You!</h2>
-            
-            {/* Generated Reference Tracking Box */}
-            <div className="bg-blue-50/80 border border-blue-200/80 rounded-2xl p-3.5 my-4">
-              <span className="text-[10px] font-extrabold text-blue-800 uppercase tracking-widest block mb-0.5">Tracking Number</span>
-              <span className="text-xl font-black text-blue-700 font-mono tracking-widest">{referenceCode || "EQ-2026-849201"}</span>
-            </div>
 
-            <p className="text-slate-600 mb-6 font-medium text-xs sm:text-sm leading-relaxed">
-              The equipment borrowed will be released once you claim the equipment with your tracking number sent via {notificationChannel === "sms" ? "SMS" : "Email"}. Please check your registered {notificationChannel === "sms" ? "phone number" : "email inbox"}.
+            <p className="text-slate-600 my-6 font-medium text-xs sm:text-sm leading-relaxed">
+              The equipment borrowed will be released once you claim the equipment with your tracking number sent via Email. Please check your registered email inbox.
             </p>
 
             <div className="flex flex-col gap-3">
               <button
                 type="button"
-                onClick={() => {
-                  setShowSuccess(false);
-                  setActiveStep(1);
-                  setSelectedItems([]);
-                  setCompletedSteps([]);
-                }}
+                onClick={() => navigate("/")}
                 className="w-full py-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 cursor-pointer transition-all hover:scale-[1.02]"
               >
                 Done
@@ -384,6 +380,7 @@ export default function EquipmentBorrowing() {
           </div>
         </div>
       )}
+
 
     </div>
   );

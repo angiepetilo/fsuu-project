@@ -240,8 +240,11 @@ export default function VerificationPinTab({
             <tbody className="divide-y divide-slate-200 font-semibold">
               {reqLoading ? (
                 <tr>
-                  <td colSpan={5} className="p-6 text-center text-slate-400">
-                    <Loader2 className="animate-spin inline mr-2" size={16} /> Loading requirements...
+                  <td colSpan={5} className="p-6 text-center">
+                    <div className="flex items-center justify-center gap-2 text-slate-400">
+                      <div className="w-4 h-4 rounded-full border-2 border-slate-200 border-t-blue-500 animate-spin" />
+                      <span className="text-xs font-semibold italic">Loading requirements...</span>
+                    </div>
                   </td>
                 </tr>
               ) : requirements.length === 0 ? (

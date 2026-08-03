@@ -80,7 +80,7 @@ export default function TrackBooking() {
 
   return (
     <div className="flex flex-col items-center w-full max-w-3xl mx-auto relative animate-in fade-in duration-500">
-      
+
       <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-10 w-full shadow-xs">
         <h2 className="text-2xl font-extrabold text-slate-900 text-center mb-2">
           Track Reservation & Loan Timeline
@@ -88,7 +88,7 @@ export default function TrackBooking() {
         <p className="text-slate-500 text-xs text-center mb-8 font-semibold">
           Enter your unique Tracking / Reference Code to view live progress & inspection updates.
         </p>
-        
+
         <form onSubmit={handleTrack} className="flex flex-col gap-4 mb-6">
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-bold text-slate-900 uppercase tracking-wide">
@@ -126,7 +126,7 @@ export default function TrackBooking() {
 
         {hasSearched && isFound && booking && (
           <div className="mt-8 pt-8 border-t border-slate-200/80 space-y-6">
-            
+
             {/* Header info */}
             <div className="flex justify-between items-center bg-slate-50 p-4.5 rounded-2xl border border-slate-200/60">
               <div className="flex items-center gap-3">
@@ -175,23 +175,23 @@ export default function TrackBooking() {
               </h4>
 
               <div className="relative flex justify-between items-start">
-                
+
                 {/* Connecting Line Track */}
                 <div className="absolute top-4 left-[18px] right-[18px] -translate-y-1/2 h-1 z-0 bg-slate-200 rounded-full">
-                  <div 
+                  <div
                     className="h-full bg-blue-600 rounded-full transition-all duration-700 ease-out"
                     style={{ width: `${Math.min(100, Math.max(0, (currentStep - 1) * 25))}%` }}
                   />
                 </div>
-                
+
                 {activeSteps.map((step, idx) => {
                   const stepNum = idx + 1;
                   const isActive = stepNum === currentStep;
                   const isCompleted = stepNum < currentStep;
-                  
+
                   return (
                     <div key={idx} className="relative z-20 flex flex-col items-center text-center max-w-[100px]">
-                      <div 
+                      <div
                         className={`w-9 h-9 rounded-full border-2 flex items-center justify-center text-xs font-extrabold transition-all
                           ${isCompleted ? 'bg-blue-600 border-blue-600 text-white shadow-xs' : ''}
                           ${isActive ? 'bg-blue-600 border-blue-600 text-white ring-4 ring-blue-600/25 scale-110 shadow-md' : ''}

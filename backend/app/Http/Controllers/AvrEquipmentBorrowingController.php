@@ -26,17 +26,27 @@ class AvrEquipmentBorrowingController extends Controller
         $user = auth()->user();
 
         $borrowings = EquipmentBorrowing::with('items.equipmentType', 'trackingNumber')
-            ->whereHas('trackingNumber', function ($q) {
-                $q->whereNotIn('status', ['completed', 'done', 'returned']);
+            ->where(function ($q) {
+                $q->whereHas('trackingNumber', function ($t) {
+                    $t->whereNotIn('status', ['completed', 'done', 'returned']);
+                })
+                ->orWhereNull('tracking_number_id');
             })
-            ->when(! $user->isSuperAdmin(), function ($query) use ($user) {
-                $query->whereHas('items.equipmentType', fn ($q) => $q->where('office_id', $user->office_id));
+            ->when(!$user->isSuperAdmin(), function ($query) use ($user) {
+                if ($user->office_id) {
+                    $query->where(function ($q) use ($user) {
+                        $q->whereHas('items.equipmentType', fn ($sub) => $sub->where('office_id', $user->office_id))
+                          ->orWhereDoesntHave('items.equipmentType');
+                    });
+                }
             })
             ->latest()
-            ->paginate(20);
+            ->paginate(25);
 
         return response()->json($borrowings);
     }
+
+
 
     public function show(EquipmentBorrowing $equipmentBorrowing): JsonResponse
     {

@@ -12,11 +12,12 @@ import Step3Details from "./components/Step3Details";
 import Step4Verification from "./components/Step4Verification";
 
 const VENUE_STEPS = [
-  { title: "Identity", subtitle: "Select role" },
-  { title: "Venue & Time", subtitle: "Choose venue & schedule" },
-  { title: "Fill Details", subtitle: "Reservation form" },
-  { title: "Verification", subtitle: "Upload & submit" },
+  { title: "SELECT ROLE", subtitle: "Select role" },
+  { title: "DATE & TIME", subtitle: "Choose venue & schedule" },
+  { title: "FILL DETAILS", subtitle: "Reservation form" },
+  { title: "UPLOAD & SUBMIT", subtitle: "Upload & submit" },
 ];
+
 
 export default function VenueBooking() {
   const [activeStep, setActiveStep] = useState(1);
@@ -149,7 +150,9 @@ export default function VenueBooking() {
 
   const handleStep2Next = () => {
     const isMultiDay = selectedEndDate && selectedEndDate > selectedDate;
-    if ((identity === "external" || isMultiDay) && selectedVenue?.type === "avr" && !isPinVerified) {
+    const isOvertime = (startTime && startTime < "08:00") || (endTime && endTime > "17:00");
+
+    if ((identity === "external" || isMultiDay || isOvertime) && selectedVenue?.type === "avr" && !isPinVerified) {
       setShowPinModal(true);
       setPinError(false);
       setPinInput("");
@@ -246,19 +249,15 @@ export default function VenueBooking() {
 
       {/* Header Title */}
       <div className="text-center mb-8 w-full">
-        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-50 border border-blue-100 text-blue-700 text-xs font-semibold mb-3 shadow-xs">
-          <Sparkles size={14} className="text-blue-600" />
-          <span>Official Campus Portal</span>
-        </div>
-        <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 mb-2 tracking-tight">
-          Venue Reservation
+        <h1 className="text-3xl sm:text-4xl font-black text-slate-900 mb-2 tracking-tight">
+          Venue Booking
         </h1>
         <p className="text-slate-500 font-medium max-w-md sm:max-w-lg mx-auto text-xs sm:text-sm leading-relaxed text-center">
           Book AVR Auditoriums or SCO Webcast Studios with real-time schedule checks.
         </p>
       </div>
 
-      {/* Horizontal Kiosk-Style Timeline Process Bar */}
+      {/* Horizontal Process Timeline */}
       <KioskTimeline
         steps={VENUE_STEPS}
         activeStep={activeStep}
@@ -267,7 +266,8 @@ export default function VenueBooking() {
       />
 
       {/* Active Step Content Container */}
-      <div className="w-full bg-white border border-slate-200/80 rounded-2xl shadow-xs overflow-hidden">
+      <div className="w-full bg-white border border-slate-200/80 rounded-3xl shadow-xs overflow-hidden">
+
         {activeStep === 1 && (
           <Step1Identity
             identity={identity}
@@ -384,3 +384,4 @@ export default function VenueBooking() {
     </div>
   );
 }
+

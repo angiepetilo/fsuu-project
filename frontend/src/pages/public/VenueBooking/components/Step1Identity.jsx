@@ -1,59 +1,64 @@
-import { GraduationCap, Users, User, ArrowRight } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-export default function Step1Identity({ identity, handleIdentitySelect, onNext }) {
+export function Step1Identity({ identity, handleIdentitySelect, onNext }) {
+
   return (
-    <div className="p-6 sm:p-8 animate-in slide-in-from-top-2 duration-300">
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+    <div className="p-6 sm:p-10 animate-in fade-in duration-300">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
+
+        {/* Role 1: Student */}
         <div
           onClick={() => handleIdentitySelect("student")}
-          className={`group relative border-2 rounded-2xl p-6 text-center cursor-pointer transition-all duration-300 ${identity === "student"
-            ? 'border-blue-600 bg-gradient-to-b from-blue-50/80 to-blue-50/20 shadow-lg shadow-blue-600/10 scale-[1.02]'
-            : 'border-slate-100 bg-white hover:border-blue-200 hover:shadow-md'
+          className={`group bg-white rounded-3xl p-8 border-2 text-center cursor-pointer transition-all duration-300 flex flex-col items-center justify-center min-h-[220px] ${identity === "student"
+              ? "border-blue-600 shadow-md shadow-blue-500/10 scale-[1.02]"
+              : "border-slate-100 shadow-xs hover:border-blue-300 hover:shadow-md hover:-translate-y-1"
             }`}
         >
-          <div className="w-14 h-14 rounded-2xl bg-blue-100/60 text-blue-600 flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
-            <GraduationCap size={28} />
+          <div className="text-4xl mb-6 group-hover:scale-110 transition-transform">
+            🎓 / 👩‍🎓
           </div>
-          <h3 className="font-bold text-slate-900 mb-1 text-base">Student</h3>
-          <p className="text-xs text-slate-500 leading-relaxed">FSUU Enrolled Student</p>
+          <h3 className="font-extrabold text-slate-900 text-lg">Student</h3>
         </div>
 
+        {/* Role 2: Faculty */}
         <div
           onClick={() => handleIdentitySelect("faculty")}
-          className={`group relative border-2 rounded-2xl p-6 text-center cursor-pointer transition-all duration-300 ${identity === "faculty"
-            ? 'border-amber-500 bg-gradient-to-b from-amber-50/80 to-amber-50/20 shadow-lg shadow-amber-500/10 scale-[1.02]'
-            : 'border-slate-100 bg-white hover:border-amber-200 hover:shadow-md'
+          className={`group bg-white rounded-3xl p-8 border-2 text-center cursor-pointer transition-all duration-300 flex flex-col items-center justify-center min-h-[220px] ${identity === "faculty"
+              ? "border-blue-600 shadow-md shadow-blue-500/10 scale-[1.02]"
+              : "border-slate-100 shadow-xs hover:border-blue-300 hover:shadow-md hover:-translate-y-1"
             }`}
         >
-          <div className="w-14 h-14 rounded-2xl bg-amber-100/60 text-amber-600 flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
-            <Users size={28} />
+          <div className="text-4xl mb-6 group-hover:scale-110 transition-transform">
+            👩‍🏫
           </div>
-          <h3 className="font-bold text-slate-900 mb-1 text-base">Faculty / Staff</h3>
-          <p className="text-xs text-slate-500 leading-relaxed">FSUU Academic, Administrative, or Departmental Representative.</p>
+          <h3 className="font-extrabold text-slate-900 text-lg">Faculty</h3>
         </div>
 
+        {/* Role 3: External Visitor / Guest */}
         <div
           onClick={() => handleIdentitySelect("external")}
-          className={`group relative border-2 rounded-2xl p-6 text-center cursor-pointer transition-all duration-300 ${identity === "external"
-            ? 'border-emerald-500 bg-gradient-to-b from-emerald-50/80 to-emerald-50/20 shadow-lg shadow-emerald-500/10 scale-[1.02]'
-            : 'border-slate-100 bg-white hover:border-emerald-200 hover:shadow-md'
+          className={`group bg-white rounded-3xl p-8 border-2 text-center cursor-pointer transition-all duration-300 flex flex-col items-center justify-center min-h-[220px] ${identity === "external"
+              ? "border-blue-600 shadow-md shadow-blue-500/10 scale-[1.02]"
+              : "border-slate-100 shadow-xs hover:border-blue-300 hover:shadow-md hover:-translate-y-1"
             }`}
         >
-          <div className="w-14 h-14 rounded-2xl bg-emerald-100/60 text-emerald-600 flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
-            <User size={28} />
+          <div className="text-4xl mb-6 group-hover:scale-110 transition-transform">
+            👱
           </div>
-          <h3 className="font-bold text-slate-900 mb-1 text-base">External User</h3>
-          <p className="text-xs text-slate-500 leading-relaxed">Guest or Visitor.</p>
+          <h3 className="font-extrabold text-slate-900 text-lg leading-snug">
+            External Visitor /<br />Guest
+          </h3>
         </div>
+
       </div>
 
-      {/* Next Switch Bar */}
+      {/* Next Button */}
       <div className="flex justify-end pt-4 border-t border-slate-100">
         <Button
           disabled={!identity}
           onClick={() => identity && onNext && onNext()}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-5 rounded-xl font-extrabold text-xs flex items-center gap-2 shadow-md disabled:opacity-50"
+          className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3.5 rounded-full font-extrabold text-xs flex items-center gap-2 shadow-md shadow-blue-600/20 disabled:opacity-50 transition-all cursor-pointer"
         >
           <span>Next: Select Venue</span>
           <ArrowRight size={16} />
@@ -62,3 +67,7 @@ export default function Step1Identity({ identity, handleIdentitySelect, onNext }
     </div>
   );
 }
+
+export default Step1Identity;
+
+

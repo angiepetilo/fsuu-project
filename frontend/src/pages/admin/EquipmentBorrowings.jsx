@@ -159,8 +159,11 @@ export default function EquipmentBorrowings() {
             <tbody className="divide-y divide-slate-100 text-xs font-semibold">
               {loading ? (
                 <tr>
-                  <td colSpan={10} className="text-center py-12 text-slate-400 font-semibold">
-                    <Loader2 size={18} className="animate-spin inline mr-2" />Loading borrowings...
+                  <td colSpan={10} className="text-center py-12">
+                    <div className="flex items-center justify-center gap-2 text-slate-400">
+                      <div className="w-4 h-4 rounded-full border-2 border-slate-200 border-t-purple-500 animate-spin" />
+                      <span className="text-xs font-semibold italic">Loading equipment borrowings...</span>
+                    </div>
                   </td>
                 </tr>
               ) : filteredBorrowings.length === 0 ? (

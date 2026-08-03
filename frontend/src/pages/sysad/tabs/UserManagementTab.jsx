@@ -143,8 +143,11 @@ export default function UserManagementTab({ showMsg }) {
           <tbody className="divide-y divide-slate-100 text-xs font-semibold">
             {loading ? (
               <tr>
-                <td colSpan={7} className="text-center py-10 text-slate-400">
-                  <Loader2 className="animate-spin inline mr-2" size={18} /> Loading users...
+                <td colSpan={7} className="text-center py-10">
+                  <div className="flex items-center justify-center gap-2 text-slate-400">
+                    <div className="w-4 h-4 rounded-full border-2 border-slate-200 border-t-blue-500 animate-spin" />
+                    <span className="text-xs font-semibold italic">Loading users...</span>
+                  </div>
                 </td>
               </tr>
             ) : users.length === 0 ? (

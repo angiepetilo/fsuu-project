@@ -177,9 +177,11 @@ export default function InventoryTab({
           <tbody className="divide-y divide-slate-100 text-xs font-semibold">
             {loading ? (
               <tr>
-                <td colSpan={6} className="px-4 py-10 text-center text-slate-500 font-bold">
-                  <Loader2 className="animate-spin inline mr-2 text-blue-600" size={18} />
-                  Please wait... Synchronizing equipment inventory stock...
+                <td colSpan={6} className="px-4 py-10 text-center">
+                  <div className="flex items-center justify-center gap-2 text-slate-400">
+                    <div className="w-4 h-4 rounded-full border-2 border-slate-200 border-t-blue-500 animate-spin" />
+                    <span className="text-xs font-semibold italic">Synchronizing equipment inventory stock...</span>
+                  </div>
                 </td>
               </tr>
             ) : inventoryCategories.length === 0 ? (

@@ -25,17 +25,27 @@ class AvrVenueBookingController extends Controller
         $user = auth()->user();
 
         $bookings = AvrVenueBooking::with('venue', 'trackingNumber', 'documents')
-            ->whereHas('trackingNumber', function ($q) {
-                $q->whereNotIn('status', ['completed', 'done']);
+            ->where(function ($q) {
+                $q->whereHas('trackingNumber', function ($t) {
+                    $t->whereNotIn('status', ['completed', 'done']);
+                })
+                ->orWhereNull('tracking_number_id');
             })
-            ->when(! $user->isSuperAdmin(), function ($query) use ($user) {
-                $query->whereHas('venue', fn ($q) => $q->where('office_id', $user->office_id));
+
+            ->when(!$user->isSuperAdmin(), function ($query) use ($user) {
+                if ($user->office_id) {
+                    $query->whereHas('venue', function ($q) use ($user) {
+                        $q->where('office_id', $user->office_id)
+                          ->orWhereNull('office_id');
+                    });
+                }
             })
             ->latest()
-            ->paginate(20);
+            ->paginate(25);
 
         return response()->json($bookings);
     }
+
 
     public function show(AvrVenueBooking $avrVenueBooking): JsonResponse
     {
