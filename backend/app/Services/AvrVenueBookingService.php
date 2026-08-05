@@ -117,7 +117,10 @@ class AvrVenueBookingService
                 foreach ($items as $itemStr) {
                     if (empty($itemStr)) continue;
                     $cleanName = trim(explode('(', $itemStr)[0]);
-                    $eqType = DB::table('equipment_types')->where('name', 'LIKE', "%{$cleanName}%")->first();
+                    $eqType = DB::table('equipment_types')
+                        ->where('eq_name', 'LIKE', "%{$cleanName}%")
+                        ->orWhere('eq_type', 'LIKE', "%{$cleanName}%")
+                        ->first();
                     DB::table('venue_booking_equipment')->insert([
                         'venue_booking_id'  => $bookingId,
                         'equipment_type_id' => $eqType ? $eqType->id : 1,
