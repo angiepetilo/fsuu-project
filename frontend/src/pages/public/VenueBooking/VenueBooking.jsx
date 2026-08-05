@@ -435,18 +435,26 @@ export default function VenueBooking() {
             </div>
             <h2 className="text-2xl font-black text-slate-900">Thank You!</h2>
 
-            <div className="p-4 bg-slate-50 border border-slate-200/80 rounded-2xl space-y-1">
-              <p className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">Your Tracking Number</p>
-              <p className="text-xl font-mono font-black text-blue-600 tracking-wider select-all">{referenceCode}</p>
+            <div className="p-4.5 bg-slate-50 border border-slate-200/80 rounded-2xl space-y-2 text-center">
+              <p className="text-xs font-bold text-slate-800 leading-relaxed">
+                Thank you for choosing Father Saturnino Urios University for your venue reservation!
+              </p>
+              <p className="text-xs text-slate-600 font-semibold leading-relaxed">
+                Your official <strong>Tracking Number</strong> has been sent to your registered personal email address {email ? `(${email})` : ''} and contact number {contactNumber ? `(${contactNumber})` : ''}.
+              </p>
+              <p className="text-[11px] text-slate-500 font-medium italic border-t border-slate-200/60 pt-2 mt-1">
+                Please check your inbox or phone messages to view your tracking number and check your booking progress.
+              </p>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 pt-2">
-              <Button asChild variant="outline" className="w-full py-5 rounded-xl border-slate-200 hover:bg-slate-100 text-slate-700 font-extrabold text-xs cursor-pointer">
-                <Link to="/">Done</Link>
-              </Button>
-              <Button asChild className="w-full py-5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs shadow-md cursor-pointer">
-                <Link to={`/track-booking?ref=${referenceCode}`}>Track Reservation Status</Link>
-              </Button>
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={() => { window.location.href = "/"; }}
+                className="w-full py-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs shadow-md cursor-pointer transition-all hover:scale-[1.02]"
+              >
+                Done
+              </button>
             </div>
           </div>
         </div>

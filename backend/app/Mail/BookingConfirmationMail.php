@@ -25,12 +25,21 @@ class BookingConfirmationMail extends Mailable
             ?? ($this->booking->trackingNumber?->reference_code)
             ?? ($this->booking->id ? ($this->type === 'venue' ? "TRK-AVR{$this->booking->id}" : "EQ-2026-{$this->booking->id}") : 'TRK-FSUU');
 
+        $usageDate = $this->booking->date_of_usage 
+            ? (is_string($this->booking->date_of_usage) ? substr($this->booking->date_of_usage, 0, 10) : Carbon::parse($this->booking->date_of_usage)->format('Y-m-d'))
+            : null;
+
         $rawStart = $this->booking->start_datetime 
-            ?? ($this->booking->date_of_usage ? ($this->booking->date_of_usage . ' ' . ($this->booking->time_start ?? '08:00')) : null);
+            ?? ($usageDate ? ($usageDate . ' ' . ($this->booking->time_start ?? '08:00')) : null);
         $this->formattedStart = $rawStart ? Carbon::parse($rawStart)->format('M d, Y h:i A') : 'N/A';
 
+        $endDate = $this->booking->reservation_end_date ?? $usageDate;
+        if ($endDate) {
+            $endDate = is_string($endDate) ? substr($endDate, 0, 10) : Carbon::parse($endDate)->format('Y-m-d');
+        }
+
         $rawEnd = $this->booking->end_datetime 
-            ?? ($this->booking->date_of_usage ? (($this->booking->reservation_end_date ?? $this->booking->date_of_usage) . ' ' . ($this->booking->time_end ?? '17:00')) : null);
+            ?? ($endDate ? ($endDate . ' ' . ($this->booking->time_end ?? '17:00')) : null);
         $this->formattedEnd = $rawEnd ? Carbon::parse($rawEnd)->format('M d, Y h:i A') : 'N/A';
     }
 
