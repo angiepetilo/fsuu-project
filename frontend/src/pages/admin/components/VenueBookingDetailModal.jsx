@@ -95,26 +95,38 @@ export default function VenueBookingDetailModal({
   const getRequestedCategories = () => {
     if (Array.isArray(selected.items) && selected.items.length > 0) {
       return selected.items.map(item => ({
-        category: item.equipment_type?.name || item.equipment_name || item.name || "PROJECTOR",
+        category: item.equipment_type?.name || item.equipment_name || item.name || "Equipment",
         quantity: item.quantity_requested || item.quantity || 1
       }));
     }
     if (Array.isArray(selected.venue_booking_equipment) && selected.venue_booking_equipment.length > 0) {
       return selected.venue_booking_equipment.map(vbe => ({
-        category: vbe.equipment_type?.name || vbe.name || "PROJECTOR",
+        category: vbe.equipment_type?.name || vbe.others_specify || vbe.name || "Equipment",
         quantity: vbe.quantity_requested || vbe.quantity || 1
       }));
     }
 
-    const text = selected.equipment_needed || selected.equipment_name || "PROJECTOR | Quantity : 3";
-    const parts = String(text).split("|").map(p => p.trim());
-    let catName = parts[0] || "PROJECTOR";
-    let qty = 1;
-    if (parts[1]) {
-      const match = parts[1].match(/\d+/);
-      if (match) qty = parseInt(match[0], 10);
+    const text = selected.equipment_notes || selected.equipment_needed || selected.equipment_name || "";
+    if (!text || text === "N/A") {
+      return [];
     }
-    return [{ category: catName, quantity: qty }];
+
+    // Split by comma e.g. "Projector (Qty: 1), Screen (Qty: 2)"
+    const items = String(text).split(",").map(s => s.trim()).filter(Boolean);
+    const parsed = items.map(itemStr => {
+      let category = itemStr;
+      let quantity = 1;
+
+      const qtyMatch = itemStr.match(/\(Qty:\s*(\d+)\)/i) || itemStr.match(/\|\s*Quantity\s*:\s*(\d+)/i) || itemStr.match(/(\d+)/);
+      if (qtyMatch) {
+        quantity = parseInt(qtyMatch[1], 10) || 1;
+        category = itemStr.replace(/\(Qty:\s*\d+\)/i, "").replace(/\|\s*Quantity\s*:\s*\d+/i, "").trim();
+      }
+
+      return { category: category || itemStr, quantity };
+    });
+
+    return parsed.length > 0 ? parsed : [{ category: "Projector", quantity: 1 }];
   };
 
   const requestedCategories = getRequestedCategories();
@@ -162,15 +174,7 @@ export default function VenueBookingDetailModal({
       return false;
     });
 
-    if (matched.length > 0) {
-      return matched;
-    }
-
-    return [
-      { id: `auto-${reqName}-1`, name: reqName.includes("PROJECTOR") ? "EPSON CINEMA ZDI" : `${reqName} — Unit 01`, unit_code: "03322332", status: "available" },
-      { id: `auto-${reqName}-2`, name: `${reqName} — Unit 02`, unit_code: "03322333", status: "available" },
-      { id: `auto-${reqName}-3`, name: `${reqName} — Unit 03`, unit_code: "03322334", status: "available" },
-    ];
+    return matched;
   };
 
 
@@ -435,26 +439,25 @@ export default function VenueBookingDetailModal({
                     </div>
 
                     {!hasStock ? (
-                      <div className="p-2 bg-amber-50 border border-amber-200 rounded-lg text-[11px] font-bold text-amber-800">
-                        ⚠️ No available physical units in stock for {reqCat.category} (0 units available)
+                      <div className="p-2.5 bg-slate-100 border border-slate-200 rounded-lg text-xs font-bold text-slate-500 text-center">
+                        No registered equipment units available for {reqCat.category}
                       </div>
                     ) : (
                       <div className="space-y-2">
-                        {Array.from({ length: Math.min(reqCat.quantity, availableUnits.length) }).map((_, uIdx) => (
+                        {Array.from({ length: reqCat.quantity }).map((_, uIdx) => (
                           <div key={uIdx} className="relative">
                             <select
-                              value={assignedUnitSelections[`${catIdx}-${uIdx}`] || (availableUnits[uIdx]?.name || "")}
+                              value={assignedUnitSelections[`${catIdx}-${uIdx}`] || ""}
                               onChange={(e) => setAssignedUnitSelections((prev) => ({ ...prev, [`${catIdx}-${uIdx}`]: e.target.value }))}
-                              className="w-full p-2.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-800 appearance-none focus:outline-none focus:border-blue-500"
+                              className="w-full p-2.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-800 focus:outline-none focus:border-blue-500"
                             >
-                              <option value="">Select Equipment Unit for {reqCat.category} (Unit {uIdx + 1})</option>
+                              <option value="">-- Select Unit Barcode for {reqCat.category} (Unit {uIdx + 1}) --</option>
                               {availableUnits.map((unit) => (
-                                <option key={unit.id} value={unit.name || unit.unit_code}>
-                                  {unit.name || unit.unit_code} — (Barcode: {unit.unit_code || unit.id})
+                                <option key={unit.id} value={unit.unit_code || unit.name}>
+                                  {unit.name || unit.unit_code} — (Barcode: {unit.unit_code || unit.barcode || unit.id})
                                 </option>
                               ))}
                             </select>
-                            <span className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 text-xs">⯆</span>
                           </div>
                         ))}
                       </div>
@@ -510,6 +513,71 @@ export default function VenueBookingDetailModal({
                     </div>
                   </div>
 
+                  {/* Violation Type Dropdown & Photo Evidence Upload */}
+                  {inspectionStatus === "violation" && (
+                    <div className="space-y-2.5 p-3 bg-rose-50/80 border border-rose-200/80 rounded-xl animate-in fade-in">
+                      <div>
+                        <label className="block text-[11px] font-extrabold text-rose-900 mb-1">Select Violation Type *</label>
+                        <select
+                          value={selected.violationType || selected.violation_type || "Physical Facility Damage"}
+                          onChange={(e) => {
+                            if (selected) {
+                              selected.violationType = e.target.value;
+                              selected.violation = e.target.value;
+                            }
+                          }}
+                          className="w-full p-2 bg-white border border-rose-300 rounded-lg text-xs font-bold text-slate-900 focus:outline-none focus:border-rose-600"
+                        >
+                          <option value="Physical Facility / Furniture Damage">Physical Facility / Furniture Damage</option>
+                          <option value="Facility Noise / Decibel Breach">Facility Noise / Decibel Breach</option>
+                          <option value="Late Room Turnover / Delay">Late Room Turnover / Delay</option>
+                          <option value="Unauthorized Time Extension">Unauthorized Time Extension</option>
+                          <option value="Equipment Damage / Lost Unit">Equipment Damage / Lost Unit</option>
+                          <option value="Uncleaned Facility / Trash Left">Uncleaned Facility / Trash Left</option>
+                          <option value="Other Policy Violation">Other Policy Violation</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-extrabold text-rose-900 mb-1">Upload Photo Evidence *</label>
+                        <div className="flex items-center gap-2">
+                          <label className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-rose-100/60 text-rose-900 border border-rose-300 rounded-xl text-xs font-bold cursor-pointer transition-all shadow-2xs">
+                            <Camera size={14} className="text-rose-600" /> Upload Evidence Image
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  const reader = new FileReader();
+                                  reader.onload = (evt) => {
+                                    const base64 = evt.target?.result;
+                                    setEvidencePhoto && setEvidencePhoto(base64);
+                                    if (selected) {
+                                      selected.evidencePhoto = base64;
+                                      selected.evidence_photo = base64;
+                                    }
+                                  };
+                                  reader.readAsDataURL(file);
+                                }
+                              }}
+                            />
+                          </label>
+                          <span className="text-[10px] font-bold text-slate-600">
+                            {evidencePhoto ? "Photo Attached ✅" : "No photo selected"}
+                          </span>
+                        </div>
+
+                        {evidencePhoto && (
+                          <div className="mt-2 relative rounded-xl overflow-hidden border border-rose-200 shadow-2xs max-h-32 bg-slate-900">
+                            <img src={evidencePhoto} alt="Violation Evidence" className="w-full h-32 object-cover" />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                   <div>
                     <label className="block text-[11px] font-bold text-slate-700 mb-1">Notes</label>
                     <textarea
@@ -533,6 +601,7 @@ export default function VenueBookingDetailModal({
                   </button>
                 </div>
               </form>
+
             )}
 
           </div>

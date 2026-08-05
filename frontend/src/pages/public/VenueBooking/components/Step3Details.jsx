@@ -126,53 +126,6 @@ export default function Step3Details({
         </span>
       </div>
 
-      {/* DYNAMIC REQUIREMENTS NEEDED BEFORE VENUE BOOKING (Item 3) */}
-      <div className="bg-amber-50/90 border-2 border-amber-200 p-5 rounded-2xl space-y-3">
-        <div className="flex items-center justify-between pb-2 border-b border-amber-200/80">
-          <h4 className="font-extrabold text-amber-900 text-xs flex items-center gap-2 uppercase tracking-wide">
-            <FileCheck size={16} className="text-amber-700" />
-            3. Requirements Needed Before Venue Booking
-          </h4>
-          <span className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-amber-200 text-amber-900 border border-amber-300">
-            Mandatory Verification
-          </span>
-        </div>
-        <p className="text-xs text-amber-800 font-medium leading-relaxed">
-          Please prepare the mandatory document approvals set up by the System Admin in Settings prior to final submission:
-        </p>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-          {requirements.length > 0 ? (
-            requirements.map((req, idx) => (
-              <div key={req.id || idx} className="bg-white p-3 rounded-xl border border-amber-200/80 shadow-xs flex items-start gap-2.5">
-                <CheckCircle2 size={16} className="text-emerald-600 shrink-0 mt-0.5" />
-                <div>
-                  <h5 className="font-extrabold text-slate-900 text-xs">{req.label}</h5>
-                  <p className="text-[11px] text-slate-500 font-medium mt-0.5">{req.description || "Required approval document"}</p>
-                </div>
-              </div>
-            ))
-          ) : (
-            <>
-              <div className="bg-white p-3 rounded-xl border border-amber-200/80 shadow-xs flex items-start gap-2.5">
-                <CheckCircle2 size={16} className="text-emerald-600 shrink-0 mt-0.5" />
-                <div>
-                  <h5 className="font-extrabold text-slate-900 text-xs">Activity Endorsement Letter</h5>
-                  <p className="text-[11px] text-slate-500 font-medium mt-0.5">Signed by Dean / Department Chairperson</p>
-                </div>
-              </div>
-              <div className="bg-white p-3 rounded-xl border border-amber-200/80 shadow-xs flex items-start gap-2.5">
-                <CheckCircle2 size={16} className="text-emerald-600 shrink-0 mt-0.5" />
-                <div>
-                  <h5 className="font-extrabold text-slate-900 text-xs">AVR / SCO Facility Form</h5>
-                  <p className="text-[11px] text-slate-500 font-medium mt-0.5">Approved by Building Administrator</p>
-                </div>
-              </div>
-            </>
-          )}
-        </div>
-      </div>
-
       {/* DYNAMIC FORM RENDERING */}
       <form onSubmit={handleDetailsSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-5">
 
@@ -183,8 +136,8 @@ export default function Step3Details({
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-bold text-slate-900">Institutional Email <span className="text-red-500">*</span></label>
-          <input type="email" required value={email} onChange={e => setEmail(e.target.value)} placeholder="example@urios.edu.ph" className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all" />
+          <label className="text-xs font-bold text-slate-900">Personal Email <span className="text-red-500">*</span></label>
+          <input type="email" required value={email} onChange={e => setEmail(e.target.value)} placeholder="example@gmail.com" className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all" />
         </div>
 
         <div className="flex flex-col gap-1.5">
@@ -231,7 +184,7 @@ export default function Step3Details({
         {/* FORM SPECIFIC FIELDS: AVR FORM (FORM A) */}
         {selectedVenue?.type === "avr" && (
           <>
-            <div className="flex flex-col gap-1.5">
+            <div className="flex flex-col gap-1.5 sm:col-span-2 bg-slate-50 border border-slate-200/80 p-4 rounded-2xl">
               <label className="text-xs font-bold text-slate-900">Booking Classification <span className="text-red-500">*</span></label>
               <select required value={classification} onChange={e => setClassification(e.target.value)} className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600">
                 <option value="">Select Classification...</option>
@@ -239,7 +192,23 @@ export default function Step3Details({
                 <option value="academic">Academic Class / Exam / Defense</option>
                 <option value="admin">Administrative Meeting / Assembly</option>
               </select>
+
+              {/* Endorsement Letter Notice Based on Booking Classification */}
+              {classification && (
+                <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs font-semibold text-amber-900 animate-in fade-in">
+                  {classification === "organization" && (
+                    <span>📄 <strong>Mandatory Endorsement:</strong> Formal request letter signed and endorsed by the <strong>Dean of Student Affairs (DSA)</strong>.</span>
+                  )}
+                  {classification === "academic" && (
+                    <span>📄 <strong>Mandatory Endorsement:</strong> Formal request letter signed and endorsed by the <strong>VP for Academic Affairs (VP Acad)</strong>.</span>
+                  )}
+                  {classification === "admin" && (
+                    <span>📄 <strong>Mandatory Endorsement:</strong> Formal request letter signed and endorsed by the <strong>Office / Department Head</strong>.</span>
+                  )}
+                </div>
+              )}
             </div>
+
 
 
 
@@ -281,38 +250,108 @@ export default function Step3Details({
 
             <div className="sm:col-span-2 flex flex-col gap-2 bg-slate-50 p-4 rounded-2xl border border-slate-200/60">
               <div className="flex items-center justify-between">
-                <label className="text-xs font-bold text-slate-900">AVR Built-in Equipment Needed:</label>
+                <label className="text-xs font-bold text-slate-900">
+                  AVR Built-in Equipment Needed: <span className="text-slate-500 font-semibold text-[11px]">(Optional)</span>
+                </label>
                 <span className="text-[10px] font-extrabold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">
-                  Equipment Catalog Checklist
+                  Equipment Catalog Checklist (Optional)
                 </span>
               </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 text-xs pt-1">
                 {(() => {
                   const defaultItems = [
-                    { id: "mic", name: "Wireless Microphones" },
-                    { id: "proj", name: "HD Projector & Screen" },
-                    { id: "sound", name: "AVR Sound System" },
-                    { id: "podium", name: "Podium Setup" },
+                    { id: "proj", name: "Projector" },
+                    { id: "camera", name: "Camera" },
+                    { id: "screen", name: "Screen" },
+                    { id: "mic", name: "Microphone" },
+                    { id: "wmic", name: "Wireless Microphone" },
+                    { id: "ext", name: "Extension wire" },
+                    { id: "hdmi", name: "HDMI" },
                   ];
                   const catalogToRender = equipmentCatalog.length > 0
-                    ? equipmentCatalog.map(e => ({ id: e.id || e.eq_name || e.name, name: e.eq_name || e.name || e.category }))
+                    ? equipmentCatalog.map(e => ({ id: e.id || e.eq_name || e.name, name: e.eq_name || e.name || e.category, available_count: e.available_count ?? e.available_quantity, total_quantity: e.total_quantity }))
                     : defaultItems;
 
                   return catalogToRender.map((item) => {
                     const key = String(item.id || item.name);
-                    const isChecked = Boolean(avrEquipment[key]);
+                    const val = avrEquipment[key];
+
+                    // Determine real registered stock
+                    let realStock = 0;
+                    if (typeof item.available_count === "number") {
+                      realStock = item.available_count;
+                    } else if (typeof item.total_quantity === "number") {
+                      realStock = item.total_quantity;
+                    } else {
+                      try {
+                        const lsUnits = JSON.parse(localStorage.getItem("fsuu_equipment_units") || "[]");
+                        const catName = String(item.name || item.eq_name || "").toUpperCase().trim();
+                        const count = lsUnits.filter(u => {
+                          const uCat = String(u.category || u.assigned_category || u.equipmentType?.name || u.name || "").toUpperCase().trim();
+                          return uCat === catName || uCat.includes(catName) || catName.includes(uCat);
+                        }).length;
+                        realStock = count;
+                      } catch {
+                        realStock = 0;
+                      }
+                    }
+
+                    const isOutOfStock = realStock <= 0;
+                    const isChecked = Boolean(val) && !isOutOfStock;
+                    const qty = isOutOfStock ? 0 : Math.min(typeof val === "number" ? val : 1, Math.max(1, realStock));
 
                     return (
-                      <label key={key} className="flex items-center gap-2 cursor-pointer font-semibold text-slate-800 bg-white p-2.5 rounded-xl border border-slate-200 hover:border-blue-300 shadow-2xs transition-all">
-                        <input
-                          type="checkbox"
-                          checked={isChecked}
-                          onChange={(e) => setAvrEquipment({ ...avrEquipment, [key]: e.target.checked })}
-                          className="rounded text-blue-600 focus:ring-blue-500 accent-blue-600 w-4 h-4 cursor-pointer"
-                        />
-                        <span className="truncate">{item.name}</span>
-                      </label>
+                      <div
+                        key={key}
+                        className={`flex items-center justify-between gap-2 p-2.5 rounded-xl border transition-all ${
+                          isOutOfStock
+                            ? "bg-slate-100/70 border-slate-200 opacity-60"
+                            : isChecked
+                              ? "bg-blue-50/70 border-blue-300 shadow-xs"
+                              : "bg-white border-slate-200 hover:border-slate-300"
+                        }`}
+                      >
+                        <label className={`flex items-center gap-2 font-semibold flex-1 min-w-0 ${isOutOfStock ? "cursor-not-allowed text-slate-400" : "cursor-pointer text-slate-800"}`}>
+                          <input
+                            type="checkbox"
+                            disabled={isOutOfStock}
+                            checked={isChecked}
+                            onChange={(e) => {
+                              if (isOutOfStock) return;
+                              const checked = e.target.checked;
+                              setAvrEquipment({
+                                ...avrEquipment,
+                                [key]: checked ? 1 : false
+                              });
+                            }}
+                            className="rounded text-blue-600 focus:ring-blue-500 accent-blue-600 w-4 h-4 cursor-pointer disabled:cursor-not-allowed"
+                          />
+                          <span className="truncate text-xs font-bold">{item.name}</span>
+                        </label>
+
+                        {isOutOfStock ? (
+                          <span className="text-[10px] font-extrabold text-rose-600 bg-rose-50 border border-rose-200 px-1.5 py-0.5 rounded-md shrink-0">
+                            No Stock Registered
+                          </span>
+                        ) : isChecked && (
+                          <div className="flex items-center gap-1 shrink-0">
+                            <span className="text-[10px] font-extrabold text-blue-600">Qty:</span>
+                            <input
+                              type="number"
+                              min="1"
+                              max={realStock}
+                              value={qty}
+                              onChange={(e) => {
+                                const inputVal = parseInt(e.target.value) || 1;
+                                const newQty = Math.min(Math.max(1, inputVal), realStock);
+                                setAvrEquipment({ ...avrEquipment, [key]: newQty });
+                              }}
+                              className="w-11 py-0.5 px-1 bg-white border border-blue-300 rounded-lg text-xs font-black text-center text-blue-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                            />
+                          </div>
+                        )}
+                      </div>
                     );
                   });
                 })()}

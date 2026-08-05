@@ -165,20 +165,25 @@ export default function HistoryLog() {
     }
   };
 
-  // Search filtering
+  // Search filtering — only show records marked as complete / solved
   const filteredVenues = venueHistory.filter((b) => {
     const q = searchQuery.toLowerCase();
     const ref = (b.reference_code || `TRK-AVR${b.id}`).toLowerCase();
     const name = (b.filer_name || b.requestor || "").toLowerCase();
-    return !searchQuery || ref.includes(q) || name.includes(q);
+    const status = (b.status || b.tracking_number?.status || "").toLowerCase();
+    const isCompleted = status === "completed" || status === "solved" || status === "done";
+    return isCompleted && (!searchQuery || ref.includes(q) || name.includes(q));
   });
 
   const filteredEquipment = equipmentHistory.filter((b) => {
     const q = searchQuery.toLowerCase();
     const ref = (b.reference_code || `EQUIP-REQ-${b.id}`).toLowerCase();
     const name = (b.filer_name || b.requestor || "").toLowerCase();
-    return !searchQuery || ref.includes(q) || name.includes(q);
+    const status = (b.status || b.tracking_number?.status || "").toLowerCase();
+    const isCompleted = status === "completed" || status === "solved" || status === "done";
+    return isCompleted && (!searchQuery || ref.includes(q) || name.includes(q));
   });
+
 
   if (loading && venueHistory.length === 0 && equipmentHistory.length === 0) {
     return <PageLoader message="Loading History Log..." />;

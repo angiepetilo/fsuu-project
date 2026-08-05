@@ -63,6 +63,16 @@ export default function VenueBooking() {
   const [startTime, setStartTime] = useState("08:00");
   const [endTime, setEndTime] = useState("10:00");
   const [existingBookings, setExistingBookings] = useState([]);
+  const [equipmentCatalog, setEquipmentCatalog] = useState([]);
+
+  useEffect(() => {
+    api.get('/public/equipment-types')
+      .then(res => {
+        const list = Array.isArray(res.data) ? res.data : [];
+        setEquipmentCatalog(list);
+      })
+      .catch(() => setEquipmentCatalog([]));
+  }, []);
 
   const handleContactChange = (e) => {
     setContactNumber(e.target.value.replace(/\D/g, '').slice(0, 11));
@@ -84,7 +94,7 @@ export default function VenueBooking() {
         ...v,
         id: v.id,
         name: v.name,
-        location: v.location || match?.location || (v.name.includes("SCO") ? "FSUU Morelos Campus" : "FSUU Main Campus"),
+        location: v.office?.location || v.location || match?.location || (v.name.includes("SCO") ? "FSUU Morelos Campus" : "FSUU Main Campus"),
         capacity: v.capacity || match?.capacity || 100,
         type: (v.name.includes("SCO") || v.name.includes("Studio")) ? "sco" : "avr",
         photo: avatarPhoto,
@@ -150,9 +160,25 @@ export default function VenueBooking() {
 
   const handleStep2Next = () => {
     const isMultiDay = selectedEndDate && selectedEndDate > selectedDate;
-    const isOvertime = (startTime && startTime < "08:00") || (endTime && endTime > "17:00");
 
-    if ((identity === "external" || isMultiDay || isOvertime) && selectedVenue?.type === "avr" && !isPinVerified) {
+    let requiresPin = false;
+    try {
+      const savedConfig = localStorage.getItem("fsuu_pin_config");
+      if (savedConfig) {
+        const parsed = JSON.parse(savedConfig);
+        if (parsed.requirePinForStudent) {
+          requiresPin = true;
+        } else {
+          requiresPin = identity === "external" || isMultiDay;
+        }
+      } else {
+        requiresPin = identity === "external" || isMultiDay;
+      }
+    } catch {
+      requiresPin = identity === "external" || isMultiDay;
+    }
+
+    if (requiresPin && !isPinVerified) {
       setShowPinModal(true);
       setPinError(false);
       setPinInput("");
@@ -207,6 +233,16 @@ export default function VenueBooking() {
         venue_id: selectedVenue?.id,
       };
 
+      // Format selected equipment with requested quantities
+      const equipFormatted = Object.entries(avrEquipment)
+        .filter(([_, val]) => Boolean(val))
+        .map(([key, val]) => {
+          const qty = typeof val === 'number' ? val : 1;
+          return `${key} (Qty: ${qty})`;
+        })
+        .join(', ');
+      payload.equipment_notes = equipFormatted;
+
       if (selectedVenue?.type === 'avr') {
         endpoint = '/public/avr-venue-bookings';
         payload.booking_classification = classification || 'academic';
@@ -234,6 +270,36 @@ export default function VenueBooking() {
       });
       const ref = data.tracking_number?.reference_code || data.reference_code || (data.id ? `TRK-AVR${data.id}` : 'TRK-SUCCESS');
       setReferenceCode(ref);
+
+      // Save to local storage cache so portal immediately displays new booking
+      try {
+        const newBk = {
+          ...data,
+          id: data.id || Date.now(),
+          reference_code: ref,
+          filer_name: fullName,
+          requestor_name: fullName,
+          email_address: email,
+          requestor_email: email,
+          contact_number: contactNumber,
+          program_office: department,
+          purpose: purpose,
+          venue_id: selectedVenue?.id,
+          venue_name: selectedVenue?.name,
+          venue: selectedVenue,
+          date_of_usage: selectedDate,
+          time_start: startTime,
+          time_end: endTime,
+          status: 'pending',
+          created_at: new Date().toISOString(),
+        };
+        const saved = localStorage.getItem("fsuu_venue_bookings");
+        const list = saved ? JSON.parse(saved) : [];
+        list.unshift(newBk);
+        localStorage.setItem("fsuu_venue_bookings", JSON.stringify(list));
+        window.dispatchEvent(new Event("venue_bookings_updated"));
+      } catch {}
+
       setShowSuccess(true);
     } catch (error) {
       const errObj = error.response?.data?.errors;
@@ -245,14 +311,14 @@ export default function VenueBooking() {
   };
 
   return (
-    <div className="flex flex-col items-center w-full max-w-4xl mx-auto relative animate-in fade-in slide-in-from-bottom-5 duration-700 pb-12">
+    <div className={`flex flex-col items-center w-full mx-auto relative animate-in fade-in slide-in-from-bottom-5 duration-700 pb-12 ${activeStep === 2 ? "max-w-7xl" : "max-w-4xl"}`}>
 
       {/* Header Title */}
-      <div className="text-center mb-8 w-full">
-        <h1 className="text-3xl sm:text-4xl font-black text-slate-900 mb-2 tracking-tight">
+      <div className="text-center mb-8 w-full flex flex-col items-center justify-center">
+        <h1 className="text-3xl sm:text-4xl font-black text-slate-900 mb-2 tracking-tight text-center">
           Venue Booking
         </h1>
-        <p className="text-slate-500 font-medium max-w-md sm:max-w-lg mx-auto text-xs sm:text-sm leading-relaxed text-center">
+        <p className="text-slate-500 font-medium max-w-md sm:max-w-lg mx-auto text-xs sm:text-sm leading-relaxed text-center tracking-normal">
           Book AVR Auditoriums or SCO Webcast Studios with real-time schedule checks.
         </p>
       </div>
@@ -312,13 +378,13 @@ export default function VenueBooking() {
             email={email} setEmail={setEmail}
             contactNumber={contactNumber} handleContactChange={handleContactChange}
             department={department} setDepartment={setDepartment}
-            identity={identity}
-            classification={classification} setClassification={setClassification}
+            purpose={purpose} setPurpose={setPurpose}
             persons={persons} setPersons={setPersons}
+            classification={classification} setClassification={setClassification}
             startTime={startTime} setStartTime={setStartTime}
             endTime={endTime} setEndTime={setEndTime}
-            purpose={purpose} setPurpose={setPurpose}
             avrEquipment={avrEquipment} setAvrEquipment={setAvrEquipment}
+            equipmentCatalog={equipmentCatalog}
             productionType={productionType} setProductionType={setProductionType}
             targetAudience={targetAudience} setTargetAudience={setTargetAudience}
             scoSupport={scoSupport} setScoSupport={setScoSupport}
@@ -363,18 +429,23 @@ export default function VenueBooking() {
       {/* Confirmation Success Modal */}
       {showSuccess && (
         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[2000] flex items-center justify-center p-4 animate-in fade-in duration-300">
-          <div className="bg-white rounded-3xl p-8 sm:p-10 max-w-md w-full text-center shadow-2xl animate-in zoom-in-95 duration-300 relative border border-slate-100">
-            <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-6 border-4 border-emerald-500/20 shadow-inner">
+          <div className="bg-white rounded-3xl p-8 sm:p-10 max-w-md w-full text-center shadow-2xl animate-in zoom-in-95 duration-300 relative border border-slate-100 space-y-4">
+            <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto border-4 border-emerald-500/20 shadow-inner">
               <ShieldCheck size={42} />
             </div>
-            <h2 className="text-2xl font-extrabold text-slate-900 mb-3">Thank You!</h2>
-            <p className="text-slate-600 mb-6 font-medium text-xs sm:text-sm leading-relaxed">
-              The venue booking will be released once you receive the tracking number sent via email or SMS to claim your reservation. Please check your registered email or phone number.
-            </p>
+            <h2 className="text-2xl font-black text-slate-900">Thank You!</h2>
 
-            <div className="flex flex-col gap-3">
-              <Button asChild className="w-full py-6 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-blue-600/20">
-                <Link to="/track">Track Reservation Status</Link>
+            <div className="p-4 bg-slate-50 border border-slate-200/80 rounded-2xl space-y-1">
+              <p className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">Your Tracking Number</p>
+              <p className="text-xl font-mono font-black text-blue-600 tracking-wider select-all">{referenceCode}</p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 pt-2">
+              <Button asChild variant="outline" className="w-full py-5 rounded-xl border-slate-200 hover:bg-slate-100 text-slate-700 font-extrabold text-xs cursor-pointer">
+                <Link to="/">Done</Link>
+              </Button>
+              <Button asChild className="w-full py-5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs shadow-md cursor-pointer">
+                <Link to={`/track-booking?ref=${referenceCode}`}>Track Reservation Status</Link>
               </Button>
             </div>
           </div>

@@ -56,8 +56,10 @@ export default function EquipmentBorrowing() {
   const [campusBranch, setCampusBranch] = useState("FSUU Main (AVR Center)");
   const [startTime, setStartTime] = useState(`${getTodayISO()}T08:00`);
   const [endTime, setEndTime] = useState(`${getTodayISO()}T17:00`);
+  const [wishesToExtend, setWishesToExtend] = useState(false);
 
   const handleContactChange = (e) => {
+
     setContactNumber(e.target.value.replace(/\D/g, '').slice(0, 11));
   };
 
@@ -68,13 +70,28 @@ export default function EquipmentBorrowing() {
       .finally(() => setCatalogLoading(false));
   }, []);
 
-  const filteredCatalog = equipmentCategory === "all"
-    ? catalog
-    : catalog.filter(c => c.dept === equipmentCategory);
+  const filteredCatalog = catalog.filter((item) => {
+    if (equipmentCategory === "all") return true;
+    const rawVal = item?.campus || item?.location || item?.office || item?.dept || "main";
+    const campusStr = (typeof rawVal === "string" 
+      ? rawVal 
+      : (rawVal && typeof rawVal === "object" ? (rawVal.name || rawVal.code || rawVal.label || "") : String(rawVal || "main"))
+    ).toLowerCase();
+
+    if (equipmentCategory === "main") {
+      return campusStr.includes("main") || campusStr.includes("avr") || !campusStr.includes("morelos");
+    }
+    if (equipmentCategory === "morelos") {
+      return campusStr.includes("morelos") || campusStr.includes("sco");
+    }
+    return true;
+  });
+
 
   const isScoSelected = selectedItems.some(id => catalog.find(c => c.id === id)?.dept === "sco");
   const isAvrSelected = selectedItems.some(id => catalog.find(c => c.id === id)?.dept === "avr");
   const primaryDept = isScoSelected && !isAvrSelected ? "sco" : isAvrSelected && !isScoSelected ? "avr" : "mixed";
+
 
   // PIN Verification State
   const [showPinModal, setShowPinModal] = useState(false);
@@ -127,7 +144,24 @@ export default function EquipmentBorrowing() {
     const endDateStr = endTime ? endTime.split("T")[0] : "";
     const isNextDayOrMore = endDateStr && startDateStr && endDateStr > startDateStr;
 
-    if ((isNextDayOrMore || identity === "external") && !isPinVerified) {
+    let requiresPin = false;
+    try {
+      const savedConfig = localStorage.getItem("fsuu_pin_config");
+      if (savedConfig) {
+        const parsed = JSON.parse(savedConfig);
+        if (parsed.requirePinForStudent) {
+          requiresPin = true;
+        } else {
+          requiresPin = identity === "external" || isNextDayOrMore;
+        }
+      } else {
+        requiresPin = identity === "external" || isNextDayOrMore;
+      }
+    } catch {
+      requiresPin = identity === "external" || isNextDayOrMore;
+    }
+
+    if (requiresPin && !isPinVerified) {
       setShowPinModal(true);
       setPinError(false);
       setPinInput("");
@@ -233,18 +267,18 @@ export default function EquipmentBorrowing() {
   };
 
   return (
-    <div className="flex flex-col items-center w-full max-w-4xl mx-auto relative animate-in fade-in slide-in-from-bottom-5 duration-700 pb-12">
+    <div className={`flex flex-col items-center w-full mx-auto relative animate-in fade-in slide-in-from-bottom-5 duration-700 pb-12 ${activeStep === 2 ? "max-w-7xl" : "max-w-4xl"}`}>
 
       {/* Header Title */}
-      <div className="text-center mb-8 w-full">
+      <div className="text-center mb-8 w-full flex flex-col items-center justify-center">
         <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-50 border border-amber-200 text-amber-800 text-xs font-semibold mb-3 shadow-xs">
           <PackageOpen size={14} className="text-amber-600" />
           <span>Equipment Requisition System</span>
         </div>
-        <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 mb-2 tracking-tight">
+        <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 mb-2 tracking-tight text-center">
           Equipment Borrowing
         </h1>
-        <p className="text-slate-500 font-medium max-w-md sm:max-w-lg mx-auto text-xs sm:text-sm leading-relaxed text-center">
+        <p className="text-slate-500 font-medium max-w-md sm:max-w-lg mx-auto text-xs sm:text-sm leading-relaxed text-center tracking-normal">
           Request AV gear from AVR or professional video/audio broadcast equipment from SCO.
         </p>
       </div>
@@ -293,11 +327,21 @@ export default function EquipmentBorrowing() {
               handleQuantityChange={handleQuantityChange}
               isScoSelected={isScoSelected}
               isAvrSelected={isAvrSelected}
+              startTime={startTime}
+              setStartTime={setStartTime}
+              endTime={endTime}
+              setEndTime={setEndTime}
+              wishesToExtend={wishesToExtend}
+              setWishesToExtend={setWishesToExtend}
+              isPinVerified={isPinVerified}
+              setIsPinVerified={setIsPinVerified}
+              setShowPinModal={setShowPinModal}
               handleEquipmentSubmit={handleEquipmentSubmit}
               onBack={() => setActiveStep(1)}
             />
           )
         )}
+
 
         {activeStep === 3 && (
           <Step3Details

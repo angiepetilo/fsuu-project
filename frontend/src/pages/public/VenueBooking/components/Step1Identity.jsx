@@ -1,54 +1,59 @@
-import { ArrowRight } from "lucide-react";
+import { GraduationCap, Users, User, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export function Step1Identity({ identity, handleIdentitySelect, onNext }) {
+  const normIdentity = (identity || "").toLowerCase();
 
   return (
     <div className="p-6 sm:p-10 animate-in fade-in duration-300">
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 mb-8">
 
         {/* Role 1: Student */}
         <div
           onClick={() => handleIdentitySelect("student")}
-          className={`group bg-white rounded-3xl p-8 border-2 text-center cursor-pointer transition-all duration-300 flex flex-col items-center justify-center min-h-[220px] ${identity === "student"
-              ? "border-blue-600 shadow-md shadow-blue-500/10 scale-[1.02]"
-              : "border-slate-100 shadow-xs hover:border-blue-300 hover:shadow-md hover:-translate-y-1"
-            }`}
+          className={`group bg-white rounded-[24px] p-6 text-center cursor-pointer transition-all duration-300 border-2 flex flex-col items-center justify-center min-h-[190px] ${
+            normIdentity === "student"
+              ? "border-blue-500 bg-white shadow-md shadow-blue-500/10 ring-4 ring-blue-50/60 scale-[1.02]"
+              : "border-slate-200/80 shadow-2xs hover:border-blue-300 hover:shadow-md"
+          }`}
         >
-          <div className="text-4xl mb-6 group-hover:scale-110 transition-transform">
-            🎓 / 👩‍🎓
+          <div className="w-14 h-14 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform shrink-0">
+            <GraduationCap size={28} />
           </div>
-          <h3 className="font-extrabold text-slate-900 text-lg">Student</h3>
+          <h3 className="font-extrabold text-slate-900 text-base mb-1">Student</h3>
+          <p className="text-xs font-semibold text-slate-500">Enrolled FSUU Student</p>
         </div>
 
-        {/* Role 2: Faculty */}
+        {/* Role 2: Faculty / Staff */}
         <div
           onClick={() => handleIdentitySelect("faculty")}
-          className={`group bg-white rounded-3xl p-8 border-2 text-center cursor-pointer transition-all duration-300 flex flex-col items-center justify-center min-h-[220px] ${identity === "faculty"
-              ? "border-blue-600 shadow-md shadow-blue-500/10 scale-[1.02]"
-              : "border-slate-100 shadow-xs hover:border-blue-300 hover:shadow-md hover:-translate-y-1"
-            }`}
+          className={`group bg-white rounded-[24px] p-6 text-center cursor-pointer transition-all duration-300 border-2 flex flex-col items-center justify-center min-h-[190px] ${
+            normIdentity === "faculty"
+              ? "border-amber-500 bg-white shadow-md shadow-amber-500/10 ring-4 ring-amber-50/60 scale-[1.02]"
+              : "border-slate-200/80 shadow-2xs hover:border-amber-300 hover:shadow-md"
+          }`}
         >
-          <div className="text-4xl mb-6 group-hover:scale-110 transition-transform">
-            👩‍🏫
+          <div className="w-14 h-14 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform shrink-0">
+            <Users size={28} />
           </div>
-          <h3 className="font-extrabold text-slate-900 text-lg">Faculty</h3>
+          <h3 className="font-extrabold text-slate-900 text-base mb-1">Faculty / Staff</h3>
+          <p className="text-xs font-semibold text-slate-500">Academic or Administrative Dept</p>
         </div>
 
-        {/* Role 3: External Visitor / Guest */}
+        {/* Role 3: External User */}
         <div
           onClick={() => handleIdentitySelect("external")}
-          className={`group bg-white rounded-3xl p-8 border-2 text-center cursor-pointer transition-all duration-300 flex flex-col items-center justify-center min-h-[220px] ${identity === "external"
-              ? "border-blue-600 shadow-md shadow-blue-500/10 scale-[1.02]"
-              : "border-slate-100 shadow-xs hover:border-blue-300 hover:shadow-md hover:-translate-y-1"
-            }`}
+          className={`group bg-white rounded-[24px] p-6 text-center cursor-pointer transition-all duration-300 border-2 flex flex-col items-center justify-center min-h-[190px] ${
+            normIdentity === "external"
+              ? "border-emerald-500 bg-white shadow-md shadow-emerald-500/10 ring-4 ring-emerald-50/60 scale-[1.02]"
+              : "border-slate-200/80 shadow-2xs hover:border-emerald-300 hover:shadow-md"
+          }`}
         >
-          <div className="text-4xl mb-6 group-hover:scale-110 transition-transform">
-            👱
+          <div className="w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform shrink-0">
+            <User size={28} />
           </div>
-          <h3 className="font-extrabold text-slate-900 text-lg leading-snug">
-            External Visitor /<br />Guest
-          </h3>
+          <h3 className="font-extrabold text-slate-900 text-base mb-1">External User</h3>
+          <p className="text-xs font-semibold text-slate-500">Guest or Partner Entity</p>
         </div>
 
       </div>
@@ -69,5 +74,6 @@ export function Step1Identity({ identity, handleIdentitySelect, onNext }) {
 }
 
 export default Step1Identity;
+
 
 

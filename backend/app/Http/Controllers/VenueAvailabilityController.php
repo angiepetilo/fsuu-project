@@ -11,6 +11,13 @@ use Illuminate\Support\Facades\DB;
 
 class VenueAvailabilityController extends Controller
 {
+    public function publicOverrides(): JsonResponse
+    {
+        return response()->json(
+            VenueAvailabilityOverride::with('venue')->get()
+        );
+    }
+
     /**
      * GET /admin/venue-availability?venue_id=&year=&month=
      * Returns override statuses + computed booking density for a venue/month.
@@ -18,7 +25,7 @@ class VenueAvailabilityController extends Controller
     public function index(Request $request): JsonResponse
     {
         $request->validate([
-            'venue_id' => 'required|exists:venues,id',
+            'venue_id' => 'required',
             'year'     => 'required|integer',
             'month'    => 'required|integer|between:1,12',
         ]);

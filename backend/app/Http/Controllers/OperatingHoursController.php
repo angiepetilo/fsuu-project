@@ -8,15 +8,37 @@ use Illuminate\Http\Request;
 
 class OperatingHoursController extends Controller
 {
+    public function publicShow(Request $request): JsonResponse
+    {
+        $hours = OperatingHour::first();
+
+        if (!$hours) {
+            return response()->json([
+                'office_id'           => 1,
+                'venue_open'          => '07:30',
+                'venue_close'         => '17:00',
+                'equipment_open'      => '08:00',
+                'equipment_close'     => '16:30',
+                'arrival_grace_mins'  => 15,
+                'return_grace_mins'   => 30,
+                'auto_cancel_mins'    => 30,
+            ]);
+        }
+
+        return response()->json($hours);
+    }
+
     public function show(Request $request): JsonResponse
     {
         $user = $request->user();
-        $hours = OperatingHour::where('office_id', $user->office_id)->first();
+        $officeId = $user->office_id ?: 1;
+
+        $hours = OperatingHour::where('office_id', $officeId)->first();
 
         if (!$hours) {
             // Return sensible defaults if not configured yet
             return response()->json([
-                'office_id'           => $user->office_id,
+                'office_id'           => $officeId,
                 'venue_open'          => '07:00',
                 'venue_close'         => '17:00',
                 'equipment_open'      => '07:00',
@@ -33,24 +55,38 @@ class OperatingHoursController extends Controller
     public function update(Request $request): JsonResponse
     {
         $user = $request->user();
+        $officeId = $user->office_id ?: 1;
 
         $data = $request->validate([
-            'venue_open'          => 'required|date_format:H:i',
-            'venue_close'         => 'required|date_format:H:i|after:venue_open',
-            'equipment_open'      => 'required|date_format:H:i',
-            'equipment_close'     => 'required|date_format:H:i|after:equipment_open',
+            'venue_open'          => 'required',
+            'venue_close'         => 'required',
+            'equipment_open'      => 'required',
+            'equipment_close'     => 'required',
             'arrival_grace_mins'  => 'required|integer|min:0|max:120',
             'return_grace_mins'   => 'required|integer|min:0|max:120',
             'auto_cancel_mins'    => 'required|integer|min:0|max:120',
         ]);
 
-        $data['office_id'] = $user->office_id;
+        $formatTime = function ($t) {
+            if (!$t) return '07:00:00';
+            $parts = explode(':', $t);
+            $h = str_pad($parts[0] ?? '07', 2, '0', STR_PAD_LEFT);
+            $m = str_pad($parts[1] ?? '00', 2, '0', STR_PAD_LEFT);
+            return "{$h}:{$m}:00";
+        };
+
+        $data['venue_open'] = $formatTime($data['venue_open']);
+        $data['venue_close'] = $formatTime($data['venue_close']);
+        $data['equipment_open'] = $formatTime($data['equipment_open']);
+        $data['equipment_close'] = $formatTime($data['equipment_close']);
+        $data['office_id'] = $officeId;
 
         $hours = OperatingHour::updateOrCreate(
-            ['office_id' => $user->office_id],
+            ['office_id' => $officeId],
             $data
         );
 
         return response()->json($hours);
     }
 }
+

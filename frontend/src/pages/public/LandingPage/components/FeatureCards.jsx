@@ -8,7 +8,7 @@ export default function FeatureCards() {
 
       {/* Card A: Venue Booking */}
       <div className="bg-[#ffffff] border border-[#e2e8f0] rounded-[24px] p-[2.5rem_2rem] sm:p-[3rem_2.5rem] text-center transition-all duration-400 ease-out hover:-translate-y-[8px] hover:shadow-[0_20px_25px_-5px_rgba(0,0,0,0.1),0_8px_10px_-6px_rgba(0,0,0,0.1)] hover:border-[#cbd5e1] relative flex flex-col justify-between shadow-[0_4px_6px_-1px_rgba(0,0,0,0.1)] overflow-hidden group animate-in fade-in slide-in-from-bottom-5 duration-700 delay-200 fill-mode-both">
-        <div>
+        <div className="flex flex-col items-center text-center w-full">
           {/* House / Building Outline Icon Wrapper */}
           <div className="w-[88px] h-[88px] rounded-[24px] bg-[#eff6ff] text-[#2563eb] flex items-center justify-center mx-auto mb-[2rem] transition-all duration-300 group-hover:scale-105 group-hover:rotate-[3deg]">
             <svg
@@ -35,12 +35,12 @@ export default function FeatureCards() {
             </div>
           </Tooltip>
 
-          <h2 className="text-[1.875rem] font-[800] mb-[1rem] text-[#0f172a]">
+          <h2 className="text-[1.875rem] font-[800] mb-[1rem] text-[#0f172a] text-center w-full">
             <span className="text-[#2563eb]">Venue</span> Booking
           </h2>
 
-          <p className="text-[#64748b] text-xs sm:text-sm leading-[1.6] mb-[2rem] font-[500] text-center mx-auto max-w-sm">
-            Reserve AVR rooms, Hagenburg Hall, Webcast Studio, or Mini Theater at FSUU campuses for events, classes, and recordings.
+          <p className="text-xs font-medium text-slate-500 leading-relaxed mb-6 text-center mx-auto max-w-sm w-full">
+            Reserve AVR rooms, Hagenburg Hall, Webcast Studio, or Mini Theater at FSUU campuses for events, classes, and recordings
           </p>
         </div>
 
@@ -58,7 +58,7 @@ export default function FeatureCards() {
 
       {/* Card B: Equipment Borrowing */}
       <div className="bg-[#ffffff] border border-[#e2e8f0] rounded-[24px] p-[2.5rem_2rem] sm:p-[3rem_2.5rem] text-center transition-all duration-400 ease-out hover:-translate-y-[8px] hover:shadow-[0_20px_25px_-5px_rgba(0,0,0,0.1),0_8px_10px_-6px_rgba(0,0,0,0.1)] hover:border-[#cbd5e1] relative flex flex-col justify-between shadow-[0_4px_6px_-1px_rgba(0,0,0,0.1)] overflow-hidden group animate-in fade-in slide-in-from-bottom-5 duration-700 delay-400 fill-mode-both">
-        <div>
+        <div className="flex flex-col items-center text-center w-full">
           {/* Camera Icon Wrapper */}
           <div className="w-[88px] h-[88px] rounded-[24px] bg-[#fefce8] text-[#d97706] flex items-center justify-center mx-auto mb-[2rem] transition-all duration-300 group-hover:scale-105 group-hover:rotate-[3deg]">
             <svg
@@ -85,11 +85,11 @@ export default function FeatureCards() {
             </div>
           </Tooltip>
 
-          <h2 className="text-[1.875rem] font-[800] mb-[1rem] text-[#0f172a]">
+          <h2 className="text-[1.875rem] font-[800] mb-[1rem] text-[#0f172a] text-center w-full">
             <span className="text-[#d97706]">Equipment</span> Borrowing
           </h2>
 
-          <p className="text-[#64748b] text-xs sm:text-sm leading-[1.6] mb-[2rem] font-[500] text-center mx-auto max-w-sm">
+          <p className="text-xs font-medium text-slate-500 leading-relaxed mb-6 text-center mx-auto max-w-sm w-full">
             Borrow multimedia items including projectors, projector screens, microphones, cameras, and corresponding extension items.
           </p>
         </div>

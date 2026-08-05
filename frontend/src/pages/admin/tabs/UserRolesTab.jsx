@@ -41,7 +41,7 @@ export default function UserRolesTab({
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-slate-50/80 border-b border-slate-100">
-              {["#", "User", "Login Username", "Personal Email", "Office", "Role", "Actions"].map((h) => (
+              {["#", "User", "Username", "Personal Email", "Office", "Role", "Actions"].map((h) => (
                 <th key={h} className="px-4 py-3.5 text-left text-[11px] font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap">
                   {h}
                 </th>
@@ -76,7 +76,24 @@ export default function UserRolesTab({
                     {u.personal_email ?? <span className="text-slate-300 italic">not set</span>}
                   </td>
                   <td className="px-4 py-3.5 text-slate-600 text-xs font-semibold">{u.office?.name ?? "FSUU Main"}</td>
-                  <td className="px-4 py-3.5">{roleBadge(u.role)}</td>
+                  <td className="px-4 py-3.5">
+                    <div className="flex flex-col gap-1">
+                      <div>{roleBadge(u.role)}</div>
+                      {(u.role?.name === "staff" || u.role === "staff") && u.permissions && (
+                        <div className="flex flex-wrap gap-1 mt-0.5">
+                          {u.permissions.includes("manage_equipments") && (
+                            <span className="text-[9px] font-bold bg-purple-50 text-purple-700 px-1.5 py-0.5 rounded border border-purple-200">📦 Equip</span>
+                          )}
+                          {u.permissions.includes("manage_venues") && (
+                            <span className="text-[9px] font-bold bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded border border-blue-200">🏛️ Venues</span>
+                          )}
+                          {u.permissions.includes("reports") && (
+                            <span className="text-[9px] font-bold bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded border border-emerald-200">📊 Reports</span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </td>
                   <td className="px-4 py-3.5">
                     <div className="flex items-center gap-2">
                       <button

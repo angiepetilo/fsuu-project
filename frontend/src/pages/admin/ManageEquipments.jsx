@@ -3,7 +3,7 @@ import { useOutletContext } from "react-router-dom";
 import api from "@/lib/axios";
 import {
   PackageOpen, Plus, Search, Filter, Edit3, Trash2, CheckCircle2,
-  AlertTriangle, RefreshCw, Barcode, Calendar, Clock, Loader2, Eye
+  AlertTriangle, RefreshCw, Barcode, Calendar, Clock, Loader2, Eye, Copy, Check
 } from "lucide-react";
 import EquipmentDetailModal from "./components/EquipmentDetailModal";
 import EquipmentModal from "./components/EquipmentModal";
@@ -36,6 +36,14 @@ export default function ManageEquipments() {
   const [selectedItem, setSelectedItem] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [feedback, setFeedback] = useState(null);
+  const [copiedBarcode, setCopiedBarcode] = useState(null);
+
+  const handleCopyBarcode = (barcode) => {
+    if (!barcode) return;
+    navigator.clipboard.writeText(barcode);
+    setCopiedBarcode(barcode);
+    setTimeout(() => setCopiedBarcode(null), 2000);
+  };
 
   // Form State
   const [formData, setFormData] = useState({
@@ -79,6 +87,7 @@ export default function ManageEquipments() {
         barcode: u.unit_code || u.barcode || `BC-EQP-2026-00${idx + 1}`,
         name: u.name || u.equipment_type?.eq_name || "Equipment Unit",
         category: u.equipment_type?.eq_type || u.equipment_type?.eq_name || "AV Equipment",
+        office_name: u.equipmentType?.office?.office_name || u.equipment_type?.office?.office_name || u.equipmentType?.office?.name || "AVR | FSUU Main Campus",
         status: u.status || "available",
         available_count: u.status === 'available' ? 1 : 0,
         total_count: 1,
@@ -342,15 +351,32 @@ export default function ManageEquipments() {
                     <tr key={item.id} className="hover:bg-slate-50/60 transition-colors">
                       <td className="px-4 py-3.5 font-bold text-slate-400">{index + 1}</td>
                       <td className="px-4 py-3.5 font-mono text-xs font-bold text-blue-600 whitespace-nowrap">
-                        <div className="flex items-center gap-1.5 bg-blue-50/60 border border-blue-200/60 px-2.5 py-1 rounded-lg w-fit">
-                          <Barcode size={14} className="text-blue-500" />
-                          <span>{item.barcode}</span>
+                        <div className="flex items-center gap-1.5">
+                          <div className="flex items-center gap-1.5 bg-blue-50/60 border border-blue-200/60 px-2.5 py-1 rounded-lg w-fit">
+                            <Barcode size={14} className="text-blue-500" />
+                            <span>{item.barcode}</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleCopyBarcode(item.barcode)}
+                            className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-500 hover:text-slate-900 transition-all cursor-pointer"
+                            title="Copy Barcode"
+                          >
+                            {copiedBarcode === item.barcode ? (
+                              <Check size={13} className="text-emerald-600 font-extrabold" />
+                            ) : (
+                              <Copy size={13} />
+                            )}
+                          </button>
                         </div>
                       </td>
                       <td className="px-4 py-3.5 font-extrabold text-slate-900">{item.name}</td>
                       <td className="px-4 py-3.5 font-bold text-blue-700">
-                        <span className="bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-200/60">
+                        <span className="bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-200/60 block w-fit">
                           {item.category}
+                        </span>
+                        <span className="text-[10px] text-slate-500 font-semibold block mt-1">
+                          🏢 {item.office_name || "AVR | FSUU Main Campus"}
                         </span>
                       </td>
                       <td className="px-4 py-3.5">

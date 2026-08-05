@@ -156,15 +156,7 @@ export default function EquipmentBorrowDetailModal({
       return false;
     });
 
-    if (matched.length > 0) {
-      return matched;
-    }
-
-    return [
-      { id: `auto-${reqName}-1`, name: reqName.includes("PROJECTOR") ? "EPSON CINEMA ZDI" : `${reqName} — Unit 01`, unit_code: "03322332", status: "available" },
-      { id: `auto-${reqName}-2`, name: `${reqName} — Unit 02`, unit_code: "03322333", status: "available" },
-      { id: `auto-${reqName}-3`, name: `${reqName} — Unit 03`, unit_code: "03322334", status: "available" },
-    ];
+    return matched;
   };
 
 
@@ -412,26 +404,25 @@ export default function EquipmentBorrowDetailModal({
                     </div>
 
                     {!hasStock ? (
-                      <div className="p-2 bg-amber-50 border border-amber-200 rounded-lg text-[11px] font-bold text-amber-800">
-                        ⚠️ No available physical units in stock for {reqCat.category} (0 units available)
+                      <div className="p-2.5 bg-slate-100 border border-slate-200 rounded-lg text-xs font-bold text-slate-500 text-center">
+                        No registered equipment units available for {reqCat.category}
                       </div>
                     ) : (
                       <div className="space-y-2">
-                        {Array.from({ length: Math.min(reqCat.quantity, availableUnits.length) }).map((_, uIdx) => (
+                        {Array.from({ length: reqCat.quantity }).map((_, uIdx) => (
                           <div key={uIdx} className="relative">
                             <select
-                              value={assignedUnitSelections[`${catIdx}-${uIdx}`] || (availableUnits[uIdx]?.name || "")}
+                              value={assignedUnitSelections[`${catIdx}-${uIdx}`] || ""}
                               onChange={(e) => setAssignedUnitSelections((prev) => ({ ...prev, [`${catIdx}-${uIdx}`]: e.target.value }))}
-                              className="w-full p-2.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-800 appearance-none focus:outline-none focus:border-blue-500"
+                              className="w-full p-2.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-800 focus:outline-none focus:border-blue-500"
                             >
-                              <option value="">Select Equipment Unit for {reqCat.category} (Unit {uIdx + 1})</option>
+                              <option value="">-- Select Unit Barcode for {reqCat.category} (Unit {uIdx + 1}) --</option>
                               {availableUnits.map((unit) => (
-                                <option key={unit.id} value={unit.name || unit.unit_code}>
-                                  {unit.name || unit.unit_code} — (Barcode: {unit.unit_code || unit.id})
+                                <option key={unit.id} value={unit.unit_code || unit.name}>
+                                  {unit.name || unit.unit_code} — (Barcode: {unit.unit_code || unit.barcode || unit.id})
                                 </option>
                               ))}
                             </select>
-                            <span className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 text-xs">⯆</span>
                           </div>
                         ))}
                       </div>

@@ -43,6 +43,10 @@ use App\Http\Controllers\PublicScoStudioReservationController;
 use App\Http\Controllers\PublicTrackingController;
 use App\Http\Controllers\PublicOtpController;
 
+// ─── Public Operating Hours & Overrides ─────────────────────────────────────────
+Route::get('/public/operating-hours', [OperatingHoursController::class, 'publicShow']);
+Route::get('/public/venue-overrides', [VenueAvailabilityController::class, 'publicOverrides']);
+
 // ─── Authentication ────────────────────────────────────────────────────────────
 Route::get('/auth/google/redirect', [GoogleAuthController::class, 'redirect']);
 Route::get('/auth/google/callback', [GoogleAuthController::class, 'callback']);

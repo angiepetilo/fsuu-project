@@ -29,6 +29,7 @@ class AdminHistoryLogController extends Controller
                 ->leftJoin('venues', 'venue_bookings.venue_id', '=', 'venues.id')
                 ->leftJoin('offices', 'venues.office_id', '=', 'offices.id')
                 ->whereNull('venue_bookings.archived_at')
+                ->whereIn(DB::raw('LOWER(tracking_numbers.status)'), ['completed', 'solved', 'done'])
                 ->select(
                     'venue_bookings.id',
                     'venue_bookings.filer_name',
@@ -63,6 +64,7 @@ class AdminHistoryLogController extends Controller
                 ->join('tracking_numbers', 'equipment_borrows.tracking_number_id', '=', 'tracking_numbers.id')
                 ->leftJoin('offices', 'equipment_borrows.office_id', '=', 'offices.id')
                 ->whereNull('equipment_borrows.archived_at')
+                ->whereIn(DB::raw('LOWER(tracking_numbers.status)'), ['completed', 'solved', 'done'])
                 ->select(
                     'equipment_borrows.id',
                     'equipment_borrows.filer_name',
@@ -88,6 +90,7 @@ class AdminHistoryLogController extends Controller
 
             $equipmentBorrowings = $ebQuery->get()->map(fn ($b) => (array) $b + ['record_type' => 'equipment']);
         }
+
 
         if ($type === 'venue') {
             return response()->json(['venue_bookings' => $venueBookings, 'equipment_borrowings' => []]);

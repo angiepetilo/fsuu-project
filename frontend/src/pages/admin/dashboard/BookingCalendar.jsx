@@ -26,22 +26,22 @@ export default function BookingCalendar({
   const todayYear = currentToday.getFullYear();
 
   return (
-    <div className="bg-white border border-blue-200/80 rounded-3xl p-5 shadow-xs flex flex-col justify-between space-y-4">
+    <div className="bg-white/95 backdrop-blur-md border border-slate-200/90 rounded-[28px] p-6 shadow-md flex flex-col justify-between space-y-4">
       {/* Top Header */}
-      <div className="flex items-center justify-between">
-        <h3 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight">
-          Calendar
+      <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+        <h3 className="text-xs font-extrabold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+          <span>📅 Schedule Overview</span>
         </h3>
-        <button className="text-slate-400 hover:text-slate-600 p-1 rounded-full hover:bg-slate-100 transition-colors cursor-pointer">
-          <MoreVertical size={18} />
+        <button className="text-slate-400 hover:text-slate-600 p-1.5 rounded-full hover:bg-slate-100 transition-all cursor-pointer">
+          <MoreVertical size={16} />
         </button>
       </div>
 
-      {/* Month & Year Navigation Row — Matching Image 1 Reference */}
+      {/* Month & Year Navigation Row — Apple iOS Styling */}
       <div className="flex items-center justify-between px-1">
         <button
           onClick={prevMonth}
-          className="w-9 h-9 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-600 flex items-center justify-center transition-colors cursor-pointer shrink-0"
+          className="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200/80 text-slate-700 flex items-center justify-center transition-all cursor-pointer shrink-0 active:scale-95 shadow-2xs"
         >
           <ChevronLeft size={16} className="stroke-[2.5]" />
         </button>
@@ -52,13 +52,13 @@ export default function BookingCalendar({
             <select
               value={calMonth !== undefined ? calMonth : 7}
               onChange={(e) => setCalMonth && setCalMonth(Number(e.target.value))}
-              className="appearance-none bg-slate-50 hover:bg-slate-100 text-slate-800 font-bold text-xs sm:text-sm py-1.5 pl-3 pr-7 rounded-xl border border-slate-200 cursor-pointer focus:outline-none focus:border-blue-500"
+              className="appearance-none bg-slate-100/90 hover:bg-slate-200/80 text-slate-900 font-extrabold text-xs py-2 pl-3.5 pr-7 rounded-full border border-slate-200/80 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500/20"
             >
               {MONTH_NAMES.map((m, idx) => (
                 <option key={m} value={idx}>{m}</option>
               ))}
             </select>
-            <span className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 text-[10px]">▼</span>
+            <span className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 text-[9px]">▼</span>
           </div>
 
           {/* Year Dropdown */}
@@ -66,26 +66,26 @@ export default function BookingCalendar({
             <select
               value={calYear !== undefined ? calYear : 2026}
               onChange={(e) => setCalYear && setCalYear(Number(e.target.value))}
-              className="appearance-none bg-slate-50 hover:bg-slate-100 text-slate-800 font-bold text-xs sm:text-sm py-1.5 pl-3 pr-7 rounded-xl border border-slate-200 cursor-pointer focus:outline-none focus:border-blue-500"
+              className="appearance-none bg-slate-100/90 hover:bg-slate-200/80 text-slate-900 font-extrabold text-xs py-2 pl-3.5 pr-7 rounded-full border border-slate-200/80 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500/20"
             >
               {YEARS.map((y) => (
                 <option key={y} value={y}>{y}</option>
               ))}
             </select>
-            <span className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 text-[10px]">▼</span>
+            <span className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 text-[9px]">▼</span>
           </div>
         </div>
 
         <button
           onClick={nextMonth}
-          className="w-9 h-9 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-600 flex items-center justify-center transition-colors cursor-pointer shrink-0"
+          className="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200/80 text-slate-700 flex items-center justify-center transition-all cursor-pointer shrink-0 active:scale-95 shadow-2xs"
         >
           <ChevronRight size={16} className="stroke-[2.5]" />
         </button>
       </div>
 
-      {/* Days Header Row — Matching Image 1 Reference */}
-      <div className="grid grid-cols-7 gap-1 text-center text-xs font-semibold text-slate-400 py-1">
+      {/* Days Header Row */}
+      <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-black text-slate-400 uppercase py-1">
         {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((d) => (
           <div key={d} className="py-1">{d}</div>
         ))}
@@ -100,28 +100,26 @@ export default function BookingCalendar({
         {Array.from({ length: daysInMonth }).map((_, i) => {
           const day = i + 1;
           const details = getDayDetails ? getDayDetails(day) : { status: "avail" };
-          const isFullySelected = day === 11;
-          const isLightSelected = day === 10;
+          const isFullySelected = day === todayDay && (calMonth === todayMonth) && (calYear === todayYear);
           const hasEvent = details?.status === "fully" || details?.status === "partial" || [1, 2, 10, 11, 14, 16, 25, 29].includes(day);
 
-          let dateNumberStyle = "text-slate-700 font-semibold";
-          let containerStyle = "w-8 h-8 rounded-xl flex flex-col items-center justify-center mx-auto hover:bg-slate-100 transition-all cursor-pointer";
+          let dateNumberStyle = "text-slate-700 font-bold";
+          let containerStyle = "w-9 h-9 rounded-full flex flex-col items-center justify-center mx-auto hover:bg-slate-100 transition-all cursor-pointer active:scale-95";
 
           if (isFullySelected) {
-            containerStyle = "w-8 h-8 rounded-xl bg-blue-600 text-white font-bold flex flex-col items-center justify-center mx-auto shadow-sm cursor-pointer";
-            dateNumberStyle = "text-white font-bold";
-          } else if (isLightSelected) {
-            containerStyle = "w-8 h-8 rounded-xl bg-blue-50 text-blue-700 font-bold flex flex-col items-center justify-center mx-auto cursor-pointer border border-blue-200/60";
-            dateNumberStyle = "text-blue-700 font-bold";
+            containerStyle = "w-9 h-9 rounded-full bg-blue-600 text-white font-black flex flex-col items-center justify-center mx-auto shadow-md ring-4 ring-blue-100 scale-105 cursor-pointer";
+            dateNumberStyle = "text-white font-black";
+          } else if (hasEvent) {
+            containerStyle = "w-9 h-9 rounded-full bg-blue-50 text-blue-800 font-extrabold flex flex-col items-center justify-center mx-auto cursor-pointer border border-blue-200/60 hover:bg-blue-100 transition-all active:scale-95";
+            dateNumberStyle = "text-blue-800 font-extrabold";
           }
 
           return (
             <Tooltip key={day} content={details?.tooltip || `${MONTH_NAMES[calMonth || 7]} ${day}, ${calYear || 2026}`}>
               <div className={containerStyle}>
                 <span className={dateNumberStyle}>{day}</span>
-                {/* Red Dot Indicator centered directly under date number */}
-                {hasEvent && (
-                  <span className={`w-1.5 h-1.5 rounded-full shrink-0 mt-0.5 ${isFullySelected ? "bg-white" : "bg-rose-500"}`} />
+                {hasEvent && !isFullySelected && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0 mt-0.5" />
                 )}
               </div>
             </Tooltip>

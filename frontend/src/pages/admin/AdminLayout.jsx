@@ -20,9 +20,9 @@ const NAV_GROUPS = [
   {
     title: "RECORDS & INVENTORY",
     items: [
-      { label: "Manage Equipment",    icon: Box,              path: "/admin/manage-equipments",  roles: ["super_admin", "admin"] },
-      { label: "Manage Venue",        icon: CalendarCheck,    path: "/admin/manage-venues",      roles: ["super_admin", "admin"] },
-      { label: "Report",              icon: FileBarChart2,    path: "/admin/reports",            roles: ["super_admin", "admin"] },
+      { label: "Manage Equipment",    icon: Box,              path: "/admin/manage-equipments",  roles: ["super_admin", "admin", "staff"], permissionKey: "manage_equipments" },
+      { label: "Manage Venue",        icon: CalendarCheck,    path: "/admin/manage-venues",      roles: ["super_admin", "admin", "staff"], permissionKey: "manage_venues" },
+      { label: "Report",              icon: FileBarChart2,    path: "/admin/reports",            roles: ["super_admin", "admin", "staff"] },
       { label: "History Log",         icon: FileBarChart2,    path: "/admin/history-log",        roles: ["super_admin", "admin", "staff"] },
     ],
   },
@@ -131,6 +131,12 @@ export default function AdminLayout() {
 
   if (!user) return null;
 
+  const portalTitle = isSuperAdmin 
+    ? "FSUU Super Admin Portal" 
+    : userRole === "staff" 
+      ? "FSUU Staff Portal" 
+      : "FSUU Admin Portal";
+
   return (
     <div className="min-h-screen bg-[#f8fafc] flex font-sans antialiased text-slate-900">
 
@@ -147,7 +153,7 @@ export default function AdminLayout() {
           <img src="/fsuu_logo.png" alt="FSUU" className="h-10 w-10 flex-shrink-0 object-contain" />
           {sidebarOpen && (
             <div className="flex flex-col min-w-0">
-              <span className="font-extrabold text-sm tracking-tight leading-tight text-white">FSUU Admin Portal</span>
+              <span className="font-extrabold text-sm tracking-tight leading-tight text-white">{portalTitle}</span>
               <span className="text-[11px] text-slate-400 font-semibold truncate">{officeName}</span>
             </div>
           )}
@@ -156,7 +162,14 @@ export default function AdminLayout() {
         {/* Grouped Navigation */}
         <nav className="flex-1 overflow-y-auto py-5 px-3 space-y-6 scrollbar-none">
           {NAV_GROUPS.map((group) => {
-            const filteredItems = group.items.filter(item => item.roles.includes(userRole));
+            const filteredItems = group.items.filter(item => {
+              if (!item.roles.includes(userRole)) return false;
+              if (userRole === "staff" && item.permissionKey) {
+                const userPerms = user?.permissions ?? [];
+                return Array.isArray(userPerms) && userPerms.includes(item.permissionKey);
+              }
+              return true;
+            });
             if (filteredItems.length === 0) return null;
 
             return (
@@ -279,65 +292,65 @@ export default function AdminLayout() {
             </div>
 
             <div className="flex items-center gap-3">
-              {/* Notification Bell Dropdown (Office Restricted) */}
+              {/* Notification Bell Dropdown (Apple iOS Design System) */}
               <div className="relative">
                 <button
                   onClick={() => setShowNotifDropdown(v => !v)}
-                  className="relative p-2 rounded-xl text-slate-600 hover:bg-slate-100 transition-all cursor-pointer"
+                  className="relative p-2.5 rounded-full border border-slate-200/80 bg-white/90 backdrop-blur-md text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-all cursor-pointer shadow-2xs active:scale-95 flex items-center justify-center"
                   title="Office Restricted Notifications"
                 >
                   <Bell size={18} />
                   {filteredNotifications.length > 0 && (
-                    <span className="absolute top-1 right-1 w-4 h-4 rounded-full bg-rose-500 text-[9px] font-bold text-white flex items-center justify-center ring-2 ring-white animate-pulse">
+                    <span className="absolute -top-1 -right-1 min-w-[20px] h-[20px] px-1 bg-rose-500 text-white font-black text-[10px] rounded-full flex items-center justify-center border-2 border-white shadow-md animate-pulse">
                       {filteredNotifications.length}
                     </span>
                   )}
                 </button>
 
                 {showNotifDropdown && (
-                  <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-2xl shadow-2xl border border-slate-200/90 z-50 overflow-hidden animate-in fade-in zoom-in-95">
-                    <div className="p-3.5 bg-slate-900 text-white flex items-center justify-between">
+                  <div className="absolute right-0 mt-3 w-80 sm:w-96 bg-white/95 backdrop-blur-xl rounded-[28px] shadow-2xl border border-slate-200/90 z-50 overflow-hidden animate-in fade-in zoom-in-95 p-4 space-y-3">
+                    <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                       <div>
-                        <h4 className="font-extrabold text-xs flex items-center gap-1.5">
-                          <Bell size={14} className="text-blue-400" />
-                          Office Notifications ({officeFilterName})
+                        <h4 className="font-extrabold text-xs text-slate-900 flex items-center gap-2 uppercase tracking-wider">
+                          <Bell size={15} className="text-blue-600" />
+                          Notifications ({officeFilterName})
                         </h4>
-                        <p className="text-[10px] text-slate-400">Filtered by your assigned branch office</p>
+                        <p className="text-[10.5px] text-slate-500 font-medium">Filtered by your assigned branch office</p>
                       </div>
-                      <span className="text-[9px] font-bold bg-blue-600 px-2 py-0.5 rounded-full text-white">
+                      <span className="text-[10px] font-black bg-blue-600 text-white px-2.5 py-1 rounded-full shadow-2xs">
                         {filteredNotifications.length} New
                       </span>
                     </div>
 
-                    <div className="max-h-80 overflow-y-auto divide-y divide-slate-100 text-xs">
+                    <div className="max-h-80 overflow-y-auto space-y-2 text-xs pr-0.5">
                       {filteredNotifications.length > 0 ? (
                         filteredNotifications.map((n) => (
-                          <div key={n.id} className="p-3 hover:bg-slate-50 transition-colors space-y-1">
+                          <div key={n.id} className="p-3 bg-slate-50/80 hover:bg-slate-100/80 rounded-2xl border border-slate-200/60 transition-all space-y-1">
                             <div className="flex items-center justify-between">
-                              <span className="font-extrabold text-slate-900 text-[11px] flex items-center gap-1">
+                              <span className="font-extrabold text-slate-900 text-[11px] flex items-center gap-1.5">
                                 <span className={`w-2 h-2 rounded-full ${n.type === 'overdue' ? 'bg-rose-500' : 'bg-blue-600'}`}></span>
                                 {n.title}
                               </span>
-                              <span className="text-[9px] font-mono text-slate-400">{n.time}</span>
+                              <span className="text-[9.5px] font-bold text-slate-400">{n.time}</span>
                             </div>
-                            <p className="text-slate-600 text-[11px] leading-tight">{n.message}</p>
+                            <p className="text-slate-600 text-[11px] font-semibold leading-relaxed">{n.message}</p>
                             <div className="flex items-center justify-between pt-1 text-[10px]">
-                              <span className="font-bold text-slate-500">🏢 {n.office}</span>
-                              <span className="font-mono text-blue-600 font-bold">{n.ref}</span>
+                              <span className="font-extrabold text-slate-500">🏢 {n.office}</span>
+                              <span className="font-mono text-blue-600 font-black">{n.ref}</span>
                             </div>
                           </div>
                         ))
                       ) : (
-                        <div className="p-6 text-center text-slate-400 text-xs">
+                        <div className="p-6 text-center text-slate-400 text-xs font-semibold">
                           No active notifications for {officeFilterName}
                         </div>
                       )}
                     </div>
 
-                    <div className="p-2.5 bg-slate-50 border-t border-slate-100 text-center">
+                    <div className="pt-2 border-t border-slate-100 text-center">
                       <button
                         onClick={() => setShowNotifDropdown(false)}
-                        className="text-[11px] font-extrabold text-blue-600 hover:text-blue-700 cursor-pointer"
+                        className="w-full py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-extrabold transition-all cursor-pointer active:scale-95"
                       >
                         Close Panel
                       </button>
@@ -356,7 +369,7 @@ export default function AdminLayout() {
 
         {/* Footer */}
         <footer className="text-center py-4 text-xs text-slate-400 font-semibold border-t border-slate-200/80 bg-white">
-          © {new Date().getFullYear()} Father Saturnino Urios University — Admin Portal
+          © {new Date().getFullYear()} Father Saturnino Urios University — {portalTitle}
         </footer>
       </div>
     </div>

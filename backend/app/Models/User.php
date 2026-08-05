@@ -32,6 +32,7 @@ class User extends Authenticatable
         'location',
         'role_id',
         'created_by',
+        'permissions',
     ];
 
 
@@ -41,8 +42,9 @@ class User extends Authenticatable
     ];
 
     protected $casts = [
-        'is_active' => 'boolean',
-        'password'  => 'hashed',
+        'is_active'   => 'boolean',
+        'password'    => 'hashed',
+        'permissions' => 'array',
     ];
 
     public function office(): BelongsTo

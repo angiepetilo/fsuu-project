@@ -59,27 +59,41 @@ export default function Step3Details({
   return (
     <div className="p-6 sm:p-8 animate-in slide-in-from-top-2 duration-300">
       {/* Context Banner */}
-      <div className={`p-4 rounded-2xl mb-6 border flex items-center justify-between ${primaryDept === "sco"
+      <div className={`p-4 sm:p-5 rounded-2xl mb-6 border ${primaryDept === "sco"
         ? 'bg-purple-50/80 border-purple-100 text-purple-900'
         : 'bg-blue-50/80 border-blue-100 text-blue-900'
         }`}>
-        <div className="flex items-center gap-3">
-          <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${primaryDept === "sco" ? 'bg-purple-600 text-white' : 'bg-blue-600 text-white'
-            }`}>
-            {primaryDept === "sco" ? <Sparkles size={18} /> : <PackageOpen size={18} />}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${primaryDept === "sco" ? 'bg-purple-600 text-white' : 'bg-blue-600 text-white'
+              }`}>
+              {primaryDept === "sco" ? <Sparkles size={18} /> : <PackageOpen size={18} />}
+            </div>
+            <div>
+              <h4 className="font-extrabold text-sm">
+                {primaryDept === "sco" ? "SCO Media Equipment Requisition" : "AVR Equipment Borrowing Request"}
+              </h4>
+              <p className="text-xs opacity-80">
+                Total Selected Items: <span className="font-bold">{selectedItems.length}</span>
+              </p>
+            </div>
           </div>
-          <div>
-            <h4 className="font-extrabold text-sm">
-              {primaryDept === "sco" ? "SCO Media Equipment Requisition" : "AVR Equipment Borrowing Request"}
-            </h4>
-            <p className="text-xs opacity-80">
-              Total Selected Items: <span className="font-bold">{selectedItems.length}</span>
-            </p>
+          <span className="text-[11px] font-extrabold uppercase px-3 py-1 bg-white rounded-full border shadow-sm">
+            {primaryDept === "sco" ? "SCO Managed" : "AVR Managed"}
+          </span>
+        </div>
+
+        {/* Automatic Display of Selected Borrow Date, Time Start, Time End & Extension */}
+        <div className="mt-4 pt-3 border-t border-slate-200/60 flex flex-wrap items-center gap-3 text-xs font-bold text-slate-800">
+          <div className="flex items-center gap-1.5 bg-white px-3 py-2 rounded-xl border border-slate-200/80 shadow-2xs">
+            <span className="text-slate-500 font-semibold">Start Time:</span>
+            <span className="text-blue-700">{startTime ? startTime.replace("T", " ") : "Scheduled Slot"}</span>
+          </div>
+          <div className="flex items-center gap-1.5 bg-white px-3 py-2 rounded-xl border border-slate-200/80 shadow-2xs">
+            <span className="text-slate-500 font-semibold">Expected Return:</span>
+            <span className="text-blue-700">{endTime ? endTime.replace("T", " ") : "Scheduled Slot"}</span>
           </div>
         </div>
-        <span className="text-[11px] font-extrabold uppercase px-3 py-1 bg-white rounded-full border shadow-sm">
-          {primaryDept === "sco" ? "SCO Managed" : "AVR Managed"}
-        </span>
       </div>
 
       <form onSubmit={handleDetailsSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-5">
@@ -89,8 +103,8 @@ export default function Step3Details({
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-bold text-slate-900">Institutional Email <span className="text-red-500">*</span></label>
-          <input type="email" required value={email} onChange={e => setEmail(e.target.value)} placeholder="example@urios.edu.ph" className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600" />
+          <label className="text-xs font-bold text-slate-900">Personal Email <span className="text-red-500">*</span></label>
+          <input type="email" required value={email} onChange={e => setEmail(e.target.value)} placeholder="example@gmail.com" className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600" />
         </div>
 
         <div className="flex flex-col gap-1.5">
@@ -108,25 +122,7 @@ export default function Step3Details({
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-bold text-slate-900">Borrow Release Date & Time <span className="text-red-500">*</span></label>
-          <input 
-            type="datetime-local" 
-            required 
-            value={startTime}
-            onChange={(e) => setStartTime(e.target.value)}
-            className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600" 
-          />
-        </div>
 
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-bold text-slate-900">Campus Branch Office <span className="text-red-500">*</span></label>
-          <select required value={campusBranch} onChange={e => setCampusBranch && setCampusBranch(e.target.value)} className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all">
-            <option value="FSUU Main (AVR Center)">FSUU Main Campus (AVR Center)</option>
-            <option value="FSUU Morelos Campus">FSUU Morelos Campus</option>
-          </select>
-        </div>
-
-        <div className="flex flex-col gap-1.5">
           <label className="text-xs font-bold text-slate-900">Program / Department / Office <span className="text-red-500">*</span></label>
           <select required value={department} onChange={e => setDepartment(e.target.value)} className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all font-semibold">
             <option value="">Select Program / Department / Office...</option>
@@ -153,23 +149,6 @@ export default function Step3Details({
           </select>
         </div>
 
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-bold text-slate-900">Expected Return Date & Time <span className="text-red-500">*</span></label>
-          <input 
-            type="datetime-local" 
-            required 
-            value={endTime}
-            onChange={(e) => setEndTime(e.target.value)}
-            min={startTime}
-            disabled={!startTime}
-            className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600 disabled:opacity-50 disabled:bg-slate-100" 
-          />
-          {startTime && (
-            <span className="text-[11px] font-semibold text-amber-800 bg-amber-50 border border-amber-200/80 px-2.5 py-1 rounded-lg mt-0.5 inline-block">
-              📅 Flexible Return: Returns scheduled for next-day or later will require AVR Head PIN verification.
-            </span>
-          )}
-        </div>
 
         <div className="flex flex-col gap-1.5">
           <label className="text-xs font-bold text-slate-900">Location / Venue of Equipment Use <span className="text-red-500">*</span></label>

@@ -20,19 +20,21 @@ class PublicListingController extends Controller
                 ->where('status', '!=', 'maintenance')
                 ->get()
                 ->map(fn ($v) => [
-                    'id'       => $v->id,
-                    'name'     => $v->name,
-                    'avatar'   => $v->avatar,
-                    'photo'    => $v->avatar,
-                    'image'    => $v->avatar,
-                    'location' => $v->location ?? $v->office?->name ?? 'FSUU Campus',
-                    'capacity' => $v->capacity ?? 100,
-                    'type'     => ($v->office?->slug === 'fsuu-morelos'
+                    'id'        => $v->id,
+                    'name'      => $v->name,
+                    'avatar'    => $v->avatar,
+                    'photo'     => $v->avatar,
+                    'image'     => $v->avatar,
+                    'location'  => $v->office?->location ?? $v->location ?? 'FSUU Campus',
+                    'capacity'  => $v->capacity ?? 100,
+                    'type'      => ($v->office?->slug === 'fsuu-morelos'
+                        || str_contains(strtolower($v->office?->location ?? ''), 'morelos')
                         || str_contains(strtolower($v->name), 'studio')
                         || str_contains(strtolower($v->name), 'theater'))
                         ? 'sco' : 'avr',
-                    'office'   => $v->office,
-                    'status'   => $v->status ?? 'Available',
+                    'office'    => $v->office,
+                    'office_id' => $v->office_id,
+                    'status'    => $v->status ?? 'Available',
                 ])
         );
     }
@@ -71,8 +73,9 @@ class PublicListingController extends Controller
             ])
             ->get()
             ->map(function ($e) use ($dateStr, $startTimeStr, $endTimeStr) {
-                $total = max(1, (int)($e->calculated_total > 0 ? $e->calculated_total : ($e->total_quantity ?? 1)));
-                $avail = max(0, (int)($e->calculated_available > 0 ? $e->calculated_available : ($e->available_quantity ?? $total)));
+                $hasRegisteredUnits = $e->calculated_total > 0;
+                $total = (int)($hasRegisteredUnits ? $e->calculated_total : 0);
+                $avail = (int)($hasRegisteredUnits ? $e->calculated_available : 0);
 
                 if ($dateStr && $startTimeStr && $endTimeStr) {
                     // 1. Calculate Equipment Borrowings overlapping this time slot

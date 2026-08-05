@@ -179,18 +179,31 @@ export default function HistoryDetailModal({
                     <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
                   </label>
                   <span className="text-[10px] text-slate-500 font-semibold">
-                    {postInspection.imagePreview ? "Photo Added ✅" : "No photo"}
+                    {(postInspection.imagePreview || viewingHistoryItem.evidence_photo || viewingHistoryItem.evidencePhoto) ? "Photo Attached ✅" : "No photo"}
                   </span>
                 </div>
               </div>
 
-              {postInspection.imagePreview && (
-                <div className="p-2 bg-white rounded-xl border border-slate-200">
-                  <img
-                    src={postInspection.imagePreview}
-                    alt="Evidence"
-                    className="max-h-32 w-full object-cover rounded-lg border border-slate-200"
-                  />
+              {(postInspection.imagePreview || viewingHistoryItem.evidence_photo || viewingHistoryItem.evidencePhoto) && (
+                <div className="p-3 bg-slate-900 rounded-2xl border border-slate-700 text-center space-y-2">
+                  <span className="text-[10px] font-extrabold text-slate-300 uppercase tracking-wider block">
+                    Recorded Photo Evidence
+                  </span>
+                  <a
+                    href={postInspection.imagePreview || viewingHistoryItem.evidence_photo || viewingHistoryItem.evidencePhoto}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black shadow-md transition-all cursor-pointer"
+                  >
+                    📷 Tap to View Image Evidence
+                  </a>
+                  <div className="rounded-xl overflow-hidden border border-slate-700 max-h-36">
+                    <img
+                      src={postInspection.imagePreview || viewingHistoryItem.evidence_photo || viewingHistoryItem.evidencePhoto}
+                      alt="Evidence Thumbnail"
+                      className="w-full h-36 object-cover"
+                    />
+                  </div>
                 </div>
               )}
             </div>
@@ -203,6 +216,7 @@ export default function HistoryDetailModal({
               Save Clearance Report
             </button>
           </div>
+
 
         </div>
 

@@ -20,15 +20,15 @@ class AdminOfficeController extends Controller
     {
         $data = $request->validate([
             'name'     => 'required|string|max:255',
-            'slug'     => 'nullable|string|max:255|unique:offices,slug',
+            'slug'     => 'nullable|string|max:255',
             'location' => 'nullable|string|max:255',
         ]);
 
-        if (empty($data['slug'])) {
-            $data['slug'] = Str::slug($data['name']);
-        } else {
-            $data['slug'] = Str::slug($data['slug']);
-        }
+        $data['slug'] = $this->generateUniqueSlug(
+            $data['slug'] ?? null,
+            $data['name'],
+            $data['location'] ?? null
+        );
 
         $office = Office::create($data);
 
@@ -41,15 +41,19 @@ class AdminOfficeController extends Controller
 
         $data = $request->validate([
             'name'     => 'sometimes|string|max:255',
-            'slug'     => 'nullable|string|max:255|unique:offices,slug,' . $id,
+            'slug'     => 'nullable|string|max:255',
             'location' => 'nullable|string|max:255',
         ]);
 
-        if (isset($data['name']) && empty($data['slug'])) {
-            $data['slug'] = Str::slug($data['name']);
-        } elseif (!empty($data['slug'])) {
-            $data['slug'] = Str::slug($data['slug']);
-        }
+        $name = $data['name'] ?? $office->name;
+        $location = $data['location'] ?? $office->location;
+
+        $data['slug'] = $this->generateUniqueSlug(
+            $data['slug'] ?? null,
+            $name,
+            $location,
+            $office->id
+        );
 
         $office->update($data);
 
@@ -62,5 +66,28 @@ class AdminOfficeController extends Controller
         $office->delete();
 
         return response()->json(['message' => 'Office deleted successfully']);
+    }
+
+    private function generateUniqueSlug(?string $customSlug, string $name, ?string $location, ?int $ignoreId = null): string
+    {
+        if (!empty($customSlug)) {
+            $base = Str::slug($customSlug);
+        } else {
+            $base = $location ? Str::slug("{$name} {$location}") : Str::slug($name);
+        }
+
+        if (empty($base)) {
+            $base = 'office';
+        }
+
+        $slug = $base;
+        $count = 1;
+
+        while (Office::where('slug', $slug)->when($ignoreId, fn($q) => $q->where('id', '!=', $ignoreId))->exists()) {
+            $slug = "{$base}-{$count}";
+            $count++;
+        }
+
+        return $slug;
     }
 }

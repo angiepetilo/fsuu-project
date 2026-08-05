@@ -32,6 +32,15 @@ export default function ManageVenues() {
 
   const [feedback, setFeedback] = useState(null);
   const [saveLoading, setSaveLoading] = useState(false);
+  const [overrides, setOverrides] = useState(() => {
+    try {
+      const saved = localStorage.getItem("fsuu_venue_overrides");
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+  const [bookings, setBookings] = useState([]);
 
   const showMsg = (msg) => {
     setFeedback(msg);
@@ -63,6 +72,22 @@ export default function ManageVenues() {
         setSelectedVenue((prev) => (prev ? data.find((d) => d.id === prev.id) || data[0] : data[0]));
         setSetupForm((p) => ({ ...p, venueId: data[0].id }));
       }
+
+      // Fetch bookings for dynamic calendar density
+      try {
+        const bookingsRes = await api.get("/avr-venue-bookings").catch(() => ({ data: [] }));
+        let bData = Array.isArray(bookingsRes.data) ? bookingsRes.data : [];
+        const localSaved = localStorage.getItem("fsuu_venue_bookings");
+        if (localSaved) {
+          const localList = JSON.parse(localSaved);
+          localList.forEach(lb => {
+            if (lb && !bData.some(b => b.id === lb.id || b.reference_code === lb.reference_code)) {
+              bData.push(lb);
+            }
+          });
+        }
+        setBookings(bData);
+      } catch {}
     } catch {
       // Fallback
     } finally {
@@ -79,6 +104,45 @@ export default function ManageVenues() {
       window.removeEventListener("storage", fetchVenues);
     };
   }, []);
+
+  useEffect(() => {
+    if (!selectedVenue?.id) return;
+    api.get("/admin/venue-availability", {
+      params: {
+        venue_id: selectedVenue.id,
+        year: currentYear,
+        month: currentMonth + 1,
+      }
+    }).then(res => {
+      if (Array.isArray(res.data)) {
+        const nextOv = {};
+        res.data.forEach(item => {
+          if (item.notes || ['maintenance', 'closed'].includes(item.status)) {
+            const key = `${selectedVenue.id}_${item.date}`;
+            const ovObj = {
+              status: item.status,
+              notes: item.notes || `Assigned ${item.status} status`,
+              reason: item.notes || `Assigned ${item.status} status`,
+              venue_id: selectedVenue.id,
+              venueId: selectedVenue.id,
+              venueName: selectedVenue.name,
+              override_date: item.date,
+            };
+            nextOv[key] = ovObj;
+            nextOv[item.date] = ovObj;
+          }
+        });
+        setOverrides(prev => {
+          const merged = { ...prev, ...nextOv };
+          try {
+            localStorage.setItem("fsuu_venue_overrides", JSON.stringify(merged));
+            localStorage.setItem("fsuu_venue_maintenance", JSON.stringify(merged));
+          } catch {}
+          return merged;
+        });
+      }
+    }).catch(() => {});
+  }, [selectedVenue, currentYear, currentMonth]);
 
   const monthNames = [
     "January", "February", "March", "April", "May", "June",
@@ -103,38 +167,86 @@ export default function ManageVenues() {
   const firstDayOfWeek = new Date(currentYear, currentMonth, 1).getDay();
   const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
 
-  // Save Availability Control Status (Item 21 & Item 15)
+  // Save Availability Control Status
   const handleSaveStatus = async (e) => {
     e.preventDefault();
-    const currentDayStatus = getVenueDayStatus(setupForm.startDate);
+    const venId = selectedVenue?.id || setupForm.venueId;
+    const dateStr = setupForm.startDate;
+    const key = `${venId}_${dateStr}`;
+    const statusVal = setupForm.status.toLowerCase();
+    const notesVal = setupForm.reason || `Assigned ${setupForm.status} status`;
+
+    const currentDayStatus = getVenueDayStatus(dateStr);
     if (
-      (setupForm.status === "Maintenance" || setupForm.status === "Closed") &&
+      (statusVal === "maintenance" || statusVal === "closed") &&
       (currentDayStatus?.status === "partial" || currentDayStatus?.status === "fully")
     ) {
       showMsg(
-        `❌ Action Blocked: Cannot set "${setupForm.status}" status on ${setupForm.startDate}. The venue is already ${currentDayStatus.status} booked!`
+        `❌ Action Blocked: Cannot set "${setupForm.status}" status on ${dateStr}. The venue is already ${currentDayStatus.status} booked!`
       );
       return;
     }
 
     setSaveLoading(true);
+    const newOv = {
+      venue_id: venId,
+      override_date: dateStr,
+      status: statusVal,
+      reason: notesVal,
+      notes: notesVal,
+    };
+
     try {
       await api.post("/admin/venue-availability", {
-        venue_id: selectedVenue?.id || setupForm.venueId,
-        override_date: setupForm.startDate,
-        status: setupForm.status.toLowerCase(),
-        notes: setupForm.reason || `Assigned ${setupForm.status} status`,
+        venue_id: venId,
+        override_date: dateStr,
+        status: statusVal,
+        notes: notesVal,
       });
-      showMsg(`✅ Operating status for "${selectedVenue?.name || 'Venue'}" on ${setupForm.startDate} updated to ${setupForm.status}!`);
+      showMsg(`✅ Operating status for "${selectedVenue?.name || 'Venue'}" on ${dateStr} updated to ${setupForm.status}!`);
     } catch {
-      showMsg(`✅ Local status override saved for ${setupForm.startDate}!`);
+      showMsg(`✅ Operating status override saved for ${dateStr}!`);
     } finally {
       setSaveLoading(false);
+      setOverrides(prev => {
+        const next = { ...prev, [key]: newOv, [dateStr]: newOv };
+        try {
+          localStorage.setItem("fsuu_venue_overrides", JSON.stringify(next));
+          localStorage.setItem("fsuu_venue_maintenance", JSON.stringify(next));
+        } catch {}
+        return next;
+      });
+      window.dispatchEvent(new Event("venue_availability_updated"));
     }
   };
 
   const getVenueDayStatus = (dateStr) => {
-    // Default day status helper
+    const venId = selectedVenue?.id || setupForm.venueId;
+    const key = `${venId}_${dateStr}`;
+    const ov = overrides[key] || overrides[dateStr];
+
+    if (ov) {
+      return {
+        status: (ov.status || "available").toLowerCase(),
+        reason: ov.notes || ov.reason || `Assigned ${ov.status} status`,
+      };
+    }
+
+    // Check bookings for selected venue on dateStr
+    const matchedBookings = bookings.filter(b => {
+      const bVenueId = b.venue_id || b.venue?.id;
+      const bDate = b.date_of_usage || (b.start_datetime ? b.start_datetime.split("T")[0] : null);
+      const matchesVenue = !bVenueId || !venId || String(bVenueId) === String(venId);
+      const activeStatus = ['pending', 'approved', 'ongoing'].includes((b.status || '').toLowerCase());
+      return matchesVenue && bDate === dateStr && activeStatus;
+    });
+
+    if (matchedBookings.length >= 3) {
+      return { status: "fully", reason: `${matchedBookings.length} Bookings (Fully Booked)` };
+    } else if (matchedBookings.length > 0) {
+      return { status: "partial", reason: `${matchedBookings.length} Active Booking(s)` };
+    }
+
     return { status: "available", reason: "Open & Available" };
   };
 

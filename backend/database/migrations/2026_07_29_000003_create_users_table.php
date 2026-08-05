@@ -14,8 +14,14 @@ return new class extends Migration
             $table->foreignId('role_id')->constrained('roles')->cascadeOnDelete();
             $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
             $table->string('name');
+            $table->string('username')->nullable()->unique();
             $table->string('email')->unique();
+            $table->string('personal_email')->nullable()->unique();
+            $table->string('google_id')->nullable()->unique();
+            $table->string('avatar')->nullable();
             $table->string('password');
+            $table->string('location')->nullable();
+            $table->json('permissions')->nullable();
             $table->boolean('is_active')->default(true);
             $table->timestamps();
             $table->timestamp('archived_at')->nullable();

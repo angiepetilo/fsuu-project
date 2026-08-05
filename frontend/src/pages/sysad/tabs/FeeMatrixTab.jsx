@@ -60,41 +60,30 @@ export default function FeeMatrixTab({ showMsg }) {
             Boolean(b.has_damage)
         );
 
-        // Fallback demo items if no DB records exist yet
-        const defaultDamagedList = damagedList.length > 0 ? damagedList : [
-          {
-            id: 101,
-            tracking_number: "TRK-EB-9921",
-            equipment_name: "EPSON HD Projector 4K",
-            model: "Epson PowerLite X49 (SN: EPS-9921)",
-            quantity: 1,
-            status: "damaged",
-            email_address: "student.borrower@fsuu.edu.ph",
-          },
-          {
-            id: 102,
-            tracking_number: "TRK-EB-8843",
-            equipment_name: "Wireless Handheld Microphone",
-            model: "Shure BLX24/PG58 (SN: SHU-8843)",
-            quantity: 2,
-            status: "lost",
-            email_address: "org.president@fsuu.edu.ph",
-          },
-        ];
+        setDamagedTrackItems(damagedList);
 
-        setDamagedTrackItems(defaultDamagedList);
-
-        if (defaultDamagedList.length > 0) {
-          const first = defaultDamagedList[0];
+        if (damagedList.length > 0) {
+          const first = damagedList[0];
           setSelectedTrackNumber(first.tracking_number || `TRK-EB-${first.id}`);
           setEquipmentForm({
             track_number: first.tracking_number || `TRK-EB-${first.id}`,
-            equipment_category: first.equipment_name || first.equipment || "AV Projector",
+            equipment_category: first.equipment_name || first.equipment || "AV Equipment",
             model_released: first.model || first.unit_code || "Standard Model Unit",
             quantity: first.quantity || first.qty || 1,
             condition_type: first.status === "lost" ? "lost" : "damaged",
             assessed_price: first.status === "lost" ? 3500 : 1500,
             recipient_email: first.email_address || first.email || "",
+          });
+        } else {
+          setSelectedTrackNumber("");
+          setEquipmentForm({
+            track_number: "",
+            equipment_category: "",
+            model_released: "",
+            quantity: 1,
+            condition_type: "damaged",
+            assessed_price: 1500,
+            recipient_email: "",
           });
         }
       } catch {
@@ -175,10 +164,10 @@ export default function FeeMatrixTab({ showMsg }) {
                 className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 text-xs focus:outline-none"
               >
                 {venues.length === 0 ? (
-                  <option value="">AVR Auditorium / SCO Studio</option>
+                  <option value="">No venues registered in Venue Catalog</option>
                 ) : (
                   venues.map((v) => (
-                    <option key={v.id} value={v.id}>{v.name} ({v.location || 'Main'})</option>
+                    <option key={v.id} value={v.id}>{v.name} ({v.location || 'FSUU Main Campus'})</option>
                   ))
                 )}
               </select>

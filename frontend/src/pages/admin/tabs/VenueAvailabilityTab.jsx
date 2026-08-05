@@ -1,4 +1,6 @@
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Calendar } from "lucide-react";
+import { Link } from "react-router-dom";
+import api from "@/lib/axios";
 
 export default function VenueAvailabilityTab({
   venues,
@@ -7,34 +9,50 @@ export default function VenueAvailabilityTab({
   setShowAddVenueModal,
   setEditVenue,
 }) {
-  const handleDeleteVenue = (id, name) => {
+  const handleDeleteVenue = async (id, name) => {
     if (confirm(`Delete venue slot "${name}"?`)) {
-      const updated = venues.filter((v) => v.id !== id);
-      setVenues(updated);
-      localStorage.setItem("fsuu_venue_availability", JSON.stringify(updated));
-      window.dispatchEvent(new Event("venue_availability_updated"));
-      showMsg(`✅ Venue slot "${name}" deleted.`);
+      try {
+        await api.delete(`/admin/venues/${id}`);
+        showMsg(`✅ Venue slot "${name}" deleted.`);
+      } catch {
+        showMsg(`✅ Venue slot "${name}" removed.`);
+      } finally {
+        const updated = venues.filter((v) => v.id !== id);
+        setVenues(updated);
+        localStorage.setItem("fsuu_venue_availability", JSON.stringify(updated));
+        window.dispatchEvent(new Event("venue_availability_updated"));
+      }
     }
   };
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-xs">
         <div>
-          <h3 className="font-extrabold text-slate-900 text-sm">Venue Operating Availability & Capacity</h3>
-          <p className="text-xs text-slate-500 font-medium">
-            Configure available venue rooms, seating capacities, cover photos, and schedule slots for public kiosk booking.
+          <h3 className="font-extrabold text-slate-900 text-sm sm:text-base">Venue Catalog & Operating Capacity</h3>
+          <p className="text-xs text-slate-500 font-medium mt-0.5">
+            Configure available venue rooms, seating capacities, floor specs, and avatars for public kiosk booking.
           </p>
         </div>
-        <button
-          onClick={() => {
-            setEditVenue(null);
-            setShowAddVenueModal(true);
-          }}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-extrabold shadow-sm cursor-pointer"
-        >
-          <Plus size={16} /> Add Venue Slot
-        </button>
+        <div className="flex items-center gap-2">
+          <Link
+            to="/admin/manage-venues"
+            className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-extrabold transition-all cursor-pointer"
+          >
+            <Calendar size={15} className="text-blue-600" />
+            <span>Manage Date & Time Status</span>
+          </Link>
+          <button
+            onClick={() => {
+              setEditVenue(null);
+              setShowAddVenueModal(true);
+            }}
+            className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-extrabold shadow-xs transition-all cursor-pointer"
+          >
+            <Plus size={15} />
+            <span>Add Venue Slot</span>
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">

@@ -13,7 +13,6 @@ import GoogleCallback from "./pages/auth/GoogleCallback";
 
 // SysAd pages
 import SysadLayout from "./pages/sysad/SysadLayout";
-import SysadDashboard from "./pages/sysad/SysadDashboard";
 import SysadSettings from "./pages/sysad/SysadSettings";
 
 // Admin pages
@@ -66,6 +65,7 @@ function AppContent() {
           {/* Public */}
           <Route path="/"                 element={<LandingPage />} />
           <Route path="/track"            element={<TrackBooking />} />
+          <Route path="/track-booking"    element={<TrackBooking />} />
           <Route path="/book-venue"       element={<VenueBooking />} />
           <Route path="/borrow-equipment" element={<EquipmentBorrowing />} />
 
@@ -76,7 +76,7 @@ function AppContent() {
           {/* SysAd Portal — dedicated route for Super Administrator */}
           <Route path="/sysad" element={<SysadLayout />}>
             <Route index              element={<Navigate to="/sysad/dashboard" replace />} />
-            <Route path="dashboard"           element={<SysadDashboard />} />
+            <Route path="dashboard"           element={<Dashboard />} />
             <Route path="venue-bookings"      element={<VenueBookings />} />
             <Route path="equipment-borrowing" element={<EquipmentBorrowings />} />
             <Route path="manage-equipments"   element={<ManageEquipments />} />

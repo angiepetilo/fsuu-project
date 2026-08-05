@@ -14,6 +14,8 @@ export default function UserManagementTab({ showMsg }) {
   const [userForm, setUserForm] = useState({
     name: "",
     email: "",
+    username: "",
+    personal_email: "",
     role: "admin",
     location: "",
     office_id: "",
@@ -58,30 +60,32 @@ export default function UserManagementTab({ showMsg }) {
       const payload = {
         name: userForm.name,
         email: userForm.email,
-        role: userForm.role || "admin",
+        username: userForm.username || userForm.email,
+        personal_email: userForm.personal_email || userForm.email,
+        role: "admin",
         location: userForm.location || (locations[0]?.name || "FSUU Main Campus"),
         office_id: userForm.office_id ? parseInt(userForm.office_id, 10) : (offices[0]?.id || null),
       };
 
       if (editUser) {
         await api.put(`/admin/users/${editUser.id}`, payload);
-        showMsg(`✅ User account "${userForm.name}" updated!`);
+        showMsg(`✅ Branch Admin "${userForm.name}" updated successfully.`);
       } else {
-        const res = await api.post("/admin/users", payload);
-        showMsg(`✅ Account created for "${userForm.name}"! Temporary credentials sent to ${userForm.email}.`);
+        await api.post("/admin/users", payload);
+        showMsg(`✅ Account created for "${userForm.name}". Credentials sent to ${payload.personal_email}.`);
       }
       setShowAddUserModal(false);
       setEditUser(null);
       fetchData();
     } catch (err) {
-      showMsg(err.response?.data?.message || "❌ Failed to save user account.");
+      showMsg(err.response?.data?.message || "❌ Failed to save admin account.");
     } finally {
       setFormLoading(false);
     }
   };
 
   const handleDeleteUser = async (id, name) => {
-    if (confirm(`Archive user account "${name}"? Soft-delete will apply.`)) {
+    if (confirm(`Archive admin account "${name}"? Soft-delete will apply.`)) {
       try {
         await api.delete(`/admin/users/${id}`);
         showMsg(`✅ User "${name}" archived.`);
@@ -92,16 +96,24 @@ export default function UserManagementTab({ showMsg }) {
     }
   };
 
+  // Filter ONLY Branch Admin accounts (Super Admin cannot manage staff accounts)
+  const adminUsers = users.filter((u) => {
+    const isSuperAdmin = u.email === "superadmin@fsuu.edu.ph" || u.role === "superadmin" || u.role?.name === "superadmin" || u.role?.slug === "super_admin";
+    const isStaff = u.role === "staff" || u.role?.name === "staff" || u.role?.slug === "staff";
+    return !isSuperAdmin && !isStaff;
+  });
+
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs">
+      {/* Top Header Card */}
+      <div className="flex justify-between items-center bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs hover:border-slate-300 transition-colors">
         <div>
           <h3 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
             <Users size={18} className="text-blue-600" />
             Branch Office Admin Accounts
           </h3>
           <p className="text-xs text-slate-500 font-medium">
-            System Admin can create branch admin accounts for each campus office. Temporary credentials will be sent to the institutional email.
+            System Admin creates branch admin accounts for each campus office. Credentials are sent to the administrator's personal email.
           </p>
         </div>
         <button
@@ -110,13 +122,15 @@ export default function UserManagementTab({ showMsg }) {
             setUserForm({
               name: "",
               email: "",
+              username: "",
+              personal_email: "",
               role: "admin",
               location: locations[0]?.name || "FSUU Main Campus",
               office_id: offices[0]?.id || "",
             });
             setShowAddUserModal(true);
           }}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-extrabold shadow-sm cursor-pointer"
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-extrabold shadow-sm cursor-pointer transition-all"
         >
           <Plus size={16} /> Create Admin Account
         </button>
@@ -125,15 +139,16 @@ export default function UserManagementTab({ showMsg }) {
       {offices.length === 0 && (
         <div className="bg-amber-50 border border-amber-200 p-4 rounded-2xl text-amber-800 text-xs font-semibold flex items-center gap-2">
           <AlertTriangle size={16} className="text-amber-600 shrink-0" />
-          <span>No campus branch offices created yet. Please create a campus office first in the <strong>Campus Branch Offices</strong> tab before assigning admin accounts.</span>
+          <span>No campus branch offices created yet. Please create a campus office first in the <strong>Campuses &amp; Branch Offices</strong> tab before assigning admin accounts.</span>
         </div>
       )}
 
+      {/* Admin Accounts Table */}
       <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-slate-50/80 border-b border-slate-100">
-              {["#", "Admin Name", "Institutional Email", "Campus Location", "Assigned Branch Office", "Role", "Actions"].map((h) => (
+              {["#", "Admin Name", "Username", "Personal Email", "Assigned Branch Office", "Role", "Actions"].map((h) => (
                 <th key={h} className="px-4 py-3.5 text-left text-[11px] font-bold text-slate-400 uppercase tracking-wider">
                   {h}
                 </th>
@@ -146,84 +161,84 @@ export default function UserManagementTab({ showMsg }) {
                 <td colSpan={7} className="text-center py-10">
                   <div className="flex items-center justify-center gap-2 text-slate-400">
                     <div className="w-4 h-4 rounded-full border-2 border-slate-200 border-t-blue-500 animate-spin" />
-                    <span className="text-xs font-semibold italic">Loading users...</span>
+                    <span className="text-xs font-semibold italic">Loading branch admins...</span>
                   </div>
                 </td>
               </tr>
-            ) : users.length === 0 ? (
+            ) : adminUsers.length === 0 ? (
               <tr>
                 <td colSpan={7} className="text-center py-10 text-slate-400">
-                  👥 No admin accounts found. Click "Create Admin Account" to assign branch access.
+                  👥 No branch admin accounts found. Click "Create Admin Account" to assign branch management access.
                 </td>
               </tr>
             ) : (
-              users.map((u, index) => (
-                <tr key={u.id || index} className="hover:bg-slate-50/60 transition-colors">
-                  <td className="px-4 py-3.5 font-bold text-slate-400">{index + 1}</td>
-                  <td className="px-4 py-3.5 font-extrabold text-slate-900">{u.name}</td>
-                  <td className="px-4 py-3.5 font-mono text-blue-600 font-bold">{u.email}</td>
-                  <td className="px-4 py-3.5">
-                    <span className="inline-flex items-center gap-1 font-semibold text-slate-700">
-                      <MapPin size={12} className="text-blue-600 shrink-0" />
-                      {u.location || u.office?.location || "FSUU Main Campus"}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3.5 font-extrabold text-slate-800">
-                    {typeof u.office === "object" ? (u.office?.name || "Unassigned") : (u.office || "Unassigned")}
-                  </td>
-                  <td className="px-4 py-3.5">
-                    <span
-                      className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold border ${
-                        u.role === "superadmin" || u.role?.slug === "super_admin"
-                          ? "bg-amber-100 text-amber-900 border-amber-300"
-                          : "bg-blue-100 text-blue-800 border-blue-300"
-                      }`}
-                    >
-                      {u.role === "superadmin" || u.role?.slug === "super_admin" ? "👑 Super Admin" : "BRANCH ADMIN"}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3.5 flex items-center gap-2">
-                    <button
-                      onClick={() => {
-                        setEditUser(u);
-                        setUserForm({
-                          name: u.name,
-                          email: u.email,
-                          role: u.role || "admin",
-                          location: u.location || u.office?.location || locations[0]?.name || "FSUU Main Campus",
-                          office_id: u.office_id || u.office?.id || offices[0]?.id || "",
-                        });
-                        setShowAddUserModal(true);
-                      }}
-                      className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 cursor-pointer"
-                      title="Edit User"
-                    >
-                      <Edit2 size={14} />
-                    </button>
-                    {u.role !== "superadmin" && u.role?.slug !== "super_admin" && (
+              adminUsers.map((u, index) => {
+                const matchedOff = (typeof u.office === "object" && u.office) || offices.find((o) => o.id === u.office_id);
+                const officeName = matchedOff
+                  ? (matchedOff.location ? `${matchedOff.name} | ${matchedOff.location}` : matchedOff.name)
+                  : (u.location || "FSUU Main Campus");
+
+                return (
+                  <tr key={u.id || index} className="hover:bg-blue-50/40 transition-colors">
+                    <td className="px-4 py-3.5 font-bold text-slate-400">{index + 1}</td>
+                    <td className="px-4 py-3.5 font-extrabold text-slate-900">{u.name}</td>
+                    <td className="px-4 py-3.5 font-mono text-blue-600 font-bold">{u.email}</td>
+                    <td className="px-4 py-3.5 font-mono text-slate-600 font-medium">{u.personal_email || u.email}</td>
+                    <td className="px-4 py-3.5 font-extrabold text-slate-800">
+                      <span className="inline-flex items-center gap-1">
+                        <Building2 size={13} className="text-slate-400 shrink-0" />
+                        {officeName}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold border bg-blue-50 text-blue-700 border-blue-200">
+                        BRANCH ADMIN
+                      </span>
+                    </td>
+                    <td className="px-4 py-3.5 flex items-center gap-2">
+                      <button
+                        onClick={() => {
+                          setEditUser(u);
+                          setUserForm({
+                            name: u.name,
+                            email: u.email,
+                            username: u.username || u.email,
+                            personal_email: u.personal_email || u.email,
+                            role: "admin",
+                            location: u.location || u.office?.location || locations[0]?.name || "FSUU Main Campus",
+                            office_id: u.office_id || u.office?.id || offices[0]?.id || "",
+                          });
+                          setShowAddUserModal(true);
+                        }}
+                        className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-white hover:border-blue-300 hover:text-blue-600 cursor-pointer transition-all"
+                        title="Edit Admin Account"
+                      >
+                        <Edit2 size={14} />
+                      </button>
                       <button
                         onClick={() => handleDeleteUser(u.id, u.name)}
-                        className="p-1.5 rounded-lg border border-rose-200 text-rose-600 hover:bg-rose-50 cursor-pointer"
-                        title="Delete User"
+                        className="p-1.5 rounded-lg border border-rose-200 text-rose-600 hover:bg-rose-50 cursor-pointer transition-all"
+                        title="Archive Admin Account"
                       >
                         <Trash2 size={14} />
                       </button>
-                    )}
-                  </td>
-                </tr>
-              ))
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>
       </div>
 
+      {/* Modal: Create / Edit Branch Admin */}
       {showAddUserModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-[1500] flex items-center justify-center p-4 animate-in fade-in">
           <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl animate-in zoom-in-95 border border-slate-100 space-y-4">
             <div className="flex justify-between items-center pb-3 border-b border-slate-100">
               <h3 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
                 <Users size={18} className="text-blue-600" />
-                {editUser ? "Edit Admin Account" : "Create New Branch Admin Account"}
+                {editUser ? "Edit Branch Admin Account" : "Create New Branch Admin Account"}
               </h3>
               <button onClick={() => setShowAddUserModal(false)} className="text-slate-400 hover:text-slate-600 p-1 rounded-lg">
                 <X size={18} />
@@ -239,89 +254,75 @@ export default function UserManagementTab({ showMsg }) {
                   placeholder="e.g. Maria Santos"
                   value={userForm.name}
                   onChange={(e) => setUserForm({ ...userForm, name: e.target.value })}
-                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:outline-none focus:border-blue-600"
+                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white transition-all"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-900 mb-1">Institutional Email Address *</label>
+                <label className="block text-xs font-bold text-slate-900 mb-1">Username *</label>
                 <input
-                  type="email"
+                  type="text"
                   required
                   placeholder="e.g. msantos@fsuu.edu.ph"
                   value={userForm.email}
-                  onChange={(e) => setUserForm({ ...userForm, email: e.target.value })}
-                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-mono font-bold text-slate-900 focus:outline-none focus:border-blue-600"
+                  onChange={(e) => setUserForm({ ...userForm, email: e.target.value, username: e.target.value })}
+                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-mono font-bold text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white transition-all"
                 />
-                <p className="text-[10px] text-slate-400 mt-1">Temporary password & credentials will be sent to this email.</p>
+                <p className="text-[10px] text-slate-400 mt-1 font-medium">Used for system login authentication.</p>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-900 mb-1">Campus Location *</label>
-                <select
-                  value={userForm.location}
-                  onChange={(e) => setUserForm({ ...userForm, location: e.target.value })}
-                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:outline-none focus:border-blue-600"
-                >
-                  {locations.length > 0 ? (
-                    locations.map((loc) => (
-                      <option key={loc.id} value={loc.name}>{loc.name}</option>
-                    ))
-                  ) : (
-                    <option value="FSUU Main Campus">FSUU Main Campus</option>
-                  )}
-                </select>
+                <label className="block text-xs font-bold text-slate-900 mb-1">Personal Email Address *</label>
+                <input
+                  type="email"
+                  required
+                  placeholder="e.g. maria.santos@gmail.com"
+                  value={userForm.personal_email}
+                  onChange={(e) => setUserForm({ ...userForm, personal_email: e.target.value })}
+                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-mono font-bold text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white transition-all"
+                />
+                <p className="text-[10px] text-slate-400 mt-1 font-medium">Temporary password &amp; reset link will be sent to this email.</p>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              {offices.length > 0 ? (
                 <div>
-                  <label className="block text-xs font-bold text-slate-900 mb-1">Role Level</label>
-                  <input
-                    type="text"
-                    disabled
-                    value="Branch Admin"
-                    className="w-full p-3 bg-slate-100 border border-slate-200 rounded-xl font-bold text-slate-500 text-xs"
-                  />
+                  <label className="block text-xs font-bold text-slate-900 mb-1">Assigned Office *</label>
+                  <select
+                    value={userForm.office_id}
+                    onChange={(e) => setUserForm({ ...userForm, office_id: e.target.value })}
+                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 text-xs focus:outline-none focus:border-blue-600 focus:bg-white transition-all"
+                  >
+                    {offices.map((o) => (
+                      <option key={o.id} value={o.id}>
+                        {o.location ? `${o.name} | ${o.location}` : o.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
-
-                {offices.length > 0 ? (
-                  <div>
-                    <label className="block text-xs font-bold text-slate-900 mb-1">Assigned Office *</label>
-                    <select
-                      value={userForm.office_id}
-                      onChange={(e) => setUserForm({ ...userForm, office_id: e.target.value })}
-                      className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 text-xs focus:outline-none focus:border-blue-600"
-                    >
-                      {offices.map((o) => (
-                        <option key={o.id} value={o.id}>{o.name}</option>
-                      ))}
-                    </select>
+              ) : (
+                <div>
+                  <label className="block text-xs font-bold text-slate-900 mb-1">Assigned Office</label>
+                  <div className="p-3 bg-amber-50 border border-amber-200 text-amber-800 text-[10px] font-bold rounded-xl">
+                    Create campus office first
                   </div>
-                ) : (
-                  <div>
-                    <label className="block text-xs font-bold text-slate-900 mb-1">Assigned Office</label>
-                    <div className="p-3 bg-amber-50 border border-amber-200 text-amber-800 text-[10px] font-bold rounded-xl">
-                      Create campus office first
-                    </div>
-                  </div>
-                )}
-              </div>
+                </div>
+              )}
 
               <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setShowAddUserModal(false)}
-                  className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-100"
+                  className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-100 transition-all"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={formLoading || offices.length === 0}
-                  className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-extrabold text-xs shadow-md flex items-center gap-1.5"
+                  className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-extrabold text-xs shadow-md flex items-center gap-1.5 transition-all"
                 >
                   {formLoading && <Loader2 size={14} className="animate-spin" />}
-                  <span>Save & Send Credentials</span>
+                  <span>Save &amp; Send Credentials</span>
                 </button>
               </div>
             </form>

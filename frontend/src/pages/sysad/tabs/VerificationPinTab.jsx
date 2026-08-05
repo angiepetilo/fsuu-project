@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Save, ShieldCheck, Clock, CalendarDays, Plus, Edit2, Trash2, X, FileText, Loader2, CheckCircle2 } from "lucide-react";
+import { Save, ShieldCheck, Plus, Edit2, Trash2, X, FileText, Loader2 } from "lucide-react";
 import api from "@/lib/axios";
 
 export default function VerificationPinTab({
@@ -74,33 +74,32 @@ export default function VerificationPinTab({
   };
 
   return (
-    <div className="space-y-6">
-      <form onSubmit={handleSavePinConfig} className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-6">
+    <div className="space-y-4">
+      <form onSubmit={handleSavePinConfig} className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
         <div>
-          <h3 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
-            <ShieldCheck className="text-blue-600" size={18} />
-            Security PIN Control & Extended Usage Policies
+          <h3 className="font-extrabold text-slate-900 text-sm sm:text-base flex items-center gap-2">
+            <ShieldCheck className="text-blue-600" size={17} />
+            Verification PIN Control & Rules
           </h3>
           <p className="text-xs text-slate-500 font-medium mt-0.5">
-            Configure master security PIN, external user booking privileges, and 2+ day multi-day extension controls.
+            Configure master security PIN, access permissions, and verification trigger rules.
           </p>
         </div>
 
         {pinSavedFeedback && (
-          <div className="bg-emerald-500 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-xs flex items-center gap-2">
-            <Save size={14} />
-            {pinSavedFeedback}
+          <div className="bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-bold px-3.5 py-2 rounded-xl flex items-center gap-2">
+            <span>{pinSavedFeedback}</span>
           </div>
         )}
 
-        {/* Section 1: Kiosk Security PIN Control */}
-        <div className="space-y-4 pt-2 border-t border-slate-100">
-          <h4 className="font-extrabold text-xs text-slate-700 uppercase tracking-wider">1. Kiosk Security PIN Control</h4>
+        {/* Section 1: Security PIN Configuration */}
+        <div className="space-y-3 pt-2.5 border-t border-slate-100">
+          <h4 className="font-extrabold text-[11px] text-slate-700 uppercase tracking-wider">1. Master Security PIN</h4>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
             <div>
-              <label className="block text-xs font-bold text-slate-900 mb-2">Master Verification PIN (6-Digit Security Code) *</label>
-              <div className="flex gap-2 justify-start items-center">
+              <label className="block text-xs font-bold text-slate-900 mb-1.5">Master Verification PIN (6-Digit Code) *</label>
+              <div className="flex gap-1.5 justify-start items-center">
                 {[0, 1, 2, 3, 4, 5].map((index) => {
                   const digit = (pinConfig.masterPin || "")[index] || "";
                   return (
@@ -125,13 +124,13 @@ export default function VerificationPinTab({
                           document.getElementById(`pin-box-${index - 1}`)?.focus();
                         }
                       }}
-                      className="w-10 h-12 text-center text-xl font-black bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-blue-600 focus:bg-white text-blue-700 font-mono shadow-xs focus:outline-none transition-all"
+                      className="w-9 h-10 text-center text-base font-black bg-slate-50 border border-slate-200 rounded-lg focus:border-blue-600 focus:bg-white text-blue-700 font-mono shadow-2xs focus:outline-none transition-all"
                     />
                   );
                 })}
               </div>
-              <p className="text-[10px] text-slate-400 font-medium mt-1.5">
-                Each box accepts 1 numeric digit for the security verification PIN code.
+              <p className="text-[10px] text-slate-400 font-medium mt-1">
+                6-digit numeric security code for administrative authorization.
               </p>
             </div>
 
@@ -140,77 +139,84 @@ export default function VerificationPinTab({
               <select
                 value={pinConfig.requirePinForStudent ? "required" : "optional"}
                 onChange={(e) => setPinConfig({ ...pinConfig, requirePinForStudent: e.target.value === "required" })}
-                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 text-xs focus:bg-white focus:outline-none"
+                className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 text-xs focus:bg-white focus:outline-none"
               >
-                <option value="required">Mandatory for all students and faculty</option>
                 <option value="optional">Optional for faculty members</option>
+                <option value="required">Mandatory for all students and faculty</option>
               </select>
-            </div>
-          </div>
-        </div>
-
-        {/* Section 2: External User Enable/Disable Toggles & 2+ Day Rules */}
-        <div className="space-y-4 pt-4 border-t border-slate-100">
-          <h4 className="font-extrabold text-xs text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
-            <CalendarDays size={14} className="text-amber-500" />
-            2. External User Controls & 2+ Day Extensions
-          </h4>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Enable/Disable External Venue Booking */}
-            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-extrabold text-slate-900">External User Venue Booking</span>
-                <input
-                  type="checkbox"
-                  checked={pinConfig.enableExternalVenue !== false}
-                  onChange={(e) => setPinConfig({ ...pinConfig, enableExternalVenue: e.target.checked })}
-                  className="w-4 h-4 text-blue-600 rounded cursor-pointer"
-                />
-              </div>
-              <p className="text-[11px] text-slate-500 font-medium">
-                Allow or disable non-FSUU external clients from submitting venue booking requests. Requires PIN verification for 2+ day multi-day reservations.
-              </p>
-            </div>
-
-            {/* Enable/Disable External Equipment Borrowing */}
-            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-extrabold text-slate-900">External User Equipment Borrowing</span>
-                <input
-                  type="checkbox"
-                  checked={pinConfig.enableExternalEquipment !== false}
-                  onChange={(e) => setPinConfig({ ...pinConfig, enableExternalEquipment: e.target.checked })}
-                  className="w-4 h-4 text-purple-600 rounded cursor-pointer"
-                />
-              </div>
-              <p className="text-[11px] text-slate-500 font-medium">
-                Allow or disable non-FSUU external clients from submitting equipment borrowing requests. Requires PIN verification if return extended &gt; 2 days.
+              <p className="text-[10px] text-slate-400 font-medium mt-1">
+                Controls whether standard 1-day requisitions require PIN confirmation.
               </p>
             </div>
           </div>
         </div>
 
-        <div className="flex justify-end pt-2">
+        {/* Section 2: Verification Trigger Rules Checklist */}
+        <div className="space-y-2.5 pt-2.5 border-t border-slate-100">
+          <h4 className="font-extrabold text-[11px] text-slate-700 uppercase tracking-wider">2. Verification Trigger Rules</h4>
+
+          <div className="space-y-1.5 text-xs">
+            {/* Rule 1: Multi-Day Venue */}
+            <label className="flex items-center justify-between p-2.5 bg-slate-50 rounded-xl border border-slate-200/80 cursor-pointer hover:bg-slate-100/80 transition-all">
+              <span className="font-bold text-slate-900 text-xs">Require PIN for Multi-Day Venue Bookings (2 or more reserved days)</span>
+              <input
+                type="checkbox"
+                checked={pinConfig.requirePinMultiDayVenue !== false}
+                onChange={(e) => setPinConfig({ ...pinConfig, requirePinMultiDayVenue: e.target.checked })}
+                className="w-4 h-4 text-blue-600 rounded cursor-pointer"
+              />
+            </label>
+
+            {/* Rule 2: Multi-Day Equipment */}
+            <label className="flex items-center justify-between p-2.5 bg-slate-50 rounded-xl border border-slate-200/80 cursor-pointer hover:bg-slate-100/80 transition-all">
+              <span className="font-bold text-slate-900 text-xs">Require PIN for Next-Day / Multi-Day Equipment Returns</span>
+              <input
+                type="checkbox"
+                checked={pinConfig.requirePinMultiDayEquipment !== false}
+                onChange={(e) => setPinConfig({ ...pinConfig, requirePinMultiDayEquipment: e.target.checked })}
+                className="w-4 h-4 text-blue-600 rounded cursor-pointer"
+              />
+            </label>
+
+            {/* Rule 3: External Requisitions */}
+            <label className="flex items-center justify-between p-2.5 bg-slate-50 rounded-xl border border-slate-200/80 cursor-pointer hover:bg-slate-100/80 transition-all">
+              <span className="font-bold text-slate-900 text-xs">Require PIN for External Identity Requisitions</span>
+              <input
+                type="checkbox"
+                checked={pinConfig.enableExternalVenue !== false}
+                onChange={(e) => setPinConfig({
+                  ...pinConfig,
+                  enableExternalVenue: e.target.checked,
+                  enableExternalEquipment: e.target.checked
+                })}
+                className="w-4 h-4 text-blue-600 rounded cursor-pointer"
+              />
+            </label>
+          </div>
+        </div>
+
+        {/* Bottom Save Action */}
+        <div className="flex justify-end pt-2 border-t border-slate-100">
           <button
             type="submit"
-            className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-extrabold shadow-md cursor-pointer"
+            className="flex items-center gap-1 px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-extrabold shadow-2xs transition-all cursor-pointer active:scale-95"
           >
-            <Save size={16} /> Save Security & PIN Settings
+            <Save size={14} />
+            <span>Save</span>
           </button>
         </div>
       </form>
 
-      {/* Section 3: Requirements Needed Before Venue Booking (Item 6) */}
-      <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
+      {/* Section 3: Requirements Needed Before Venue Booking */}
+      <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
         <div className="flex justify-between items-center pb-3 border-b border-slate-100">
           <div>
             <h4 className="font-extrabold text-slate-900 text-xs uppercase tracking-wider flex items-center gap-1.5">
               <FileText size={16} className="text-blue-600" />
               3. Requirements Needed Before Venue Booking
             </h4>
-            <p className="text-xs text-slate-500 font-medium mt-0.5">
-              Configure mandatory endorsement letters and documents required per booking classification.
+            <p className="text-xs text-slate-500 font-semibold mt-0.5">
+              Configure mandatory endorsement letters and clearance documents per classification.
             </p>
           </div>
           <button
@@ -219,7 +225,7 @@ export default function VerificationPinTab({
               setReqForm({ classification: "all", label: "", description: "" });
               setShowReqModal(true);
             }}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-extrabold cursor-pointer"
+            className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-extrabold cursor-pointer"
           >
             <Plus size={15} /> Add Requirement
           </button>
@@ -231,26 +237,23 @@ export default function VerificationPinTab({
             <thead>
               <tr className="bg-slate-100 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase">
                 <th className="p-3">#</th>
-                <th className="p-3">Requirement Document Title</th>
+                <th className="p-3">Requirement Title</th>
                 <th className="p-3">Classification Scope</th>
-                <th className="p-3">Description / Signatory</th>
+                <th className="p-3">Description / Instructions</th>
                 <th className="p-3">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 font-semibold">
               {reqLoading ? (
                 <tr>
-                  <td colSpan={5} className="p-6 text-center">
-                    <div className="flex items-center justify-center gap-2 text-slate-400">
-                      <div className="w-4 h-4 rounded-full border-2 border-slate-200 border-t-blue-500 animate-spin" />
-                      <span className="text-xs font-semibold italic">Loading requirements...</span>
-                    </div>
+                  <td colSpan={5} className="p-6 text-center text-slate-400">
+                    <span className="text-xs font-semibold italic">Loading requirements...</span>
                   </td>
                 </tr>
               ) : requirements.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="p-6 text-center text-slate-400">
-                    📄 No specific requirements configured. Click "Add Requirement" to create one.
+                    No specific requirements configured. Click "Add Requirement" to create one.
                   </td>
                 </tr>
               ) : (
@@ -259,11 +262,11 @@ export default function VerificationPinTab({
                     <td className="p-3 font-bold text-slate-400">{idx + 1}</td>
                     <td className="p-3 font-extrabold text-slate-900">{req.label}</td>
                     <td className="p-3">
-                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-blue-100 text-blue-800 capitalize">
-                        {req.classification}
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-blue-100 text-blue-800 uppercase">
+                        {req.classification || "ALL"}
                       </span>
                     </td>
-                    <td className="p-3 text-slate-600 font-normal">{req.description || "—"}</td>
+                    <td className="p-3 text-slate-600 font-medium">{req.description || "Required for booking clearance"}</td>
                     <td className="p-3 flex items-center gap-2">
                       <button
                         onClick={() => {
@@ -294,7 +297,7 @@ export default function VerificationPinTab({
         </div>
       </div>
 
-      {/* Requirement Add/Edit Modal (Clean White Header - Item 35) */}
+      {/* Requirement Add/Edit Modal */}
       {showReqModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-[1500] flex items-center justify-center p-4 animate-in fade-in">
           <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border border-slate-100 space-y-4">
@@ -339,7 +342,7 @@ export default function VerificationPinTab({
                 <label className="block text-xs font-bold text-slate-900 mb-1">Description / Instructions</label>
                 <textarea
                   rows={2}
-                  placeholder="e.g. Must be signed by the Director of Student Affairs Office"
+                  placeholder="e.g. Must be signed by Director of Student Affairs"
                   value={reqForm.description}
                   onChange={(e) => setReqForm({ ...reqForm, description: e.target.value })}
                   className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-slate-900 focus:outline-none"
@@ -357,7 +360,7 @@ export default function VerificationPinTab({
                 <button
                   type="submit"
                   disabled={reqFormLoading}
-                  className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs shadow-md flex items-center gap-1.5"
+                  className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs shadow-2xs flex items-center gap-1.5"
                 >
                   {reqFormLoading && <Loader2 size={14} className="animate-spin" />}
                   <span>Save Requirement</span>

@@ -69,7 +69,7 @@ class AvrVenueBookingService
             $persons   = $data['number_of_persons'] ?? $data['no_of_person'] ?? 50;
 
             // Create venue_booking entry
-            $bookingId = DB::table('venue_bookings')->insertGetId([
+            $insertData = [
                 'tracking_number_id' => $trackingId,
                 'venue_id'           => $venue->id,
                 'submitted_by'       => $data['submitted_by'] ?? null,
@@ -78,10 +78,6 @@ class AvrVenueBookingService
                 'email_address'      => $email,
                 'program_office'     => $office,
                 'contact_number'     => $contact,
-                'province'           => 'Agusan del Norte',
-                'city'               => 'Butuan City',
-                'barangay'           => 'San Vicente',
-                'street'             => 'JC Aquino Avenue',
                 'classification'     => $classif,
                 'place_of_use'       => 'inside',
                 'purpose'            => $purpose,
@@ -89,13 +85,48 @@ class AvrVenueBookingService
                 'date_of_usage'      => $dateOfUsage,
                 'time_start'         => $timeStart,
                 'time_end'           => $timeEnd,
-                'school_id'          => '2024-001928',
+                'school_id'          => $data['school_id'] ?? null,
                 'agreed_to_policy'   => true,
                 'created_at'         => now(),
                 'updated_at'         => now(),
-            ]);
+            ];
+
+            if (\Illuminate\Support\Facades\Schema::hasColumn('venue_bookings', 'province')) {
+                $insertData['province'] = 'Agusan del Norte';
+                $insertData['city'] = 'Butuan City';
+                $insertData['barangay'] = 'FSUU Main Campus';
+                $insertData['street'] = 'San Jose St.';
+            }
+
+            if (\Illuminate\Support\Facades\Schema::hasColumn('venue_bookings', 'equipment_notes')) {
+                $insertData['equipment_notes'] = $data['equipment_notes'] ?? null;
+            }
+
+            if (\Illuminate\Support\Facades\Schema::hasColumn('venue_bookings', 'reference_code')) {
+                $insertData['reference_code'] = $referenceCode;
+            }
+
+            $bookingId = DB::table('venue_bookings')->insertGetId($insertData);
 
             DB::table('tracking_numbers')->where('id', $trackingId)->update(['reservation_id' => $bookingId]);
+
+            // Save requested built-in equipment into venue_booking_equipment table
+            $equipNotes = $data['equipment_notes'] ?? '';
+            if (!empty($equipNotes) && \Illuminate\Support\Facades\Schema::hasTable('venue_booking_equipment')) {
+                $items = array_map('trim', explode(',', $equipNotes));
+                foreach ($items as $itemStr) {
+                    if (empty($itemStr)) continue;
+                    $cleanName = trim(explode('(', $itemStr)[0]);
+                    $eqType = DB::table('equipment_types')->where('name', 'LIKE', "%{$cleanName}%")->first();
+                    DB::table('venue_booking_equipment')->insert([
+                        'venue_booking_id'  => $bookingId,
+                        'equipment_type_id' => $eqType ? $eqType->id : 1,
+                        'others_specify'    => $itemStr,
+                        'created_at'        => now(),
+                        'updated_at'        => now(),
+                    ]);
+                }
+            }
 
             if (!empty($data['endorsement_url'])) {
                 if (\Illuminate\Support\Facades\Schema::hasTable('documents')) {

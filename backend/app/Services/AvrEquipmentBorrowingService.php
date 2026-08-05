@@ -53,8 +53,7 @@ class AvrEquipmentBorrowingService
                 ]);
             } catch (\Throwable $e) {}
 
-            $borrowing = EquipmentBorrowing::forceCreate([
-                'reference_code' => $referenceCode,
+            $insertData = [
                 'tracking_number_id' => $trackingId,
                 'avr_venue_booking_id' => $data['avr_venue_booking_id'] ?? null,
                 'requestor_name' => $data['requestor_name'],
@@ -70,7 +69,14 @@ class AvrEquipmentBorrowingService
                 'end_datetime' => $data['end_datetime'],
                 'status' => 'pending',
                 'submitted_by' => $data['submitted_by'] ?? null,
-            ]);
+            ];
+
+            if (\Illuminate\Support\Facades\Schema::hasColumn('equipment_borrows', 'reference_code')) {
+                $insertData['reference_code'] = $referenceCode;
+            }
+
+            $borrowing = EquipmentBorrowing::forceCreate($insertData);
+
 
             if ($trackingId) {
                 DB::table('tracking_numbers')->where('id', $trackingId)->update(['reservation_id' => $borrowing->id]);

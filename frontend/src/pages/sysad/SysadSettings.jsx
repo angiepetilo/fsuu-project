@@ -6,9 +6,8 @@ import {
 
 import EquipmentCatalogTab from "./tabs/EquipmentCatalogTab";
 import VenuesTab from "./tabs/VenuesTab";
-import CampusLocationsTab from "./tabs/CampusLocationsTab";
+import CampusManagementTab from "./tabs/CampusManagementTab";
 import UserManagementTab from "./tabs/UserManagementTab";
-import CampusOfficesTab from "./tabs/CampusOfficesTab";
 import DepartmentsTab from "./tabs/DepartmentsTab";
 import OperatingHoursTab from "./tabs/OperatingHoursTab";
 import FeeMatrixTab from "./tabs/FeeMatrixTab";
@@ -108,13 +107,12 @@ export default function SysadSettings() {
 
         {primaryTab === "campus_configure" && [
           { id: "users", label: "User Management", icon: Users },
-          { id: "locations", label: "Campus Locations", icon: MapPin },
-          { id: "offices", label: "Campus Branch Offices", icon: Building2 },
+          { id: "campuses_offices", label: "Campuses & Branch Offices", icon: Building2 },
           { id: "departments", label: "Department / Program", icon: BookOpen },
           { id: "operating_hours", label: "Operating Hours & Grace Periods", icon: Clock },
         ].map((st) => {
           const IconC = st.icon;
-          const active = subTab === st.id;
+          const active = subTab === st.id || (st.id === "campuses_offices" && (subTab === "locations" || subTab === "offices"));
           return (
             <button
               key={st.id}
@@ -153,9 +151,10 @@ export default function SysadSettings() {
       {/* Active Tab Views */}
       {subTab === "catalog" && <EquipmentCatalogTab showMsg={showMsg} />}
       {subTab === "venues_catalog" && <VenuesTab showMsg={showMsg} />}
-      {subTab === "locations" && <CampusLocationsTab showMsg={showMsg} />}
+      {(subTab === "campuses_offices" || subTab === "locations" || subTab === "offices") && (
+        <CampusManagementTab showMsg={showMsg} />
+      )}
       {subTab === "users" && <UserManagementTab showMsg={showMsg} />}
-      {subTab === "offices" && <CampusOfficesTab showMsg={showMsg} />}
       {subTab === "departments" && <DepartmentsTab showMsg={showMsg} />}
       {subTab === "operating_hours" && <OperatingHoursTab showMsg={showMsg} />}
       {subTab === "pricing_matrix" && <FeeMatrixTab showMsg={showMsg} />}

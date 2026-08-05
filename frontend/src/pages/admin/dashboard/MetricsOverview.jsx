@@ -9,46 +9,57 @@ export default function MetricsOverview({
   totalLost,
 }) {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
       {/* 1. Total Venue Bookings */}
       <MetricCard
         icon={Building2}
-        label="Total Venue Bookings"
+        label="TOTAL VENUE BOOKINGS"
         value={totalVenueBookings}
         badge="Completed in History"
         badgeType="success"
         color="blue"
       />
 
-      {/* 2. Total Equipment Borrows */}
-      <MetricCard
-        icon={PackageOpen}
-        label="Total Equipment Borrows"
-        value={totalEquipBorrows}
-        badge="Completed in History"
-        badgeType="success"
-        color="purple"
-      />
-
-      {/* 3. Pending Approval */}
+      {/* 2. Pending Approval */}
       <MetricCard
         icon={Clock}
-        label="Pending Approval"
+        label="PENDING APPROVAL"
         value={pendingApproval}
         badge={pendingApproval > 0 ? "Action Required" : "Up to date"}
         badgeType={pendingApproval > 0 ? "warning" : "success"}
         color="amber"
       />
 
-      {/* 4. Equipment Damages & Lost */}
+      {/* 3. Total Equipment Borrows */}
+      <MetricCard
+        icon={PackageOpen}
+        label="TOTAL EQUIPMENT BORROWS"
+        value={totalEquipBorrows}
+        badge="Completed in History"
+        badgeType="success"
+        color="purple"
+      />
+
+      {/* 4. Total Equipment Damages */}
       <MetricCard
         icon={AlertTriangle}
-        label="Damaged & Lost Items"
-        value={totalDamaged + totalLost}
-        badge={totalDamaged + totalLost > 0 ? "Requires Audit" : "Clean Stock"}
-        badgeType={totalDamaged + totalLost > 0 ? "danger" : "success"}
+        label="TOTAL EQUIPMENT DAMAGES"
+        value={totalDamaged}
+        badge={totalDamaged > 0 ? "Damaged gear" : "Clean Stock"}
+        badgeType={totalDamaged > 0 ? "danger" : "success"}
+        color="rose"
+      />
+
+      {/* 5. Total Equipment Lost */}
+      <MetricCard
+        icon={ShieldAlert}
+        label="TOTAL EQUIPMENT LOST"
+        value={totalLost}
+        badge={totalLost > 0 ? "Unreturned items" : "All Accounts"}
+        badgeType={totalLost > 0 ? "danger" : "success"}
         color="rose"
       />
     </div>
   );
 }
+

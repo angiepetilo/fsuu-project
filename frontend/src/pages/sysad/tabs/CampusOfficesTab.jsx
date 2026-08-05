@@ -44,10 +44,10 @@ export default function CampusOfficesTab({ showMsg }) {
     e.preventDefault();
     setFormLoading(true);
     try {
+      const loc = officeForm.location || (locations[0]?.name || "FSUU Main Campus");
       const payload = {
         name: officeForm.name,
-        location: officeForm.location || (locations[0]?.name || "FSUU Main Campus"),
-        slug: officeForm.name.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+        location: loc,
       };
 
       if (editOffice) {

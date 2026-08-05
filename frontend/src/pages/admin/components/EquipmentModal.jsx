@@ -96,13 +96,15 @@ export default function EquipmentModal({
 
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-slate-900 mb-1">Total Quantity *</label>
+                  <label className="block text-xs font-bold text-slate-900 mb-1">Lifespan (Years) *</label>
                   <input
                     type="number"
                     min={1}
+                    max={50}
+                    step={1}
                     required
-                    value={editFormData.total_units}
-                    onChange={e => setEditFormData({ ...editFormData, total_units: e.target.value })}
+                    value={editFormData.lifespan_years || 5}
+                    onChange={e => setEditFormData({ ...editFormData, lifespan_years: e.target.value })}
                     className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none"
                   />
                 </div>
@@ -236,13 +238,15 @@ export default function EquipmentModal({
 
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-slate-900 mb-1">Total Units *</label>
+                  <label className="block text-xs font-bold text-slate-900 mb-1">Lifespan (Years) *</label>
                   <input
                     type="number"
                     min={1}
+                    max={50}
+                    step={1}
                     required
-                    value={formData.total_units}
-                    onChange={e => setFormData({ ...formData, total_units: e.target.value })}
+                    value={formData.lifespan_years || 5}
+                    onChange={e => setFormData({ ...formData, lifespan_years: e.target.value })}
                     className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none"
                   />
                 </div>

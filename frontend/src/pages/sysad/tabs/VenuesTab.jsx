@@ -199,7 +199,11 @@ export default function VenuesTab({ showMsg }) {
                     {v.location && <span className="text-[11px] text-slate-500 font-medium block">{v.location}</span>}
                   </td>
                   <td className="px-4 py-3.5 text-slate-700 font-extrabold">
-                    {v.office?.name || (offices.find(o => o.id === v.office_id)?.name) || "FSUU Main Campus"}
+                    {(() => {
+                      const off = v.office || offices.find(o => o.id === v.office_id);
+                      if (!off) return "FSUU Main Campus";
+                      return off.location ? `${off.name} | ${off.location}` : off.name;
+                    })()}
                   </td>
                   <td className="px-4 py-3.5">
                     <span className={`inline-flex px-2.5 py-0.5 rounded-full text-[10px] font-extrabold capitalize border ${
@@ -305,24 +309,13 @@ export default function VenuesTab({ showMsg }) {
                       className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 text-xs focus:outline-none"
                     >
                       {offices.map((o) => (
-                        <option key={o.id} value={o.id}>{o.name}</option>
+                        <option key={o.id} value={o.id}>
+                          {o.location ? `${o.name} | ${o.location}` : o.name}
+                        </option>
                       ))}
                     </select>
                   </div>
                 )}
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-900 mb-1">Operating Status *</label>
-                  <select
-                    value={form.status}
-                    onChange={(e) => setForm({ ...form, status: e.target.value })}
-                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 text-xs focus:outline-none"
-                  >
-                    <option value="available">Available</option>
-                    <option value="maintenance">Under Maintenance</option>
-                    <option value="decommissioned">Decommissioned</option>
-                  </select>
-                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -340,10 +333,10 @@ export default function VenuesTab({ showMsg }) {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-900 mb-1">Location / Floor Specs</label>
+                  <label className="block text-xs font-bold text-slate-900 mb-1">Floor Specs</label>
                   <input
                     type="text"
-                    placeholder="e.g. 3rd Floor Main Building"
+                    placeholder="e.g. cb 110, cbs 101, 3rd Floor Main Building"
                     value={form.location}
                     onChange={(e) => setForm({ ...form, location: e.target.value })}
                     className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-slate-900 focus:outline-none focus:border-blue-600"

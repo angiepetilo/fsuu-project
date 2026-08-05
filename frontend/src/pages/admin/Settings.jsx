@@ -55,12 +55,21 @@ function UserForm({ initial, offices, onSubmit, loading, onClose, userOfficeId, 
   const [name, setName] = useState(initial?.name ?? "");
   const [email, setEmail] = useState(initial?.email ?? "");
   const [personalEmail, setPersonalEmail] = useState(initial?.personal_email ?? "");
-  const [role, setRole] = useState(initial?.role ?? "staff");
+  const [role, setRole] = useState(initial?.role?.name ?? initial?.role ?? "staff");
   const [officeId, setOfficeId] = useState(initial?.office_id ?? (userOfficeId || ""));
   const [newPassword, setNewPassword] = useState("");
   const [imageFile, setImageFile] = useState(null);
   const [preview, setPreview] = useState(initial?.avatar ?? null);
   const [removeImage, setRemoveImage] = useState(false);
+  const [permissions, setPermissions] = useState(
+    initial?.permissions ?? ["venue_bookings", "equipment_borrowing", "history_log"]
+  );
+
+  const togglePermission = (key) => {
+    setPermissions(prev =>
+      prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]
+    );
+  };
 
   const handleImage = (e) => {
     const f = e.target.files[0];
@@ -74,6 +83,7 @@ function UserForm({ initial, offices, onSubmit, loading, onClose, userOfficeId, 
     fd.append("email", email);
     fd.append("personal_email", personalEmail);
     fd.append("role", role);
+    fd.append("permissions", JSON.stringify(permissions));
     if (officeId) fd.append("office_id", officeId);
     if (imageFile) fd.append("image", imageFile);
     if (removeImage) fd.append("remove_image", "1");
@@ -115,7 +125,7 @@ function UserForm({ initial, offices, onSubmit, loading, onClose, userOfficeId, 
       </div>
 
       <div>
-        <label className="text-xs font-bold text-slate-700 mb-1 block">System Login Username <span className="text-red-500">*</span></label>
+        <label className="text-xs font-bold text-slate-700 mb-1 block">Username <span className="text-red-500">*</span></label>
         <input
           required value={email} onChange={e => setEmail(e.target.value)}
           placeholder="e.g. sco.admin or sco@fsuu.edu.ph"
@@ -134,42 +144,49 @@ function UserForm({ initial, offices, onSubmit, loading, onClose, userOfficeId, 
         />
       </div>
 
-      <div>
-        <label className="text-xs font-bold text-slate-700 mb-1 block">
-          <span className="flex items-center gap-1"><Building size={12} /> Office Assignment</span>
-        </label>
-        <select
-          value={officeId}
-          disabled={!isSuperAdmin && !!userOfficeId}
-          onChange={e => setOfficeId(e.target.value)}
-          className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all bg-white text-slate-800 disabled:opacity-60 disabled:bg-slate-100"
-        >
-          <option value="">— Select Office —</option>
-          {offices.map(o => (
-            <option key={o.id} value={o.id}>
-              {o.name} ({o.code})
-            </option>
-          ))}
-        </select>
-      </div>
+      {role === "staff" && (
+        <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200/80 space-y-3">
+          <div className="flex items-center gap-2">
+            <Sliders size={15} className="text-purple-600" />
+            <span className="text-xs font-extrabold text-slate-800">Staff Feature Access Permissions</span>
+          </div>
+          <p className="text-[11px] text-slate-500 leading-snug">
+            By default, Staff can access <b>Venue Booking</b>, <b>Equipment Borrowing</b>, and <b>History Log</b>. Check optional modules to grant access:
+          </p>
 
-      <div>
-        <label className="text-xs font-bold text-slate-700 mb-2 block">Role <span className="text-red-500">*</span></label>
-        <div className="grid grid-cols-2 gap-3">
-          <button
-            type="button" onClick={() => setRole("admin")}
-            className={`flex items-center gap-2 px-4 py-3 rounded-xl border-2 text-sm font-bold transition-all cursor-pointer ${role === "admin" ? "border-blue-600 bg-blue-50 text-blue-700" : "border-slate-200 text-slate-500 hover:border-slate-300"}`}
-          >
-            <ShieldCheck size={16} /> Admin
-          </button>
-          <button
-            type="button" onClick={() => setRole("staff")}
-            className={`flex items-center gap-2 px-4 py-3 rounded-xl border-2 text-sm font-bold transition-all cursor-pointer ${role === "staff" ? "border-purple-600 bg-purple-50 text-purple-700" : "border-slate-200 text-slate-500 hover:border-slate-300"}`}
-          >
-            <UserCog size={16} /> Staff
-          </button>
+          <div className="space-y-2 pt-1">
+            <label className="flex items-center gap-2.5 text-xs font-bold text-slate-700 cursor-pointer p-2 rounded-xl hover:bg-white transition-all">
+              <input
+                type="checkbox"
+                checked={permissions.includes("manage_equipments")}
+                onChange={() => togglePermission("manage_equipments")}
+                className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500"
+              />
+              <span>📦 Manage Equipment (Inventory Access)</span>
+            </label>
+
+            <label className="flex items-center gap-2.5 text-xs font-bold text-slate-700 cursor-pointer p-2 rounded-xl hover:bg-white transition-all">
+              <input
+                type="checkbox"
+                checked={permissions.includes("manage_venues")}
+                onChange={() => togglePermission("manage_venues")}
+                className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500"
+              />
+              <span>🏛️ Manage Venues (Facility Settings Access)</span>
+            </label>
+
+            <label className="flex items-center gap-2.5 text-xs font-bold text-slate-700 cursor-pointer p-2 rounded-xl hover:bg-white transition-all">
+              <input
+                type="checkbox"
+                checked={permissions.includes("reports")}
+                onChange={() => togglePermission("reports")}
+                className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500"
+              />
+              <span>📊 Reports & Analytics Access</span>
+            </label>
+          </div>
         </div>
-      </div>
+      )}
 
       {initial && (
         <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200">
@@ -351,8 +368,20 @@ const [categories, setCategories] = useState(() => {
 
   const [showAddVenueModal, setShowAddVenueModal] = useState(false);
   const [editVenue, setEditVenue] = useState(null);
-  const [venueForm, setVenueForm] = useState({ name: "", capacity: 100, schedule: "Mon - Sat (8:00 AM - 9:00 PM)", status: "Available", photo: null });
+  const [venueForm, setVenueForm] = useState({ name: "", capacity: 100, status: "Available", photo: null, location: "" });
   const [venuePhotoPreview, setVenuePhotoPreview] = useState(null);
+
+  useEffect(() => {
+    if (editVenue) {
+      setVenueForm({
+        name: editVenue.name || "",
+        capacity: editVenue.capacity || 100,
+        status: editVenue.status || "Available",
+        location: editVenue.location || "",
+      });
+      setVenuePhotoPreview(editVenue.photo || editVenue.avatar || editVenue.image || null);
+    }
+  }, [editVenue]);
 
   useEffect(() => {
     try {
@@ -388,12 +417,29 @@ const [categories, setCategories] = useState(() => {
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const [usersRes, officesRes] = await Promise.all([
+      const [usersRes, officesRes, venuesRes] = await Promise.all([
         api.get("/admin/users"),
         api.get("/admin/offices"),
+        api.get("/admin/venues").catch(() => ({ data: [] })),
       ]);
       setUsers(usersRes.data ?? []);
       setOffices(officesRes.data ?? []);
+      const apiVenues = Array.isArray(venuesRes.data) ? venuesRes.data : [];
+      const mappedVenues = apiVenues.map(v => ({
+        id: v.id,
+        name: v.name,
+        capacity: v.capacity || 100,
+        status: v.status || "Available",
+        location: v.office?.location || v.location || "FSUU Main Campus",
+        photo: v.avatar || v.photo || null,
+        avatar: v.avatar || v.photo || null,
+        office_id: v.office_id,
+        office: v.office,
+      }));
+      setVenues(mappedVenues);
+      if (mappedVenues.length === 0) {
+        try { localStorage.removeItem("fsuu_venue_availability"); } catch {}
+      }
     } catch {
       setUsers([]);
       setOffices([]);
@@ -408,10 +454,10 @@ const [categories, setCategories] = useState(() => {
 
   const adminOfficeScope = context?.adminOffice || context?.selectedOffice || currentUser.office || "FSUU Main";
 
-  // Filter users by office and exclude superadmin row from branch admin role & permission table
+  // Filter users by office: Branch Staff & Roles shows ONLY staff accounts belonging to this branch office
   const visibleUsers = users.filter(u => {
-    if (u.email === "superadmin@fsuu.edu.ph" || u.role === "superadmin") return false;
-    if (context?.isSuperAdmin) return true;
+    const isStaff = u.role === "staff" || u.role?.name === "staff";
+    if (!isStaff) return false;
     if (adminOfficeScope.includes("Morelos")) {
       return u.office_id === 2 || (u.office?.name || "").includes("Morelos");
     }
@@ -511,36 +557,67 @@ const [categories, setCategories] = useState(() => {
     }
   };
 
-  // Venue Handlers with Photo Support
-  const handleAddVenue = (e) => {
+  // Venue Handlers with Backend API Persistence & Photo Support
+  const handleAddVenue = async (e) => {
     e.preventDefault();
-    const newVen = {
-      id: Date.now(),
+    const payload = {
       name: venueForm.name,
-      capacity: venueForm.capacity,
-      schedule: venueForm.schedule,
-      status: venueForm.status,
-      photo: venuePhotoPreview,
+      capacity: parseInt(venueForm.capacity, 10) || 100,
+      status: (venueForm.status || "Available").toLowerCase(),
+      avatar: venuePhotoPreview || null,
+      location: venueForm.location || (adminOfficeScope.includes("Morelos") ? "FSUU Morelos Campus" : "FSUU Main Campus"),
+      office_id: userOfficeId,
     };
-    setVenues(prev => [newVen, ...prev]);
-    setShowAddVenueModal(false);
-    setVenueForm({ name: "", capacity: 100, schedule: "Mon - Sat (8:00 AM - 9:00 PM)", status: "Available", photo: null });
-    setVenuePhotoPreview(null);
-    showMsg(`Venue slot "${newVen.name}" added with photo!`);
+    try {
+      await api.post("/admin/venues", payload);
+      showMsg(`✅ Venue "${venueForm.name}" created and synced to database!`);
+      fetchUsers();
+    } catch {
+      const newVen = { id: Date.now(), ...payload, photo: venuePhotoPreview };
+      setVenues(prev => [newVen, ...prev]);
+      showMsg(`✅ Venue "${venueForm.name}" added.`);
+    } finally {
+      setShowAddVenueModal(false);
+      setVenueForm({ name: "", capacity: 100, status: "Available", photo: null, location: "" });
+      setVenuePhotoPreview(null);
+    }
   };
 
-  const handleEditVenueSubmit = (e) => {
+  const handleEditVenueSubmit = async (e) => {
     e.preventDefault();
-    setVenues(prev => prev.map(v => v.id === editVenue.id ? { ...v, ...venueForm, photo: venuePhotoPreview || v.photo } : v));
-    setEditVenue(null);
-    setVenuePhotoPreview(null);
-    showMsg(`Venue availability updated.`);
+    if (!editVenue) return;
+    const payload = {
+      name: venueForm.name,
+      capacity: parseInt(venueForm.capacity, 10) || 100,
+      status: (venueForm.status || "Available").toLowerCase(),
+      avatar: venuePhotoPreview || editVenue.photo || editVenue.avatar || null,
+      location: venueForm.location || editVenue.location || "FSUU Main Campus",
+    };
+    try {
+      await api.put(`/admin/venues/${editVenue.id}`, payload);
+      showMsg(`✅ Venue record updated successfully!`);
+      fetchUsers();
+    } catch {
+      setVenues(prev => prev.map(v => v.id === editVenue.id ? { ...v, ...venueForm, photo: venuePhotoPreview || v.photo } : v));
+      showMsg(`✅ Venue availability updated.`);
+    } finally {
+      setEditVenue(null);
+      setVenuePhotoPreview(null);
+    }
   };
 
-  const handleDeleteVenue = (ven) => {
-    if (confirm(`Remove venue availability for "${ven.name}"?`)) {
-      setVenues(prev => prev.filter(v => v.id !== ven.id));
-      showMsg(`Venue slot removed.`);
+  const handleDeleteVenue = async (ven) => {
+    const venId = ven.id || ven;
+    const venName = ven.name || "venue slot";
+    if (confirm(`Remove venue availability for "${venName}"?`)) {
+      try {
+        await api.delete(`/admin/venues/${venId}`);
+        showMsg(`✅ Venue "${venName}" archived.`);
+        fetchUsers();
+      } catch {
+        setVenues(prev => prev.filter(v => v.id !== venId));
+        showMsg(`✅ Venue slot removed.`);
+      }
     }
   };
 
@@ -584,22 +661,20 @@ const [categories, setCategories] = useState(() => {
       <div>
         <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">System Settings</h1>
         <p className="text-xs text-slate-500 font-medium mt-0.5">
-          Manage system access roles, equipment categories, venue availability, and profile configuration
+          Manage system access roles, equipment categories, venue catalog, and profile configuration
         </p>
       </div>
 
-      {/* 6-Tab Navigation Bar */}
+      {/* 5-Tab Navigation Bar */}
       <div className="flex flex-wrap items-center gap-1 bg-slate-100 p-1.5 rounded-2xl w-fit">
         {[
-          { id: "roles", label: "Role & Permission", icon: ShieldCheck },
-          { id: "inventory", label: "Inventory & Stock Table", icon: PackageOpen },
-          { id: "categories", label: "Equipment Category", icon: Layers },
-          { id: "venues", label: "Venue Availability", icon: Calendar },
-          { id: "pin", label: "Verification PIN", icon: KeyRound },
-          { id: "profile", label: "Profile", icon: User },
+          { id: "roles", label: "Branch Staff & Roles", icon: ShieldCheck },
+          { id: "inventory", label: "Equipment Catalog", icon: PackageOpen },
+          { id: "venues", label: "Venue Catalog", icon: Calendar },
+          { id: "profile", label: "Profile & Account", icon: User },
         ].map(tab => {
           const IconComp = tab.icon;
-          const active = activeTab === tab.id;
+          const active = activeTab === tab.id || (tab.id === "inventory" && activeTab === "categories");
           return (
             <button
               key={tab.id}
@@ -661,153 +736,17 @@ const [categories, setCategories] = useState(() => {
         />
       )}
 
-      {/* ── TAB 4: Admin Profile Configuration ── */}
+
+
+      {/* ── TAB 5: Admin Profile Configuration ── */}
       {activeTab === "profile" && (
         <AdminProfileTab
           profileForm={profileForm}
           setProfileForm={setProfileForm}
+          profileAvatarPreview={profileAvatarPreview}
+          setProfileAvatarPreview={setProfileAvatarPreview}
           handleSaveProfile={handleSaveProfile}
         />
-      )}
-
-      {/* ── TAB 5: Verification PIN Configuration ── */}
-      {activeTab === "pin" && (
-        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
-          <div className="p-5 border-b border-slate-100 flex items-center justify-between flex-wrap gap-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-orange-50 border border-orange-200/80 flex items-center justify-center text-orange-600 shadow-xs">
-                <KeyRound size={20} />
-              </div>
-              <div>
-                <h3 className="font-extrabold text-slate-900 text-sm sm:text-base">Verification PIN Configuration</h3>
-                <p className="text-xs text-slate-500 font-medium">
-                  Set the authorized verification PIN and customize the modal message shown for multi-day & external requests.
-                </p>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={handleSavePinSettings}
-              className="py-2.5 px-5 bg-orange-600 hover:bg-orange-700 text-white font-extrabold text-xs rounded-xl shadow-md shadow-orange-600/20 flex items-center gap-2 transition-all cursor-pointer"
-            >
-              <Save size={15} />
-              <span>Save PIN Settings</span>
-            </button>
-          </div>
-
-          <form onSubmit={handleSavePinSettings} className="p-6 sm:p-8 space-y-6 max-w-3xl">
-            {/* PIN Code Setting */}
-            <div className="bg-slate-50/80 border border-slate-200/80 rounded-2xl p-5 space-y-4">
-              <h4 className="text-xs sm:text-sm font-extrabold text-slate-900 flex items-center gap-2">
-                <Lock size={16} className="text-orange-500" />
-                <span>Authorized Verification PIN Code</span>
-              </h4>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs font-bold text-slate-700 mb-1.5 block">
-                    6-Digit Verification PIN <span className="text-red-500">*</span>
-                  </label>
-                  <PasswordInput
-                    value={pinSettings.pin}
-                    onChange={(e) => setPinSettings({ ...pinSettings, pin: e.target.value })}
-                    placeholder="Enter 6-digit PIN"
-                    required
-                  />
-                  <span className="text-[11px] text-slate-400 font-medium mt-1.5 block">
-                    Default PIN is <strong className="text-slate-700 font-mono">123456</strong>. Updating this changes the required PIN across all kiosk reservation forms.
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* PinModal Content Settings */}
-            <div className="bg-slate-50/80 border border-slate-200/80 rounded-2xl p-5 space-y-4">
-              <h4 className="text-xs sm:text-sm font-extrabold text-slate-900 flex items-center gap-2">
-                <Sliders size={16} className="text-blue-600" />
-                <span>PIN Modal Header & Guidance Message</span>
-              </h4>
-
-              <div className="space-y-4">
-                <div>
-                  <label className="text-xs font-bold text-slate-700 mb-1.5 block">
-                    Modal Title
-                  </label>
-                  <input
-                    type="text"
-                    value={pinSettings.title}
-                    onChange={(e) => setPinSettings({ ...pinSettings, title: e.target.value })}
-                    placeholder="e.g. PIN Required"
-                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:border-blue-600"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs font-bold text-slate-700 mb-1.5 block">
-                    Modal Description / Guidance Text
-                  </label>
-                  <textarea
-                    rows={3}
-                    value={pinSettings.description}
-                    onChange={(e) => setPinSettings({ ...pinSettings, description: e.target.value })}
-                    placeholder="e.g. AVR Head PIN Required..."
-                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:border-blue-600 leading-relaxed"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Verification Trigger Rules */}
-            <div className="bg-slate-50/80 border border-slate-200/80 rounded-2xl p-5 space-y-4">
-              <h4 className="text-xs sm:text-sm font-extrabold text-slate-900 flex items-center gap-2">
-                <ShieldCheck size={16} className="text-emerald-600" />
-                <span>Verification Trigger Rules</span>
-              </h4>
-
-              <div className="space-y-3 text-xs font-bold text-slate-800">
-                <label className="flex items-center gap-3 cursor-pointer p-3 bg-white border border-slate-200 rounded-xl hover:border-slate-300 transition-colors">
-                  <input
-                    type="checkbox"
-                    checked={pinSettings.requireMultiDay ?? true}
-                    onChange={(e) => setPinSettings({ ...pinSettings, requireMultiDay: e.target.checked })}
-                    className="w-4 h-4 rounded text-orange-600 focus:ring-orange-500"
-                  />
-                  <span>Require PIN for Multi-Day Venue Bookings (2 or more reserved days)</span>
-                </label>
-
-                <label className="flex items-center gap-3 cursor-pointer p-3 bg-white border border-slate-200 rounded-xl hover:border-slate-300 transition-colors">
-                  <input
-                    type="checkbox"
-                    checked={pinSettings.requireNextDay ?? true}
-                    onChange={(e) => setPinSettings({ ...pinSettings, requireNextDay: e.target.checked })}
-                    className="w-4 h-4 rounded text-orange-600 focus:ring-orange-500"
-                  />
-                  <span>Require PIN for Next-Day / Multi-Day Equipment Returns</span>
-                </label>
-
-                <label className="flex items-center gap-3 cursor-pointer p-3 bg-white border border-slate-200 rounded-xl hover:border-slate-300 transition-colors">
-                  <input
-                    type="checkbox"
-                    checked={pinSettings.requireExternal ?? true}
-                    onChange={(e) => setPinSettings({ ...pinSettings, requireExternal: e.target.checked })}
-                    className="w-4 h-4 rounded text-orange-600 focus:ring-orange-500"
-                  />
-                  <span>Require PIN for External Identity Requisitions</span>
-                </label>
-              </div>
-            </div>
-
-            <div className="flex justify-end pt-2">
-              <button
-                type="submit"
-                className="py-3 px-6 bg-orange-600 hover:bg-orange-700 text-white font-extrabold text-xs rounded-xl shadow-md shadow-orange-600/20 flex items-center gap-2 transition-all cursor-pointer"
-              >
-                <Save size={16} />
-                <span>Save All PIN Configurations</span>
-              </button>
-            </div>
-          </form>
-        </div>
       )}
 
       {/* Modals */}
@@ -972,44 +911,20 @@ const [categories, setCategories] = useState(() => {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-bold text-slate-900 mb-1">Capacity (Seats) *</label>
-                <input
-                  type="number"
-                  required
-                  min="10"
-                  max="2000"
-                  value={venueForm.capacity}
-                  onChange={e => setVenueForm({ ...venueForm, capacity: parseInt(e.target.value, 10) })}
-                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold focus:outline-none focus:border-blue-600"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-900 mb-1">Status *</label>
-                <select
-                  value={venueForm.status}
-                  onChange={e => setVenueForm({ ...venueForm, status: e.target.value })}
-                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold focus:outline-none focus:border-blue-600"
-                >
-                  <option value="Available">Available</option>
-                  <option value="Maintenance Block">Maintenance Block</option>
-                </select>
-              </div>
-            </div>
-
             <div>
-              <label className="block text-xs font-bold text-slate-900 mb-1">Operating Schedule *</label>
+              <label className="block text-xs font-bold text-slate-900 mb-1">Capacity (Seats) *</label>
               <input
-                type="text"
+                type="number"
                 required
-                value={venueForm.schedule}
-                onChange={e => setVenueForm({ ...venueForm, schedule: e.target.value })}
-                placeholder="e.g. Mon - Sat (8:00 AM - 9:00 PM)"
-                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:border-blue-600"
+                min="10"
+                max="2000"
+                value={venueForm.capacity}
+                onChange={e => setVenueForm({ ...venueForm, capacity: parseInt(e.target.value, 10) })}
+                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold focus:outline-none focus:border-blue-600"
               />
             </div>
+
+
 
             <div className="flex items-center justify-end gap-2 pt-4 border-t border-slate-100">
               <button

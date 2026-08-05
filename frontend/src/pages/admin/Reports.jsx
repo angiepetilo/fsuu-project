@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useOutletContext } from "react-router-dom";
+import { useAuth } from "@/context/AuthContext";
 import api from "@/lib/axios";
 import BookingBorrowingReportTab from "./reports/BookingBorrowingReportTab";
 import BreachesTab from "./reports/BreachesTab";
@@ -9,10 +10,14 @@ import {
 } from "lucide-react";
 
 export default function Reports() {
+  const { user } = useAuth();
+  const userRole = user?.role?.name || user?.role || "staff";
+  const isStaff = userRole === "staff";
+
   const context = useOutletContext();
   const officeScope = context?.adminOffice || context?.selectedOffice || "All Offices";
 
-  const [activeTab, setActiveTab] = useState("booking_borrowing"); // "booking_borrowing" | "breaches" | "inventory"
+  const [activeTab, setActiveTab] = useState(isStaff ? "inventory" : "booking_borrowing");
   const [feedback, setFeedback] = useState(null);
   const [showPdfModal, setShowPdfModal] = useState(false);
 
@@ -82,7 +87,9 @@ export default function Reports() {
             Institutional Reports & Audits
           </h1>
           <p className="text-xs text-slate-500 font-medium mt-0.5">
-            Audit logs for venue bookings, equipment borrowing history, rule breaches, and equipment stock levels.
+            {isStaff
+              ? "Verify physical equipment condition, stock levels, and audit reports."
+              : "Audit logs for venue bookings, equipment borrowing history, rule breaches, and equipment stock levels."}
           </p>
         </div>
       </div>
@@ -93,22 +100,24 @@ export default function Reports() {
           { id: "booking_borrowing", label: "Booking & Borrowing Report", icon: Building2 },
           { id: "breaches", label: "Rule & Late Return Violations", icon: ShieldAlert },
           { id: "inventory", label: "Inventory & Stock Table", icon: PackageOpen },
-        ].map((tab) => {
-          const IconComp = tab.icon;
-          const active = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-extrabold transition-all cursor-pointer ${
-                active ? "bg-slate-900 text-white shadow-md" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-              }`}
-            >
-              <IconComp size={15} />
-              <span>{tab.label}</span>
-            </button>
-          );
-        })}
+        ]
+          .filter((tab) => !isStaff || tab.id === "inventory")
+          .map((tab) => {
+            const IconComp = tab.icon;
+            const active = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-extrabold transition-all cursor-pointer ${
+                  active ? "bg-slate-900 text-white shadow-md" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                }`}
+              >
+                <IconComp size={15} />
+                <span>{tab.label}</span>
+              </button>
+            );
+          })}
       </div>
 
       {/* Render Active Tab Component */}

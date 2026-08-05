@@ -16,7 +16,7 @@ class AdminEquipmentUnitController extends Controller
     public function index(): JsonResponse
     {
         return response()->json(
-            EquipmentUnit::with('equipmentType')->latest()->get()
+            EquipmentUnit::with('equipmentType.office')->latest()->get()
         );
     }
 

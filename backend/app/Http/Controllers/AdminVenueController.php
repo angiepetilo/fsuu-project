@@ -8,15 +8,21 @@ use Illuminate\Http\Request;
 
 class AdminVenueController extends Controller
 {
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
-        return response()->json(
-            Venue::with('office')->latest()->get()
-        );
+        $user = $request->user();
+        $query = Venue::with('office');
+
+        if ($user && $user->office_id) {
+            $query->where('office_id', $user->office_id);
+        }
+
+        return response()->json($query->latest()->get());
     }
 
     public function store(Request $request): JsonResponse
     {
+        $user = $request->user();
         $data = $request->validate([
             'office_id' => 'nullable|exists:offices,id',
             'name'      => 'required|string|max:255',
@@ -27,8 +33,7 @@ class AdminVenueController extends Controller
         ]);
 
         if (empty($data['office_id'])) {
-            $office = \App\Models\Office::first() ?? \App\Models\Office::create(['name' => 'FSUU Main Campus AVR Office', 'slug' => 'fsuu-main-campus-avr-office']);
-            $data['office_id'] = $office->id;
+            $data['office_id'] = $user->office_id ?? (\App\Models\Office::first()?->id ?? 1);
         }
 
         if (empty($data['capacity'])) {

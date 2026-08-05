@@ -18,13 +18,10 @@ return new class extends Migration
             $table->string('email_address');
             $table->string('program_office');
             $table->string('contact_number');
-            $table->string('province');
-            $table->string('city');
-            $table->string('barangay');
-            $table->string('street');
             $table->string('classification'); // student, faculty, external
-            $table->string('place_of_use'); // inside, outside
+            $table->string('place_of_use')->default('inside'); // inside, outside
             $table->text('purpose');
+            $table->text('equipment_notes')->nullable();
             $table->integer('no_of_person');
             $table->date('date_of_usage');
             $table->time('time_start');

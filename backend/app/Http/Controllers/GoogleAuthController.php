@@ -94,9 +94,11 @@ class GoogleAuthController extends Controller
             ], 401);
         }
 
-        // Prefer lookup by google_id (stable, never changes), fall back to email
+        // Prefer lookup by google_id (stable, never changes), fall back to email or personal_email
+        $googleEmail = $googleUser->getEmail();
         $user = User::where('google_id', $googleUser->getId())->first()
-            ?? User::where('email', $googleUser->getEmail())->first();
+            ?? User::where('email', $googleEmail)->first()
+            ?? User::where('personal_email', $googleEmail)->first();
 
         // Only pre-created accounts are allowed. No self-registration.
         if (! $user) {

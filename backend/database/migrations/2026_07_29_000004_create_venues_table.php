@@ -12,6 +12,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('office_id')->constrained('offices')->cascadeOnDelete();
             $table->string('name');
+            $table->longText('avatar')->nullable();
             $table->string('location')->nullable();
             $table->integer('capacity')->default(100);
             $table->string('status')->default('available');
