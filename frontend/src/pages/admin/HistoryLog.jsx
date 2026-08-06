@@ -3,7 +3,7 @@ import { useOutletContext } from "react-router-dom";
 import api from "@/lib/axios";
 import {
   History, RefreshCw, CheckCircle, Building2, PackageOpen, Search, Loader2,
-  Eye, Trash2, Pencil, CheckCircle2, X, AlertTriangle
+  Eye, Trash2, Pencil, CheckCircle2, X, AlertTriangle, ChevronLeft, ChevronRight
 } from "lucide-react";
 import VenueBookingDetailModal from "./components/VenueBookingDetailModal";
 import EquipmentBorrowDetailModal from "./components/EquipmentBorrowDetailModal";
@@ -184,6 +184,17 @@ export default function HistoryLog() {
     return isCompleted && (!searchQuery || ref.includes(q) || name.includes(q));
   });
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [historyType, searchQuery]);
+
+  const activeList = historyType === "venue" ? filteredVenues : filteredEquipment;
+  const totalPages = Math.ceil(activeList.length / ITEMS_PER_PAGE) || 1;
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const paginatedList = activeList.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
   if (loading && venueHistory.length === 0 && equipmentHistory.length === 0) {
     return <PageLoader message="Loading History Log..." />;
@@ -214,8 +225,9 @@ export default function HistoryLog() {
       </div>
 
       {feedback && (
-        <div className="bg-emerald-500 text-white text-xs font-bold px-4 py-3 rounded-2xl flex items-center gap-2 shadow-sm animate-in fade-in">
-          <CheckCircle size={16} /> {feedback}
+        <div className="fixed bottom-6 right-6 z-[3000] bg-slate-900 text-white text-xs font-extrabold px-5 py-3.5 rounded-2xl flex items-center gap-3 shadow-2xl animate-in slide-in-from-bottom-5 duration-300 border border-slate-700 max-w-md">
+          <CheckCircle size={18} className="text-emerald-400 shrink-0" />
+          <span>{feedback}</span>
         </div>
       )}
 
@@ -273,17 +285,18 @@ export default function HistoryLog() {
                     </td>
                   </tr>
                 ) : (
-                  filteredVenues.map((b, idx) => {
+                  paginatedList.map((b, idx) => {
                     const refCode = b.reference_code || b.tracking_number || `TRK-AVR${b.id}`;
                     const requestor = b.filer_name || b.requestor || "FSUU Filer";
                     const department = b.program_office || b.department || "Academic Dept";
                     const venueName = b.venue_name || b.venue || "AVR Auditorium 1";
                     const usageDate = formatDate(b.date_of_usage || b.date);
                     const timeRange = formatTimeRange(b.time_start, b.time_end);
+                    const displayIndex = startIndex + idx + 1;
 
                     return (
                       <tr key={b.id || idx} className="hover:bg-slate-50/60 transition-colors">
-                        <td className="px-4 py-3.5 font-bold text-slate-400">{idx + 1}</td>
+                        <td className="px-4 py-3.5 font-bold text-slate-400">{displayIndex}</td>
                         <td className="px-4 py-3.5 font-mono text-xs font-bold text-blue-600 whitespace-nowrap">{refCode}</td>
                         <td className="px-4 py-3.5 font-extrabold text-slate-900">{requestor}</td>
                         <td className="px-4 py-3.5 text-slate-700">{department}</td>
@@ -323,6 +336,40 @@ export default function HistoryLog() {
               </tbody>
             </table>
           </div>
+
+          {/* Pagination Footer */}
+          {filteredVenues.length > 0 && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-6 py-4 bg-slate-50/80 border-t border-slate-100 text-xs font-semibold text-slate-600">
+              <div>
+                Showing <span className="font-extrabold text-slate-900">{startIndex + 1}</span> to{" "}
+                <span className="font-extrabold text-slate-900">{Math.min(startIndex + ITEMS_PER_PAGE, filteredVenues.length)}</span> of{" "}
+                <span className="font-extrabold text-slate-900">{filteredVenues.length}</span> venue history records
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="text-slate-500 font-bold mr-2">
+                  Page {currentPage} of {totalPages}
+                </span>
+                <button
+                  type="button"
+                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                  className="flex items-center gap-1 px-3.5 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all shadow-xs font-bold text-xs"
+                >
+                  <ChevronLeft size={14} /> Previous
+                </button>
+
+                <button
+                  type="button"
+                  disabled={currentPage >= totalPages}
+                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                  className="flex items-center gap-1 px-3.5 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all shadow-xs font-bold text-xs"
+                >
+                  Next <ChevronRight size={14} />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -354,7 +401,7 @@ export default function HistoryLog() {
                     </td>
                   </tr>
                 ) : (
-                  filteredEquipment.map((b, idx) => {
+                  paginatedList.map((b, idx) => {
                     const refCode = b.reference_code || b.tracking_number || `EQUIP-REQ-${b.id}`;
                     const requestor = b.filer_name || b.requestor || "FSUU Filer";
                     const department = b.program_office || b.department || "Academic Dept";
@@ -362,10 +409,11 @@ export default function HistoryLog() {
                     const quantity = b.quantity || b.qty || 1;
                     const usageDate = formatDate(b.date_of_usage || b.date);
                     const timeRange = formatTimeRange(b.time_start, b.time_end);
+                    const displayIndex = startIndex + idx + 1;
 
                     return (
                       <tr key={b.id || idx} className="hover:bg-slate-50/60 transition-colors">
-                        <td className="px-4 py-3.5 font-bold text-slate-400">{idx + 1}</td>
+                        <td className="px-4 py-3.5 font-bold text-slate-400">{displayIndex}</td>
                         <td className="px-4 py-3.5 font-mono text-xs font-bold text-purple-600 whitespace-nowrap">{refCode}</td>
                         <td className="px-4 py-3.5 font-extrabold text-slate-900">{requestor}</td>
                         <td className="px-4 py-3.5 text-slate-700">{department}</td>
@@ -406,6 +454,40 @@ export default function HistoryLog() {
               </tbody>
             </table>
           </div>
+
+          {/* Pagination Footer */}
+          {filteredEquipment.length > 0 && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-6 py-4 bg-slate-50/80 border-t border-slate-100 text-xs font-semibold text-slate-600">
+              <div>
+                Showing <span className="font-extrabold text-slate-900">{startIndex + 1}</span> to{" "}
+                <span className="font-extrabold text-slate-900">{Math.min(startIndex + ITEMS_PER_PAGE, filteredEquipment.length)}</span> of{" "}
+                <span className="font-extrabold text-slate-900">{filteredEquipment.length}</span> equipment history records
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="text-slate-500 font-bold mr-2">
+                  Page {currentPage} of {totalPages}
+                </span>
+                <button
+                  type="button"
+                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                  className="flex items-center gap-1 px-3.5 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all shadow-xs font-bold text-xs"
+                >
+                  <ChevronLeft size={14} /> Previous
+                </button>
+
+                <button
+                  type="button"
+                  disabled={currentPage >= totalPages}
+                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                  className="flex items-center gap-1 px-3.5 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all shadow-xs font-bold text-xs"
+                >
+                  Next <ChevronRight size={14} />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

@@ -76,7 +76,7 @@ class AdminUserController extends Controller
             'personal_email' => $validated['personal_email'] ?? $validated['email'],
             'password'       => Hash::make($plainPassword),
             'role_id'        => $targetRole->id,
-            'office_id'      => $validated['office_id'] ?? \App\Models\Office::first()?->id,
+            'office_id'      => $validated['office_id'] ?? auth()->user()->office_id ?? \App\Models\Office::first()?->id,
             'location'       => $validated['location'] ?? null,
             'avatar'         => $avatarPath ? Storage::url($avatarPath) : null,
             'permissions'    => $permissions,

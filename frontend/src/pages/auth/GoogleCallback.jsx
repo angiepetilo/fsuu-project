@@ -30,7 +30,10 @@ export default function GoogleCallback() {
       const user = {
         name: params.get("name") || "Authenticated User",
         email: params.get("email") || "",
-        role: role
+        personal_email: params.get("personal_email") || "",
+        avatar: params.get("avatar") || null,
+        office_id: params.get("office_id") ? parseInt(params.get("office_id"), 10) : null,
+        role: role,
       };
       login(user, token);
       if (role === "superadmin" || role === "super_admin") {

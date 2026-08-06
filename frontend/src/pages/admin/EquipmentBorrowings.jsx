@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useOutletContext } from "react-router-dom";
 import api from "@/lib/axios";
 import {
-  Loader2, RefreshCw, AlertCircle, Eye, PackageOpen
+  Loader2, RefreshCw, AlertCircle, Eye, PackageOpen, ChevronLeft, ChevronRight
 } from "lucide-react";
 import EquipmentBorrowDetailModal from "./components/EquipmentBorrowDetailModal";
 import { PageLoader } from "@/components/ui/page-loader";
@@ -42,13 +42,16 @@ export default function EquipmentBorrowings() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(null);
   const [error, setError] = useState(null);
-  const [statusFilter, setStatusFilter] = useState("all"); // Item 15: "all" | "pending" | "claim" | "inspection"
+  const [statusFilter, setStatusFilter] = useState("all");
 
   // Detail Modal & Notification Modal State
   const [selected, setSelected] = useState(null);
   const [showNotifyModal, setShowNotifyModal] = useState(false);
   const [notifyReason, setNotifyReason] = useState("");
   const [feedbackMsg, setFeedbackMsg] = useState(null);
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
 
   const fetchBorrowings = useCallback(async () => {
     setLoading(true);
@@ -73,6 +76,14 @@ export default function EquipmentBorrowings() {
     const s = (b.status || b.tracking_number?.status || "").toLowerCase();
     return s !== "completed" && s !== "rejected" && s !== "cancelled";
   });
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filteredBorrowings.length]);
+
+  const totalPages = Math.ceil(filteredBorrowings.length / ITEMS_PER_PAGE) || 1;
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const paginatedBorrowings = filteredBorrowings.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
   const handleAction = async (id, type) => {
     setActionLoading(id + "-" + type);
@@ -172,7 +183,7 @@ export default function EquipmentBorrowings() {
                     No equipment borrowings found under status filter "{statusFilter}".
                   </td>
                 </tr>
-              ) : filteredBorrowings.map((b, idx) => {
+              ) : paginatedBorrowings.map((b, idx) => {
                 const refCode = b.tracking_number?.reference_code || b.reference_code || `EQUIP-REQ-${b.id}`;
                 const requestor = b.filer_name || b.requestor_name || "—";
                 const department = b.program_office || b.requestor_program_office || "—";
@@ -181,10 +192,11 @@ export default function EquipmentBorrowings() {
                 const usageDate = formatDate(b.date_of_usage || b.start_datetime);
                 const timeRange = (b.time_start && b.time_end) ? `${b.time_start} - ${b.time_end}` : "08:00 AM - 05:00 PM";
                 const currentStatus = b.status || b.tracking_number?.status || "pending";
+                const displayIndex = startIndex + idx + 1;
 
                 return (
                   <tr key={b.id || idx} className="hover:bg-slate-50/60 transition-colors">
-                    <td className="px-4 py-3.5 font-bold text-slate-400">{idx + 1}</td>
+                    <td className="px-4 py-3.5 font-bold text-slate-400">{displayIndex}</td>
                     <td className="px-4 py-3.5 font-mono text-xs font-bold text-purple-600 whitespace-nowrap">{refCode}</td>
                     <td className="px-4 py-3.5 font-extrabold text-slate-900">{requestor}</td>
                     <td className="px-4 py-3.5 text-slate-700">{department}</td>
@@ -208,6 +220,40 @@ export default function EquipmentBorrowings() {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination Footer */}
+        {filteredBorrowings.length > 0 && (
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-6 py-4 bg-slate-50/80 border-t border-slate-100 text-xs font-semibold text-slate-600">
+            <div>
+              Showing <span className="font-extrabold text-slate-900">{startIndex + 1}</span> to{" "}
+              <span className="font-extrabold text-slate-900">{Math.min(startIndex + ITEMS_PER_PAGE, filteredBorrowings.length)}</span> of{" "}
+              <span className="font-extrabold text-slate-900">{filteredBorrowings.length}</span> equipment borrowings
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-slate-500 font-bold mr-2">
+                Page {currentPage} of {totalPages}
+              </span>
+              <button
+                type="button"
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                className="flex items-center gap-1 px-3.5 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all shadow-xs font-bold text-xs"
+              >
+                <ChevronLeft size={14} /> Previous
+              </button>
+
+              <button
+                type="button"
+                disabled={currentPage >= totalPages}
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                className="flex items-center gap-1 px-3.5 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all shadow-xs font-bold text-xs"
+              >
+                Next <ChevronRight size={14} />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Detail Modal Sub-Component (Items 16, 17, 35) */}

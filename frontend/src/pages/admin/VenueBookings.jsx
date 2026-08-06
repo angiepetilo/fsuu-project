@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useOutletContext } from "react-router-dom";
 import api from "@/lib/axios";
 import {
-  Loader2, RefreshCw, AlertCircle, Eye, Building2
+  Loader2, RefreshCw, AlertCircle, Eye, Building2, ChevronLeft, ChevronRight
 } from "lucide-react";
 import VenueBookingDetailModal from "./components/VenueBookingDetailModal";
 import { PageLoader } from "@/components/ui/page-loader";
@@ -59,20 +59,21 @@ export default function VenueBookings() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(null);
   const [error, setError] = useState(null);
-  const [statusFilter, setStatusFilter] = useState("all"); // Item 12: "all" | "pending" | "ongoing" | "post-inspection"
+  const [statusFilter, setStatusFilter] = useState("all"); 
 
-  // Detail Modal State
   const [selected, setSelected] = useState(null);
   const [showRejectForm, setShowRejectForm] = useState(false);
   const [rejectionComments, setRejectionComments] = useState("");
   const [feedbackMessage, setFeedbackMessage] = useState(null);
 
-  // Inspection State
   const [inspectionStatus, setInspectionStatus] = useState("clean");
   const [evidencePhoto, setEvidencePhoto] = useState(null);
   const [violationNotes, setViolationNotes] = useState("");
   const [showNotifyModal, setShowNotifyModal] = useState(false);
   const [notifyReason, setNotifyReason] = useState("");
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
 
   const fetchBookings = useCallback(async () => {
     setLoading(true);
@@ -94,11 +95,18 @@ export default function VenueBookings() {
 
   const officeScope = context?.adminOffice || context?.selectedOffice || "All Offices";
 
-  // Filter active reservations (completed/rejected/cancelled transfer directly to History Log)
   const filteredBookings = bookings.filter(b => {
     const s = (b.status || b.tracking_number?.status || "").toLowerCase();
     return s !== "completed" && s !== "rejected" && s !== "cancelled";
   });
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filteredBookings.length]);
+
+  const totalPages = Math.ceil(filteredBookings.length / ITEMS_PER_PAGE) || 1;
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const paginatedBookings = filteredBookings.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
   const handleAction = async (bookingId, action, customData = {}) => {
     setActionLoading(`${bookingId}-${action}`);
@@ -185,7 +193,7 @@ export default function VenueBookings() {
                   </td>
                 </tr>
               ) : (
-                filteredBookings.map((b, idx) => {
+                paginatedBookings.map((b, idx) => {
                   const refCode = b.tracking_number?.reference_code || b.reference_code || `TRK-AVR${b.id}`;
                   const requestor = b.filer_name || b.requestor_name || "—";
                   const department = b.program_office || b.department || "—";
@@ -193,10 +201,11 @@ export default function VenueBookings() {
                   const usageDate = formatDate(b.date_of_usage || b.start_datetime);
                   const timeRange = formatTimeRange(b.time_start, b.time_end);
                   const currentStatus = b.status || b.tracking_number?.status || "pending";
+                  const displayIndex = startIndex + idx + 1;
 
                   return (
                     <tr key={b.id || idx} className="hover:bg-slate-50/60 transition-colors">
-                      <td className="px-4 py-3.5 font-bold text-slate-400">{idx + 1}</td>
+                      <td className="px-4 py-3.5 font-bold text-slate-400">{displayIndex}</td>
                       <td className="px-4 py-3.5 font-mono text-xs font-bold text-blue-600 whitespace-nowrap">
                         {refCode}
                       </td>
@@ -224,6 +233,40 @@ export default function VenueBookings() {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination Footer */}
+        {filteredBookings.length > 0 && (
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-6 py-4 bg-slate-50/80 border-t border-slate-100 text-xs font-semibold text-slate-600">
+            <div>
+              Showing <span className="font-extrabold text-slate-900">{startIndex + 1}</span> to{" "}
+              <span className="font-extrabold text-slate-900">{Math.min(startIndex + ITEMS_PER_PAGE, filteredBookings.length)}</span> of{" "}
+              <span className="font-extrabold text-slate-900">{filteredBookings.length}</span> venue bookings
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-slate-500 font-bold mr-2">
+                Page {currentPage} of {totalPages}
+              </span>
+              <button
+                type="button"
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                className="flex items-center gap-1 px-3.5 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all shadow-xs font-bold text-xs"
+              >
+                <ChevronLeft size={14} /> Previous
+              </button>
+
+              <button
+                type="button"
+                disabled={currentPage >= totalPages}
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                className="flex items-center gap-1 px-3.5 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all shadow-xs font-bold text-xs"
+              >
+                Next <ChevronRight size={14} />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Modal - Items 13, 14 & Item 35 (Clean White Header) */}

@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Venue;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class AdminVenueController extends Controller
 {
@@ -13,7 +15,7 @@ class AdminVenueController extends Controller
         $user = $request->user();
         $query = Venue::with('office');
 
-        if ($user && $user->office_id) {
+        if ($user && $user->office_id && !$user->isSuperAdmin()) {
             $query->where('office_id', $user->office_id);
         }
 
@@ -40,6 +42,10 @@ class AdminVenueController extends Controller
             $data['capacity'] = 100;
         }
 
+        if (!empty($data['avatar'])) {
+            $data['avatar'] = $this->saveBase64Image($data['avatar'], 'venues');
+        }
+
         $venue = Venue::create($data);
 
         return response()->json($venue->load('office'), 201);
@@ -58,6 +64,10 @@ class AdminVenueController extends Controller
             'status'    => 'sometimes|string',
         ]);
 
+        if (array_key_exists('avatar', $data) && !empty($data['avatar'])) {
+            $data['avatar'] = $this->saveBase64Image($data['avatar'], 'venues');
+        }
+
         $venue->update($data);
 
         return response()->json($venue->load('office'));
@@ -65,10 +75,46 @@ class AdminVenueController extends Controller
 
     public function destroy(int $id): JsonResponse
     {
-        // Soft delete — sets deleted_at; record stays in database
         $venue = Venue::findOrFail($id);
         $venue->delete();
 
-        return response()->json(['message' => 'Venue archived (soft-deleted)']);
+        return response()->json(['message' => 'Venue deleted successfully']);
+    }
+
+    private function saveBase64Image(?string $base64Data, string $folder = 'uploads'): ?string
+    {
+        if (!$base64Data) {
+            return null;
+        }
+
+        if (str_starts_with($base64Data, '/storage/')) {
+            return url($base64Data);
+        }
+
+        if (!str_contains($base64Data, ';base64,')) {
+            return $base64Data;
+        }
+
+        try {
+            @list($type, $fileData) = explode(';', $base64Data);
+            @list(, $fileData)      = explode(',', $fileData);
+
+            $mimeType = str_replace('data:', '', $type);
+            $extension = match ($mimeType) {
+                'image/png'  => 'png',
+                'image/gif'  => 'gif',
+                'image/webp' => 'webp',
+                default      => 'jpg',
+            };
+
+            $fileName = $folder . '_' . time() . '_' . Str::random(8) . '.' . $extension;
+            $filePath = $folder . '/' . $fileName;
+
+            Storage::disk('public')->put($filePath, base64_decode($fileData));
+
+            return url(Storage::url($filePath));
+        } catch (\Throwable $e) {
+            return $base64Data;
+        }
     }
 }

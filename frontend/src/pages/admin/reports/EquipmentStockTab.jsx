@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { PackageOpen, Loader2, Save, CheckCircle2, ShieldCheck, Clock, Wrench, Edit3, Trash2 } from "lucide-react";
+import { PackageOpen, Loader2, Save, CheckCircle2, ShieldCheck, Clock, Wrench, Edit3, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
 import api from "@/lib/axios";
 
 export default function EquipmentStockTab({
@@ -11,8 +11,19 @@ export default function EquipmentStockTab({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [feedback, setFeedback] = useState(null);
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
+
   // Local draft state for QTY PRESENT, CONDITION, and NOTES (Image 2 prototype)
   const [inventoryDrafts, setInventoryDrafts] = useState({});
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filteredInventory.length]);
+
+  const totalPages = Math.ceil(filteredInventory.length / ITEMS_PER_PAGE) || 1;
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const paginatedInventory = filteredInventory.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
   useEffect(() => {
     if (filteredInventory && filteredInventory.length > 0) {
@@ -165,9 +176,9 @@ export default function EquipmentStockTab({
                   </td>
                 </tr>
               ) : (
-                filteredInventory.map((item, idx) => {
+                paginatedInventory.map((item, idx) => {
                   const key = item.id;
-                  const itemCode = `EQ-00${idx + 1}`;
+                  const itemCode = `EQ-00${startIndex + idx + 1}`;
                   const categoryName = item.eq_type || item.eq_name || item.name || item.category || "General";
                   const realTotal = typeof item.calculated_total === 'number'
                     ? item.calculated_total
@@ -267,7 +278,7 @@ export default function EquipmentStockTab({
                           placeholder="Notes..."
                           value={currentDraft.notes}
                           onChange={(e) => handleNotesChange(key, e.target.value)}
-                          className="w-full px-3 py-1.5 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:border-blue-600 focus:bg-white bg-slate-50/50"
+                          className="w-full px-3 py-1.5 border border-slate-200 rounded-xl bg-white text-xs font-medium focus:outline-none focus:border-blue-600 shadow-xs"
                         />
                       </td>
                     </tr>
@@ -277,6 +288,40 @@ export default function EquipmentStockTab({
             </tbody>
           </table>
         </div>
+
+        {/* Pagination Footer */}
+        {filteredInventory.length > 0 && (
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-6 py-4 bg-slate-50/80 border-t border-slate-100 text-xs font-semibold text-slate-600">
+            <div>
+              Showing <span className="font-extrabold text-slate-900">{startIndex + 1}</span> to{" "}
+              <span className="font-extrabold text-slate-900">{Math.min(startIndex + ITEMS_PER_PAGE, filteredInventory.length)}</span> of{" "}
+              <span className="font-extrabold text-slate-900">{filteredInventory.length}</span> inventory stock items
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-slate-500 font-bold mr-2">
+                Page {currentPage} of {totalPages}
+              </span>
+              <button
+                type="button"
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                className="flex items-center gap-1 px-3.5 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all shadow-xs font-bold text-xs"
+              >
+                <ChevronLeft size={14} /> Previous
+              </button>
+
+              <button
+                type="button"
+                disabled={currentPage >= totalPages}
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                className="flex items-center gap-1 px-3.5 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all shadow-xs font-bold text-xs"
+              >
+                Next <ChevronRight size={14} />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

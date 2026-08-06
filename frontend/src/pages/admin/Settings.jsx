@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useOutletContext } from "react-router-dom";
+import { useAuth } from "@/context/AuthContext";
 import api from "@/lib/axios";
 import {
   Users, PlusCircle, Pencil, Trash2, X, Loader2,
@@ -213,6 +214,7 @@ function UserForm({ initial, offices, onSubmit, loading, onClose, userOfficeId, 
 
 export default function Settings() {
   const context = useOutletContext();
+  const { user: authUser, updateAuthUser } = useAuth();
   const selectedOffice = context?.selectedOffice ?? "All Offices";
 
   const [activeTab, setActiveTab] = useState("roles");
@@ -246,53 +248,66 @@ export default function Settings() {
   });
 
   const handleSavePinSettings = (e) => {
-  e.preventDefault();
-  try {
-    localStorage.setItem("fsuu_verification_pin_settings", JSON.stringify(pinSettings));
-    window.dispatchEvent(new Event("pin_settings_updated"));
-    showMsg("✅ Verification PIN settings updated successfully!");
-  } catch {
-    showMsg("Failed to save PIN settings.", true);
-  }
-};
+    e.preventDefault();
+    try {
+      localStorage.setItem("fsuu_verification_pin_settings", JSON.stringify(pinSettings));
+      window.dispatchEvent(new Event("pin_settings_updated"));
+      showMsg("✅ Verification PIN settings updated successfully!");
+    } catch {
+      showMsg("Failed to save PIN settings.", true);
+    }
+  };
 
-// Current Auth Admin User State initialized from localStorage
-const [currentUser, setCurrentUser] = useState(() => {
-  try {
-    const saved = localStorage.getItem("fsuu_admin_profile");
-    return saved ? JSON.parse(saved) : {
-      name: "Main Branch Admin",
-      email: "admin.main@fsuu.edu.ph",
-      personal_email: "main.admin@gmail.com",
-      office: "FSUU Main (AVR Center)",
-      office_id: 1,
-      role: "admin",
-      avatar: null,
-    };
-  } catch {
+  // Current Auth Admin User State dynamically initialized from Auth Context
+  const [currentUser, setCurrentUser] = useState(() => {
+    try {
+      const saved = localStorage.getItem("fsuu_admin_profile");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if ((authUser?.email && parsed.email === authUser.email) || (authUser?.id && parsed.id === authUser.id)) {
+          return parsed;
+        }
+      }
+    } catch {}
     return {
-      name: "Main Branch Admin",
-      email: "admin.main@fsuu.edu.ph",
-      personal_email: "main.admin@gmail.com",
-      office: "FSUU Main (AVR Center)",
-      office_id: 1,
-      role: "admin",
-      avatar: null,
+      id: authUser?.id || null,
+      name: authUser?.name || "Branch Admin",
+      email: authUser?.email || "",
+      personal_email: authUser?.personal_email || authUser?.email || "",
+      office: authUser?.office?.name || authUser?.office || "AVR office",
+      office_id: authUser?.office_id || 1,
+      role: authUser?.role?.name || authUser?.role || "admin",
+      avatar: authUser?.avatar || null,
     };
-  }
-});
+  });
 
-const [profileAvatarPreview, setProfileAvatarPreview] = useState(() => currentUser?.avatar || null);
+  useEffect(() => {
+    if (authUser?.name) {
+      setCurrentUser(prev => ({
+        ...prev,
+        id: authUser.id ?? prev.id,
+        name: authUser.name ?? prev.name,
+        email: authUser.email ?? prev.email,
+        personal_email: authUser.personal_email ?? prev.personal_email,
+        office: authUser.office?.name ?? (typeof authUser.office === 'string' ? authUser.office : prev.office),
+        office_id: authUser.office_id ?? prev.office_id,
+        role: authUser.role?.name ?? authUser.role ?? prev.role,
+        avatar: authUser.avatar ?? prev.avatar,
+      }));
+    }
+  }, [authUser]);
 
-// Profile Form State initialized from currentUser
-const [profileForm, setProfileForm] = useState({
-  name: currentUser.name,
-  email: currentUser.email,
-  personal_email: currentUser.personal_email || "main.admin@gmail.com",
-  office: currentUser.office || "FSUU Main (AVR Center)",
-  current_password: "",
-  new_password: "",
-});
+  const [profileAvatarPreview, setProfileAvatarPreview] = useState(() => currentUser?.avatar || null);
+
+  // Profile Form State initialized from currentUser
+  const [profileForm, setProfileForm] = useState({
+    name: currentUser.name,
+    email: currentUser.email,
+    personal_email: currentUser.personal_email || currentUser.email,
+    office: currentUser.office || "AVR office",
+    current_password: "",
+    new_password: "",
+  });
 
 // Equipment Categories State with Photo Upload & LocalStorage Sync
 const [categories, setCategories] = useState(() => {
@@ -621,17 +636,29 @@ const [categories, setCategories] = useState(() => {
     }
   };
 
-  // Profile Save Handler with Global Admin Layout Sync
-  const handleSaveProfile = (e) => {
+  // Profile Save Handler with Permanent API & Global Admin Layout Sync
+  const handleSaveProfile = async (e) => {
     e.preventDefault();
-    const updatedProfile = {
-      ...currentUser,
+    const payload = {
       name: profileForm.name,
       email: profileForm.email,
       personal_email: profileForm.personal_email,
       avatar: profileAvatarPreview || currentUser.avatar,
     };
+
+    const updatedProfile = {
+      ...currentUser,
+      ...payload,
+    };
     setCurrentUser(updatedProfile);
+
+    // Persist to MySQL Database Backend
+    try {
+      const res = await api.post("/user/profile", payload);
+      if (res.data?.user && updateAuthUser) {
+        updateAuthUser(res.data.user);
+      }
+    } catch {}
 
     // Sync admin row in users list
     setUsers(prev => prev.map(u => (u.email === currentUser.email || u.id === currentUser.id) ? { ...u, name: profileForm.name, email: profileForm.email, personal_email: profileForm.personal_email, avatar: profileAvatarPreview || u.avatar } : u));
@@ -642,7 +669,7 @@ const [categories, setCategories] = useState(() => {
       window.dispatchEvent(new Event("admin_profile_updated"));
     } catch { }
 
-    showMsg("Profile settings updated successfully!");
+    showMsg("✅ Profile settings & avatar photo saved permanently!");
   };
 
   const roleBadge = (role) => {
@@ -689,15 +716,27 @@ const [categories, setCategories] = useState(() => {
         })}
       </div>
 
-      {/* Alerts */}
-      {success && (
-        <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex items-center gap-3 text-emerald-700 text-xs font-bold animate-in slide-in-from-top-2 duration-300">
-          <CheckCircle size={16} />{success}
-        </div>
-      )}
-      {error && (
-        <div className="bg-rose-50 border border-rose-200 rounded-2xl p-4 flex items-center gap-3 text-rose-700 text-xs font-bold animate-in slide-in-from-top-2 duration-300">
-          <AlertCircle size={16} />{error}
+      {/* Bottom Floating Toast Notification */}
+      {(success || error) && (
+        <div className="fixed bottom-6 right-6 z-[3000] max-w-md w-auto animate-in slide-in-from-bottom-5 fade-in duration-300">
+          {success && (
+            <div className="bg-slate-900 text-white border border-slate-800 rounded-2xl px-5 py-3.5 flex items-center gap-3 shadow-2xl text-xs font-extrabold">
+              <CheckCircle size={18} className="text-emerald-400 shrink-0" />
+              <span>{success}</span>
+              <button onClick={() => setSuccess(null)} className="ml-2 text-slate-400 hover:text-white cursor-pointer">
+                <X size={14} />
+              </button>
+            </div>
+          )}
+          {error && (
+            <div className="bg-slate-900 text-white border border-slate-800 rounded-2xl px-5 py-3.5 flex items-center gap-3 shadow-2xl text-xs font-extrabold">
+              <AlertCircle size={18} className="text-rose-400 shrink-0" />
+              <span>{error}</span>
+              <button onClick={() => setError(null)} className="ml-2 text-slate-400 hover:text-white cursor-pointer">
+                <X size={14} />
+              </button>
+            </div>
+          )}
         </div>
       )}
 

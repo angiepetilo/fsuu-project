@@ -18,7 +18,7 @@ return new class extends Migration
             $table->string('email')->unique();
             $table->string('personal_email')->nullable()->unique();
             $table->string('google_id')->nullable()->unique();
-            $table->string('avatar')->nullable();
+            $table->longText('avatar')->nullable();
             $table->string('password');
             $table->string('location')->nullable();
             $table->json('permissions')->nullable();

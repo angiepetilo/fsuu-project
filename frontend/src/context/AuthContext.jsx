@@ -26,6 +26,7 @@ export function AuthProvider({ children }) {
   }, [user]);
 
   const login = useCallback((userData, tokenValue) => {
+    localStorage.removeItem("fsuu_admin_profile");
     setUser(userData);
     setToken(tokenValue);
   }, []);
@@ -36,9 +37,18 @@ export function AuthProvider({ children }) {
     } catch {
       // ignore
     } finally {
+      localStorage.removeItem("fsuu_admin_profile");
       setUser(null);
       setToken(null);
     }
+  }, []);
+
+  const updateAuthUser = useCallback((updatedUserData) => {
+    setUser(prev => {
+      const next = { ...prev, ...updatedUserData };
+      localStorage.setItem("staff_user", JSON.stringify(next));
+      return next;
+    });
   }, []);
 
   const isAdmin  = user ? ["admin", "head", "super_admin"].includes(user.role) : false;
@@ -47,7 +57,7 @@ export function AuthProvider({ children }) {
   const officeType = user?.office?.type ?? null; // 'avr' | 'sco'
 
   return (
-    <AuthContext.Provider value={{ user, token, isAdmin, isStaff, officeId, officeType, login, logout }}>
+    <AuthContext.Provider value={{ user, token, isAdmin, isStaff, officeId, officeType, login, logout, updateAuthUser }}>
       {children}
     </AuthContext.Provider>
   );

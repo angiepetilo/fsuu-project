@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Building2, PackageOpen, Download, AlertTriangle, Image as ImageIcon, X, Info, CheckCircle2, ShieldAlert } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Building2, PackageOpen, Download, AlertTriangle, Image as ImageIcon, X, Info, CheckCircle2, ShieldAlert, ChevronLeft, ChevronRight } from "lucide-react";
 
 export default function BookingBorrowingReportTab({
   venueBookings = [],
@@ -7,6 +7,10 @@ export default function BookingBorrowingReportTab({
   setShowPdfModal,
 }) {
   const [evidenceModalImage, setEvidenceModalImage] = useState(null);
+
+  const [venuePage, setVenuePage] = useState(1);
+  const [equipPage, setEquipPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
 
   // Strictly filter to items with recorded violations, late returns, damages, or lost status
   const violationVenueBookings = venueBookings.filter(
@@ -29,6 +33,22 @@ export default function BookingBorrowingReportTab({
       Boolean(eb.late_hours) ||
       Number(eb.violations || 0) > 0
   );
+
+  useEffect(() => {
+    setVenuePage(1);
+  }, [violationVenueBookings.length]);
+
+  useEffect(() => {
+    setEquipPage(1);
+  }, [violationEquipmentBorrowings.length]);
+
+  const venueTotalPages = Math.ceil(violationVenueBookings.length / ITEMS_PER_PAGE) || 1;
+  const venueStartIndex = (venuePage - 1) * ITEMS_PER_PAGE;
+  const paginatedVenueViolations = violationVenueBookings.slice(venueStartIndex, venueStartIndex + ITEMS_PER_PAGE);
+
+  const equipTotalPages = Math.ceil(violationEquipmentBorrowings.length / ITEMS_PER_PAGE) || 1;
+  const equipStartIndex = (equipPage - 1) * ITEMS_PER_PAGE;
+  const paginatedEquipViolations = violationEquipmentBorrowings.slice(equipStartIndex, equipStartIndex + ITEMS_PER_PAGE);
 
   return (
     <div className="space-y-6">
@@ -117,6 +137,40 @@ export default function BookingBorrowingReportTab({
         </div>
       </div>
 
+      {/* Pagination Footer - Venue Violations */}
+      {violationVenueBookings.length > 0 && (
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-6 py-4 bg-slate-50/80 border-t border-slate-100 text-xs font-semibold text-slate-600">
+          <div>
+            Showing <span className="font-extrabold text-slate-900">{venueStartIndex + 1}</span> to{" "}
+            <span className="font-extrabold text-slate-900">{Math.min(venueStartIndex + ITEMS_PER_PAGE, violationVenueBookings.length)}</span> of{" "}
+            <span className="font-extrabold text-slate-900">{violationVenueBookings.length}</span> venue violation reports
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="text-slate-500 font-bold mr-2">
+              Page {venuePage} of {venueTotalPages}
+            </span>
+            <button
+              type="button"
+              disabled={venuePage === 1}
+              onClick={() => setVenuePage(prev => Math.max(prev - 1, 1))}
+              className="flex items-center gap-1 px-3.5 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all shadow-xs font-bold text-xs"
+            >
+              <ChevronLeft size={14} /> Previous
+            </button>
+
+            <button
+              type="button"
+              disabled={venuePage >= venueTotalPages}
+              onClick={() => setVenuePage(prev => Math.min(prev + 1, venueTotalPages))}
+              className="flex items-center gap-1 px-3.5 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all shadow-xs font-bold text-xs"
+            >
+              Next <ChevronRight size={14} />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* ── 2. EQUIPMENT BORROWING REPORTS TABLE ── */}
       <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
         <div className="flex items-center justify-between p-5 border-b border-slate-100">
@@ -149,7 +203,7 @@ export default function BookingBorrowingReportTab({
                   </td>
                 </tr>
               ) : (
-                violationEquipmentBorrowings.map((eb, idx) => {
+                paginatedEquipViolations.map((eb, idx) => {
                   const trackNo = eb.tracking_number || eb.track_number || `TRK-EB-${2000 + (eb.id || idx)}`;
                   const isSolved = eb.status === "solved" || eb.is_solved;
 
@@ -211,6 +265,40 @@ export default function BookingBorrowingReportTab({
           </table>
         </div>
       </div>
+
+      {/* Pagination Footer - Equipment Violations */}
+      {violationEquipmentBorrowings.length > 0 && (
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-6 py-4 bg-slate-50/80 border-t border-slate-100 text-xs font-semibold text-slate-600">
+          <div>
+            Showing <span className="font-extrabold text-slate-900">{equipStartIndex + 1}</span> to{" "}
+            <span className="font-extrabold text-slate-900">{Math.min(equipStartIndex + ITEMS_PER_PAGE, violationEquipmentBorrowings.length)}</span> of{" "}
+            <span className="font-extrabold text-slate-900">{violationEquipmentBorrowings.length}</span> equipment violation reports
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="text-slate-500 font-bold mr-2">
+              Page {equipPage} of {equipTotalPages}
+            </span>
+            <button
+              type="button"
+              disabled={equipPage === 1}
+              onClick={() => setEquipPage(prev => Math.max(prev - 1, 1))}
+              className="flex items-center gap-1 px-3.5 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all shadow-xs font-bold text-xs"
+            >
+              <ChevronLeft size={14} /> Previous
+            </button>
+
+            <button
+              type="button"
+              disabled={equipPage >= equipTotalPages}
+              onClick={() => setEquipPage(prev => Math.min(prev + 1, equipTotalPages))}
+              className="flex items-center gap-1 px-3.5 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all shadow-xs font-bold text-xs"
+            >
+              Next <ChevronRight size={14} />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Evidence Image Viewer Modal */}
       {evidenceModalImage && (

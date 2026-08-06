@@ -19,25 +19,28 @@ class PublicListingController extends Controller
             Venue::with('office')
                 ->where('status', '!=', 'maintenance')
                 ->get()
-                ->map(fn ($v) => [
-                    'id'        => $v->id,
-                    'name'      => $v->name,
-                    'avatar'    => $v->avatar,
-                    'photo'     => $v->avatar,
-                    'image'     => $v->avatar,
-                    'location'  => $v->office?->location ?? $v->location ?? 'FSUU Campus',
-                    'capacity'  => $v->capacity ?? 100,
-                    'type'      => ($v->office?->slug === 'fsuu-morelos'
-                        || str_contains(strtolower($v->office?->location ?? ''), 'morelos')
-                        || str_contains(strtolower($v->name), 'studio')
-                        || str_contains(strtolower($v->name), 'theater'))
-                        ? 'sco' : 'avr',
-                    'office'    => $v->office,
-                    'office_id' => $v->office_id,
-                    'status'    => $v->status ?? 'Available',
-                ])
+                ->map(function ($v) {
+                    $imgUrl = str_starts_with($v->avatar ?? '', '/storage/') ? url($v->avatar) : $v->avatar;
+                    return [
+                        'id'        => $v->id,
+                        'name'      => $v->name,
+                        'avatar'    => $imgUrl,
+                        'photo'     => $imgUrl,
+                        'image'     => $imgUrl,
+                        'location'  => $v->office?->location ?? $v->location ?? 'FSUU Campus',
+                        'capacity'  => $v->capacity ?? 100,
+                        'type'      => ($v->office?->slug === 'fsuu-morelos'
+                            || str_contains(strtolower($v->office?->location ?? ''), 'morelos')
+                            || str_contains(strtolower($v->name), 'studio')
+                            || str_contains(strtolower($v->name), 'theater'))
+                            ? 'sco' : 'avr',
+                        'office'    => $v->office,
+                        'office_id' => $v->office_id,
+                        'status'    => $v->status ?? 'Available',
+                    ];
+                })
         );
-    }
+    }   
 
     /**
      * GET /public/departments

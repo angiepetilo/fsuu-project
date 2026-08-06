@@ -3,7 +3,8 @@ import { useOutletContext } from "react-router-dom";
 import api from "@/lib/axios";
 import {
   PackageOpen, Plus, Search, Filter, Edit3, Trash2, CheckCircle2,
-  AlertTriangle, RefreshCw, Barcode, Calendar, Clock, Loader2, Eye, Copy, Check
+  AlertTriangle, RefreshCw, Barcode, Calendar, Clock, Loader2, Eye, Copy, Check,
+  ChevronLeft, ChevronRight
 } from "lucide-react";
 import EquipmentDetailModal from "./components/EquipmentDetailModal";
 import EquipmentModal from "./components/EquipmentModal";
@@ -37,6 +38,8 @@ export default function ManageEquipments() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [feedback, setFeedback] = useState(null);
   const [copiedBarcode, setCopiedBarcode] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
 
   const handleCopyBarcode = (barcode) => {
     if (!barcode) return;
@@ -129,10 +132,15 @@ export default function ManageEquipments() {
     }
 
     const defaultCatName = activeCats[0]?.eq_name || activeCats[0]?.eq_type || activeCats[0]?.name || "";
-    setFormData(prev => ({
-      ...prev,
-      category: prev.category || defaultCatName,
-    }));
+    setFormData({
+      name: "",
+      barcode: "",
+      category: defaultCatName,
+      status: "available",
+      date_purchased: new Date().toISOString().split("T")[0],
+      lifespan_years: 5,
+      description: "",
+    });
 
     setShowAddModal(true);
   };
@@ -163,6 +171,15 @@ export default function ManageEquipments() {
       await api.post("/admin/equipment-units", payload);
 
       setFeedback(`✅ Physical equipment unit "${formData.name}" registered under category "${matchedCat.eq_name || matchedCat.eq_type}". Category stock updated!`);
+      setFormData({
+        name: "",
+        barcode: "",
+        category: matchedCat.eq_name || matchedCat.eq_type || "",
+        status: "available",
+        date_purchased: new Date().toISOString().split("T")[0],
+        lifespan_years: 5,
+        description: "",
+      });
       setShowAddModal(false);
       fetchEquipments();
       setTimeout(() => setFeedback(null), 5000);
@@ -224,6 +241,14 @@ export default function ManageEquipments() {
     return matchCategory && matchSearch;
   });
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeCategory, searchQuery]);
+
+  const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE) || 1;
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const paginatedUnits = filtered.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
   const categoryNames = Array.from(new Set(categories.map(c => c.eq_type || c.eq_name || c.name).filter(Boolean)));
   const categoryList = [
     { id: "all", label: "All Categories" },
@@ -279,9 +304,9 @@ export default function ManageEquipments() {
       )}
 
       {feedback && (
-        <div className="bg-emerald-500 text-white text-xs font-bold px-5 py-3 rounded-2xl flex items-center gap-2 shadow-sm animate-in fade-in">
-          <CheckCircle2 size={16} />
-          {feedback}
+        <div className="fixed bottom-6 right-6 z-[3000] bg-slate-900 text-white text-xs font-extrabold px-5 py-3.5 rounded-2xl flex items-center gap-3 shadow-2xl animate-in slide-in-from-bottom-5 duration-300 border border-slate-700 max-w-md">
+          <CheckCircle2 size={18} className="text-emerald-400 shrink-0" />
+          <span>{feedback}</span>
         </div>
       )}
 
@@ -341,15 +366,16 @@ export default function ManageEquipments() {
                   </td>
                 </tr>
               ) : (
-                filtered.map((item, index) => {
+                paginatedUnits.map((item, index) => {
                   const lifespanYears = item.lifespan_years || 5;
                   const purchaseYear = item.date_purchased ? parseInt(item.date_purchased.split("-")[0], 10) : 2026;
                   const currentYear = new Date().getFullYear();
                   const ageYears = Math.max(0.5, currentYear - purchaseYear + 0.2);
+                  const displayIndex = startIndex + index + 1;
 
                   return (
                     <tr key={item.id} className="hover:bg-slate-50/60 transition-colors">
-                      <td className="px-4 py-3.5 font-bold text-slate-400">{index + 1}</td>
+                      <td className="px-4 py-3.5 font-bold text-slate-400">{displayIndex}</td>
                       <td className="px-4 py-3.5 font-mono text-xs font-bold text-blue-600 whitespace-nowrap">
                         <div className="flex items-center gap-1.5">
                           <div className="flex items-center gap-1.5 bg-blue-50/60 border border-blue-200/60 px-2.5 py-1 rounded-lg w-fit">
@@ -426,6 +452,40 @@ export default function ManageEquipments() {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination Footer */}
+        {filtered.length > 0 && (
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-6 py-4 bg-slate-50/80 border-t border-slate-100 text-xs font-semibold text-slate-600">
+            <div>
+              Showing <span className="font-extrabold text-slate-900">{startIndex + 1}</span> to{" "}
+              <span className="font-extrabold text-slate-900">{Math.min(startIndex + ITEMS_PER_PAGE, filtered.length)}</span> of{" "}
+              <span className="font-extrabold text-slate-900">{filtered.length}</span> equipment units
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-slate-500 font-bold mr-2">
+                Page {currentPage} of {totalPages}
+              </span>
+              <button
+                type="button"
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                className="flex items-center gap-1 px-3.5 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all shadow-xs font-bold text-xs"
+              >
+                <ChevronLeft size={14} /> Previous
+              </button>
+
+              <button
+                type="button"
+                disabled={currentPage >= totalPages}
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                className="flex items-center gap-1 px-3.5 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all shadow-xs font-bold text-xs"
+              >
+                Next <ChevronRight size={14} />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Add / Edit Equipment Modal */}

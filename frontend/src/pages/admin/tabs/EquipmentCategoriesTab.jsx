@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Pencil, Trash2, X, Package, Loader2, Image as ImageIcon } from "lucide-react";
+import { Plus, Pencil, Trash2, X, Package, Loader2, Image as ImageIcon, ChevronLeft, ChevronRight } from "lucide-react";
 import api from "@/lib/axios";
 
 export default function EquipmentCategoriesTab({ showMsg }) {
@@ -9,6 +9,9 @@ export default function EquipmentCategoriesTab({ showMsg }) {
   const [showModal, setShowModal] = useState(false);
   const [editItem, setEditItem] = useState(null);
   const [formLoading, setFormLoading] = useState(false);
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
 
   const [form, setForm] = useState({
     eq_name: "",
@@ -37,6 +40,14 @@ export default function EquipmentCategoriesTab({ showMsg }) {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [categories.length]);
+
+  const totalPages = Math.ceil(categories.length / ITEMS_PER_PAGE) || 1;
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const paginatedCategories = categories.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
   useEffect(() => {
     fetchCategories();
@@ -161,62 +172,99 @@ export default function EquipmentCategoriesTab({ showMsg }) {
                 </td>
               </tr>
             ) : (
-              categories.map((cat, idx) => (
-                <tr key={cat.id || idx} className="hover:bg-slate-50/60 transition-colors">
-                  <td className="px-4 py-3.5 font-bold text-slate-400">{idx + 1}</td>
-                  <td className="px-4 py-3.5">
-                    <div className="w-12 h-12 rounded-xl bg-slate-100 border border-slate-200 overflow-hidden flex items-center justify-center shadow-inner">
-                      {cat.avatar ? (
-                        <img src={cat.avatar} alt={cat.eq_name} className="w-full h-full object-cover" />
-                      ) : (
-                        <Package size={20} className="text-slate-400" />
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3.5">
-                    <span className="font-extrabold text-slate-900 text-sm block">{cat.eq_name || cat.name}</span>
-                    <span className="text-[11px] text-blue-600 font-semibold">{cat.eq_type || "AV Equipment"}</span>
-                  </td>
-                  <td className="px-4 py-3.5">
-                    <span className="px-3 py-1 rounded-xl bg-slate-100 font-black text-slate-900 text-xs">
-                      {cat.total_quantity ?? 0} Units
-                    </span>
-                  </td>
-                  <td className="px-4 py-3.5 flex items-center gap-2">
-                    <button
-                      onClick={() => {
-                        setEditItem(cat);
-                        setForm({
-                          eq_name: cat.eq_name || cat.name || "",
-                          eq_type: cat.eq_type || "AV Equipment",
-                          avatar: cat.avatar || "",
-                          total_quantity: cat.total_quantity ?? cat.stock ?? 0,
-                          available_count: cat.available_count ?? cat.stock ?? 0,
-                          status: cat.status || "available",
-                          office_id: cat.office_id || offices[0]?.id || "",
-                          description: cat.description || "",
-                        });
-                        setShowModal(true);
-                      }}
-                      className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 cursor-pointer"
-                      title="Edit Catalog Item"
-                    >
-                      <Pencil size={14} />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(cat.id, cat.eq_name || cat.name)}
-                      className="p-1.5 rounded-lg border border-rose-200 text-rose-600 hover:bg-rose-50 cursor-pointer"
-                      title="Archive Category"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </td>
-                </tr>
-              ))
+              paginatedCategories.map((cat, idx) => {
+                const displayIndex = startIndex + idx + 1;
+                return (
+                  <tr key={cat.id || idx} className="hover:bg-slate-50/60 transition-colors">
+                    <td className="px-4 py-3.5 font-bold text-slate-400">{displayIndex}</td>
+                    <td className="px-4 py-3.5">
+                      <div className="w-12 h-12 rounded-xl bg-slate-100 border border-slate-200 overflow-hidden flex items-center justify-center shadow-inner">
+                        {cat.avatar ? (
+                          <img src={cat.avatar} alt={cat.eq_name} className="w-full h-full object-cover" />
+                        ) : (
+                          <Package size={20} className="text-slate-400" />
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <span className="font-extrabold text-slate-900 text-sm block">{cat.eq_name || cat.name}</span>
+                      <span className="text-[11px] text-blue-600 font-semibold">{cat.eq_type || "AV Equipment"}</span>
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <span className="px-3 py-1 rounded-xl bg-slate-100 font-black text-slate-900 text-xs">
+                        {cat.total_quantity ?? 0} Units
+                      </span>
+                    </td>
+                    <td className="px-4 py-3.5 flex items-center gap-2">
+                      <button
+                        onClick={() => {
+                          setEditItem(cat);
+                          setForm({
+                            eq_name: cat.eq_name || cat.name || "",
+                            eq_type: cat.eq_type || "AV Equipment",
+                            avatar: cat.avatar || "",
+                            total_quantity: cat.total_quantity ?? cat.stock ?? 0,
+                            available_count: cat.available_count ?? cat.stock ?? 0,
+                            status: cat.status || "available",
+                            office_id: cat.office_id || offices[0]?.id || "",
+                            description: cat.description || "",
+                          });
+                          setShowModal(true);
+                        }}
+                        className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 cursor-pointer"
+                        title="Edit Catalog Item"
+                      >
+                        <Pencil size={14} />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(cat.id, cat.eq_name || cat.name)}
+                        className="p-1.5 rounded-lg border border-rose-200 text-rose-600 hover:bg-rose-50 cursor-pointer"
+                        title="Archive Category"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>
       </div>
+
+      {/* Pagination Footer */}
+      {categories.length > 0 && (
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-6 py-4 bg-slate-50/80 border-t border-slate-100 text-xs font-semibold text-slate-600">
+          <div>
+            Showing <span className="font-extrabold text-slate-900">{startIndex + 1}</span> to{" "}
+            <span className="font-extrabold text-slate-900">{Math.min(startIndex + ITEMS_PER_PAGE, categories.length)}</span> of{" "}
+            <span className="font-extrabold text-slate-900">{categories.length}</span> catalog categories
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="text-slate-500 font-bold mr-2">
+              Page {currentPage} of {totalPages}
+            </span>
+            <button
+              type="button"
+              disabled={currentPage === 1}
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+              className="flex items-center gap-1 px-3.5 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all shadow-xs font-bold text-xs"
+            >
+              <ChevronLeft size={14} /> Previous
+            </button>
+
+            <button
+              type="button"
+              disabled={currentPage >= totalPages}
+              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+              className="flex items-center gap-1 px-3.5 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all shadow-xs font-bold text-xs"
+            >
+              Next <ChevronRight size={14} />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Add / Edit Catalog Modal */}
       {showModal && (

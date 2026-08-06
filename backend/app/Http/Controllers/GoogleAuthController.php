@@ -66,7 +66,16 @@ class GoogleAuthController extends Controller
                     $roleName = $user->role?->name ?? ($user->role_id === 1 ? 'superadmin' : 'admin');
 
                     if ($isBrowserRedirect) {
-                        return redirect("{$frontendUrl}/auth/google/callback?token=" . urlencode($token) . "&role=" . urlencode($roleName) . "&email=" . urlencode($user->email) . "&name=" . urlencode($user->name));
+                        $queryParams = http_build_query([
+                            'token'          => $token,
+                            'role'           => $roleName,
+                            'email'          => $user->email,
+                            'name'           => $user->name,
+                            'personal_email' => $user->personal_email ?? '',
+                            'avatar'         => $user->avatar ?? '',
+                            'office_id'      => $user->office_id ?? '',
+                        ]);
+                        return redirect("{$frontendUrl}/auth/google/callback?{$queryParams}");
                     }
 
                     return response()->json([
@@ -124,7 +133,16 @@ class GoogleAuthController extends Controller
         $roleName = $user->role?->name ?? ($user->role_id === 1 ? 'superadmin' : 'admin');
 
         if ($isBrowserRedirect) {
-            return redirect("{$frontendUrl}/auth/google/callback?token=" . urlencode($token) . "&role=" . urlencode($roleName) . "&email=" . urlencode($user->email) . "&name=" . urlencode($user->name));
+            $queryParams = http_build_query([
+                'token'          => $token,
+                'role'           => $roleName,
+                'email'          => $user->email,
+                'name'           => $user->name,
+                'personal_email' => $user->personal_email ?? '',
+                'avatar'         => $user->avatar ?? '',
+                'office_id'      => $user->office_id ?? '',
+            ]);
+            return redirect("{$frontendUrl}/auth/google/callback?{$queryParams}");
         }
 
         return response()->json([

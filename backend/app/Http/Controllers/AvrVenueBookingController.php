@@ -33,12 +33,14 @@ class AvrVenueBookingController extends Controller
             })
 
             ->when(!$user->isSuperAdmin(), function ($query) use ($user) {
-                if ($user->office_id) {
-                    $query->whereHas('venue', function ($q) use ($user) {
-                        $q->where('office_id', $user->office_id)
-                          ->orWhereNull('office_id');
-                    });
-                }
+                $officeId = $user->office_id ?? 1;
+                $query->where(function ($q) use ($officeId) {
+                    $q->whereHas('venue', function ($vQ) use ($officeId) {
+                        $vQ->where('office_id', $officeId)
+                           ->orWhereNull('office_id');
+                    })
+                    ->orWhereNull('venue_id');
+                });
             })
             ->latest()
             ->paginate(25);

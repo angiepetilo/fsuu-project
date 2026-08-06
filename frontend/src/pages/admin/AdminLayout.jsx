@@ -68,9 +68,14 @@ export default function AdminLayout() {
     };
   }, []);
 
-  const adminName = profileState?.name || user?.name || "Main Branch Admin";
-  const adminAvatar = profileState?.avatar || user?.avatar || null;
-  const adminOffice = profileState?.office || user?.office?.name || "FSUU Main";
+  const isMatchingProfile = profileState && (
+    (user?.email && profileState.email === user.email) ||
+    (user?.id && profileState.id === user.id)
+  );
+
+  const adminName = (isMatchingProfile ? profileState?.name : null) || user?.name || "Main Branch Admin";
+  const adminAvatar = (isMatchingProfile ? profileState?.avatar : null) || user?.avatar || null;
+  const adminOffice = (isMatchingProfile ? profileState?.office : null) || user?.office?.name || "FSUU Main";
 
   const userRole = user?.role?.name || user?.role || "admin";
   const isSuperAdmin = userRole === "superadmin" || userRole === "super_admin";
