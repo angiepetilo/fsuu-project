@@ -31,7 +31,26 @@ export default function EquipmentCategoriesTab({ showMsg }) {
         api.get("/admin/equipment-types"),
         api.get("/admin/offices").catch(() => ({ data: [] })),
       ]);
-      setCategories(Array.isArray(catRes.data) ? catRes.data : []);
+
+      const rawCats = Array.isArray(catRes.data) ? catRes.data : [];
+      let activeRelCount = 0;
+      try {
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k && k.startsWith("fsuu_assigned_units_")) {
+            const v = localStorage.getItem(k);
+            if (v) {
+              const obj = JSON.parse(v);
+              Object.values(obj).forEach(bCode => { if (bCode) activeRelCount++; });
+            }
+          }
+        }
+      } catch {}
+
+      setCategories(rawCats.map(c => ({
+        ...c,
+        released_count: c.released_count ?? (activeRelCount > 0 ? activeRelCount : 0),
+      })));
       setOffices(Array.isArray(offRes.data) ? offRes.data : []);
     } catch {
       const saved = JSON.parse(localStorage.getItem("fsuu_equipment_types") || "[]");
@@ -80,17 +99,17 @@ export default function EquipmentCategoriesTab({ showMsg }) {
     try {
       if (editItem) {
         await api.put(`/admin/equipment-types/${editItem.id}`, payload);
-        if (showMsg) showMsg(`✅ Equipment catalog item "${form.eq_name}" updated!`);
+        if (showMsg) showMsg(`Equipment catalog item "${form.eq_name}" updated!`);
       } else {
         await api.post("/admin/equipment-types", payload);
-        if (showMsg) showMsg(`✅ Equipment catalog item "${form.eq_name}" added to catalog!`);
+        if (showMsg) showMsg(`Equipment catalog item "${form.eq_name}" added to catalog!`);
       }
       setShowModal(false);
       setEditItem(null);
       fetchCategories();
       window.dispatchEvent(new Event("equipment_inventory_updated"));
     } catch {
-      if (showMsg) showMsg("❌ Failed to save equipment catalog item.");
+      if (showMsg) showMsg("Failed to save equipment catalog item.", true);
     } finally {
       setFormLoading(false);
     }
@@ -100,11 +119,11 @@ export default function EquipmentCategoriesTab({ showMsg }) {
     if (confirm(`Archive equipment category "${name}"? Soft-delete will apply.`)) {
       try {
         await api.delete(`/admin/equipment-types/${id}`);
-        if (showMsg) showMsg(`✅ Equipment "${name}" archived (soft-deleted).`);
+        if (showMsg) showMsg(`Equipment "${name}" archived.`);
         fetchCategories();
         window.dispatchEvent(new Event("equipment_inventory_updated"));
       } catch {
-        if (showMsg) showMsg("❌ Failed to archive equipment.");
+        if (showMsg) showMsg("Failed to archive equipment.", true);
       }
     }
   };
@@ -112,17 +131,17 @@ export default function EquipmentCategoriesTab({ showMsg }) {
   return (
     <div className="space-y-4">
       {/* Header bar */}
-      <div className="flex justify-between items-center bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs">
+      <div className="flex justify-between items-center bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
         <div>
-          <h3 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
-            <Package size={18} className="text-blue-600" />
-            Equipment Catalog Management
+          <h3 className="font-extrabold text-slate-900 text-sm">
+            Manage Equipment Catalog
           </h3>
-          <p className="text-xs text-slate-500 font-medium">
-            Items created in this catalog with avatars will be displayed directly in the public equipment borrowing process.
+          <p className="text-xs text-slate-500 font-semibold mt-0.5">
+            Configure catalog gear, total quantities, and avatars for borrowing.
           </p>
         </div>
         <button
+          type="button"
           onClick={() => {
             setEditItem(null);
             setForm({
@@ -137,92 +156,103 @@ export default function EquipmentCategoriesTab({ showMsg }) {
             });
             setShowModal(true);
           }}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-extrabold shadow-sm cursor-pointer"
+          className="flex items-center gap-2 px-3.5 py-2 bg-white border border-slate-900 text-slate-900 hover:bg-slate-50 rounded-xl text-xs font-bold shadow-2xs transition-colors cursor-pointer"
         >
-          <Plus size={16} /> Add Equipment Catalog Item
+          <Plus size={14} /> Add Category
         </button>
       </div>
 
-      {/* Equipment Catalog Table: [#, Avatar, Equipment Catalog, Overall Stock, Actions] */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
-        <table className="w-full text-sm">
+      {/* Equipment Catalog Table */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+        <table className="w-full text-xs">
           <thead>
-            <tr className="bg-slate-50/80 border-b border-slate-100">
+            <tr className="border-b border-slate-100 text-left text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider">
               {["#", "Avatar", "Equipment Catalog", "Overall Stock", "Actions"].map((h) => (
-                <th key={h} className="px-4 py-3.5 text-left text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                <th key={h} className="px-4 py-3 whitespace-nowrap">
                   {h}
                 </th>
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100 text-xs font-semibold">
+          <tbody className="divide-y divide-slate-100 font-semibold">
             {loading ? (
               <tr>
-                <td colSpan={5} className="text-center py-10">
-                  <div className="flex items-center justify-center gap-2 text-slate-400">
-                    <Loader2 size={16} className="animate-spin text-blue-500" />
-                    <span className="text-xs font-semibold italic">Loading catalog...</span>
-                  </div>
+                <td colSpan={5} className="text-center py-10 text-slate-400 font-medium">
+                  <Loader2 size={16} className="animate-spin inline mr-2 text-slate-600" /> Loading catalog...
                 </td>
               </tr>
             ) : categories.length === 0 ? (
               <tr>
-                <td colSpan={5} className="text-center py-10 text-slate-400">
-                  📦 No equipment categories registered. Click "Add Equipment Catalog Item" to start.
+                <td colSpan={5} className="text-center py-10 text-slate-400 font-medium">
+                  No equipment categories registered. Click "Add Category" to start.
                 </td>
               </tr>
             ) : (
               paginatedCategories.map((cat, idx) => {
                 const displayIndex = startIndex + idx + 1;
+                const total = cat.total_quantity ?? 0;
+                const released = cat.released_count || 0;
+                const damaged = cat.damaged_count || 0;
+                const lost = cat.lost_count || 0;
+                const available = Math.max(0, total - released - damaged - lost);
+
                 return (
                   <tr key={cat.id || idx} className="hover:bg-slate-50/60 transition-colors">
-                    <td className="px-4 py-3.5 font-bold text-slate-400">{displayIndex}</td>
-                    <td className="px-4 py-3.5">
-                      <div className="w-12 h-12 rounded-xl bg-slate-100 border border-slate-200 overflow-hidden flex items-center justify-center shadow-inner">
+                    <td className="px-4 py-3 font-mono font-bold text-slate-400">{displayIndex}</td>
+                    <td className="px-4 py-3">
+                      <div className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-200 overflow-hidden flex items-center justify-center">
                         {cat.avatar ? (
                           <img src={cat.avatar} alt={cat.eq_name} className="w-full h-full object-cover" />
                         ) : (
-                          <Package size={20} className="text-slate-400" />
+                          <Package size={16} className="text-slate-400" />
                         )}
                       </div>
                     </td>
-                    <td className="px-4 py-3.5">
-                      <span className="font-extrabold text-slate-900 text-sm block">{cat.eq_name || cat.name}</span>
-                      <span className="text-[11px] text-blue-600 font-semibold">{cat.eq_type || "AV Equipment"}</span>
+                    <td className="px-4 py-3">
+                      <span className="font-extrabold text-slate-900 text-xs block">{cat.eq_name || cat.name}</span>
+                      <span className="text-[10.5px] text-slate-500 font-mono">{cat.eq_type || "AV Equipment"}</span>
                     </td>
-                    <td className="px-4 py-3.5">
-                      <span className="px-3 py-1 rounded-xl bg-slate-100 font-black text-slate-900 text-xs">
-                        {cat.total_quantity ?? 0} Units
-                      </span>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-3 font-mono text-xs">
+                        <span className="text-slate-700">Total: <b>{total}</b></span>
+                        <span className="text-emerald-600 font-bold">● {available} Available</span>
+                        {released > 0 && <span className="text-blue-600 font-bold">● {released} Released</span>}
+                        {damaged > 0 && <span className="text-rose-600 font-bold">● {damaged} Damaged</span>}
+                        {lost > 0 && <span className="text-amber-600 font-bold">● {lost} Lost</span>}
+                      </div>
                     </td>
-                    <td className="px-4 py-3.5 flex items-center gap-2">
-                      <button
-                        onClick={() => {
-                          setEditItem(cat);
-                          setForm({
-                            eq_name: cat.eq_name || cat.name || "",
-                            eq_type: cat.eq_type || "AV Equipment",
-                            avatar: cat.avatar || "",
-                            total_quantity: cat.total_quantity ?? cat.stock ?? 0,
-                            available_count: cat.available_count ?? cat.stock ?? 0,
-                            status: cat.status || "available",
-                            office_id: cat.office_id || offices[0]?.id || "",
-                            description: cat.description || "",
-                          });
-                          setShowModal(true);
-                        }}
-                        className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 cursor-pointer"
-                        title="Edit Catalog Item"
-                      >
-                        <Pencil size={14} />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(cat.id, cat.eq_name || cat.name)}
-                        className="p-1.5 rounded-lg border border-rose-200 text-rose-600 hover:bg-rose-50 cursor-pointer"
-                        title="Archive Category"
-                      >
-                        <Trash2 size={14} />
-                      </button>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditItem(cat);
+                            setForm({
+                              eq_name: cat.eq_name || cat.name || "",
+                              eq_type: cat.eq_type || "AV Equipment",
+                              avatar: cat.avatar || "",
+                              total_quantity: cat.total_quantity ?? cat.stock ?? 0,
+                              available_count: cat.available_count ?? cat.stock ?? 0,
+                              status: cat.status || "available",
+                              office_id: cat.office_id || offices[0]?.id || "",
+                              description: cat.description || "",
+                            });
+                            setShowModal(true);
+                          }}
+                          className="p-1.5 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50 transition-all cursor-pointer shadow-2xs"
+                          title="Edit Item"
+                        >
+                          <Pencil size={13} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(cat.id, cat.eq_name || cat.name)}
+                          className="p-1.5 rounded-lg border border-slate-300 text-rose-600 hover:bg-rose-50 transition-all cursor-pointer shadow-2xs"
+                          title="Archive Category"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
@@ -232,138 +262,130 @@ export default function EquipmentCategoriesTab({ showMsg }) {
         </table>
       </div>
 
-      {/* Pagination Footer */}
+      {/* Pagination */}
       {categories.length > 0 && (
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-6 py-4 bg-slate-50/80 border-t border-slate-100 text-xs font-semibold text-slate-600">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 border-t border-slate-100 text-xs font-semibold text-slate-600 bg-white rounded-xl">
           <div>
-            Showing <span className="font-extrabold text-slate-900">{startIndex + 1}</span> to{" "}
-            <span className="font-extrabold text-slate-900">{Math.min(startIndex + ITEMS_PER_PAGE, categories.length)}</span> of{" "}
-            <span className="font-extrabold text-slate-900">{categories.length}</span> catalog categories
+            Showing <span className="font-mono font-bold text-slate-900">{startIndex + 1}</span> to{" "}
+            <span className="font-mono font-bold text-slate-900">{Math.min(startIndex + ITEMS_PER_PAGE, categories.length)}</span> of{" "}
+            <span className="font-mono font-bold text-slate-900">{categories.length}</span> categories
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="text-slate-500 font-bold mr-2">
+            <span className="text-slate-500 font-mono text-xs mr-2">
               Page {currentPage} of {totalPages}
             </span>
             <button
               type="button"
               disabled={currentPage === 1}
               onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-              className="flex items-center gap-1 px-3.5 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all shadow-xs font-bold text-xs"
+              className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all shadow-2xs font-bold text-xs"
             >
-              <ChevronLeft size={14} /> Previous
+              <ChevronLeft size={13} /> Previous
             </button>
 
             <button
               type="button"
               disabled={currentPage >= totalPages}
               onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-              className="flex items-center gap-1 px-3.5 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all shadow-xs font-bold text-xs"
+              className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all shadow-2xs font-bold text-xs"
             >
-              Next <ChevronRight size={14} />
+              Next <ChevronRight size={13} />
             </button>
           </div>
         </div>
       )}
 
-      {/* Add / Edit Catalog Modal */}
+      {/* Modal */}
       {showModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl w-full max-w-lg overflow-hidden">
-            <div className="px-6 py-4 bg-white border-b border-slate-100 flex items-center justify-between">
-              <h3 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
-                <Package size={18} className="text-blue-600" />
-                {editItem ? "Edit Equipment Catalog Item" : "Add Equipment Catalog Item"}
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl border border-slate-300 shadow-xl w-full max-w-lg overflow-hidden">
+            <div className="flex justify-between items-center p-5 border-b border-slate-200">
+              <h3 className="font-extrabold text-slate-900 text-sm">
+                {editItem ? "Edit Equipment Category" : "Add Equipment Category"}
               </h3>
-              <button onClick={() => setShowModal(false)} className="p-1.5 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-700">
-                <X size={18} />
+              <button
+                type="button"
+                onClick={() => setShowModal(false)}
+                className="p-1 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-500 cursor-pointer"
+              >
+                <X size={16} />
               </button>
             </div>
 
-            <form onSubmit={handleSave} className="p-6 space-y-4 text-xs">
-              {/* Avatar Upload */}
+            <form onSubmit={handleSave} className="p-5 space-y-4 text-xs">
               <div>
-                <label className="block text-xs font-bold text-slate-900 mb-1">Equipment Catalog Avatar</label>
-                <div className="flex items-center gap-4">
-                  <div className="w-16 h-16 rounded-2xl bg-slate-100 border border-slate-200 overflow-hidden flex items-center justify-center shadow-inner shrink-0">
-                    {form.avatar ? (
-                      <img src={form.avatar} alt="Preview" className="w-full h-full object-cover" />
-                    ) : (
-                      <ImageIcon size={24} className="text-slate-400" />
-                    )}
-                  </div>
-                  <label className="px-3.5 py-2 rounded-xl bg-slate-100 border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-200 transition-all cursor-pointer flex items-center gap-2">
-                    <ImageIcon size={14} /> Upload Avatar Image
-                    <input type="file" accept="image/*" onChange={handleAvatarUpload} className="hidden" />
-                  </label>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-900 mb-1">Equipment Catalog Name *</label>
+                <label className="block font-bold text-slate-900 mb-1">Equipment Name *</label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Wireless Microphone, HD Projector"
+                  placeholder="e.g. Wireless Microphone"
                   value={form.eq_name}
                   onChange={(e) => setForm({ ...form, eq_name: e.target.value })}
-                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:border-blue-600"
+                  className="w-full p-2.5 bg-white border border-slate-300 rounded-xl font-bold text-slate-900 focus:outline-none focus:border-slate-900"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-slate-900 mb-1">Category Type *</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Audio, Video, Projection"
+                  <label className="block font-bold text-slate-900 mb-1">Category Type *</label>
+                  <select
                     value={form.eq_type}
                     onChange={(e) => setForm({ ...form, eq_type: e.target.value })}
-                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:border-blue-600"
-                  />
+                    className="w-full p-2.5 bg-white border border-slate-300 rounded-xl font-bold text-slate-900 focus:outline-none focus:border-slate-900 cursor-pointer"
+                  >
+                    <option value="AV Equipment">AV Equipment</option>
+                    <option value="Audio Equipment">Audio Equipment</option>
+                    <option value="Visual Equipment">Visual Equipment</option>
+                    <option value="Peripherals">Peripherals</option>
+                  </select>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-900 mb-1">Operating Office</label>
-                  <select
-                    value={form.office_id}
-                    onChange={(e) => setForm({ ...form, office_id: e.target.value })}
-                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none"
-                  >
-                    {offices.map((off) => (
-                      <option key={off.id} value={off.id}>{off.office_name || off.name}</option>
-                    ))}
-                  </select>
+                  <label className="block font-bold text-slate-900 mb-1">Total Quantity *</label>
+                  <input
+                    type="number"
+                    min="0"
+                    required
+                    value={form.total_quantity}
+                    onChange={(e) => setForm({ ...form, total_quantity: e.target.value })}
+                    className="w-full p-2.5 bg-white border border-slate-300 rounded-xl font-mono font-bold text-slate-900 focus:outline-none focus:border-slate-900"
+                  />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-900 mb-1">Description / Notes</label>
-                <textarea
-                  rows={2}
-                  placeholder="Catalog specs or usage guidelines..."
-                  value={form.description}
-                  onChange={(e) => setForm({ ...form, description: e.target.value })}
-                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none"
-                />
+                <label className="block font-bold text-slate-900 mb-1">Upload Photo</label>
+                <div className="flex items-center gap-3">
+                  <div className="w-14 h-14 rounded-xl bg-slate-50 border border-slate-300 overflow-hidden flex items-center justify-center">
+                    {form.avatar ? (
+                      <img src={form.avatar} alt="Preview" className="w-full h-full object-cover" />
+                    ) : (
+                      <ImageIcon size={18} className="text-slate-400" />
+                    )}
+                  </div>
+                  <label className="px-3.5 py-2 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-bold cursor-pointer transition-all shadow-2xs">
+                    Choose Photo
+                    <input type="file" accept="image/*" onChange={handleAvatarUpload} className="hidden" />
+                  </label>
+                </div>
               </div>
 
-              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+              <div className="flex gap-2 pt-2 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-100 cursor-pointer"
+                  className="flex-1 py-2 rounded-xl border border-slate-300 text-slate-700 font-bold hover:bg-slate-50 cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={formLoading}
-                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-extrabold shadow-md flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  className="flex-1 py-2 rounded-xl border border-slate-900 bg-white text-slate-900 hover:bg-slate-50 font-bold shadow-xs cursor-pointer flex items-center justify-center gap-2"
                 >
-                  {formLoading && <Loader2 size={14} className="animate-spin" />}
-                  <span>{editItem ? "Save Changes" : "Add to Catalog"}</span>
+                  {formLoading && <Loader2 size={13} className="animate-spin" />}
+                  {editItem ? "Save Changes" : "Create Item"}
                 </button>
               </div>
             </form>

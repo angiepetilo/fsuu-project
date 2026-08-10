@@ -85,14 +85,66 @@ export default function SysadLayout() {
 
   const isActive = (path) => location.pathname === path || location.pathname.startsWith(path + "/");
 
-  // System Admin Global Notifications — loaded from API, never hardcoded
+  // System Admin Global Notifications — loaded from API with database read persistence
   const [sysadNotifications, setSysadNotifications] = useState([]);
+  const [readNotifIds, setReadNotifIds] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem("fsuu_read_sysad_notification_ids") || "[]");
+      return Array.isArray(saved) ? new Set(saved) : new Set();
+    } catch {
+      return new Set();
+    }
+  });
+
+  const fetchNotifs = () => {
+    api.get("/sysad/notifications")
+      .then(res => {
+        const list = res.data || [];
+        setSysadNotifications(list);
+        const serverReadIds = list.filter(n => n.is_read).map(n => n.id);
+        if (serverReadIds.length > 0) {
+          setReadNotifIds(prev => {
+            const merged = new Set([...prev, ...serverReadIds]);
+            try {
+              localStorage.setItem("fsuu_read_sysad_notification_ids", JSON.stringify(Array.from(merged)));
+            } catch {}
+            return merged;
+          });
+        }
+      })
+      .catch(() => setSysadNotifications([]));
+  };
 
   useEffect(() => {
-    api.get("/sysad/notifications")
-      .then(res => setSysadNotifications(res.data || []))
-      .catch(() => setSysadNotifications([]));
+    fetchNotifs();
+    const interval = setInterval(fetchNotifs, 20000);
+    return () => clearInterval(interval);
   }, []);
+
+  const markAsRead = async (notifId) => {
+    setReadNotifIds(prev => {
+      const next = new Set(prev);
+      next.add(notifId);
+      try {
+        localStorage.setItem("fsuu_read_sysad_notification_ids", JSON.stringify(Array.from(next)));
+      } catch {}
+      return next;
+    });
+    try {
+      await api.post("/sysad/notifications/mark-as-read", { notification_id: notifId });
+    } catch {}
+  };
+
+  const markAllAsRead = async () => {
+    const allIds = new Set(sysadNotifications.map(n => n.id));
+    setReadNotifIds(allIds);
+    try {
+      localStorage.setItem("fsuu_read_sysad_notification_ids", JSON.stringify(Array.from(allIds)));
+    } catch {}
+    try {
+      await api.post("/sysad/notifications/mark-all-read", { notification_ids: Array.from(allIds) });
+    } catch {}
+  };
 
   const filteredNotifications = selectedOffice === "All Offices"
     ? sysadNotifications
@@ -254,6 +306,9 @@ export default function SysadLayout() {
                 setShowNotifDropdown={setShowNotifDropdown}
                 filteredNotifications={filteredNotifications}
                 selectedOffice={selectedOffice}
+                readNotifIds={readNotifIds}
+                markAsRead={markAsRead}
+                markAllAsRead={markAllAsRead}
               />
             </div>
           </div>

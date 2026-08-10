@@ -37,7 +37,7 @@ export default function MetricsOverview({
         value={totalEquipBorrows}
         badge="Completed in History"
         badgeType="success"
-        color="purple"
+        color="blue"
       />
 
       {/* 4. Total Equipment Damages */}

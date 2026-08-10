@@ -257,12 +257,11 @@ export default function ManageVenues() {
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-            <Building2 className="text-blue-600" size={24} />
-            Manage Venue Schedule & Availability Control
+          <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+            Manage Venue
           </h1>
-          <p className="text-xs text-slate-500 font-medium mt-0.5">
-            Select venue to inspect calendar availability status (Available, Partial, Fully Booked, Maintenance/Closed) and assign date-time operating controls.
+          <p className="text-xs text-slate-500 font-semibold mt-0.5">
+            Select venue to inspect calendar availability status and assign date-time operating controls.
           </p>
         </div>
       </div>

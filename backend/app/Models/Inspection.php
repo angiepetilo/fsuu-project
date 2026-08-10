@@ -14,15 +14,23 @@ class Inspection extends Model
     protected $fillable = [
         'inspectable_type',
         'inspectable_id',
+        'reference_type',
+        'reference_id',
         'inspected_by',
         'inspection_type',
         'condition',
+        'violation_type',
         'notes',
+        'evidence_photo',
+        'assigned_units',
+        'unit_conditions',
         'inspected_at',
     ];
 
     protected $casts = [
-        'inspected_at' => 'datetime',
+        'inspected_at'    => 'datetime',
+        'assigned_units'  => 'array',
+        'unit_conditions' => 'array',
     ];
 
     public function inspectable(): MorphTo

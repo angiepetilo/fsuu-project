@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { useOutletContext } from "react-router-dom";
+import { useOutletContext, useLocation } from "react-router-dom";
 import api from "@/lib/axios";
 import {
   Loader2, RefreshCw, AlertCircle, Eye, Building2, ChevronLeft, ChevronRight
@@ -13,10 +13,10 @@ function StatusBadge({ status }) {
     approved: "bg-emerald-100 text-emerald-700 border border-emerald-200",
     "on-going": "bg-blue-100 text-blue-700 border border-blue-200",
     ongoing: "bg-blue-100 text-blue-700 border border-blue-200",
-    completed: "bg-purple-100 text-purple-700 border border-purple-200",
-    rejected: "bg-rose-100 text-rose-700 border border-rose-200",
+    completed: "bg-green-50 text-green-700 border border-green-200",
+    rejected: "bg-red-50 text-red-700 border border-red-200",
     cancelled: "bg-slate-100 text-slate-600 border border-slate-200",
-    "post-inspection": "bg-indigo-100 text-indigo-700 border border-indigo-200",
+    "post-inspection": "bg-blue-50 text-blue-700 border border-blue-200",
   };
   return (
     <span className={`inline-flex px-2.5 py-0.5 rounded-full text-[11px] font-bold capitalize ${map[status] ?? "bg-slate-100 text-slate-600"}`}>
@@ -55,8 +55,22 @@ const formatTimeRange = (start, end) => {
 
 export default function VenueBookings() {
   const context = useOutletContext();
-  const [bookings, setBookings] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const location = useLocation();
+  const [bookings, setBookings] = useState(() => {
+    try {
+      const cached = localStorage.getItem("fsuu_cache_admin_venue_bookings");
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [loading, setLoading] = useState(() => {
+    try {
+      return !localStorage.getItem("fsuu_cache_admin_venue_bookings");
+    } catch {
+      return true;
+    }
+  });
   const [actionLoading, setActionLoading] = useState(null);
   const [error, setError] = useState(null);
   const [statusFilter, setStatusFilter] = useState("all"); 
@@ -82,6 +96,7 @@ export default function VenueBookings() {
       const res = await api.get("/avr-venue-bookings");
       const data = res.data?.data ?? (Array.isArray(res.data) ? res.data : []);
       setBookings(data);
+      try { localStorage.setItem("fsuu_cache_admin_venue_bookings", JSON.stringify(data)); } catch {}
     } catch {
       setError("Unable to sync venue bookings data.");
     } finally {
@@ -93,11 +108,27 @@ export default function VenueBookings() {
     fetchBookings();
   }, [fetchBookings]);
 
+  // Deep-link from notification navigation
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const targetId = params.get("id") || location.state?.selectedId;
+    const targetRef = params.get("trk") || params.get("ref");
+    if ((targetId || targetRef) && bookings.length > 0) {
+      const match = bookings.find(b => 
+        (targetId && String(b.id) === String(targetId)) ||
+        (targetRef && (b.reference_code === targetRef || b.tracking_number?.reference_code === targetRef))
+      );
+      if (match) {
+        setSelected(match);
+      }
+    }
+  }, [location.search, location.state, bookings]);
+
   const officeScope = context?.adminOffice || context?.selectedOffice || "All Offices";
 
   const filteredBookings = bookings.filter(b => {
     const s = (b.status || b.tracking_number?.status || "").toLowerCase();
-    return s !== "completed" && s !== "rejected" && s !== "cancelled";
+    return s !== "completed" && s !== "damaged" && s !== "solved" && s !== "rejected" && s !== "cancelled";
   });
 
   useEffect(() => {
@@ -137,18 +168,17 @@ export default function VenueBookings() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-            <Building2 className="text-blue-600" size={24} />
-            Venue Bookings Management
+          <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+            Manage Bookings
           </h1>
-          <p className="text-xs text-slate-500 font-medium mt-0.5">
+          <p className="text-xs text-slate-500 font-semibold mt-0.5">
             Manage venue reservation requests for {officeScope}.
           </p>
         </div>
         <button
           onClick={fetchBookings}
           disabled={loading}
-          className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-50 cursor-pointer disabled:opacity-60 shadow-xs"
+          className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 hover:bg-blue-700 hover:text-white hover:border-blue-700 transition-colors cursor-pointer disabled:opacity-60 shadow-xs"
         >
           <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
           <span>Refresh</span>
@@ -198,7 +228,9 @@ export default function VenueBookings() {
                   const requestor = b.filer_name || b.requestor_name || "—";
                   const department = b.program_office || b.department || "—";
                   const venueName = b.venue?.name || b.venue_name || "AVR Auditorium";
-                  const usageDate = formatDate(b.date_of_usage || b.start_datetime);
+                  const usageDate = b.reservation_end_date && String(b.reservation_end_date).substring(0, 10) !== String(b.date_of_usage || b.start_datetime).substring(0, 10)
+                    ? `${formatDate(b.date_of_usage || b.start_datetime)} - ${formatDate(b.reservation_end_date)}`
+                    : formatDate(b.date_of_usage || b.start_datetime);
                   const timeRange = formatTimeRange(b.time_start, b.time_end);
                   const currentStatus = b.status || b.tracking_number?.status || "pending";
                   const displayIndex = startIndex + idx + 1;

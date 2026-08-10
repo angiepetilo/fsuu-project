@@ -67,7 +67,7 @@ export default function VenueReportsTab({
                     <td className="px-4 py-3.5 text-slate-600">{b.purpose}</td>
                     <td className="px-4 py-3.5">
                       <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold capitalize ${
-                        b.status === "approved" ? "bg-emerald-100 text-emerald-800 border border-emerald-200" : "bg-purple-100 text-purple-800 border border-purple-200"
+                        b.status === "approved" ? "bg-emerald-100 text-emerald-800 border border-emerald-200" : "bg-green-50 text-green-700 border border-green-200"
                       }`}>
                         {b.status}
                       </span>

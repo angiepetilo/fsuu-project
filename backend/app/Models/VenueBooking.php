@@ -27,19 +27,23 @@ class VenueBooking extends Model
         'classification',
         'place_of_use',
         'purpose',
+        'status',
         'equipment_notes',
         'no_of_person',
         'date_of_usage',
+        'reservation_end_date',
         'time_start',
         'time_end',
         'school_id',
         'agreed_to_policy',
+        'assigned_units',
     ];
 
     protected $casts = [
         'agreed_to_policy' => 'boolean',
         'no_of_person'     => 'integer',
         'date_of_usage'    => 'date',
+        'assigned_units'   => 'array',
     ];
 
     public function trackingNumber(): BelongsTo

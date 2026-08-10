@@ -1,10 +1,11 @@
-import { MapPin, ChevronLeft, ChevronRight, Clock, Calendar as CalendarIcon, CheckCircle2, AlertTriangle, Building2 } from "lucide-react";
+import { MapPin, ChevronLeft, ChevronRight, Clock, Calendar as CalendarIcon, CheckCircle2, AlertTriangle, Building2, DollarSign } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
 import { useState, useEffect } from "react";
 import api from "@/lib/axios";
 
 export default function Step2Venue({
+  identity,
   filteredVenues = [],
   selectedVenue,
   handleVenueSelect,
@@ -105,14 +106,50 @@ export default function Step2Venue({
     return false;
   };
 
+  // Helper to compute fee rates for external user
+  const getVenueFeeRates = (venue) => {
+    if (!venue) return { hourly: "₱1,500 / hr", daily: "₱10,000 / day", cleaning: "₱500 (Flat)" };
+    try {
+      const savedFee = localStorage.getItem(`fsuu_fee_matrix_${venue.id}`);
+      if (savedFee) {
+        const parsed = JSON.parse(savedFee);
+        return {
+          hourly: `₱${Number(parsed.external_hourly || 1500).toLocaleString()} / hr`,
+          daily: `₱${Number(parsed.external_daily || 10000).toLocaleString()} / day`,
+          cleaning: `₱${Number(parsed.cleaning_fee || 500).toLocaleString()} (Flat)`,
+        };
+      }
+    } catch {}
+
+    const hourly = venue.external_rental_price || venue.rental_price || 1500;
+    const daily = venue.external_daily_price || 10000;
+    return {
+      hourly: `₱${Number(hourly).toLocaleString()} / hr`,
+      daily: `₱${Number(daily).toLocaleString()} / day`,
+      cleaning: "₱500 (Flat)",
+    };
+  };
+
+  const feeRates = getVenueFeeRates(selectedVenue);
+  const isExternalUser = (identity || "").toLowerCase() === "external";
+
   // Helper to compute booking details for a specific day and selected venue
   const getDayInfo = (day) => {
     const dateStr = `${calYear}-${pad(calMonth + 1)}-${pad(day)}`;
+    const venueOpenTime = opHours?.venue_open ? formatTime12(opHours.venue_open) : "07:30 AM";
+    const venueCloseTime = opHours?.venue_close ? formatTime12(opHours.venue_close) : "05:00 PM";
+    const defaultTimeRange = `${venueOpenTime} - ${venueCloseTime}`;
 
     if (!selectedVenue) {
       return {
         status: "available",
         tooltip: `${monthLabel} ${day}: Select a venue to view availability`,
+        box: {
+          status: "Select Venue",
+          badgeClass: "bg-slate-700 text-white",
+          time: defaultTimeRange,
+          details: "Select a venue to check available slots.",
+        },
         bookings: [],
       };
     }
@@ -128,9 +165,16 @@ export default function Step2Venue({
     });
 
     if (dbMatch && (dbMatch.status === "maintenance" || dbMatch.status === "closed")) {
+      const isMaint = dbMatch.status === "maintenance";
       return {
         status: "maintenance",
         tooltip: `${monthLabel} ${day}: ${selectedVenue.name} is under ${dbMatch.status.toUpperCase()} (${dbMatch.notes || 'Blocked by Admin'})`,
+        box: {
+          status: isMaint ? "Maintenance" : "Closed",
+          badgeClass: isMaint ? "bg-amber-600 text-white" : "bg-red-600 text-white",
+          time: "All Day Blocked",
+          details: `${selectedVenue.name} (${dbMatch.notes || 'Blocked by Admin'})`,
+        },
         bookings: [],
       };
     }
@@ -148,9 +192,16 @@ export default function Step2Venue({
         ) ? maintMap[dateStr] : null);
 
         if (mInfo && (mInfo.status === "maintenance" || mInfo.status === "closed")) {
+          const isMaint = mInfo.status === "maintenance";
           return {
             status: "maintenance",
             tooltip: `${monthLabel} ${day}: ${selectedVenue.name} is under ${mInfo.status.toUpperCase()} (${mInfo.reason || mInfo.notes || 'Blocked by Admin'})`,
+            box: {
+              status: isMaint ? "Maintenance" : "Closed",
+              badgeClass: isMaint ? "bg-amber-600 text-white" : "bg-red-600 text-white",
+              time: "All Day Blocked",
+              details: `${selectedVenue.name} (${mInfo.reason || mInfo.notes || 'Blocked by Admin'})`,
+            },
             bookings: [],
           };
         }
@@ -170,6 +221,12 @@ export default function Step2Venue({
       return {
         status: "available",
         tooltip: `${monthLabel} ${day}: Available – No bookings for ${selectedVenue.name} on this date.`,
+        box: {
+          status: "Available",
+          badgeClass: "bg-emerald-600 text-white",
+          time: defaultTimeRange,
+          details: `${selectedVenue.name} is fully available.`,
+        },
         bookings: [],
       };
     }
@@ -178,8 +235,7 @@ export default function Step2Venue({
     const OP_END = 1020;
     let totalBookedMins = 0;
 
-    const filerDetails = dayBookings.map(b => {
-      const name = b.filer_name || b.requestor_name || "Booked";
+    const slotTimes = dayBookings.map(b => {
       const startTime = b.time_start || "08:00:00";
       const endTime = b.time_end || "17:00:00";
       const [sh, sm] = startTime.split(":").map(Number);
@@ -193,16 +249,23 @@ export default function Step2Venue({
         totalBookedMins += (overlapEnd - overlapStart);
       }
 
-      return `${name} (${startTime.substring(0, 5)} - ${endTime.substring(0, 5)})`;
+      return `${formatTime12(startTime.substring(0, 5))} - ${formatTime12(endTime.substring(0, 5))}`;
     });
 
     const isFully = totalBookedMins >= 540 || dayBookings.length >= 2;
     const status = isFully ? "fully" : "partial";
-    const statusLabel = isFully ? "Fully Booked – Entire operating hours taken" : "Partially Booked – Open time slots remaining";
+    const statusText = isFully ? "Fully Booked" : "Partially Booked";
+    const badgeClass = isFully ? "bg-rose-600 text-white" : "bg-amber-500 text-white";
 
     return {
       status,
-      tooltip: `${monthLabel} ${day} [${statusLabel}] for ${selectedVenue.name}: Booked by ${filerDetails.join(", ")}`,
+      tooltip: `${monthLabel} ${day} [${statusText}] for ${selectedVenue.name}`,
+      box: {
+        status: statusText,
+        badgeClass: badgeClass,
+        time: slotTimes.join(", "),
+        details: `${selectedVenue.name} (${dayBookings.length} reserved slot${dayBookings.length > 1 ? 's' : ''})`,
+      },
       bookings: dayBookings,
     };
   };
@@ -381,6 +444,38 @@ export default function Step2Venue({
               </p>
             </div>
 
+            {/* External User Rental Fee Matrix Card */}
+            {isExternalUser && (
+              <div className="p-3.5 bg-emerald-50/80 border border-emerald-200 rounded-2xl space-y-2 text-xs shadow-2xs">
+                <div className="flex items-center justify-between">
+                  <span className="font-extrabold text-emerald-950 text-xs flex items-center gap-1.5 uppercase tracking-wide">
+                    <DollarSign size={15} className="text-emerald-700" />
+                    External Rental Fee Matrix
+                  </span>
+                  <span className="text-[10px] font-extrabold bg-emerald-200/80 text-emerald-900 px-2 py-0.5 rounded-full border border-emerald-300 uppercase">
+                    External Rate
+                  </span>
+                </div>
+                <p className="text-slate-600 text-[11px] font-medium leading-tight">
+                  Rental fee details for guest &amp; external entities for {selectedVenue ? <strong>{selectedVenue.name}</strong> : "selected venue"}:
+                </p>
+                <div className="grid grid-cols-3 gap-2 pt-1 text-center">
+                  <div className="p-2 bg-white border border-emerald-200/80 rounded-xl shadow-2xs">
+                    <span className="text-[9px] text-slate-500 font-bold uppercase block mb-0.5">Hourly</span>
+                    <span className="text-xs font-black text-slate-900">{feeRates.hourly}</span>
+                  </div>
+                  <div className="p-2 bg-white border border-emerald-200/80 rounded-xl shadow-2xs">
+                    <span className="text-[9px] text-slate-500 font-bold uppercase block mb-0.5">Daily</span>
+                    <span className="text-xs font-black text-slate-900">{feeRates.daily}</span>
+                  </div>
+                  <div className="p-2 bg-white border border-emerald-200/80 rounded-xl shadow-2xs">
+                    <span className="text-[9px] text-slate-500 font-bold uppercase block mb-0.5">Cleaning</span>
+                    <span className="text-xs font-black text-slate-900">{feeRates.cleaning}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Status Legend */}
             <div className="flex items-center flex-wrap gap-2 text-[11px] font-bold text-slate-600 px-1">
               <span className="text-emerald-700 font-black">● Available</span>
@@ -442,7 +537,7 @@ export default function Step2Venue({
                   else if (disabled) colorStyle = "bg-slate-50 border-slate-100 text-slate-300 cursor-not-allowed";
 
                   return (
-                    <Tooltip key={day} text={info.tooltip}>
+                    <Tooltip key={day} box={info.box} text={info.tooltip}>
                       <button
                         type="button"
                         disabled={disabled || info.status === "fully"}

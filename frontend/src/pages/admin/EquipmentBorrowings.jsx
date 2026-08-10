@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { useOutletContext } from "react-router-dom";
+import { useOutletContext, useLocation } from "react-router-dom";
 import api from "@/lib/axios";
 import {
   Loader2, RefreshCw, AlertCircle, Eye, PackageOpen, ChevronLeft, ChevronRight
@@ -16,8 +16,8 @@ function StatusBadge({ status }) {
     rejected: "bg-rose-100 text-rose-700 border border-rose-200",
     cancelled: "bg-slate-100 text-slate-600 border border-slate-200",
     damaged: "bg-rose-100 text-rose-800 border border-rose-300",
-    inspection: "bg-purple-100 text-purple-700 border border-purple-200",
-    completed: "bg-purple-100 text-purple-700 border border-purple-200",
+    inspection: "bg-blue-50 text-blue-700 border border-blue-200",
+    completed: "bg-green-50 text-green-700 border border-green-200",
     lost: "bg-red-900 text-white border border-red-950 font-black",
   };
   return <span className={`inline-flex px-2.5 py-0.5 rounded-full text-[11px] font-bold capitalize ${map[status] ?? "bg-slate-100 text-slate-600"}`}>{status}</span>;
@@ -36,10 +36,24 @@ const formatDate = (rawDate) => {
 
 export default function EquipmentBorrowings() {
   const context = useOutletContext();
+  const location = useLocation();
   const officeScope = context?.adminOffice || context?.selectedOffice || "All Offices";
 
-  const [borrowings, setBorrowings] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [borrowings, setBorrowings] = useState(() => {
+    try {
+      const cached = localStorage.getItem("fsuu_cache_admin_equipment_borrowings");
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [loading, setLoading] = useState(() => {
+    try {
+      return !localStorage.getItem("fsuu_cache_admin_equipment_borrowings");
+    } catch {
+      return true;
+    }
+  });
   const [actionLoading, setActionLoading] = useState(null);
   const [error, setError] = useState(null);
   const [statusFilter, setStatusFilter] = useState("all");
@@ -60,6 +74,7 @@ export default function EquipmentBorrowings() {
       const res = await api.get("/avr-equipment-borrowings");
       const apiData = res.data?.data ?? (Array.isArray(res.data) ? res.data : []);
       setBorrowings(apiData);
+      try { localStorage.setItem("fsuu_cache_admin_equipment_borrowings", JSON.stringify(apiData)); } catch {}
     } catch {
       setError("Unable to sync equipment borrowings.");
     } finally {
@@ -70,6 +85,22 @@ export default function EquipmentBorrowings() {
   useEffect(() => {
     fetchBorrowings();
   }, [fetchBorrowings]);
+
+  // Deep-link from notification navigation
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const targetId = params.get("id") || location.state?.selectedId;
+    const targetRef = params.get("trk") || params.get("ref");
+    if ((targetId || targetRef) && borrowings.length > 0) {
+      const match = borrowings.find(b => 
+        (targetId && String(b.id) === String(targetId)) ||
+        (targetRef && (b.reference_code === targetRef || b.tracking_number?.reference_code === targetRef))
+      );
+      if (match) {
+        setSelected(match);
+      }
+    }
+  }, [location.search, location.state, borrowings]);
 
   // Filter active borrowings (completed/rejected/cancelled transfer directly to History Log)
   const filteredBorrowings = borrowings.filter(b => {
@@ -124,18 +155,17 @@ export default function EquipmentBorrowings() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-            <PackageOpen className="text-purple-600" size={24} />
-            Equipment Borrowings Management
+          <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+            Manage Borrowing
           </h1>
-          <p className="text-xs text-slate-500 font-medium mt-0.5">
+          <p className="text-xs text-slate-500 font-semibold mt-0.5">
             Manage equipment loan requisitions and returns for {officeScope}.
           </p>
         </div>
         <button
           onClick={fetchBorrowings}
           disabled={loading}
-          className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-50 cursor-pointer disabled:opacity-60 shadow-xs"
+          className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 hover:bg-blue-700 hover:text-white hover:border-blue-700 transition-colors cursor-pointer disabled:opacity-60 shadow-xs"
         >
           <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
           <span>Refresh</span>
@@ -172,7 +202,7 @@ export default function EquipmentBorrowings() {
                 <tr>
                   <td colSpan={10} className="text-center py-12">
                     <div className="flex items-center justify-center gap-2 text-slate-400">
-                      <div className="w-4 h-4 rounded-full border-2 border-slate-200 border-t-purple-500 animate-spin" />
+                      <div className="w-4 h-4 rounded-full border-2 border-slate-200 border-t-blue-600 animate-spin" />
                       <span className="text-xs font-semibold italic">Loading equipment borrowings...</span>
                     </div>
                   </td>
@@ -197,10 +227,10 @@ export default function EquipmentBorrowings() {
                 return (
                   <tr key={b.id || idx} className="hover:bg-slate-50/60 transition-colors">
                     <td className="px-4 py-3.5 font-bold text-slate-400">{displayIndex}</td>
-                    <td className="px-4 py-3.5 font-mono text-xs font-bold text-purple-600 whitespace-nowrap">{refCode}</td>
+                    <td className="px-4 py-3.5 font-mono text-xs font-bold text-blue-600 whitespace-nowrap">{refCode}</td>
                     <td className="px-4 py-3.5 font-extrabold text-slate-900">{requestor}</td>
                     <td className="px-4 py-3.5 text-slate-700">{department}</td>
-                    <td className="px-4 py-3.5 font-bold text-purple-700">{equipment}</td>
+                    <td className="px-4 py-3.5 font-bold text-blue-700">{equipment}</td>
                     <td className="px-4 py-3.5 font-bold text-slate-900">{quantity} Units</td>
                     <td className="px-4 py-3.5 text-slate-600 whitespace-nowrap">{usageDate}</td>
                     <td className="px-4 py-3.5 text-slate-600 whitespace-nowrap">{timeRange}</td>
@@ -209,7 +239,7 @@ export default function EquipmentBorrowings() {
                       <button
                         onClick={() => setSelected(b)}
                         title="View Details"
-                        className="p-2 bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded-xl font-extrabold text-xs transition-all cursor-pointer shadow-2xs"
+                        className="p-2 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg font-bold text-xs transition-all cursor-pointer"
                       >
                         <Eye size={16} />
                       </button>

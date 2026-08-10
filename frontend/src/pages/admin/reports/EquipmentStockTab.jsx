@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { PackageOpen, Loader2, Save, CheckCircle2, ShieldCheck, Clock, Wrench, Edit3, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
+import { PackageOpen, Loader2, Save, CheckCircle2, Settings2, Lock, Unlock, ChevronLeft, ChevronRight, AlertTriangle } from "lucide-react";
 import api from "@/lib/axios";
 
 export default function EquipmentStockTab({
@@ -14,8 +14,25 @@ export default function EquipmentStockTab({
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 10;
 
-  // Local draft state for QTY PRESENT, CONDITION, and NOTES (Image 2 prototype)
+  // Local draft state for QTY PRESENT, CONDITION, and NOTES
   const [inventoryDrafts, setInventoryDrafts] = useState({});
+
+  // Per-row override mode — Set of item IDs that have unlocked manual correction
+  const [overrideRows, setOverrideRows] = useState(new Set());
+
+  const toggleOverride = (itemId) => {
+    setOverrideRows(prev => {
+      const next = new Set(prev);
+      if (next.has(itemId)) {
+        next.delete(itemId);
+      } else {
+        next.add(itemId);
+      }
+      return next;
+    });
+  };
+
+  const [viewPhotoModal, setViewPhotoModal] = useState(null);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -85,6 +102,50 @@ export default function EquipmentStockTab({
     }));
   };
 
+  const handleReleasedChange = (key, delta) => {
+    setInventoryDrafts(prev => {
+      const currentVal = prev[key]?.qty_released ?? 0;
+      const newVal = Math.max(0, currentVal + delta);
+      return {
+        ...prev,
+        [key]: {
+          ...prev[key],
+          qty_released: newVal,
+        }
+      };
+    });
+  };
+
+  const handleDamagedChange = (key, delta) => {
+    setInventoryDrafts(prev => {
+      const currentVal = prev[key]?.qty_damaged ?? 0;
+      const newVal = Math.max(0, currentVal + delta);
+      return {
+        ...prev,
+        [key]: {
+          ...prev[key],
+          qty_damaged: newVal,
+          condition: newVal > 0 ? "Damaged" : (prev[key]?.condition === "Damaged" ? "Good" : (prev[key]?.condition || "Good")),
+        }
+      };
+    });
+  };
+
+  const handleLostChange = (key, delta) => {
+    setInventoryDrafts(prev => {
+      const currentVal = prev[key]?.qty_lost ?? 0;
+      const newVal = Math.max(0, currentVal + delta);
+      return {
+        ...prev,
+        [key]: {
+          ...prev[key],
+          qty_lost: newVal,
+          condition: newVal > 0 ? "Lost" : (prev[key]?.condition === "Lost" ? "Good" : (prev[key]?.condition || "Good")),
+        }
+      };
+    });
+  };
+
   const handleSubmitInventoryReport = async () => {
     setIsSubmitting(true);
     try {
@@ -96,7 +157,7 @@ export default function EquipmentStockTab({
 
           if (typeof item.id === 'number' && item.id < 1000000) {
             return api.put(`/admin/equipment-types/${item.id}`, {
-              available_count: draft.qty_present,
+              available_count: (item.total_quantity || 0) - (draft.qty_released || 0) - (draft.qty_damaged || 0) - (draft.qty_lost || 0),
               status: mappedStatus,
               description: draft.notes,
             }).catch(() => null);
@@ -105,48 +166,50 @@ export default function EquipmentStockTab({
         })
       );
 
-      setFeedback("✅ Inventory Audit Report submitted & stock records updated!");
-      setTimeout(() => setFeedback(null), 4000);
+      setFeedback("✅ Equipment stock report saved successfully!");
+      setTimeout(() => setFeedback(null), 3000);
       if (fetchReportsData) fetchReportsData();
     } catch {
-      alert("Failed to submit inventory report.");
+      setFeedback("⚠️ Failed to update stock backend.");
+      setTimeout(() => setFeedback(null), 3000);
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {/* Header Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between p-5 bg-white rounded-2xl border border-slate-200/80 shadow-xs gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
         <div>
           <h3 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
             <PackageOpen size={18} className="text-blue-600" />
-            Equipment Inventory Stock & Health Report
+            Equipment Inventory &amp; Stock Audit Tab
           </h3>
-          <p className="text-xs text-slate-500 font-semibold mt-0.5">
-            Verify and update physical equipment condition & stock numbers.
+          <p className="text-xs text-slate-500 font-medium mt-0.5">
+            Real-time tracking of expected units, released equipment, and damaged/lost items.
           </p>
         </div>
 
         <button
+          type="button"
           onClick={handleSubmitInventoryReport}
           disabled={isSubmitting}
-          className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-extrabold shadow-md transition-all cursor-pointer disabled:opacity-50 w-fit"
+          className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow-xs transition-all cursor-pointer disabled:opacity-50"
         >
           {isSubmitting ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
-          <span>Submit Inventory Report</span>
+          <span>Save Stock Report</span>
         </button>
       </div>
 
       {feedback && (
-        <div className="bg-emerald-500 text-white text-xs font-bold px-5 py-3 rounded-2xl flex items-center gap-2 shadow-sm animate-in fade-in">
-          <CheckCircle2 size={16} />
+        <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold flex items-center gap-2 shadow-2xs">
+          <CheckCircle2 size={16} className="text-emerald-600" />
           {feedback}
         </div>
       )}
 
-      {/* Inventory Table (Image 2 Format) */}
+      {/* Inventory Table */}
       <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
@@ -156,10 +219,26 @@ export default function EquipmentStockTab({
                 <th className="py-3 px-4">CATEGORY</th>
                 <th className="py-3 px-4 text-center">QTY EXPECTED</th>
                 <th className="py-3 px-4 text-center">QTY PRESENT</th>
-                <th className="py-3 px-4 text-center">RELEASED</th>
-                <th className="py-3 px-4 text-center">DAMAGED / LOST</th>
-                <th className="py-3 px-4">CONDITION</th>
+                <th className="py-3 px-4 text-center">
+                  <span className="flex items-center justify-center gap-1">
+                    RELEASED
+                    <span className="text-[8px] font-bold text-blue-400 bg-blue-50 border border-blue-200 px-1 py-0.5 rounded normal-case">auto</span>
+                  </span>
+                </th>
+                <th className="py-3 px-4 text-center">
+                  <span className="flex items-center justify-center gap-1">
+                    DAMAGED
+                    <span className="text-[8px] font-bold text-rose-400 bg-rose-50 border border-rose-200 px-1 py-0.5 rounded normal-case">auto</span>
+                  </span>
+                </th>
+                <th className="py-3 px-4 text-center">
+                  <span className="flex items-center justify-center gap-1">
+                    LOST
+                    <span className="text-[8px] font-bold text-amber-500 bg-amber-50 border border-amber-200 px-1 py-0.5 rounded normal-case">auto</span>
+                  </span>
+                </th>
                 <th className="py-3 px-4">NOTES</th>
+                <th className="py-3 px-4 text-center">OVERRIDE</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 font-semibold text-xs">
@@ -185,93 +264,88 @@ export default function EquipmentStockTab({
                     : (typeof item.total_quantity === 'number' ? item.total_quantity : 0);
 
                   const expectedQty = Math.max(0, realTotal);
+                  const initialReleased = Math.max(0, typeof item.released_count === 'number' ? item.released_count : 0);
+                  const totalDamaged = Math.max(0, typeof item.damaged_count === 'number' ? item.damaged_count : 0);
+                  const totalLost = Math.max(0, typeof item.lost_count === 'number' ? item.lost_count : 0);
 
-                  const realReleased = typeof item.released_count === 'number'
-                    ? item.released_count
-                    : (typeof item.on_loan === 'number' ? item.on_loan : 0);
+                  const draft = inventoryDrafts[key] || {};
+                  const currentReleased = draft.qty_released ?? initialReleased;
+                  const currentDamaged = draft.qty_damaged ?? totalDamaged;
+                  const currentLost = draft.qty_lost ?? totalLost;
 
-                  const releasedQty = Math.min(expectedQty, Math.max(0, realReleased));
-                  const damagedLostQty = typeof item.damaged_count === 'number' ? item.damaged_count : 0;
+                  const availablePresent = typeof item.available_count === 'number' 
+                    ? item.available_count 
+                    : Math.max(0, expectedQty - currentReleased - currentDamaged - currentLost);
 
-                  const currentDraft = inventoryDrafts[key] || {
-                    qty_present: expectedQty === 0 ? 0 : Math.max(0, expectedQty - releasedQty - damagedLostQty),
-                    condition: "Good",
-                    notes: item.description || "",
+                  const currentDraft = {
+                    qty_released: currentReleased,
+                    qty_damaged: currentDamaged,
+                    qty_lost: currentLost,
+                    notes: draft.notes ?? (item.description || ""),
                   };
 
                   return (
-                    <tr key={key || idx} className="hover:bg-slate-50/60 transition-colors">
-                      {/* ITEM NO */}
-                      <td className="py-3.5 px-4 font-mono font-bold text-slate-600 whitespace-nowrap">
-                        {itemCode}
+                    <tr key={key || idx} className={`transition-colors ${overrideRows.has(key) ? "bg-amber-50/40 border-l-2 border-amber-300" : "hover:bg-slate-50/60"}`}>
+                      <td className="py-3.5 px-4 font-mono font-bold text-slate-600 whitespace-nowrap">{itemCode}</td>
+                      <td className="py-3.5 px-4 font-bold text-slate-900 whitespace-nowrap">{categoryName}</td>
+                      <td className="py-3.5 px-4 text-center font-extrabold text-slate-900 text-sm">{expectedQty}</td>
+                      
+                      <td className="py-3.5 px-4 text-center font-extrabold text-sm text-emerald-600">
+                        {availablePresent} Available
                       </td>
 
-                      {/* CATEGORY */}
-                      <td className="py-3.5 px-4 font-bold text-slate-900 whitespace-nowrap">
-                        {categoryName}
-                      </td>
-
-                      {/* QTY EXPECTED */}
-                      <td className="py-3.5 px-4 text-center font-extrabold text-slate-900 text-sm">
-                        {expectedQty}
-                      </td>
-
-                      {/* QTY PRESENT */}
+                      {/* RELEASED — read-only by default, unlocked only in Override mode */}
                       <td className="py-3.5 px-4 text-center">
-                        <div className="flex items-center justify-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => handleQtyChange(key, -1)}
-                            className="w-6 h-6 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-xs flex items-center justify-center cursor-pointer transition-all"
-                          >
-                            -
-                          </button>
-                          <span className="font-extrabold text-sm text-slate-900 min-w-[20px] text-center">
-                            {currentDraft.qty_present}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => handleQtyChange(key, 1)}
-                            className="w-6 h-6 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-xs flex items-center justify-center cursor-pointer transition-all"
-                          >
-                            +
-                          </button>
-                        </div>
-                      </td>
-
-                      {/* RELEASED */}
-                      <td className="py-3.5 px-4 text-center font-extrabold text-slate-800">
-                        {releasedQty > 0 ? (
-                          <span className="text-blue-700 font-bold">{releasedQty} Released</span>
+                        {overrideRows.has(key) ? (
+                          <div className="flex items-center justify-center gap-1.5">
+                            <button type="button" onClick={() => handleReleasedChange(key, -1)} className="w-5 h-5 rounded bg-blue-100 hover:bg-blue-200 text-blue-700 font-black text-xs flex items-center justify-center cursor-pointer border border-blue-300">-</button>
+                            <span className="font-extrabold text-sm min-w-[22px] text-center text-blue-700">{currentDraft.qty_released}</span>
+                            <button type="button" onClick={() => handleReleasedChange(key, 1)} className="w-5 h-5 rounded bg-blue-100 hover:bg-blue-200 text-blue-700 font-black text-xs flex items-center justify-center cursor-pointer border border-blue-300">+</button>
+                          </div>
                         ) : (
-                          <span className="text-slate-400 font-medium">0</span>
+                          <span className={`inline-flex items-center justify-center min-w-[32px] px-2.5 py-0.5 rounded-full text-xs font-extrabold border ${
+                            currentDraft.qty_released > 0
+                              ? "bg-blue-50 text-blue-700 border-blue-200"
+                              : "bg-slate-50 text-slate-400 border-slate-200"
+                          }`}>{currentDraft.qty_released}</span>
                         )}
                       </td>
 
-                      {/* DAMAGED / LOST */}
-                      <td className="py-3.5 px-4 text-center font-extrabold text-slate-800">
-                        {damagedLostQty > 0 ? (
-                          <span className="text-rose-600 font-bold">{damagedLostQty}</span>
+                      {/* DAMAGED — read-only by default, unlocked only in Override mode */}
+                      <td className="py-3.5 px-4 text-center">
+                        {overrideRows.has(key) ? (
+                          <div className="flex items-center justify-center gap-1.5">
+                            <button type="button" onClick={() => handleDamagedChange(key, -1)} className="w-5 h-5 rounded bg-rose-100 hover:bg-rose-200 text-rose-700 font-black text-xs flex items-center justify-center cursor-pointer border border-rose-300">-</button>
+                            <span className="font-extrabold text-sm min-w-[22px] text-center text-rose-600">{currentDraft.qty_damaged}</span>
+                            <button type="button" onClick={() => handleDamagedChange(key, 1)} className="w-5 h-5 rounded bg-rose-100 hover:bg-rose-200 text-rose-700 font-black text-xs flex items-center justify-center cursor-pointer border border-rose-300">+</button>
+                          </div>
                         ) : (
-                          <span className="text-slate-400 font-medium">0</span>
+                          <span className={`inline-flex items-center justify-center min-w-[32px] px-2.5 py-0.5 rounded-full text-xs font-extrabold border ${
+                            currentDraft.qty_damaged > 0
+                              ? "bg-rose-50 text-rose-700 border-rose-200"
+                              : "bg-slate-50 text-slate-400 border-slate-200"
+                          }`}>{currentDraft.qty_damaged}</span>
                         )}
                       </td>
 
-                      {/* CONDITION (Clean Dropdown) */}
-                      <td className="py-4 px-4">
-                        <select
-                          value={currentDraft.condition}
-                          onChange={(e) => handleConditionChange(key, e.target.value)}
-                          className="px-3 py-1.5 border border-slate-200 rounded-xl bg-white text-xs font-extrabold text-slate-800 focus:outline-none focus:border-blue-600 cursor-pointer shadow-xs"
-                        >
-                          <option value="Good">Good</option>
-                          <option value="Worn">Worn</option>
-                          <option value="Damaged">Damaged</option>
-                          <option value="Lost">Lost</option>
-                        </select>
+                      {/* LOST — read-only by default, unlocked only in Override mode */}
+                      <td className="py-3.5 px-4 text-center">
+                        {overrideRows.has(key) ? (
+                          <div className="flex items-center justify-center gap-1.5">
+                            <button type="button" onClick={() => handleLostChange(key, -1)} className="w-5 h-5 rounded bg-amber-100 hover:bg-amber-200 text-amber-800 font-black text-xs flex items-center justify-center cursor-pointer border border-amber-300">-</button>
+                            <span className="font-extrabold text-sm min-w-[22px] text-center text-amber-700">{currentDraft.qty_lost}</span>
+                            <button type="button" onClick={() => handleLostChange(key, 1)} className="w-5 h-5 rounded bg-amber-100 hover:bg-amber-200 text-amber-800 font-black text-xs flex items-center justify-center cursor-pointer border border-amber-300">+</button>
+                          </div>
+                        ) : (
+                          <span className={`inline-flex items-center justify-center min-w-[32px] px-2.5 py-0.5 rounded-full text-xs font-extrabold border ${
+                            currentDraft.qty_lost > 0
+                              ? "bg-amber-50 text-amber-700 border-amber-200"
+                              : "bg-slate-50 text-slate-400 border-slate-200"
+                          }`}>{currentDraft.qty_lost}</span>
+                        )}
                       </td>
 
-                      {/* NOTES (Text Input) */}
+                      {/* NOTES — always editable */}
                       <td className="py-4 px-4">
                         <input
                           type="text"
@@ -280,6 +354,26 @@ export default function EquipmentStockTab({
                           onChange={(e) => handleNotesChange(key, e.target.value)}
                           className="w-full px-3 py-1.5 border border-slate-200 rounded-xl bg-white text-xs font-medium focus:outline-none focus:border-blue-600 shadow-xs"
                         />
+                      </td>
+
+                      {/* OVERRIDE toggle — per row, unlocks steppers for reconciliation */}
+                      <td className="py-3.5 px-4 text-center">
+                        <button
+                          type="button"
+                          onClick={() => toggleOverride(key)}
+                          title={overrideRows.has(key) ? "Lock — return to auto-calculated view" : "Override — unlock for manual reconciliation / audit correction"}
+                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-extrabold border transition-all cursor-pointer ${
+                            overrideRows.has(key)
+                              ? "bg-amber-50 text-amber-700 border-amber-300 hover:bg-amber-100"
+                              : "bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100 hover:text-slate-700"
+                          }`}
+                        >
+                          {overrideRows.has(key) ? (
+                            <><Lock size={11} /> Lock</>  
+                          ) : (
+                            <><Unlock size={11} /> Override</>  
+                          )}
+                        </button>
                       </td>
                     </tr>
                   );

@@ -28,6 +28,7 @@ return new class extends Migration
             $table->time('time_end');
             $table->string('school_id')->nullable();
             $table->boolean('agreed_to_policy')->default(false);
+            $table->longText('assigned_units')->nullable();
             $table->timestamps();
             $table->timestamp('archived_at')->nullable();
 

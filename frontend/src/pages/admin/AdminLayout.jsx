@@ -80,34 +80,74 @@ export default function AdminLayout() {
   const userRole = user?.role?.name || user?.role || "admin";
   const isSuperAdmin = userRole === "superadmin" || userRole === "super_admin";
 
-  // Dynamic Notifications with Strict Office Restriction
-  const [notifications, setNotifications] = useState(() => {
+  // Real Database Notifications with Persistent Read State
+  const [notifications, setNotifications] = useState([]);
+  const [readNotifIds, setReadNotifIds] = useState(() => {
     try {
-      const saved = JSON.parse(localStorage.getItem("fsuu_admin_notifications") || "[]");
-      const defaultNotifs = [
-        { id: 1, title: "New Venue Reservation", message: "Maria Santos requested AVR 1 for Symposia", office: "FSUU Main", ref: "TRK-AVR8921", time: "10 mins ago", type: "new" },
-        { id: 2, title: "Equipment Borrow Pending", message: "Mark Anthony Ramos requested Projectors", office: "FSUU Main", ref: "TRK-EQB1001", time: "15 mins ago", type: "pending" },
-        { id: 3, title: "Equipment Damaged Alert", message: "Prof. Elena Torres reported damaged mic casing", office: "FSUU Main", ref: "TRK-EQB1002", time: "1 hour ago", type: "overdue" },
-        { id: 4, title: "Equipment Lost Alert", message: "Christian David reported lost extension cord", office: "FSUU Morelos", ref: "TRK-EQB1003", time: "2 hours ago", type: "overdue" },
-        { id: 5, title: "Morelos Venue Booking", message: "Dr. Roberto Gomez requested Morelos AVR Auditorium", office: "FSUU Morelos", ref: "TRK-AVR4029", time: "3 hours ago", type: "new" },
-      ];
-      return [...saved, ...defaultNotifs.filter(d => !saved.some(s => s.id === d.id))];
+      const saved = JSON.parse(localStorage.getItem("fsuu_read_notification_ids") || "[]");
+      return Array.isArray(saved) ? new Set(saved) : new Set();
     } catch {
-      return [];
+      return new Set();
     }
   });
 
-  useEffect(() => {
-    const fetchNotifs = async () => {
-      try {
-        const res = await api.get("/admin/notifications");
-        if (Array.isArray(res.data) && res.data.length > 0) {
-          setNotifications(res.data);
+  const fetchNotifs = async () => {
+    try {
+      const res = await api.get("/admin/notifications");
+      if (Array.isArray(res.data)) {
+        setNotifications(res.data);
+        const serverReadIds = res.data.filter(n => n.is_read).map(n => n.id);
+        if (serverReadIds.length > 0) {
+          setReadNotifIds(prev => {
+            const merged = new Set([...prev, ...serverReadIds]);
+            try {
+              localStorage.setItem("fsuu_read_notification_ids", JSON.stringify(Array.from(merged)));
+            } catch {}
+            return merged;
+          });
         }
-      } catch {}
-    };
+      }
+    } catch {}
+  };
+
+  useEffect(() => {
     fetchNotifs();
+    const interval = setInterval(fetchNotifs, 20000); // 20s live poll
+    return () => clearInterval(interval);
   }, []);
+
+  const markAsRead = async (notifId) => {
+    setReadNotifIds(prev => {
+      const next = new Set(prev);
+      next.add(notifId);
+      try {
+        localStorage.setItem("fsuu_read_notification_ids", JSON.stringify(Array.from(next)));
+      } catch {}
+      return next;
+    });
+    try {
+      await api.post("/admin/notifications/mark-as-read", { notification_id: notifId });
+    } catch {}
+  };
+
+  const markAllAsRead = async () => {
+    const allIds = new Set(notifications.map(n => n.id));
+    setReadNotifIds(allIds);
+    try {
+      localStorage.setItem("fsuu_read_notification_ids", JSON.stringify(Array.from(allIds)));
+    } catch {}
+    try {
+      await api.post("/admin/notifications/mark-all-read", { notification_ids: Array.from(allIds) });
+    } catch {}
+  };
+
+  const handleNotificationClick = async (n) => {
+    await markAsRead(n.id);
+    setShowNotifDropdown(false);
+    if (n.url) {
+      navigate(n.url, { state: { selectedId: n.target_id, targetType: n.target_type, trk: n.ref } });
+    }
+  };
 
   // Restrict Notifications strictly by assigned admin office
   const filteredNotifications = notifications.filter(n => {
@@ -117,6 +157,15 @@ export default function AdminLayout() {
     }
     return (n.office || "").toLowerCase().includes("main") || !(n.office || "").toLowerCase().includes("morelos");
   });
+
+  // Badge count weights towards UNREAD High + Medium priority notifications
+  const unreadActionableNotifs = filteredNotifications.filter(n => 
+    !readNotifIds.has(n.id) && (n.priority === 'high' || n.priority === 'medium' || n.priority === 'overdue' || n.type === 'pending' || n.type === 'new' || n.type === 'equipment_damaged')
+  );
+  const actionBadgeCount = unreadActionableNotifs.length;
+
+  const needsActionNotifs = filteredNotifications.filter(n => n.priority === 'high' || n.type === 'overdue' || n.type === 'pending' || n.type === 'equipment_damaged' || n.type === 'stock_alert');
+  const updatesNotifs = filteredNotifications.filter(n => n.priority === 'medium' || n.priority === 'low' || (!needsActionNotifs.some(a => a.id === n.id)));
 
   const officeFilterName = isSuperAdmin ? "All Offices" : (adminOffice.includes("Morelos") ? "FSUU Morelos" : "FSUU Main");
   const officeName = user?.office?.name || (isSuperAdmin ? "Global Scope" : adminOffice);
@@ -145,10 +194,10 @@ export default function AdminLayout() {
   return (
     <div className="min-h-screen bg-[#f8fafc] flex font-sans antialiased text-slate-900">
 
-      {/* ── Sidebar ── */}
+      {/* ── Sidebar (Navy #0B1F3A) ── */}
       <aside
         className={`
-          fixed inset-y-0 left-0 z-40 flex flex-col bg-[#0b132b] text-white transition-all duration-300 ease-in-out border-r border-slate-800/50
+          fixed inset-y-0 left-0 z-40 flex flex-col bg-[#0B1F3A] text-white transition-all duration-300 ease-in-out border-r border-slate-800/50
           ${sidebarOpen ? "w-64" : "w-[76px]"}
           ${mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
         `}
@@ -220,14 +269,14 @@ export default function AdminLayout() {
         </button>
 
         {/* User Card */}
-        <div className={`border-t border-slate-800/60 p-3 bg-[#080d1e] ${!sidebarOpen && "flex justify-center"}`}>
+        <div className={`border-t border-slate-800/60 p-3 bg-[#07162b] ${!sidebarOpen && "flex justify-center"}`}>
           {sidebarOpen ? (
             <div className="space-y-2">
               <div
                 onClick={() => setUserMenuOpen(v => !v)}
                 className="flex items-center gap-3 p-2 rounded-xl hover:bg-slate-800/60 transition-all cursor-pointer"
               >
-                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0 shadow-xs overflow-hidden">
+                <div className="w-9 h-9 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0 shadow-xs overflow-hidden">
                   {adminAvatar ? (
                     <img src={adminAvatar} alt={adminName} className="w-full h-full object-cover" />
                   ) : (
@@ -297,56 +346,118 @@ export default function AdminLayout() {
             </div>
 
             <div className="flex items-center gap-3">
-              {/* Notification Bell Dropdown (Apple iOS Design System) */}
+              {/* Notification Bell Dropdown */}
               <div className="relative">
                 <button
                   onClick={() => setShowNotifDropdown(v => !v)}
-                  className="relative p-2.5 rounded-full border border-slate-200/80 bg-white/90 backdrop-blur-md text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-all cursor-pointer shadow-2xs active:scale-95 flex items-center justify-center"
+                  className="relative p-2.5 rounded-full border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-all cursor-pointer shadow-2xs active:scale-95 flex items-center justify-center"
                   title="Office Restricted Notifications"
                 >
                   <Bell size={18} />
-                  {filteredNotifications.length > 0 && (
-                    <span className="absolute -top-1 -right-1 min-w-[20px] h-[20px] px-1 bg-rose-500 text-white font-black text-[10px] rounded-full flex items-center justify-center border-2 border-white shadow-md animate-pulse">
-                      {filteredNotifications.length}
+                  {actionBadgeCount > 0 && (
+                    <span className="absolute -top-1 -right-1 min-w-[20px] h-[20px] px-1 bg-red-600 text-white font-black text-[10px] rounded-full flex items-center justify-center border-2 border-white shadow-md animate-pulse">
+                      {actionBadgeCount}
                     </span>
                   )}
                 </button>
 
                 {showNotifDropdown && (
-                  <div className="absolute right-0 mt-3 w-80 sm:w-96 bg-white/95 backdrop-blur-xl rounded-[28px] shadow-2xl border border-slate-200/90 z-50 overflow-hidden animate-in fade-in zoom-in-95 p-4 space-y-3">
+                  <div className="absolute right-0 mt-3 w-80 sm:w-96 bg-white rounded-2xl shadow-2xl border border-slate-200 z-50 overflow-hidden animate-in fade-in zoom-in-95 p-4 space-y-3">
                     <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                       <div>
                         <h4 className="font-extrabold text-xs text-slate-900 flex items-center gap-2 uppercase tracking-wider">
                           <Bell size={15} className="text-blue-600" />
                           Notifications ({officeFilterName})
                         </h4>
-                        <p className="text-[10.5px] text-slate-500 font-medium">Filtered by your assigned branch office</p>
+                        <p className="text-[10.5px] text-slate-500 font-medium">Categorized by priority &amp; office scope</p>
                       </div>
-                      <span className="text-[10px] font-black bg-blue-600 text-white px-2.5 py-1 rounded-full shadow-2xs">
-                        {filteredNotifications.length} New
-                      </span>
+                      <div className="flex items-center gap-1.5">
+                        {notifications.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={markAllAsRead}
+                            className="text-[10px] font-bold text-slate-500 hover:text-blue-600 hover:underline cursor-pointer"
+                          >
+                            Mark all read
+                          </button>
+                        )}
+                        <span className="text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-full">
+                          {actionBadgeCount} Unread
+                        </span>
+                      </div>
                     </div>
 
-                    <div className="max-h-80 overflow-y-auto space-y-2 text-xs pr-0.5">
-                      {filteredNotifications.length > 0 ? (
-                        filteredNotifications.map((n) => (
-                          <div key={n.id} className="p-3 bg-slate-50/80 hover:bg-slate-100/80 rounded-2xl border border-slate-200/60 transition-all space-y-1">
-                            <div className="flex items-center justify-between">
-                              <span className="font-extrabold text-slate-900 text-[11px] flex items-center gap-1.5">
-                                <span className={`w-2 h-2 rounded-full ${n.type === 'overdue' ? 'bg-rose-500' : 'bg-blue-600'}`}></span>
-                                {n.title}
-                              </span>
-                              <span className="text-[9.5px] font-bold text-slate-400">{n.time}</span>
-                            </div>
-                            <p className="text-slate-600 text-[11px] font-semibold leading-relaxed">{n.message}</p>
-                            <div className="flex items-center justify-between pt-1 text-[10px]">
-                              <span className="font-extrabold text-slate-500">🏢 {n.office}</span>
-                              <span className="font-mono text-blue-600 font-black">{n.ref}</span>
-                            </div>
-                          </div>
-                        ))
-                      ) : (
-                        <div className="p-6 text-center text-slate-400 text-xs font-semibold">
+                    <div className="max-h-80 overflow-y-auto space-y-3 text-xs pr-0.5">
+                      {/* Section 1: Needs Action (High Priority) */}
+                      {needsActionNotifs.length > 0 && (
+                        <div className="space-y-1.5">
+                          <span className="text-[10px] font-extrabold text-red-600 uppercase tracking-wider block">Needs Action</span>
+                          {needsActionNotifs.map((n) => {
+                            const isRead = readNotifIds.has(n.id);
+                            return (
+                              <div
+                                key={n.id}
+                                onClick={() => handleNotificationClick(n)}
+                                className={`p-3 rounded-xl border transition-all space-y-1 cursor-pointer ${
+                                  isRead
+                                    ? "bg-slate-50/50 hover:bg-slate-100/70 border-slate-200/60 opacity-75"
+                                    : "bg-red-50/50 hover:bg-red-50/80 border-red-200 shadow-2xs"
+                                }`}
+                              >
+                                <div className="flex items-center justify-between">
+                                  <span className={`font-bold text-[11px] flex items-center gap-1.5 ${isRead ? "text-slate-700" : "text-red-900"}`}>
+                                    <span className={`w-2 h-2 rounded-full ${isRead ? "bg-slate-300" : "bg-red-600"}`}></span>
+                                    {n.title}
+                                  </span>
+                                  <span className="text-[9.5px] font-medium text-slate-400">{n.time}</span>
+                                </div>
+                                <p className="text-slate-700 text-[11px] font-medium leading-relaxed">{n.message}</p>
+                                <div className="flex items-center justify-between pt-1 text-[10px]">
+                                  <span className="font-medium text-slate-500">🏢 {n.office}</span>
+                                  <span className="font-mono text-blue-600 font-bold hover:underline">{n.ref} →</span>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      {/* Section 2: Updates (Medium & Low Priority) */}
+                      {updatesNotifs.length > 0 && (
+                        <div className="space-y-1.5">
+                          <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider block">Updates</span>
+                          {updatesNotifs.map((n) => {
+                            const isRead = readNotifIds.has(n.id);
+                            return (
+                              <div
+                                key={n.id}
+                                onClick={() => handleNotificationClick(n)}
+                                className={`p-3 rounded-xl border transition-all space-y-1 cursor-pointer ${
+                                  isRead
+                                    ? "bg-slate-50/50 hover:bg-slate-100/70 border-slate-200/60 opacity-75"
+                                    : "bg-slate-50 hover:bg-slate-100 border-slate-200/80 shadow-2xs"
+                                }`}
+                              >
+                                <div className="flex items-center justify-between">
+                                  <span className={`font-bold text-[11px] flex items-center gap-1.5 ${isRead ? "text-slate-600" : "text-slate-800"}`}>
+                                    <span className={`w-2 h-2 rounded-full ${isRead ? "bg-slate-300" : (n.priority === 'medium' ? 'bg-green-600' : 'bg-slate-400')}`}></span>
+                                    {n.title}
+                                  </span>
+                                  <span className="text-[9.5px] font-medium text-slate-400">{n.time}</span>
+                                </div>
+                                <p className="text-slate-600 text-[11px] font-medium leading-relaxed">{n.message}</p>
+                                <div className="flex items-center justify-between pt-1 text-[10px]">
+                                  <span className="font-medium text-slate-500">🏢 {n.office}</span>
+                                  <span className="font-mono text-blue-600 font-bold hover:underline">{n.ref} →</span>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      {filteredNotifications.length === 0 && (
+                        <div className="p-6 text-center text-slate-400 text-xs font-medium">
                           No active notifications for {officeFilterName}
                         </div>
                       )}
@@ -355,7 +466,7 @@ export default function AdminLayout() {
                     <div className="pt-2 border-t border-slate-100 text-center">
                       <button
                         onClick={() => setShowNotifDropdown(false)}
-                        className="w-full py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-extrabold transition-all cursor-pointer active:scale-95"
+                        className="w-full py-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-bold transition-all cursor-pointer"
                       >
                         Close Panel
                       </button>

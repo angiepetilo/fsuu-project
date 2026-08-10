@@ -32,10 +32,12 @@ class EquipmentBorrow extends Model
         'time_start',
         'time_end',
         'school_id',
+        'assigned_units',
     ];
 
     protected $casts = [
-        'date_of_usage' => 'date',
+        'date_of_usage'  => 'date',
+        'assigned_units' => 'array',
     ];
 
     public function trackingNumber(): BelongsTo

@@ -33,12 +33,11 @@ class AvrEquipmentBorrowingController extends Controller
                 ->orWhereNull('tracking_number_id');
             })
             ->when(!$user->isSuperAdmin(), function ($query) use ($user) {
-                if ($user->office_id) {
-                    $query->where(function ($q) use ($user) {
-                        $q->whereHas('items.equipmentType', fn ($sub) => $sub->where('office_id', $user->office_id))
-                          ->orWhereDoesntHave('items.equipmentType');
-                    });
-                }
+                $officeId = $user->office_id ?? 1;
+                $query->where(function ($q) use ($officeId) {
+                    $q->whereHas('items.equipmentType', fn ($sub) => $sub->where('office_id', $officeId)->orWhereNull('office_id'))
+                      ->orWhereDoesntHave('items.equipmentType');
+                });
             })
             ->latest()
             ->paginate(25);
@@ -178,23 +177,36 @@ class AvrEquipmentBorrowingController extends Controller
 
     public function resendEmail(\Illuminate\Http\Request $request, int $id): JsonResponse
     {
-        $borrowing = \App\Models\EquipmentBorrowing::with('items')->find($id);
-        if (!$borrowing) {
+        $borrow = EquipmentBorrowing::with('items', 'trackingNumber')->find($id);
+        if (!$borrow) {
             return response()->json(['message' => 'Equipment borrowing record not found'], 404);
         }
 
-        $status = strtolower($borrowing->status ?? $borrowing->trackingNumber?->status ?? 'pending');
+        $status = strtolower($borrow->status ?? $borrow->trackingNumber?->status ?? 'pending');
 
         try {
             if ($status === 'pending') {
-                \App\Jobs\SendBookingConfirmationJob::dispatch('equipment', $borrowing);
+                \App\Jobs\SendBookingConfirmationJob::dispatch('equipment', $borrow);
             } else {
-                \App\Jobs\SendBookingStatusUpdateJob::dispatch('equipment', $borrowing, $status, 'Resent notification by admin');
+                \App\Jobs\SendBookingStatusUpdateJob::dispatch('equipment', $borrow, $status, 'Resent notification by admin');
             }
-            $recipient = $borrowing->borrower_email ?? $borrowing->requestor_email ?? $borrowing->email_address ?? 'Requestor';
+            $recipient = $borrow->email_address ?? $borrow->requestor_email ?? 'Requestor';
             return response()->json(['message' => '✅ Email delivery resent to ' . $recipient]);
         } catch (\Throwable $e) {
             return response()->json(['message' => 'Failed to resend email: ' . $e->getMessage()], 500);
         }
+    }
+
+    public function assignUnits(\Illuminate\Http\Request $request, EquipmentBorrowing $equipmentBorrowing): JsonResponse
+    {
+        $validated = $request->validate([
+            'assigned_units' => 'nullable',
+        ]);
+
+        $equipmentBorrowing->update([
+            'assigned_units' => $validated['assigned_units'] ?? null,
+        ]);
+
+        return response()->json($equipmentBorrowing);
     }
 }

@@ -65,6 +65,7 @@ class AdminEquipmentUnitController extends Controller
             'purchased_at'      => 'nullable|date',
             'eq_lifespan'       => 'nullable|integer|min:1',
             'status'            => 'nullable|string|max:50',
+            'condition'         => 'nullable|string|max:100',
             'description'       => 'nullable|string',
         ]);
 

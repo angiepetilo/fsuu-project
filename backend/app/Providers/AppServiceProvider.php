@@ -24,7 +24,7 @@ class AppServiceProvider extends ServiceProvider
     {
         Gate::policy(AvrVenueBooking::class, AvrVenueBookingPolicy::class);
         Gate::policy(EquipmentBorrowing::class, AvrEquipmentBorrowingPolicy::class);
-        Gate::policy(\App\Models\ScoStudioReservation::class, \App\Policies\ScoStudioReservation\ScoStudioReservationPolicy::class);
+
     }
 
 }

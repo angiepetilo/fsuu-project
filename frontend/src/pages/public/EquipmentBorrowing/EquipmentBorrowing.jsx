@@ -23,8 +23,21 @@ export default function EquipmentBorrowing() {
   const [activeStep, setActiveStep] = useState(1);
 
   const [completedSteps, setCompletedSteps] = useState([]);
-  const [catalog, setCatalog] = useState([]);
-  const [catalogLoading, setCatalogLoading] = useState(true);
+  const [catalog, setCatalog] = useState(() => {
+    try {
+      const cached = localStorage.getItem("fsuu_cache_public_equipment");
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [catalogLoading, setCatalogLoading] = useState(() => {
+    try {
+      return !localStorage.getItem("fsuu_cache_public_equipment");
+    } catch {
+      return true;
+    }
+  });
 
   // Selection States
   const [identity, setIdentity] = useState("");
@@ -65,7 +78,11 @@ export default function EquipmentBorrowing() {
 
   useEffect(() => {
     api.get('/public/equipment-types')
-      .then(res => setCatalog(res.data ?? []))
+      .then(res => {
+        const data = res.data ?? [];
+        setCatalog(data);
+        try { localStorage.setItem("fsuu_cache_public_equipment", JSON.stringify(data)); } catch {}
+      })
       .catch(() => setCatalog([]))
       .finally(() => setCatalogLoading(false));
   }, []);

@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\Public\TrackBookingRequest;
 use App\Models\AvrVenueBooking;
 use App\Models\EquipmentBorrowing;
-use App\Models\ScoStudioReservation;
+
 use Illuminate\Http\JsonResponse;
 
 class PublicTrackingController extends Controller
@@ -34,8 +34,7 @@ class PublicTrackingController extends Controller
             }
         } elseif (str_starts_with($referenceCode, 'EQ-')) {
             $booking = EquipmentBorrowing::with('items.equipmentType')->where('reference_code', $referenceCode)->first();
-        } elseif (str_starts_with($referenceCode, 'ST-')) {
-            $booking = ScoStudioReservation::with('venue')->where('reference_code', $referenceCode)->first();
+
         }
 
         // Fallback: search across all models if not matched yet

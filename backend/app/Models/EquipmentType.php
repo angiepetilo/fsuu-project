@@ -37,4 +37,9 @@ class EquipmentType extends Model
     {
         return $this->hasMany(EquipmentUnit::class);
     }
+
+    public function units(): HasMany
+    {
+        return $this->hasMany(EquipmentUnit::class);
+    }
 }

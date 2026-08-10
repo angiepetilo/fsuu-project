@@ -151,8 +151,10 @@ export default function TrackBooking() {
     return 1;
   };
 
+  const activeStatus = booking?.status || booking?.tracking_number?.status || "pending";
+
   const currentStep = booking
-    ? (isVenue ? getVenueStepIndex(booking.status) : getEquipmentStepIndex(booking.status))
+    ? (isVenue ? getVenueStepIndex(activeStatus) : getEquipmentStepIndex(activeStatus))
     : 1;
 
   const venueSteps = [
@@ -238,7 +240,7 @@ export default function TrackBooking() {
               </div>
 
               <span className="px-3.5 py-1 rounded-full text-xs font-extrabold capitalize bg-blue-50 text-blue-800 border border-blue-200">
-                {booking.status || "Pending"}
+                {activeStatus}
               </span>
             </div>
 

@@ -9,6 +9,7 @@ export default function Step4Verification({
   contactNumber,
   selectedVenue,
   selectedDate,
+  selectedEndDate,
   timeStart,
   timeEnd,
   purpose,
@@ -189,7 +190,9 @@ export default function Step4Verification({
             </div>
             <div className="flex justify-between border-b border-slate-100 pb-2">
               <span className="text-slate-400 font-bold">Schedule</span>
-              <span className="font-semibold text-slate-800">{selectedDate} ({formatTime12(timeStart)} - {formatTime12(timeEnd)})</span>
+              <span className="font-semibold text-slate-800">
+                {selectedDate}{selectedEndDate && selectedEndDate !== selectedDate ? ` to ${selectedEndDate}` : ""} ({formatTime12(timeStart)} - {formatTime12(timeEnd)})
+              </span>
             </div>
             <div className="flex justify-between">
               <span className="text-slate-400 font-bold">Purpose</span>

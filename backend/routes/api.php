@@ -39,7 +39,6 @@ use App\Http\Controllers\SysadNotificationController;
 use App\Http\Controllers\PublicListingController;
 use App\Http\Controllers\PublicAvrVenueBookingController;
 use App\Http\Controllers\PublicAvrEquipmentBorrowingController;
-use App\Http\Controllers\PublicScoStudioReservationController;
 use App\Http\Controllers\PublicTrackingController;
 use App\Http\Controllers\PublicOtpController;
 
@@ -102,11 +101,19 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // ── Admin: History Log (with type filter + soft-delete) ───────────────────
     Route::get('/admin/history-log',                        [AdminHistoryLogController::class, 'index']);
+    Route::post('/admin/history-log/undo',                 [AdminHistoryLogController::class, 'undo']);
+    Route::post('/admin/history-log/update-status',         [AdminHistoryLogController::class, 'updateStatus']);
     Route::delete('/admin/history-log/venue/{id}',      [AdminHistoryLogController::class, 'destroyVenue']);
     Route::delete('/admin/history-log/equipment/{id}',  [AdminHistoryLogController::class, 'destroyEquipment']);
 
-    // ── Admin: Notifications (office-scoped) ──────────────────────────────────
-    Route::get('/admin/notifications', [AdminNotificationController::class, 'index']);
+    // ── Admin & SysAd: Notifications (office-scoped & global) ───────────────────
+    Route::get('/admin/notifications',                 [AdminNotificationController::class, 'index']);
+    Route::post('/admin/notifications/mark-as-read',   [AdminNotificationController::class, 'markAsRead']);
+    Route::post('/admin/notifications/mark-all-read',  [AdminNotificationController::class, 'markAllRead']);
+
+    Route::get('/sysad/notifications',                 [SysadNotificationController::class, 'index']);
+    Route::post('/sysad/notifications/mark-as-read',   [SysadNotificationController::class, 'markAsRead']);
+    Route::post('/sysad/notifications/mark-all-read',  [SysadNotificationController::class, 'markAllRead']);
 
     // ── Admin: Departments ────────────────────────────────────────────────────
     Route::get('/admin/departments',         [DepartmentController::class, 'index']);
@@ -130,11 +137,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/avr-venue-bookings',                             [AvrVenueBookingController::class, 'store']);
     Route::post('/avr-venue-bookings/{avrVenueBooking}/approve',   [AvrVenueBookingController::class, 'approve']);
     Route::post('/avr-venue-bookings/{avrVenueBooking}/reject',    [AvrVenueBookingController::class, 'reject']);
-    Route::post('/avr-venue-bookings/{avrVenueBooking}/ongoing',   [AvrVenueBookingController::class, 'ongoing']);
-    Route::post('/avr-venue-bookings/{avrVenueBooking}/complete',  [AvrVenueBookingController::class, 'complete']);
+    Route::post('/avr-venue-bookings/{avrVenueBooking}/ongoing',           [AvrVenueBookingController::class, 'ongoing']);
+    Route::post('/avr-venue-bookings/{avrVenueBooking}/post-inspection',   [AvrVenueBookingController::class, 'postInspection']);
+    Route::post('/avr-venue-bookings/{avrVenueBooking}/complete',          [AvrVenueBookingController::class, 'complete']);
     Route::post('/avr-venue-bookings/{avrVenueBooking}/undo',      [AvrVenueBookingController::class, 'undo']);
     Route::post('/avr-venue-bookings/{avrVenueBooking}/cancel',    [AvrVenueBookingController::class, 'cancel']);
     Route::post('/avr-venue-bookings/{id}/resend-email',           [AvrVenueBookingController::class, 'resendEmail']);
+    Route::put('/avr-venue-bookings/{avrVenueBooking}/assign-units', [AvrVenueBookingController::class, 'assignUnits']);
 
     // ── Equipment Borrowings ───────────────────────────────────────────────────
     Route::get('/avr-equipment-borrowings',                               [AvrEquipmentBorrowingController::class, 'index']);
@@ -147,11 +156,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/avr-equipment-borrowings/{equipmentBorrowing}/undo',    [AvrEquipmentBorrowingController::class, 'undo']);
     Route::post('/avr-equipment-borrowings/{equipmentBorrowing}/cancel',  [AvrEquipmentBorrowingController::class, 'cancel']);
     Route::post('/avr-equipment-borrowings/{id}/resend-email',            [AvrEquipmentBorrowingController::class, 'resendEmail']);
+    Route::put('/avr-equipment-borrowings/{equipmentBorrowing}/assign-units', [AvrEquipmentBorrowingController::class, 'assignUnits']);
 
     // ── Documents & Inspections ────────────────────────────────────────────────
     Route::post('/documents',                    [DocumentController::class, 'store']);
     Route::post('/documents/{document}/approve', [DocumentController::class, 'approve']);
     Route::post('/documents/{document}/reject',  [DocumentController::class, 'reject']);
+    Route::get('/inspections',                   [InspectionController::class, 'index']);
     Route::post('/inspections',                  [InspectionController::class, 'store']);
 
     // ── SysAd (global-scope notifications) ────────────────────────────────────
@@ -180,7 +191,6 @@ Route::prefix('public')->group(function () {
     // Form submissions
     Route::post('/avr-venue-bookings',       [PublicAvrVenueBookingController::class, 'store']);
     Route::post('/avr-equipment-borrowings', [PublicAvrEquipmentBorrowingController::class, 'store']);
-    Route::post('/sco-studio-reservations',  [PublicScoStudioReservationController::class, 'store']);
 
     // Tracking & OTP
     Route::post('/track',       [PublicTrackingController::class, 'track'])->middleware('throttle:10,1');

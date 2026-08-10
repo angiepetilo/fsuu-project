@@ -1,13 +1,60 @@
 import { useState, useEffect, useCallback } from "react";
-import { useOutletContext } from "react-router-dom";
+import { createPortal } from "react-dom";
+import { useOutletContext, useLocation } from "react-router-dom";
 import api from "@/lib/axios";
 import {
   History, RefreshCw, CheckCircle, Building2, PackageOpen, Search, Loader2,
-  Eye, Trash2, Pencil, CheckCircle2, X, AlertTriangle, ChevronLeft, ChevronRight
+  Eye, Trash2, Pencil, CheckCircle2, X, AlertTriangle, ChevronLeft, ChevronRight, RotateCcw, MoreVertical
 } from "lucide-react";
 import VenueBookingDetailModal from "./components/VenueBookingDetailModal";
 import EquipmentBorrowDetailModal from "./components/EquipmentBorrowDetailModal";
 import { PageLoader } from "@/components/ui/page-loader";
+
+function ActionMenuPopover({ buttonEl, isOpen, onClose, children }) {
+  const [coords, setCoords] = useState({ top: 0, left: 0 });
+
+  useEffect(() => {
+    if (isOpen && buttonEl) {
+      const rect = buttonEl.getBoundingClientRect();
+      const menuWidth = 135;
+      const menuHeight = 160;
+
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const openAbove = spaceBelow < menuHeight && rect.top > menuHeight;
+
+      const top = openAbove ? rect.top - menuHeight - 4 : rect.bottom + 4;
+      const left = Math.max(10, rect.right - menuWidth);
+
+      setCoords({ top, left });
+    }
+  }, [isOpen, buttonEl]);
+
+  if (!isOpen || !buttonEl) return null;
+
+  return createPortal(
+    <>
+      <div
+        className="fixed inset-0 z-[9998] cursor-default bg-transparent"
+        onClick={(e) => {
+          e.stopPropagation();
+          onClose();
+        }}
+      />
+      <div
+        style={{
+          position: "fixed",
+          top: `${coords.top}px`,
+          left: `${coords.left}px`,
+        }}
+        className="z-[9999] bg-white border border-slate-200 rounded-xl shadow-2xl p-1.5 w-34 space-y-0.5 text-xs font-bold animate-in zoom-in-95"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {children}
+      </div>
+    </>,
+    document.body
+  );
+}
 
 const formatDate = (rawDate) => {
   if (!rawDate) return "—";
@@ -20,30 +67,26 @@ const formatDate = (rawDate) => {
   }
 };
 
-const formatTimeRange = (start, end) => {
-  if (!start && !end) return "08:00 AM - 05:00 PM";
-  return `${start || "08:00 AM"} - ${end || "05:00 PM"}`;
+const formatTime = (timeStr) => {
+  if (!timeStr) return "08:00 AM";
+  if (timeStr.includes("AM") || timeStr.includes("PM")) return timeStr;
+  const parts = String(timeStr).split(":");
+  if (parts.length < 2) return timeStr;
+  let hours = parseInt(parts[0], 10);
+  const minutes = parts[1];
+  const ampm = hours >= 12 ? "PM" : "AM";
+  hours = hours % 12 || 12;
+  return `${hours}:${minutes} ${ampm}`;
 };
 
-function StatusBadge({ status }) {
-  const map = {
-    approved: "bg-emerald-100 text-emerald-700 border border-emerald-200",
-    completed: "bg-purple-100 text-purple-700 border border-purple-200",
-    rejected: "bg-rose-100 text-rose-700 border border-rose-200",
-    cancelled: "bg-slate-100 text-slate-600 border border-slate-200",
-    damaged: "bg-rose-100 text-rose-800 border border-rose-300 font-bold",
-    lost: "bg-red-900 text-white border border-red-950 font-black",
-    solved: "bg-emerald-600 text-white border border-emerald-700 font-black",
-  };
-  return (
-    <span className={`inline-flex px-2.5 py-0.5 rounded-full text-[11px] font-bold capitalize ${map[status] ?? "bg-slate-100 text-slate-600"}`}>
-      {status || "completed"}
-    </span>
-  );
-}
+const formatTimeRange = (start, end) => {
+  if (!start && !end) return "08:00 AM - 05:00 PM";
+  return `${formatTime(start)} - ${formatTime(end)}`;
+};
 
 export default function HistoryLog() {
   const context = useOutletContext();
+  const location = useLocation();
   const officeScope = context?.adminOffice || context?.selectedOffice || "All Offices";
 
   const [historyType, setHistoryType] = useState("venue"); // "venue" | "equipment"
@@ -52,10 +95,15 @@ export default function HistoryLog() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [feedback, setFeedback] = useState(null);
+  const [activeMenuId, setActiveMenuId] = useState(null);
+  const [activeMenuEl, setActiveMenuEl] = useState(null);
 
-  // View Details Modal State
+  // View Details Modal State & Inspection Record States
   const [selectedVenueModal, setSelectedVenueModal] = useState(null);
   const [selectedEquipModal, setSelectedEquipModal] = useState(null);
+  const [historyInspectionStatus, setHistoryInspectionStatus] = useState("clean");
+  const [historyViolationNotes, setHistoryViolationNotes] = useState("");
+  const [historyEvidencePhoto, setHistoryEvidencePhoto] = useState(null);
 
   // Edit Status / Solved Modal State
   const [editingRecord, setEditingRecord] = useState(null);
@@ -80,10 +128,21 @@ export default function HistoryLog() {
         savedSolved.includes(`equip_${item.id}`) ? { ...item, status: "solved" } : item
       );
 
+      if (mappedVb.length > 0) localStorage.setItem("fsuu_history_venue_bookings", JSON.stringify(mappedVb));
+      if (mappedEb.length > 0) localStorage.setItem("fsuu_history_equipment_borrowings", JSON.stringify(mappedEb));
+
       setVenueHistory(mappedVb);
       setEquipmentHistory(mappedEb);
     } catch {
-      // Fallback
+      try {
+        const localVb = JSON.parse(localStorage.getItem("fsuu_history_venue_bookings") || "[]");
+        const localEb = JSON.parse(localStorage.getItem("fsuu_history_equipment_borrowings") || "[]");
+        setVenueHistory(localVb);
+        setEquipmentHistory(localEb);
+      } catch {
+        setVenueHistory([]);
+        setEquipmentHistory([]);
+      }
     } finally {
       setLoading(false);
     }
@@ -92,6 +151,51 @@ export default function HistoryLog() {
   useEffect(() => {
     fetchHistory();
   }, [fetchHistory]);
+
+  // Deep-link from notification navigation
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const targetId = params.get("id") || location.state?.selectedId;
+    const targetType = params.get("type") || location.state?.targetType;
+    const targetRef = params.get("trk") || params.get("ref");
+
+    if (targetType === "equipment" || targetType === "equipment_borrow") {
+      setHistoryType("equipment");
+      if ((targetId || targetRef) && equipmentHistory.length > 0) {
+        const match = equipmentHistory.find(e => 
+          (targetId && String(e.id) === String(targetId)) ||
+          (targetRef && (e.reference_code === targetRef || e.tracking_number?.reference_code === targetRef))
+        );
+        if (match) setSelectedEquipModal(match);
+      }
+    } else if (targetType === "venue" || targetType === "venue_booking") {
+      setHistoryType("venue");
+      if ((targetId || targetRef) && venueHistory.length > 0) {
+        const match = venueHistory.find(v => 
+          (targetId && String(v.id) === String(targetId)) ||
+          (targetRef && (v.reference_code === targetRef || v.tracking_number?.reference_code === targetRef))
+        );
+        if (match) setSelectedVenueModal(match);
+      }
+    }
+  }, [location.search, location.state, venueHistory, equipmentHistory]);
+
+  const handleUndoHistory = async (id, refCode, type) => {
+    if (confirm(`Restore record "${refCode}" back to active ON-GOING status?`)) {
+      try {
+        await api.post(`/admin/history-log/undo`, { id, type });
+        if (type === "venue") {
+          setVenueHistory((prev) => prev.filter((v) => v.id !== id));
+        } else {
+          setEquipmentHistory((prev) => prev.filter((e) => e.id !== id));
+        }
+        setFeedback(`Record "${refCode}" restored back to ON-GOING status.`);
+        setTimeout(() => setFeedback(null), 3000);
+      } catch {
+        alert("Failed to restore history record.");
+      }
+    }
+  };
 
   const handleDeleteHistory = async (id, refCode, type) => {
     if (confirm(`Archive history record "${refCode}"? Soft-delete will apply.`)) {
@@ -103,7 +207,7 @@ export default function HistoryLog() {
           await api.delete(`/admin/history-log/equipment/${id}`);
           setEquipmentHistory((prev) => prev.filter((e) => e.id !== id));
         }
-        setFeedback(`✅ Record "${refCode}" archived (soft-deleted).`);
+        setFeedback(`Record "${refCode}" archived.`);
         setTimeout(() => setFeedback(null), 3000);
       } catch {
         alert("Failed to soft-delete history record.");
@@ -125,7 +229,6 @@ export default function HistoryLog() {
     const isVenue = editingRecord.recordType === "venue";
     const recordKey = `${isVenue ? "venue" : "equip"}_${editingRecord.id}`;
 
-    // Mark as solved if selected
     if (editStatus === "solved") {
       const savedSolved = JSON.parse(localStorage.getItem("fsuu_solved_history_ids") || "[]");
       if (!savedSolved.includes(recordKey)) {
@@ -160,19 +263,19 @@ export default function HistoryLog() {
     } finally {
       setEditLoading(false);
       setEditingRecord(null);
-      setFeedback(`✅ Status for "${editingRecord.reference_code || editingRecord.id}" updated to ${editStatus.toUpperCase()}!`);
+      setFeedback(`Status for "${editingRecord.reference_code || editingRecord.id}" updated to ${editStatus.toUpperCase()}!`);
       setTimeout(() => setFeedback(null), 3000);
     }
   };
 
-  // Search filtering — only show records marked as complete / solved
+  // Search filtering — ONLY show completed, solved, done, damaged, or violation history records
   const filteredVenues = venueHistory.filter((b) => {
     const q = searchQuery.toLowerCase();
     const ref = (b.reference_code || `TRK-AVR${b.id}`).toLowerCase();
     const name = (b.filer_name || b.requestor || "").toLowerCase();
     const status = (b.status || b.tracking_number?.status || "").toLowerCase();
-    const isCompleted = status === "completed" || status === "solved" || status === "done";
-    return isCompleted && (!searchQuery || ref.includes(q) || name.includes(q));
+    const isCompletedOrDamaged = status === "completed" || status === "solved" || status === "done" || status === "damaged" || status === "violation";
+    return isCompletedOrDamaged && (!searchQuery || ref.includes(q) || name.includes(q));
   });
 
   const filteredEquipment = equipmentHistory.filter((b) => {
@@ -180,8 +283,8 @@ export default function HistoryLog() {
     const ref = (b.reference_code || `EQUIP-REQ-${b.id}`).toLowerCase();
     const name = (b.filer_name || b.requestor || "").toLowerCase();
     const status = (b.status || b.tracking_number?.status || "").toLowerCase();
-    const isCompleted = status === "completed" || status === "solved" || status === "done";
-    return isCompleted && (!searchQuery || ref.includes(q) || name.includes(q));
+    const isCompletedOrDamaged = status === "completed" || status === "solved" || status === "done" || status === "damaged" || status === "lost" || status === "violation";
+    return isCompletedOrDamaged && (!searchQuery || ref.includes(q) || name.includes(q));
   });
 
   const [currentPage, setCurrentPage] = useState(1);
@@ -205,19 +308,19 @@ export default function HistoryLog() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-            <History className="text-blue-600" size={24} />
-            Institutional Audit History Log
+          <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+            History Log
           </h1>
-          <p className="text-xs text-slate-500 font-medium mt-0.5">
+          <p className="text-xs text-slate-500 font-semibold mt-0.5">
             Complete historical records of completed venue reservations and equipment loan activities.
           </p>
         </div>
 
         <button
+          type="button"
           onClick={fetchHistory}
           disabled={loading}
-          className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-50 cursor-pointer disabled:opacity-60 shadow-xs"
+          className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 rounded-lg text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-60 shadow-xs"
         >
           <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
           <span>Refresh</span>
@@ -225,20 +328,20 @@ export default function HistoryLog() {
       </div>
 
       {feedback && (
-        <div className="fixed bottom-6 right-6 z-[3000] bg-slate-900 text-white text-xs font-extrabold px-5 py-3.5 rounded-2xl flex items-center gap-3 shadow-2xl animate-in slide-in-from-bottom-5 duration-300 border border-slate-700 max-w-md">
-          <CheckCircle size={18} className="text-emerald-400 shrink-0" />
+        <div className="fixed bottom-6 right-6 z-[3000] bg-white text-slate-900 text-xs font-bold px-5 py-3 rounded-xl flex items-center gap-2 shadow-2xl border border-slate-300 max-w-md">
+          <CheckCircle size={16} className="text-emerald-600 shrink-0" />
           <span>{feedback}</span>
         </div>
       )}
 
       {/* Category Dropdown & Search Bar */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs">
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
         <div className="flex items-center gap-3">
-          <label className="text-xs font-bold text-slate-700">Select History Category Log:</label>
+          <label className="text-xs font-bold text-slate-700">Category Log :</label>
           <select
             value={historyType}
             onChange={(e) => setHistoryType(e.target.value)}
-            className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 text-xs focus:outline-none focus:border-blue-600"
+            className="p-2 bg-white border border-slate-200 rounded-lg font-bold text-slate-900 text-xs focus:outline-none focus:border-slate-400 cursor-pointer"
           >
             <option value="venue">Venue Bookings History</option>
             <option value="equipment">Equipment Borrowings History</option>
@@ -252,20 +355,20 @@ export default function HistoryLog() {
             placeholder="Search ref # or requestor..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:border-blue-600"
+            className="w-full pl-9 pr-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-medium focus:outline-none focus:border-slate-400"
           />
         </div>
       </div>
 
       {/* Venue Bookings Table */}
       {historyType === "venue" && (
-        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-slate-50/80 border-b border-slate-100">
-                  {["#", "Track Number", "Requestor", "Department", "Venue", "Date", "Time", "Status", "Action"].map((h) => (
-                    <th key={h} className="px-4 py-3.5 text-left text-[11px] font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap">
+                <tr className="bg-white border-b border-slate-200">
+                  {["#", "Track Number", "Requestor", "Department", "Venue", "Date", "Time", "Outcome", "Action"].map((h) => (
+                    <th key={h} className="px-4 py-3 text-left text-[11px] font-mono font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap">
                       {h}
                     </th>
                   ))}
@@ -280,7 +383,7 @@ export default function HistoryLog() {
                   </tr>
                 ) : filteredVenues.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="text-center py-12 text-slate-400">
+                    <td colSpan={9} className="text-center py-12 text-slate-400 font-medium">
                       No venue booking history records found.
                     </td>
                   </tr>
@@ -293,41 +396,80 @@ export default function HistoryLog() {
                     const usageDate = formatDate(b.date_of_usage || b.date);
                     const timeRange = formatTimeRange(b.time_start, b.time_end);
                     const displayIndex = startIndex + idx + 1;
+                    const isBreach = (b.status || "").toLowerCase() === "damaged" || Boolean(b.has_damage) || Boolean(b.violation);
 
                     return (
-                      <tr key={b.id || idx} className="hover:bg-slate-50/60 transition-colors">
-                        <td className="px-4 py-3.5 font-bold text-slate-400">{displayIndex}</td>
-                        <td className="px-4 py-3.5 font-mono text-xs font-bold text-blue-600 whitespace-nowrap">{refCode}</td>
-                        <td className="px-4 py-3.5 font-extrabold text-slate-900">{requestor}</td>
-                        <td className="px-4 py-3.5 text-slate-700">{department}</td>
-                        <td className="px-4 py-3.5 font-bold text-blue-700">{venueName}</td>
-                        <td className="px-4 py-3.5 text-slate-600 whitespace-nowrap">{usageDate}</td>
-                        <td className="px-4 py-3.5 text-slate-600 whitespace-nowrap">{timeRange}</td>
-                        <td className="px-4 py-3.5">
-                          <StatusBadge status={b.status || "completed"} />
+                      <tr key={`history-log-${historyType}-${b.id || idx}-${idx}`} className="hover:bg-slate-50/60 transition-colors">
+                        <td className="px-4 py-3 text-slate-400 font-mono">{displayIndex}</td>
+                        <td className="px-4 py-3 font-mono text-xs font-bold text-slate-900 whitespace-nowrap">{refCode}</td>
+                        <td className="px-4 py-3 font-bold text-slate-900">{requestor}</td>
+                        <td className="px-4 py-3 text-slate-700">{department}</td>
+                        <td className="px-4 py-3 font-bold text-slate-900 font-mono">{venueName}</td>
+                        <td className="px-4 py-3 text-slate-600 font-mono whitespace-nowrap">{usageDate}</td>
+                        <td className="px-4 py-3 text-slate-600 font-mono whitespace-nowrap">{timeRange}</td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          {isBreach ? (
+                            <span className="font-mono text-xs font-bold text-rose-600 uppercase">
+                              ● Damaged
+                            </span>
+                          ) : (
+                            <span className="font-mono text-xs font-bold text-emerald-600 uppercase">
+                              ● Good
+                            </span>
+                          )}
                         </td>
-                        <td className="px-4 py-3.5 flex items-center gap-1.5">
+                        <td className="px-4 py-3 relative">
                           <button
-                            onClick={() => setSelectedVenueModal(b)}
-                            className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 cursor-pointer"
-                            title="View Exact Booking Details"
+                            type="button"
+                            onClick={(e) => {
+                              if (activeMenuId === `v-${b.id}`) {
+                                setActiveMenuId(null);
+                                setActiveMenuEl(null);
+                              } else {
+                                setActiveMenuId(`v-${b.id}`);
+                                setActiveMenuEl(e.currentTarget);
+                              }
+                            }}
+                            className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 cursor-pointer shadow-2xs"
+                            title="Actions"
                           >
-                            <Eye size={14} />
+                            <MoreVertical size={14} />
                           </button>
-                          <button
-                            onClick={() => handleOpenEdit(b, "venue")}
-                            className="p-1.5 rounded-lg border border-blue-200 text-blue-600 hover:bg-blue-50 cursor-pointer"
-                            title="Edit Status / Mark Solved"
+
+                          <ActionMenuPopover
+                            isOpen={activeMenuId === `v-${b.id}`}
+                            buttonEl={activeMenuEl}
+                            onClose={() => { setActiveMenuId(null); setActiveMenuEl(null); }}
                           >
-                            <Pencil size={14} />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteHistory(b.id, refCode, "venue")}
-                            className="p-1.5 rounded-lg border border-rose-200 text-rose-600 hover:bg-rose-50 cursor-pointer"
-                            title="Soft Delete History Record"
-                          >
-                            <Trash2 size={14} />
-                          </button>
+                            <button
+                              type="button"
+                              onClick={() => { setSelectedVenueModal(b); setActiveMenuId(null); setActiveMenuEl(null); }}
+                              className="w-full text-left px-3 py-1.5 rounded-lg hover:bg-slate-100 text-slate-700 flex items-center gap-2 cursor-pointer font-bold"
+                            >
+                              <Eye size={13} className="text-slate-600" /> View
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => { handleOpenEdit(b, historyType); setActiveMenuId(null); setActiveMenuEl(null); }}
+                              className="w-full text-left px-3 py-1.5 rounded-lg hover:bg-slate-100 text-slate-700 flex items-center gap-2 cursor-pointer font-bold"
+                            >
+                              <Pencil size={13} className="text-slate-600" /> Edit
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => { handleUndoHistory(b.id, refCode, historyType); setActiveMenuId(null); setActiveMenuEl(null); }}
+                              className="w-full text-left px-3 py-1.5 rounded-lg hover:bg-slate-100 text-slate-700 flex items-center gap-2 cursor-pointer font-bold"
+                            >
+                              <RotateCcw size={13} className="text-slate-600" /> Undo
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => { handleDeleteHistory(b.id, refCode, historyType); setActiveMenuId(null); }}
+                              className="w-full text-left px-3 py-1.5 rounded-lg hover:bg-rose-50 text-rose-600 flex items-center gap-2 cursor-pointer font-bold"
+                            >
+                              <Trash2 size={13} /> Delete
+                            </button>
+                          </ActionMenuPopover>
                         </td>
                       </tr>
                     );
@@ -339,33 +481,33 @@ export default function HistoryLog() {
 
           {/* Pagination Footer */}
           {filteredVenues.length > 0 && (
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-6 py-4 bg-slate-50/80 border-t border-slate-100 text-xs font-semibold text-slate-600">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-6 py-3.5 bg-white border-t border-slate-200 text-xs font-semibold text-slate-600">
               <div>
-                Showing <span className="font-extrabold text-slate-900">{startIndex + 1}</span> to{" "}
-                <span className="font-extrabold text-slate-900">{Math.min(startIndex + ITEMS_PER_PAGE, filteredVenues.length)}</span> of{" "}
-                <span className="font-extrabold text-slate-900">{filteredVenues.length}</span> venue history records
+                Showing <span className="font-bold text-slate-900">{startIndex + 1}</span> to{" "}
+                <span className="font-bold text-slate-900">{Math.min(startIndex + ITEMS_PER_PAGE, filteredVenues.length)}</span> of{" "}
+                <span className="font-bold text-slate-900">{filteredVenues.length}</span> records
               </div>
 
               <div className="flex items-center gap-2">
-                <span className="text-slate-500 font-bold mr-2">
+                <span className="text-slate-500 font-mono mr-2">
                   Page {currentPage} of {totalPages}
                 </span>
                 <button
                   type="button"
                   disabled={currentPage === 1}
                   onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                  className="flex items-center gap-1 px-3.5 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all shadow-xs font-bold text-xs"
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all shadow-2xs font-bold text-xs"
                 >
-                  <ChevronLeft size={14} /> Previous
+                  <ChevronLeft size={13} /> Prev
                 </button>
 
                 <button
                   type="button"
                   disabled={currentPage >= totalPages}
                   onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                  className="flex items-center gap-1 px-3.5 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all shadow-xs font-bold text-xs"
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all shadow-2xs font-bold text-xs"
                 >
-                  Next <ChevronRight size={14} />
+                  Next <ChevronRight size={13} />
                 </button>
               </div>
             </div>
@@ -375,13 +517,13 @@ export default function HistoryLog() {
 
       {/* Equipment Borrowings Table */}
       {historyType === "equipment" && (
-        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-slate-50/80 border-b border-slate-100">
-                  {["#", "Track Number", "Requestor", "Department", "Equipment", "Quantity", "Date", "Time", "Status", "Action"].map((h) => (
-                    <th key={h} className="px-4 py-3.5 text-left text-[11px] font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap">
+                <tr className="bg-white border-b border-slate-200">
+                  {["#", "Track Number", "Requestor", "Department", "Equipment", "Quantity", "Date", "Time", "Outcome", "Action"].map((h) => (
+                    <th key={h} className="px-4 py-3 text-left text-[11px] font-mono font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap">
                       {h}
                     </th>
                   ))}
@@ -396,7 +538,7 @@ export default function HistoryLog() {
                   </tr>
                 ) : filteredEquipment.length === 0 ? (
                   <tr>
-                    <td colSpan={10} className="text-center py-12 text-slate-400">
+                    <td colSpan={10} className="text-center py-12 text-slate-400 font-medium">
                       No equipment borrowing history records found.
                     </td>
                   </tr>
@@ -410,42 +552,81 @@ export default function HistoryLog() {
                     const usageDate = formatDate(b.date_of_usage || b.date);
                     const timeRange = formatTimeRange(b.time_start, b.time_end);
                     const displayIndex = startIndex + idx + 1;
+                    const isBreach = (b.status || "").toLowerCase() === "damaged" || (b.status || "").toLowerCase() === "lost" || Boolean(b.has_damage) || Boolean(b.violation);
 
                     return (
                       <tr key={b.id || idx} className="hover:bg-slate-50/60 transition-colors">
-                        <td className="px-4 py-3.5 font-bold text-slate-400">{displayIndex}</td>
-                        <td className="px-4 py-3.5 font-mono text-xs font-bold text-purple-600 whitespace-nowrap">{refCode}</td>
-                        <td className="px-4 py-3.5 font-extrabold text-slate-900">{requestor}</td>
-                        <td className="px-4 py-3.5 text-slate-700">{department}</td>
-                        <td className="px-4 py-3.5 font-bold text-purple-700">{equipment}</td>
-                        <td className="px-4 py-3.5 font-bold text-slate-900">{quantity} Units</td>
-                        <td className="px-4 py-3.5 text-slate-600 whitespace-nowrap">{usageDate}</td>
-                        <td className="px-4 py-3.5 text-slate-600 whitespace-nowrap">{timeRange}</td>
-                        <td className="px-4 py-3.5">
-                          <StatusBadge status={b.status || "completed"} />
+                        <td className="px-4 py-3 text-slate-400 font-mono">{displayIndex}</td>
+                        <td className="px-4 py-3 font-mono text-xs font-bold text-slate-900 whitespace-nowrap">{refCode}</td>
+                        <td className="px-4 py-3 font-bold text-slate-900">{requestor}</td>
+                        <td className="px-4 py-3 text-slate-700">{department}</td>
+                        <td className="px-4 py-3 font-bold text-slate-900 font-mono">{equipment}</td>
+                        <td className="px-4 py-3 font-mono font-bold text-slate-800">{quantity} Units</td>
+                        <td className="px-4 py-3 text-slate-600 font-mono whitespace-nowrap">{usageDate}</td>
+                        <td className="px-4 py-3 text-slate-600 font-mono whitespace-nowrap">{timeRange}</td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          {isBreach ? (
+                            <span className="font-mono text-xs font-bold text-rose-600 uppercase">
+                              ● Damaged
+                            </span>
+                          ) : (
+                            <span className="font-mono text-xs font-bold text-emerald-600 uppercase">
+                              ● Good
+                            </span>
+                          )}
                         </td>
-                        <td className="px-4 py-3.5 flex items-center gap-1.5">
+                        <td className="px-4 py-3 relative">
                           <button
-                            onClick={() => setSelectedEquipModal(b)}
-                            className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 cursor-pointer"
-                            title="View Exact Borrowing Details"
+                            type="button"
+                            onClick={(e) => {
+                              if (activeMenuId === `e-${b.id}`) {
+                                setActiveMenuId(null);
+                                setActiveMenuEl(null);
+                              } else {
+                                setActiveMenuId(`e-${b.id}`);
+                                setActiveMenuEl(e.currentTarget);
+                              }
+                            }}
+                            className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 cursor-pointer shadow-2xs"
+                            title="Actions"
                           >
-                            <Eye size={14} />
+                            <MoreVertical size={14} />
                           </button>
-                          <button
-                            onClick={() => handleOpenEdit(b, "equipment")}
-                            className="p-1.5 rounded-lg border border-purple-200 text-purple-600 hover:bg-purple-50 cursor-pointer"
-                            title="Edit Status / Mark Solved"
+
+                          <ActionMenuPopover
+                            isOpen={activeMenuId === `e-${b.id}`}
+                            buttonEl={activeMenuEl}
+                            onClose={() => { setActiveMenuId(null); setActiveMenuEl(null); }}
                           >
-                            <Pencil size={14} />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteHistory(b.id, refCode, "equipment")}
-                            className="p-1.5 rounded-lg border border-rose-200 text-rose-600 hover:bg-rose-50 cursor-pointer"
-                            title="Soft Delete History Record"
-                          >
-                            <Trash2 size={14} />
-                          </button>
+                            <button
+                              type="button"
+                              onClick={() => { setSelectedEquipModal(b); setActiveMenuId(null); setActiveMenuEl(null); }}
+                              className="w-full text-left px-3 py-1.5 rounded-lg hover:bg-slate-100 text-slate-700 flex items-center gap-2 cursor-pointer font-bold"
+                            >
+                              <Eye size={13} className="text-slate-600" /> View
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => { handleOpenEdit(b, "equipment"); setActiveMenuId(null); setActiveMenuEl(null); }}
+                              className="w-full text-left px-3 py-1.5 rounded-lg hover:bg-slate-100 text-slate-700 flex items-center gap-2 cursor-pointer font-bold"
+                            >
+                              <Pencil size={13} className="text-slate-600" /> Edit
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => { handleUndoHistory(b.id, refCode, "equipment"); setActiveMenuId(null); setActiveMenuEl(null); }}
+                              className="w-full text-left px-3 py-1.5 rounded-lg hover:bg-slate-100 text-slate-700 flex items-center gap-2 cursor-pointer font-bold"
+                            >
+                              <RotateCcw size={13} className="text-slate-600" /> Undo
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => { handleDeleteHistory(b.id, refCode, "equipment"); setActiveMenuId(null); }}
+                              className="w-full text-left px-3 py-1.5 rounded-lg hover:bg-rose-50 text-rose-600 flex items-center gap-2 cursor-pointer font-bold"
+                            >
+                              <Trash2 size={13} /> Delete
+                            </button>
+                          </ActionMenuPopover>
                         </td>
                       </tr>
                     );
@@ -457,33 +638,33 @@ export default function HistoryLog() {
 
           {/* Pagination Footer */}
           {filteredEquipment.length > 0 && (
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-6 py-4 bg-slate-50/80 border-t border-slate-100 text-xs font-semibold text-slate-600">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-6 py-3.5 bg-white border-t border-slate-200 text-xs font-semibold text-slate-600">
               <div>
-                Showing <span className="font-extrabold text-slate-900">{startIndex + 1}</span> to{" "}
-                <span className="font-extrabold text-slate-900">{Math.min(startIndex + ITEMS_PER_PAGE, filteredEquipment.length)}</span> of{" "}
-                <span className="font-extrabold text-slate-900">{filteredEquipment.length}</span> equipment history records
+                Showing <span className="font-bold text-slate-900">{startIndex + 1}</span> to{" "}
+                <span className="font-bold text-slate-900">{Math.min(startIndex + ITEMS_PER_PAGE, filteredEquipment.length)}</span> of{" "}
+                <span className="font-bold text-slate-900">{filteredEquipment.length}</span> records
               </div>
 
               <div className="flex items-center gap-2">
-                <span className="text-slate-500 font-bold mr-2">
+                <span className="text-slate-500 font-mono mr-2">
                   Page {currentPage} of {totalPages}
                 </span>
                 <button
                   type="button"
                   disabled={currentPage === 1}
                   onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                  className="flex items-center gap-1 px-3.5 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all shadow-xs font-bold text-xs"
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all shadow-2xs font-bold text-xs"
                 >
-                  <ChevronLeft size={14} /> Previous
+                  <ChevronLeft size={13} /> Prev
                 </button>
 
                 <button
                   type="button"
                   disabled={currentPage >= totalPages}
                   onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                  className="flex items-center gap-1 px-3.5 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all shadow-xs font-bold text-xs"
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all shadow-2xs font-bold text-xs"
                 >
-                  Next <ChevronRight size={14} />
+                  Next <ChevronRight size={13} />
                 </button>
               </div>
             </div>
@@ -491,27 +672,31 @@ export default function HistoryLog() {
         </div>
       )}
 
-      {/* Edit History Record Status Modal (Supports marking as 'Solved') */}
+      {/* Edit History Record Status Modal */}
       {editingRecord && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-[1500] flex items-center justify-center p-4 animate-in fade-in">
-          <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border border-slate-100 space-y-4">
-            <div className="flex justify-between items-center pb-3 border-b border-slate-100">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl border border-slate-200 space-y-4">
+            <div className="flex justify-between items-center pb-3 border-b border-slate-200">
               <h3 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
-                <Pencil size={18} className="text-blue-600" />
+                <Pencil size={16} className="text-slate-600" />
                 Edit Record Status ({editingRecord.reference_code || editingRecord.tracking_number || editingRecord.id})
               </h3>
-              <button onClick={() => setEditingRecord(null)} className="text-slate-400 hover:text-slate-600 p-1 rounded-lg cursor-pointer">
-                <X size={18} />
+              <button
+                type="button"
+                onClick={() => setEditingRecord(null)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg border border-slate-200 cursor-pointer"
+              >
+                <X size={16} />
               </button>
             </div>
 
-            <form onSubmit={handleSaveEdit} className="space-y-4 text-xs">
+            <form onSubmit={handleSaveEdit} className="space-y-3 text-xs">
               <div>
-                <label className="block text-xs font-bold text-slate-900 mb-1">Update Record Status *</label>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Update Record Status *</label>
                 <select
                   value={editStatus}
                   onChange={(e) => setEditStatus(e.target.value)}
-                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 text-xs focus:outline-none focus:border-blue-600"
+                  className="w-full p-2.5 bg-white border border-slate-200 rounded-lg font-bold text-slate-900 text-xs focus:outline-none focus:border-slate-400"
                 >
                   <option value="completed">Completed</option>
                   <option value="solved">Solved (Fine / Damage Settled)</option>
@@ -523,30 +708,30 @@ export default function HistoryLog() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-900 mb-1">Status Notes / Remarks</label>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Status Notes / Remarks</label>
                 <textarea
                   rows={3}
                   placeholder="e.g. Fine settled by requestor or equipment replaced..."
                   value={editNotes}
                   onChange={(e) => setEditNotes(e.target.value)}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:border-blue-600"
+                  className="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-xs font-medium focus:outline-none focus:border-slate-400"
                 />
               </div>
 
-              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+              <div className="flex justify-end gap-2 pt-3 border-t border-slate-200">
                 <button
                   type="button"
                   onClick={() => setEditingRecord(null)}
-                  className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-100 cursor-pointer"
+                  className="px-4 py-2 rounded-lg border border-slate-300 text-xs font-bold text-slate-600 hover:bg-slate-50 cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={editLoading}
-                  className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs shadow-md cursor-pointer flex items-center gap-1.5"
+                  className="px-4 py-2 rounded-lg bg-white hover:bg-slate-50 border border-slate-900 text-slate-900 font-extrabold text-xs cursor-pointer flex items-center gap-1.5"
                 >
-                  {editLoading ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
+                  {editLoading ? <Loader2 size={13} className="animate-spin" /> : <CheckCircle2 size={13} />}
                   Save Status
                 </button>
               </div>
@@ -560,6 +745,7 @@ export default function HistoryLog() {
         <VenueBookingDetailModal
           selected={selectedVenueModal}
           setSelected={setSelectedVenueModal}
+          isHistoryView={true}
           formatDate={formatDate}
           formatTimeRange={formatTimeRange}
           feedbackMessage={null}
@@ -569,12 +755,12 @@ export default function HistoryLog() {
           setRejectionComments={() => {}}
           handleAction={() => {}}
           actionLoading={null}
-          inspectionStatus="clean"
-          setInspectionStatus={() => {}}
-          violationNotes=""
-          setViolationNotes={() => {}}
-          evidencePhoto={null}
-          setEvidencePhoto={() => {}}
+          inspectionStatus={historyInspectionStatus}
+          setInspectionStatus={setHistoryInspectionStatus}
+          violationNotes={historyViolationNotes}
+          setViolationNotes={setHistoryViolationNotes}
+          evidencePhoto={historyEvidencePhoto}
+          setEvidencePhoto={setHistoryEvidencePhoto}
           showNotifyModal={false}
           setShowNotifyModal={() => {}}
           notifyReason=""

@@ -27,13 +27,19 @@ class BookingStatusUpdateMail extends Mailable
             ?? ($this->booking->trackingNumber?->reference_code)
             ?? ($this->booking->id ? ($this->type === 'venue' ? "TRK-AVR{$this->booking->id}" : "EQ-2026-{$this->booking->id}") : 'TRK-FSUU');
 
-        $rawStart = $this->booking->start_datetime 
-            ?? ($this->booking->date_of_usage ? ($this->booking->date_of_usage . ' ' . ($this->booking->time_start ?? '08:00')) : null);
-        $this->formattedStart = $rawStart ? Carbon::parse($rawStart)->format('M d, Y h:i A') : 'N/A';
+        $this->formattedStart = $this->parseDateTimeSafely(
+            $this->booking->start_datetime ?? null,
+            $this->booking->date_of_usage ?? null,
+            $this->booking->time_start ?? null,
+            '08:00:00'
+        );
 
-        $rawEnd = $this->booking->end_datetime 
-            ?? ($this->booking->date_of_usage ? (($this->booking->reservation_end_date ?? $this->booking->date_of_usage) . ' ' . ($this->booking->time_end ?? '17:00')) : null);
-        $this->formattedEnd = $rawEnd ? Carbon::parse($rawEnd)->format('M d, Y h:i A') : 'N/A';
+        $this->formattedEnd = $this->parseDateTimeSafely(
+            $this->booking->end_datetime ?? null,
+            $this->booking->reservation_end_date ?? $this->booking->date_of_usage ?? null,
+            $this->booking->time_end ?? null,
+            '17:00:00'
+        );
     }
 
     public function envelope(): Envelope
@@ -56,5 +62,23 @@ class BookingStatusUpdateMail extends Mailable
             ]
         );
     }
-}
 
+    private function parseDateTimeSafely(?string $startOrEnd, mixed $dateOfUsage, ?string $timeStr, string $defaultTime): string
+    {
+        try {
+            if ($startOrEnd && strlen(trim($startOrEnd)) > 0) {
+                return Carbon::parse($startOrEnd)->format('M d, Y h:i A');
+            }
+
+            if ($dateOfUsage) {
+                $dateOnly = substr(trim((string)$dateOfUsage), 0, 10);
+                $timeOnly = $timeStr ? trim($timeStr) : $defaultTime;
+                return Carbon::parse("{$dateOnly} {$timeOnly}")->format('M d, Y h:i A');
+            }
+        } catch (\Throwable $e) {
+            // Fallback for safety
+        }
+
+        return 'N/A';
+    }
+}

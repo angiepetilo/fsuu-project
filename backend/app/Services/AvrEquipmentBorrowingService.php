@@ -235,7 +235,7 @@ class AvrEquipmentBorrowingService
         string $startDatetime,
         string $endDatetime
     ): void {
-        $type = EquipmentType::where('id', $equipmentTypeId)->first();
+        $type = EquipmentType::where('id', $equipmentTypeId)->lockForUpdate()->first();
         if (!$type) return;
 
         $totalStock = max(1, $type->total_quantity ?? 1);

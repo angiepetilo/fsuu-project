@@ -94,9 +94,9 @@ export default function EquipmentModal({
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-slate-900 mb-1">Lifespan (Years) *</label>
+                  <label className="block text-xs font-bold text-slate-900 mb-1">Lifespan (Yrs) *</label>
                   <input
                     type="number"
                     min={1}
@@ -119,17 +119,32 @@ export default function EquipmentModal({
                   />
                 </div>
 
-                {/* Status Field */}
                 <div>
-                  <label className="block text-xs font-bold text-slate-900 mb-1">Operating Status *</label>
+                  <label className="block text-xs font-bold text-slate-900 mb-1">Status *</label>
                   <select
                     value={editFormData.status}
                     onChange={e => setEditFormData({ ...editFormData, status: e.target.value })}
                     className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none"
                   >
                     <option value="available">Available</option>
+                    <option value="released">Released / In-Use</option>
                     <option value="maintenance">Under Maintenance</option>
                     <option value="decommissioned">Decommissioned</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-900 mb-1">Condition *</label>
+                  <select
+                    value={editFormData.condition || "Good"}
+                    onChange={e => setEditFormData({ ...editFormData, condition: e.target.value })}
+                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none"
+                  >
+                    <option value="Good">Good</option>
+                    <option value="Minor Wear">Minor Wear &amp; Tear</option>
+                    <option value="Damaged">Damaged</option>
+                    <option value="Under Repair">Under Repair</option>
+                    <option value="Lost">Lost / Decommissioned</option>
                   </select>
                 </div>
               </div>
@@ -236,9 +251,9 @@ export default function EquipmentModal({
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-slate-900 mb-1">Lifespan (Years) *</label>
+                  <label className="block text-xs font-bold text-slate-900 mb-1">Lifespan (Yrs) *</label>
                   <input
                     type="number"
                     min={1}
@@ -261,17 +276,32 @@ export default function EquipmentModal({
                   />
                 </div>
 
-                {/* Status Field - Item 19 */}
                 <div>
-                  <label className="block text-xs font-bold text-slate-900 mb-1">Operating Status *</label>
+                  <label className="block text-xs font-bold text-slate-900 mb-1">Status *</label>
                   <select
                     value={formData.status}
                     onChange={e => setFormData({ ...formData, status: e.target.value })}
                     className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none"
                   >
                     <option value="available">Available</option>
+                    <option value="released">Released / In-Use</option>
                     <option value="maintenance">Under Maintenance</option>
                     <option value="decommissioned">Decommissioned</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-900 mb-1">Condition *</label>
+                  <select
+                    value={formData.condition || "Good"}
+                    onChange={e => setFormData({ ...formData, condition: e.target.value })}
+                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none"
+                  >
+                    <option value="Good">Good</option>
+                    <option value="Minor Wear">Minor Wear &amp; Tear</option>
+                    <option value="Damaged">Damaged</option>
+                    <option value="Under Repair">Under Repair</option>
+                    <option value="Lost">Lost / Decommissioned</option>
                   </select>
                 </div>
               </div>

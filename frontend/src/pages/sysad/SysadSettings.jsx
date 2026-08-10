@@ -29,7 +29,7 @@ export default function SysadSettings() {
   const [pinConfig, setPinConfig] = useState({ pin: "", enabled: false });
   const [pinSavedFeedback, setPinSavedFeedback] = useState(null);
   const handleSavePinConfig = () => {
-    setPinSavedFeedback("✅ Verification PIN saved successfully!");
+    setPinSavedFeedback("Verification PIN saved successfully!");
     setTimeout(() => setPinSavedFeedback(null), 3000);
   };
 
@@ -38,19 +38,19 @@ export default function SysadSettings() {
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-            <ShieldCheck className="text-amber-500" size={24} />
+          <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+            <ShieldCheck className="text-slate-900" size={22} />
             System Control &amp; Configurations
           </h1>
-          <p className="text-xs text-slate-500 font-medium mt-0.5">
-            Global management, combined analytics, office reports &amp; inventory filter
+          <p className="text-xs text-slate-500 font-semibold mt-0.5">
+            Global management, combined analytics, office reports &amp; inventory filter.
           </p>
         </div>
       </div>
 
       {feedback && (
-        <div className="fixed bottom-6 right-6 z-[3000] bg-slate-900 text-white text-xs font-extrabold px-5 py-3.5 rounded-2xl flex items-center gap-3 shadow-2xl animate-in slide-in-from-bottom-5 duration-300 border border-slate-700 max-w-md">
-          <CheckCircle2 size={18} className="text-emerald-400 shrink-0" />
+        <div className="py-2.5 px-4 border-t border-b border-emerald-200 text-emerald-700 text-xs font-bold flex items-center gap-2 bg-white">
+          <CheckCircle2 size={15} />
           <span>{feedback}</span>
         </div>
       )}
@@ -71,11 +71,13 @@ export default function SysadSettings() {
                 setPrimaryTab(tab.id);
                 setSubTab(tab.defaultSub);
               }}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl text-xs font-extrabold transition-all cursor-pointer ${
-                active ? "bg-slate-900 text-white shadow-md" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer border ${
+                active
+                  ? "border-slate-900 bg-white text-slate-900 shadow-2xs"
+                  : "border-slate-200 bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-50"
               }`}
             >
-              <IconComp size={16} />
+              <IconComp size={14} />
               <span>{tab.label}</span>
             </button>
           );
@@ -83,7 +85,7 @@ export default function SysadSettings() {
       </div>
 
       {/* Secondary Sub-Pill Navigation */}
-      <div className="flex flex-wrap items-center gap-2 bg-slate-100/80 p-1.5 rounded-2xl border border-slate-200/60 max-w-max">
+      <div className="flex flex-wrap items-center gap-1.5 bg-white p-1 rounded-xl border border-slate-200 w-fit">
         {primaryTab === "category" && [
           { id: "catalog", label: "Equipment Catalog", icon: Package },
           { id: "venues_catalog", label: "Venue Catalog", icon: Building },
@@ -95,11 +97,13 @@ export default function SysadSettings() {
             <button
               key={st.id}
               onClick={() => setSubTab(st.id)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                active ? "bg-white text-slate-900 shadow-xs" : "text-slate-500 hover:text-slate-900"
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer border ${
+                active
+                  ? "border-slate-900 bg-white text-slate-900 shadow-2xs"
+                  : "border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-50"
               }`}
             >
-              <IconC size={14} />
+              <IconC size={13} />
               <span>{st.label}</span>
             </button>
           );
@@ -117,11 +121,13 @@ export default function SysadSettings() {
             <button
               key={st.id}
               onClick={() => setSubTab(st.id)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                active ? "bg-white text-slate-900 shadow-xs" : "text-slate-500 hover:text-slate-900"
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer border ${
+                active
+                  ? "border-slate-900 bg-white text-slate-900 shadow-2xs"
+                  : "border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-50"
               }`}
             >
-              <IconC size={14} />
+              <IconC size={13} />
               <span>{st.label}</span>
             </button>
           );
@@ -137,11 +143,13 @@ export default function SysadSettings() {
             <button
               key={st.id}
               onClick={() => setSubTab(st.id)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                active ? "bg-white text-slate-900 shadow-xs" : "text-slate-500 hover:text-slate-900"
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer border ${
+                active
+                  ? "border-slate-900 bg-white text-slate-900 shadow-2xs"
+                  : "border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-50"
               }`}
             >
-              <IconC size={14} />
+              <IconC size={13} />
               <span>{st.label}</span>
             </button>
           );

@@ -25,6 +25,7 @@ return new class extends Migration
             $table->time('time_start');
             $table->time('time_end');
             $table->string('school_id')->nullable();
+            $table->longText('assigned_units')->nullable();
             $table->timestamps();
             $table->timestamp('archived_at')->nullable();
 

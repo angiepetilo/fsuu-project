@@ -29,11 +29,7 @@ class PublicListingController extends Controller
                         'image'     => $imgUrl,
                         'location'  => $v->office?->location ?? $v->location ?? 'FSUU Campus',
                         'capacity'  => $v->capacity ?? 100,
-                        'type'      => ($v->office?->slug === 'fsuu-morelos'
-                            || str_contains(strtolower($v->office?->location ?? ''), 'morelos')
-                            || str_contains(strtolower($v->name), 'studio')
-                            || str_contains(strtolower($v->name), 'theater'))
-                            ? 'sco' : 'avr',
+                        'type'      => 'avr',
                         'office'    => $v->office,
                         'office_id' => $v->office_id,
                         'status'    => $v->status ?? 'Available',
@@ -124,9 +120,7 @@ class PublicListingController extends Controller
                     'status'          => $avail > 0 ? 'available' : 'unavailable',
                     'office_id'       => $e->office_id,
                     'office'          => $e->office,
-                    'dept'            => ($e->office?->slug === 'fsuu-morelos'
-                        || str_contains(strtolower($e->eq_type ?? ''), 'broadcast'))
-                        ? 'sco' : 'avr',
+                    'dept'            => 'avr',
                     'category'        => $e->eq_type ?? 'AVR Equipment',
                 ];
             });

@@ -11,18 +11,47 @@ import EquipmentModal from "./components/EquipmentModal";
 import { PageLoader } from "@/components/ui/page-loader";
 
 function StatusBadge({ status }) {
-  const map = {
-    available: "bg-emerald-100 text-emerald-800 border-emerald-300",
-    maintenance: "bg-amber-100 text-amber-800 border-amber-300",
-    decommissioned: "bg-rose-100 text-rose-800 border-rose-300",
-    damaged: "bg-rose-100 text-rose-800 border-rose-300",
-  };
+  const statusLower = (status || 'available').toLowerCase();
+  let cls = 'bg-emerald-100 text-emerald-800 border-emerald-300';
+  let label = 'Available';
+  if (statusLower === 'released' || statusLower === 'in-use' || statusLower === 'borrowed') {
+    cls = 'bg-blue-100 text-blue-800 border-blue-300'; label = 'Released';
+  } else if (statusLower === 'damaged') {
+    cls = 'bg-rose-100 text-rose-800 border-rose-300'; label = 'Damaged';
+  } else if (statusLower === 'maintenance' || statusLower === 'under_maintenance') {
+    cls = 'bg-amber-100 text-amber-800 border-amber-300'; label = 'Maintenance';
+  } else if (statusLower === 'decommissioned' || statusLower === 'lost') {
+    cls = 'bg-rose-100 text-rose-900 border-rose-400'; label = 'Lost';
+  } else if (statusLower === 'unavailable') {
+    cls = 'bg-slate-100 text-slate-700 border-slate-300'; label = 'Unavailable';
+  } else {
+    cls = 'bg-emerald-100 text-emerald-800 border-emerald-300'; label = 'Available';
+  }
   return (
-    <span className={`inline-flex px-2.5 py-0.5 rounded-full text-[10px] font-extrabold capitalize border ${map[status] ?? "bg-slate-100 text-slate-700"}`}>
-      {status || "available"}
+    <span className={`inline-flex px-2.5 py-0.5 rounded-full text-[10px] font-extrabold border ${cls}`}>
+      {label}
     </span>
   );
 }
+
+const getActiveReleasedBarcodes = () => {
+  const released = [];
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith("fsuu_assigned_units_")) {
+        const val = localStorage.getItem(key);
+        if (val) {
+          const obj = JSON.parse(val);
+          Object.values(obj).forEach(bCode => {
+            if (bCode) released.push(String(bCode).trim());
+          });
+        }
+      }
+    }
+  } catch {}
+  return released;
+};
 
 export default function ManageEquipments() {
   const context = useOutletContext();
@@ -81,23 +110,45 @@ export default function ManageEquipments() {
 
       const catData = Array.isArray(catRes.data) ? catRes.data : [];
       const unitData = Array.isArray(unitRes.data) ? unitRes.data : [];
+      const activeBarcodes = getActiveReleasedBarcodes();
 
       setCategories(catData);
 
-      setUnits(unitData.map((u, idx) => ({
-        id: u.id || idx + 1,
-        equipment_type_id: u.equipment_type_id,
-        barcode: u.unit_code || u.barcode || `BC-EQP-2026-00${idx + 1}`,
-        name: u.name || u.equipment_type?.eq_name || "Equipment Unit",
-        category: u.equipment_type?.eq_type || u.equipment_type?.eq_name || "AV Equipment",
-        office_name: u.equipmentType?.office?.office_name || u.equipment_type?.office?.office_name || u.equipmentType?.office?.name || "AVR | FSUU Main Campus",
-        status: u.status || "available",
-        available_count: u.status === 'available' ? 1 : 0,
-        total_count: 1,
-        date_purchased: u.purchased_at ? u.purchased_at.substring(0, 10) : "2026-01-15",
-        lifespan_years: u.eq_lifespan || 5,
-        description: u.description || "",
-      })));
+      setUnits(unitData.map((u, idx) => {
+        const bCode = String(u.unit_code || u.barcode || `BC-EQP-2026-00${idx + 1}`).trim();
+        // Always use actual database status — do not override with localStorage
+        const dbStatus = (u.status || 'available').toLowerCase();
+        const dbCondition = u.condition || '';
+
+        // Derive human-readable condition from DB value
+        let conditionLabel;
+        const condLower = dbCondition.toLowerCase();
+        if (condLower === 'good' || condLower === 'good condition') conditionLabel = 'Good';
+        else if (condLower === 'damaged') conditionLabel = 'Damaged';
+        else if (condLower === 'lost') conditionLabel = 'Lost';
+        else if (condLower === 'maintenance' || condLower === 'under_maintenance' || condLower === 'under repair') conditionLabel = 'Under Repair';
+        else if (condLower === 'worn' || condLower === 'minor wear') conditionLabel = 'Minor Wear';
+        else if (dbStatus === 'damaged') conditionLabel = 'Damaged';
+        else if (dbStatus === 'maintenance' || dbStatus === 'under_maintenance') conditionLabel = 'Under Repair';
+        else if (dbStatus === 'decommissioned' || dbStatus === 'lost') conditionLabel = 'Lost';
+        else conditionLabel = 'Good';
+
+        return {
+          id: u.id || idx + 1,
+          equipment_type_id: u.equipment_type_id,
+          barcode: bCode,
+          name: u.name || u.equipment_type?.eq_name || 'Equipment Unit',
+          category: u.equipment_type?.eq_type || u.equipment_type?.eq_name || 'AV Equipment',
+          office_name: u.equipmentType?.office?.office_name || u.equipment_type?.office?.office_name || u.equipmentType?.office?.name || 'AVR | FSUU Main Campus',
+          status: dbStatus,
+          condition: conditionLabel,
+          available_count: dbStatus === 'available' ? 1 : 0,
+          total_count: 1,
+          date_purchased: u.purchased_at ? u.purchased_at.substring(0, 10) : '2026-01-15',
+          lifespan_years: u.eq_lifespan || 5,
+          description: u.description || '',
+        };
+      }));
 
       if (catData.length > 0 && !formData.category) {
         setFormData(prev => ({ ...prev, category: catData[0].eq_type || catData[0].eq_name || catData[0].name }));
@@ -112,6 +163,10 @@ export default function ManageEquipments() {
 
   useEffect(() => {
     fetchEquipments();
+    // Re-fetch when post-inspection syncs update unit condition/status
+    const handleInventoryUpdate = () => fetchEquipments();
+    window.addEventListener("equipment_inventory_updated", handleInventoryUpdate);
+    return () => window.removeEventListener("equipment_inventory_updated", handleInventoryUpdate);
   }, [fetchEquipments]);
 
   const handleOpenAddModal = async () => {
@@ -262,11 +317,10 @@ export default function ManageEquipments() {
       {/* Header Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-            <PackageOpen className="text-blue-600" size={24} />
-            Manage Physical Equipment Units
+          <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+            Manage Equipment
           </h1>
-          <p className="text-xs text-slate-500 font-medium mt-0.5">
+          <p className="text-xs text-slate-500 font-semibold mt-0.5">
             Add physical equipment units and assign them to created equipment categories to update stock counts.
           </p>
         </div>
@@ -343,7 +397,7 @@ export default function ManageEquipments() {
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-slate-50/80 border-b border-slate-100">
-                {["#", "Unit Barcode", "Equipment Unit Name", "Assigned Category", "Status", "Date Purchased", "Lifespan vs Current", "Action"].map(h => (
+                {["#", "Unit Barcode", "Equipment Unit Name", "Assigned Category", "Status", "Condition", "Date Purchased", "Lifespan vs Current", "Action"].map(h => (
                   <th key={h} className="px-4 py-3.5 text-left text-[11px] font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap">
                     {h}
                   </th>
@@ -353,13 +407,13 @@ export default function ManageEquipments() {
             <tbody className="divide-y divide-slate-100 text-xs font-semibold">
               {loading ? (
                 <tr>
-                  <td colSpan={8} className="text-center py-12 text-slate-400">
+                  <td colSpan={9} className="text-center py-12 text-slate-400">
                     <Loader2 size={20} className="animate-spin inline mr-2" /> Loading equipment units...
                   </td>
                 </tr>
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="text-center py-12 text-slate-400">
+                  <td colSpan={9} className="text-center py-12 text-slate-400">
                     {categories.length === 0
                       ? "⚠️ Create an Equipment Category in Settings first before adding physical equipment units."
                       : "📦 No physical equipment units added yet. Click 'Add Equipment' to add units to a category."}
@@ -407,6 +461,17 @@ export default function ManageEquipments() {
                       </td>
                       <td className="px-4 py-3.5">
                         <StatusBadge status={item.status} />
+                      </td>
+                      <td className="px-4 py-3.5 whitespace-nowrap">
+                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold border ${
+                          item.condition === "Damaged" || item.condition === "Lost"
+                            ? "bg-rose-50 text-rose-700 border-rose-200"
+                            : item.condition === "Under Repair" || item.condition === "Minor Wear"
+                            ? "bg-amber-50 text-amber-700 border-amber-200"
+                            : "bg-emerald-50 text-emerald-700 border-emerald-200"
+                        }`}>
+                          {item.condition || "Good"}
+                        </span>
                       </td>
                       <td className="px-4 py-3.5 text-slate-600 whitespace-nowrap">{item.date_purchased}</td>
                       <td className="px-4 py-3.5 text-slate-600 whitespace-nowrap">{ageYears.toFixed(1)} / {lifespanYears} yrs</td>

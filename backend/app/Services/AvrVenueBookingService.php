@@ -68,38 +68,47 @@ class AvrVenueBookingService
             $purpose   = $data['purpose'] ?? 'Academic Activity';
             $persons   = $data['number_of_persons'] ?? $data['no_of_person'] ?? 50;
 
+            $reservationEndDate = $data['reservation_end_date'] ?? $data['end_date'] ?? date('Y-m-d', strtotime($data['end_datetime'] ?? $dateOfUsage));
+
             // Create venue_booking entry
             $insertData = [
-                'tracking_number_id' => $trackingId,
-                'venue_id'           => $venue->id,
-                'submitted_by'       => $data['submitted_by'] ?? null,
-                'submission_channel' => 'online_self',
-                'filer_name'         => $filerName,
-                'email_address'      => $email,
-                'program_office'     => $office,
-                'contact_number'     => $contact,
-                'classification'     => $classif,
-                'place_of_use'       => 'inside',
-                'purpose'            => $purpose,
-                'no_of_person'       => $persons,
-                'date_of_usage'      => $dateOfUsage,
-                'time_start'         => $timeStart,
-                'time_end'           => $timeEnd,
-                'school_id'          => $data['school_id'] ?? null,
-                'agreed_to_policy'   => true,
-                'created_at'         => now(),
-                'updated_at'         => now(),
+                'tracking_number_id'   => $trackingId,
+                'venue_id'             => $venue->id,
+                'submitted_by'         => $data['submitted_by'] ?? null,
+                'submission_channel'   => 'online_self',
+                'filer_name'           => $filerName,
+                'email_address'        => $email,
+                'program_office'       => $office,
+                'contact_number'       => $contact,
+                'classification'       => $classif,
+                'place_of_use'         => 'inside',
+                'purpose'              => $purpose,
+                'no_of_person'         => $persons,
+                'date_of_usage'        => $dateOfUsage,
+                'reservation_end_date' => $reservationEndDate,
+                'time_start'           => $timeStart,
+                'time_end'             => $timeEnd,
+                'equipment_notes'      => $data['equipment_notes'] ?? null,
+                'school_id'            => $data['school_id'] ?? null,
+                'agreed_to_policy'     => true,
+                'created_at'           => now(),
+                'updated_at'           => now(),
             ];
+
+            if (!empty($data['endorsement_url'])) {
+                if (\Illuminate\Support\Facades\Schema::hasColumn('venue_bookings', 'endorsement_url')) {
+                    $insertData['endorsement_url'] = $data['endorsement_url'];
+                }
+                if (\Illuminate\Support\Facades\Schema::hasColumn('venue_bookings', 'endorsement_letter')) {
+                    $insertData['endorsement_letter'] = $data['endorsement_url'];
+                }
+            }
 
             if (\Illuminate\Support\Facades\Schema::hasColumn('venue_bookings', 'province')) {
                 $insertData['province'] = 'Agusan del Norte';
                 $insertData['city'] = 'Butuan City';
                 $insertData['barangay'] = 'FSUU Main Campus';
                 $insertData['street'] = 'San Jose St.';
-            }
-
-            if (\Illuminate\Support\Facades\Schema::hasColumn('venue_bookings', 'equipment_notes')) {
-                $insertData['equipment_notes'] = $data['equipment_notes'] ?? null;
             }
 
             if (\Illuminate\Support\Facades\Schema::hasColumn('venue_bookings', 'reference_code')) {
@@ -163,9 +172,13 @@ class AvrVenueBookingService
                 $booking->forceFill(['status' => 'approved'])->save();
             }
 
-            if ($booking->tracking_number_id) {
-                DB::table('tracking_numbers')->where('id', $booking->tracking_number_id)->update(['status' => 'approved']);
-            }
+            DB::table('tracking_numbers')
+                ->where('id', $booking->tracking_number_id)
+                ->orWhere('reference_code', $booking->reference_code)
+                ->orWhere(function($q) use ($booking) {
+                    $q->where('reservation_type', 'venue_booking')->where('reservation_id', $booking->id);
+                })
+                ->update(['status' => 'approved']);
 
             if (\Illuminate\Support\Facades\Schema::hasTable('approvals')) {
                 DB::table('approvals')->insert([
@@ -207,9 +220,13 @@ class AvrVenueBookingService
                 $booking->forceFill(['status' => 'rejected'])->save();
             }
 
-            if ($booking->tracking_number_id) {
-                DB::table('tracking_numbers')->where('id', $booking->tracking_number_id)->update(['status' => 'rejected']);
-            }
+            DB::table('tracking_numbers')
+                ->where('id', $booking->tracking_number_id)
+                ->orWhere('reference_code', $booking->reference_code)
+                ->orWhere(function($q) use ($booking) {
+                    $q->where('reservation_type', 'venue_booking')->where('reservation_id', $booking->id);
+                })
+                ->update(['status' => 'rejected']);
 
             if (\Illuminate\Support\Facades\Schema::hasTable('approvals')) {
                 DB::table('approvals')->insert([
@@ -245,7 +262,17 @@ class AvrVenueBookingService
         $this->assertCancelAllowed($booking, $actor);
 
         return DB::transaction(function () use ($booking, $actor, $remarks) {
-            $booking->forceFill(['status' => 'cancelled'])->save();
+            if (\Illuminate\Support\Facades\Schema::hasColumn('venue_bookings', 'status')) {
+                $booking->forceFill(['status' => 'cancelled'])->save();
+            }
+
+            DB::table('tracking_numbers')
+                ->where('id', $booking->tracking_number_id)
+                ->orWhere('reference_code', $booking->reference_code)
+                ->orWhere(function($q) use ($booking) {
+                    $q->where('reservation_type', 'venue_booking')->where('reservation_id', $booking->id);
+                })
+                ->update(['status' => 'cancelled']);
 
             Approval::forceCreate([
                 'reference_type' => 'avr_venue_booking',
@@ -279,11 +306,36 @@ class AvrVenueBookingService
                 $booking->forceFill(['status' => 'on-going'])->save();
             }
 
-            if ($booking->tracking_number_id) {
-                DB::table('tracking_numbers')->where('id', $booking->tracking_number_id)->update(['status' => 'on-going']);
-            }
+            DB::table('tracking_numbers')
+                ->where('id', $booking->tracking_number_id)
+                ->orWhere('reference_code', $booking->reference_code)
+                ->orWhere(function($q) use ($booking) {
+                    $q->where('reservation_type', 'venue_booking')->where('reservation_id', $booking->id);
+                })
+                ->update(['status' => 'on-going']);
 
             $this->auditLog->log($actor, 'booking_ongoing', 'avr_venue_booking', $booking->id);
+
+            return $booking->fresh(['venue', 'trackingNumber', 'documents']);
+        });
+    }
+
+    public function postInspection(AvrVenueBooking $booking, User $actor): AvrVenueBooking
+    {
+        return DB::transaction(function () use ($booking, $actor) {
+            if (\Illuminate\Support\Facades\Schema::hasColumn('venue_bookings', 'status')) {
+                $booking->forceFill(['status' => 'post-inspection'])->save();
+            }
+
+            DB::table('tracking_numbers')
+                ->where('id', $booking->tracking_number_id)
+                ->orWhere('reference_code', $booking->reference_code)
+                ->orWhere(function($q) use ($booking) {
+                    $q->where('reservation_type', 'venue_booking')->where('reservation_id', $booking->id);
+                })
+                ->update(['status' => 'post-inspection']);
+
+            $this->auditLog->log($actor, 'booking_post_inspection', 'avr_venue_booking', $booking->id);
 
             return $booking->fresh(['venue', 'trackingNumber', 'documents']);
         });
@@ -292,28 +344,71 @@ class AvrVenueBookingService
     public function complete(AvrVenueBooking $booking, User $actor, array $data = []): AvrVenueBooking
     {
         return DB::transaction(function () use ($booking, $actor, $data) {
+            $newStatus = (!empty($data['has_damage']) || ($data['status'] ?? '') === 'damaged' || ($data['inspection_status'] ?? '') === 'violation' || ($data['condition'] ?? '') === 'damaged')
+                ? 'damaged'
+                : 'completed';
+
             if (\Illuminate\Support\Facades\Schema::hasColumn('venue_bookings', 'status')) {
-                $booking->forceFill(['status' => 'completed'])->save();
+                $booking->forceFill(['status' => $newStatus])->save();
             }
 
-            if ($booking->tracking_number_id) {
-                DB::table('tracking_numbers')->where('id', $booking->tracking_number_id)->update(['status' => 'completed']);
-            }
+            DB::table('tracking_numbers')
+                ->where('id', $booking->tracking_number_id)
+                ->orWhere('reference_code', $booking->reference_code)
+                ->orWhere(function($q) use ($booking) {
+                    $q->where('reservation_type', 'venue_booking')->where('reservation_id', $booking->id);
+                })
+                ->update(['status' => $newStatus]);
 
-            // Log damage / inspection if specified
-            if (!empty($data['has_damage']) || ($data['inspection_status'] ?? '') === 'damages') {
+            // Update or log damage / inspection if specified
+            if (!empty($data['has_damage']) || ($data['inspection_status'] ?? '') === 'violation' || ($data['status'] ?? '') === 'damaged') {
                 if (\Illuminate\Support\Facades\Schema::hasTable('inspections')) {
-                    DB::table('inspections')->insert([
-                        'inspectable_type' => 'App\\Models\\VenueBooking',
-                        'inspectable_id'   => $booking->id,
-                        'inspected_by'     => $actor->id,
-                        'inspection_type'  => 'post_event',
-                        'condition'        => 'damaged',
-                        'notes'            => $data['remarks'] ?? 'Venue damage / rule violation reported.',
-                        'inspected_at'     => now(),
-                        'created_at'       => now(),
-                        'updated_at'       => now(),
-                    ]);
+                    $existingInsp = DB::table('inspections')
+                        ->where(function($q) use ($booking) {
+                            $q->where('inspectable_id', $booking->id);
+                            if (\Illuminate\Support\Facades\Schema::hasColumn('inspections', 'reference_id')) {
+                                $q->orWhere('reference_id', $booking->id);
+                            }
+                        })
+                        ->first();
+
+                    $photo = $data['evidence_photo'] ?? $data['evidence_image'] ?? null;
+                    $violationType = $data['violation_type'] ?? null;
+
+                    if (!$existingInsp) {
+                        $inspData = [
+                            'inspectable_type' => 'App\\Models\\VenueBooking',
+                            'inspectable_id'   => $booking->id,
+                            'inspected_by'     => $actor->id,
+                            'inspection_type'  => 'post_event',
+                            'condition'        => 'damaged',
+                            'notes'            => $data['notes'] ?? $data['remarks'] ?? 'Venue damage / rule violation reported.',
+                            'inspected_at'     => now(),
+                            'created_at'       => now(),
+                            'updated_at'       => now(),
+                        ];
+                        if ($photo && \Illuminate\Support\Facades\Schema::hasColumn('inspections', 'evidence_photo')) {
+                            $inspData['evidence_photo'] = $photo;
+                        }
+                        if ($violationType && \Illuminate\Support\Facades\Schema::hasColumn('inspections', 'violation_type')) {
+                            $inspData['violation_type'] = $violationType;
+                        }
+                        DB::table('inspections')->insert($inspData);
+                    } else {
+                        $updateArr = [];
+                        if ($photo && \Illuminate\Support\Facades\Schema::hasColumn('inspections', 'evidence_photo')) {
+                            $updateArr['evidence_photo'] = $photo;
+                        }
+                        if ($violationType && \Illuminate\Support\Facades\Schema::hasColumn('inspections', 'violation_type')) {
+                            $updateArr['violation_type'] = $violationType;
+                        }
+                        if (!empty($data['notes'])) {
+                            $updateArr['notes'] = $data['notes'];
+                        }
+                        if (!empty($updateArr)) {
+                            DB::table('inspections')->where('id', $existingInsp->id)->update($updateArr);
+                        }
+                    }
                 }
             }
 
@@ -330,9 +425,13 @@ class AvrVenueBookingService
                 $booking->forceFill(['status' => 'approved'])->save();
             }
 
-            if ($booking->tracking_number_id) {
-                DB::table('tracking_numbers')->where('id', $booking->tracking_number_id)->update(['status' => 'approved']);
-            }
+            DB::table('tracking_numbers')
+                ->where('id', $booking->tracking_number_id)
+                ->orWhere('reference_code', $booking->reference_code)
+                ->orWhere(function($q) use ($booking) {
+                    $q->where('reservation_type', 'venue_booking')->where('reservation_id', $booking->id);
+                })
+                ->update(['status' => 'approved']);
 
             $this->auditLog->log($actor, 'booking_undo', 'avr_venue_booking', $booking->id);
 

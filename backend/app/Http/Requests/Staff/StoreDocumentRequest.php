@@ -16,7 +16,7 @@ class StoreDocumentRequest extends FormRequest
     {
         return [
             'file' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:5120'], // 5MB max
-            'reference_type' => ['required', 'string', Rule::in(['avr_venue_booking', 'equipment_borrowing', 'sco_studio_reservation'])],
+            'reference_type' => ['required', 'string', Rule::in(['avr_venue_booking', 'equipment_borrowing'])],
             'reference_id' => ['required', 'integer'],
             'document_type' => ['required', 'string', Rule::in(['excuse_letter', 'payment_receipt', 'other'])],
         ];

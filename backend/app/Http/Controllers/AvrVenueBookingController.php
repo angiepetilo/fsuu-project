@@ -121,6 +121,12 @@ class AvrVenueBookingController extends Controller
         return response()->json($booking);
     }
 
+    public function postInspection(\Illuminate\Http\Request $request, AvrVenueBooking $avrVenueBooking): JsonResponse
+    {
+        $booking = $this->service->postInspection($avrVenueBooking, auth()->user());
+        return response()->json($booking);
+    }
+
     public function complete(\Illuminate\Http\Request $request, AvrVenueBooking $avrVenueBooking): JsonResponse
     {
         $booking = $this->service->complete($avrVenueBooking, auth()->user(), $request->all());
@@ -170,5 +176,18 @@ class AvrVenueBookingController extends Controller
         } catch (\Throwable $e) {
             return response()->json(['message' => 'Failed to resend email: ' . $e->getMessage()], 500);
         }
+    }
+
+    public function assignUnits(\Illuminate\Http\Request $request, AvrVenueBooking $avrVenueBooking): JsonResponse
+    {
+        $validated = $request->validate([
+            'assigned_units' => 'nullable',
+        ]);
+
+        $avrVenueBooking->update([
+            'assigned_units' => $validated['assigned_units'] ?? null,
+        ]);
+
+        return response()->json($avrVenueBooking);
     }
 }

@@ -1,10 +1,34 @@
 import { useState, useEffect } from "react";
-import { Building2, PackageOpen, Download, AlertTriangle, Image as ImageIcon, X, Info, CheckCircle2, ShieldAlert, ChevronLeft, ChevronRight } from "lucide-react";
+import { Building2, PackageOpen, Download, AlertTriangle, Image as ImageIcon, X, Info, CheckCircle2, ShieldAlert, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+
+const formatTime = (timeStr) => {
+  if (!timeStr) return "08:00 AM";
+  if (timeStr.includes("AM") || timeStr.includes("PM")) return timeStr;
+  const parts = String(timeStr).split(":");
+  if (parts.length < 2) return timeStr;
+  let hours = parseInt(parts[0], 10);
+  const minutes = parts[1];
+  const ampm = hours >= 12 ? "PM" : "AM";
+  hours = hours % 12 || 12;
+  return `${hours}:${minutes} ${ampm}`;
+};
+
+const formatDate = (rawDate) => {
+  if (!rawDate) return "—";
+  try {
+    const d = new Date(rawDate);
+    if (isNaN(d.getTime())) return String(rawDate);
+    return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  } catch {
+    return String(rawDate);
+  }
+};
 
 export default function BookingBorrowingReportTab({
   venueBookings = [],
   equipmentBorrowings = [],
   setShowPdfModal,
+  loading = false,
 }) {
   const [evidenceModalImage, setEvidenceModalImage] = useState(null);
 
@@ -12,26 +36,23 @@ export default function BookingBorrowingReportTab({
   const [equipPage, setEquipPage] = useState(1);
   const ITEMS_PER_PAGE = 10;
 
-  // Strictly filter to items with recorded violations, late returns, damages, or lost status
-  const violationVenueBookings = venueBookings.filter(
-    (b) =>
-      Boolean(b.violation) ||
-      Boolean(b.has_violation) ||
-      b.status === "damaged" ||
-      b.status === "solved" ||
-      Number(b.violations || 0) > 0
-  );
+  // Strictly filter to items with recorded damages or rule violations ONLY (Completed/Finished events)
+  const violationVenueBookings = venueBookings.filter((b) => {
+    const s = (b.status || "").toLowerCase();
+    const isCompletedStatus = s === "completed" || s === "damaged" || s === "solved" || s === "done";
+    const hasBreach = Boolean(b.has_damage) || (b.inspection_condition || "").toLowerCase() === "damaged" || s === "damaged" || s === "violation" || Boolean(b.violation);
+    return isCompletedStatus && hasBreach;
+  });
 
   const violationEquipmentBorrowings = equipmentBorrowings.filter(
     (eb) =>
-      Boolean(eb.violation) ||
-      Boolean(eb.has_violation) ||
-      eb.status === "damaged" ||
-      eb.status === "lost" ||
-      eb.status === "solved" ||
+      Boolean(eb.has_damage) ||
+      (eb.inspection_condition || "").toLowerCase() === "damaged" ||
+      (eb.status || "").toLowerCase() === "damaged" ||
+      (eb.status || "").toLowerCase() === "lost" ||
+      (eb.status || "").toLowerCase() === "violation" ||
       Boolean(eb.is_late) ||
-      Boolean(eb.late_hours) ||
-      Number(eb.violations || 0) > 0
+      Boolean(eb.late_hours)
   );
 
   useEffect(() => {
@@ -62,29 +83,19 @@ export default function BookingBorrowingReportTab({
 
       {/* ── 1. VENUE BOOKING REPORTS TABLE ── */}
       <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
-        <div className="flex items-center justify-between p-5 border-b border-slate-100">
-          <div className="flex items-center gap-2">
-            <Building2 size={18} className="text-blue-600" />
-            <span className="font-bold text-slate-900 text-sm">Venue Booking Reports (Violation Records)</span>
-            <span className="text-xs font-bold text-slate-500 bg-slate-100 px-2.5 py-0.5 rounded-full">
-              {violationVenueBookings.length}
-            </span>
-          </div>
-
-          <button
-            onClick={() => setShowPdfModal(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-extrabold shadow-md cursor-pointer"
-          >
-            <Download size={15} /> Export PDF Report
-          </button>
+        <div className="p-4 border-b border-slate-100">
+          <h3 className="font-black text-slate-900 text-sm">Venue Booking Reports</h3>
+          <p className="text-xs text-slate-500 font-semibold mt-0.5">
+            Historical reservation records and facility status summary
+          </p>
         </div>
 
-        {/* Venue Table Columns: [Track Number, Requestor Name, Venue, Schedule, Dept / Office (External), Purpose, Violation] */}
+        {/* Venue Table Columns: [Track Number, Requestor Name, Venue, Schedule, Dept / Office, Purpose, Remarks] */}
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-slate-50/80 border-b border-slate-100">
-                {["Track Number", "Requestor Name", "Venue", "Schedule", "Dept / Office (External)", "Purpose", "Violation"].map((h) => (
+                {["Track Number", "Requestor Name", "Venue", "Schedule", "Dept / Office", "Purpose", "Remarks"].map((h) => (
                   <th key={h} className="px-4 py-3.5 text-left text-[11px] font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap">
                     {h}
                   </th>
@@ -92,40 +103,42 @@ export default function BookingBorrowingReportTab({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-xs font-semibold">
-              {violationVenueBookings.length === 0 ? (
+              {loading ? (
+                <tr>
+                  <td colSpan={7} className="text-center py-12 text-slate-400">
+                    <Loader2 size={20} className="animate-spin inline mr-2 text-blue-600" />
+                    <span>Loading report records...</span>
+                  </td>
+                </tr>
+              ) : venueBookings.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="text-center py-10 text-slate-400">
-                    <ShieldAlert size={16} className="inline mr-1 text-slate-400" /> No venue booking violations recorded in report history.
+                    No venue booking report records found.
                   </td>
                 </tr>
               ) : (
-                violationVenueBookings.map((b, idx) => {
+                paginatedVenueViolations.map((b, idx) => {
                   const trackNo = b.tracking_number || b.track_number || `TRK-VB-${1000 + (b.id || idx)}`;
-                  const isSolved = b.status === "solved" || b.is_solved;
+                  const isDamaged = Boolean(b.has_damage) || (b.status || "").toLowerCase() === "damaged" || (b.status || "").toLowerCase() === "violation";
+                  const schedTime = formatTime(b.time_start || b.time);
 
                   return (
-                    <tr key={b.id || idx} className="hover:bg-slate-50/60 transition-colors">
+                    <tr key={`rpt-venue-${b.id || idx}-${idx}`} className="hover:bg-slate-50/60 transition-colors">
                       <td className="px-4 py-3.5 font-black text-blue-700 font-mono">{trackNo}</td>
                       <td className="px-4 py-3.5 font-extrabold text-slate-900">{b.filer_name || b.requestor || "Filer"}</td>
                       <td className="px-4 py-3.5 font-bold text-slate-800">{b.venue_name || b.venue || "AVR Auditorium"}</td>
                       <td className="px-4 py-3.5 text-slate-600 whitespace-nowrap">
-                        {b.date_of_usage || b.date} ({b.time_start || b.time || "08:00 AM"})
+                        {formatDate(b.date_of_usage || b.date)} ({schedTime})
                       </td>
-                      <td className="px-4 py-3.5">
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-blue-50 text-blue-700 border border-blue-200">
-                          {b.program_office || b.dept || b.office || "External"}
-                        </span>
+                      <td className="px-4 py-3.5 text-slate-700 font-extrabold">
+                        {b.program_office || b.dept || b.office || "External"}
                       </td>
                       <td className="px-4 py-3.5 text-slate-600 max-w-xs truncate">{b.purpose || b.event || "Academic Event"}</td>
-                      <td className="px-4 py-3.5">
-                        {isSolved ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-300">
-                            <CheckCircle2 size={12} /> Solved
-                          </span>
+                      <td className="px-4 py-3.5 font-extrabold">
+                        {isDamaged ? (
+                          <span className="inline-flex px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-rose-100 text-rose-800 border border-rose-200">VIOLATION</span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-100 text-rose-800 border border-rose-300">
-                            <AlertTriangle size={12} /> {b.violation || "Venue Policy Violation"}
-                          </span>
+                          <span className="inline-flex px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-emerald-100 text-emerald-800 border border-emerald-200 font-mono">CLEAN</span>
                         )}
                       </td>
                     </tr>
@@ -143,7 +156,7 @@ export default function BookingBorrowingReportTab({
           <div>
             Showing <span className="font-extrabold text-slate-900">{venueStartIndex + 1}</span> to{" "}
             <span className="font-extrabold text-slate-900">{Math.min(venueStartIndex + ITEMS_PER_PAGE, violationVenueBookings.length)}</span> of{" "}
-            <span className="font-extrabold text-slate-900">{violationVenueBookings.length}</span> venue violation reports
+            <span className="font-extrabold text-slate-900">{violationVenueBookings.length}</span> venue reports
           </div>
 
           <div className="flex items-center gap-2">
@@ -173,22 +186,21 @@ export default function BookingBorrowingReportTab({
 
       {/* ── 2. EQUIPMENT BORROWING REPORTS TABLE ── */}
       <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
-        <div className="flex items-center justify-between p-5 border-b border-slate-100">
-          <div className="flex items-center gap-2">
-            <PackageOpen size={18} className="text-purple-600" />
-            <span className="font-bold text-slate-900 text-sm">Equipment Borrowing Reports (Violation Records)</span>
-            <span className="text-xs font-bold text-slate-500 bg-slate-100 px-2.5 py-0.5 rounded-full">
-              {violationEquipmentBorrowings.length}
-            </span>
+        <div className="flex items-center justify-between p-4 border-b border-slate-100">
+          <div>
+            <h3 className="font-black text-slate-900 text-sm">Equipment Borrowing Reports</h3>
+            <p className="text-xs text-slate-500 font-semibold mt-0.5">
+              Historical borrowing logs and equipment status summary
+            </p>
           </div>
         </div>
 
-        {/* Equipment Table: [TRACK NUMBER, Requestor Name, Equipment, Quantity, Dept / Office, Purpose, Violation & Evidence, Late Return] */}
+        {/* Equipment Table: [TRACK NUMBER, Requestor Name, Equipment, Quantity, Dept / Office, Purpose, Remarks] */}
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-slate-50/80 border-b border-slate-100">
-                {["TRACK NUMBER", "Requestor Name", "Equipment", "Quantity", "Dept / Office (External)", "Purpose", "Violation & Evidence", "Late Return"].map((h) => (
+                {["TRACK NUMBER", "Requestor Name", "Equipment", "Quantity", "Dept / Office", "Purpose", "Remarks"].map((h) => (
                   <th key={h} className="px-4 py-3.5 text-left text-[11px] font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap">
                     {h}
                   </th>
@@ -196,65 +208,41 @@ export default function BookingBorrowingReportTab({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-xs font-semibold">
-              {violationEquipmentBorrowings.length === 0 ? (
+              {loading ? (
                 <tr>
-                  <td colSpan={8} className="text-center py-10 text-slate-400">
-                    <ShieldAlert size={16} className="inline mr-1 text-slate-400" /> No equipment borrowing violations, damages, or late returns recorded.
+                  <td colSpan={7} className="text-center py-12 text-slate-400">
+                    <Loader2 size={20} className="animate-spin inline mr-2 text-blue-600" />
+                    <span>Loading equipment reports...</span>
+                  </td>
+                </tr>
+              ) : equipmentBorrowings.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="text-center py-10 text-slate-400">
+                    No equipment borrowing records found.
                   </td>
                 </tr>
               ) : (
                 paginatedEquipViolations.map((eb, idx) => {
                   const trackNo = eb.tracking_number || eb.track_number || `TRK-EB-${2000 + (eb.id || idx)}`;
-                  const isSolved = eb.status === "solved" || eb.is_solved;
+                  const isDamaged = Boolean(eb.has_damage) || (eb.status || "").toLowerCase() === "damaged" || (eb.status || "").toLowerCase() === "lost";
 
                   return (
                     <tr key={eb.id || idx} className="hover:bg-slate-50/60 transition-colors">
-                      <td className="px-4 py-3.5 font-black text-purple-700 font-mono">{trackNo}</td>
+                      <td className="px-4 py-3.5 font-bold text-blue-600 font-mono">{trackNo}</td>
                       <td className="px-4 py-3.5 font-extrabold text-slate-900">{eb.filer_name || eb.requestor || "Filer"}</td>
-                      <td className="px-4 py-3.5 font-bold text-purple-700">{eb.equipment_name || eb.equipment || "AV Projector HD"}</td>
+                      <td className="px-4 py-3.5 font-bold text-blue-700">{eb.equipment_name || eb.equipment || "AV Projector HD"}</td>
                       <td className="px-4 py-3.5 font-bold text-slate-900">{eb.quantity || eb.qty || 1} Units</td>
-                      <td className="px-4 py-3.5">
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-purple-50 text-purple-700 border border-purple-200">
-                          {eb.program_office || eb.dept || eb.office || "External"}
-                        </span>
+                      <td className="px-4 py-3.5 text-slate-700 font-extrabold">
+                        {eb.program_office || eb.dept || eb.office || "External"}
                       </td>
                       <td className="px-4 py-3.5 text-slate-600 max-w-xs truncate">{eb.purpose || "Academic Seminar"}</td>
-                      <td className="px-4 py-3.5">
-                        <div className="flex items-center gap-1.5">
-                          {isSolved ? (
-                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1">
-                              <CheckCircle2 size={12} /> Solved
-                            </span>
-                          ) : (
-                            <span
-                              className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold border ${
-                                eb.status === "lost"
-                                  ? "bg-red-900 text-white border-red-950"
-                                  : "bg-rose-100 text-rose-800 border-rose-300"
-                              }`}
-                            >
-                              {eb.violation || (eb.status === "lost" ? "Lost Equipment" : "Damaged Equipment")}
-                            </span>
-                          )}
-
-                          {eb.evidence_image && (
-                            <button
-                              onClick={() => setEvidenceModalImage(eb.evidence_image)}
-                              className="p-1 text-blue-600 hover:bg-blue-50 rounded-md cursor-pointer"
-                              title="View Evidence Image"
-                            >
-                              <ImageIcon size={14} />
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3.5">
-                        {eb.is_late || eb.late_hours ? (
-                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-800 border border-amber-300">
-                            Late ({eb.late_hours || "+1.5 hrs"})
-                          </span>
+                      <td className="px-4 py-3.5 font-extrabold">
+                        {(eb.status || "").toLowerCase() === "lost" ? (
+                          <span className="inline-flex px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-amber-100 text-amber-800 border border-amber-200">LOST</span>
+                        ) : isDamaged ? (
+                          <span className="inline-flex px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-rose-100 text-rose-800 border border-rose-200">VIOLATION</span>
                         ) : (
-                          <span className="text-slate-400 font-normal">On-time</span>
+                          <span className="inline-flex px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-emerald-100 text-emerald-800 border border-emerald-200">CLEAN</span>
                         )}
                       </td>
                     </tr>

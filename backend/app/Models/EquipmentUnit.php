@@ -20,6 +20,7 @@ class EquipmentUnit extends Model
         'purchased_at',
         'eq_lifespan',
         'status',
+        'condition',
         'description',
     ];
 

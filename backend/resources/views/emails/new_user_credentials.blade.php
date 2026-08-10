@@ -1,41 +1,46 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <title>Account Credentials - FSUU Reserve and Booking System</title>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #111827; background-color: #ffffff; margin: 0; padding: 20px; }
+    p { margin-bottom: 16px; }
+    .credentials-block { font-family: monospace; font-size: 13px; margin: 16px 0; }
+    .signoff { margin-top: 24px; }
+  </style>
 </head>
-<body style="font-family: Arial, sans-serif; font-size: 14px; color: #1e293b; line-height: 1.6; padding: 20px; max-width: 600px; margin: 0 auto;">
+<body>
+@php
+    $adminName = $user->name ?? 'Administrator';
+    $usernameVal = $user->username ?? $user->email ?? 'Username';
+    $officeNameVal = is_object($user->office) ? ($user->office->name ?? 'FSUU Main') : ($user->office_name ?? ($user->office ?? 'FSUU Main'));
+    $roleNameVal = is_object($user->role) ? ($user->role->name ?? 'Staff') : (string)($user->role ?? 'Staff');
+    $url = $loginUrl ?? 'http://localhost:5173/login';
+@endphp
 
-    <p>Good day {{ $user->name }},</p>
+<p>Good day {{ $adminName }}</p>
 
-    <p>An administrator has created a system account for you on the FSUU Reserve and Booking System.</p>
+<p>An Administrator has created a system account for you on the FSUU Reserve and Booking System.</p>
 
-    <p><strong>Your Account Login Credentials:</strong></p>
-    <p style="margin-left: 15px;">
-        <strong>Username Handle:</strong> {{ $user->username ?? Str::slug(explode(' ', trim($user->name))[0]) }}<br>
-        <strong>Institutional Email:</strong> {{ $user->email }}<br>
-        <strong>Password:</strong> {{ $password }}<br>
-        <strong>Role:</strong> {{ is_object($user->role) ? ($user->role->name ?? 'Branch Admin') : (string)$user->role }}<br>
-        @if($user->location)
-        <strong>Campus Location:</strong> {{ $user->location }}<br>
-        @endif
-        @if($user->office)
-        <strong>Assigned Branch Office:</strong> {{ $user->office->name }}<br>
-        @endif
-    </p>
+<p>Account Login Credentials :</p>
 
-    <p>You may sign in to the system here: <a href="http://localhost:5173/login">http://localhost:5173/login</a></p>
+<div class="credentials-block">
+Username : {{ $usernameVal }}<br>
+Password : {{ $password }}<br>
+Assigned Branch Office : {{ $officeNameVal }}<br>
+Role : {{ ucfirst($roleNameVal) }}
+</div>
 
-    <p>Security Notice: For security purposes, please log in and update your password upon your initial sign in. Do not share your login credentials with others.</p>
+<p>You may sign in to the system here : {{ $url }}</p>
 
-    <p>If you have any questions or require assistance, please contact the System Administrator.</p>
+<p>Security Notice: For security purposes, please log in and update your password upon your initial sign in. Do not share your login credentials with others</p>
 
-    <br>
-    <p>
-        Respectfully,<br>
-        <strong>System Administrator</strong><br>
-        Father Saturnino Urios University, Butuan City
-    </p>
+<p>If you have any questions or require assistance, please contact the System Administrator.</p>
 
+<p class="signoff">
+Respectfully,<br>
+System Administrator<br>
+Father Saturnino Urios University, Butuan City
+</p>
 </body>
 </html>

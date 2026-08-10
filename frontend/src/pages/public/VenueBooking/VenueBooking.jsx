@@ -22,8 +22,21 @@ const VENUE_STEPS = [
 export default function VenueBooking() {
   const [activeStep, setActiveStep] = useState(1);
   const [completedSteps, setCompletedSteps] = useState([]);
-  const [venues, setVenues] = useState([]);
-  const [venuesLoading, setVenuesLoading] = useState(true);
+  const [venues, setVenues] = useState(() => {
+    try {
+      const cached = localStorage.getItem("fsuu_cache_public_venues");
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [venuesLoading, setVenuesLoading] = useState(() => {
+    try {
+      return !localStorage.getItem("fsuu_cache_public_venues");
+    } catch {
+      return true;
+    }
+  });
 
   // Form & Selection States
   const [identity, setIdentity] = useState("");
@@ -47,10 +60,7 @@ export default function VenueBooking() {
   const [persons, setPersons] = useState("");
   const [avrEquipment, setAvrEquipment] = useState({ mic: false, proj: false, sound: false, podium: false });
 
-  // SCO Specific Fields
-  const [productionType, setProductionType] = useState("");
-  const [targetAudience, setTargetAudience] = useState("");
-  const [scoSupport, setScoSupport] = useState({ multicam: false, teleprompter: false, greenScreen: false, audioEng: false });
+
 
   // PIN Verification State
   const [showPinModal, setShowPinModal] = useState(false);
@@ -94,9 +104,9 @@ export default function VenueBooking() {
         ...v,
         id: v.id,
         name: v.name,
-        location: v.office?.location || v.location || match?.location || (v.name.includes("SCO") ? "FSUU Morelos Campus" : "FSUU Main Campus"),
+        location: v.office?.location || v.location || match?.location || "FSUU Main Campus",
         capacity: v.capacity || match?.capacity || 100,
-        type: (v.name.includes("SCO") || v.name.includes("Studio")) ? "sco" : "avr",
+        type: "avr",
         photo: avatarPhoto,
         image: avatarPhoto,
         avatar: avatarPhoto,
@@ -115,7 +125,11 @@ export default function VenueBooking() {
   useEffect(() => {
     const fetchVenues = () => {
       api.get('/public/venues')
-        .then(res => setVenues(getMergedVenues(res.data ?? [])))
+        .then(res => {
+          const merged = getMergedVenues(res.data ?? []);
+          setVenues(merged);
+          try { localStorage.setItem("fsuu_cache_public_venues", JSON.stringify(merged)); } catch {}
+        })
         .catch(() => setVenues(getMergedVenues([])))
         .finally(() => setVenuesLoading(false));
     };
@@ -229,6 +243,10 @@ export default function VenueBooking() {
         event_type: 'general',
         start_datetime: startDt,
         end_datetime: endDt,
+        date_of_usage: selectedDate,
+        reservation_end_date: targetEndDate,
+        time_start: startTime,
+        time_end: endTime,
         contact_preference: 'email',
         venue_id: selectedVenue?.id,
       };
@@ -243,17 +261,9 @@ export default function VenueBooking() {
         .join(', ');
       payload.equipment_notes = equipFormatted;
 
-      if (selectedVenue?.type === 'avr') {
-        endpoint = '/public/avr-venue-bookings';
-        payload.booking_classification = classification || 'academic';
-        payload.number_of_persons = parseInt(persons, 10) || 1;
-      } else {
-        endpoint = '/public/sco-studio-reservations';
-        payload.production_type = productionType || 'video';
-        payload.broadcast_target_audience = targetAudience || 'general';
-        payload.booking_classification = 'academic';
-        payload.number_of_persons = parseInt(persons, 10) || 1;
-      }
+      endpoint = '/public/avr-venue-bookings';
+      payload.booking_classification = classification || 'academic';
+      payload.number_of_persons = parseInt(persons, 10) || 1;
 
       const formData = new FormData();
       Object.keys(payload).forEach(key => {
@@ -273,6 +283,7 @@ export default function VenueBooking() {
 
       // Save to local storage cache so portal immediately displays new booking
       try {
+        const endorsementUrl = data.endorsement_url || (data.documents && data.documents[0]?.file_path) || null;
         const newBk = {
           ...data,
           id: data.id || Date.now(),
@@ -291,6 +302,9 @@ export default function VenueBooking() {
           time_start: startTime,
           time_end: endTime,
           status: 'pending',
+          endorsement_url: endorsementUrl,
+          endorsement_letter: endorsementUrl,
+          documents: data.documents || (endorsementUrl ? [{ file_path: endorsementUrl, document_type: 'endorsement_letter' }] : []),
           created_at: new Date().toISOString(),
         };
         const saved = localStorage.getItem("fsuu_venue_bookings");
@@ -319,7 +333,7 @@ export default function VenueBooking() {
           Venue Booking
         </h1>
         <p className="text-slate-500 font-medium max-w-md sm:max-w-lg mx-auto text-xs sm:text-sm leading-relaxed text-center tracking-normal">
-          Book AVR Auditoriums or SCO Webcast Studios with real-time schedule checks.
+          Book AVR Auditoriums and meeting venues with real-time schedule checks.
         </p>
       </div>
 
@@ -349,6 +363,7 @@ export default function VenueBooking() {
             </div>
           ) : (
             <Step2Venue
+              identity={identity}
               venueCategory={venueCategory}
               setVenueCategory={setVenueCategory}
               filteredVenues={filteredVenues}
@@ -385,9 +400,6 @@ export default function VenueBooking() {
             endTime={endTime} setEndTime={setEndTime}
             avrEquipment={avrEquipment} setAvrEquipment={setAvrEquipment}
             equipmentCatalog={equipmentCatalog}
-            productionType={productionType} setProductionType={setProductionType}
-            targetAudience={targetAudience} setTargetAudience={setTargetAudience}
-            scoSupport={scoSupport} setScoSupport={setScoSupport}
             onBack={() => setActiveStep(2)}
           />
         )}

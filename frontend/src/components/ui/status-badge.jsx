@@ -9,9 +9,13 @@ const STATUS_CONFIGS = {
   
   pending:           "bg-amber-50 text-amber-700 border-amber-300 font-extrabold hover:bg-amber-100",
   ongoing:           "bg-blue-50 text-blue-700 border-blue-300 font-extrabold hover:bg-blue-100",
+  "on-going":        "bg-blue-50 text-blue-700 border-blue-300 font-extrabold hover:bg-blue-100",
   borrowed:          "bg-blue-50 text-blue-700 border-blue-300 font-extrabold hover:bg-blue-100",
   released:          "bg-blue-50 text-blue-700 border-blue-300 font-extrabold hover:bg-blue-100",
   ready_to_claim:    "bg-purple-50 text-purple-700 border-purple-300 font-extrabold hover:bg-purple-100",
+  "post-inspection":       "bg-purple-50 text-purple-700 border-purple-300 font-extrabold hover:bg-purple-100",
+  "post-event inspection": "bg-purple-50 text-purple-700 border-purple-300 font-extrabold hover:bg-purple-100",
+  "post_inspection":       "bg-purple-50 text-purple-700 border-purple-300 font-extrabold hover:bg-purple-100",
   
   under_maintenance: "bg-purple-50 text-purple-700 border-purple-300 font-extrabold hover:bg-purple-100",
   maintenance:       "bg-purple-50 text-purple-700 border-purple-300 font-extrabold hover:bg-purple-100",
