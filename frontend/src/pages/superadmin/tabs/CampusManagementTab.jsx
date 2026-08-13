@@ -139,38 +139,37 @@ export default function CampusManagementTab({ showMsg }) {
     : offices.filter((o) => (o.location || "FSUU Main Campus") === locationFilter);
 
   return (
-    <div className="space-y-6">
-      {/* Header Banner */}
-      <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h3 className="font-black text-slate-900 text-base flex items-center gap-2">
-            <Building2 size={20} className="text-blue-600" />
-            Campuses &amp; Branch Offices Management
-          </h3>
-          <p className="text-xs text-slate-500 font-semibold mt-1">
-            Manage university physical locations (e.g., FSUU Main, FSUU Morelos) and the administrative branch offices (e.g., AVR Office, Property Office) operating within each location.
-          </p>
+    <div className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200/80 shadow-xs space-y-6">
+      {/* Top Action Bar matching Admin Profile styling */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+        <div className="flex items-center gap-2">
+          <Building2 size={22} className="text-blue-600" />
+          <h3 className="font-extrabold text-slate-900 text-sm sm:text-base">Campus &amp; Branch Office Setup</h3>
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
+
+        <div className="flex items-center gap-2.5 flex-wrap">
           <button
             onClick={() => {
               setEditLocation(null);
               setLocationForm({ name: "", status: "active" });
               setShowLocationModal(true);
             }}
-            className="flex items-center gap-1.5 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-extrabold shadow-sm cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-xl text-xs font-extrabold transition-all shadow-xs cursor-pointer"
           >
-            <Plus size={15} /> Add Campus Location
+            <Plus size={15} />
+            <span>Add Campus Location</span>
           </button>
+
           <button
             onClick={() => {
               setEditOffice(null);
               setOfficeForm({ name: "", location: locations[0]?.name || "FSUU Main Campus" });
               setShowOfficeModal(true);
             }}
-            className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-extrabold shadow-sm cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-xl text-xs font-extrabold transition-all shadow-xs cursor-pointer"
           >
-            <Plus size={15} /> Add Branch Office
+            <Plus size={15} />
+            <span>Add Branch Office</span>
           </button>
         </div>
       </div>
@@ -178,28 +177,28 @@ export default function CampusManagementTab({ showMsg }) {
       {/* Section 1: Physical Campus Locations Summary */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h4 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
-            <MapPin size={16} className="text-blue-600" />
+          <h4 className="text-xs font-extrabold text-slate-900 flex items-center gap-2 uppercase tracking-wide">
+            <MapPin size={15} className="text-blue-600" />
             Physical Campus Locations ({locations.length})
           </h4>
-          <span className="text-[10px] uppercase font-bold text-slate-400">Physical Sites</span>
+          <span className="text-[10px] uppercase font-extrabold text-slate-400">Physical Sites</span>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {loading ? (
-            <div className="col-span-full bg-white p-6 rounded-2xl border border-slate-200/80 text-center text-slate-400 text-xs font-semibold">
-              <Loader2 size={16} className="animate-spin inline mr-2" />
+            <div className="col-span-full bg-slate-50 p-6 rounded-2xl border border-slate-200/80 text-center text-slate-400 text-xs font-semibold">
+              <Loader2 size={16} className="animate-spin inline mr-2 text-blue-600" />
               Loading campus locations...
             </div>
           ) : locations.length === 0 ? (
-            <div className="col-span-full bg-white p-6 rounded-2xl border border-slate-200/80 text-center text-slate-400 text-xs font-semibold">
+            <div className="col-span-full bg-slate-50 p-6 rounded-2xl border border-slate-200/80 text-center text-slate-400 text-xs font-semibold">
               📍 No physical campus locations configured. Click "Add Campus Location" to set up your primary campuses.
             </div>
           ) : (
             locations.map((loc) => {
               const officeCount = offices.filter((o) => (o.location || "FSUU Main Campus") === loc.name).length;
               return (
-                <div key={loc.id} className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex items-center justify-between hover:border-blue-200 transition-all">
+                <div key={loc.id} className="bg-slate-50 p-4 rounded-2xl border border-slate-200/80 shadow-2xs flex items-center justify-between hover:border-blue-300 transition-all">
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
                       <span className="font-extrabold text-slate-900 text-xs">{loc.name}</span>
@@ -219,14 +218,14 @@ export default function CampusManagementTab({ showMsg }) {
                         setLocationForm({ name: loc.name, status: loc.status || "active" });
                         setShowLocationModal(true);
                       }}
-                      className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 cursor-pointer"
+                      className="p-1.5 rounded-xl border border-slate-200 text-slate-600 hover:border-blue-600 hover:text-blue-600 hover:bg-blue-50 transition-all cursor-pointer"
                       title="Edit Location"
                     >
                       <Edit2 size={13} />
                     </button>
                     <button
                       onClick={() => handleDeleteLocation(loc.id, loc.name)}
-                      className="p-1.5 rounded-lg border border-rose-200 text-rose-600 hover:bg-rose-50 cursor-pointer"
+                      className="p-1.5 rounded-xl border border-rose-200 text-rose-600 hover:bg-rose-50 transition-all cursor-pointer"
                       title="Archive Location"
                     >
                       <Trash2 size={13} />
@@ -240,10 +239,10 @@ export default function CampusManagementTab({ showMsg }) {
       </div>
 
       {/* Section 2: Campus Branch Offices Table */}
-      <div className="space-y-3">
+      <div className="space-y-3 pt-4 border-t border-slate-100">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-          <h4 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
-            <Layers size={16} className="text-blue-600" />
+          <h4 className="text-xs font-extrabold text-slate-900 flex items-center gap-2 uppercase tracking-wide">
+            <Layers size={15} className="text-blue-600" />
             Campus Branch Offices ({filteredOffices.length})
           </h4>
 
@@ -254,7 +253,7 @@ export default function CampusManagementTab({ showMsg }) {
               <select
                 value={locationFilter}
                 onChange={(e) => setLocationFilter(e.target.value)}
-                className="px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-extrabold text-slate-800 focus:outline-none cursor-pointer shadow-xs"
+                className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-extrabold text-slate-800 focus:outline-none focus:border-blue-600 cursor-pointer shadow-2xs"
               >
                 <option value="all">All Locations ({offices.length})</option>
                 {locations.map((loc) => (
@@ -267,18 +266,18 @@ export default function CampusManagementTab({ showMsg }) {
           )}
         </div>
 
-        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+        <div className="bg-slate-50 rounded-2xl border border-slate-200/80 overflow-hidden">
           <table className="w-full text-xs">
             <thead>
-              <tr className="bg-slate-50/80 border-b border-slate-100">
+              <tr className="bg-slate-100/70 border-b border-slate-200/60">
                 {["#", "Branch Office Name", "Assigned Campus Location", "Status", "Actions"].map((h) => (
-                  <th key={h} className="px-4 py-3.5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                  <th key={h} className="px-4 py-3.5 text-left text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">
                     {h}
                   </th>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 font-semibold">
+            <tbody className="divide-y divide-slate-200/60 font-semibold bg-white">
               {loading ? (
                 <tr>
                   <td colSpan={5} className="text-center py-10">
@@ -296,7 +295,7 @@ export default function CampusManagementTab({ showMsg }) {
                 </tr>
               ) : (
                 filteredOffices.map((off, index) => (
-                  <tr key={off.id || index} className="hover:bg-slate-50/60 transition-colors">
+                  <tr key={off.id || index} className="hover:bg-blue-50/30 transition-colors">
                     <td className="px-4 py-3.5 font-bold text-slate-400">{index + 1}</td>
                     <td className="px-4 py-3.5 font-extrabold text-slate-900 flex items-center gap-2">
                       <Building2 size={14} className="text-blue-600" />
@@ -324,14 +323,14 @@ export default function CampusManagementTab({ showMsg }) {
                             });
                             setShowOfficeModal(true);
                           }}
-                          className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 cursor-pointer"
+                          className="p-1.5 rounded-xl border border-slate-200 text-slate-600 hover:border-blue-600 hover:text-blue-600 hover:bg-blue-50 transition-all cursor-pointer"
                           title="Edit Branch Office"
                         >
                           <Edit2 size={14} />
                         </button>
                         <button
                           onClick={() => handleDeleteOffice(off.id, off.name)}
-                          className="p-1.5 rounded-lg border border-rose-200 text-rose-600 hover:bg-rose-50 cursor-pointer"
+                          className="p-1.5 rounded-xl border border-rose-200 text-rose-600 hover:bg-rose-50 transition-all cursor-pointer"
                           title="Delete Branch Office"
                         >
                           <Trash2 size={14} />
@@ -355,7 +354,7 @@ export default function CampusManagementTab({ showMsg }) {
                 <MapPin size={18} className="text-blue-600" />
                 {editLocation ? "Edit Campus Location" : "Create New Campus Location"}
               </h3>
-              <button onClick={() => setShowLocationModal(false)} className="text-slate-400 hover:text-slate-600 p-1 rounded-lg">
+              <button onClick={() => setShowLocationModal(false)} className="text-slate-400 hover:text-blue-600 p-1 rounded-lg">
                 <X size={18} />
               </button>
             </div>
@@ -378,7 +377,7 @@ export default function CampusManagementTab({ showMsg }) {
                 <select
                   value={locationForm.status}
                   onChange={(e) => setLocationForm({ ...locationForm, status: e.target.value })}
-                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:outline-none"
+                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:outline-none focus:border-blue-600"
                 >
                   <option value="active">Active</option>
                   <option value="inactive">Inactive</option>
@@ -389,14 +388,14 @@ export default function CampusManagementTab({ showMsg }) {
                 <button
                   type="button"
                   onClick={() => setShowLocationModal(false)}
-                  className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-100"
+                  className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:border-blue-600 hover:text-blue-600 hover:bg-blue-50 transition-all cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={formLoading}
-                  className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs shadow-md flex items-center gap-1.5"
+                  className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-extrabold text-xs shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
                 >
                   {formLoading && <Loader2 size={14} className="animate-spin" />}
                   <span>Save Location</span>
@@ -416,7 +415,7 @@ export default function CampusManagementTab({ showMsg }) {
                 <Building2 size={18} className="text-blue-600" />
                 {editOffice ? "Edit Campus Branch Office" : "Create New Branch Office"}
               </h3>
-              <button onClick={() => setShowOfficeModal(false)} className="text-slate-400 hover:text-slate-600 p-1 rounded-lg">
+              <button onClick={() => setShowOfficeModal(false)} className="text-slate-400 hover:text-blue-600 p-1 rounded-lg">
                 <X size={18} />
               </button>
             </div>
@@ -458,14 +457,14 @@ export default function CampusManagementTab({ showMsg }) {
                 <button
                   type="button"
                   onClick={() => setShowOfficeModal(false)}
-                  className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-100"
+                  className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:border-blue-600 hover:text-blue-600 hover:bg-blue-50 transition-all cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={formLoading}
-                  className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs shadow-md flex items-center gap-1.5"
+                  className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-extrabold text-xs shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
                 >
                   {formLoading && <Loader2 size={14} className="animate-spin" />}
                   <span>Save Branch Office</span>
