@@ -37,7 +37,7 @@ RUN chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache && \
 # Copy Nginx configuration
 COPY docker/nginx.conf /etc/nginx/sites-available/default
 
-# Expose port 80
+# Expose port
 EXPOSE 80
 
-CMD ["sh", "-c", "service nginx start && php artisan migrate --force --seed && php-fpm"]
+CMD ["sh", "-c", "sed -i 's/PORT_PLACEHOLDER/'\"${PORT:-80}\"'/g' /etc/nginx/sites-available/default && php artisan migrate:fresh --force --seed && php artisan config:cache && php artisan route:cache && php-fpm -D && nginx -g 'daemon off;'"]
