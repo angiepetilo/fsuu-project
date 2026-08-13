@@ -47,10 +47,10 @@ export default function SysadSettings() {
         <div>
           <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
             <ShieldCheck className="text-slate-900" size={22} />
-            System Control &amp; Configurations
+            Super Admin System Control &amp; Master Configurations
           </h1>
           <p className="text-xs text-slate-500 font-semibold mt-0.5">
-            Global management, combined analytics, office reports &amp; inventory filter.
+            Master global management for campuses, offices, manager user accounts, master equipment/venue catalogs, fee matrix, and security PIN.
           </p>
         </div>
       </div>
