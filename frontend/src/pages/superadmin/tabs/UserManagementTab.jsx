@@ -152,7 +152,7 @@ export default function UserManagementTab({ showMsg }) {
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-slate-50/80 border-b border-slate-100">
-              {["#", "Admin Name", "Username", "Personal Email", "Assigned Branch Office", "Role", "Actions"].map((h) => (
+              {["#", "Admin Name", "Personal Email", "Assigned Branch Office", "Role", "Actions"].map((h) => (
                 <th key={h} className="px-4 py-3.5 text-left text-[11px] font-bold text-slate-400 uppercase tracking-wider">
                   {h}
                 </th>
@@ -162,7 +162,7 @@ export default function UserManagementTab({ showMsg }) {
           <tbody className="divide-y divide-slate-100 text-xs font-semibold">
             {loading ? (
               <tr>
-                <td colSpan={7} className="text-center py-10">
+                <td colSpan={6} className="text-center py-10">
                   <div className="flex items-center justify-center gap-2 text-slate-400">
                     <div className="w-4 h-4 rounded-full border-2 border-slate-200 border-t-blue-500 animate-spin" />
                     <span className="text-xs font-semibold italic">Loading branch admins...</span>
@@ -171,7 +171,7 @@ export default function UserManagementTab({ showMsg }) {
               </tr>
             ) : adminUsers.length === 0 ? (
               <tr>
-                <td colSpan={7} className="text-center py-10 text-slate-400">
+                <td colSpan={6} className="text-center py-10 text-slate-400">
                   <div className="flex items-center justify-center gap-2">
                     <Users size={16} className="text-slate-400" />
                     <span>No branch admin accounts found. Click "Create Admin Account" to assign branch management access.</span>
@@ -189,7 +189,6 @@ export default function UserManagementTab({ showMsg }) {
                   <tr key={u.id || index} className="hover:bg-blue-50/40 transition-colors">
                     <td className="px-4 py-3.5 font-bold text-slate-400">{index + 1}</td>
                     <td className="px-4 py-3.5 font-extrabold text-slate-900">{u.name}</td>
-                    <td className="px-4 py-3.5 font-mono text-blue-600 font-bold">{u.username || u.email}</td>
                     <td className="px-4 py-3.5 font-mono text-slate-600 font-medium">{u.personal_email || u.email}</td>
                     <td className="px-4 py-3.5 font-extrabold text-slate-800">
                       <span className="inline-flex items-center gap-1">
@@ -265,19 +264,6 @@ export default function UserManagementTab({ showMsg }) {
                       onChange={(e) => setUserForm({ ...userForm, name: e.target.value })}
                       className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white transition-all"
                     />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-slate-900 mb-1">Username *</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. msantos@fsuu.edu.ph"
-                      value={userForm.email}
-                      onChange={(e) => setUserForm({ ...userForm, email: e.target.value, username: e.target.value })}
-                      className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-mono font-bold text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white transition-all"
-                    />
-                    <p className="text-[10px] text-slate-400 mt-1 font-medium">Used for system login authentication.</p>
                   </div>
 
                   <div>
