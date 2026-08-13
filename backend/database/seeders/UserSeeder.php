@@ -13,16 +13,16 @@ class UserSeeder extends Seeder
     {
         $superAdminRole = Role::where('name', 'super_admin')->first();
 
-        $email = env('INITIAL_SUPERADMIN_EMAIL', 'superadmin@fsuu.edu.ph');
+        $email = env('INITIAL_SUPERADMIN_EMAIL', 'admin@fsuu.edu.ph');
         $password = env('INITIAL_SUPERADMIN_PASSWORD', 'password123');
 
-        // 1. Super Admin Account (Global Scope)
+        // Initial Super Admin Account (Global Scope)
         User::withTrashed()->updateOrCreate(
             ['username' => 'superadmin'],
             [
                 'name'           => 'Super Administrator',
                 'email'          => $email,
-                'personal_email' => env('INITIAL_SUPERADMIN_PERSONAL_EMAIL', 'superadmin.personal@fsuu.edu.ph'),
+                'personal_email' => env('INITIAL_SUPERADMIN_PERSONAL_EMAIL', 'admin.personal@fsuu.edu.ph'),
                 'password'       => Hash::make($password),
                 'role_id'        => $superAdminRole?->id,
                 'office_id'      => null,
