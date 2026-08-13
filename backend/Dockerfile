@@ -31,10 +31,11 @@ COPY . /var/www
 # Install Composer dependencies
 RUN composer install --no-dev --optimize-autoloader --no-interaction
 
-# Ensure database directory and database.sqlite file exist with correct permissions
-RUN touch /var/www/database/database.sqlite && \
-    chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache /var/www/database && \
-    chmod -R 775 /var/www/storage /var/www/bootstrap/cache /var/www/database
+# Ensure .env file exists and setup permissions
+RUN cp .env.example .env && \
+    touch /var/www/database/database.sqlite && \
+    chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache /var/www/database /var/www/.env && \
+    chmod -R 777 /var/www/storage /var/www/bootstrap/cache /var/www/database /var/www/.env
 
 # Copy Nginx configuration
 COPY docker/nginx.conf /etc/nginx/sites-available/default
@@ -49,4 +50,4 @@ ENV APP_ENV=production \
 # Expose port
 EXPOSE 80
 
-CMD ["sh", "-c", "sed -i 's/PORT_PLACEHOLDER/'\"${PORT:-80}\"'/g' /etc/nginx/sites-available/default && touch /var/www/database/database.sqlite && chown www-data:www-data /var/www/storage /var/www/bootstrap/cache /var/www/database && chmod -R 777 /var/www/storage /var/www/bootstrap/cache /var/www/database && php artisan key:generate --force && php artisan migrate:fresh --force --seed && php artisan config:cache && php artisan route:cache && php-fpm -D && nginx -g 'daemon off;'"]
+CMD ["sh", "-c", "sed -i 's/PORT_PLACEHOLDER/'\"${PORT:-80}\"'/g' /etc/nginx/sites-available/default && touch /var/www/database/database.sqlite && chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache /var/www/database && chmod -R 777 /var/www/storage /var/www/bootstrap/cache /var/www/database && php artisan migrate:fresh --force --seed && php artisan config:cache && php artisan route:cache && php-fpm -D && nginx -g 'daemon off;'"]
