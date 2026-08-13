@@ -30,6 +30,15 @@ export default function Dashboard() {
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [offices, setOffices] = useState([]);
+
+  useEffect(() => {
+    if (isSuperAdmin) {
+      api.get("/admin/offices")
+        .then(res => setOffices(Array.isArray(res.data) ? res.data : (res.data?.data || [])))
+        .catch(() => setOffices([]));
+    }
+  }, [isSuperAdmin]);
 
   const [totalVenueBookings, setTotalVenueBookings] = useState(0);
   const [pendingApproval, setPendingApproval] = useState(0);
@@ -402,8 +411,9 @@ export default function Dashboard() {
                 className="bg-transparent text-slate-900 text-xs font-bold focus:outline-none cursor-pointer pr-1"
               >
                 <option value="All Offices">All Offices (Combined Global View)</option>
-                <option value="FSUU Main Campus AVR Office">FSUU Main Campus AVR Office</option>
-                <option value="FSUU Morelos Campus AVR Office">FSUU Morelos Campus AVR Office</option>
+                {offices.map((off) => (
+                  <option key={off.id} value={off.name}>{off.name}</option>
+                ))}
               </select>
             </div>
           )}

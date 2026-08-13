@@ -45,7 +45,8 @@ export default function StaffLogin() {
     try {
       const { data } = await api.post("/login", { email, password });
       login(data.user, data.token);
-      const isSuper = data.user?.role === "superadmin" || data.user?.role?.name === "superadmin" || email === "superadmin@fsuu.edu.ph";
+      const userRoleName = typeof data.user?.role === "object" ? data.user?.role?.name : data.user?.role;
+      const isSuper = userRoleName === "super_admin" || userRoleName === "superadmin" || email === "admin@fsuu.edu.ph" || email === "superadmin@fsuu.edu.ph";
       if (isSuper) {
         navigate("/sysad/dashboard");
       } else {
