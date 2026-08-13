@@ -167,8 +167,8 @@ export default function AdminLayout() {
   const needsActionNotifs = filteredNotifications.filter(n => n.priority === 'high' || n.type === 'overdue' || n.type === 'pending' || n.type === 'equipment_damaged' || n.type === 'stock_alert');
   const updatesNotifs = filteredNotifications.filter(n => n.priority === 'medium' || n.priority === 'low' || (!needsActionNotifs.some(a => a.id === n.id)));
 
-  const officeFilterName = isSuperAdmin ? "All Offices" : (adminOffice.includes("Morelos") ? "FSUU Morelos" : "FSUU Main");
-  const officeName = user?.office?.name || (isSuperAdmin ? "Global Scope" : adminOffice);
+  const officeFilterName = isSuperAdmin ? "All Offices" : (user?.office?.name || adminOffice || "Assigned Office");
+  const officeName = user?.office?.name || (isSuperAdmin ? "Global Scope" : adminOffice || "Assigned Office");
 
   useEffect(() => {
     if (!user) {

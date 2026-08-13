@@ -231,7 +231,7 @@ export default function Step2Equipment({
                     {/* Item Title & Location/Specs */}
                     <h4 className="font-extrabold text-slate-900 text-base mb-0.5 tracking-tight line-clamp-1">{item.name}</h4>
                     <span className="text-[10.5px] font-extrabold text-slate-600 font-mono block mb-1">
-                      🏢 {item.office_name || item.office?.name || (item.dept === "sco" ? "SCO Office (Morelos Campus)" : "AVR Office (Main Campus)")}
+                      🏢 {item.office_name || item.office?.name || item.location || "Unassigned Office"}
                     </span>
                     <p className="text-xs text-slate-500 font-medium mb-3 line-clamp-1">
                       {item.spec || item.description || "Audio / Visual Equipment"}

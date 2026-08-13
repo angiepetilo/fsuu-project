@@ -239,7 +239,7 @@ export default function Settings() {
       capacity: parseInt(venueForm.capacity, 10) || 100,
       status: (venueForm.status || "Available").toLowerCase(),
       avatar: venuePhotoPreview || null,
-      location: venueForm.location || (adminOfficeScope.includes("Morelos") ? "FSUU Morelos Campus" : "FSUU Main Campus"),
+      location: venueForm.location || user?.office?.location || user?.office?.name || "Main Campus",
       office_id: userOfficeId,
     };
     try {
@@ -265,7 +265,7 @@ export default function Settings() {
       capacity: parseInt(venueForm.capacity, 10) || 100,
       status: (venueForm.status || "Available").toLowerCase(),
       avatar: venuePhotoPreview || null,
-      location: venueForm.location || (adminOfficeScope.includes("Morelos") ? "FSUU Morelos Campus" : "FSUU Main Campus"),
+      location: venueForm.location || user?.office?.location || user?.office?.name || "Main Campus",
       office_id: userOfficeId,
     };
     try {

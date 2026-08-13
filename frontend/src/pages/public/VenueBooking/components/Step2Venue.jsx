@@ -278,9 +278,7 @@ export default function Step2Venue({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             {paginatedVenues.map((v) => {
               const isSelected = selectedVenue?.id === v.id;
-              const officeLocation = v.office?.location || v.office?.name || "";
-              const isMorelos = officeLocation.toLowerCase().includes("morelos") || v.office_id === 2 || v.office?.slug === "fsuu-morelos";
-              const campusName = v.office?.location || (isMorelos ? "FSUU Morelos" : "FSUU Main");
+              const campusName = v.office?.location || v.office?.name || v.location || "Main Campus";
 
               const getVenueData = (v) => {
                 let photo = v.photo || v.image || v.avatar || v.avatar_url || v.photo_url || null;
@@ -331,7 +329,7 @@ export default function Step2Venue({
 
                     {/* Badges Row */}
                     <div className="flex items-center justify-between gap-2 mb-2">
-                      <span className={`text-[10px] font-extrabold uppercase px-3 py-1 rounded-xl border ${isMorelos ? "bg-purple-50 border-purple-200 text-purple-700" : "bg-blue-50 border-blue-200 text-blue-700"}`}>
+                      <span className="text-[10px] font-extrabold uppercase px-3 py-1 rounded-xl border bg-blue-50 border-blue-200 text-blue-700">
                         {campusName}
                       </span>
                       <span className="text-[11px] font-extrabold text-slate-800 bg-slate-100 px-3 py-1 rounded-full border border-slate-200">

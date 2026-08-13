@@ -414,7 +414,7 @@ export default function ManageEquipments() {
                           {item.category}
                         </span>
                         <span className="text-[10px] text-slate-500 font-semibold block mt-1">
-                          🏢 {item.office_location || item.office_name || (item.office_id === 2 ? "FSUU Morelos Campus" : "FSUU Main Campus")}
+                          🏢 {item.office_name || item.office_location || item.office?.name || "Unassigned Office"}
                         </span>
                       </td>
                       <td className="px-4 py-3.5">

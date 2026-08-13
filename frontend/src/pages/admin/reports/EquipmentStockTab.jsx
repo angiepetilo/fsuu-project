@@ -295,7 +295,7 @@ export default function EquipmentStockTab({
                             ? 'bg-purple-50 text-purple-700 border-purple-200'
                             : 'bg-blue-50 text-blue-700 border-blue-200'
                         }`}>
-                          {item.office_location || item.office?.location || (item.office_id === 2 ? 'Morelos Campus' : 'Main Campus')}
+                          {item.office_location || item.office?.name || item.office?.location || 'Unassigned Office'}
                         </span>
                       </td>
                       <td className="py-3.5 px-4 text-center font-extrabold text-slate-900 text-sm">{expectedQty}</td>
