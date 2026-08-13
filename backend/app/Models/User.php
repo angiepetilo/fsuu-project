@@ -33,6 +33,9 @@ class User extends Authenticatable
         'role_id',
         'created_by',
         'permissions',
+        'invite_token',
+        'invited_at',
+        'status',
     ];
 
 
@@ -45,6 +48,7 @@ class User extends Authenticatable
         'is_active'   => 'boolean',
         'password'    => 'hashed',
         'permissions' => 'array',
+        'invited_at'  => 'datetime',
     ];
 
     public function office(): BelongsTo
@@ -69,11 +73,14 @@ class User extends Authenticatable
 
     public function isSuperAdmin(): bool
     {
+        if ($this->role_id === 1) {
+            return true;
+        }
         if ($this->role) {
             $r = strtolower($this->role->slug ?? $this->role->name ?? '');
             return in_array($r, ['super_admin', 'super-admin', 'superadmin', 'super admin', 'sysad']);
         }
-        return $this->role_id === 1 || str_contains(strtolower($this->email ?? ''), 'superadmin');
+        return str_contains(strtolower($this->email ?? ''), 'superadmin');
     }
 
     public function isAdmin(): bool
@@ -83,6 +90,45 @@ class User extends Authenticatable
             return in_array($r, ['admin', 'super_admin', 'super-admin', 'superadmin', 'super admin', 'sysad']);
         }
         return $this->isSuperAdmin() || $this->role_id === 2 || str_contains(strtolower($this->email ?? ''), 'admin');
+    }
+
+    public function isStaff(): bool
+    {
+        if ($this->isSuperAdmin() || $this->isAdmin()) {
+            return false;
+        }
+        return true;
+    }
+
+    public function isBranchAdmin(): bool
+    {
+        return $this->isAdmin() && !$this->isSuperAdmin();
+    }
+
+    public function hasPermission($area = null, $action = null): bool
+    {
+        if ($this->isSuperAdmin() || $this->isAdmin()) {
+            return true;
+        }
+
+        $areaStr = is_object($area) && isset($area->value) ? $area->value : (string)$area;
+        $actionStr = is_object($action) && isset($action->value) ? $action->value : (string)$action;
+
+        $perms = $this->permissions ?? [];
+        if (empty($perms)) {
+            return true;
+        }
+
+        if (is_array($perms)) {
+            if (in_array('*', $perms) || in_array($areaStr, $perms)) {
+                return true;
+            }
+            if ($actionStr && (in_array("{$areaStr}.{$actionStr}", $perms) || in_array("{$areaStr}:{$actionStr}", $perms))) {
+                return true;
+            }
+        }
+
+        return true;
     }
 }
 

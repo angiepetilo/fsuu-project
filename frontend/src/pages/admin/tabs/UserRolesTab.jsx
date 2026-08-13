@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { PlusCircle, Pencil, Trash2, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
+import { PlusCircle, Pencil, Trash2, Loader2, ChevronLeft, ChevronRight, Mail } from "lucide-react";
 
 function Avatar({ user }) {
   if (user?.avatar) return (
@@ -19,6 +19,7 @@ export default function UserRolesTab({
   setShowCreate,
   setEditUser,
   setDeleteUser,
+  onResendInvite,
 }) {
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 10;
@@ -54,7 +55,7 @@ export default function UserRolesTab({
         <table className="w-full text-xs">
           <thead>
             <tr className="border-b border-slate-100 text-left text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider">
-              {["#", "User", "Username", "Personal Email", "Office", "Role", "Actions"].map((h) => (
+              {["#", "User", "Username", "Personal Email", "Office", "Role", "Status", "Actions"].map((h) => (
                 <th key={h} className="px-4 py-3 whitespace-nowrap">
                   {h}
                 </th>
@@ -64,31 +65,43 @@ export default function UserRolesTab({
           <tbody className="divide-y divide-slate-100 font-semibold">
             {loading ? (
               <tr>
-                <td colSpan={7} className="text-center py-12 text-slate-400 font-medium">
+                <td colSpan={8} className="text-center py-12 text-slate-400 font-medium">
                   <Loader2 size={18} className="animate-spin inline mr-2 text-slate-600" /> Loading users...
                 </td>
               </tr>
             ) : visibleUsers.length === 0 ? (
               <tr>
-                <td colSpan={7} className="text-center py-12 text-slate-400 font-medium">
+                <td colSpan={8} className="text-center py-12 text-slate-400 font-medium">
                   No users found for your office scope.
                 </td>
               </tr>
             ) : (
               paginatedUsers.map((u, idx) => {
                 const displayIndex = startIndex + idx + 1;
+                const isPending = u.status === "pending_activation";
+
                 return (
                   <tr key={u.id} className="hover:bg-slate-50/60 transition-colors">
                     <td className="px-4 py-3 font-mono font-bold text-slate-400">{displayIndex}</td>
                     <td className="px-4 py-3">
-                      <div className="flex items-center gap-2.5">
-                        <Avatar user={u} />
-                        <span className="font-bold text-slate-900">{u.name}</span>
-                      </div>
+                      {isPending ? (
+                        <span className="font-semibold text-slate-400 italic">— (pending)</span>
+                      ) : (
+                        <div className="flex items-center gap-2.5">
+                          <Avatar user={u} />
+                          <span className="font-bold text-slate-900">{u.name}</span>
+                        </div>
+                      )}
                     </td>
-                    <td className="px-4 py-3 font-mono text-slate-700 font-bold">{u.email}</td>
-                    <td className="px-4 py-3 font-mono text-slate-500">
-                      {u.personal_email ?? <span className="text-slate-300 italic">not set</span>}
+                    <td className="px-4 py-3 font-mono">
+                      {isPending ? (
+                        <span className="text-slate-400 italic">—</span>
+                      ) : (
+                        <span className="text-slate-700 font-bold">{u.username || u.email}</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 font-mono text-slate-600 font-medium">
+                      {u.personal_email || u.email}
                     </td>
                     <td className="px-4 py-3 text-slate-600 font-mono">{u.office?.name ?? "FSUU Main"}</td>
                     <td className="px-4 py-3">
@@ -104,15 +117,39 @@ export default function UserRolesTab({
                       </div>
                     </td>
                     <td className="px-4 py-3">
+                      {isPending ? (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold border bg-amber-50 text-amber-700 border-amber-200">
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                          PENDING
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold border bg-emerald-50 text-emerald-700 border-emerald-200">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                          ACTIVE
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
                       <div className="flex items-center gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => setEditUser(u)}
-                          className="p-1.5 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50 transition-all cursor-pointer shadow-2xs"
-                          title="Edit User"
-                        >
-                          <Pencil size={13} />
-                        </button>
+                        {isPending ? (
+                          <button
+                            type="button"
+                            onClick={() => onResendInvite && onResendInvite(u)}
+                            className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100 text-[11px] font-bold transition-all cursor-pointer shadow-2xs"
+                            title="Resend activation invitation email"
+                          >
+                            <Mail size={12} /> Resend
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => setEditUser(u)}
+                            className="p-1.5 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50 transition-all cursor-pointer shadow-2xs"
+                            title="Edit User"
+                          >
+                            <Pencil size={13} />
+                          </button>
+                        )}
                         <button
                           type="button"
                           onClick={() => setDeleteUser(u)}

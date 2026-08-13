@@ -42,4 +42,12 @@ class EquipmentType extends Model
     {
         return $this->hasMany(EquipmentUnit::class);
     }
+
+    public function scopeForOffice($query, ?int $officeId)
+    {
+        if ($officeId) {
+            return $query->where('office_id', $officeId);
+        }
+        return $query;
+    }
 }

@@ -11,6 +11,8 @@ import Step2Venue from "./components/Step2Venue";
 import Step3Details from "./components/Step3Details";
 import Step4Verification from "./components/Step4Verification";
 
+import { isPastDateTime } from "@/lib/dateTimeUtils";
+
 const VENUE_STEPS = [
   { title: "SELECT ROLE", subtitle: "Select role" },
   { title: "DATE & TIME", subtitle: "Choose venue & schedule" },
@@ -22,21 +24,17 @@ const VENUE_STEPS = [
 export default function VenueBooking() {
   const [activeStep, setActiveStep] = useState(1);
   const [completedSteps, setCompletedSteps] = useState([]);
-  const [venues, setVenues] = useState(() => {
+  const [venues, setVenues] = useState([]);
+  const [venuesLoading, setVenuesLoading] = useState(true);
+
+  // Clean public venue localStorage items on mount
+  useEffect(() => {
     try {
-      const cached = localStorage.getItem("fsuu_cache_public_venues");
-      return cached ? JSON.parse(cached) : [];
-    } catch {
-      return [];
-    }
-  });
-  const [venuesLoading, setVenuesLoading] = useState(() => {
-    try {
-      return !localStorage.getItem("fsuu_cache_public_venues");
-    } catch {
-      return true;
-    }
-  });
+      localStorage.removeItem("fsuu_cache_public_venues");
+      localStorage.removeItem("fsuu_venue_availability");
+      localStorage.removeItem("fsuu_venue_bookings");
+    } catch {}
+  }, []);
 
   // Form & Selection States
   const [identity, setIdentity] = useState("");
@@ -60,8 +58,6 @@ export default function VenueBooking() {
   const [persons, setPersons] = useState("");
   const [avrEquipment, setAvrEquipment] = useState({ mic: false, proj: false, sound: false, podium: false });
 
-
-
   // PIN Verification State
   const [showPinModal, setShowPinModal] = useState(false);
   const [pinInput, setPinInput] = useState("");
@@ -76,69 +72,55 @@ export default function VenueBooking() {
   const [equipmentCatalog, setEquipmentCatalog] = useState([]);
 
   useEffect(() => {
-    api.get('/public/equipment-types')
+    const params = new URLSearchParams();
+    if (selectedDate) params.append("date", selectedDate);
+    if (startTime) params.append("time_start", startTime);
+    if (endTime) params.append("time_end", endTime);
+
+    api.get(`/public/equipment-types?${params.toString()}`)
       .then(res => {
         const list = Array.isArray(res.data) ? res.data : [];
         setEquipmentCatalog(list);
       })
       .catch(() => setEquipmentCatalog([]));
-  }, []);
+  }, [selectedDate, startTime, endTime]);
 
   const handleContactChange = (e) => {
     setContactNumber(e.target.value.replace(/\D/g, '').slice(0, 11));
   };
 
-  const getMergedVenues = (apiVenues = []) => {
-    let localVenues = [];
-    try {
-      const saved = localStorage.getItem("fsuu_venue_availability");
-      if (saved) localVenues = JSON.parse(saved);
-    } catch { }
-
-    const formatVenue = (v) => {
-      const clean = (str) => (str || "").toLowerCase().replace(/[^a-z0-9]/g, "");
-      const match = localVenues.find(lv => lv.id === v.id || clean(lv.name) === clean(v.name));
-      const avatarPhoto = v.avatar || v.photo || v.image || v.avatar_url || v.photo_url || match?.photo || match?.avatar || match?.image || null;
+  const formatVenues = (apiVenues = []) => {
+    return apiVenues.map(v => {
+      const avatarPhoto = v.avatar || v.photo || v.image || v.avatar_url || v.photo_url || null;
 
       return {
         ...v,
         id: v.id,
         name: v.name,
-        location: v.office?.location || v.location || match?.location || "FSUU Main Campus",
-        capacity: v.capacity || match?.capacity || 100,
+        location: v.office?.location || v.location || "FSUU Main Campus",
+        capacity: v.capacity || 100,
         type: "avr",
         photo: avatarPhoto,
         image: avatarPhoto,
         avatar: avatarPhoto,
-        status: match?.status || v.status || "Available",
-        schedule: match?.schedule || v.schedule || null,
+        status: v.status || "Available",
+        schedule: v.schedule || null,
       };
-    };
-
-    if (apiVenues.length > 0) {
-      return apiVenues.map(formatVenue);
-    }
-
-    return localVenues.map(formatVenue);
+    });
   };
 
   useEffect(() => {
     const fetchVenues = () => {
       api.get('/public/venues')
         .then(res => {
-          const merged = getMergedVenues(res.data ?? []);
-          setVenues(merged);
-          try { localStorage.setItem("fsuu_cache_public_venues", JSON.stringify(merged)); } catch {}
+          const formatted = formatVenues(res.data ?? []);
+          setVenues(formatted);
         })
-        .catch(() => setVenues(getMergedVenues([])))
+        .catch(() => setVenues([]))
         .finally(() => setVenuesLoading(false));
     };
 
     fetchVenues();
-
-    const handleUpdate = () => setVenues(getMergedVenues([]));
-    window.addEventListener("venue_availability_updated", handleUpdate);
-    window.addEventListener("storage", handleUpdate);
 
     api.get('/public/venue-bookings')
       .then(res => {
@@ -146,11 +128,6 @@ export default function VenueBooking() {
         setExistingBookings(data);
       })
       .catch(() => setExistingBookings([]));
-
-    return () => {
-      window.removeEventListener("venue_availability_updated", handleUpdate);
-      window.removeEventListener("storage", handleUpdate);
-    };
   }, []);
 
   const filteredVenues = venueCategory === "all"
@@ -173,24 +150,13 @@ export default function VenueBooking() {
   };
 
   const handleStep2Next = () => {
-    const isMultiDay = selectedEndDate && selectedEndDate > selectedDate;
-
-    let requiresPin = false;
-    try {
-      const savedConfig = localStorage.getItem("fsuu_pin_config");
-      if (savedConfig) {
-        const parsed = JSON.parse(savedConfig);
-        if (parsed.requirePinForStudent) {
-          requiresPin = true;
-        } else {
-          requiresPin = identity === "external" || isMultiDay;
-        }
-      } else {
-        requiresPin = identity === "external" || isMultiDay;
-      }
-    } catch {
-      requiresPin = identity === "external" || isMultiDay;
+    if (isPastDateTime(selectedDate, startTime)) {
+      alert("Selected booking date or time has already passed. Please select a future date and time.");
+      return;
     }
+
+    const isMultiDay = selectedEndDate && selectedEndDate > selectedDate;
+    const requiresPin = identity === "external" || isMultiDay;
 
     if (requiresPin && !isPinVerified) {
       setShowPinModal(true);
@@ -261,6 +227,14 @@ export default function VenueBooking() {
         .join(', ');
       payload.equipment_notes = equipFormatted;
 
+      const equipItems = Object.entries(avrEquipment)
+        .filter(([_, val]) => Boolean(val))
+        .map(([key, val]) => ({
+          equipment_type_id: key,
+          quantity_requested: typeof val === 'number' ? val : 1,
+        }));
+      payload.equipment_items = JSON.stringify(equipItems);
+
       endpoint = '/public/avr-venue-bookings';
       payload.booking_classification = classification || 'academic';
       payload.number_of_persons = parseInt(persons, 10) || 1;
@@ -280,39 +254,7 @@ export default function VenueBooking() {
       });
       const ref = data.tracking_number?.reference_code || data.reference_code || (data.id ? `TRK-AVR${data.id}` : 'TRK-SUCCESS');
       setReferenceCode(ref);
-
-      // Save to local storage cache so portal immediately displays new booking
-      try {
-        const endorsementUrl = data.endorsement_url || (data.documents && data.documents[0]?.file_path) || null;
-        const newBk = {
-          ...data,
-          id: data.id || Date.now(),
-          reference_code: ref,
-          filer_name: fullName,
-          requestor_name: fullName,
-          email_address: email,
-          requestor_email: email,
-          contact_number: contactNumber,
-          program_office: department,
-          purpose: purpose,
-          venue_id: selectedVenue?.id,
-          venue_name: selectedVenue?.name,
-          venue: selectedVenue,
-          date_of_usage: selectedDate,
-          time_start: startTime,
-          time_end: endTime,
-          status: 'pending',
-          endorsement_url: endorsementUrl,
-          endorsement_letter: endorsementUrl,
-          documents: data.documents || (endorsementUrl ? [{ file_path: endorsementUrl, document_type: 'endorsement_letter' }] : []),
-          created_at: new Date().toISOString(),
-        };
-        const saved = localStorage.getItem("fsuu_venue_bookings");
-        const list = saved ? JSON.parse(saved) : [];
-        list.unshift(newBk);
-        localStorage.setItem("fsuu_venue_bookings", JSON.stringify(list));
-        window.dispatchEvent(new Event("venue_bookings_updated"));
-      } catch {}
+      window.dispatchEvent(new Event("venue_bookings_updated"));
 
       setShowSuccess(true);
     } catch (error) {

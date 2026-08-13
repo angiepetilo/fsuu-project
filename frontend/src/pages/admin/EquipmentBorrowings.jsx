@@ -1,68 +1,43 @@
 import { useState, useEffect, useCallback } from "react";
 import { useOutletContext, useLocation } from "react-router-dom";
 import api from "@/lib/axios";
+import { toast } from "sonner";
 import {
   Loader2, RefreshCw, AlertCircle, Eye, PackageOpen, ChevronLeft, ChevronRight
 } from "lucide-react";
 import EquipmentBorrowDetailModal from "./components/EquipmentBorrowDetailModal";
 import { PageLoader } from "@/components/ui/page-loader";
-
-function StatusBadge({ status }) {
-  const map = {
-    pending: "bg-amber-100 text-amber-700 border border-amber-200",
-    approved: "bg-emerald-100 text-emerald-700 border border-emerald-200",
-    claim: "bg-blue-100 text-blue-700 border border-blue-200",
-    claimed: "bg-blue-100 text-blue-700 border border-blue-200",
-    rejected: "bg-rose-100 text-rose-700 border border-rose-200",
-    cancelled: "bg-slate-100 text-slate-600 border border-slate-200",
-    damaged: "bg-rose-100 text-rose-800 border border-rose-300",
-    inspection: "bg-blue-50 text-blue-700 border border-blue-200",
-    completed: "bg-green-50 text-green-700 border border-green-200",
-    lost: "bg-red-900 text-white border border-red-950 font-black",
-  };
-  return <span className={`inline-flex px-2.5 py-0.5 rounded-full text-[11px] font-bold capitalize ${map[status] ?? "bg-slate-100 text-slate-600"}`}>{status}</span>;
-}
-
-const formatDate = (rawDate) => {
-  if (!rawDate) return "—";
-  try {
-    const d = new Date(rawDate);
-    if (isNaN(d.getTime())) return String(rawDate);
-    return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-  } catch {
-    return String(rawDate);
-  }
-};
+import { StatusBadge } from "@/components/ui/status-badge";
+import { formatDate, formatTimeRange12 } from "@/lib/dateUtils";
 
 export default function EquipmentBorrowings() {
   const context = useOutletContext();
   const location = useLocation();
   const officeScope = context?.adminOffice || context?.selectedOffice || "All Offices";
 
-  const [borrowings, setBorrowings] = useState(() => {
-    try {
-      const cached = localStorage.getItem("fsuu_cache_admin_equipment_borrowings");
-      return cached ? JSON.parse(cached) : [];
-    } catch {
-      return [];
-    }
-  });
-  const [loading, setLoading] = useState(() => {
-    try {
-      return !localStorage.getItem("fsuu_cache_admin_equipment_borrowings");
-    } catch {
-      return true;
-    }
-  });
+  const [borrowings, setBorrowings] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(null);
   const [error, setError] = useState(null);
   const [statusFilter, setStatusFilter] = useState("all");
 
-  // Detail Modal & Notification Modal State
-  const [selected, setSelected] = useState(null);
+  // Detail Modal & Notification Modal State (Decoupled from list array reference)
+  const [selectedId, setSelectedId] = useState(null);
   const [showNotifyModal, setShowNotifyModal] = useState(false);
   const [notifyReason, setNotifyReason] = useState("");
   const [feedbackMsg, setFeedbackMsg] = useState(null);
+
+  const selected = borrowings.find((b) => String(b.id) === String(selectedId)) || null;
+
+  const setSelected = (val) => {
+    if (!val) {
+      setSelectedId(null);
+    } else if (val.id) {
+      setSelectedId(val.id);
+    } else {
+      setSelectedId(null);
+    }
+  };
 
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 10;
@@ -74,7 +49,6 @@ export default function EquipmentBorrowings() {
       const res = await api.get("/avr-equipment-borrowings");
       const apiData = res.data?.data ?? (Array.isArray(res.data) ? res.data : []);
       setBorrowings(apiData);
-      try { localStorage.setItem("fsuu_cache_admin_equipment_borrowings", JSON.stringify(apiData)); } catch {}
     } catch {
       setError("Unable to sync equipment borrowings.");
     } finally {
@@ -97,7 +71,7 @@ export default function EquipmentBorrowings() {
         (targetRef && (b.reference_code === targetRef || b.tracking_number?.reference_code === targetRef))
       );
       if (match) {
-        setSelected(match);
+        setSelectedId(match.id);
       }
     }
   }, [location.search, location.state, borrowings]);
@@ -116,18 +90,56 @@ export default function EquipmentBorrowings() {
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
   const paginatedBorrowings = filteredBorrowings.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
-  const handleAction = async (id, type) => {
+  const handleAction = async (id, type, payload = {}) => {
     setActionLoading(id + "-" + type);
     try {
-      await api.post(`/avr-equipment-borrowings/${id}/${type}`);
-      setFeedbackMsg(`✅ Borrowing request ${type}ed successfully!`);
-      fetchBorrowings();
-      setTimeout(() => {
-        setSelected(null);
-        setFeedbackMsg(null);
-      }, 1200);
+      const res = await api.post(`/avr-equipment-borrowings/${id}/${type}`, payload);
+
+      const updatedRecord = res.data && typeof res.data === "object" ? res.data : {};
+      const statusMap = {
+        approve: "approved",
+        reject: "rejected",
+        cancel: "cancelled",
+        ongoing: "on-going",
+        complete: "completed"
+      };
+      const newStatus = statusMap[type] || type;
+      const refCode = selected?.reference_code || selected?.tracking_number?.reference_code || `EQ-${id}`;
+
+      if (type === "complete") {
+        toast.success(`Borrowing request (${refCode}) completed and transferred to History Log!`);
+        setFeedbackMsg(`✅ Borrowing form (${refCode}) transferred to History Log.`);
+        setSelectedId(null); // Close modal automatically on complete!
+      } else if (type === "reject") {
+        toast.error(`Borrowing request (${refCode}) rejected and transferred to History Log.`);
+        setFeedbackMsg(`Borrowing form (${refCode}) rejected and transferred to History Log.`);
+        setSelectedId(null);
+      } else {
+        toast.success(`Borrowing request updated: ${newStatus}`);
+        setFeedbackMsg(`✅ Borrowing request ${type}ed successfully!`);
+      }
+
+      // Patch the specific borrowing record in-place
+      setBorrowings((prev) =>
+        prev.map((b) => {
+          if (String(b.id) === String(id)) {
+            const updatedTracking = b.tracking_number
+              ? { ...b.tracking_number, status: newStatus }
+              : { status: newStatus };
+            return {
+              ...b,
+              ...updatedRecord,
+              status: newStatus,
+              tracking_number: updatedTracking,
+              trackingNumber: updatedTracking,
+            };
+          }
+          return b;
+        })
+      );
+      setTimeout(() => setFeedbackMsg(null), 3500);
     } catch (err) {
-      alert(err.response?.data?.message ?? "Action failed.");
+      toast.error(err.response?.data?.message ?? "Action failed.");
     } finally {
       setActionLoading(null);
     }
@@ -220,12 +232,14 @@ export default function EquipmentBorrowings() {
                 const equipment = b.equipment_type?.name || b.equipment_name || b.item_name || "Audio Visual Gear";
                 const quantity = b.quantity || b.qty || 1;
                 const usageDate = formatDate(b.date_of_usage || b.start_datetime);
-                const timeRange = (b.time_start && b.time_end) ? `${b.time_start} - ${b.time_end}` : "08:00 AM - 05:00 PM";
+                const rawStart = b.time_start || b.start_datetime;
+                const rawEnd = b.time_end || b.end_datetime;
+                const timeRange = formatTimeRange12(rawStart, rawEnd);
                 const currentStatus = b.status || b.tracking_number?.status || "pending";
                 const displayIndex = startIndex + idx + 1;
 
                 return (
-                  <tr key={b.id || idx} className="hover:bg-slate-50/60 transition-colors">
+                  <tr key={`eb-row-${b.id}`} className="hover:bg-slate-50/60 transition-colors">
                     <td className="px-4 py-3.5 font-bold text-slate-400">{displayIndex}</td>
                     <td className="px-4 py-3.5 font-mono text-xs font-bold text-blue-600 whitespace-nowrap">{refCode}</td>
                     <td className="px-4 py-3.5 font-extrabold text-slate-900">{requestor}</td>

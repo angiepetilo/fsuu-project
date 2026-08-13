@@ -19,6 +19,9 @@ class Inspection extends Model
         'inspected_by',
         'inspection_type',
         'condition',
+        'is_late',
+        'timeliness',
+        'minutes_late',
         'violation_type',
         'notes',
         'evidence_photo',
@@ -28,6 +31,8 @@ class Inspection extends Model
     ];
 
     protected $casts = [
+        'is_late'         => 'boolean',
+        'minutes_late'    => 'integer',
         'inspected_at'    => 'datetime',
         'assigned_units'  => 'array',
         'unit_conditions' => 'array',

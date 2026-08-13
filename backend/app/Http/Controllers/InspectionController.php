@@ -44,7 +44,7 @@ class InspectionController extends Controller
         }
 
         $data = [
-            'inspectable_type' => $refType === 'equipment_borrow' ? 'App\\Models\\EquipmentBorrow' : 'App\\Models\\VenueBooking',
+            'inspectable_type' => $refType === 'equipment_borrow' ? \App\Models\EquipmentBorrow::class : \App\Models\VenueBooking::class,
             'inspectable_id'   => $refId,
             'reference_type'   => $refType,
             'reference_id'     => $refId,

@@ -2,7 +2,7 @@
 
 namespace App\Services;
 
-use App\Models\AvrVenueBooking;
+use App\Models\VenueBooking;
 use App\Models\EntryVerification;
 use App\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -12,7 +12,7 @@ class EntryVerificationService
     public function __construct(private AuditLogService $auditLog) {}
 
     public function record(
-        AvrVenueBooking $booking,
+        VenueBooking $booking,
         User $staff,
         string $contactMethodVerified,
         string $rawPin

@@ -9,49 +9,7 @@ import {
 import EquipmentDetailModal from "./components/EquipmentDetailModal";
 import EquipmentModal from "./components/EquipmentModal";
 import { PageLoader } from "@/components/ui/page-loader";
-
-function StatusBadge({ status }) {
-  const statusLower = (status || 'available').toLowerCase();
-  let cls = 'bg-emerald-100 text-emerald-800 border-emerald-300';
-  let label = 'Available';
-  if (statusLower === 'released' || statusLower === 'in-use' || statusLower === 'borrowed') {
-    cls = 'bg-blue-100 text-blue-800 border-blue-300'; label = 'Released';
-  } else if (statusLower === 'damaged') {
-    cls = 'bg-rose-100 text-rose-800 border-rose-300'; label = 'Damaged';
-  } else if (statusLower === 'maintenance' || statusLower === 'under_maintenance') {
-    cls = 'bg-amber-100 text-amber-800 border-amber-300'; label = 'Maintenance';
-  } else if (statusLower === 'decommissioned' || statusLower === 'lost') {
-    cls = 'bg-rose-100 text-rose-900 border-rose-400'; label = 'Lost';
-  } else if (statusLower === 'unavailable') {
-    cls = 'bg-slate-100 text-slate-700 border-slate-300'; label = 'Unavailable';
-  } else {
-    cls = 'bg-emerald-100 text-emerald-800 border-emerald-300'; label = 'Available';
-  }
-  return (
-    <span className={`inline-flex px-2.5 py-0.5 rounded-full text-[10px] font-extrabold border ${cls}`}>
-      {label}
-    </span>
-  );
-}
-
-const getActiveReleasedBarcodes = () => {
-  const released = [];
-  try {
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key && key.startsWith("fsuu_assigned_units_")) {
-        const val = localStorage.getItem(key);
-        if (val) {
-          const obj = JSON.parse(val);
-          Object.values(obj).forEach(bCode => {
-            if (bCode) released.push(String(bCode).trim());
-          });
-        }
-      }
-    }
-  } catch {}
-  return released;
-};
+import { StatusBadge } from "@/components/ui/status-badge";
 
 export default function ManageEquipments() {
   const context = useOutletContext();
@@ -110,7 +68,7 @@ export default function ManageEquipments() {
 
       const catData = Array.isArray(catRes.data) ? catRes.data : [];
       const unitData = Array.isArray(unitRes.data) ? unitRes.data : [];
-      const activeBarcodes = getActiveReleasedBarcodes();
+
 
       setCategories(catData);
 
@@ -137,8 +95,8 @@ export default function ManageEquipments() {
           id: u.id || idx + 1,
           equipment_type_id: u.equipment_type_id,
           barcode: bCode,
-          name: u.name || u.equipment_type?.eq_name || 'Equipment Unit',
-          category: u.equipment_type?.eq_type || u.equipment_type?.eq_name || 'AV Equipment',
+          name: u.name || u.equipmentType?.eq_name || u.equipmentType?.name || u.equipment_type?.eq_name || 'Equipment Unit',
+          category: u.equipmentType?.eq_name || u.equipmentType?.name || u.equipment_type?.eq_name || u.equipment_type?.name || u.equipmentType?.eq_type || 'AV Equipment',
           office_name: u.equipmentType?.office?.office_name || u.equipment_type?.office?.office_name || u.equipmentType?.office?.name || 'AVR | FSUU Main Campus',
           status: dbStatus,
           condition: conditionLabel,
@@ -151,7 +109,7 @@ export default function ManageEquipments() {
       }));
 
       if (catData.length > 0 && !formData.category) {
-        setFormData(prev => ({ ...prev, category: catData[0].eq_type || catData[0].eq_name || catData[0].name }));
+        setFormData(prev => ({ ...prev, category: catData[0].eq_name || catData[0].name || catData[0].eq_type }));
       }
     } catch {
       setUnits([]);
@@ -186,7 +144,7 @@ export default function ManageEquipments() {
       return;
     }
 
-    const defaultCatName = activeCats[0]?.eq_name || activeCats[0]?.eq_type || activeCats[0]?.name || "";
+    const defaultCatName = activeCats[0]?.eq_name || activeCats[0]?.name || activeCats[0]?.eq_type || "";
     setFormData({
       name: "",
       barcode: "",
@@ -210,7 +168,7 @@ export default function ManageEquipments() {
     setIsSubmitting(true);
     try {
       const matchedCat = categories.find(c =>
-        (c.eq_type || c.eq_name || c.name || "").toLowerCase() === (formData.category || "").toLowerCase()
+        (c.eq_name || c.name || c.eq_type || "").toLowerCase() === (formData.category || "").toLowerCase()
       ) || categories[0];
 
       const payload = {
@@ -225,11 +183,11 @@ export default function ManageEquipments() {
 
       await api.post("/admin/equipment-units", payload);
 
-      setFeedback(`✅ Physical equipment unit "${formData.name}" registered under category "${matchedCat.eq_name || matchedCat.eq_type}". Category stock updated!`);
+      setFeedback(`✅ Physical equipment unit "${formData.name}" registered under category "${matchedCat.eq_name || matchedCat.name || matchedCat.eq_type}". Category stock updated!`);
       setFormData({
         name: "",
         barcode: "",
-        category: matchedCat.eq_name || matchedCat.eq_type || "",
+        category: matchedCat.eq_name || matchedCat.name || matchedCat.eq_type || "",
         status: "available",
         date_purchased: new Date().toISOString().split("T")[0],
         lifespan_years: 5,
@@ -251,7 +209,7 @@ export default function ManageEquipments() {
     setIsSubmitting(true);
     try {
       const matchedCat = categories.find(c =>
-        (c.eq_type || c.eq_name || c.name || "").toLowerCase() === (editFormData.category || "").toLowerCase()
+        (c.eq_name || c.name || c.eq_type || "").toLowerCase() === (editFormData.category || "").toLowerCase()
       ) || categories[0];
 
       const payload = {
@@ -304,7 +262,7 @@ export default function ManageEquipments() {
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
   const paginatedUnits = filtered.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
-  const categoryNames = Array.from(new Set(categories.map(c => c.eq_type || c.eq_name || c.name).filter(Boolean)));
+  const categoryNames = Array.from(new Set(categories.map(c => c.eq_name || c.name || c.eq_type).filter(Boolean)));
   const categoryList = [
     { id: "all", label: "All Categories" },
     ...categoryNames.map(c => ({ id: c, label: c }))
@@ -456,7 +414,7 @@ export default function ManageEquipments() {
                           {item.category}
                         </span>
                         <span className="text-[10px] text-slate-500 font-semibold block mt-1">
-                          🏢 {item.office_name || "AVR | FSUU Main Campus"}
+                          🏢 {item.office_location || item.office_name || (item.office_id === 2 ? "FSUU Morelos Campus" : "FSUU Main Campus")}
                         </span>
                       </td>
                       <td className="px-4 py-3.5">
@@ -566,7 +524,7 @@ export default function ManageEquipments() {
         handleAddEquipment={handleAddEquipment}
         handleEditEquipmentSubmit={handleEditEquipmentSubmit}
         isSubmitting={isSubmitting}
-        categories={categoryNames}
+        categories={categories.length > 0 ? categories : categoryNames}
       />
 
       {/* Detail Modal */}

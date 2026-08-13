@@ -37,20 +37,6 @@ export default function Step3Details({
       try {
         const res = await api.get("/public/departments").catch(() => api.get("/admin/departments"));
         let data = Array.isArray(res.data) ? res.data : [];
-
-        try {
-          const savedStr = localStorage.getItem("fsuu_departments");
-          if (savedStr) {
-            const savedList = JSON.parse(savedStr);
-            const clean = (str) => (str || "").toLowerCase().trim();
-            savedList.forEach((item) => {
-              if (item && !data.some((d) => clean(d.code) === clean(item.code) || clean(d.name) === clean(item.name))) {
-                data.push(item);
-              }
-            });
-          }
-        } catch { }
-
         setDepartmentsList(data);
       } catch {
         setDepartmentsList([]);
@@ -59,23 +45,11 @@ export default function Step3Details({
 
     const fetchEquipment = async () => {
       try {
-        const res = await api.get("/public/equipment-types").catch(() => api.get("/admin/equipment-types"));
+        const venueOfficeId = selectedVenue?.office_id || selectedVenue?.office?.id || "";
+        const params = new URLSearchParams();
+        if (venueOfficeId) params.append("office_id", venueOfficeId);
+        const res = await api.get(`/public/equipment-types?${params.toString()}`).catch(() => api.get("/admin/equipment-types"));
         let data = Array.isArray(res.data) ? res.data : [];
-
-        try {
-          const savedStr = localStorage.getItem("fsuu_equipment_inventory") || localStorage.getItem("fsuu_equipment_types");
-          if (savedStr) {
-            const savedList = JSON.parse(savedStr);
-            const clean = (str) => (str || "").toLowerCase().trim();
-            savedList.forEach((item) => {
-              const name = item.eq_name || item.name || item.category;
-              if (name && !data.some((d) => clean(d.eq_name || d.name) === clean(name))) {
-                data.push(item);
-              }
-            });
-          }
-        } catch { }
-
         setEquipmentCatalog(data);
       } catch {
         setEquipmentCatalog([]);
@@ -87,15 +61,11 @@ export default function Step3Details({
 
     window.addEventListener("departments_updated", fetchDepts);
     window.addEventListener("equipment_inventory_updated", fetchEquipment);
-    window.addEventListener("storage", fetchDepts);
-    window.addEventListener("storage", fetchEquipment);
     return () => {
       window.removeEventListener("departments_updated", fetchDepts);
       window.removeEventListener("equipment_inventory_updated", fetchEquipment);
-      window.removeEventListener("storage", fetchDepts);
-      window.removeEventListener("storage", fetchEquipment);
     };
-  }, []);
+  }, [selectedVenue]);
 
   return (
     <div className="p-6 sm:p-8 animate-in slide-in-from-top-2 duration-300 space-y-6">
@@ -249,18 +219,12 @@ export default function Step3Details({
 
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 text-xs pt-1">
                 {(() => {
-                  const defaultItems = [
-                    { id: "proj", name: "Projector" },
-                    { id: "camera", name: "Camera" },
-                    { id: "screen", name: "Screen" },
-                    { id: "mic", name: "Microphone" },
-                    { id: "wmic", name: "Wireless Microphone" },
-                    { id: "ext", name: "Extension wire" },
-                    { id: "hdmi", name: "HDMI" },
-                  ];
-                  const catalogToRender = equipmentCatalog.length > 0
-                    ? equipmentCatalog.map(e => ({ id: e.id || e.eq_name || e.name, name: e.eq_name || e.name || e.category, available_count: e.available_count ?? e.available_quantity, total_quantity: e.total_quantity }))
-                    : defaultItems;
+                  const catalogToRender = equipmentCatalog.map(e => ({
+                    id: e.id || e.eq_name || e.name,
+                    name: e.eq_name || e.name || e.category,
+                    available_count: e.available_count ?? e.available_quantity,
+                    total_quantity: e.total_quantity
+                  }));
 
                   return catalogToRender.map((item, idx) => {
                     const key = String(item.id || item.name || idx);
@@ -273,17 +237,7 @@ export default function Step3Details({
                     } else if (typeof item.total_quantity === "number") {
                       realStock = item.total_quantity;
                     } else {
-                      try {
-                        const lsUnits = JSON.parse(localStorage.getItem("fsuu_equipment_units") || "[]");
-                        const catName = String(item.name || item.eq_name || "").toUpperCase().trim();
-                        const count = lsUnits.filter(u => {
-                          const uCat = String(u.category || u.assigned_category || u.equipmentType?.name || u.name || "").toUpperCase().trim();
-                          return uCat === catName || uCat.includes(catName) || catName.includes(uCat);
-                        }).length;
-                        realStock = count;
-                      } catch {
-                        realStock = 0;
-                      }
+                      realStock = 0;
                     }
 
                     const isOutOfStock = realStock <= 0;

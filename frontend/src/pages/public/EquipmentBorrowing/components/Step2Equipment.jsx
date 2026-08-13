@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Sparkles, Check, PackageOpen, ChevronLeft, ChevronRight, XCircle, Clock, CalendarDays, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import api from "@/lib/axios";
+import { getTodayISO, isPastDate, isPastTimeToday, isPastDateTime } from "@/lib/dateTimeUtils";
 
 export default function Step2Equipment({
   equipmentCategory, setEquipmentCategory,
@@ -52,7 +53,7 @@ export default function Step2Equipment({
   };
 
   const getDatePart = (isoStr) => {
-    if (!isoStr) return "2026-08-04";
+    if (!isoStr) return getTodayISO();
     return isoStr.split("T")[0];
   };
 
@@ -60,71 +61,33 @@ export default function Step2Equipment({
   const startTimeVal = getTimePart(startTime, "08:00");
   const endTimeVal = getTimePart(endTime, "17:00");
 
-  // Calculate Next Available Date for 0 stock / borrowed items from reports & borrowings log
-  const getNextAvailableInfo = (item) => {
-    try {
-      const savedBorrowings = localStorage.getItem("fsuu_equipment_borrowings");
-      if (savedBorrowings) {
-        const borrowings = JSON.parse(savedBorrowings);
-        const activeLoans = borrowings.filter(b => {
-          const status = (b.status || "").toLowerCase();
-          const matches = (b.equipment_name && item.name && b.equipment_name.toLowerCase() === item.name.toLowerCase()) ||
-                          (b.items && Array.isArray(b.items) && b.items.some(i => (i.name || i.equipment_name || "").toLowerCase() === (item.name || "").toLowerCase()));
-          return matches && status !== "completed" && status !== "rejected" && status !== "cancelled";
-        });
+  const today = new Date();
+  const [calYear, setCalYear] = useState(today.getFullYear());
+  const [calMonth, setCalMonth] = useState(today.getMonth());
 
-        if (activeLoans.length > 0) {
-          let returnTimes = activeLoans.map(l => l.return_date || l.endTime || l.expected_return).filter(Boolean);
-          if (returnTimes.length > 0) {
-            returnTimes.sort();
-            const earliest = new Date(returnTimes[0]);
-            if (!isNaN(earliest.getTime())) {
-              const formattedDate = earliest.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-              const formattedTime = earliest.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
-              return `Borrowed (Next Available: ${formattedDate} at ${formattedTime})`;
-            }
-          }
-          return "Borrowed (Next Available: Aug 05, 2026 at 05:00 PM)";
-        }
-      }
-    } catch {}
+  const prevMonth = () => {
+    if (calMonth === 0) { setCalYear(y => y - 1); setCalMonth(11); }
+    else setCalMonth(m => m - 1);
+  };
+
+  const nextMonth = () => {
+    if (calMonth === 11) { setCalYear(y => y + 1); setCalMonth(0); }
+    else setCalMonth(m => m + 1);
+  };
+
+  const monthLabel = new Date(calYear, calMonth).toLocaleString("default", { month: "long", year: "numeric" });
+  const firstDayOfWeek = new Date(calYear, calMonth, 1).getDay();
+  const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+  const pad = (n) => String(n).padStart(2, "0");
+
+  // Calculate Next Available Date for 0 stock / borrowed items
+  const getNextAvailableInfo = (item) => {
     return "No Stock / Unavailable";
   };
 
-  // Calculate live available stock count from physical equipment units & reports inventory data
+  // Calculate live available stock count
   const getLiveStockCount = (item) => {
-    try {
-      const savedUnitsStr = localStorage.getItem("fsuu_equipment_units");
-      if (savedUnitsStr) {
-        const savedUnits = JSON.parse(savedUnitsStr);
-        if (Array.isArray(savedUnits) && savedUnits.length > 0) {
-          const itemCatName = (item.name || item.equipment_name || item.category || "").toLowerCase().trim();
-          const categoryUnits = savedUnits.filter(u => {
-            const uCat = (u.assigned_category || u.category || u.equipment_name || "").toLowerCase().trim();
-            return uCat === itemCatName || uCat.includes(itemCatName) || itemCatName.includes(uCat);
-          });
-
-          if (categoryUnits.length > 0) {
-            return categoryUnits.filter(u => (u.status || "available").toLowerCase() === "available").length;
-          }
-        }
-      }
-    } catch {}
-
-    try {
-      const savedTypesStr = localStorage.getItem("fsuu_equipment_types");
-      if (savedTypesStr) {
-        const savedTypes = JSON.parse(savedTypesStr);
-        if (Array.isArray(savedTypes)) {
-          const itemCatName = (item.name || item.equipment_name || "").toLowerCase().trim();
-          const match = savedTypes.find(t => (t.name || t.eq_name || "").toLowerCase().trim() === itemCatName);
-          if (match && typeof match.available_count === "number") {
-            return match.available_count;
-          }
-        }
-      }
-    } catch {}
-
+    if (!item) return 0;
     if (typeof item.available_count === "number") return item.available_count;
     if (typeof item.available_units === "number") return item.available_units;
     if (typeof item.total_quantity === "number") return item.total_quantity;
@@ -266,8 +229,11 @@ export default function Step2Equipment({
                     </div>
 
                     {/* Item Title & Location/Specs */}
-                    <h4 className="font-extrabold text-slate-900 text-base mb-1 tracking-tight line-clamp-1">{item.name}</h4>
-                    <p className="text-xs text-slate-500 font-medium mb-4 line-clamp-1">
+                    <h4 className="font-extrabold text-slate-900 text-base mb-0.5 tracking-tight line-clamp-1">{item.name}</h4>
+                    <span className="text-[10.5px] font-extrabold text-slate-600 font-mono block mb-1">
+                      🏢 {item.office_name || item.office?.name || (item.dept === "sco" ? "SCO Office (Morelos Campus)" : "AVR Office (Main Campus)")}
+                    </span>
+                    <p className="text-xs text-slate-500 font-medium mb-3 line-clamp-1">
                       {item.spec || item.description || "Audio / Visual Equipment"}
                     </p>
                   </div>
@@ -360,11 +326,24 @@ export default function Step2Equipment({
               <div className="flex items-center justify-between px-1 mb-1">
                 <span className="text-xs font-black text-slate-900 tracking-tight flex items-center gap-1.5">
                   <CalendarDays size={15} className="text-blue-600" />
-                  August 2026
+                  {monthLabel}
                 </span>
-                <span className="text-[10px] font-extrabold text-blue-700 bg-white px-2.5 py-1 rounded-full border border-blue-200 shadow-2xs">
-                  Selected: {currentDate}
-                </span>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={prevMonth}
+                    className="w-6 h-6 rounded-full bg-white border border-slate-200 hover:bg-slate-50 flex items-center justify-center shadow-2xs cursor-pointer"
+                  >
+                    <ChevronLeft size={12} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={nextMonth}
+                    className="w-6 h-6 rounded-full bg-white border border-slate-200 hover:bg-slate-50 flex items-center justify-center shadow-2xs cursor-pointer"
+                  >
+                    <ChevronRight size={12} />
+                  </button>
+                </div>
               </div>
 
               <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-black text-slate-400 uppercase">
@@ -372,23 +351,33 @@ export default function Step2Equipment({
               </div>
 
               <div className="grid grid-cols-7 gap-1.5 text-center text-xs">
-                {Array.from({ length: 31 }).map((_, i) => {
+                {Array.from({ length: firstDayOfWeek }).map((_, i) => (
+                  <div key={`empty-${i}`} />
+                ))}
+
+                {Array.from({ length: daysInMonth }).map((_, i) => {
                   const dayNum = i + 1;
-                  const dateStr = `2026-08-${String(dayNum).padStart(2, '0')}`;
+                  const dateStr = `${calYear}-${pad(calMonth + 1)}-${pad(dayNum)}`;
                   const isSelected = currentDate === dateStr;
+                  const disabled = isPastDate(dateStr);
 
                   return (
                     <button
                       key={dayNum}
                       type="button"
+                      disabled={disabled}
                       onClick={() => {
-                        setStartTime && setStartTime(`${dateStr}T${startTimeVal}`);
-                        setEndTime && setEndTime(`${dateStr}T${endTimeVal}`);
+                        if (!disabled) {
+                          setStartTime && setStartTime(`${dateStr}T${startTimeVal}`);
+                          setEndTime && setEndTime(`${dateStr}T${endTimeVal}`);
+                        }
                       }}
-                      className={`w-8 h-8 rounded-full font-bold text-xs flex items-center justify-center mx-auto transition-all cursor-pointer ${
-                        isSelected
-                          ? "bg-blue-600 text-white font-black shadow-md scale-105"
-                          : "bg-white/90 hover:bg-blue-50 text-slate-700 border border-slate-200/80 shadow-2xs"
+                      className={`w-8 h-8 rounded-full font-bold text-xs flex items-center justify-center mx-auto transition-all ${
+                        disabled
+                          ? "bg-slate-50 border border-slate-100 text-slate-300 cursor-not-allowed"
+                          : isSelected
+                            ? "bg-blue-600 text-white font-black shadow-md scale-105 cursor-pointer"
+                            : "bg-white/90 hover:bg-blue-50 text-slate-700 border border-slate-200/80 shadow-2xs cursor-pointer"
                       }`}
                     >
                       {dayNum}
@@ -427,6 +416,13 @@ export default function Step2Equipment({
                   className="w-full px-3.5 py-2.5 bg-slate-100/80 border border-slate-200 rounded-2xl text-xs font-extrabold text-slate-900 focus:bg-white focus:border-blue-600 focus:ring-4 focus:ring-blue-50 focus:outline-none transition-all shadow-inner"
                 />
               </div>
+
+              {isPastTimeToday(currentDate, startTimeVal) && (
+                <div className="p-3 bg-rose-50 border border-rose-200 rounded-2xl text-xs font-bold text-rose-800 flex items-center gap-2">
+                  <AlertTriangle size={15} className="text-rose-600 shrink-0" />
+                  <span>Selected start time ({formatTime12(startTimeVal)}) has already passed for today. Please select a future time slot.</span>
+                </div>
+              )}
             </div>
 
             {/* Operating Hours Notice Banner */}
@@ -520,6 +516,7 @@ export default function Step2Equipment({
             disabled={
               !selectedItems ||
               selectedItems.length === 0 ||
+              isPastDateTime(currentDate, startTimeVal) ||
               ((wishesToExtend || endTimeVal > (opHours?.equipment_close?.substring(0, 5) || "17:00") || startTimeVal < (opHours?.equipment_open?.substring(0, 5) || "08:00")) && !isPinVerified)
             }
             onClick={handleEquipmentSubmit}

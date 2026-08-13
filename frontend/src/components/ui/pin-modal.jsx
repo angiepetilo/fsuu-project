@@ -99,25 +99,25 @@ export function PinModal({
           <X size={20} />
         </button>
 
-        {/* Orange Title matching screenshot */}
-        <h3 className="text-2xl font-black text-orange-500 mb-3 tracking-wide">
+        {/* Orange Title matching screenshot 1 */}
+        <h3 className="text-2xl sm:text-3xl font-black text-orange-500 mb-1 tracking-tight">
           {activeTitle}
         </h3>
 
-        {/* Description text referencing AVR Head PIN and Multi-Day Reservations */}
-        <p className="text-xs sm:text-sm text-slate-600 leading-relaxed mb-6 font-medium px-1">
+        {/* Subtitle text matching screenshot 1 */}
+        <p className="text-xs sm:text-sm text-slate-600 font-bold mb-6">
           {activeDesc}
         </p>
 
         {error && (
-          <div className="mb-5 p-3 bg-red-50 border border-red-200 text-red-600 text-xs font-bold rounded-xl flex items-center justify-center gap-2 animate-in fade-in">
+          <div className="mb-5 p-3 bg-rose-50 border border-rose-200 text-rose-600 text-xs font-bold rounded-2xl flex items-center justify-center gap-2 animate-in fade-in">
             <AlertCircle size={16} />
             <span>Invalid PIN Code. Please check the PIN issued by the AVR Head.</span>
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-          {/* 6 Digit Input Boxes matching screenshot design */}
+          {/* 6 Digit Input Boxes matching screenshot 1 design */}
           <div className="flex items-center justify-center gap-2 sm:gap-2.5">
             {digits.map((digit, idx) => (
               <input
@@ -129,24 +129,24 @@ export function PinModal({
                 value={digit}
                 onChange={(e) => handleChange(idx, e.target.value)}
                 onKeyDown={(e) => handleKeyDown(idx, e)}
-                className="w-11 h-16 sm:w-12 sm:h-16 bg-orange-50/40 border-2 border-orange-400/90 rounded-2xl text-center text-xl font-bold text-orange-600 focus:outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-500/20 shadow-xs transition-all"
+                className="w-11 h-16 sm:w-12 sm:h-16 bg-white border-2 border-orange-400 rounded-[20px] text-center text-xl font-mono font-black text-slate-900 focus:outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-400/20 shadow-2xs transition-all"
               />
             ))}
           </div>
 
-          {/* Action Buttons matching screenshot design */}
+          {/* Action Buttons matching screenshot 1 design */}
           <div className="flex gap-3 pt-2">
             <Button
               type="button"
               variant="outline"
               onClick={onClose}
-              className="flex-1 py-5 rounded-2xl border-slate-300 text-slate-700 font-extrabold text-sm hover:bg-slate-50 transition-colors"
+              className="flex-1 py-5 rounded-full border-slate-300 text-slate-700 font-extrabold text-sm hover:bg-slate-50 cursor-pointer transition-all"
             >
               Cancel
             </Button>
             <Button
               type="submit"
-              className="flex-1 py-5 rounded-2xl bg-orange-100/90 hover:bg-orange-200/90 border border-orange-300/80 text-orange-600 font-extrabold text-sm shadow-xs transition-all"
+              className="flex-1 py-5 rounded-full bg-amber-100 hover:bg-amber-200 border border-amber-300 text-amber-900 font-extrabold text-sm cursor-pointer shadow-xs transition-all"
             >
               Verify Pin
             </Button>

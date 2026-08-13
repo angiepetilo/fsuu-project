@@ -1,84 +1,41 @@
 import { useState, useEffect, useCallback } from "react";
 import { useOutletContext, useLocation } from "react-router-dom";
 import api from "@/lib/axios";
+import { toast } from "sonner";
 import {
   Loader2, RefreshCw, AlertCircle, Eye, Building2, ChevronLeft, ChevronRight
 } from "lucide-react";
 import VenueBookingDetailModal from "./components/VenueBookingDetailModal";
 import { PageLoader } from "@/components/ui/page-loader";
-
-function StatusBadge({ status }) {
-  const map = {
-    pending: "bg-amber-100 text-amber-700 border border-amber-200",
-    approved: "bg-emerald-100 text-emerald-700 border border-emerald-200",
-    "on-going": "bg-blue-100 text-blue-700 border border-blue-200",
-    ongoing: "bg-blue-100 text-blue-700 border border-blue-200",
-    completed: "bg-green-50 text-green-700 border border-green-200",
-    rejected: "bg-red-50 text-red-700 border border-red-200",
-    cancelled: "bg-slate-100 text-slate-600 border border-slate-200",
-    "post-inspection": "bg-blue-50 text-blue-700 border border-blue-200",
-  };
-  return (
-    <span className={`inline-flex px-2.5 py-0.5 rounded-full text-[11px] font-bold capitalize ${map[status] ?? "bg-slate-100 text-slate-600"}`}>
-      {status}
-    </span>
-  );
-}
-
-const formatDate = (rawDate) => {
-  if (!rawDate) return "—";
-  try {
-    const d = new Date(rawDate);
-    if (isNaN(d.getTime())) return String(rawDate);
-    return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-  } catch {
-    return String(rawDate);
-  }
-};
-
-const formatTime = (timeStr) => {
-  if (!timeStr) return "08:00 AM";
-  if (timeStr.includes("AM") || timeStr.includes("PM")) return timeStr;
-  const parts = timeStr.split(":");
-  if (parts.length < 2) return timeStr;
-  let hours = parseInt(parts[0], 10);
-  const minutes = parts[1];
-  const ampm = hours >= 12 ? "PM" : "AM";
-  hours = hours % 12 || 12;
-  return `${hours}:${minutes} ${ampm}`;
-};
-
-const formatTimeRange = (start, end) => {
-  if (!start && !end) return "8:00 AM - 12:00 PM";
-  return `${formatTime(start)} - ${formatTime(end)}`;
-};
+import { StatusBadge } from "@/components/ui/status-badge";
+import { formatDate, formatTime, formatTimeRange } from "@/lib/dateUtils";
 
 export default function VenueBookings() {
   const context = useOutletContext();
   const location = useLocation();
-  const [bookings, setBookings] = useState(() => {
-    try {
-      const cached = localStorage.getItem("fsuu_cache_admin_venue_bookings");
-      return cached ? JSON.parse(cached) : [];
-    } catch {
-      return [];
-    }
-  });
-  const [loading, setLoading] = useState(() => {
-    try {
-      return !localStorage.getItem("fsuu_cache_admin_venue_bookings");
-    } catch {
-      return true;
-    }
-  });
+  const [bookings, setBookings] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(null);
   const [error, setError] = useState(null);
   const [statusFilter, setStatusFilter] = useState("all"); 
 
-  const [selected, setSelected] = useState(null);
+  // Detail Modal & Notification Modal State (Decoupled from list array reference)
+  const [selectedId, setSelectedId] = useState(null);
   const [showRejectForm, setShowRejectForm] = useState(false);
   const [rejectionComments, setRejectionComments] = useState("");
   const [feedbackMessage, setFeedbackMessage] = useState(null);
+
+  const selected = bookings.find((b) => String(b.id) === String(selectedId)) || null;
+
+  const setSelected = (val) => {
+    if (!val) {
+      setSelectedId(null);
+    } else if (val.id) {
+      setSelectedId(val.id);
+    } else {
+      setSelectedId(null);
+    }
+  };
 
   const [inspectionStatus, setInspectionStatus] = useState("clean");
   const [evidencePhoto, setEvidencePhoto] = useState(null);
@@ -96,7 +53,6 @@ export default function VenueBookings() {
       const res = await api.get("/avr-venue-bookings");
       const data = res.data?.data ?? (Array.isArray(res.data) ? res.data : []);
       setBookings(data);
-      try { localStorage.setItem("fsuu_cache_admin_venue_bookings", JSON.stringify(data)); } catch {}
     } catch {
       setError("Unable to sync venue bookings data.");
     } finally {
@@ -119,7 +75,7 @@ export default function VenueBookings() {
         (targetRef && (b.reference_code === targetRef || b.tracking_number?.reference_code === targetRef))
       );
       if (match) {
-        setSelected(match);
+        setSelectedId(match.id);
       }
     }
   }, [location.search, location.state, bookings]);
@@ -147,15 +103,55 @@ export default function VenueBookings() {
       if (action === "reject" && rejectionComments) {
         payload.rejection_reason = rejectionComments;
       }
-      await api.post(endpoint, payload);
-      setFeedbackMessage(`✅ Reservation request ${action}ed successfully!`);
-      fetchBookings();
-      setTimeout(() => {
-        setSelected(null);
-        setFeedbackMessage(null);
-      }, 1200);
+      const res = await api.post(endpoint, payload);
+
+      const updatedRecord = res.data && typeof res.data === "object" ? res.data : {};
+      const statusMap = {
+        approve: "approved",
+        ongoing: "on-going",
+        complete: "completed",
+        reject: "rejected",
+        cancel: "cancelled"
+      };
+      const newStatus = statusMap[action] || action;
+      const refCode = selected?.reference_code || selected?.tracking_number?.reference_code || `TRK-AVR${bookingId}`;
+
+      if (action === "complete") {
+        toast.success(`Venue booking (${refCode}) completed and transferred to History Log!`);
+        setFeedbackMessage(`✅ Venue booking (${refCode}) transferred to History Log.`);
+        setSelectedId(null);
+        setShowRejectForm(false);
+      } else if (action === "reject") {
+        toast.error(`Venue booking (${refCode}) rejected and transferred to History Log.`);
+        setFeedbackMessage(`Venue booking (${refCode}) rejected and transferred to History Log.`);
+        setSelectedId(null);
+        setShowRejectForm(false);
+      } else {
+        toast.success(`Venue booking updated: ${newStatus}`);
+        setFeedbackMessage(`✅ Reservation request ${action}ed successfully!`);
+      }
+
+      // Patch the specific venue booking record in-place
+      setBookings((prev) =>
+        prev.map((b) => {
+          if (String(b.id) === String(bookingId)) {
+            const updatedTracking = b.tracking_number
+              ? { ...b.tracking_number, status: newStatus }
+              : { status: newStatus };
+            return {
+              ...b,
+              ...updatedRecord,
+              status: newStatus,
+              tracking_number: updatedTracking,
+              trackingNumber: updatedTracking,
+            };
+          }
+          return b;
+        })
+      );
+      setTimeout(() => setFeedbackMessage(null), 3500);
     } catch (err) {
-      alert(err.response?.data?.message ?? "Action failed.");
+      toast.error(err.response?.data?.message ?? "Action failed.");
     } finally {
       setActionLoading(null);
     }
@@ -236,7 +232,7 @@ export default function VenueBookings() {
                   const displayIndex = startIndex + idx + 1;
 
                   return (
-                    <tr key={b.id || idx} className="hover:bg-slate-50/60 transition-colors">
+                    <tr key={`vb-row-${b.id}`} className="hover:bg-slate-50/60 transition-colors">
                       <td className="px-4 py-3.5 font-bold text-slate-400">{displayIndex}</td>
                       <td className="px-4 py-3.5 font-mono text-xs font-bold text-blue-600 whitespace-nowrap">
                         {refCode}

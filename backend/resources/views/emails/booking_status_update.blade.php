@@ -16,7 +16,10 @@
     $itemType = ($type ?? 'venue') === 'venue' ? 'venue reservation' : 'equipment borrowing';
 @endphp
 
-@if(($status ?? '') === 'approved')
+@if(($type ?? 'venue') === 'equipment' && ($status ?? '') === 'approved')
+<p>Good day {{ $requestorName }}. Use reference code {{ $ref }} to claim your item.</p>
+<p>Please proceed to the office and present your School ID. Reminder: Arrive at least 15 minutes before your scheduled start time. Thank you.</p>
+@elseif(($status ?? '') === 'approved')
 <p>Reminder: Please ensure you arrive at least 15 minutes before your scheduled start time.</p>
 <p>Good day, {{ $requestorName }}.</p>
 <p>Your {{ $itemType }} (Reference: {{ $ref }}) has been approved!<br>
@@ -38,7 +41,7 @@ Status     : {{ ucfirst($status ?? 'pending') }}<br>
 ----------------------------------------
 </div>
 
-<p>You may track your request status here : http://localhost:5173/track</p>
+<p>You may track your request status here : {{ rtrim(config('app.frontend_url', env('FRONTEND_URL', 'http://localhost:5173')), '/') }}/track</p>
 
 <p>If you have any questions or require assistance, please contact the System Administrator.</p>
 

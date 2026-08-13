@@ -46,7 +46,7 @@ export default function EquipmentModal({
 
             <form onSubmit={handleEditEquipmentSubmit} className="p-6 space-y-4 text-xs">
               <div>
-                <label className="block text-xs font-bold text-slate-900 mb-1">Equipment Name & Model *</label>
+                <label className="block text-xs font-bold text-slate-900 mb-1">Equipment Model Name *</label>
                 <input
                   type="text"
                   required
@@ -75,20 +75,19 @@ export default function EquipmentModal({
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-900 mb-1">Category *</label>
+                  <label className="block text-xs font-bold text-slate-900 mb-1">Equipment Category *</label>
                   <select
                     value={editFormData.category}
                     onChange={e => setEditFormData({ ...editFormData, category: e.target.value })}
-                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none"
+                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none cursor-pointer"
                   >
                     {categories && categories.length > 0 ? (
                       categories.map((cat, idx) => {
-                        const val = typeof cat === "string" ? cat : (cat.eq_type || cat.eq_name || cat.name);
-                        const label = typeof cat === "string" ? cat : (cat.eq_name || cat.eq_type || cat.name);
-                        return <option key={cat.id || idx} value={val}>{label}</option>;
+                        const nameStr = typeof cat === "string" ? cat : (cat.eq_name || cat.name || cat.eq_type);
+                        return <option key={cat.id || idx} value={nameStr}>{nameStr}</option>;
                       })
                     ) : (
-                      <option value="">No categories</option>
+                      <option value="">No categories created</option>
                     )}
                   </select>
                 </div>
@@ -201,7 +200,7 @@ export default function EquipmentModal({
 
             <form onSubmit={handleAddEquipment} className="p-6 space-y-4 text-xs">
               <div>
-                <label className="block text-xs font-bold text-slate-900 mb-1">Equipment Name & Model *</label>
+                <label className="block text-xs font-bold text-slate-900 mb-1">Equipment Model Name *</label>
                 <input
                   type="text"
                   required
@@ -231,18 +230,17 @@ export default function EquipmentModal({
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-900 mb-1">Category *</label>
+                  <label className="block text-xs font-bold text-slate-900 mb-1">Equipment Category *</label>
                   <select
                     required
                     value={formData.category}
                     onChange={e => setFormData({ ...formData, category: e.target.value })}
-                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none"
+                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none cursor-pointer"
                   >
                     {categories && categories.length > 0 ? (
                       categories.map((cat, idx) => {
-                        const val = typeof cat === "string" ? cat : (cat.eq_type || cat.eq_name || cat.name);
-                        const label = typeof cat === "string" ? cat : (cat.eq_name || cat.eq_type || cat.name);
-                        return <option key={cat.id || idx} value={val}>{label}</option>;
+                        const nameStr = typeof cat === "string" ? cat : (cat.eq_name || cat.name || cat.eq_type);
+                        return <option key={cat.id || idx} value={nameStr}>{nameStr}</option>;
                       })
                     ) : (
                       <option value="">⚠️ Create Category in Settings First</option>

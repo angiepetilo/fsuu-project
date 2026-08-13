@@ -6,7 +6,9 @@ use App\Models\User;
 use App\Models\Venue;
 
 beforeEach(function () {
-    $this->role = \App\Models\Role::firstOrCreate(['id' => 3], ['name' => 'staff']);
+    \App\Models\Role::firstOrCreate(['id' => 1, 'name' => 'super_admin']);
+    \App\Models\Role::firstOrCreate(['id' => 2, 'name' => 'admin']);
+    $this->role = \App\Models\Role::firstOrCreate(['id' => 3, 'name' => 'staff']);
     $this->office = Office::create(['name' => 'AVR Main', 'code' => 'AVR-M', 'slug' => 'fsuu-avr', 'type' => 'avr']);
     $this->venue = Venue::create(['office_id' => $this->office->id, 'name' => 'AVR1', 'location' => 'FSUU Main', 'is_active' => true]);
     $this->staff = User::forceCreate([

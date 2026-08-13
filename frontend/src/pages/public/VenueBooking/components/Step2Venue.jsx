@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
 import { useState, useEffect } from "react";
 import api from "@/lib/axios";
+import { getTodayISO, isPastDate, isPastTimeToday, isPastDateTime } from "@/lib/dateTimeUtils";
 
 export default function Step2Venue({
   identity,
@@ -98,9 +99,8 @@ export default function Step2Venue({
   const pad = (n) => String(n).padStart(2, "0");
 
   const isDayDisabled = (day) => {
-    const d = new Date(calYear, calMonth, day);
-    d.setHours(0, 0, 0, 0);
-    if (d < minDate) return true;
+    const dateStr = `${calYear}-${pad(calMonth + 1)}-${pad(day)}`;
+    if (isPastDate(dateStr)) return true;
     const info = getDayInfo(day);
     if (info.status === "maintenance" || info.status === "closed") return true;
     return false;
@@ -109,17 +109,6 @@ export default function Step2Venue({
   // Helper to compute fee rates for external user
   const getVenueFeeRates = (venue) => {
     if (!venue) return { hourly: "₱1,500 / hr", daily: "₱10,000 / day", cleaning: "₱500 (Flat)" };
-    try {
-      const savedFee = localStorage.getItem(`fsuu_fee_matrix_${venue.id}`);
-      if (savedFee) {
-        const parsed = JSON.parse(savedFee);
-        return {
-          hourly: `₱${Number(parsed.external_hourly || 1500).toLocaleString()} / hr`,
-          daily: `₱${Number(parsed.external_daily || 10000).toLocaleString()} / day`,
-          cleaning: `₱${Number(parsed.cleaning_fee || 500).toLocaleString()} (Flat)`,
-        };
-      }
-    } catch {}
 
     const hourly = venue.external_rental_price || venue.rental_price || 1500;
     const daily = venue.external_daily_price || 10000;
@@ -157,7 +146,7 @@ export default function Step2Venue({
     const vCode = selectedVenue.code || selectedVenue.id || "";
     const vName = (selectedVenue.name || "").toLowerCase();
 
-    // 1. Check venue-specific maintenance blocks from database & localStorage
+    // 1. Check venue-specific maintenance blocks from database
     const dbMatch = dbOverrides.find(o => {
       const oVenueId = o.venue_id || o.venue?.id;
       const oDate = o.override_date ? o.override_date.substring(0, 10) : null;
@@ -178,35 +167,6 @@ export default function Step2Venue({
         bookings: [],
       };
     }
-
-    try {
-      const savedMaint = localStorage.getItem("fsuu_venue_maintenance") || localStorage.getItem("fsuu_venue_overrides");
-      if (savedMaint) {
-        const maintMap = JSON.parse(savedMaint);
-        const venueKey = `${vCode}_${dateStr}`;
-        const mInfo = maintMap[venueKey] || (maintMap[dateStr] && (
-          maintMap[dateStr].venueId === selectedVenue.id ||
-          maintMap[dateStr].venue_id === selectedVenue.id ||
-          (maintMap[dateStr].venueName || "").toLowerCase().includes(vName) ||
-          vName.includes((maintMap[dateStr].venueName || "").toLowerCase())
-        ) ? maintMap[dateStr] : null);
-
-        if (mInfo && (mInfo.status === "maintenance" || mInfo.status === "closed")) {
-          const isMaint = mInfo.status === "maintenance";
-          return {
-            status: "maintenance",
-            tooltip: `${monthLabel} ${day}: ${selectedVenue.name} is under ${mInfo.status.toUpperCase()} (${mInfo.reason || mInfo.notes || 'Blocked by Admin'})`,
-            box: {
-              status: isMaint ? "Maintenance" : "Closed",
-              badgeClass: isMaint ? "bg-amber-600 text-white" : "bg-red-600 text-white",
-              time: "All Day Blocked",
-              details: `${selectedVenue.name} (${mInfo.reason || mInfo.notes || 'Blocked by Admin'})`,
-            },
-            bookings: [],
-          };
-        }
-      }
-    } catch { }
 
     // 2. Filter bookings strictly for the SELECTED venue & date
     const dayBookings = existingBookings.filter(b => {
@@ -613,7 +573,17 @@ export default function Step2Venue({
 
                   {selectedDate && timeStart && timeEnd && (
                     <div className="space-y-2 pt-1">
-                      {conflictingBooking ? (
+                      {isPastTimeToday(selectedDate, timeStart) ? (
+                        <div className="p-3 bg-rose-50 border border-rose-200 rounded-2xl text-xs font-bold text-rose-800 space-y-1">
+                          <div className="flex items-center gap-1.5 text-rose-700">
+                            <AlertTriangle size={15} />
+                            <span>Past Time Selected!</span>
+                          </div>
+                          <p className="text-[11px] font-semibold text-rose-700 leading-snug">
+                            Selected start time ({formatTime12(timeStart)}) has already passed for today. Please select a future time slot.
+                          </p>
+                        </div>
+                      ) : conflictingBooking ? (
                         <div className="p-3 bg-rose-50 border border-rose-200 rounded-2xl text-xs font-bold text-rose-800 space-y-1">
                           <div className="flex items-center gap-1.5 text-rose-700">
                             <AlertTriangle size={15} />
@@ -677,8 +647,8 @@ export default function Step2Venue({
 
         <Button
           type="button"
-          disabled={!selectedVenue || !selectedDate || !timeStart || !timeEnd}
-          onClick={() => selectedVenue && selectedDate && onNext && onNext()}
+          disabled={!selectedVenue || !selectedDate || !timeStart || !timeEnd || isPastDateTime(selectedDate, timeStart)}
+          onClick={() => selectedVenue && selectedDate && !isPastDateTime(selectedDate, timeStart) && onNext && onNext()}
           className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-5 rounded-xl font-extrabold text-xs flex items-center gap-2 shadow-md disabled:opacity-50 cursor-pointer"
         >
           <span>Next: Fill Details</span>

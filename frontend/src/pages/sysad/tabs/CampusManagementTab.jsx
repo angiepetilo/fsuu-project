@@ -448,10 +448,7 @@ export default function CampusManagementTab({ showMsg }) {
                       </option>
                     ))
                   ) : (
-                    <>
-                      <option value="FSUU Main Campus">FSUU Main Campus</option>
-                      <option value="FSUU Morelos Campus">FSUU Morelos Campus</option>
-                    </>
+                    <option value="" disabled>No campus locations created yet</option>
                   )}
                 </select>
                 <p className="text-[10px] text-slate-400 mt-1">Select the physical campus location where this office is based.</p>

@@ -1,8 +1,15 @@
 import { useState, useEffect } from "react";
 import { Plus, Edit2, Trash2, X, Building, CheckCircle2, Loader2, Image as ImageIcon, Camera } from "lucide-react";
 import api from "@/lib/axios";
+import { useAuth } from "@/context/AuthContext";
 
 export default function VenuesTab({ showMsg }) {
+  const { user } = useAuth();
+  const userRole = (user?.role?.name || user?.role || "").toString().toLowerCase();
+  const isSuperAdmin = ["super_admin", "superadmin", "sysad", "super-admin"].includes(userRole);
+  const userOfficeId = user?.office_id ?? user?.office?.id ?? null;
+  const userOfficeObj = user?.office ?? null;
+
   const [venues, setVenues] = useState([]);
   const [offices, setOffices] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -54,10 +61,14 @@ export default function VenuesTab({ showMsg }) {
     e.preventDefault();
     setFormLoading(true);
 
+    const resolvedOfficeId = !isSuperAdmin 
+      ? (userOfficeId || form.office_id || offices[0]?.id) 
+      : (form.office_id || offices[0]?.id);
+
     const payload = {
       name: form.name,
       avatar: form.avatar || null,
-      office_id: form.office_id ? parseInt(form.office_id, 10) : (offices[0]?.id || null),
+      office_id: resolvedOfficeId ? parseInt(resolvedOfficeId, 10) : null,
       status: form.status || "available",
       location: form.location || null,
       capacity: parseInt(form.capacity, 10) || 100,
@@ -140,7 +151,7 @@ export default function VenuesTab({ showMsg }) {
             setForm({
               name: "",
               avatar: "",
-              office_id: offices[0]?.id || "",
+              office_id: !isSuperAdmin ? (userOfficeId || offices[0]?.id || "") : (offices[0]?.id || ""),
               status: "available",
               location: "",
               capacity: 100,
@@ -221,7 +232,7 @@ export default function VenuesTab({ showMsg }) {
                         setForm({
                           name: v.name || "",
                           avatar: v.avatar || "",
-                          office_id: v.office_id || offices[0]?.id || "",
+                          office_id: v.office_id || userOfficeId || offices[0]?.id || "",
                           status: v.status || "available",
                           location: v.location || "",
                           capacity: v.capacity || 100,
@@ -299,22 +310,42 @@ export default function VenuesTab({ showMsg }) {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                {offices.length > 0 && (
+              <div className="grid grid-cols-1 gap-3">
+                {!isSuperAdmin ? (
                   <div>
                     <label className="block text-xs font-bold text-slate-900 mb-1">Assigned Office / Branch *</label>
-                    <select
-                      value={form.office_id}
-                      onChange={(e) => setForm({ ...form, office_id: e.target.value })}
-                      className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 text-xs focus:outline-none"
-                    >
-                      {offices.map((o) => (
-                        <option key={o.id} value={o.id}>
-                          {o.location ? `${o.name} | ${o.location}` : o.name}
-                        </option>
-                      ))}
-                    </select>
+                    <input
+                      type="text"
+                      disabled
+                      value={
+                        userOfficeObj
+                          ? (userOfficeObj.location ? `${userOfficeObj.name} | ${userOfficeObj.location}` : userOfficeObj.name)
+                          : (offices.find(o => String(o.id) === String(userOfficeId))
+                              ? (offices.find(o => String(o.id) === String(userOfficeId)).location 
+                                  ? `${offices.find(o => String(o.id) === String(userOfficeId)).name} | ${offices.find(o => String(o.id) === String(userOfficeId)).location}` 
+                                  : offices.find(o => String(o.id) === String(userOfficeId)).name)
+                              : "Assigned Office Branch")
+                      }
+                      className="w-full p-3 bg-slate-100 border border-slate-200 rounded-xl font-bold text-slate-700 text-xs cursor-not-allowed"
+                    />
                   </div>
+                ) : (
+                  offices.length > 0 && (
+                    <div>
+                      <label className="block text-xs font-bold text-slate-900 mb-1">Assigned Office / Branch *</label>
+                      <select
+                        value={form.office_id}
+                        onChange={(e) => setForm({ ...form, office_id: e.target.value })}
+                        className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 text-xs focus:outline-none"
+                      >
+                        {offices.map((o) => (
+                          <option key={o.id} value={o.id}>
+                            {o.location ? `${o.name} | ${o.location}` : o.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )
                 )}
               </div>
 

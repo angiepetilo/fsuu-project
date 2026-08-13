@@ -40,6 +40,18 @@ class EquipmentBorrow extends Model
         'assigned_units' => 'array',
     ];
 
+    protected $appends = ['reference_code', 'status'];
+
+    public function getReferenceCodeAttribute(): ?string
+    {
+        return $this->trackingNumber?->reference_code;
+    }
+
+    public function getStatusAttribute(): string
+    {
+        return $this->attributes['status'] ?? $this->trackingNumber?->status ?? 'pending';
+    }
+
     public function trackingNumber(): BelongsTo
     {
         return $this->belongsTo(TrackingNumber::class);
@@ -58,5 +70,23 @@ class EquipmentBorrow extends Model
     public function items(): HasMany
     {
         return $this->hasMany(EquipmentBorrowItem::class, 'equipment_borrow_id');
+    }
+
+    public function inspections(): \Illuminate\Database\Eloquent\Relations\MorphMany
+    {
+        return $this->morphMany(Inspection::class, 'inspectable');
+    }
+
+    public function approvals(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(Approval::class, 'reference_id')->where('reference_type', 'avr_equipment_borrow');
+    }
+
+    public function scopeForOffice($query, ?int $officeId)
+    {
+        if ($officeId) {
+            return $query->where('office_id', $officeId);
+        }
+        return $query;
     }
 }

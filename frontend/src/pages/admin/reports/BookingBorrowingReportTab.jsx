@@ -1,28 +1,6 @@
 import { useState, useEffect } from "react";
 import { Building2, PackageOpen, Download, AlertTriangle, Image as ImageIcon, X, Info, CheckCircle2, ShieldAlert, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
-
-const formatTime = (timeStr) => {
-  if (!timeStr) return "08:00 AM";
-  if (timeStr.includes("AM") || timeStr.includes("PM")) return timeStr;
-  const parts = String(timeStr).split(":");
-  if (parts.length < 2) return timeStr;
-  let hours = parseInt(parts[0], 10);
-  const minutes = parts[1];
-  const ampm = hours >= 12 ? "PM" : "AM";
-  hours = hours % 12 || 12;
-  return `${hours}:${minutes} ${ampm}`;
-};
-
-const formatDate = (rawDate) => {
-  if (!rawDate) return "—";
-  try {
-    const d = new Date(rawDate);
-    if (isNaN(d.getTime())) return String(rawDate);
-    return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-  } catch {
-    return String(rawDate);
-  }
-};
+import { formatDate, formatTime } from "@/lib/dateUtils";
 
 export default function BookingBorrowingReportTab({
   venueBookings = [],
@@ -36,40 +14,32 @@ export default function BookingBorrowingReportTab({
   const [equipPage, setEquipPage] = useState(1);
   const ITEMS_PER_PAGE = 10;
 
-  // Strictly filter to items with recorded damages or rule violations ONLY (Completed/Finished events)
-  const violationVenueBookings = venueBookings.filter((b) => {
+  // Filter completed venue bookings and equipment borrowings for reports view
+  const reportVenueBookings = venueBookings.filter((b) => {
     const s = (b.status || "").toLowerCase();
-    const isCompletedStatus = s === "completed" || s === "damaged" || s === "solved" || s === "done";
-    const hasBreach = Boolean(b.has_damage) || (b.inspection_condition || "").toLowerCase() === "damaged" || s === "damaged" || s === "violation" || Boolean(b.violation);
-    return isCompletedStatus && hasBreach;
+    return s === "completed" || s === "damaged" || s === "solved" || s === "done" || Boolean(b.reference_code);
   });
 
-  const violationEquipmentBorrowings = equipmentBorrowings.filter(
-    (eb) =>
-      Boolean(eb.has_damage) ||
-      (eb.inspection_condition || "").toLowerCase() === "damaged" ||
-      (eb.status || "").toLowerCase() === "damaged" ||
-      (eb.status || "").toLowerCase() === "lost" ||
-      (eb.status || "").toLowerCase() === "violation" ||
-      Boolean(eb.is_late) ||
-      Boolean(eb.late_hours)
-  );
+  const reportEquipmentBorrowings = equipmentBorrowings.filter((eb) => {
+    const s = (eb.status || "").toLowerCase();
+    return s === "completed" || s === "damaged" || s === "lost" || s === "done" || s === "returned" || Boolean(eb.reference_code);
+  });
 
   useEffect(() => {
     setVenuePage(1);
-  }, [violationVenueBookings.length]);
+  }, [reportVenueBookings.length]);
 
   useEffect(() => {
     setEquipPage(1);
-  }, [violationEquipmentBorrowings.length]);
+  }, [reportEquipmentBorrowings.length]);
 
-  const venueTotalPages = Math.ceil(violationVenueBookings.length / ITEMS_PER_PAGE) || 1;
+  const venueTotalPages = Math.ceil(reportVenueBookings.length / ITEMS_PER_PAGE) || 1;
   const venueStartIndex = (venuePage - 1) * ITEMS_PER_PAGE;
-  const paginatedVenueViolations = violationVenueBookings.slice(venueStartIndex, venueStartIndex + ITEMS_PER_PAGE);
+  const paginatedVenueViolations = reportVenueBookings.slice(venueStartIndex, venueStartIndex + ITEMS_PER_PAGE);
 
-  const equipTotalPages = Math.ceil(violationEquipmentBorrowings.length / ITEMS_PER_PAGE) || 1;
+  const equipTotalPages = Math.ceil(reportEquipmentBorrowings.length / ITEMS_PER_PAGE) || 1;
   const equipStartIndex = (equipPage - 1) * ITEMS_PER_PAGE;
-  const paginatedEquipViolations = violationEquipmentBorrowings.slice(equipStartIndex, equipStartIndex + ITEMS_PER_PAGE);
+  const paginatedEquipViolations = reportEquipmentBorrowings.slice(equipStartIndex, equipStartIndex + ITEMS_PER_PAGE);
 
   return (
     <div className="space-y-6">
@@ -151,12 +121,12 @@ export default function BookingBorrowingReportTab({
       </div>
 
       {/* Pagination Footer - Venue Violations */}
-      {violationVenueBookings.length > 0 && (
+      {reportVenueBookings.length > 0 && (
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-6 py-4 bg-slate-50/80 border-t border-slate-100 text-xs font-semibold text-slate-600">
           <div>
             Showing <span className="font-extrabold text-slate-900">{venueStartIndex + 1}</span> to{" "}
-            <span className="font-extrabold text-slate-900">{Math.min(venueStartIndex + ITEMS_PER_PAGE, violationVenueBookings.length)}</span> of{" "}
-            <span className="font-extrabold text-slate-900">{violationVenueBookings.length}</span> venue reports
+            <span className="font-extrabold text-slate-900">{Math.min(venueStartIndex + ITEMS_PER_PAGE, reportVenueBookings.length)}</span> of{" "}
+            <span className="font-extrabold text-slate-900">{reportVenueBookings.length}</span> venue reports
           </div>
 
           <div className="flex items-center gap-2">
@@ -255,12 +225,12 @@ export default function BookingBorrowingReportTab({
       </div>
 
       {/* Pagination Footer - Equipment Violations */}
-      {violationEquipmentBorrowings.length > 0 && (
+      {reportEquipmentBorrowings.length > 0 && (
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-6 py-4 bg-slate-50/80 border-t border-slate-100 text-xs font-semibold text-slate-600">
           <div>
             Showing <span className="font-extrabold text-slate-900">{equipStartIndex + 1}</span> to{" "}
-            <span className="font-extrabold text-slate-900">{Math.min(equipStartIndex + ITEMS_PER_PAGE, violationEquipmentBorrowings.length)}</span> of{" "}
-            <span className="font-extrabold text-slate-900">{violationEquipmentBorrowings.length}</span> equipment violation reports
+            <span className="font-extrabold text-slate-900">{Math.min(equipStartIndex + ITEMS_PER_PAGE, reportEquipmentBorrowings.length)}</span> of{" "}
+            <span className="font-extrabold text-slate-900">{reportEquipmentBorrowings.length}</span> equipment reports
           </div>
 
           <div className="flex items-center gap-2">

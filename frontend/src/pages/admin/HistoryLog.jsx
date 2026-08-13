@@ -9,6 +9,9 @@ import {
 import VenueBookingDetailModal from "./components/VenueBookingDetailModal";
 import EquipmentBorrowDetailModal from "./components/EquipmentBorrowDetailModal";
 import { PageLoader } from "@/components/ui/page-loader";
+import { formatDate, formatTime, formatTimeRange } from "@/lib/dateUtils";
+import HistoryEditModal from "./history/HistoryEditModal";
+import HistoryTable from "./history/HistoryTable";
 
 function ActionMenuPopover({ buttonEl, isOpen, onClose, children }) {
   const [coords, setCoords] = useState({ top: 0, left: 0 });
@@ -56,33 +59,6 @@ function ActionMenuPopover({ buttonEl, isOpen, onClose, children }) {
   );
 }
 
-const formatDate = (rawDate) => {
-  if (!rawDate) return "—";
-  try {
-    const d = new Date(rawDate);
-    if (isNaN(d.getTime())) return String(rawDate);
-    return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-  } catch {
-    return String(rawDate);
-  }
-};
-
-const formatTime = (timeStr) => {
-  if (!timeStr) return "08:00 AM";
-  if (timeStr.includes("AM") || timeStr.includes("PM")) return timeStr;
-  const parts = String(timeStr).split(":");
-  if (parts.length < 2) return timeStr;
-  let hours = parseInt(parts[0], 10);
-  const minutes = parts[1];
-  const ampm = hours >= 12 ? "PM" : "AM";
-  hours = hours % 12 || 12;
-  return `${hours}:${minutes} ${ampm}`;
-};
-
-const formatTimeRange = (start, end) => {
-  if (!start && !end) return "08:00 AM - 05:00 PM";
-  return `${formatTime(start)} - ${formatTime(end)}`;
-};
 
 export default function HistoryLog() {
   const context = useOutletContext();
@@ -360,385 +336,41 @@ export default function HistoryLog() {
         </div>
       </div>
 
-      {/* Venue Bookings Table */}
-      {historyType === "venue" && (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-white border-b border-slate-200">
-                  {["#", "Track Number", "Requestor", "Department", "Venue", "Date", "Time", "Outcome", "Action"].map((h) => (
-                    <th key={h} className="px-4 py-3 text-left text-[11px] font-mono font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap">
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 text-xs font-semibold">
-                {loading ? (
-                  <tr>
-                    <td colSpan={9} className="text-center py-12 text-slate-400">
-                      <Loader2 size={18} className="animate-spin inline mr-2" /> Loading history...
-                    </td>
-                  </tr>
-                ) : filteredVenues.length === 0 ? (
-                  <tr>
-                    <td colSpan={9} className="text-center py-12 text-slate-400 font-medium">
-                      No venue booking history records found.
-                    </td>
-                  </tr>
-                ) : (
-                  paginatedList.map((b, idx) => {
-                    const refCode = b.reference_code || b.tracking_number || `TRK-AVR${b.id}`;
-                    const requestor = b.filer_name || b.requestor || "FSUU Filer";
-                    const department = b.program_office || b.department || "Academic Dept";
-                    const venueName = b.venue_name || b.venue || "AVR Auditorium 1";
-                    const usageDate = formatDate(b.date_of_usage || b.date);
-                    const timeRange = formatTimeRange(b.time_start, b.time_end);
-                    const displayIndex = startIndex + idx + 1;
-                    const isBreach = (b.status || "").toLowerCase() === "damaged" || Boolean(b.has_damage) || Boolean(b.violation);
+      {/* Render History Table Component */}
+      <HistoryTable
+        historyType={historyType}
+        loading={loading}
+        filteredRecords={historyType === "venue" ? filteredVenues : filteredEquipment}
+        paginatedList={paginatedList}
+        startIndex={startIndex}
+        ITEMS_PER_PAGE={ITEMS_PER_PAGE}
+        currentPage={currentPage}
+        totalPages={totalPages}
+        setCurrentPage={setCurrentPage}
+        activeMenuId={activeMenuId}
+        setActiveMenuId={setActiveMenuId}
+        activeMenuEl={activeMenuEl}
+        setActiveMenuEl={setActiveMenuEl}
+        ActionMenuPopover={ActionMenuPopover}
+        formatDate={formatDate}
+        formatTimeRange={formatTimeRange}
+        setSelectedVenueModal={setSelectedVenueModal}
+        setSelectedEquipModal={setSelectedEquipModal}
+        handleOpenEdit={handleOpenEdit}
+        handleUndoHistory={handleUndoHistory}
+        handleDeleteHistory={handleDeleteHistory}
+      />
 
-                    return (
-                      <tr key={`history-log-${historyType}-${b.id || idx}-${idx}`} className="hover:bg-slate-50/60 transition-colors">
-                        <td className="px-4 py-3 text-slate-400 font-mono">{displayIndex}</td>
-                        <td className="px-4 py-3 font-mono text-xs font-bold text-slate-900 whitespace-nowrap">{refCode}</td>
-                        <td className="px-4 py-3 font-bold text-slate-900">{requestor}</td>
-                        <td className="px-4 py-3 text-slate-700">{department}</td>
-                        <td className="px-4 py-3 font-bold text-slate-900 font-mono">{venueName}</td>
-                        <td className="px-4 py-3 text-slate-600 font-mono whitespace-nowrap">{usageDate}</td>
-                        <td className="px-4 py-3 text-slate-600 font-mono whitespace-nowrap">{timeRange}</td>
-                        <td className="px-4 py-3 whitespace-nowrap">
-                          {isBreach ? (
-                            <span className="font-mono text-xs font-bold text-rose-600 uppercase">
-                              ● Damaged
-                            </span>
-                          ) : (
-                            <span className="font-mono text-xs font-bold text-emerald-600 uppercase">
-                              ● Good
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 relative">
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              if (activeMenuId === `v-${b.id}`) {
-                                setActiveMenuId(null);
-                                setActiveMenuEl(null);
-                              } else {
-                                setActiveMenuId(`v-${b.id}`);
-                                setActiveMenuEl(e.currentTarget);
-                              }
-                            }}
-                            className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 cursor-pointer shadow-2xs"
-                            title="Actions"
-                          >
-                            <MoreVertical size={14} />
-                          </button>
-
-                          <ActionMenuPopover
-                            isOpen={activeMenuId === `v-${b.id}`}
-                            buttonEl={activeMenuEl}
-                            onClose={() => { setActiveMenuId(null); setActiveMenuEl(null); }}
-                          >
-                            <button
-                              type="button"
-                              onClick={() => { setSelectedVenueModal(b); setActiveMenuId(null); setActiveMenuEl(null); }}
-                              className="w-full text-left px-3 py-1.5 rounded-lg hover:bg-slate-100 text-slate-700 flex items-center gap-2 cursor-pointer font-bold"
-                            >
-                              <Eye size={13} className="text-slate-600" /> View
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => { handleOpenEdit(b, historyType); setActiveMenuId(null); setActiveMenuEl(null); }}
-                              className="w-full text-left px-3 py-1.5 rounded-lg hover:bg-slate-100 text-slate-700 flex items-center gap-2 cursor-pointer font-bold"
-                            >
-                              <Pencil size={13} className="text-slate-600" /> Edit
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => { handleUndoHistory(b.id, refCode, historyType); setActiveMenuId(null); setActiveMenuEl(null); }}
-                              className="w-full text-left px-3 py-1.5 rounded-lg hover:bg-slate-100 text-slate-700 flex items-center gap-2 cursor-pointer font-bold"
-                            >
-                              <RotateCcw size={13} className="text-slate-600" /> Undo
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => { handleDeleteHistory(b.id, refCode, historyType); setActiveMenuId(null); }}
-                              className="w-full text-left px-3 py-1.5 rounded-lg hover:bg-rose-50 text-rose-600 flex items-center gap-2 cursor-pointer font-bold"
-                            >
-                              <Trash2 size={13} /> Delete
-                            </button>
-                          </ActionMenuPopover>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Pagination Footer */}
-          {filteredVenues.length > 0 && (
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-6 py-3.5 bg-white border-t border-slate-200 text-xs font-semibold text-slate-600">
-              <div>
-                Showing <span className="font-bold text-slate-900">{startIndex + 1}</span> to{" "}
-                <span className="font-bold text-slate-900">{Math.min(startIndex + ITEMS_PER_PAGE, filteredVenues.length)}</span> of{" "}
-                <span className="font-bold text-slate-900">{filteredVenues.length}</span> records
-              </div>
-
-              <div className="flex items-center gap-2">
-                <span className="text-slate-500 font-mono mr-2">
-                  Page {currentPage} of {totalPages}
-                </span>
-                <button
-                  type="button"
-                  disabled={currentPage === 1}
-                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all shadow-2xs font-bold text-xs"
-                >
-                  <ChevronLeft size={13} /> Prev
-                </button>
-
-                <button
-                  type="button"
-                  disabled={currentPage >= totalPages}
-                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all shadow-2xs font-bold text-xs"
-                >
-                  Next <ChevronRight size={13} />
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Equipment Borrowings Table */}
-      {historyType === "equipment" && (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-white border-b border-slate-200">
-                  {["#", "Track Number", "Requestor", "Department", "Equipment", "Quantity", "Date", "Time", "Outcome", "Action"].map((h) => (
-                    <th key={h} className="px-4 py-3 text-left text-[11px] font-mono font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap">
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 text-xs font-semibold">
-                {loading ? (
-                  <tr>
-                    <td colSpan={10} className="text-center py-12 text-slate-400">
-                      <Loader2 size={18} className="animate-spin inline mr-2" /> Loading history...
-                    </td>
-                  </tr>
-                ) : filteredEquipment.length === 0 ? (
-                  <tr>
-                    <td colSpan={10} className="text-center py-12 text-slate-400 font-medium">
-                      No equipment borrowing history records found.
-                    </td>
-                  </tr>
-                ) : (
-                  paginatedList.map((b, idx) => {
-                    const refCode = b.reference_code || b.tracking_number || `EQUIP-REQ-${b.id}`;
-                    const requestor = b.filer_name || b.requestor || "FSUU Filer";
-                    const department = b.program_office || b.department || "Academic Dept";
-                    const equipment = b.equipment_name || b.equipment || "Epson Digital Projector HD";
-                    const quantity = b.quantity || b.qty || 1;
-                    const usageDate = formatDate(b.date_of_usage || b.date);
-                    const timeRange = formatTimeRange(b.time_start, b.time_end);
-                    const displayIndex = startIndex + idx + 1;
-                    const isBreach = (b.status || "").toLowerCase() === "damaged" || (b.status || "").toLowerCase() === "lost" || Boolean(b.has_damage) || Boolean(b.violation);
-
-                    return (
-                      <tr key={b.id || idx} className="hover:bg-slate-50/60 transition-colors">
-                        <td className="px-4 py-3 text-slate-400 font-mono">{displayIndex}</td>
-                        <td className="px-4 py-3 font-mono text-xs font-bold text-slate-900 whitespace-nowrap">{refCode}</td>
-                        <td className="px-4 py-3 font-bold text-slate-900">{requestor}</td>
-                        <td className="px-4 py-3 text-slate-700">{department}</td>
-                        <td className="px-4 py-3 font-bold text-slate-900 font-mono">{equipment}</td>
-                        <td className="px-4 py-3 font-mono font-bold text-slate-800">{quantity} Units</td>
-                        <td className="px-4 py-3 text-slate-600 font-mono whitespace-nowrap">{usageDate}</td>
-                        <td className="px-4 py-3 text-slate-600 font-mono whitespace-nowrap">{timeRange}</td>
-                        <td className="px-4 py-3 whitespace-nowrap">
-                          {isBreach ? (
-                            <span className="font-mono text-xs font-bold text-rose-600 uppercase">
-                              ● Damaged
-                            </span>
-                          ) : (
-                            <span className="font-mono text-xs font-bold text-emerald-600 uppercase">
-                              ● Good
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 relative">
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              if (activeMenuId === `e-${b.id}`) {
-                                setActiveMenuId(null);
-                                setActiveMenuEl(null);
-                              } else {
-                                setActiveMenuId(`e-${b.id}`);
-                                setActiveMenuEl(e.currentTarget);
-                              }
-                            }}
-                            className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 cursor-pointer shadow-2xs"
-                            title="Actions"
-                          >
-                            <MoreVertical size={14} />
-                          </button>
-
-                          <ActionMenuPopover
-                            isOpen={activeMenuId === `e-${b.id}`}
-                            buttonEl={activeMenuEl}
-                            onClose={() => { setActiveMenuId(null); setActiveMenuEl(null); }}
-                          >
-                            <button
-                              type="button"
-                              onClick={() => { setSelectedEquipModal(b); setActiveMenuId(null); setActiveMenuEl(null); }}
-                              className="w-full text-left px-3 py-1.5 rounded-lg hover:bg-slate-100 text-slate-700 flex items-center gap-2 cursor-pointer font-bold"
-                            >
-                              <Eye size={13} className="text-slate-600" /> View
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => { handleOpenEdit(b, "equipment"); setActiveMenuId(null); setActiveMenuEl(null); }}
-                              className="w-full text-left px-3 py-1.5 rounded-lg hover:bg-slate-100 text-slate-700 flex items-center gap-2 cursor-pointer font-bold"
-                            >
-                              <Pencil size={13} className="text-slate-600" /> Edit
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => { handleUndoHistory(b.id, refCode, "equipment"); setActiveMenuId(null); setActiveMenuEl(null); }}
-                              className="w-full text-left px-3 py-1.5 rounded-lg hover:bg-slate-100 text-slate-700 flex items-center gap-2 cursor-pointer font-bold"
-                            >
-                              <RotateCcw size={13} className="text-slate-600" /> Undo
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => { handleDeleteHistory(b.id, refCode, "equipment"); setActiveMenuId(null); }}
-                              className="w-full text-left px-3 py-1.5 rounded-lg hover:bg-rose-50 text-rose-600 flex items-center gap-2 cursor-pointer font-bold"
-                            >
-                              <Trash2 size={13} /> Delete
-                            </button>
-                          </ActionMenuPopover>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Pagination Footer */}
-          {filteredEquipment.length > 0 && (
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-6 py-3.5 bg-white border-t border-slate-200 text-xs font-semibold text-slate-600">
-              <div>
-                Showing <span className="font-bold text-slate-900">{startIndex + 1}</span> to{" "}
-                <span className="font-bold text-slate-900">{Math.min(startIndex + ITEMS_PER_PAGE, filteredEquipment.length)}</span> of{" "}
-                <span className="font-bold text-slate-900">{filteredEquipment.length}</span> records
-              </div>
-
-              <div className="flex items-center gap-2">
-                <span className="text-slate-500 font-mono mr-2">
-                  Page {currentPage} of {totalPages}
-                </span>
-                <button
-                  type="button"
-                  disabled={currentPage === 1}
-                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all shadow-2xs font-bold text-xs"
-                >
-                  <ChevronLeft size={13} /> Prev
-                </button>
-
-                <button
-                  type="button"
-                  disabled={currentPage >= totalPages}
-                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all shadow-2xs font-bold text-xs"
-                >
-                  Next <ChevronRight size={13} />
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Edit History Record Status Modal */}
-      {editingRecord && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-[1500] flex items-center justify-center p-4 animate-in fade-in">
-          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl border border-slate-200 space-y-4">
-            <div className="flex justify-between items-center pb-3 border-b border-slate-200">
-              <h3 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
-                <Pencil size={16} className="text-slate-600" />
-                Edit Record Status ({editingRecord.reference_code || editingRecord.tracking_number || editingRecord.id})
-              </h3>
-              <button
-                type="button"
-                onClick={() => setEditingRecord(null)}
-                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg border border-slate-200 cursor-pointer"
-              >
-                <X size={16} />
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveEdit} className="space-y-3 text-xs">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Update Record Status *</label>
-                <select
-                  value={editStatus}
-                  onChange={(e) => setEditStatus(e.target.value)}
-                  className="w-full p-2.5 bg-white border border-slate-200 rounded-lg font-bold text-slate-900 text-xs focus:outline-none focus:border-slate-400"
-                >
-                  <option value="completed">Completed</option>
-                  <option value="solved">Solved (Fine / Damage Settled)</option>
-                  <option value="damaged">Damaged</option>
-                  <option value="lost">Lost</option>
-                  <option value="approved">Approved</option>
-                  <option value="cancelled">Cancelled</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Status Notes / Remarks</label>
-                <textarea
-                  rows={3}
-                  placeholder="e.g. Fine settled by requestor or equipment replaced..."
-                  value={editNotes}
-                  onChange={(e) => setEditNotes(e.target.value)}
-                  className="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-xs font-medium focus:outline-none focus:border-slate-400"
-                />
-              </div>
-
-              <div className="flex justify-end gap-2 pt-3 border-t border-slate-200">
-                <button
-                  type="button"
-                  onClick={() => setEditingRecord(null)}
-                  className="px-4 py-2 rounded-lg border border-slate-300 text-xs font-bold text-slate-600 hover:bg-slate-50 cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={editLoading}
-                  className="px-4 py-2 rounded-lg bg-white hover:bg-slate-50 border border-slate-900 text-slate-900 font-extrabold text-xs cursor-pointer flex items-center gap-1.5"
-                >
-                  {editLoading ? <Loader2 size={13} className="animate-spin" /> : <CheckCircle2 size={13} />}
-                  Save Status
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <HistoryEditModal
+        editingRecord={editingRecord}
+        editStatus={editStatus}
+        setEditStatus={setEditStatus}
+        editNotes={editNotes}
+        setEditNotes={setEditNotes}
+        editLoading={editLoading}
+        onClose={() => setEditingRecord(null)}
+        onSave={handleSaveEdit}
+      />
 
       {/* Existing Full Detail Modals Triggered on Eye View */}
       {selectedVenueModal && (

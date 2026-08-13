@@ -51,8 +51,8 @@ export default function StaffLogin() {
       } else {
         navigate("/admin/dashboard");
       }
-    } catch {
-      setPassError("Invalid email or password.");
+    } catch (err) {
+      setPassError(err.response?.data?.message || "Invalid email or password.");
     } finally {
       setPassLoading(false);
     }

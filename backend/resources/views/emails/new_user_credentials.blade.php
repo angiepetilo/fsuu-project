@@ -11,27 +11,27 @@
 </head>
 <body>
 @php
-    $adminName = $user->name ?? 'Administrator';
-    $usernameVal = $user->username ?? $user->email ?? 'Username';
+    $adminName = $user->name ?? 'User';
     $officeNameVal = is_object($user->office) ? ($user->office->name ?? 'FSUU Main') : ($user->office_name ?? ($user->office ?? 'FSUU Main'));
     $roleNameVal = is_object($user->role) ? ($user->role->name ?? 'Staff') : (string)($user->role ?? 'Staff');
-    $url = $loginUrl ?? 'http://localhost:5173/login';
+    $baseUrl = rtrim(config('app.frontend_url', env('FRONTEND_URL', 'http://localhost:5173')), '/');
+    $activationUrl = !empty($user->invite_token) ? $baseUrl . '/activate/' . $user->invite_token : $baseUrl . '/login';
 @endphp
 
-<p>Good day {{ $adminName }}</p>
+<p>Good day,</p>
 
-<p>An Administrator has created a system account for you on the FSUU Reserve and Booking System.</p>
-
-<p>Account Login Credentials :</p>
+<p>An Administrator has invited you to set up your account on the FSUU Reserve and Booking System.</p>
 
 <div class="credentials-block">
-Username : {{ $usernameVal }}<br>
-Password : {{ $password }}<br>
 Assigned Branch Office : {{ $officeNameVal }}<br>
 Role : {{ ucfirst($roleNameVal) }}
 </div>
 
-<p>You may sign in to the system here : {{ $url }}</p>
+<p>Please click the link below to activate your account and set up your Full Name, Username, and Password:</p>
+
+<p><a href="{{ $activationUrl }}" style="display: inline-block; padding: 10px 18px; background-color: #2563eb; color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: bold;">Activate Your Account</a></p>
+
+<p>Or copy this link to your browser: {{ $activationUrl }}</p>
 
 <p>Security Notice: For security purposes, please log in and update your password upon your initial sign in. Do not share your login credentials with others</p>
 

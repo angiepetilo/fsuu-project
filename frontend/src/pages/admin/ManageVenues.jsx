@@ -52,21 +52,6 @@ export default function ManageVenues() {
     try {
       const res = await api.get("/admin/venues").catch(() => api.get("/admin/venues-list"));
       let data = Array.isArray(res.data) ? res.data : [];
-
-      // Merge with localStorage if additional catalog venues exist
-      try {
-        const savedStr = localStorage.getItem("fsuu_venue_availability") || localStorage.getItem("fsuu_venues");
-        if (savedStr) {
-          const savedList = JSON.parse(savedStr);
-          const clean = (str) => (str || "").toLowerCase().replace(/[^a-z0-9]/g, "");
-          savedList.forEach((savedItem) => {
-            if (savedItem && !data.some((d) => d.id === savedItem.id || clean(d.name) === clean(savedItem.name))) {
-              data.push(savedItem);
-            }
-          });
-        }
-      } catch { }
-
       setVenues(data);
       if (data.length > 0) {
         setSelectedVenue((prev) => (prev ? data.find((d) => d.id === prev.id) || data[0] : data[0]));
@@ -77,15 +62,6 @@ export default function ManageVenues() {
       try {
         const bookingsRes = await api.get("/avr-venue-bookings").catch(() => ({ data: [] }));
         let bData = Array.isArray(bookingsRes.data) ? bookingsRes.data : [];
-        const localSaved = localStorage.getItem("fsuu_venue_bookings");
-        if (localSaved) {
-          const localList = JSON.parse(localSaved);
-          localList.forEach(lb => {
-            if (lb && !bData.some(b => b.id === lb.id || b.reference_code === lb.reference_code)) {
-              bData.push(lb);
-            }
-          });
-        }
         setBookings(bData);
       } catch {}
     } catch {

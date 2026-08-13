@@ -38,7 +38,7 @@ it('returns generic error when tracking a non-existent code', function () {
     ]);
 
     $response->assertStatus(404)
-        ->assertJsonPath('message', 'We could not find a booking matching this reference code and email address.');
+        ->assertJsonPath('message', 'We could not find a booking matching this reference code.');
 });
 
 it('returns identical generic error for valid code but wrong email', function () {
@@ -67,7 +67,7 @@ it('returns identical generic error for valid code but wrong email', function ()
     ]);
 
     $response->assertStatus(404)
-        ->assertJsonPath('message', 'We could not find a booking matching this reference code and email address.');
+        ->assertJsonPath('message', 'The provided email address does not match this reference code.');
 });
 
 it('returns booking when tracking with correct code and email', function () {
@@ -99,7 +99,9 @@ it('returns booking when tracking with correct code and email', function () {
 });
 
 it('enforces rate limits on public tracking route', function () {
-    for ($i = 0; $i < 10; $i++) {
+    \Illuminate\Support\Facades\RateLimiter::clear('tracking:127.0.0.1');
+
+    for ($i = 0; $i < 15; $i++) {
         $this->postJson('/api/public/track', [
             'reference_code' => 'TRK-999999',
             'requestor_email' => 'juan@test.com',

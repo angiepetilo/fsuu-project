@@ -1,37 +1,48 @@
+import { lazy, Suspense, useEffect } from "react";
 import { BrowserRouter, Routes, Route, Link, useLocation, Navigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
+import { cleanupLocalStorage } from "@/lib/cleanupLocalStorage";
+import { PageLoader } from "@/components/ui/page-loader";
 
-// Public pages
+// Public — landing page loads eagerly (it's the first paint)
 import LandingPage from "./pages/public/LandingPage/LandingPage";
-import TrackBooking from "./pages/public/TrackBooking";
-import VenueBooking from "./pages/public/VenueBooking/VenueBooking";
-import EquipmentBorrowing from "./pages/public/EquipmentBorrowing/EquipmentBorrowing";
+
+// All other pages are lazy-loaded — only parsed when the user navigates to them
+const TrackBooking       = lazy(() => import("./pages/public/TrackBooking"));
+const VenueBooking       = lazy(() => import("./pages/public/VenueBooking/VenueBooking"));
+const EquipmentBorrowing = lazy(() => import("./pages/public/EquipmentBorrowing/EquipmentBorrowing"));
 
 // Auth pages
-import StaffLogin from "./pages/auth/StaffLogin";
-import GoogleCallback from "./pages/auth/GoogleCallback";
+const StaffLogin         = lazy(() => import("./pages/auth/StaffLogin"));
+const GoogleCallback     = lazy(() => import("./pages/auth/GoogleCallback"));
+const AccountActivation  = lazy(() => import("./pages/auth/AccountActivation"));
 
 // SysAd pages
-import SysadLayout from "./pages/sysad/SysadLayout";
-import SysadSettings from "./pages/sysad/SysadSettings";
+const SysadLayout        = lazy(() => import("./pages/sysad/SysadLayout"));
+const SysadSettings      = lazy(() => import("./pages/sysad/SysadSettings"));
 
 // Admin pages
-import AdminLayout from "./pages/admin/AdminLayout";
-import Dashboard from "./pages/admin/Dashboard";
-import VenueBookings from "./pages/admin/VenueBookings";
-import EquipmentBorrowings from "./pages/admin/EquipmentBorrowings";
-import ManageEquipments from "./pages/admin/ManageEquipments";
-import ManageVenues from "./pages/admin/ManageVenues";
-import Reports from "./pages/admin/Reports";
-import HistoryLog from "./pages/admin/HistoryLog";
-import Settings from "./pages/admin/Settings";
+const AdminLayout        = lazy(() => import("./pages/admin/AdminLayout"));
+const Dashboard          = lazy(() => import("./pages/admin/Dashboard"));
+const VenueBookings      = lazy(() => import("./pages/admin/VenueBookings"));
+const EquipmentBorrowings = lazy(() => import("./pages/admin/EquipmentBorrowings"));
+const ManageEquipments   = lazy(() => import("./pages/admin/ManageEquipments"));
+const ManageVenues       = lazy(() => import("./pages/admin/ManageVenues"));
+const Reports            = lazy(() => import("./pages/admin/Reports"));
+const HistoryLog         = lazy(() => import("./pages/admin/HistoryLog"));
+const Settings           = lazy(() => import("./pages/admin/Settings"));
 
 import { Toaster } from "@/components/ui/sonner";
 
 function AppContent() {
   const location = useLocation();
   const { user } = useAuth();
-  const isAuthPage     = location.pathname.startsWith("/login") || location.pathname.startsWith("/auth");
+
+  useEffect(() => {
+    cleanupLocalStorage();
+  }, []);
+
+  const isAuthPage     = location.pathname.startsWith("/login") || location.pathname.startsWith("/auth") || location.pathname.startsWith("/activate");
   const isAdminPage    = location.pathname.startsWith("/admin");
   const isSysadPage    = location.pathname.startsWith("/sysad");
   const hideHeaderFooter = isAuthPage || isAdminPage || isSysadPage;
@@ -61,44 +72,47 @@ function AppContent() {
             ? "w-full min-h-screen"
             : "w-full max-w-[1280px] mx-auto px-8 pt-[9rem] pb-[4rem] flex-1 flex flex-col overflow-x-hidden"
       }>
-        <Routes>
-          {/* Public */}
-          <Route path="/"                 element={<LandingPage />} />
-          <Route path="/track"            element={<TrackBooking />} />
-          <Route path="/track-booking"    element={<TrackBooking />} />
-          <Route path="/book-venue"       element={<VenueBooking />} />
-          <Route path="/borrow-equipment" element={<EquipmentBorrowing />} />
+        <Suspense fallback={<PageLoader />}>
+          <Routes>
+            {/* Public */}
+            <Route path="/"                 element={<LandingPage />} />
+            <Route path="/track"            element={<TrackBooking />} />
+            <Route path="/track-booking"    element={<TrackBooking />} />
+            <Route path="/book-venue"       element={<VenueBooking />} />
+            <Route path="/borrow-equipment" element={<EquipmentBorrowing />} />
 
-          {/* Auth */}
-          <Route path="/login"                 element={<StaffLogin />} />
-          <Route path="/auth/google/callback"  element={<GoogleCallback />} />
+            {/* Auth */}
+            <Route path="/login"                 element={<StaffLogin />} />
+            <Route path="/auth/google/callback"  element={<GoogleCallback />} />
+            <Route path="/activate/:token"       element={<AccountActivation />} />
 
-          {/* SysAd Portal — dedicated route for Super Administrator */}
-          <Route path="/sysad" element={<SysadLayout />}>
-            <Route index              element={<Navigate to="/sysad/dashboard" replace />} />
-            <Route path="dashboard"           element={<Dashboard />} />
-            <Route path="venue-bookings"      element={<VenueBookings />} />
-            <Route path="equipment-borrowing" element={<EquipmentBorrowings />} />
-            <Route path="manage-equipments"   element={<ManageEquipments />} />
-            <Route path="manage-venues"       element={<ManageVenues />} />
-            <Route path="reports"             element={<Reports />} />
-            <Route path="history-log"         element={<HistoryLog />} />
-            <Route path="settings"            element={<SysadSettings />} />
-          </Route>
+            {/* SysAd Portal — dedicated route for Super Administrator */}
+            <Route path="/sysad" element={<SysadLayout />}>
+              <Route index              element={<Navigate to="/sysad/dashboard" replace />} />
+              <Route path="dashboard"           element={<Dashboard />} />
+              <Route path="venue-bookings"      element={<VenueBookings />} />
+              <Route path="equipment-borrowing" element={<EquipmentBorrowings />} />
+              <Route path="manage-equipments"   element={<ManageEquipments />} />
+              <Route path="manage-venues"       element={<ManageVenues />} />
+              <Route path="reports"             element={<Reports />} />
+              <Route path="history-log"         element={<HistoryLog />} />
+              <Route path="settings"            element={<SysadSettings />} />
+            </Route>
 
-          {/* Admin — nested under AdminLayout */}
-          <Route path="/admin" element={<AdminLayout />}>
-            <Route index              element={<Navigate to="/admin/dashboard" replace />} />
-            <Route path="dashboard"           element={<Dashboard />} />
-            <Route path="venue-bookings"      element={<VenueBookings />} />
-            <Route path="equipment-borrowing" element={<EquipmentBorrowings />} />
-            <Route path="manage-equipments"   element={<ManageEquipments />} />
-            <Route path="manage-venues"       element={<ManageVenues />} />
-            <Route path="reports"             element={<Reports />} />
-            <Route path="history-log"         element={<HistoryLog />} />
-            <Route path="settings"            element={<Settings />} />
-          </Route>
-        </Routes>
+            {/* Admin — nested under AdminLayout */}
+            <Route path="/admin" element={<AdminLayout />}>
+              <Route index              element={<Navigate to="/admin/dashboard" replace />} />
+              <Route path="dashboard"           element={<Dashboard />} />
+              <Route path="venue-bookings"      element={<VenueBookings />} />
+              <Route path="equipment-borrowing" element={<EquipmentBorrowings />} />
+              <Route path="manage-equipments"   element={<ManageEquipments />} />
+              <Route path="manage-venues"       element={<ManageVenues />} />
+              <Route path="reports"             element={<Reports />} />
+              <Route path="history-log"         element={<HistoryLog />} />
+              <Route path="settings"            element={<Settings />} />
+            </Route>
+          </Routes>
+        </Suspense>
       </main>
 
       {!hideHeaderFooter && (

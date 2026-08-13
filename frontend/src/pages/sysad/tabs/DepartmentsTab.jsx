@@ -227,7 +227,7 @@ export default function DepartmentsTab({ showMsg }) {
                         <option key={loc.id} value={loc.name}>{loc.name}</option>
                       ))
                     ) : (
-                      <option value="FSUU Main Campus">FSUU Main Campus</option>
+                      <option value="" disabled>No campus locations created yet</option>
                     )}
                   </select>
                 </div>

@@ -24,6 +24,7 @@ return new class extends Migration
             $table->text('equipment_notes')->nullable();
             $table->integer('no_of_person');
             $table->date('date_of_usage');
+            $table->date('reservation_end_date')->nullable();
             $table->time('time_start');
             $table->time('time_end');
             $table->string('school_id')->nullable();

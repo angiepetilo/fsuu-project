@@ -7,14 +7,17 @@ use Illuminate\Database\Seeder;
 class DatabaseSeeder extends Seeder
 {
     /**
-     * Seed the application's database with roles and superadmin user.
+     * Seed the application's database.
      */
     public function run(): void
     {
         $this->call([
             RoleSeeder::class,
-            //OfficeSeeder::class,
+            OfficeSeeder::class,
             UserSeeder::class,
+            VenueSeeder::class,
+            EquipmentTypeSeeder::class,
+            EquipmentUnitSeeder::class,
         ]);
     }
 }

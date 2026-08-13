@@ -28,36 +28,20 @@ export default function Dashboard() {
   // SysAd Dashboard aggregates data across ALL offices by default
   const officeScope = isSuperAdmin ? (context?.selectedOffice || "All Offices") : (context?.adminOffice || context?.selectedOffice || "All Offices");
 
-  const [loading, setLoading] = useState(() => {
-    try {
-      return !localStorage.getItem("fsuu_cache_admin_dashboard");
-    } catch {
-      return true;
-    }
-  });
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Metrics Data & Cache Initialization
-  const [cachedDash] = useState(() => {
-    try {
-      const saved = localStorage.getItem("fsuu_cache_admin_dashboard");
-      return saved ? JSON.parse(saved) : null;
-    } catch {
-      return null;
-    }
-  });
-
-  const [totalVenueBookings, setTotalVenueBookings] = useState(cachedDash?.totalVenueBookings ?? 0);
-  const [pendingApproval, setPendingApproval] = useState(cachedDash?.pendingApproval ?? 0);
-  const [pendingEquipBorrowings, setPendingEquipBorrowings] = useState(cachedDash?.pendingEquipBorrowings ?? 0);
-  const [totalEquipBorrows, setTotalEquipBorrows] = useState(cachedDash?.totalEquipBorrows ?? 0);
-  const [totalDamaged, setTotalDamaged] = useState(cachedDash?.totalDamaged ?? 0);
-  const [totalLost, setTotalLost] = useState(cachedDash?.totalLost ?? 0);
+  const [totalVenueBookings, setTotalVenueBookings] = useState(0);
+  const [pendingApproval, setPendingApproval] = useState(0);
+  const [pendingEquipBorrowings, setPendingEquipBorrowings] = useState(0);
+  const [totalEquipBorrows, setTotalEquipBorrows] = useState(0);
+  const [totalDamaged, setTotalDamaged] = useState(0);
+  const [totalLost, setTotalLost] = useState(0);
 
   // Dynamic Real Analytics Calculations
-  const [topBookedDepartments, setTopBookedDepartments] = useState(cachedDash?.topBookedDepartments ?? []);
-  const [mostUsedEquipment, setMostUsedEquipment] = useState(cachedDash?.mostUsedEquipment ?? []);
-  const [topViolatingDepartments, setTopViolatingDepartments] = useState(cachedDash?.topViolatingDepartments ?? []);
+  const [topBookedDepartments, setTopBookedDepartments] = useState([]);
+  const [mostUsedEquipment, setMostUsedEquipment] = useState([]);
+  const [topViolatingDepartments, setTopViolatingDepartments] = useState([]);
 
   // Active Venue Bookings across ALL Venues for Calendar & Staff Tasks
   const [calendarBookings, setCalendarBookings] = useState([]);
@@ -539,7 +523,7 @@ export default function Dashboard() {
               Department with Most Violation
             </h3>
             <p className="text-[11px] text-slate-500 font-medium">
-              Reported breaches from Venue Booking Reports
+              Reported breaches from verified inspection records
             </p>
           </div>
 

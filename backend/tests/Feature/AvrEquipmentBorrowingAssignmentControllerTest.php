@@ -2,109 +2,100 @@
 
 uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
 use App\Models\EquipmentBorrowing;
-use App\Models\EquipmentBorrowingItem;
 use App\Models\EquipmentType;
 use App\Models\EquipmentUnit;
 use App\Models\Office;
 use App\Models\User;
-use App\Models\AvrVenueBooking;
-use App\Models\Venue;
+use App\Models\TrackingNumber;
 
 beforeEach(function () {
-    $this->office = Office::create(['name' => 'AVR Main', 'code' => 'AVR-M', 'type' => 'avr']);
-    $this->venue = Venue::create(['office_id' => $this->office->id, 'name' => 'AVR1', 'location' => 'FSUU Main', 'is_active' => true]);
-    $this->staff = User::forceCreate([
-        'office_id' => $this->office->id,
-        'role'      => 'staff',
-        'name'      => 'AVR Staff',
-        'email'     => 'avrstaff@test.com',
-        'password'  => bcrypt('password'),
-    ]);
+    \App\Models\Role::firstOrCreate(['id' => 1, 'name' => 'super_admin']);
+    \App\Models\Role::firstOrCreate(['id' => 2, 'name' => 'admin']);
+    $staffRole = \App\Models\Role::firstOrCreate(['id' => 3, 'name' => 'staff']);
 
-    // Grant the staff member the permission required by AvrEquipmentBorrowingPolicy::assignUnit()
-    \App\Models\StaffPermission::forceCreate([
-        'staff_id'   => $this->staff->id,
-        'office_id'  => $this->office->id,
-        'area'       => 'equipment_borrowing',
-        'action'     => 'assign_checkout',
-        'granted_by' => $this->staff->id, // self-grant for test setup only
+    $this->office = Office::create(['name' => 'AVR Main', 'code' => 'AVR-M', 'type' => 'avr']);
+    $this->staff = User::forceCreate([
+        'office_id'   => $this->office->id,
+        'role_id'     => $staffRole->id,
+        'name'        => 'AVR Staff',
+        'email'       => 'avrstaff@test.com',
+        'password'    => bcrypt('password'),
+        'permissions' => ['equipment_borrowing', 'approve', 'assign_checkout'],
     ]);
 
     $this->type = EquipmentType::create([
-        'office_id' => $this->office->id,
-        'name' => 'Projector',
+        'office_id'      => $this->office->id,
+        'eq_name'        => 'Projector',
+        'eq_type'        => 'AV Equipment',
         'total_quantity' => 2,
     ]);
 
     $this->unit = EquipmentUnit::create([
         'equipment_type_id' => $this->type->id,
-        'barcode' => 'PROJ-001',
-        'unit_status' => 'available',
+        'unit_code'         => 'PROJ-001',
+        'name'              => 'Projector Unit 1',
+        'status'            => 'available',
+        'condition'         => 'Good',
     ]);
 
-    $this->venueBooking = AvrVenueBooking::forceCreate([
-        'reference_code' => 'VN-12345',
-        'venue_id' => $this->venue->id,
-        'requestor_name' => 'Test',
-        'requestor_email' => 'test@test.com',
-        'requestor_contact_number' => '123',
-        'requestor_program_office' => 'CS',
-        'requestor_identity_type' => 'student',
-        'booking_classification' => 'academic',
-        'purpose' => 'Test',
-        'number_of_persons' => 10,
-        'title_of_reservation' => 'Test',
-        'event_type' => 'academic',
-        'contact_preference' => 'email',
-        'start_datetime' => now()->addDays(5)->format('Y-m-d H:i:s'),
-        'end_datetime' => now()->addDays(5)->addHours(2)->format('Y-m-d H:i:s'),
-        'status' => 'approved',
+    $this->tracking = TrackingNumber::forceCreate([
+        'reference_code'   => 'EQ-2026-0001',
+        'status'           => 'approved',
+        'reservation_type' => 'equipment_borrow',
+        'reservation_id'   => 1,
     ]);
 
     $this->borrowing = EquipmentBorrowing::forceCreate([
-        'reference_code' => 'EQ-12345',
-        'avr_venue_booking_id' => $this->venueBooking->id,
-        'requestor_name' => 'Test',
-        'requestor_email' => 'test@test.com',
-        'requestor_contact_number' => '123',
-        'requestor_program_office' => 'CS',
-        'requestor_identity_type' => 'student',
-        'purpose' => 'Test',
-        'place_of_use' => 'Campus',
-        'used_inside_campus' => true,
-        'contact_preference' => 'email',
-        'start_datetime' => now()->addDays(5)->format('Y-m-d H:i:s'),
-        'end_datetime' => now()->addDays(5)->addHours(2)->format('Y-m-d H:i:s'),
-        'status' => 'approved',
-    ]);
-
-    $this->item = EquipmentBorrowingItem::create([
-        'equipment_borrowing_id' => $this->borrowing->id,
-        'equipment_type_id' => $this->type->id,
-        'quantity_requested' => 1,
+        'tracking_number_id' => $this->tracking->id,
+        'office_id'          => $this->office->id,
+        'filer_name'         => 'Juan Dela Cruz',
+        'email_address'      => 'juan@test.com',
+        'date_of_usage'      => '2026-09-01',
+        'time_start'         => '08:00:00',
+        'time_end'           => '10:00:00',
+        'purpose'            => 'Event',
+        'classification'     => 'student',
+        'contact_number'     => '09123456789',
+        'place_of_use'       => 'inside',
+        'program_office'     => 'CS',
+        'submission_channel' => 'kiosk',
     ]);
 });
 
-it('assigns an equipment unit by barcode', function () {
+it('assigns equipment units by barcode map', function () {
     $response = $this->actingAs($this->staff, 'sanctum')
-        ->postJson("/api/avr-equipment-borrowings/{$this->borrowing->id}/items/{$this->item->id}/assign", [
-            'barcode' => 'PROJ-001',
+        ->putJson("/api/avr-equipment-borrowings/{$this->borrowing->id}/assign-units", [
+            'assigned_units' => [
+                (string)$this->type->id => 'PROJ-001',
+            ],
         ]);
 
-    $response->assertStatus(201);
+    $response->assertStatus(200);
     
-    $this->assertDatabaseHas('equipment_borrowing_units', [
-        'equipment_borrowing_item_id' => $this->item->id,
-        'equipment_unit_id' => $this->unit->id,
-    ]);
+    $this->assertEquals('PROJ-001', $this->borrowing->fresh()->assigned_units[$this->type->id]);
 });
 
-it('rejects assignment if barcode does not exist', function () {
+it('rejects assignment if unit belongs to another office', function () {
+    $otherOffice = Office::create(['name' => 'SCO', 'code' => 'SCO', 'type' => 'sco']);
+    $otherType = EquipmentType::create([
+        'office_id'      => $otherOffice->id,
+        'eq_name'        => 'Camera',
+        'eq_type'        => 'AV Equipment',
+        'total_quantity' => 1,
+    ]);
+    $otherUnit = EquipmentUnit::create([
+        'equipment_type_id' => $otherType->id,
+        'unit_code'         => 'SCO-CAM-001',
+        'name'              => 'SCO Camera 1',
+        'status'            => 'available',
+    ]);
+
     $response = $this->actingAs($this->staff, 'sanctum')
-        ->postJson("/api/avr-equipment-borrowings/{$this->borrowing->id}/items/{$this->item->id}/assign", [
-            'barcode' => 'INVALID-999',
+        ->putJson("/api/avr-equipment-borrowings/{$this->borrowing->id}/assign-units", [
+            'assigned_units' => [
+                (string)$this->type->id => 'SCO-CAM-001',
+            ],
         ]);
 
-    $response->assertStatus(422)
-        ->assertJsonValidationErrors('barcode');
+    $response->assertStatus(422);
 });

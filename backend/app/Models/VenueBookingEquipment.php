@@ -15,6 +15,7 @@ class VenueBookingEquipment extends Model
     protected $fillable = [
         'venue_booking_id',
         'equipment_type_id',
+        'quantity_requested',
         'others_specify',
     ];
 

@@ -64,13 +64,23 @@ export default function BreachesTab({
       violation_type: eb.violation || (eb.status === "lost" ? "Lost Equipment" : (eb.is_late ? "Late Equipment Return" : "Equipment Damage")),
     }));
 
+  const cleanDeptName = (raw) => {
+    if (!raw) return "Academic Dept";
+    const str = String(raw).trim();
+    if (str.includes("(")) {
+      const mainPart = str.split("(")[0].trim();
+      if (mainPart) return mainPart;
+    }
+    return str;
+  };
+
   // Combine synced History Log records + local inspection breaches
   const allSyncedBreaches = [...completedVenueBreaches, ...completedEquipBreaches, ...localBreaches];
 
   // Department summary counts for overview
   const deptSummaryMap = {};
   allSyncedBreaches.forEach((b) => {
-    const dName = b.department || "Academic Dept";
+    const dName = cleanDeptName(b.department);
     if (!deptSummaryMap[dName]) {
       deptSummaryMap[dName] = { department: dName, venue_violations: 0, late_returns: 0, equipment_damages: 0, equipment_lost: 0 };
     }
@@ -97,7 +107,7 @@ export default function BreachesTab({
             Department Violation Totals Summary
           </h3>
           <p className="text-xs text-slate-500 font-semibold mt-0.5">
-            Aggregated violation counts per department
+            Aggregated violation counts per department from verified inspection logs
           </p>
         </div>
       </div>

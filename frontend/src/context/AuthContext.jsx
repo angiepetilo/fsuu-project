@@ -25,8 +25,26 @@ export function AuthProvider({ children }) {
     else localStorage.removeItem("staff_user");
   }, [user]);
 
+  const clearAdminCaches = () => {
+    const keysToClean = [
+      "fsuu_admin_profile",
+      "fsuu_venue_availability",
+      "fsuu_cache_admin_venue_bookings",
+      "fsuu_cache_admin_equipment_borrowings",
+      "fsuu_cache_admin_dashboard",
+      "fsuu_cache_sysad_users",
+      "fsuu_cache_sysad_offices",
+      "fsuu_equipment_types",
+      "fsuu_venue_overrides",
+      "fsuu_venue_maintenance"
+    ];
+    keysToClean.forEach(k => {
+      try { localStorage.removeItem(k); } catch {}
+    });
+  };
+
   const login = useCallback((userData, tokenValue) => {
-    localStorage.removeItem("fsuu_admin_profile");
+    clearAdminCaches();
     setUser(userData);
     setToken(tokenValue);
   }, []);
@@ -37,7 +55,7 @@ export function AuthProvider({ children }) {
     } catch {
       // ignore
     } finally {
-      localStorage.removeItem("fsuu_admin_profile");
+      clearAdminCaches();
       setUser(null);
       setToken(null);
     }

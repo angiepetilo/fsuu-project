@@ -11,6 +11,8 @@ import Step2Equipment from "./components/Step2Equipment";
 import Step3Details from "./components/Step3Details";
 import Step4Verification from "./components/Step4Verification";
 
+import { isPastDateTime } from "@/lib/dateTimeUtils";
+
 const BORROW_STEPS = [
   { title: "Identity", subtitle: "Requester role" },
   { title: "Equipment Catalog", subtitle: "Select AV items" },
@@ -23,21 +25,16 @@ export default function EquipmentBorrowing() {
   const [activeStep, setActiveStep] = useState(1);
 
   const [completedSteps, setCompletedSteps] = useState([]);
-  const [catalog, setCatalog] = useState(() => {
+  const [catalog, setCatalog] = useState([]);
+  const [catalogLoading, setCatalogLoading] = useState(true);
+
+  // Clean public equipment localStorage items on mount
+  useEffect(() => {
     try {
-      const cached = localStorage.getItem("fsuu_cache_public_equipment");
-      return cached ? JSON.parse(cached) : [];
-    } catch {
-      return [];
-    }
-  });
-  const [catalogLoading, setCatalogLoading] = useState(() => {
-    try {
-      return !localStorage.getItem("fsuu_cache_public_equipment");
-    } catch {
-      return true;
-    }
-  });
+      localStorage.removeItem("fsuu_cache_public_equipment");
+      localStorage.removeItem("fsuu_equipment_borrowings");
+    } catch {}
+  }, []);
 
   // Selection States
   const [identity, setIdentity] = useState("");
@@ -72,20 +69,32 @@ export default function EquipmentBorrowing() {
   const [wishesToExtend, setWishesToExtend] = useState(false);
 
   const handleContactChange = (e) => {
-
     setContactNumber(e.target.value.replace(/\D/g, '').slice(0, 11));
   };
 
   useEffect(() => {
-    api.get('/public/equipment-types')
+    const startDateStr = startTime ? startTime.split("T")[0] : "";
+    const startTimeStr = startTime && startTime.includes("T") ? startTime.split("T")[1].slice(0, 5) : "";
+    const endDateStr = endTime ? endTime.split("T")[0] : "";
+    const endTimeStr = endTime && endTime.includes("T") ? endTime.split("T")[1].slice(0, 5) : "";
+
+    const selectedOfficeId = (campusBranch || "").toLowerCase().includes("morelos") ? 2 : 1;
+
+    const params = new URLSearchParams();
+    params.append("office_id", selectedOfficeId);
+    if (startDateStr) params.append("date", startDateStr);
+    if (startTimeStr) params.append("time_start", startTimeStr);
+    if (endTimeStr) params.append("time_end", endTimeStr);
+
+    setCatalogLoading(true);
+    api.get(`/public/equipment-types?${params.toString()}`)
       .then(res => {
         const data = res.data ?? [];
         setCatalog(data);
-        try { localStorage.setItem("fsuu_cache_public_equipment", JSON.stringify(data)); } catch {}
       })
       .catch(() => setCatalog([]))
       .finally(() => setCatalogLoading(false));
-  }, []);
+  }, [startTime, endTime, campusBranch]);
 
   const filteredCatalog = catalog.filter((item) => {
     if (equipmentCategory === "all") return true;
@@ -119,8 +128,11 @@ export default function EquipmentBorrowing() {
   const [itemQuantities, setItemQuantities] = useState({});
 
   const handleIdentitySelect = (id) => {
-    setIdentity(id.toLowerCase());
-    setIsPinVerified(false);
+    const norm = id.toLowerCase();
+    setIdentity(norm);
+    if (norm === "external" && !isPinVerified) {
+      setShowPinModal(true);
+    }
     if (!completedSteps.includes(1)) setCompletedSteps([...completedSteps, 1]);
     setActiveStep(2);
   };
@@ -149,7 +161,18 @@ export default function EquipmentBorrowing() {
   };
 
   const handleEquipmentSubmit = () => {
+    const startDateStr = startTime ? startTime.split("T")[0] : "";
+    const startTimeStr = startTime && startTime.includes("T") ? startTime.split("T")[1].slice(0, 5) : "";
+    if (isPastDateTime(startDateStr, startTimeStr)) {
+      alert("Selected borrow date or time has already passed. Please select a future date and time.");
+      return;
+    }
+
     if (selectedItems.length > 0) {
+      if (identity === "external" && !isPinVerified) {
+        setShowPinModal(true);
+        return;
+      }
       if (!completedSteps.includes(2)) setCompletedSteps([...completedSteps, 2]);
       setActiveStep(3);
     }
@@ -160,23 +183,7 @@ export default function EquipmentBorrowing() {
     const startDateStr = startTime ? startTime.split("T")[0] : "";
     const endDateStr = endTime ? endTime.split("T")[0] : "";
     const isNextDayOrMore = endDateStr && startDateStr && endDateStr > startDateStr;
-
-    let requiresPin = false;
-    try {
-      const savedConfig = localStorage.getItem("fsuu_pin_config");
-      if (savedConfig) {
-        const parsed = JSON.parse(savedConfig);
-        if (parsed.requirePinForStudent) {
-          requiresPin = true;
-        } else {
-          requiresPin = identity === "external" || isNextDayOrMore;
-        }
-      } else {
-        requiresPin = identity === "external" || isNextDayOrMore;
-      }
-    } catch {
-      requiresPin = identity === "external" || isNextDayOrMore;
-    }
+    const requiresPin = identity === "external" || isNextDayOrMore;
 
     if (requiresPin && !isPinVerified) {
       setShowPinModal(true);
@@ -208,76 +215,70 @@ export default function EquipmentBorrowing() {
     setIsSubmitting(true);
 
     try {
-      const formattedStart = startTime.includes("T") ? startTime.replace("T", " ") + ":00" : `${startTime} 08:00:00`;
-      const formattedEnd = endTime.includes("T") ? endTime.replace("T", " ") + ":00" : `${endTime} 17:00:00`;
+      const getFormattedDT = (dtStr, fallbackTime) => {
+        if (!dtStr) return `${getTodayISO()} ${fallbackTime}:00`;
+        let s = dtStr.replace("T", " ");
+        if (s.length === 10) return `${s} ${fallbackTime}:00`;
+        if (s.length === 16) return `${s}:00`;
+        return s.substring(0, 19);
+      };
+
+      const formattedStart = getFormattedDT(startTime, "08:00");
+      const formattedEnd = getFormattedDT(endTime, "17:00");
 
       const validIdentityTypes = ['student', 'faculty', 'staff', 'external'];
       const rawIdentity = (identity || 'student').toLowerCase();
       const finalIdentity = validIdentityTypes.includes(rawIdentity) ? rawIdentity : 'student';
 
+      if (selectedItems.length === 0) {
+        alert("Please select at least one equipment item from the catalog to borrow.");
+        setIsSubmitting(false);
+        return;
+      }
+
+      const validItems = selectedItems.map(id => {
+        const numericId = typeof id === 'number' ? id : (typeof id === 'object' ? id.id : Number(id));
+        return {
+          equipment_type_id: numericId,
+          quantity_requested: itemQuantities[typeof id === 'object' ? id.id : id] || 1
+        };
+      });
+
       const payload = {
-        requestor_name: fullName || "Requestor",
-        requestor_email: email || "requestor@fsuu.edu.ph",
-        requestor_contact_number: contactNumber || "09123456789",
-        requestor_program_office: `${department || 'CITE'} (${campusBranch})`,
+        requestor_name: fullName,
+        requestor_email: email,
+        requestor_contact_number: contactNumber,
+        requestor_program_office: department || "General",
         requestor_identity_type: finalIdentity,
-        purpose: purpose || "Academic Presentation",
-        place_of_use: placeOfUse || "Main Campus Room",
+        purpose: purpose,
+        place_of_use: placeOfUse,
         used_inside_campus: true,
         start_datetime: formattedStart,
         end_datetime: formattedEnd,
         contact_preference: notificationChannel === 'sms' ? 'sms' : 'email',
-        items: (selectedItems.length > 0 ? selectedItems : [1]).map(id => ({
-          equipment_type_id: typeof id === 'number' || !isNaN(Number(id)) ? Number(id) : 1,
-          quantity_requested: itemQuantities[id] || 1
-        }))
+        items: validItems
       };
-
 
       let finalRefCode = `EQ-2026-${Math.floor(100000 + Math.random() * 900000)}`;
       const endpoint = '/public/avr-equipment-borrowings';
-      try {
-        const { data } = await api.post(endpoint, payload);
-        if (data && data.reference_code) finalRefCode = data.reference_code;
-      } catch (err) {
-        console.warn("Backend endpoint error, fallback to generated requisition reference code:", err);
+      const { data } = await api.post(endpoint, payload);
+      if (data && (data.reference_code || data.referenceCode)) {
+        finalRefCode = data.reference_code || data.referenceCode;
       }
 
       setReferenceCode(finalRefCode);
-
-      // Record equipment borrowing in LocalStorage for instant Admin Portal sync
-      const newBorrowingRecord = {
-        id: Date.now(),
-        reference_code: finalRefCode,
-        filer_name: fullName,
-        requestor_name: fullName,
-        requestor_email: email,
-        requestor_contact_number: contactNumber,
-        program_office: `${department || 'CITE'} (${campusBranch})`,
-        dept: campusBranch.includes("Morelos") ? "FSUU Morelos" : "FSUU Main",
-        purpose: purpose + (primaryDept === 'sco' ? ` (Handler: ${handlerName})` : ''),
-        place_of_use: placeOfUse,
-        date_of_usage: startTime ? startTime.split("T")[0] : new Date().toISOString().split("T")[0],
-        start_datetime: startTime,
-        end_datetime: endTime,
-        status: "pending",
-        tracking_number: { status: "pending", reference_code: finalRefCode },
-        created_at: new Date().toISOString(),
-      };
-
-      try {
-        const saved = localStorage.getItem("fsuu_equipment_borrowings");
-        const list = saved ? JSON.parse(saved) : [];
-        localStorage.setItem("fsuu_equipment_borrowings", JSON.stringify([newBorrowingRecord, ...list]));
-        window.dispatchEvent(new Event("equipment_borrowings_updated"));
-      } catch { }
-
+      window.dispatchEvent(new Event("equipment_borrowings_updated"));
       setShowSuccess(true);
-    } catch (error) {
-      console.error("Submission error:", error);
-      const fallbackCode = `EQ-2026-${Math.floor(100000 + Math.random() * 900000)}`;
-      setReferenceCode(fallbackCode);
-      setShowSuccess(true);
+    } catch (err) {
+      console.error("Submission error:", err);
+      const errMsg = err.response?.data?.message || (err.response?.data?.errors ? Object.values(err.response.data.errors).flat().join(" ") : null);
+      if (errMsg) {
+        alert(`Submission Notice: ${errMsg}`);
+      } else {
+        const fallbackCode = `EQ-2026-${Math.floor(100000 + Math.random() * 900000)}`;
+        setReferenceCode(fallbackCode);
+        setShowSuccess(true);
+      }
     } finally {
       setIsSubmitting(false);
     }

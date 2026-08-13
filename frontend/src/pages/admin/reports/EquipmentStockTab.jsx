@@ -217,6 +217,7 @@ export default function EquipmentStockTab({
               <tr className="bg-slate-50/80 border-b border-slate-200 text-left text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
                 <th className="py-3 px-4">ITEM NO.</th>
                 <th className="py-3 px-4">CATEGORY</th>
+                <th className="py-3 px-4">OFFICE / CAMPUS</th>
                 <th className="py-3 px-4 text-center">QTY EXPECTED</th>
                 <th className="py-3 px-4 text-center">QTY PRESENT</th>
                 <th className="py-3 px-4 text-center">
@@ -258,7 +259,7 @@ export default function EquipmentStockTab({
                 paginatedInventory.map((item, idx) => {
                   const key = item.id;
                   const itemCode = `EQ-00${startIndex + idx + 1}`;
-                  const categoryName = item.eq_type || item.eq_name || item.name || item.category || "General";
+                  const categoryName = item.eq_name || item.name || item.category || item.eq_type || "General";
                   const realTotal = typeof item.calculated_total === 'number'
                     ? item.calculated_total
                     : (typeof item.total_quantity === 'number' ? item.total_quantity : 0);
@@ -288,10 +289,19 @@ export default function EquipmentStockTab({
                     <tr key={key || idx} className={`transition-colors ${overrideRows.has(key) ? "bg-amber-50/40 border-l-2 border-amber-300" : "hover:bg-slate-50/60"}`}>
                       <td className="py-3.5 px-4 font-mono font-bold text-slate-600 whitespace-nowrap">{itemCode}</td>
                       <td className="py-3.5 px-4 font-bold text-slate-900 whitespace-nowrap">{categoryName}</td>
+                      <td className="py-3.5 px-4 whitespace-nowrap">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9.5px] font-extrabold border ${
+                          (item.office_location || item.office?.location || '').toLowerCase().includes('morelos')
+                            ? 'bg-purple-50 text-purple-700 border-purple-200'
+                            : 'bg-blue-50 text-blue-700 border-blue-200'
+                        }`}>
+                          {item.office_location || item.office?.location || (item.office_id === 2 ? 'Morelos Campus' : 'Main Campus')}
+                        </span>
+                      </td>
                       <td className="py-3.5 px-4 text-center font-extrabold text-slate-900 text-sm">{expectedQty}</td>
                       
                       <td className="py-3.5 px-4 text-center font-extrabold text-sm text-emerald-600">
-                        {availablePresent} Available
+                        {availablePresent}
                       </td>
 
                       {/* RELEASED — read-only by default, unlocked only in Override mode */}

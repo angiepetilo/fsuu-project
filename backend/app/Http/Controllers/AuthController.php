@@ -31,6 +31,13 @@ class AuthController extends Controller
 
         $user = auth()->user()->load(['office', 'role']);
 
+        if ($user->status === 'pending_activation') {
+            Auth::logout();
+            return response()->json([
+                'message' => 'Please check your email to activate your account.'
+            ], 403);
+        }
+
         // Delete old tokens to keep things clean for SPA
         $user->tokens()->delete();
 
@@ -39,6 +46,59 @@ class AuthController extends Controller
         return response()->json([
             'user' => $user,
             'token' => $token
+        ]);
+    }
+
+    /**
+     * Fetch invitation details by token for account setup screen.
+     */
+    public function getInviteDetails(string $token)
+    {
+        $user = \App\Models\User::where('invite_token', $token)->with(['office', 'role'])->first();
+
+        if (!$user) {
+            return response()->json(['message' => 'Invalid or expired activation link.'], 404);
+        }
+
+        return response()->json([
+            'email'       => $user->personal_email ?? $user->email,
+            'office'      => $user->office ? ($user->office->location ? $user->office->name . ' | ' . $user->office->location : $user->office->name) : 'FSUU Main Campus',
+            'role'        => $user->role ? ucfirst($user->role->name) : 'Staff',
+            'permissions' => $user->permissions ?? [],
+            'status'      => $user->status,
+        ]);
+    }
+
+    /**
+     * Complete activation setup for invited account.
+     */
+    public function activateAccount(Request $request)
+    {
+        $validated = $request->validate([
+            'token'    => 'required|string',
+            'name'     => 'required|string|max:255',
+            'username' => 'required|string|max:255|unique:users,username',
+            'password' => 'required|string|min:6',
+        ]);
+
+        $user = \App\Models\User::where('invite_token', $validated['token'])->first();
+
+        if (!$user) {
+            return response()->json(['message' => 'Invalid or expired activation token.'], 404);
+        }
+
+        $user->name = trim($validated['name']);
+        $user->username = trim($validated['username']);
+        $user->email = trim($validated['username']);
+        $user->password = \Illuminate\Support\Facades\Hash::make($validated['password']);
+        $user->status = 'active';
+        $user->is_active = true;
+        $user->invite_token = null;
+        $user->save();
+
+        return response()->json([
+            'message' => 'Account activated successfully! You may now sign in.',
+            'user'    => $user->load(['office', 'role']),
         ]);
     }
 

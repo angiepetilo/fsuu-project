@@ -59,7 +59,7 @@ body {
   margin: 0;
   font-family: 'Plus Jakarta Sans', sans-serif;
   background-color: #f8fafc;
-  background-image: 
+  background-image:
     radial-gradient(at 0% 0%, hsla(217, 100%, 97%, 1) 0px, transparent 50%),
     radial-gradient(at 100% 0%, hsla(43, 100%, 94%, 1) 0px, transparent 50%),
     radial-gradient(at 100% 100%, hsla(217, 100%, 97%, 1) 0px, transparent 50%);
@@ -183,8 +183,14 @@ code {
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;}
+    @apply border-border outline-ring/50;
+  }
+
   body {
-    @apply bg-background text-foreground;}
+    @apply bg-background text-foreground;
+  }
+
   html {
-    @apply font-sans;}}
+    @apply font-sans;
+  }
+}

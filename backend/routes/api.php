@@ -6,41 +6,40 @@ use Illuminate\Support\Facades\Route;
 // ─── Controllers ──────────────────────────────────────────────────────────────
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\GoogleAuthController;
-use App\Http\Controllers\DashboardStatsController;
 
-// Admin: Core
-use App\Http\Controllers\AdminUserController;
-use App\Http\Controllers\AdminOfficeController;
-use App\Http\Controllers\AdminLocationController;
-use App\Http\Controllers\AdminVenueController;
-use App\Http\Controllers\AdminEquipmentTypeController;
-use App\Http\Controllers\AdminEquipmentUnitController;
-use App\Http\Controllers\AdminEquipmentDamageController;
-use App\Http\Controllers\AdminDepartmentAnalyticsController;
-use App\Http\Controllers\AdminHistoryLogController;
-use App\Http\Controllers\AdminNotificationController;
+// ─── SuperAdmin Controllers ───────────────────────────────────────────────────
+use App\Http\Controllers\SuperAdmin\OfficeController;
+use App\Http\Controllers\SuperAdmin\LocationController;
+use App\Http\Controllers\SuperAdmin\DepartmentController;
+use App\Http\Controllers\SuperAdmin\OperatingHoursController;
+use App\Http\Controllers\SuperAdmin\BookingRequirementController;
+use App\Http\Controllers\SuperAdmin\NotificationController as SuperAdminNotificationController;
 
-// Admin: New (Phase 1)
-use App\Http\Controllers\DepartmentController;
-use App\Http\Controllers\OperatingHoursController;
-use App\Http\Controllers\BookingRequirementController;
-use App\Http\Controllers\VenueAvailabilityController;
+// ─── Admin Controllers ────────────────────────────────────────────────────────
+use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\Admin\VenueController;
+use App\Http\Controllers\Admin\EquipmentTypeController;
+use App\Http\Controllers\Admin\EquipmentUnitController;
+use App\Http\Controllers\Admin\EquipmentDamageController;
+use App\Http\Controllers\Admin\DepartmentAnalyticsController;
+use App\Http\Controllers\Admin\HistoryLogController;
+use App\Http\Controllers\Admin\NotificationController as AdminNotificationController;
+use App\Http\Controllers\Admin\DashboardStatsController;
+use App\Http\Controllers\Admin\CategoryRequestController;
+use App\Http\Controllers\Admin\VenueAvailabilityController;
 
-// Bookings & Borrowings
-use App\Http\Controllers\AvrVenueBookingController;
-use App\Http\Controllers\AvrEquipmentBorrowingController;
+// ─── Bookings & Borrowings (Internal) ─────────────────────────────────────────
+use App\Http\Controllers\VenueBookingController;
+use App\Http\Controllers\EquipmentBorrowingController;
 use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\InspectionController;
 
-// SysAd
-use App\Http\Controllers\SysadNotificationController;
-
-// Public
-use App\Http\Controllers\PublicListingController;
-use App\Http\Controllers\PublicAvrVenueBookingController;
-use App\Http\Controllers\PublicAvrEquipmentBorrowingController;
-use App\Http\Controllers\PublicTrackingController;
-use App\Http\Controllers\PublicOtpController;
+// ─── Public Controllers ───────────────────────────────────────────────────────
+use App\Http\Controllers\Public\ListingController;
+use App\Http\Controllers\Public\VenueBookingController as PublicVenueBookingController;
+use App\Http\Controllers\Public\EquipmentBorrowingController as PublicEquipmentBorrowingController;
+use App\Http\Controllers\Public\TrackingController;
+use App\Http\Controllers\Public\OtpController;
 
 // ─── Public Operating Hours & Overrides ─────────────────────────────────────────
 Route::get('/public/operating-hours', [OperatingHoursController::class, 'publicShow']);
@@ -49,7 +48,9 @@ Route::get('/public/venue-overrides', [VenueAvailabilityController::class, 'publ
 // ─── Authentication ────────────────────────────────────────────────────────────
 Route::get('/auth/google/redirect', [GoogleAuthController::class, 'redirect']);
 Route::get('/auth/google/callback', [GoogleAuthController::class, 'callback']);
-Route::post('/login', [AuthController::class, 'login']);
+Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:login');
+Route::get('/auth/invite/{token}', [AuthController::class, 'getInviteDetails']);
+Route::post('/auth/activate', [AuthController::class, 'activateAccount'])->middleware('throttle:auth-activate');
 
 // ─── Authenticated Routes (Staff & Admin) ─────────────────────────────────────
 Route::middleware('auth:sanctum')->group(function () {
@@ -60,23 +61,24 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/dashboard/stats', [DashboardStatsController::class, 'index']);
 
     // ── Admin: Users & Offices ─────────────────────────────────────────────────
-    Route::apiResource('admin/users', AdminUserController::class)->except(['show']);
-    Route::get('/admin/offices',         [AdminOfficeController::class, 'index']);
-    Route::post('/admin/offices',        [AdminOfficeController::class, 'store']);
-    Route::put('/admin/offices/{id}',    [AdminOfficeController::class, 'update']);
-    Route::delete('/admin/offices/{id}', [AdminOfficeController::class, 'destroy']);
+    Route::post('/admin/users/{id}/resend-invite', [UserController::class, 'resendInvite']);
+    Route::apiResource('admin/users', UserController::class)->except(['show']);
+    Route::get('/admin/offices',         [OfficeController::class, 'index']);
+    Route::post('/admin/offices',        [OfficeController::class, 'store']);
+    Route::put('/admin/offices/{id}',    [OfficeController::class, 'update']);
+    Route::delete('/admin/offices/{id}', [OfficeController::class, 'destroy']);
 
     // ── Admin: Locations ───────────────────────────────────────────────────────
-    Route::get('/admin/locations',         [AdminLocationController::class, 'index']);
-    Route::post('/admin/locations',        [AdminLocationController::class, 'store']);
-    Route::put('/admin/locations/{id}',    [AdminLocationController::class, 'update']);
-    Route::delete('/admin/locations/{id}', [AdminLocationController::class, 'destroy']);
+    Route::get('/admin/locations',         [LocationController::class, 'index']);
+    Route::post('/admin/locations',        [LocationController::class, 'store']);
+    Route::put('/admin/locations/{id}',    [LocationController::class, 'update']);
+    Route::delete('/admin/locations/{id}', [LocationController::class, 'destroy']);
 
     // ── Admin: Venues ──────────────────────────────────────────────────────────
-    Route::get('/admin/venues',         [AdminVenueController::class, 'index']);
-    Route::post('/admin/venues',        [AdminVenueController::class, 'store']);
-    Route::put('/admin/venues/{id}',    [AdminVenueController::class, 'update']);
-    Route::delete('/admin/venues/{id}', [AdminVenueController::class, 'destroy']);
+    Route::get('/admin/venues',         [VenueController::class, 'index']);
+    Route::post('/admin/venues',        [VenueController::class, 'store']);
+    Route::put('/admin/venues/{id}',    [VenueController::class, 'update']);
+    Route::delete('/admin/venues/{id}', [VenueController::class, 'destroy']);
 
     // ── Admin: Venue Availability Calendar ────────────────────────────────────
     Route::get('/admin/venue-availability',         [VenueAvailabilityController::class, 'index']);
@@ -85,35 +87,39 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/admin/venue-availability/{id}', [VenueAvailabilityController::class, 'destroy']);
 
     // ── Admin: Equipment Types & Units ─────────────────────────────────────────
-    Route::get('/admin/equipment-types',         [AdminEquipmentTypeController::class, 'index']);
-    Route::post('/admin/equipment-types',        [AdminEquipmentTypeController::class, 'store']);
-    Route::put('/admin/equipment-types/{id}',    [AdminEquipmentTypeController::class, 'update']);
-    Route::delete('/admin/equipment-types/{id}', [AdminEquipmentTypeController::class, 'destroy']);
+    Route::get('/admin/equipment-types',         [EquipmentTypeController::class, 'index']);
+    Route::post('/admin/equipment-types',        [EquipmentTypeController::class, 'store']);
+    Route::put('/admin/equipment-types/{id}',    [EquipmentTypeController::class, 'update']);
+    Route::delete('/admin/equipment-types/{id}', [EquipmentTypeController::class, 'destroy']);
 
-    Route::get('/admin/equipment-units',         [AdminEquipmentUnitController::class, 'index']);
-    Route::post('/admin/equipment-units',        [AdminEquipmentUnitController::class, 'store']);
-    Route::put('/admin/equipment-units/{id}',    [AdminEquipmentUnitController::class, 'update']);
-    Route::delete('/admin/equipment-units/{id}', [AdminEquipmentUnitController::class, 'destroy']);
+    Route::get('/admin/category-requests',                [CategoryRequestController::class, 'index']);
+    Route::post('/admin/category-requests',               [CategoryRequestController::class, 'store']);
+    Route::post('/admin/category-requests/{id}/approve',  [CategoryRequestController::class, 'approve']);
+    Route::post('/admin/category-requests/{id}/reject',   [CategoryRequestController::class, 'reject']);
+
+    Route::get('/admin/equipment-units',         [EquipmentUnitController::class, 'index']);
+    Route::post('/admin/equipment-units',        [EquipmentUnitController::class, 'store']);
+    Route::put('/admin/equipment-units/{id}',    [EquipmentUnitController::class, 'update']);
+    Route::delete('/admin/equipment-units/{id}', [EquipmentUnitController::class, 'destroy']);
 
     // ── Admin: Analytics & Reports ────────────────────────────────────────────
-    Route::get('/admin/equipment-damages',    [AdminEquipmentDamageController::class, 'index']);
-    Route::get('/admin/department-analytics', [AdminDepartmentAnalyticsController::class, 'index']);
+    Route::get('/admin/equipment-damages',    [EquipmentDamageController::class, 'index']);
+    Route::get('/admin/department-analytics', [DepartmentAnalyticsController::class, 'index']);
 
     // ── Admin: History Log (with type filter + soft-delete) ───────────────────
-    Route::get('/admin/history-log',                        [AdminHistoryLogController::class, 'index']);
-    Route::post('/admin/history-log/undo',                 [AdminHistoryLogController::class, 'undo']);
-    Route::post('/admin/history-log/update-status',         [AdminHistoryLogController::class, 'updateStatus']);
-    Route::delete('/admin/history-log/venue/{id}',      [AdminHistoryLogController::class, 'destroyVenue']);
-    Route::delete('/admin/history-log/equipment/{id}',  [AdminHistoryLogController::class, 'destroyEquipment']);
+    Route::get('/admin/history-log',                        [HistoryLogController::class, 'index']);
+    Route::post('/admin/history-log/undo',                 [HistoryLogController::class, 'undo']);
+    Route::delete('/admin/history-log/venue/{id}',      [HistoryLogController::class, 'destroyVenue']);
+    Route::delete('/admin/history-log/equipment/{id}',  [HistoryLogController::class, 'destroyEquipment']);
 
     // ── Admin & SysAd: Notifications (office-scoped & global) ───────────────────
     Route::get('/admin/notifications',                 [AdminNotificationController::class, 'index']);
     Route::post('/admin/notifications/mark-as-read',   [AdminNotificationController::class, 'markAsRead']);
     Route::post('/admin/notifications/mark-all-read',  [AdminNotificationController::class, 'markAllRead']);
 
-    Route::get('/sysad/notifications',                 [SysadNotificationController::class, 'index']);
-    Route::post('/sysad/notifications/mark-as-read',   [SysadNotificationController::class, 'markAsRead']);
-    Route::post('/sysad/notifications/mark-all-read',  [SysadNotificationController::class, 'markAllRead']);
+    Route::get('/sysad/notifications',                 [SuperAdminNotificationController::class, 'index']);
+    Route::post('/sysad/notifications/mark-as-read',   [SuperAdminNotificationController::class, 'markAsRead']);
+    Route::post('/sysad/notifications/mark-all-read',  [SuperAdminNotificationController::class, 'markAllRead']);
 
     // ── Admin: Departments ────────────────────────────────────────────────────
     Route::get('/admin/departments',         [DepartmentController::class, 'index']);
@@ -125,38 +131,45 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/admin/operating-hours',  [OperatingHoursController::class, 'show']);
     Route::put('/admin/operating-hours',  [OperatingHoursController::class, 'update']);
 
-    // ── Admin: Booking Requirements ───────────────────────────────────────────
+    // ── Admin: Booking Requirements & Fee Matrix ──────────────────────────────
     Route::get('/admin/booking-requirements',         [BookingRequirementController::class, 'index']);
     Route::post('/admin/booking-requirements',        [BookingRequirementController::class, 'store']);
     Route::put('/admin/booking-requirements/{id}',    [BookingRequirementController::class, 'update']);
     Route::delete('/admin/booking-requirements/{id}', [BookingRequirementController::class, 'destroy']);
 
+    Route::get('/admin/fee-matrix',         [\App\Http\Controllers\SuperAdmin\FeeMatrixController::class, 'index']);
+    Route::post('/admin/fee-matrix',        [\App\Http\Controllers\SuperAdmin\FeeMatrixController::class, 'store']);
+    Route::put('/admin/fee-matrix/{id}',    [\App\Http\Controllers\SuperAdmin\FeeMatrixController::class, 'update']);
+    Route::delete('/admin/fee-matrix/{id}', [\App\Http\Controllers\SuperAdmin\FeeMatrixController::class, 'destroy']);
+
     // ── Venue Bookings ─────────────────────────────────────────────────────────
-    Route::get('/avr-venue-bookings',                              [AvrVenueBookingController::class, 'index']);
-    Route::get('/avr-venue-bookings/{avrVenueBooking}',            [AvrVenueBookingController::class, 'show']);
-    Route::post('/avr-venue-bookings',                             [AvrVenueBookingController::class, 'store']);
-    Route::post('/avr-venue-bookings/{avrVenueBooking}/approve',   [AvrVenueBookingController::class, 'approve']);
-    Route::post('/avr-venue-bookings/{avrVenueBooking}/reject',    [AvrVenueBookingController::class, 'reject']);
-    Route::post('/avr-venue-bookings/{avrVenueBooking}/ongoing',           [AvrVenueBookingController::class, 'ongoing']);
-    Route::post('/avr-venue-bookings/{avrVenueBooking}/post-inspection',   [AvrVenueBookingController::class, 'postInspection']);
-    Route::post('/avr-venue-bookings/{avrVenueBooking}/complete',          [AvrVenueBookingController::class, 'complete']);
-    Route::post('/avr-venue-bookings/{avrVenueBooking}/undo',      [AvrVenueBookingController::class, 'undo']);
-    Route::post('/avr-venue-bookings/{avrVenueBooking}/cancel',    [AvrVenueBookingController::class, 'cancel']);
-    Route::post('/avr-venue-bookings/{id}/resend-email',           [AvrVenueBookingController::class, 'resendEmail']);
-    Route::put('/avr-venue-bookings/{avrVenueBooking}/assign-units', [AvrVenueBookingController::class, 'assignUnits']);
+    Route::get('/avr-venue-bookings',                              [VenueBookingController::class, 'index']);
+    Route::get('/avr-venue-bookings/{avrVenueBooking}',            [VenueBookingController::class, 'show']);
+    Route::post('/avr-venue-bookings',                             [VenueBookingController::class, 'store']);
+    Route::post('/avr-venue-bookings/{avrVenueBooking}/approve',   [VenueBookingController::class, 'approve']);
+    Route::post('/avr-venue-bookings/{avrVenueBooking}/reject',    [VenueBookingController::class, 'reject']);
+    Route::post('/avr-venue-bookings/{avrVenueBooking}/ongoing',           [VenueBookingController::class, 'ongoing']);
+    Route::post('/avr-venue-bookings/{avrVenueBooking}/post-inspection',   [VenueBookingController::class, 'postInspection']);
+    Route::post('/avr-venue-bookings/{avrVenueBooking}/complete',          [VenueBookingController::class, 'complete']);
+    Route::post('/avr-venue-bookings/{avrVenueBooking}/undo',      [VenueBookingController::class, 'undo']);
+    Route::post('/avr-venue-bookings/{avrVenueBooking}/cancel',    [VenueBookingController::class, 'cancel']);
+    Route::post('/avr-venue-bookings/{id}/resend-email',           [VenueBookingController::class, 'resendEmail']);
+    Route::put('/avr-venue-bookings/{avrVenueBooking}/assign-units', [VenueBookingController::class, 'assignUnits']);
+    Route::put('/avr-venue-bookings/{avrVenueBooking}/override',     [VenueBookingController::class, 'override']);
 
     // ── Equipment Borrowings ───────────────────────────────────────────────────
-    Route::get('/avr-equipment-borrowings',                               [AvrEquipmentBorrowingController::class, 'index']);
-    Route::get('/avr-equipment-borrowings/{equipmentBorrowing}',          [AvrEquipmentBorrowingController::class, 'show']);
-    Route::post('/avr-equipment-borrowings',                              [AvrEquipmentBorrowingController::class, 'store']);
-    Route::post('/avr-equipment-borrowings/{equipmentBorrowing}/approve', [AvrEquipmentBorrowingController::class, 'approve']);
-    Route::post('/avr-equipment-borrowings/{equipmentBorrowing}/reject',  [AvrEquipmentBorrowingController::class, 'reject']);
-    Route::post('/avr-equipment-borrowings/{equipmentBorrowing}/ongoing', [AvrEquipmentBorrowingController::class, 'ongoing']);
-    Route::post('/avr-equipment-borrowings/{equipmentBorrowing}/complete',[AvrEquipmentBorrowingController::class, 'complete']);
-    Route::post('/avr-equipment-borrowings/{equipmentBorrowing}/undo',    [AvrEquipmentBorrowingController::class, 'undo']);
-    Route::post('/avr-equipment-borrowings/{equipmentBorrowing}/cancel',  [AvrEquipmentBorrowingController::class, 'cancel']);
-    Route::post('/avr-equipment-borrowings/{id}/resend-email',            [AvrEquipmentBorrowingController::class, 'resendEmail']);
-    Route::put('/avr-equipment-borrowings/{equipmentBorrowing}/assign-units', [AvrEquipmentBorrowingController::class, 'assignUnits']);
+    Route::get('/avr-equipment-borrowings',                               [EquipmentBorrowingController::class, 'index']);
+    Route::get('/avr-equipment-borrowings/{equipmentBorrowing}',          [EquipmentBorrowingController::class, 'show']);
+    Route::post('/avr-equipment-borrowings',                              [EquipmentBorrowingController::class, 'store']);
+    Route::post('/avr-equipment-borrowings/{equipmentBorrowing}/approve', [EquipmentBorrowingController::class, 'approve']);
+    Route::post('/avr-equipment-borrowings/{equipmentBorrowing}/reject',  [EquipmentBorrowingController::class, 'reject']);
+    Route::post('/avr-equipment-borrowings/{equipmentBorrowing}/ongoing', [EquipmentBorrowingController::class, 'ongoing']);
+    Route::post('/avr-equipment-borrowings/{equipmentBorrowing}/complete',[EquipmentBorrowingController::class, 'complete']);
+    Route::post('/avr-equipment-borrowings/{equipmentBorrowing}/undo',    [EquipmentBorrowingController::class, 'undo']);
+    Route::post('/avr-equipment-borrowings/{equipmentBorrowing}/cancel',  [EquipmentBorrowingController::class, 'cancel']);
+    Route::post('/avr-equipment-borrowings/{id}/resend-email',            [EquipmentBorrowingController::class, 'resendEmail']);
+    Route::put('/avr-equipment-borrowings/{equipmentBorrowing}/assign-units', [EquipmentBorrowingController::class, 'assignUnits']);
+    Route::put('/avr-equipment-borrowings/{equipmentBorrowing}/override',     [EquipmentBorrowingController::class, 'override']);
 
     // ── Documents & Inspections ────────────────────────────────────────────────
     Route::post('/documents',                    [DocumentController::class, 'store']);
@@ -166,7 +179,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/inspections',                  [InspectionController::class, 'store']);
 
     // ── SysAd (global-scope notifications) ────────────────────────────────────
-    Route::get('/sysad/notifications', [SysadNotificationController::class, 'index']);
+    Route::get('/sysad/notifications', [SuperAdminNotificationController::class, 'index']);
 });
 
 // ─── Utility ──────────────────────────────────────────────────────────────────
@@ -177,10 +190,10 @@ Route::get('/user', fn (Request $request) => $request->user())->middleware('auth
 Route::prefix('public')->group(function () {
 
     // Listings for public forms & availability calendar
-    Route::get('/venues',          [PublicListingController::class, 'venues']);
-    Route::get('/equipment-types', [PublicListingController::class, 'equipmentTypes']);
-    Route::get('/departments',     [PublicListingController::class, 'departments']);
-    Route::get('/venue-bookings',  [PublicListingController::class, 'venueBookings']);
+    Route::get('/venues',          [ListingController::class, 'venues']);
+    Route::get('/equipment-types', [ListingController::class, 'equipmentTypes']);
+    Route::get('/departments',     [ListingController::class, 'departments']);
+    Route::get('/venue-bookings',  [ListingController::class, 'venueBookings']);
 
     // Venue availability for public booking calendar
     Route::get('/venue-availability', [VenueAvailabilityController::class, 'index']);
@@ -189,11 +202,11 @@ Route::prefix('public')->group(function () {
     Route::get('/booking-requirements', [BookingRequirementController::class, 'publicIndex']);
 
     // Form submissions
-    Route::post('/avr-venue-bookings',       [PublicAvrVenueBookingController::class, 'store']);
-    Route::post('/avr-equipment-borrowings', [PublicAvrEquipmentBorrowingController::class, 'store']);
+    Route::post('/avr-venue-bookings',       [PublicVenueBookingController::class, 'store'])->middleware('throttle:public-submissions');
+    Route::post('/avr-equipment-borrowings', [PublicEquipmentBorrowingController::class, 'store'])->middleware('throttle:public-submissions');
 
     // Tracking & OTP
-    Route::post('/track',       [PublicTrackingController::class, 'track'])->middleware('throttle:10,1');
-    Route::post('/send-otp',    [PublicOtpController::class, 'send']);
-    Route::post('/verify-otp',  [PublicOtpController::class, 'verify']);
+    Route::post('/track',       [TrackingController::class, 'track'])->middleware('throttle:tracking');
+    Route::post('/send-otp',    [OtpController::class, 'send'])->middleware('throttle:otp');
+    Route::post('/verify-otp',  [OtpController::class, 'verify'])->middleware('throttle:otp');
 });

@@ -27,20 +27,6 @@ export default function Step3Details({
       try {
         const res = await api.get("/public/departments").catch(() => api.get("/admin/departments"));
         let data = Array.isArray(res.data) ? res.data : [];
-
-        try {
-          const savedStr = localStorage.getItem("fsuu_departments");
-          if (savedStr) {
-            const savedList = JSON.parse(savedStr);
-            const clean = (str) => (str || "").toLowerCase().trim();
-            savedList.forEach((item) => {
-              if (item && !data.some((d) => clean(d.code) === clean(item.code) || clean(d.name) === clean(item.name))) {
-                data.push(item);
-              }
-            });
-          }
-        } catch { }
-
         setDepartmentsList(data);
       } catch {
         setDepartmentsList([]);
@@ -49,10 +35,8 @@ export default function Step3Details({
 
     fetchDepts();
     window.addEventListener("departments_updated", fetchDepts);
-    window.addEventListener("storage", fetchDepts);
     return () => {
       window.removeEventListener("departments_updated", fetchDepts);
-      window.removeEventListener("storage", fetchDepts);
     };
   }, []);
 

@@ -18,7 +18,10 @@
     $end = $formattedEnd ?? ($booking->time_end ?? 'End Time');
 @endphp
 
-@if($mode === 'approved')
+@if(($type ?? 'venue') === 'equipment')
+<p>Good day {{ $requestorName }}. Use reference code {{ $ref }} to claim your item.</p>
+<p>Please proceed to the office and present your School ID. Reminder: Arrive at least 15 minutes before your scheduled start time. Thank you.</p>
+@elseif($mode === 'approved')
 <p>Reminder: Please ensure you arrive at least 15 minutes before your scheduled start time.</p>
 <p>Good day, {{ $requestorName }}.</p>
 <p>Your venue reservation (Reference: {{ $ref }}) has been approved!<br>

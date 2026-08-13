@@ -46,6 +46,18 @@ class VenueBooking extends Model
         'assigned_units'   => 'array',
     ];
 
+    protected $appends = ['reference_code', 'status'];
+
+    public function getReferenceCodeAttribute(): ?string
+    {
+        return $this->trackingNumber?->reference_code;
+    }
+
+    public function getStatusAttribute(): string
+    {
+        return $this->attributes['status'] ?? $this->trackingNumber?->status ?? 'pending';
+    }
+
     public function trackingNumber(): BelongsTo
     {
         return $this->belongsTo(TrackingNumber::class);
@@ -68,7 +80,12 @@ class VenueBooking extends Model
 
     public function venueBookingEquipment(): HasMany
     {
-        return $this->hasMany(VenueBookingEquipment::class);
+        return $this->hasMany(VenueBookingEquipment::class, 'venue_booking_id');
+    }
+
+    public function equipmentItems(): HasMany
+    {
+        return $this->hasMany(VenueBookingEquipment::class, 'venue_booking_id');
     }
 
     public function inspections(): MorphMany
@@ -79,5 +96,15 @@ class VenueBooking extends Model
     public function approvals(): HasMany
     {
         return $this->hasMany(Approval::class, 'reference_id')->where('reference_type', 'avr_venue_booking');
+    }
+
+    public function scopeForOffice($query, ?int $officeId)
+    {
+        if ($officeId) {
+            return $query->whereHas('venue', function ($q) use ($officeId) {
+                $q->where('office_id', $officeId);
+            });
+        }
+        return $query;
     }
 }

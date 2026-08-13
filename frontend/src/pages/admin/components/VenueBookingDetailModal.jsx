@@ -9,32 +9,9 @@ import VenueBookingInfo from "./booking-modal/VenueBookingInfo";
 import VenueEquipmentChecklist from "./booking-modal/VenueEquipmentChecklist";
 import VenuePostInspectionForm from "./booking-modal/VenuePostInspectionForm";
 import EvidenceLightboxModal from "./booking-modal/EvidenceLightboxModal";
+import VenueModalHeader from "./booking-modal/VenueModalHeader";
+import VenueModalFooter from "./booking-modal/VenueModalFooter";
 
-// Master dictionary of known equipment mappings for instant ID/key resolution
-const KNOWN_EQUIPMENT_NAMES = {
-  "1": "Sound System",
-  "2": "Projector",
-  "3": "Wireless Microphone",
-  "4": "Microphone",
-  "5": "Projector Screen",
-  "6": "Camera",
-  "7": "Extension Wire",
-  "8": "HDMI Cable",
-  "proj": "Projector",
-  "projector": "Projector",
-  "mic": "Microphone",
-  "microphone": "Microphone",
-  "wmic": "Wireless Microphone",
-  "wireless microphone": "Wireless Microphone",
-  "camera": "Camera",
-  "screen": "Projector Screen",
-  "projector screen": "Projector Screen",
-  "ext": "Extension Wire",
-  "extension wire": "Extension Wire",
-  "hdmi": "HDMI Cable",
-  "sound": "Sound System",
-  "podium": "Podium",
-};
 
 export default function VenueBookingDetailModal({
   selected,
@@ -248,12 +225,7 @@ export default function VenueBookingDetailModal({
     const clean = String(raw).trim();
     const cleanLower = clean.toLowerCase();
 
-    // 1. Check known lookup dictionary
-    if (KNOWN_EQUIPMENT_NAMES[cleanLower]) {
-      return KNOWN_EQUIPMENT_NAMES[cleanLower];
-    }
 
-    // 2. Check dynamic dbEquipmentTypes
     if (Array.isArray(dbEquipmentTypes) && dbEquipmentTypes.length > 0) {
       const match = dbEquipmentTypes.find(t => 
         String(t.id) === clean ||
@@ -285,20 +257,17 @@ export default function VenueBookingDetailModal({
     let categories = [];
     const notesStr = selected.equipment_notes || fetchedEquipmentNotes || "";
 
-    if (Array.isArray(selected.items) && selected.items.length > 0) {
-      categories = selected.items.map(item => {
-        const nameVal = item.equipment_type?.name || item.equipment_type?.eq_name || item.equipment_name || item.name || item.equipment_type_id || item.equipment_type;
+    const structList = (Array.isArray(selected.equipment_items) && selected.equipment_items.length > 0) ? selected.equipment_items
+      : (Array.isArray(selected.equipment_equipment) && selected.equipment_equipment.length > 0) ? selected.equipment_equipment
+      : (Array.isArray(selected.venue_booking_equipment) && selected.venue_booking_equipment.length > 0) ? selected.venue_booking_equipment
+      : (Array.isArray(selected.items) && selected.items.length > 0) ? selected.items : null;
+
+    if (structList) {
+      categories = structList.map(item => {
+        const nameVal = item.equipment_type?.name || item.equipment_type?.eq_name || item.equipment_name || item.name || item.equipment_type_id || item.others_specify;
         return {
           category: resolveEquipmentName(nameVal),
           quantity: item.quantity_requested || item.quantity || 1
-        };
-      });
-    } else if (Array.isArray(selected.venue_booking_equipment) && selected.venue_booking_equipment.length > 0) {
-      categories = selected.venue_booking_equipment.map(vbe => {
-        const nameVal = vbe.equipment_type?.name || vbe.equipment_type?.eq_name || vbe.others_specify || vbe.name || vbe.equipment_type_id;
-        return {
-          category: resolveEquipmentName(nameVal),
-          quantity: vbe.quantity_requested || vbe.quantity || 1
         };
       });
     } else if (notesStr) {
@@ -342,7 +311,7 @@ export default function VenueBookingDetailModal({
 
   // Format Time and Date Filed
   const formatDateTimeFiled = (dateStr) => {
-    if (!dateStr) return "Aug 03, 2026 | 10:02 PM";
+    if (!dateStr) return "—";
     try {
       const d = new Date(dateStr);
       if (!isNaN(d.getTime())) {
@@ -369,7 +338,7 @@ export default function VenueBookingDetailModal({
       if (uCategoryName && (uCategoryName === cleanCat || cleanCat.includes(uCategoryName) || uCategoryName.includes(cleanCat))) {
         return true;
       }
-      if (uTypeId && (uTypeId === cleanCat || KNOWN_EQUIPMENT_NAMES[uTypeId]?.toLowerCase() === cleanCat)) {
+      if (uTypeId && uTypeId === cleanCat) {
         return true;
       }
       return false;
@@ -559,42 +528,14 @@ export default function VenueBookingDetailModal({
     <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 sm:p-6 overflow-hidden animate-in fade-in duration-200">
       <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl w-full max-w-5xl max-h-[92vh] flex flex-col overflow-hidden">
 
-        {/* Modal Header */}
-        <div className="px-6 py-4 bg-white border-b border-slate-200 shrink-0">
-          <div className="flex items-start justify-between">
-            <div>
-              <h3 className="text-lg font-extrabold text-slate-900 tracking-tight">Booking Form</h3>
-              <div className="text-xs text-slate-500 font-semibold space-y-0.5 mt-1">
-                <p>
-                  Track No. : <span className="font-mono text-slate-800 font-bold">{selected.reference_code || selected.tracking_number?.reference_code || `TRK-AVR${selected.id}`}</span> | <span className="text-slate-800 font-bold">{selected.venue_name || selected.venue?.name || "AVR Facility"}</span>
-                </p>
-                <p>
-                  Time and Date Filed : <span className="text-slate-700 font-bold">{formatDateTimeFiled(selected.created_at)}</span>
-                </p>
-              </div>
-            </div>
 
-            <div className="flex items-center gap-3">
-              {/* Exactly ONE status field driving top-right status badge */}
-              <span className="font-mono text-xs font-bold uppercase text-slate-500">
-                Status: <span className={`font-black ${
-                  displayStatus === "Satisfactory" || displayStatus === "approved" ? "text-emerald-600" :
-                  displayStatus === "ongoing" || displayStatus === "on-going" ? "text-blue-600" :
-                  displayStatus === "Completed" || displayStatus === "completed" ? "text-slate-800" :
-                  displayStatus === "Policy Breach" || displayStatus === "damaged" || displayStatus === "rejected" ? "text-rose-600" :
-                  "text-amber-600"
-                }`}>{displayStatus}</span>
-              </span>
-              <button
-                type="button"
-                onClick={() => { setSelected(null); setShowRejectForm(false); }}
-                className="p-1.5 rounded-lg border border-slate-200 text-slate-400 hover:text-slate-700 hover:bg-slate-50 cursor-pointer transition-colors"
-              >
-                <X size={18} />
-              </button>
-            </div>
-          </div>
-        </div>
+        <VenueModalHeader
+          selected={selected}
+          displayStatus={displayStatus}
+          setSelected={setSelected}
+          setShowRejectForm={setShowRejectForm}
+          formatDateTimeFiled={formatDateTimeFiled}
+        />
 
         {/* Modal Body */}
         <div className="p-6 flex-1 overflow-y-auto space-y-4">
@@ -758,92 +699,22 @@ export default function VenueBookingDetailModal({
 
         </div>
 
-        {/* Modal Footer: Neutral Outlined Buttons Only */}
-        <div className="px-6 py-3.5 bg-white border-t border-slate-200 flex items-center justify-end gap-3 shrink-0">
-          {isPending ? (
-            <>
-              <button
-                type="button"
-                onClick={() => setShowRejectForm(true)}
-                disabled={!!actionLoading}
-                className="px-6 py-2 bg-white hover:bg-slate-50 border border-slate-300 text-rose-600 font-bold text-xs rounded-lg transition-colors cursor-pointer disabled:opacity-50"
-              >
-                Reject
-              </button>
-              <button
-                type="button"
-                onClick={() => handleAction(selected.id, "approve")}
-                disabled={!!actionLoading}
-                className="px-6 py-2 bg-white hover:bg-slate-50 border border-slate-900 text-slate-900 font-extrabold text-xs rounded-lg transition-colors cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
-              >
-                {actionLoading === `${selected.id}-approve` ? <Loader2 size={14} className="animate-spin" /> : null}
-                Approve
-              </button>
-            </>
-          ) : isApproved ? (
-            <div className="flex items-center gap-2.5">
-              <button
-                type="button"
-                onClick={() => handleAction(selected.id, "ongoing")}
-                disabled={!!actionLoading}
-                className="px-5 py-2 bg-white hover:bg-slate-50 border border-slate-900 text-slate-900 rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer"
-              >
-                <Play size={13} /> Set On-Going
-              </button>
-              <button
-                type="button"
-                onClick={() => { setSelected(null); setShowRejectForm(false); }}
-                className="px-5 py-2 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 rounded-lg text-xs font-bold cursor-pointer"
-              >
-                Close
-              </button>
-            </div>
-          ) : isOngoing ? (
-            <div className="flex items-center gap-2.5">
-              <button
-                type="button"
-                onClick={() => handleAction(selected.id, "post-inspection")}
-                disabled={!!actionLoading}
-                className="px-5 py-2 bg-white hover:bg-slate-50 border border-slate-900 text-slate-900 rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer"
-              >
-                <FileCheck size={13} /> Set Post-Event Inspection
-              </button>
-              <button
-                type="button"
-                onClick={() => { setSelected(null); setShowRejectForm(false); }}
-                className="px-5 py-2 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 rounded-lg text-xs font-bold cursor-pointer"
-              >
-                Close
-              </button>
-            </div>
-          ) : isPostInspection ? (
-            <div className="flex items-center gap-2.5">
-              <button
-                type="button"
-                onClick={handleDoneComplete}
-                disabled={!!actionLoading || savingInspection}
-                className="px-5 py-2 bg-white hover:bg-slate-50 border border-slate-900 text-slate-900 rounded-lg text-xs font-extrabold flex items-center gap-1.5 cursor-pointer"
-              >
-                <Check size={13} /> Complete Event
-              </button>
-              <button
-                type="button"
-                onClick={() => { setSelected(null); setShowRejectForm(false); }}
-                className="px-5 py-2 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 rounded-lg text-xs font-bold cursor-pointer"
-              >
-                Close
-              </button>
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={() => { setSelected(null); setShowRejectForm(false); }}
-              className="px-5 py-2 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 rounded-lg text-xs font-bold cursor-pointer"
-            >
-              Close
-            </button>
-          )}
-        </div>
+        <VenueModalFooter
+          isPending={isPending}
+          isApproved={isApproved}
+          isOngoing={isOngoing}
+          isPostInspection={isPostInspection}
+          selected={selected}
+          handleAction={handleAction}
+          handleDoneComplete={handleDoneComplete}
+          actionLoading={actionLoading}
+          savingInspection={savingInspection}
+          setSelected={setSelected}
+          setShowRejectForm={setShowRejectForm}
+          showRejectForm={showRejectForm}
+          rejectionComments={rejectionComments}
+          setRejectionComments={setRejectionComments}
+        />
 
         {/* Lightbox Modal */}
         <EvidenceLightboxModal

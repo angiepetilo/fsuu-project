@@ -20,9 +20,12 @@ return new class extends Migration
             $table->string('google_id')->nullable()->unique();
             $table->longText('avatar')->nullable();
             $table->string('password');
+            $table->string('invite_token')->nullable();
+            $table->timestamp('invited_at')->nullable();
             $table->string('location')->nullable();
             $table->json('permissions')->nullable();
             $table->boolean('is_active')->default(true);
+            $table->string('status')->default('active');
             $table->timestamps();
             $table->timestamp('archived_at')->nullable();
         });

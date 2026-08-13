@@ -1,16 +1,17 @@
 import { useState } from "react";
+import { toast } from "sonner";
 import {
   Users, Building2, Package, BookOpen, Clock,
-  DollarSign, Key, User, CheckCircle2, ShieldCheck, Building, MapPin
+  DollarSign, Key, User, CheckCircle2, ShieldCheck, Building, MapPin, X, AlertCircle
 } from "lucide-react";
 
-import EquipmentCatalogTab from "./tabs/EquipmentCatalogTab";
+import EquipmentCategoriesTab from "../admin/tabs/EquipmentCategoriesTab";
 import VenuesTab from "./tabs/VenuesTab";
 import CampusManagementTab from "./tabs/CampusManagementTab";
 import UserManagementTab from "./tabs/UserManagementTab";
 import DepartmentsTab from "./tabs/DepartmentsTab";
 import OperatingHoursTab from "./tabs/OperatingHoursTab";
-import FeeMatrixTab from "./tabs/FeeMatrixTab";
+import FeeMatrixTab from "../admin/tabs/FeeMatrixTab";
 import VerificationPinTab from "./tabs/VerificationPinTab";
 import ProfileConfigTab from "./tabs/ProfileConfigTab";
 
@@ -18,19 +19,25 @@ export default function SysadSettings() {
   const [primaryTab, setPrimaryTab] = useState("category");
   const [subTab, setSubTab] = useState("catalog");
 
-  // Shared feedback banner
+  // Shared feedback banner & toast notification
   const [feedback, setFeedback] = useState(null);
-  const showMsg = (msg) => {
-    setFeedback(msg);
-    setTimeout(() => setFeedback(null), 4000);
-  };
+  const [isError, setIsError] = useState(false);
 
+  const showMsg = (msg) => {
+    const errCheck = typeof msg === "string" && (msg.includes("❌") || msg.toLowerCase().includes("fail") || msg.toLowerCase().includes("error"));
+    const cleanMsg = (msg || "").replace(/^✅\s*|^❌\s*/, "").trim();
+
+    if (errCheck) {
+      try { toast.error(cleanMsg); } catch {}
+    } else {
+      try { toast.success(cleanMsg); } catch {}
+    }
+  };
   // Verification PIN state (passed into VerificationPinTab)
   const [pinConfig, setPinConfig] = useState({ pin: "", enabled: false });
   const [pinSavedFeedback, setPinSavedFeedback] = useState(null);
   const handleSavePinConfig = () => {
-    setPinSavedFeedback("Verification PIN saved successfully!");
-    setTimeout(() => setPinSavedFeedback(null), 3000);
+    showMsg("Verification PIN saved successfully!");
   };
 
   return (
@@ -47,13 +54,6 @@ export default function SysadSettings() {
           </p>
         </div>
       </div>
-
-      {feedback && (
-        <div className="py-2.5 px-4 border-t border-b border-emerald-200 text-emerald-700 text-xs font-bold flex items-center gap-2 bg-white">
-          <CheckCircle2 size={15} />
-          <span>{feedback}</span>
-        </div>
-      )}
 
       {/* Primary Navigation Tabs */}
       <div className="flex items-center gap-2 border-b border-slate-200 pb-3">
@@ -89,7 +89,7 @@ export default function SysadSettings() {
         {primaryTab === "category" && [
           { id: "catalog", label: "Equipment Catalog", icon: Package },
           { id: "venues_catalog", label: "Venue Catalog", icon: Building },
-          { id: "pricing_matrix", label: "Fee & Penalty Matrix", icon: DollarSign },
+          { id: "pricing_matrix", label: "Fee Matrix", icon: DollarSign },
         ].map((st) => {
           const IconC = st.icon;
           const active = subTab === st.id;
@@ -157,7 +157,7 @@ export default function SysadSettings() {
       </div>
 
       {/* Active Tab Views */}
-      {subTab === "catalog" && <EquipmentCatalogTab showMsg={showMsg} />}
+      {subTab === "catalog" && <EquipmentCategoriesTab showMsg={showMsg} />}
       {subTab === "venues_catalog" && <VenuesTab showMsg={showMsg} />}
       {(subTab === "campuses_offices" || subTab === "locations" || subTab === "offices") && (
         <CampusManagementTab showMsg={showMsg} />
@@ -165,7 +165,7 @@ export default function SysadSettings() {
       {subTab === "users" && <UserManagementTab showMsg={showMsg} />}
       {subTab === "departments" && <DepartmentsTab showMsg={showMsg} />}
       {subTab === "operating_hours" && <OperatingHoursTab showMsg={showMsg} />}
-      {subTab === "pricing_matrix" && <FeeMatrixTab showMsg={showMsg} />}
+      {subTab === "pricing_matrix" && <FeeMatrixTab officeScope="All Offices" showMsg={showMsg} />}
       {subTab === "verification_pin" && (
         <VerificationPinTab
           pinConfig={pinConfig}

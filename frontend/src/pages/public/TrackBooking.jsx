@@ -21,7 +21,7 @@ export default function TrackBooking() {
 
     let foundRecord = null;
 
-    // 1. Try Backend API
+    // Try Backend API
     try {
       const { data } = await api.post('/public/track', {
         reference_code: query,
@@ -30,75 +30,6 @@ export default function TrackBooking() {
         foundRecord = data;
       }
     } catch {}
-
-    // 2. If API didn't return record, Search Local Storage Fallbacks
-    if (!foundRecord) {
-      try {
-        const vbs = JSON.parse(localStorage.getItem("fsuu_venue_bookings") || "[]");
-        const matchVB = vbs.find(b =>
-          (b.reference_code && b.reference_code.toUpperCase().includes(query)) ||
-          (b.tracking_number && b.tracking_number.toUpperCase().includes(query)) ||
-          (String(b.id) === query)
-        );
-        if (matchVB) {
-          foundRecord = {
-            type: "venue",
-            reference_code: matchVB.reference_code || matchVB.tracking_number || `TRK-${matchVB.id}`,
-            filer_name: matchVB.requestor_name || matchVB.filer_name || matchVB.name || "Filer",
-            venue_name: matchVB.venue_name || matchVB.venue?.name || "AVR Venue",
-            date_of_usage: matchVB.date_of_usage || matchVB.date || "",
-            status: matchVB.status || "approved",
-            purpose: matchVB.purpose || "Campus Event",
-            department: matchVB.requestor_program_office || matchVB.department || "Academic Dept",
-          };
-        }
-      } catch {}
-    }
-
-    if (!foundRecord) {
-      try {
-        const ebs = JSON.parse(localStorage.getItem("fsuu_equipment_borrowings") || "[]");
-        const matchEB = ebs.find(b =>
-          (b.reference_code && b.reference_code.toUpperCase().includes(query)) ||
-          (b.tracking_number && b.tracking_number.toUpperCase().includes(query)) ||
-          (String(b.id) === query)
-        );
-        if (matchEB) {
-          foundRecord = {
-            type: "equipment",
-            reference_code: matchEB.reference_code || matchEB.tracking_number || `EB-${matchEB.id}`,
-            filer_name: matchEB.borrower_name || matchEB.name || "Borrower",
-            equipment_category: matchEB.equipment_category || "AV Equipment",
-            date_needed: matchEB.date_needed || matchEB.date || "",
-            status: matchEB.status || "approved",
-            purpose: matchEB.purpose || "Academic Use",
-            department: matchEB.department || "Academic Dept",
-          };
-        }
-      } catch {}
-    }
-
-    if (!foundRecord) {
-      try {
-        const hists = JSON.parse(localStorage.getItem("fsuu_history_logs") || "[]");
-        const matchHist = hists.find(h =>
-          (h.reference_code && h.reference_code.toUpperCase().includes(query)) ||
-          (h.tracking_number && h.tracking_number.toUpperCase().includes(query)) ||
-          (String(h.id) === query)
-        );
-        if (matchHist) {
-          foundRecord = {
-            type: matchHist.type?.toLowerCase() === 'venue' ? 'venue' : 'equipment',
-            reference_code: matchHist.reference_code || matchHist.tracking_number || `TRK-${matchHist.id}`,
-            filer_name: matchHist.requestor || "Requester",
-            venue_name: matchHist.details || "AVR Facility",
-            status: matchHist.status || "completed",
-            purpose: matchHist.purpose || "Completed Reservation",
-            department: matchHist.department || "Academic Dept",
-          };
-        }
-      } catch {}
-    }
 
     if (foundRecord) {
       setIsFound(true);

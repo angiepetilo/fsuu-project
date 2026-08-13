@@ -17,36 +17,41 @@ class DocumentService
         ?User $uploadedBy = null
     ): Document {
         $document = Document::forceCreate([
-            'reference_type' => $referenceType,
-            'reference_id' => $referenceId,
-            'file_path' => $filePath,
-            'document_type' => $documentType,
-            'uploaded_by' => $uploadedBy?->id,
+            'venue_booking_id' => $referenceId,
+            'file_path'        => $filePath,
+            'document_type'    => $documentType,
+            'uploaded_at'      => now(),
         ]);
 
-        $this->auditLog->log($uploadedBy, 'document_uploaded', $referenceType, $referenceId);
+        try {
+            $this->auditLog->log($uploadedBy, 'document_uploaded', $referenceType, $referenceId);
+        } catch (\Throwable $e) {}
 
         return $document;
     }
 
     public function approve(Document $document, User $staff, ?string $remarks = null): Document
     {
-        $document->forceFill(['status' => 'approved', 'remarks' => $remarks])->save();
+        $document->forceFill(['status' => 'approved'])->save();
 
-        $this->auditLog->log($staff, 'document_approved', $document->reference_type, $document->reference_id, [
-            'document_id' => $document->id,
-        ]);
+        try {
+            $this->auditLog->log($staff, 'document_approved', 'venue_booking', $document->venue_booking_id, [
+                'document_id' => $document->id,
+            ]);
+        } catch (\Throwable $e) {}
 
         return $document;
     }
 
     public function reject(Document $document, User $staff, string $remarks): Document
     {
-        $document->forceFill(['status' => 'rejected', 'remarks' => $remarks])->save();
+        $document->forceFill(['status' => 'rejected'])->save();
 
-        $this->auditLog->log($staff, 'document_rejected', $document->reference_type, $document->reference_id, [
-            'document_id' => $document->id,
-        ]);
+        try {
+            $this->auditLog->log($staff, 'document_rejected', 'venue_booking', $document->venue_booking_id, [
+                'document_id' => $document->id,
+            ]);
+        } catch (\Throwable $e) {}
 
         return $document;
     }

@@ -158,7 +158,7 @@ export default function Reports() {
       csvContent += "Item Code,Category,Expected Total,Present Available,Released,Damaged,Lost,Notes\n";
       inventoryItems.forEach((item, idx) => {
         const code = `EQ-00${idx + 1}`;
-        const cat = (item.eq_type || item.eq_name || item.name || "Equipment").replace(/"/g, '""');
+        const cat = (item.eq_name || item.name || item.category || item.eq_type || "Equipment").replace(/"/g, '""');
         const expected = item.calculated_total ?? item.total_quantity ?? 0;
         const available = item.calculated_available ?? item.available_count ?? expected;
         const released = item.released_count ?? 0;
