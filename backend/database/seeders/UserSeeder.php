@@ -13,8 +13,8 @@ class UserSeeder extends Seeder
     {
         $superAdminRole = Role::firstOrCreate(['name' => 'super_admin']);
 
-        $email = env('INITIAL_SUPERADMIN_EMAIL', 'admin@fsuu.edu.ph');
-        $password = env('INITIAL_SUPERADMIN_PASSWORD', 'password123');
+        $email = env('INITIAL_SUPERADMIN_EMAIL') ?: 'admin@fsuu.edu.ph';
+        $password = env('INITIAL_SUPERADMIN_PASSWORD') ?: 'password123';
 
         // 1. Primary Super Admin Account
         User::withTrashed()->updateOrCreate(
