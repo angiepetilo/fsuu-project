@@ -100,9 +100,9 @@ export default function UserManagementTab({ showMsg }) {
     }
   };
 
-  // Filter ONLY Branch Admin accounts (Super Admin cannot manage staff accounts)
+  // Filter ONLY Branch Admin accounts (Super Admin cannot manage staff accounts and super admin's own account is excluded)
   const adminUsers = users.filter((u) => {
-    const isSuperAdmin = u.email === "superadmin@fsuu.edu.ph" || u.role === "superadmin" || u.role?.name === "superadmin" || u.role?.slug === "super_admin";
+    const isSuperAdmin = u.id === 1 || u.username === "superadmin" || u.email === "admin@fsuu.edu.ph" || u.email === "superadmin@fsuu.edu.ph" || u.role_id === 1 || u.role === "superadmin" || u.role === "super_admin" || u.role?.name === "superadmin" || u.role?.name === "super_admin" || u.role?.slug === "super_admin";
     const isStaff = u.role === "staff" || u.role?.name === "staff" || u.role?.slug === "staff";
     return !isSuperAdmin && !isStaff;
   });

@@ -23,6 +23,11 @@ class UserController extends Controller
         $user = $request->user() ?? auth()->user();
         $query = User::with(['office', 'role']);
 
+        // ALWAYS exclude Super Admin accounts from user management listings (superadmin has no assigned office)
+        $query->whereHas('role', function ($r) {
+            $r->whereNotIn(\Illuminate\Support\Facades\DB::raw('LOWER(name)'), ['super_admin', 'super-admin', 'superadmin', 'sysad']);
+        })->where('id', '!=', 1)->where('username', '!=', 'superadmin');
+
         if ($user && !$user->isSuperAdmin()) {
             $officeId = $user->office_id;
             $userId = $user->id;
@@ -35,7 +40,7 @@ class UserController extends Controller
                 $q->orWhere('created_by', $userId);
             })
             ->whereHas('role', function ($r) {
-                $r->whereNotIn(\Illuminate\Support\Facades\DB::raw('LOWER(name)'), ['super_admin', 'super-admin', 'superadmin', 'sysad', 'admin', 'office_manager', 'branch_admin']);
+                $r->whereNotIn(\Illuminate\Support\Facades\DB::raw('LOWER(name)'), ['admin', 'office_manager', 'branch_admin']);
             });
         }
 

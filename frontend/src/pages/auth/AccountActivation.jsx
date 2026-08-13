@@ -30,6 +30,11 @@ export default function AccountActivation() {
       try {
         const { data } = await api.get(`/auth/invite/${urlToken}`);
         setInviteData(data);
+        if (data?.email) {
+          setUsername(data.email);
+        } else if (data?.personal_email) {
+          setUsername(data.personal_email);
+        }
       } catch (err) {
         setError(err.response?.data?.message || "Invalid or expired activation link.");
       } finally {
@@ -117,7 +122,7 @@ export default function AccountActivation() {
             </button>
           </div>
         ) : (
-          <form onSubmit={handleActivate} className="space-y-4 text-xs">
+          <form onSubmit={handleActivate} autoComplete="off" className="space-y-4 text-xs">
             {/* Context Card (Server-controlled authorization details) */}
             {inviteData && (
               <div className="bg-slate-50 border border-slate-200/80 p-3.5 rounded-2xl space-y-2">
@@ -147,6 +152,7 @@ export default function AccountActivation() {
                 <input
                   type="text"
                   required
+                  autoComplete="off"
                   placeholder="e.g. Juan Dela Cruz"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
@@ -162,6 +168,7 @@ export default function AccountActivation() {
                 <input
                   type="text"
                   required
+                  autoComplete="off"
                   placeholder="e.g. jcruz@fsuu.edu.ph"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
@@ -177,6 +184,7 @@ export default function AccountActivation() {
                 <input
                   type={showPassword ? "text" : "password"}
                   required
+                  autoComplete="new-password"
                   placeholder="Minimum 6 characters"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -197,6 +205,7 @@ export default function AccountActivation() {
               <input
                 type={showPassword ? "text" : "password"}
                 required
+                autoComplete="new-password"
                 placeholder="Re-enter password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
