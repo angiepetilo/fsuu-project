@@ -50,4 +50,4 @@ ENV APP_ENV=production \
 # Expose port
 EXPOSE 80
 
-CMD ["sh", "-c", "sed -i 's/PORT_PLACEHOLDER/'\"${PORT:-80}\"'/g' /etc/nginx/sites-available/default && touch /var/www/database/database.sqlite && chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache /var/www/database && chmod -R 777 /var/www/storage /var/www/bootstrap/cache /var/www/database && php artisan config:clear && php-fpm -D && php artisan migrate:fresh --force --seed && nginx -g 'daemon off;'"]
+CMD ["sh", "-c", "sed -i 's/PORT_PLACEHOLDER/'\"${PORT:-80}\"'/g' /etc/nginx/sites-available/default && touch /var/www/database/database.sqlite && chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache /var/www/database && chmod -R 777 /var/www/storage /var/www/bootstrap/cache /var/www/database && composer dump-autoload -o && php artisan config:clear && php artisan route:clear && php-fpm -D && php artisan migrate:fresh --force --seed && nginx -g 'daemon off;'"]
