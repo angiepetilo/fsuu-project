@@ -17,15 +17,18 @@ class AuthController extends Controller
             'password' => 'required'
         ]);
 
-        $loginInput = $request->email;
+        $loginInput = trim($request->email);
         $fieldType = filter_var($loginInput, FILTER_VALIDATE_EMAIL) ? 'email' : 'username';
 
         if (!Auth::attempt([$fieldType => $loginInput, 'password' => $request->password])) {
-            // Secondary attempt checking username if email was provided or vice-versa
+            // Secondary attempt checking username/email
             if (!Auth::attempt([$fieldType === 'email' ? 'username' : 'email' => $loginInput, 'password' => $request->password])) {
-                throw ValidationException::withMessages([
-                    'email' => ['Invalid credentials.'],
-                ]);
+                // Tertiary attempt checking personal_email
+                if (!Auth::attempt(['personal_email' => $loginInput, 'password' => $request->password])) {
+                    throw ValidationException::withMessages([
+                        'email' => ['Invalid credentials.'],
+                    ]);
+                }
             }
         }
 
