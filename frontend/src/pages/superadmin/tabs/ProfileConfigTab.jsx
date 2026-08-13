@@ -119,17 +119,11 @@ export default function ProfileConfigTab({ showMsg }) {
 
   return (
     <>
-      <form onSubmit={handleSaveProfile} className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200/80 shadow-xs space-y-6">
-        <div>
-          <h3 className="font-extrabold text-slate-900 text-sm sm:text-base">System Administrator Profile Configuration</h3>
-          <p className="text-xs text-slate-500 font-medium">
-            Manage global system administrator display credentials, recovery email, and avatar presentation.
-          </p>
-        </div>
-
-        {/* Profile Avatar Section */}
-        <div className="flex items-center gap-5 p-4 bg-slate-50 border border-slate-200 rounded-2xl max-w-2xl">
-          <div className="relative w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center text-white text-xl font-bold border-2 border-white shadow-inner overflow-hidden">
+      {/* Side-by-Side Panel Layout: Left = Avatar Card, Right = Information Form */}
+      <div className="flex flex-col lg:flex-row gap-6 items-start">
+        {/* Left Column: Avatar Photo Card */}
+        <div className="w-full lg:w-64 shrink-0 bg-white rounded-2xl border border-slate-200/80 shadow-xs p-6 flex flex-col items-center gap-4 text-center">
+          <div className="relative w-28 h-28 rounded-full bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center text-white text-3xl font-black border-4 border-white shadow-md overflow-hidden">
             {avatarPreview || profileData.avatar ? (
               <img src={avatarPreview || profileData.avatar} alt="Avatar" className="w-full h-full object-cover" />
             ) : (
@@ -138,113 +132,126 @@ export default function ProfileConfigTab({ showMsg }) {
           </div>
 
           <div className="space-y-1">
-            <h4 className="text-xs font-bold text-slate-900">SysAd Profile Avatar</h4>
-            <p className="text-[11px] text-slate-500 font-medium">Upload a custom profile photo for your system administrator account.</p>
-            <label className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-extrabold cursor-pointer transition-all shadow-xs mt-1">
-              <Camera size={13} />
-              <span>Upload New Avatar</span>
-              <input type="file" accept="image/*" onChange={handleAvatarChange} className="hidden" />
-            </label>
+            <h4 className="text-xs font-extrabold text-slate-900">SysAd Profile Photo</h4>
+            <p className="text-[11px] text-slate-500 font-medium leading-snug">
+              Upload a custom profile photo for your system administrator account.
+            </p>
           </div>
+
+          <label className="w-full inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-xl text-xs font-extrabold cursor-pointer transition-all shadow-xs">
+            <Camera size={14} />
+            <span>Upload New Avatar</span>
+            <input type="file" accept="image/*" onChange={handleAvatarChange} className="hidden" />
+          </label>
         </div>
 
-        {/* Profile Form Fields */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs max-w-2xl">
+        {/* Right Column: Information Form */}
+        <form onSubmit={handleSaveProfile} className="flex-1 w-full bg-white p-6 sm:p-8 rounded-2xl border border-slate-200/80 shadow-xs space-y-6">
           <div>
-            <label className="block text-xs font-bold text-slate-900 mb-1">Full Display Name *</label>
-            <input
-              type="text"
-              required
-              placeholder="e.g. Angie Petilo"
-              value={profileData.name}
-              onChange={(e) => setProfileData({ ...profileData, name: e.target.value })}
-              className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:outline-none focus:border-blue-600"
-            />
+            <h3 className="font-extrabold text-slate-900 text-sm sm:text-base">System Administrator Profile Configuration</h3>
+            <p className="text-xs text-slate-500 font-medium mt-0.5">
+              Manage global system administrator display credentials, recovery email, and profile settings.
+            </p>
           </div>
 
-          <div>
-            <label className="block text-xs font-bold text-slate-900 mb-1">Unique Username Handle *</label>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold">@</span>
+          {/* Profile Form Fields Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+            <div>
+              <label className="block text-xs font-bold text-slate-900 mb-1">Full Display Name *</label>
               <input
                 type="text"
                 required
-                placeholder="sysad_admin"
-                value={profileData.username}
-                onChange={(e) => setProfileData({ ...profileData, username: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "") })}
-                className="w-full p-3 pl-7 bg-slate-50 border border-slate-200 rounded-xl font-mono font-bold text-slate-900 focus:outline-none focus:border-blue-600"
+                placeholder="e.g. Angie Petilo"
+                value={profileData.name}
+                onChange={(e) => setProfileData({ ...profileData, name: e.target.value })}
+                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:outline-none focus:border-blue-600"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-900 mb-1">Unique Username Handle *</label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold">@</span>
+                <input
+                  type="text"
+                  required
+                  placeholder="sysad_admin"
+                  value={profileData.username}
+                  onChange={(e) => setProfileData({ ...profileData, username: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "") })}
+                  className="w-full p-3 pl-7 bg-slate-50 border border-slate-200 rounded-xl font-mono font-bold text-slate-900 focus:outline-none focus:border-blue-600"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-900 mb-1">Institutional Email *</label>
+              <input
+                type="email"
+                required
+                value={profileData.email}
+                onChange={(e) => setProfileData({ ...profileData, email: e.target.value })}
+                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-mono font-bold text-slate-900 focus:outline-none focus:border-blue-600"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-900 mb-1">Assigned Campus Branch Office *</label>
+              <select
+                value={profileData.location}
+                onChange={(e) => setProfileData({ ...profileData, location: e.target.value })}
+                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:outline-none focus:border-blue-600"
+              >
+                {offices.length > 0 ? (
+                  offices.map((o) => (
+                    <option key={o.id} value={o.name}>
+                      {o.name} {o.location ? `(${o.location})` : ""}
+                    </option>
+                  ))
+                ) : (
+                  <option value="">No campus branch offices created yet</option>
+                )}
+              </select>
+            </div>
+
+            <div className="md:col-span-2">
+              <label className="block text-xs font-bold text-slate-900 mb-1 flex items-center justify-between">
+                <span>Personal Recovery Email</span>
+                <span className="text-[10px] text-purple-600 font-bold">(Set Forgot Password)</span>
+              </label>
+              <input
+                type="email"
+                required
+                placeholder="personal@gmail.com"
+                value={profileData.personal_email}
+                onChange={(e) => setProfileData({ ...profileData, personal_email: e.target.value })}
+                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-mono font-bold text-slate-900 focus:outline-none focus:border-purple-600"
               />
             </div>
           </div>
 
-          <div>
-            <label className="block text-xs font-bold text-slate-900 mb-1">Institutional Email *</label>
-            <input
-              type="email"
-              required
-              value={profileData.email}
-              onChange={(e) => setProfileData({ ...profileData, email: e.target.value })}
-              className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-mono font-bold text-slate-900 focus:outline-none focus:border-blue-600"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-slate-900 mb-1">Assigned Campus Branch Office *</label>
-            <select
-              value={profileData.location}
-              onChange={(e) => setProfileData({ ...profileData, location: e.target.value })}
-              className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:outline-none focus:border-blue-600"
+          <div className="flex flex-wrap items-center justify-between gap-4 pt-4 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={() => setShowPasswordModal(true)}
+              className="flex items-center gap-2 px-4 py-2.5 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 rounded-xl text-xs font-extrabold transition-all cursor-pointer shadow-xs"
             >
-              {offices.length > 0 ? (
-                offices.map((o) => (
-                  <option key={o.id} value={o.name}>
-                    {o.name} {o.location ? `(${o.location})` : ""}
-                  </option>
-                ))
-              ) : (
-                <option value="">No campus branch offices created yet</option>
-              )}
-            </select>
+              <KeyRound size={15} /> Change Account Password
+            </button>
+
+            <button
+              type="submit"
+              className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-xl text-xs font-extrabold shadow-md cursor-pointer transition-all"
+            >
+              <Save size={16} /> Save Profile Configuration
+            </button>
           </div>
-
-          <div className="md:col-span-2">
-            <label className="block text-xs font-bold text-slate-900 mb-1 flex items-center justify-between">
-              <span>Personal Recovery Email</span>
-              <span className="text-[10px] text-purple-600 font-bold">(Set Forgot Password)</span>
-            </label>
-            <input
-              type="email"
-              required
-              placeholder="personal@gmail.com"
-              value={profileData.personal_email}
-              onChange={(e) => setProfileData({ ...profileData, personal_email: e.target.value })}
-              className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-mono font-bold text-slate-900 focus:outline-none focus:border-purple-600"
-            />
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-center justify-between gap-4 pt-4 border-t border-slate-100 max-w-2xl">
-          <button
-            type="button"
-            onClick={() => setShowPasswordModal(true)}
-            className="flex items-center gap-2 px-4 py-2.5 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 rounded-xl text-xs font-extrabold transition-all cursor-pointer shadow-xs"
-          >
-            <KeyRound size={15} /> Change Account Password
-          </button>
-
-          <button
-            type="submit"
-            className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-extrabold shadow-md cursor-pointer"
-          >
-            <Save size={16} /> Save Profile Configuration
-          </button>
-        </div>
-      </form>
+        </form>
+      </div>
 
       {/* Change Password Modal */}
       {showPasswordModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-in fade-in">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 border border-slate-100">
             <div className="flex items-center justify-between p-5 border-b border-slate-100 bg-slate-50/50">
               <div className="flex items-center gap-2">
                 <Lock size={18} className="text-amber-600" />

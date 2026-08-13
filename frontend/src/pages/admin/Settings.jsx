@@ -349,10 +349,10 @@ export default function Settings() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-3.5 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer border ${
+              className={`flex items-center gap-2 px-3.5 py-2 text-xs font-extrabold rounded-lg transition-all cursor-pointer border ${
                 active
-                  ? "border-slate-900 bg-white text-slate-900 shadow-2xs"
-                  : "border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+                  ? "border-blue-600 bg-blue-600 text-white shadow-xs"
+                  : "border-transparent text-slate-600 hover:text-blue-600 hover:bg-blue-50"
               }`}
             >
               <IconComp size={14} />

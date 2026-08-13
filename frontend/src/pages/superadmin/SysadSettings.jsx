@@ -72,10 +72,10 @@ export default function SysadSettings() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer border ${
+              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-extrabold transition-all cursor-pointer border ${
                 active
-                  ? "border-slate-900 bg-slate-900 text-white shadow-2xs"
-                  : "border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+                  ? "border-blue-600 bg-blue-600 text-white shadow-xs"
+                  : "border-transparent text-slate-600 hover:text-blue-600 hover:bg-blue-50"
               }`}
             >
               <IconComp size={14} />
