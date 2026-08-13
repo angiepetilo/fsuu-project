@@ -45,7 +45,8 @@ ENV APP_ENV=production \
     APP_DEBUG=true \
     APP_KEY=base64:tcxTAKxK4JuHgX6p8J1tgzsBYU/VQykb0enUbSil7n4= \
     DB_CONNECTION=sqlite \
-    DB_DATABASE=/var/www/database/database.sqlite
+    DB_DATABASE=/var/www/database/database.sqlite \
+    SESSION_DRIVER=file
 
 # Expose port
 EXPOSE 80
