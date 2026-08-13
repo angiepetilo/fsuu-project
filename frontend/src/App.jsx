@@ -17,9 +17,9 @@ const StaffLogin         = lazy(() => import("./pages/auth/StaffLogin"));
 const GoogleCallback     = lazy(() => import("./pages/auth/GoogleCallback"));
 const AccountActivation  = lazy(() => import("./pages/auth/AccountActivation"));
 
-// SysAd pages
-const SysadLayout        = lazy(() => import("./pages/sysad/SysadLayout"));
-const SysadSettings      = lazy(() => import("./pages/sysad/SysadSettings"));
+// Super Admin pages
+const SysadLayout        = lazy(() => import("./pages/superadmin/SysadLayout"));
+const SysadSettings      = lazy(() => import("./pages/superadmin/SysadSettings"));
 
 // Admin pages
 const AdminLayout        = lazy(() => import("./pages/admin/AdminLayout"));

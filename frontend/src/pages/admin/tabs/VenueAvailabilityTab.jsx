@@ -1,4 +1,4 @@
-import VenuesTab from "@/pages/sysad/tabs/VenuesTab";
+import VenuesTab from "@/pages/superadmin/tabs/VenuesTab";
 
 export default function VenueAvailabilityTab({ showMsg }) {
   return <VenuesTab showMsg={showMsg} />;
