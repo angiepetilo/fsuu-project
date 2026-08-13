@@ -89,24 +89,35 @@ class BookingRequirementController extends Controller
      */
     private function ensureDefaultRequirements(): void
     {
-        if (BookingRequirement::count() === 0) {
-            $officeId = Office::first()?->id;
+        try {
+            if (BookingRequirement::count() === 0) {
+                $office = Office::first();
+                if (!$office) {
+                    $office = Office::create([
+                        'name'     => 'General Administration',
+                        'slug'     => 'general-administration',
+                        'location' => 'Main Building',
+                    ]);
+                }
 
-            BookingRequirement::create([
-                'office_id'      => $officeId,
-                'classification' => 'Organization Purposes',
-                'label'          => 'Formal request letter signed and endorsed by the Dean of Student Affairs (DSA)',
-                'description'    => 'Mandatory endorsement for all student organization venue activities.',
-                'sort_order'     => 1,
-            ]);
+                BookingRequirement::create([
+                    'office_id'      => $office->id,
+                    'classification' => 'Organization Purposes',
+                    'label'          => 'Formal request letter signed and endorsed by the Dean of Student Affairs (DSA)',
+                    'description'    => 'Mandatory endorsement for all student organization venue activities.',
+                    'sort_order'     => 1,
+                ]);
 
-            BookingRequirement::create([
-                'office_id'      => $officeId,
-                'classification' => 'Academic Purposes',
-                'label'          => 'Formal request letter signed and endorsed by the VP for Academic Affairs (VP Acad)',
-                'description'    => 'Mandatory endorsement for academic events and examinations.',
-                'sort_order'     => 2,
-            ]);
+                BookingRequirement::create([
+                    'office_id'      => $office->id,
+                    'classification' => 'Academic Purposes',
+                    'label'          => 'Formal request letter signed and endorsed by the VP for Academic Affairs (VP Acad)',
+                    'description'    => 'Mandatory endorsement for academic events and examinations.',
+                    'sort_order'     => 2,
+                ]);
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('ensureDefaultRequirements failed: ' . $e->getMessage());
         }
     }
 }
