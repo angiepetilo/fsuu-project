@@ -45,7 +45,8 @@ ENV APP_ENV=production \
     APP_DEBUG=true \
     DB_CONNECTION=sqlite \
     DB_DATABASE=/var/www/database/database.sqlite \
-    SESSION_DRIVER=file
+    SESSION_DRIVER=file \
+    QUEUE_CONNECTION=sync
 
 # Expose port
 EXPOSE 80
