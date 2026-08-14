@@ -5,7 +5,8 @@ import api from "@/lib/axios";
 import {
   LayoutDashboard, CalendarCheck, PackageOpen, Settings,
   ChevronRight, LogOut, Bell, Menu, X, Box, Building2,
-  FileBarChart2, User, ChevronDown, ShieldCheck, Filter, Globe
+  FileBarChart2, User, ChevronDown, ShieldCheck, Filter, Globe,
+  Loader2
 } from "lucide-react";
 import SysadNotifDropdown from "./components/SysadNotifDropdown";
 
@@ -44,6 +45,7 @@ export default function SysadLayout() {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [selectedOffice, setSelectedOffice] = useState("All Offices");
   const [showNotifDropdown, setShowNotifDropdown] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   // Dynamic Profile Sync from System Settings
   const [profileState, setProfileState] = useState(() => {
@@ -79,8 +81,15 @@ export default function SysadLayout() {
   }, [user, navigate]);
 
   const handleLogout = async () => {
-    await logout();
-    navigate("/login");
+    setIsLoggingOut(true);
+    try {
+      await logout();
+      navigate("/login", { replace: true });
+    } catch {
+      navigate("/login", { replace: true });
+    } finally {
+      setIsLoggingOut(false);
+    }
   };
 
   const isActive = (path) => location.pathname === path || location.pathname.startsWith(path + "/");
@@ -153,7 +162,18 @@ export default function SysadLayout() {
   if (!user) return null;
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] flex font-sans antialiased text-slate-900">
+    <div className="min-h-screen bg-[#f8fafc] flex font-sans antialiased text-slate-900 relative">
+
+      {/* ── Logout Loading Overlay ── */}
+      {isLoggingOut && (
+        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex flex-col items-center justify-center text-white animate-in fade-in duration-200">
+          <div className="bg-[#070b19] p-7 rounded-3xl border border-indigo-900/60 shadow-2xl flex flex-col items-center gap-3 text-center max-w-xs mx-4">
+            <Loader2 size={36} className="animate-spin text-amber-500" />
+            <p className="text-sm font-extrabold text-white tracking-tight">Signing out...</p>
+            <p className="text-xs text-slate-400 font-medium">Securing and clearing your session</p>
+          </div>
+        </div>
+      )}
 
       {/* ── Sidebar ── */}
       <aside
