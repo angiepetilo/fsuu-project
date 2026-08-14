@@ -44,6 +44,7 @@ COPY docker/nginx.conf /etc/nginx/sites-available/default
 # Default environment variables for production execution
 ENV APP_ENV=production \
     APP_DEBUG=true \
+    LOG_CHANNEL=stderr \
     DB_CONNECTION=sqlite \
     DB_DATABASE=/var/www/database/database.sqlite \
     SESSION_DRIVER=file \
