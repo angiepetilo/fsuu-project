@@ -1,10 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useOutletContext } from "react-router-dom";
 import {
   Calendar as CalendarIcon, Building2, CheckCircle2, Save, Loader2
 } from "lucide-react";
 import VenueScheduleCalendar from "./components/VenueScheduleCalendar";
 import VenueScheduleForm from "./components/VenueScheduleForm";
+import TimeSlotMatrix from "./components/TimeSlotMatrix";
 import api from "@/lib/axios";
 import { PageLoader } from "@/components/ui/page-loader";
 
@@ -226,6 +227,58 @@ export default function ManageVenues() {
     return { status: "available", reason: "Open & Available" };
   };
 
+  // Compute active schedules for the selected date to plot on TimeSlotMatrix
+  const venueSchedules = useMemo(() => {
+    const selectedDateStr = setupForm.startDate;
+    if (!selectedDateStr) return [];
+
+    const list = [];
+
+    // 1. Add active bookings for the selected date
+    bookings.forEach((b) => {
+      const bDate = b.date_of_usage || (b.start_datetime ? b.start_datetime.split("T")[0] : null);
+      if (bDate === selectedDateStr) {
+        const vId = b.venue_id || b.venue?.id;
+        const st = (b.status || "pending").toLowerCase();
+        if (['pending', 'approved', 'ongoing', 'reserved'].includes(st)) {
+          const rawStart = b.start_time || (b.start_datetime ? b.start_datetime.split("T")[1]?.substring(0, 5) : "08:00");
+          const rawEnd = b.end_time || (b.end_datetime ? b.end_datetime.split("T")[1]?.substring(0, 5) : "12:00");
+
+          list.push({
+            id: `bk-${b.id}`,
+            itemId: vId,
+            startTime: rawStart,
+            endTime: rawEnd,
+            filerName: b.filer_name || b.requestor_name || "Requestor",
+            title: b.event_title || b.purpose || "Venue Reservation",
+            refCode: b.tracking_number?.reference_code || b.reference_code,
+            status: st,
+          });
+        }
+      }
+    });
+
+    // 2. Add maintenance / overrides for the selected date
+    venues.forEach((v) => {
+      const key = `${v.id}_${selectedDateStr}`;
+      const ov = overrides[key] || overrides[selectedDateStr];
+      if (ov && (ov.status === 'maintenance' || ov.status === 'closed')) {
+        list.push({
+          id: `ov-${v.id}-${selectedDateStr}`,
+          itemId: v.id,
+          startTime: ov.startTime || "07:00",
+          endTime: ov.endTime || "19:00",
+          filerName: ov.status === 'closed' ? 'Closed' : 'Maintenance',
+          title: ov.notes || ov.reason || 'Restricted / Scheduled Maintenance',
+          refCode: 'MAINT',
+          status: 'maintenance',
+        });
+      }
+    });
+
+    return list;
+  }, [setupForm.startDate, bookings, overrides, venues]);
+
   if (loading) return <PageLoader message="Loading Manage Venues..." />;
 
   return (
@@ -280,6 +333,22 @@ export default function ManageVenues() {
         />
 
       </div>
+
+      {/* Item 22: Interactive Hourly Timeline Matrix Grid (Based on Selected Date) */}
+      <TimeSlotMatrix
+        selectedDate={setupForm.startDate}
+        items={venues.map((v) => ({
+          id: v.id,
+          name: v.name,
+          subtitle: v.location || (v.office?.name ? `${v.office.name}` : `Capacity: ${v.capacity || 100} pax`),
+          code: `CAP: ${v.capacity || 100}`,
+        }))}
+        schedules={venueSchedules}
+        startHour={7}
+        endHour={19}
+        title="Venue Daily Time-Slot Schedule Matrix"
+        emptyLabel="No venues found for this office"
+      />
     </div>
   );
 }
