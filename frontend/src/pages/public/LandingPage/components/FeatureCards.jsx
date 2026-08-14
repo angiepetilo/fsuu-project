@@ -7,7 +7,10 @@ export default function FeatureCards() {
     <section className="grid grid-cols-[repeat(auto-fit,minmax(340px,1fr))] gap-[2.5rem] mb-[6rem]">
 
       {/* Card A: Venue Booking */}
-      <div className="bg-[#ffffff] border border-[#e2e8f0] rounded-[24px] p-[2.5rem_2rem] sm:p-[3rem_2.5rem] text-center transition-all duration-400 ease-out hover:-translate-y-[8px] hover:shadow-[0_20px_25px_-5px_rgba(0,0,0,0.1),0_8px_10px_-6px_rgba(0,0,0,0.1)] hover:border-[#cbd5e1] relative flex flex-col justify-between shadow-[0_4px_6px_-1px_rgba(0,0,0,0.1)] overflow-hidden group animate-in fade-in slide-in-from-bottom-5 duration-700 delay-200 fill-mode-both">
+      <Link
+        to="/book-venue"
+        className="bg-[#ffffff] border border-[#e2e8f0] rounded-[24px] p-[2.5rem_2rem] sm:p-[3rem_2.5rem] text-center transition-all duration-400 ease-out hover:-translate-y-[8px] hover:shadow-[0_20px_25px_-5px_rgba(0,0,0,0.1),0_8px_10px_-6px_rgba(0,0,0,0.1)] hover:border-[#2563eb]/40 relative flex flex-col justify-center items-center shadow-[0_4px_6px_-1px_rgba(0,0,0,0.1)] overflow-hidden group animate-in fade-in slide-in-from-bottom-5 duration-700 delay-200 fill-mode-both no-underline cursor-pointer"
+      >
         <div className="flex flex-col items-center text-center w-full">
           {/* House / Building Outline Icon Wrapper */}
           <div className="w-[88px] h-[88px] rounded-[24px] bg-[#eff6ff] text-[#2563eb] flex items-center justify-center mx-auto mb-[2rem] transition-all duration-300 group-hover:scale-105 group-hover:rotate-[3deg]">
@@ -35,29 +38,21 @@ export default function FeatureCards() {
             </div>
           </Tooltip>
 
-          <h2 className="text-[1.875rem] font-[800] mb-[1rem] text-[#0f172a] text-center w-full">
+          <h2 className="text-[1.875rem] font-[800] mb-[1rem] text-[#0f172a] text-center w-full group-hover:text-[#2563eb] transition-colors duration-200">
             <span className="text-[#2563eb]">Venue</span> Booking
           </h2>
 
-          <p className="text-xs font-medium text-slate-500 leading-relaxed mb-6 text-center mx-auto max-w-sm w-full">
+          <p className="text-xs font-medium text-slate-500 leading-relaxed text-center mx-auto max-w-sm w-full">
             Reserve AVR rooms, Hagenburg Hall, Webcast Studio, or Mini Theater at FSUU campuses for events, classes, and recordings
           </p>
         </div>
-
-        <Link
-          to="/book-venue"
-          className="w-full p-[0.75rem_1.25rem] rounded-[14px] border-none font-[700] text-xs sm:text-sm cursor-pointer transition-all duration-300 flex items-center justify-center gap-[0.5rem] text-[#ffffff] bg-[#2563eb] hover:bg-[#1d4ed8] hover:-translate-y-[2px] shadow-[0_4px_6px_-1px_rgba(0,0,0,0.1)] hover:shadow-[0_10px_15px_-3px_rgba(37,99,235,0.3)] text-decoration-none"
-        >
-          <span>Proceed to Venue Booking</span>
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="5" y1="12" x2="19" y2="12" />
-            <polyline points="12 5 19 12 12 19" />
-          </svg>
-        </Link>
-      </div>
+      </Link>
 
       {/* Card B: Equipment Borrowing */}
-      <div className="bg-[#ffffff] border border-[#e2e8f0] rounded-[24px] p-[2.5rem_2rem] sm:p-[3rem_2.5rem] text-center transition-all duration-400 ease-out hover:-translate-y-[8px] hover:shadow-[0_20px_25px_-5px_rgba(0,0,0,0.1),0_8px_10px_-6px_rgba(0,0,0,0.1)] hover:border-[#cbd5e1] relative flex flex-col justify-between shadow-[0_4px_6px_-1px_rgba(0,0,0,0.1)] overflow-hidden group animate-in fade-in slide-in-from-bottom-5 duration-700 delay-400 fill-mode-both">
+      <Link
+        to="/borrow-equipment"
+        className="bg-[#ffffff] border border-[#e2e8f0] rounded-[24px] p-[2.5rem_2rem] sm:p-[3rem_2.5rem] text-center transition-all duration-400 ease-out hover:-translate-y-[8px] hover:shadow-[0_20px_25px_-5px_rgba(0,0,0,0.1),0_8px_10px_-6px_rgba(0,0,0,0.1)] hover:border-[#d97706]/40 relative flex flex-col justify-center items-center shadow-[0_4px_6px_-1px_rgba(0,0,0,0.1)] overflow-hidden group animate-in fade-in slide-in-from-bottom-5 duration-700 delay-400 fill-mode-both no-underline cursor-pointer"
+      >
         <div className="flex flex-col items-center text-center w-full">
           {/* Camera Icon Wrapper */}
           <div className="w-[88px] h-[88px] rounded-[24px] bg-[#fefce8] text-[#d97706] flex items-center justify-center mx-auto mb-[2rem] transition-all duration-300 group-hover:scale-105 group-hover:rotate-[3deg]">
@@ -85,27 +80,17 @@ export default function FeatureCards() {
             </div>
           </Tooltip>
 
-          <h2 className="text-[1.875rem] font-[800] mb-[1rem] text-[#0f172a] text-center w-full">
+          <h2 className="text-[1.875rem] font-[800] mb-[1rem] text-[#0f172a] text-center w-full group-hover:text-[#d97706] transition-colors duration-200">
             <span className="text-[#d97706]">Equipment</span> Borrowing
           </h2>
 
-          <p className="text-xs font-medium text-slate-500 leading-relaxed mb-6 text-center mx-auto max-w-sm w-full">
+          <p className="text-xs font-medium text-slate-500 leading-relaxed text-center mx-auto max-w-sm w-full">
             Borrow multimedia items including projectors, projector screens, microphones, cameras, and corresponding extension items.
           </p>
         </div>
-
-        <Link
-          to="/borrow-equipment"
-          className="w-full p-[0.75rem_1.25rem] rounded-[14px] border-none font-[700] text-xs sm:text-sm cursor-pointer transition-all duration-300 flex items-center justify-center gap-[0.5rem] text-[#ffffff] bg-[#d97706] hover:bg-[#b45309] hover:-translate-y-[2px] shadow-[0_4px_6px_-1px_rgba(0,0,0,0.1)] hover:shadow-[0_10px_15px_-3px_rgba(217,119,6,0.3)] text-decoration-none"
-        >
-          <span>Proceed to Equipment Borrowing</span>
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="5" y1="12" x2="19" y2="12" />
-            <polyline points="12 5 19 12 12 19" />
-          </svg>
-        </Link>
-      </div>
+      </Link>
 
     </section>
   );
 }
+
