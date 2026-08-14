@@ -18,17 +18,13 @@ class AuthController extends Controller
         ]);
 
         $loginInput = trim($request->email);
-        $fieldType = filter_var($loginInput, FILTER_VALIDATE_EMAIL) ? 'email' : 'username';
 
-        if (!Auth::attempt([$fieldType => $loginInput, 'password' => $request->password])) {
-            // Secondary attempt checking username/email
-            if (!Auth::attempt([$fieldType === 'email' ? 'username' : 'email' => $loginInput, 'password' => $request->password])) {
-                // Tertiary attempt checking personal_email
-                if (!Auth::attempt(['personal_email' => $loginInput, 'password' => $request->password])) {
-                    throw ValidationException::withMessages([
-                        'email' => ['Invalid credentials.'],
-                    ]);
-                }
+        if (!Auth::attempt(['email' => $loginInput, 'password' => $request->password])) {
+            // Secondary attempt checking personal_email
+            if (!Auth::attempt(['personal_email' => $loginInput, 'password' => $request->password])) {
+                throw ValidationException::withMessages([
+                    'email' => ['Invalid credentials.'],
+                ]);
             }
         }
 
@@ -80,7 +76,6 @@ class AuthController extends Controller
         $validated = $request->validate([
             'token'    => 'required|string',
             'name'     => 'required|string|max:255',
-            'username' => 'required|string|max:255|unique:users,username',
             'password' => 'required|string|min:6',
         ]);
 
@@ -91,8 +86,6 @@ class AuthController extends Controller
         }
 
         $user->name = trim($validated['name']);
-        $user->username = trim($validated['username']);
-        $user->email = trim($validated['username']);
         $user->password = \Illuminate\Support\Facades\Hash::make($validated['password']);
         $user->status = 'active';
         $user->is_active = true;

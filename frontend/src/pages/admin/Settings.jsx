@@ -41,7 +41,6 @@ export default function Settings() {
       id: authUser?.id || 1,
       name: authUser?.name || "Main Branch Admin",
       email: authUser?.email || "admin@fsuu.edu.ph",
-      username: authUser?.username || "admin",
       personal_email: authUser?.personal_email || authUser?.email || "admin@gmail.com",
       office: authUser?.office?.name || "AVR office",
       avatar: authUser?.avatar || null,

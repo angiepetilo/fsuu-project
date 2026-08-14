@@ -18,7 +18,7 @@ class UserSeeder extends Seeder
 
         // 1. Primary Super Admin Account
         User::withTrashed()->updateOrCreate(
-            ['username' => 'superadmin'],
+            ['email' => $email],
             [
                 'name'           => 'Super Administrator',
                 'email'          => $email,

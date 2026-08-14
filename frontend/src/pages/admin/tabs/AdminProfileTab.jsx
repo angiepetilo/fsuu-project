@@ -181,7 +181,7 @@ export default function AdminProfileTab({
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Login Username <span className="text-rose-500">*</span>
+                  Login Email <span className="text-rose-500">*</span>
                 </label>
                 <input
                   type="email"

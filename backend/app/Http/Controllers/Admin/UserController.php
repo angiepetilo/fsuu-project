@@ -60,7 +60,6 @@ class UserController extends Controller
         $validated = $request->validate([
             'name'           => 'nullable|string|max:255',
             'email'          => 'nullable|email|max:255|unique:users,email',
-            'username'       => 'nullable|string|max:255|unique:users,username',
             'personal_email' => 'required_without:email|nullable|email|max:255',
             'role'           => 'nullable|string',
             'office_id'      => 'nullable|exists:offices,id',
@@ -100,14 +99,6 @@ class UserController extends Controller
             $name = ucwords(str_replace(['.', '_', '-'], ' ', $emailPrefix));
         }
 
-        // Username handle generation (preserve email/handle format without converting '@' to '-at-')
-        if (!empty($validated['username'])) {
-            $username = trim($validated['username']);
-        } else {
-            $firstName = Str::slug(explode(' ', $name)[0] ?? 'staff');
-            $username = $firstName . rand(10, 99);
-        }
-
         // Auto-generate temporary password: 4 random chars + 4 random digits
         $plainPassword = Str::random(4) . rand(1000, 9999);
         $inviteToken = Str::random(40);
@@ -129,7 +120,6 @@ class UserController extends Controller
         $user = User::create([
             'name'           => $name,
             'email'          => $targetEmail,
-            'username'       => $username,
             'personal_email' => $targetPersonalEmail,
             'password'       => Hash::make($plainPassword),
             'role_id'        => $targetRole->id,

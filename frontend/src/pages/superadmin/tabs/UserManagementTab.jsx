@@ -14,7 +14,6 @@ export default function UserManagementTab({ showMsg }) {
   const [userForm, setUserForm] = useState({
     name: "",
     email: "",
-    username: "",
     personal_email: "",
     role: "admin",
     location: "",
@@ -61,7 +60,6 @@ export default function UserManagementTab({ showMsg }) {
         const payload = {
           name: userForm.name,
           email: userForm.email,
-          username: userForm.username || userForm.email,
           personal_email: userForm.personal_email || userForm.email,
           role: "admin",
           location: userForm.location || (locations[0]?.name || "FSUU Main Campus"),
@@ -102,7 +100,7 @@ export default function UserManagementTab({ showMsg }) {
 
   // Filter ONLY Branch Admin accounts (Super Admin cannot manage staff accounts and super admin's own account is excluded)
   const adminUsers = users.filter((u) => {
-    const isSuperAdmin = u.id === 1 || u.username === "superadmin" || u.email === "admin@fsuu.edu.ph" || u.email === "superadmin@fsuu.edu.ph" || u.role_id === 1 || u.role === "superadmin" || u.role === "super_admin" || u.role?.name === "superadmin" || u.role?.name === "super_admin" || u.role?.slug === "super_admin";
+    const isSuperAdmin = u.id === 1 || u.email === "admin" || u.email === "admin@fsuu.edu.ph" || u.email === "superadmin@fsuu.edu.ph" || u.role_id === 1 || u.role === "superadmin" || u.role === "super_admin" || u.role?.name === "superadmin" || u.role?.name === "super_admin" || u.role?.slug === "super_admin";
     const isStaff = u.role === "staff" || u.role?.name === "staff" || u.role?.slug === "staff";
     return !isSuperAdmin && !isStaff;
   });
@@ -126,7 +124,6 @@ export default function UserManagementTab({ showMsg }) {
             setUserForm({
               name: "",
               email: "",
-              username: "",
               personal_email: "",
               role: "admin",
               location: locations[0]?.name || "FSUU Main Campus",
@@ -208,7 +205,6 @@ export default function UserManagementTab({ showMsg }) {
                           setUserForm({
                             name: u.name,
                             email: u.email,
-                            username: u.username || u.email,
                             personal_email: u.personal_email || u.email,
                             role: "admin",
                             location: u.location || u.office?.location || locations[0]?.name || "FSUU Main Campus",

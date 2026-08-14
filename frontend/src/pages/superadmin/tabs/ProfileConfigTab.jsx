@@ -25,7 +25,6 @@ export default function ProfileConfigTab({ showMsg }) {
       const saved = localStorage.getItem("fsuu_sysad_profile");
       return saved ? JSON.parse(saved) : {
         name: user?.name || "Super Admin",
-        username: user?.username || "sysad",
         email: user?.email || "sysad@fsuu.edu.ph",
         personal_email: user?.personal_email || "",
         location: "",
@@ -34,7 +33,6 @@ export default function ProfileConfigTab({ showMsg }) {
     } catch {
       return {
         name: user?.name || "Super Admin",
-        username: "sysad",
         email: user?.email || "sysad@fsuu.edu.ph",
         personal_email: "",
         location: "",
@@ -168,20 +166,6 @@ export default function ProfileConfigTab({ showMsg }) {
               />
             </div>
 
-            <div>
-              <label className="block text-xs font-bold text-slate-900 mb-1">Unique Username Handle *</label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold">@</span>
-                <input
-                  type="text"
-                  required
-                  placeholder="sysad_admin"
-                  value={profileData.username}
-                  onChange={(e) => setProfileData({ ...profileData, username: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "") })}
-                  className="w-full p-3 pl-7 bg-slate-50 border border-slate-200 rounded-xl font-mono font-bold text-slate-900 focus:outline-none focus:border-blue-600"
-                />
-              </div>
-            </div>
 
             <div>
               <label className="block text-xs font-bold text-slate-900 mb-1">Institutional Email *</label>

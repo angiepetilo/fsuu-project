@@ -14,7 +14,6 @@ export default function AccountActivation() {
 
   const [inviteData, setInviteData] = useState(null);
   const [name, setName] = useState("");
-  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -30,11 +29,6 @@ export default function AccountActivation() {
       try {
         const { data } = await api.get(`/auth/invite/${urlToken}`);
         setInviteData(data);
-        if (data?.email) {
-          setUsername(data.email);
-        } else if (data?.personal_email) {
-          setUsername(data.personal_email);
-        }
       } catch (err) {
         setError(err.response?.data?.message || "Invalid or expired activation link.");
       } finally {
@@ -63,7 +57,6 @@ export default function AccountActivation() {
       await api.post("/auth/activate", {
         token: urlToken,
         name: name.trim(),
-        username: username.trim(),
         password,
       });
 
@@ -162,21 +155,6 @@ export default function AccountActivation() {
               </div>
             </div>
 
-            <div>
-              <label className="block text-xs font-bold text-slate-900 mb-1">System Username *</label>
-              <div className="relative">
-                <input
-                  type="text"
-                  required
-                  autoComplete="off"
-                  placeholder="e.g. jcruz@fsuu.edu.ph"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-mono font-bold text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white transition-all pl-9"
-                />
-                <Key size={15} className="absolute left-3 top-3.5 text-slate-400" />
-              </div>
-            </div>
 
             <div>
               <label className="block text-xs font-bold text-slate-900 mb-1">Password *</label>

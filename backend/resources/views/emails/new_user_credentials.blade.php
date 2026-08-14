@@ -27,7 +27,7 @@ Assigned Branch Office : {{ $officeNameVal }}<br>
 Role : {{ ucfirst($roleNameVal) }}
 </div>
 
-<p>Please click the link below to activate your account and set up your Full Name, Username, and Password:</p>
+<p>Please click the link below to activate your account and set up your Full Name and Password:</p>
 
 <p><a href="{{ $activationUrl }}" style="display: inline-block; padding: 10px 18px; background-color: #2563eb; color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: bold;">Activate Your Account</a></p>
 

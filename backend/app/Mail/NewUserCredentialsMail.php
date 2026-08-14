@@ -33,7 +33,11 @@ class NewUserCredentialsMail extends Mailable
      */
     public function envelope(): Envelope
     {
+        $fromAddress = config('mail.from.address') ?: env('MAIL_USERNAME', 'angie.petilo@urios.edu.ph');
+        $fromName = config('mail.from.name', 'FSUU Reserve and Booking System');
+
         return new Envelope(
+            from: new Address($fromAddress, $fromName),
             subject: 'Your New FSUU Account Credentials',
         );
     }

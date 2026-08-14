@@ -124,7 +124,7 @@ export default function StaffLogin() {
             type="text"
             value={email}
             onChange={e => setEmail(e.target.value)}
-            placeholder="Username or email"
+            placeholder="Email address"
             className="w-full px-4 py-3 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#1A2B6B] focus:ring-4 focus:ring-[#1A2B6B]/10"
           />
           <div className="relative">
