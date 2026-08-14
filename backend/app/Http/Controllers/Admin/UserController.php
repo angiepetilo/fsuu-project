@@ -26,7 +26,7 @@ class UserController extends Controller
         // ALWAYS exclude Super Admin accounts from user management listings (superadmin has no assigned office)
         $query->whereHas('role', function ($r) {
             $r->whereNotIn(\Illuminate\Support\Facades\DB::raw('LOWER(name)'), ['super_admin', 'super-admin', 'superadmin', 'sysad']);
-        })->where('id', '!=', 1)->where('username', '!=', 'superadmin');
+        })->where('id', '!=', 1)->where('email', '!=', 'admin');
 
         if ($user && !$user->isSuperAdmin()) {
             $officeId = $user->office_id;
@@ -174,7 +174,6 @@ class UserController extends Controller
         $validated = $request->validate([
             'name'           => 'sometimes|string|max:255',
             'email'          => ['sometimes', 'email', 'max:255', Rule::unique('users')->ignore($targetUser->id)],
-            'username'       => ['sometimes', 'nullable', 'string', 'max:255', Rule::unique('users')->ignore($targetUser->id)],
             'personal_email' => 'nullable|email|max:255',
             'role'           => 'nullable|string',
             'office_id'      => 'nullable|exists:offices,id',
@@ -185,7 +184,6 @@ class UserController extends Controller
 
         if (isset($validated['name'])) $targetUser->name = $validated['name'];
         if (isset($validated['email'])) $targetUser->email = $validated['email'];
-        if (isset($validated['username'])) $targetUser->username = trim($validated['username']);
         if (isset($validated['personal_email'])) $targetUser->personal_email = $validated['personal_email'];
 
         if ($isSuperAdmin) {
