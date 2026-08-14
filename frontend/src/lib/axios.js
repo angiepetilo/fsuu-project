@@ -16,14 +16,18 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Auto-clear token on 401 so the UI never gets stuck with a stale token
+// Auto-clear token on 401 or invalid session so the UI never gets stuck
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    const status = error.response?.status;
+    const msg = error.response?.data?.message || '';
+    if (status === 401 || (status === 500 && typeof msg === 'string' && (msg.includes('Unauthenticated') || msg.includes('encryption key')))) {
       localStorage.removeItem('staff_token');
       localStorage.removeItem('staff_user');
-      window.location.href = '/login';
+      if (window.location.pathname !== '/login' && !window.location.pathname.startsWith('/activate')) {
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(error);
   }
