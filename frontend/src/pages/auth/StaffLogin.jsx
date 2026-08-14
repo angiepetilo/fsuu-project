@@ -31,8 +31,8 @@ export default function StaffLogin() {
       const { data } = await api.get("/auth/google/redirect");
       // Navigate browser to Google's auth page
       window.location.href = data.url;
-    } catch {
-      setGoogleError("Could not reach the authentication server. Try again.");
+    } catch (err) {
+      setGoogleError(err.response?.data?.message || "Could not reach the authentication server. Try again.");
       setGoogleLoading(false);
     }
   };

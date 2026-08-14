@@ -35,6 +35,13 @@ class GoogleAuthController extends Controller
      */
     public function redirect(): JsonResponse
     {
+        $clientId = config('services.google.client_id');
+        if (empty($clientId)) {
+            return response()->json([
+                'message' => 'Google OAuth is not configured yet. Please add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET to your Render environment variables, or use email and password to log in.'
+            ], 422);
+        }
+
         $url = Socialite::driver('google')
             ->stateless()
             ->redirect()
