@@ -47,7 +47,16 @@ ENV APP_ENV=production \
     DB_CONNECTION=sqlite \
     DB_DATABASE=/var/www/database/database.sqlite \
     SESSION_DRIVER=file \
-    QUEUE_CONNECTION=sync
+    QUEUE_CONNECTION=sync \
+    FRONTEND_URL=https://fsuu-project.pages.dev \
+    MAIL_MAILER=smtp \
+    MAIL_HOST=smtp.gmail.com \
+    MAIL_PORT=587 \
+    MAIL_USERNAME=angie.petilo@urios.edu.ph \
+    MAIL_PASSWORD="lsjm movr csbz yqoc" \
+    MAIL_ENCRYPTION=tls \
+    MAIL_FROM_ADDRESS="angie.petilo@urios.edu.ph" \
+    MAIL_FROM_NAME="FSUU Reserve and Booking System"
 
 # Expose port
 EXPOSE 80
