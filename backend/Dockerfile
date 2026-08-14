@@ -43,7 +43,6 @@ COPY docker/nginx.conf /etc/nginx/sites-available/default
 # Default environment variables for production execution
 ENV APP_ENV=production \
     APP_DEBUG=true \
-    APP_KEY=base64:tcxTAKxK4JuHgX6p8J1tgzsBYU/VQykb0enUbSil7n4= \
     DB_CONNECTION=sqlite \
     DB_DATABASE=/var/www/database/database.sqlite \
     SESSION_DRIVER=file
@@ -51,4 +50,5 @@ ENV APP_ENV=production \
 # Expose port
 EXPOSE 80
 
-CMD ["sh", "-c", "sed -i 's/PORT_PLACEHOLDER/'\"${PORT:-80}\"'/g' /etc/nginx/sites-available/default && touch /var/www/database/database.sqlite && chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache /var/www/database && chmod -R 777 /var/www/storage /var/www/bootstrap/cache /var/www/database && composer dump-autoload -o && php artisan config:clear && php artisan route:clear && php-fpm -D && php artisan migrate:fresh --force --seed && nginx -g 'daemon off;'"]
+CMD ["sh", "-c", "sed -i 's/PORT_PLACEHOLDER/'\"${PORT:-80}\"'/g' /etc/nginx/sites-available/default && touch /var/www/database/database.sqlite && chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache /var/www/database && chmod -R 777 /var/www/storage /var/www/bootstrap/cache /var/www/database && composer dump-autoload -o && if [ -z \"$APP_KEY\" ]; then php artisan key:generate --force; fi && php artisan config:clear && php artisan route:clear && php-fpm -D && php artisan migrate:fresh --force --seed && nginx -g 'daemon off;'"]
+
