@@ -31,8 +31,18 @@ class SendNewUserCredentialsJob implements ShouldQueue
 
     public function handle(): void
     {
-        $recipient = $this->user->personal_email ?? $this->user->email;
-        Mail::to($recipient)->send(new NewUserCredentialsMail($this->user, $this->password));
+        try {
+            $recipient = $this->user->personal_email ?? $this->user->email;
+            if (!empty($recipient)) {
+                Mail::to($recipient)->send(new NewUserCredentialsMail($this->user, $this->password));
+            }
+        } catch (\Throwable $e) {
+            Log::error('SendNewUserCredentialsJob failed to deliver email', [
+                'user_id'   => $this->user->id ?? null,
+                'recipient' => $this->user->personal_email ?? $this->user->email ?? null,
+                'error'     => $e->getMessage(),
+            ]);
+        }
     }
 
     /**
