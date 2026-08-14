@@ -20,31 +20,39 @@ class UserController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $user = $request->user() ?? auth()->user();
-        $query = User::with(['office', 'role']);
+        try {
+            $user = $request->user() ?? auth()->user();
+            $query = User::with(['office', 'role'])->where('id', '!=', 1);
 
-        // ALWAYS exclude Super Admin accounts from user management listings (superadmin has no assigned office)
-        $query->whereHas('role', function ($r) {
-            $r->whereNotIn(\Illuminate\Support\Facades\DB::raw('LOWER(name)'), ['super_admin', 'super-admin', 'superadmin', 'sysad']);
-        })->where('id', '!=', 1)->where('email', '!=', 'admin');
+            // Exclude default superadmin email
+            $query->where('email', '!=', 'admin');
 
-        if ($user && !$user->isSuperAdmin()) {
-            $officeId = $user->office_id;
-            $userId = $user->id;
-
-            $query->where('id', '!=', $userId)
-            ->where(function ($q) use ($officeId, $userId) {
-                if ($officeId) {
-                    $q->where('office_id', $officeId);
-                }
-                $q->orWhere('created_by', $userId);
-            })
-            ->whereHas('role', function ($r) {
-                $r->whereNotIn(\Illuminate\Support\Facades\DB::raw('LOWER(name)'), ['admin', 'office_manager', 'branch_admin']);
+            // Exclude superadmin roles safely across all SQL dialects
+            $query->whereDoesntHave('role', function ($r) {
+                $r->whereIn('name', ['super_admin', 'super-admin', 'superadmin', 'sysad', 'Super Admin', 'Superadmin', 'SYSAD']);
             });
-        }
 
-        return response()->json($query->latest()->get());
+            if ($user && !$user->isSuperAdmin()) {
+                $officeId = $user->office_id;
+                $userId = $user->id;
+
+                $query->where('id', '!=', $userId)
+                ->where(function ($q) use ($officeId, $userId) {
+                    if ($officeId) {
+                        $q->where('office_id', $officeId);
+                    }
+                    $q->orWhere('created_by', $userId);
+                })
+                ->whereDoesntHave('role', function ($r) {
+                    $r->whereIn('name', ['admin', 'office_manager', 'branch_admin', 'Admin', 'Branch Admin']);
+                });
+            }
+
+            return response()->json($query->latest()->get());
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('UserController index error: ' . $e->getMessage());
+            return response()->json([], 200);
+        }
     }
 
     /**
