@@ -99,6 +99,7 @@ export default function SysadSettings() {
           setPinConfig={setPinConfig}
           pinSavedFeedback={pinSavedFeedback}
           handleSavePinConfig={handleSavePinConfig}
+          showMsg={showMsg}
         />
       )}
       {activeTab === "profile" && <ProfileConfigTab showMsg={showMsg} />}

@@ -16,23 +16,29 @@
     $date = $formattedDate ?? (isset($booking->date_of_usage) ? substr((string)$booking->date_of_usage, 0, 10) : 'Scheduled Date');
     $start = $formattedStart ?? ($booking->time_start ?? 'Start Time');
     $end = $formattedEnd ?? ($booking->time_end ?? 'End Time');
+    $baseUrl = rtrim(config('app.frontend_url') ?: env('FRONTEND_URL', 'http://localhost:5173'), '/');
+    $trackUrl = $baseUrl . '/track?tracking=' . urlencode($ref);
 @endphp
 
 @if(($type ?? 'venue') === 'equipment')
 <p>Good day {{ $requestorName }}. Use reference code {{ $ref }} to claim your item.</p>
 <p>Please proceed to the office and present your School ID. Reminder: Arrive at least 15 minutes before your scheduled start time. Thank you.</p>
+<p>You may track your request status here: <a href="{{ $trackUrl }}">{{ $trackUrl }}</a></p>
 @elseif($mode === 'approved')
 <p>Reminder: Please ensure you arrive at least 15 minutes before your scheduled start time.</p>
 <p>Good day, {{ $requestorName }}.</p>
 <p>Your venue reservation (Reference: {{ $ref }}) has been approved!<br>
 Your scheduled date is {{ $date }} from {{ $start }} to {{ $end }}.</p>
+<p>You may track your reservation status here: <a href="{{ $trackUrl }}">{{ $trackUrl }}</a></p>
 @elseif($mode === 'reminder')
 <p>Reminder: Please ensure you arrive at least 15 minutes before your scheduled start time.</p>
 <p>Good day, {{ $requestorName }}. This is a reminder that your venue reservation (Reference: {{ $ref }}) is today! Your scheduled time is from {{ $start }} to {{ $end }}.</p>
+<p>You may track your reservation status here: <a href="{{ $trackUrl }}">{{ $trackUrl }}</a></p>
 @else
 <p>Good day, {{ $requestorName }}.</p>
 <p>Your venue reservation (Reference: {{ $ref }}) has been submitted to the system and is awaiting review and approval by our staff. You can track the status of your reservation at any time by searching for your tracking number.<br>
 Your Reference Number: {{ $ref }}</p>
+<p>You may track your reservation status here: <a href="{{ $trackUrl }}">{{ $trackUrl }}</a></p>
 @endif
 
 <p>If you have any questions or require assistance, please contact the System Administrator.</p>

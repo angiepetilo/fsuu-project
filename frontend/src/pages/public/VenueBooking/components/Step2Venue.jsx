@@ -19,6 +19,12 @@ export default function Step2Venue({
   timeEnd,
   setTimeEnd,
   existingBookings = [],
+  opHours: propOpHours,
+  pinRules: propPinRules,
+  isPinVerified = false,
+  setIsPinVerified,
+  setShowPinModal,
+  setPinModalMeta,
   onBack,
   onNext,
 }) {
@@ -26,8 +32,17 @@ export default function Step2Venue({
   today.setHours(0, 0, 0, 0);
 
   const [, setVersion] = useState(0);
-  const [opHours, setOpHours] = useState(null);
+  const [opHours, setOpHours] = useState(propOpHours || null);
+  const [pinRules, setPinRules] = useState(propPinRules || null);
   const [dbOverrides, setDbOverrides] = useState([]);
+
+  useEffect(() => {
+    if (propOpHours) setOpHours(propOpHours);
+  }, [propOpHours]);
+
+  useEffect(() => {
+    if (propPinRules) setPinRules(propPinRules);
+  }, [propPinRules]);
 
   useEffect(() => {
     const handleUpdate = () => setVersion(v => v + 1);
@@ -604,17 +619,51 @@ export default function Step2Venue({
                         const venueOpen = opHours?.venue_open?.substring(0, 5) || "07:30";
                         const venueClose = opHours?.venue_close?.substring(0, 5) || "17:00";
                         const isOutside = timeStart < venueOpen || timeEnd > venueClose;
+                        const requiresPinForOutside = (pinRules?.requirePinOutsideHours !== false) && isOutside;
 
                         if (isOutside) {
                           return (
-                            <div className="p-3 bg-amber-50 border border-amber-200 rounded-2xl text-xs font-bold text-amber-900 space-y-1 mt-2">
-                              <div className="flex items-center gap-1.5 text-amber-800">
-                                <AlertTriangle size={15} className="text-amber-600 shrink-0" />
-                                <span>Operating Hours Notice ({formatTime12(venueOpen)} - {formatTime12(venueClose)})</span>
+                            <div className="p-3.5 bg-amber-50 border border-amber-200/80 rounded-2xl text-xs font-bold text-amber-900 space-y-2 mt-2">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-1.5 text-amber-800">
+                                  <AlertTriangle size={15} className="text-amber-600 shrink-0" />
+                                  <span className="font-extrabold">Outside Campus Office Hours ({formatTime12(venueOpen)} - {formatTime12(venueClose)})</span>
+                                </div>
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-200 text-amber-900 uppercase">
+                                  PIN Required
+                                </span>
                               </div>
-                              <p className="text-[10.5px] font-semibold text-amber-800 leading-snug">
-                                Selected booking time ({formatTime12(timeStart)} - {formatTime12(timeEnd)}) is outside official campus hours.
+                              <p className="text-[11px] font-semibold text-amber-800 leading-snug">
+                                Selected booking time (<strong>{formatTime12(timeStart)} - {formatTime12(timeEnd)}</strong>) is outside official campus office hours.
+                                {requiresPinForOutside ? " An AVR Head / Admin Verification PIN is required for both internal and external users." : ""}
                               </p>
+                              {requiresPinForOutside && (
+                                <div className="pt-1.5 border-t border-amber-200/60 flex items-center justify-between gap-2">
+                                  {isPinVerified ? (
+                                    <div className="flex items-center gap-1.5 text-emerald-700 font-extrabold text-xs">
+                                      <CheckCircle2 size={15} />
+                                      <span>AVR Head PIN Verified for Outside Hours</span>
+                                    </div>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        if (setPinModalMeta) {
+                                          setPinModalMeta({
+                                            title: "Outside Office Hours PIN",
+                                            description: `Selected booking time (${formatTime12(timeStart)} - ${formatTime12(timeEnd)}) is outside official campus hours (${formatTime12(venueOpen)} - ${formatTime12(venueClose)}). AVR Head / Admin Verification PIN is required for authorization.`,
+                                          });
+                                        }
+                                        setShowPinModal && setShowPinModal(true);
+                                      }}
+                                      className="w-full py-2 px-3 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs shadow-xs transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                                    >
+                                      <Clock size={14} />
+                                      <span>Verify AVR Head PIN Now</span>
+                                    </button>
+                                  )}
+                                </div>
+                              )}
                             </div>
                           );
                         }

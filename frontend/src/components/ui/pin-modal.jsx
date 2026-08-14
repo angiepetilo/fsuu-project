@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
-import { X, AlertCircle } from "lucide-react";
+import { X, AlertCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import api from "@/lib/axios";
 
 export function PinModal({
   isOpen,
@@ -11,6 +12,8 @@ export function PinModal({
 }) {
   const [digits, setDigits] = useState(["", "", "", "", "", ""]);
   const [error, setError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [loading, setLoading] = useState(false);
   const [activePin, setActivePin] = useState("123456");
   const [activeTitle, setActiveTitle] = useState(title || "PIN Required");
   const [activeDesc, setActiveDesc] = useState(description || "AVR Head PIN Required");
@@ -32,6 +35,10 @@ export function PinModal({
     if (isOpen) {
       setDigits(["", "", "", "", "", ""]);
       setError(false);
+      setErrorMessage("");
+      setLoading(false);
+      setActiveTitle(title || "PIN Required");
+      setActiveDesc(description || "AVR Head PIN Required");
       syncPinSettings();
 
       setTimeout(() => {
@@ -75,17 +82,49 @@ export function PinModal({
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const pin = digits.join("");
-    const targetPin = (activePin || "123456").trim();
-
-    if (pin === targetPin) {
-      setError(false);
-      onVerify(pin);
-    } else {
+    if (pin.length < 4) {
       setError(true);
+      setErrorMessage("Please enter a valid PIN code.");
+      return;
     }
+
+    setLoading(true);
+    setError(false);
+
+    try {
+      // First attempt to verify with backend API
+      const res = await api.post("/public/verify-pin", { pin });
+      if (res.data?.valid) {
+        setLoading(false);
+        setError(false);
+        onVerify(pin);
+        return;
+      }
+    } catch (err) {
+      // If API returns 422 with invalid message, or network offline, test fallback
+      if (err.response?.status === 422) {
+        setLoading(false);
+        setError(true);
+        setErrorMessage(err.response?.data?.message || "Invalid PIN Code. Please check the PIN issued by the AVR Head.");
+        return;
+      }
+
+      // Offline / local fallback check
+      const targetPin = (activePin || "123456").trim();
+      if (pin === targetPin) {
+        setLoading(false);
+        setError(false);
+        onVerify(pin);
+        return;
+      }
+    }
+
+    setLoading(false);
+    setError(true);
+    setErrorMessage("Invalid PIN Code. Please check the PIN issued by the AVR Head.");
   };
 
   return (
@@ -99,25 +138,25 @@ export function PinModal({
           <X size={20} />
         </button>
 
-        {/* Orange Title matching screenshot 1 */}
+        {/* Orange Title matching brand design */}
         <h3 className="text-2xl sm:text-3xl font-black text-orange-500 mb-1 tracking-tight">
           {activeTitle}
         </h3>
 
-        {/* Subtitle text matching screenshot 1 */}
+        {/* Subtitle text */}
         <p className="text-xs sm:text-sm text-slate-600 font-bold mb-6">
           {activeDesc}
         </p>
 
         {error && (
           <div className="mb-5 p-3 bg-rose-50 border border-rose-200 text-rose-600 text-xs font-bold rounded-2xl flex items-center justify-center gap-2 animate-in fade-in">
-            <AlertCircle size={16} />
-            <span>Invalid PIN Code. Please check the PIN issued by the AVR Head.</span>
+            <AlertCircle size={16} className="shrink-0" />
+            <span>{errorMessage || "Invalid PIN Code. Please check the PIN issued by the AVR Head."}</span>
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-          {/* 6 Digit Input Boxes matching screenshot 1 design */}
+          {/* 6 Digit Input Boxes */}
           <div className="flex items-center justify-center gap-2 sm:gap-2.5">
             {digits.map((digit, idx) => (
               <input
@@ -127,28 +166,32 @@ export function PinModal({
                 inputMode="numeric"
                 maxLength={6}
                 value={digit}
+                disabled={loading}
                 onChange={(e) => handleChange(idx, e.target.value)}
                 onKeyDown={(e) => handleKeyDown(idx, e)}
-                className="w-11 h-16 sm:w-12 sm:h-16 bg-white border-2 border-orange-400 rounded-[20px] text-center text-xl font-mono font-black text-slate-900 focus:outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-400/20 shadow-2xs transition-all"
+                className="w-11 h-16 sm:w-12 sm:h-16 bg-white border-2 border-orange-400 rounded-[20px] text-center text-xl font-mono font-black text-slate-900 focus:outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-400/20 shadow-2xs transition-all disabled:opacity-50"
               />
             ))}
           </div>
 
-          {/* Action Buttons matching screenshot 1 design */}
+          {/* Action Buttons */}
           <div className="flex gap-3 pt-2">
             <Button
               type="button"
               variant="outline"
+              disabled={loading}
               onClick={onClose}
-              className="flex-1 py-5 rounded-full border-slate-300 text-slate-700 font-extrabold text-sm hover:bg-slate-50 cursor-pointer transition-all"
+              className="flex-1 py-5 rounded-full border-slate-300 text-slate-700 font-extrabold text-sm hover:bg-slate-50 cursor-pointer transition-all disabled:opacity-50"
             >
               Cancel
             </Button>
             <Button
               type="submit"
-              className="flex-1 py-5 rounded-full bg-amber-100 hover:bg-amber-200 border border-amber-300 text-amber-900 font-extrabold text-sm cursor-pointer shadow-xs transition-all"
+              disabled={loading}
+              className="flex-1 py-5 rounded-full bg-amber-100 hover:bg-amber-200 border border-amber-300 text-amber-900 font-extrabold text-sm cursor-pointer shadow-xs transition-all flex items-center justify-center gap-2 disabled:opacity-50"
             >
-              Verify Pin
+              {loading && <Loader2 size={16} className="animate-spin" />}
+              <span>{loading ? "Verifying..." : "Verify Pin"}</span>
             </Button>
           </div>
         </form>

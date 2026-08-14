@@ -28,12 +28,36 @@ export default function EquipmentBorrowing() {
   const [catalog, setCatalog] = useState([]);
   const [catalogLoading, setCatalogLoading] = useState(true);
 
+  // Operating Hours & PIN Rules
+  const [opHours, setOpHours] = useState(null);
+  const [pinRules, setPinRules] = useState(null);
+  const [pinModalMeta, setPinModalMeta] = useState({
+    title: "Verification PIN Required",
+    description: "AVR Head PIN Required",
+  });
+
   // Clean public equipment localStorage items on mount
   useEffect(() => {
     try {
       localStorage.removeItem("fsuu_cache_public_equipment");
       localStorage.removeItem("fsuu_equipment_borrowings");
     } catch {}
+  }, []);
+
+  // Fetch Operating Hours & PIN Settings
+  useEffect(() => {
+    api.get("/public/operating-hours")
+      .catch(() => api.get("/admin/operating-hours"))
+      .then(res => {
+        if (res?.data) setOpHours(res.data);
+      })
+      .catch(() => {});
+
+    api.get("/public/verification-pin-settings")
+      .then(res => {
+        if (res?.data) setPinRules(res.data);
+      })
+      .catch(() => {});
   }, []);
 
   // Selection States
@@ -113,11 +137,9 @@ export default function EquipmentBorrowing() {
     return true;
   });
 
-
   const isScoSelected = selectedItems.some(id => catalog.find(c => c.id === id)?.dept === "sco");
   const isAvrSelected = selectedItems.some(id => catalog.find(c => c.id === id)?.dept === "avr");
   const primaryDept = isScoSelected && !isAvrSelected ? "sco" : isAvrSelected && !isScoSelected ? "avr" : "mixed";
-
 
   // PIN Verification State
   const [showPinModal, setShowPinModal] = useState(false);
@@ -127,12 +149,18 @@ export default function EquipmentBorrowing() {
 
   const [itemQuantities, setItemQuantities] = useState({});
 
+  const formatTime12 = (tStr) => {
+    if (!tStr) return "";
+    const [h, m] = tStr.split(":").map(Number);
+    const ampm = h >= 12 ? "PM" : "AM";
+    const h12 = h % 12 || 12;
+    return `${h12}:${String(m || 0).padStart(2, '0')} ${ampm}`;
+  };
+
   const handleIdentitySelect = (id) => {
     const norm = id.toLowerCase();
     setIdentity(norm);
-    if (norm === "external" && !isPinVerified) {
-      setShowPinModal(true);
-    }
+    setIsPinVerified(false);
     if (!completedSteps.includes(1)) setCompletedSteps([...completedSteps, 1]);
     setActiveStep(2);
   };
@@ -162,52 +190,71 @@ export default function EquipmentBorrowing() {
 
   const handleEquipmentSubmit = () => {
     const startDateStr = startTime ? startTime.split("T")[0] : "";
-    const startTimeStr = startTime && startTime.includes("T") ? startTime.split("T")[1].slice(0, 5) : "";
+    const startTimeStr = startTime && startTime.includes("T") ? startTime.split("T")[1].slice(0, 5) : "08:00";
+    const endDateStr = endTime ? endTime.split("T")[0] : "";
+    const endTimeStr = endTime && endTime.includes("T") ? endTime.split("T")[1].slice(0, 5) : "17:00";
+
     if (isPastDateTime(startDateStr, startTimeStr)) {
       alert("Selected borrow date or time has already passed. Please select a future date and time.");
       return;
     }
 
-    if (selectedItems.length > 0) {
-      if (identity === "external" && !isPinVerified) {
-        setShowPinModal(true);
-        return;
-      }
-      if (!completedSteps.includes(2)) setCompletedSteps([...completedSteps, 2]);
-      setActiveStep(3);
+    if (selectedItems.length === 0) {
+      alert("Please select at least one equipment item to borrow.");
+      return;
     }
-  };
 
-  const handleDetailsSubmit = (e) => {
-    e.preventDefault();
-    const startDateStr = startTime ? startTime.split("T")[0] : "";
-    const endDateStr = endTime ? endTime.split("T")[0] : "";
-    const isNextDayOrMore = endDateStr && startDateStr && endDateStr > startDateStr;
-    const requiresPin = identity === "external" || isNextDayOrMore;
+    const kioskOpen = opHours?.equipment_open?.substring(0, 5) || "08:00";
+    const kioskClose = opHours?.equipment_close?.substring(0, 5) || "17:00";
+    const isOutsideHours = startTimeStr < kioskOpen || endTimeStr > kioskClose || wishesToExtend;
+    const isNextDayOrMore = Boolean(endDateStr && startDateStr && endDateStr > startDateStr);
+
+    const outsideRequiresPin = (pinRules?.requirePinOutsideHours !== false) && isOutsideHours;
+    const multiDayRequiresPin = (pinRules?.requirePinMultiDayEquipment !== false) && (isNextDayOrMore || wishesToExtend);
+    const externalRequiresPin = (pinRules?.enableExternalEquipment !== false) && identity === "external";
+    const studentMandatory = !!pinRules?.requirePinForStudent;
+
+    const requiresPin = (pinRules?.isEnabled !== false) && (
+      outsideRequiresPin || multiDayRequiresPin || externalRequiresPin || studentMandatory
+    );
 
     if (requiresPin && !isPinVerified) {
+      if (outsideRequiresPin) {
+        setPinModalMeta({
+          title: "Outside Office Hours PIN",
+          description: `Selected borrowing/return time (${formatTime12(startTimeStr)} - ${formatTime12(endTimeStr)}) is outside official campus kiosk hours (${formatTime12(kioskOpen)} - ${formatTime12(kioskClose)}). AVR Head / Admin Verification PIN is required for authorization.`,
+        });
+      } else if (multiDayRequiresPin) {
+        setPinModalMeta({
+          title: "Multi-Day Equipment Return PIN",
+          description: "Next-day / extended equipment returns require AVR Head / Admin Verification PIN to proceed.",
+        });
+      } else if (externalRequiresPin) {
+        setPinModalMeta({
+          title: "External Client Verification",
+          description: "External client requisitions require AVR Head / Administrative clearance PIN.",
+        });
+      } else {
+        setPinModalMeta({
+          title: "Verification PIN Required",
+          description: "AVR Head / Administrative authorization PIN is required to complete this borrowing request.",
+        });
+      }
+
       setShowPinModal(true);
       setPinError(false);
       setPinInput("");
       return;
     }
 
-    if (!completedSteps.includes(3)) setCompletedSteps([...completedSteps, 3]);
-    setActiveStep(4);
+    if (!completedSteps.includes(2)) setCompletedSteps([...completedSteps, 2]);
+    setActiveStep(3);
   };
 
-  const handleConfirmPin = (e) => {
+  const handleDetailsSubmit = (e) => {
     e.preventDefault();
-    if (pinInput.trim() === "123456" || pinInput.trim().length >= 4) {
-      setIsPinVerified(true);
-      setShowPinModal(false);
-      setPinError(false);
-
-      if (!completedSteps.includes(3)) setCompletedSteps([...completedSteps, 3]);
-      setActiveStep(4);
-    } else {
-      setPinError(true);
-    }
+    if (!completedSteps.includes(3)) setCompletedSteps([...completedSteps, 3]);
+    setActiveStep(4);
   };
 
   const handleVerifySubmit = async (e) => {
@@ -218,124 +265,97 @@ export default function EquipmentBorrowing() {
       const getFormattedDT = (dtStr, fallbackTime) => {
         if (!dtStr) return `${getTodayISO()} ${fallbackTime}:00`;
         let s = dtStr.replace("T", " ");
-        if (s.length === 10) return `${s} ${fallbackTime}:00`;
-        if (s.length === 16) return `${s}:00`;
-        return s.substring(0, 19);
+        if (s.length === 16) s += ":00";
+        return s;
       };
 
-      const formattedStart = getFormattedDT(startTime, "08:00");
-      const formattedEnd = getFormattedDT(endTime, "17:00");
+      const startDT = getFormattedDT(startTime, "08:00");
+      const endDT = getFormattedDT(endTime, "17:00");
 
-      const validIdentityTypes = ['student', 'faculty', 'staff', 'external'];
-      const rawIdentity = (identity || 'student').toLowerCase();
-      const finalIdentity = validIdentityTypes.includes(rawIdentity) ? rawIdentity : 'student';
-
-      if (selectedItems.length === 0) {
-        alert("Please select at least one equipment item from the catalog to borrow.");
-        setIsSubmitting(false);
-        return;
-      }
-
-      const validItems = selectedItems.map(id => {
-        const numericId = typeof id === 'number' ? id : (typeof id === 'object' ? id.id : Number(id));
-        return {
-          equipment_type_id: numericId,
-          quantity_requested: itemQuantities[typeof id === 'object' ? id.id : id] || 1
-        };
-      });
+      const selectedOfficeId = (campusBranch || "").toLowerCase().includes("morelos") ? 2 : 1;
 
       const payload = {
+        office_id: selectedOfficeId,
         requestor_name: fullName,
         requestor_email: email,
         requestor_contact_number: contactNumber,
-        requestor_program_office: department || "General",
-        requestor_identity_type: finalIdentity,
+        requestor_program_office: department,
+        requestor_identity_type: identity || 'student',
         purpose: purpose,
-        place_of_use: placeOfUse,
-        used_inside_campus: true,
-        start_datetime: formattedStart,
-        end_datetime: formattedEnd,
-        contact_preference: notificationChannel === 'sms' ? 'sms' : 'email',
-        items: validItems
+        purpose_description: purpose,
+        place_of_use: placeOfUse || "Campus Facility",
+        handler_name: handlerName || fullName,
+        start_datetime: startDT,
+        expected_return_datetime: endDT,
+        borrow_date: startDT.split(" ")[0],
+        intended_return_date: endDT.split(" ")[0],
+        borrow_time: startDT.split(" ")[1]?.substring(0, 5) || "08:00",
+        intended_return_time: endDT.split(" ")[1]?.substring(0, 5) || "17:00",
+        contact_preference: notificationChannel || "email",
+        equipment_items: JSON.stringify(
+          selectedItems.map((id) => ({
+            equipment_type_id: id,
+            quantity_requested: itemQuantities[id] || 1,
+          }))
+        ),
       };
 
-      let finalRefCode = `EQ-2026-${Math.floor(100000 + Math.random() * 900000)}`;
-      const endpoint = '/public/avr-equipment-borrowings';
-      const { data } = await api.post(endpoint, payload);
-      if (data && (data.reference_code || data.referenceCode)) {
-        finalRefCode = data.reference_code || data.referenceCode;
+      const formData = new FormData();
+      Object.keys(payload).forEach((key) => {
+        if (payload[key] !== undefined && payload[key] !== null) {
+          formData.append(key, payload[key]);
+        }
+      });
+      if (endorsementFile) {
+        formData.append("endorsement_file", endorsementFile);
       }
 
-      setReferenceCode(finalRefCode);
-      window.dispatchEvent(new Event("equipment_borrowings_updated"));
+      const res = await api.post("/public/avr-equipment-borrowings", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+
+      const trackingNum = res.data?.tracking_number?.tracking_number
+        || res.data?.tracking_number
+        || res.data?.reference_code
+        || res.data?.id
+        || 'FSUU-REQ-PENDING';
+
+      setReferenceCode(trackingNum);
       setShowSuccess(true);
     } catch (err) {
-      console.error("Submission error:", err);
-      const errMsg = err.response?.data?.message || (err.response?.data?.errors ? Object.values(err.response.data.errors).flat().join(" ") : null);
-      if (errMsg) {
-        alert(`Submission Notice: ${errMsg}`);
-      } else {
-        const fallbackCode = `EQ-2026-${Math.floor(100000 + Math.random() * 900000)}`;
-        setReferenceCode(fallbackCode);
-        setShowSuccess(true);
-      }
+      alert(err.response?.data?.message || "Submission failed. Please check form details.");
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div className={`flex flex-col items-center w-full mx-auto relative animate-in fade-in slide-in-from-bottom-5 duration-700 pb-12 ${activeStep === 2 ? "max-w-7xl" : "max-w-4xl"}`}>
-
-      {/* Header Title */}
-      <div className="text-center mb-8 w-full flex flex-col items-center justify-center">
-        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-50 border border-amber-200 text-amber-800 text-xs font-semibold mb-3 shadow-xs">
-          <PackageOpen size={14} className="text-amber-600" />
-          <span>Equipment Requisition System</span>
-        </div>
-        <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 mb-2 tracking-tight text-center">
-          Equipment Borrowing
-        </h1>
-        <p className="text-slate-500 font-medium max-w-md sm:max-w-lg mx-auto text-xs sm:text-sm leading-relaxed text-center tracking-normal">
-          Request AV gear from AVR or professional video/audio broadcast equipment from SCO.
-        </p>
+    <div className="w-full flex flex-col items-center">
+      {/* 4-Step Timeline Component */}
+      <div className="w-full max-w-4xl mb-6">
+        <KioskTimeline
+          steps={BORROW_STEPS}
+          currentStep={activeStep}
+          completedSteps={completedSteps}
+        />
       </div>
 
-      {/* Horizontal Kiosk-Style Timeline Process Bar */}
-      <KioskTimeline
-        steps={BORROW_STEPS}
-        activeStep={activeStep}
-        onStepClick={(step) => {
-          if (step > 1 && !identity) {
-            return; // Strict guard: Cannot proceed to Step 2/3/4 until Step 1 identity is completed
-          }
-          if (step === 3 && selectedItems.length === 0) {
-            return; // Cannot jump to details until equipment items are selected
-          }
-          setActiveStep(step);
-        }}
-        completedSteps={completedSteps}
-      />
-
-      {/* Active Step Content Container */}
-      <div className="w-full bg-white border border-slate-200/80 rounded-2xl shadow-xs overflow-hidden">
+      <div className="w-full max-w-5xl">
         {activeStep === 1 && (
           <Step1Identity
-            identity={identity}
-            handleIdentitySelect={handleIdentitySelect}
-            selectedLocation={selectedLocation}
-            setSelectedLocation={setSelectedLocation}
-            onNext={() => setActiveStep(2)}
+            selectedIdentity={identity}
+            onSelectIdentity={handleIdentitySelect}
           />
         )}
 
         {activeStep === 2 && (
           catalogLoading ? (
             <div className="p-10 text-center text-slate-400 text-xs font-semibold animate-pulse">
-              Loading equipment catalog...
+              Loading available equipment catalog...
             </div>
           ) : (
             <Step2Equipment
+              identity={identity}
               equipmentCategory={equipmentCategory}
               setEquipmentCategory={setEquipmentCategory}
               filteredCatalog={filteredCatalog}
@@ -354,12 +374,14 @@ export default function EquipmentBorrowing() {
               isPinVerified={isPinVerified}
               setIsPinVerified={setIsPinVerified}
               setShowPinModal={setShowPinModal}
+              setPinModalMeta={setPinModalMeta}
+              opHours={opHours}
+              pinRules={pinRules}
               handleEquipmentSubmit={handleEquipmentSubmit}
               onBack={() => setActiveStep(1)}
             />
           )
         )}
-
 
         {activeStep === 3 && (
           <Step3Details
@@ -411,10 +433,11 @@ export default function EquipmentBorrowing() {
         onVerify={() => {
           setIsPinVerified(true);
           setShowPinModal(false);
-          if (!completedSteps.includes(3)) setCompletedSteps([...completedSteps, 3]);
-          setActiveStep(4);
+          if (!completedSteps.includes(2)) setCompletedSteps([...completedSteps, 2]);
+          setActiveStep(3);
         }}
-        description="AVR Head PIN Required. External Users and Multi-Day Reservations must verify an authorized PIN issued by the AVR Head before proceeding."
+        title={pinModalMeta.title}
+        description={pinModalMeta.description}
       />
 
       {/* Confirmation Success Modal */}
@@ -430,20 +453,28 @@ export default function EquipmentBorrowing() {
               The equipment borrowed will be released once you claim the equipment with your tracking number sent via Email. Please check your registered email inbox.
             </p>
 
-            <div className="flex flex-col gap-3">
-              <button
-                type="button"
-                onClick={() => navigate("/")}
-                className="w-full py-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 cursor-pointer transition-all hover:scale-[1.02]"
+            <div className="p-4 bg-slate-50 border border-slate-200/80 rounded-2xl mb-6 space-y-1">
+              <span className="text-[10px] uppercase tracking-wider font-bold text-slate-500">Tracking Reference Code</span>
+              <p className="text-xl font-black text-blue-600 font-mono select-all tracking-wider">{referenceCode}</p>
+            </div>
+
+            <div className="flex flex-col gap-2.5">
+              <Link
+                to={`/track?tracking=${encodeURIComponent(referenceCode)}`}
+                className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-xs font-extrabold shadow-lg transition-all flex items-center justify-center gap-2"
               >
-                Done
-              </button>
+                <span>Track Borrowing Status Now</span>
+              </Link>
+              <Link
+                to="/"
+                className="w-full py-3 border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-2xl text-xs font-bold transition-all text-center"
+              >
+                Return to Homepage
+              </Link>
             </div>
           </div>
         </div>
       )}
-
-
     </div>
   );
 }

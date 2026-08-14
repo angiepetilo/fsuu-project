@@ -12,6 +12,7 @@ use App\Http\Controllers\SuperAdmin\OfficeController;
 use App\Http\Controllers\SuperAdmin\LocationController;
 use App\Http\Controllers\SuperAdmin\DepartmentController;
 use App\Http\Controllers\SuperAdmin\OperatingHoursController;
+use App\Http\Controllers\SuperAdmin\VerificationPinController;
 use App\Http\Controllers\SuperAdmin\BookingRequirementController;
 use App\Http\Controllers\SuperAdmin\NotificationController as SuperAdminNotificationController;
 
@@ -127,9 +128,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/admin/departments/{id}',    [DepartmentController::class, 'update']);
     Route::delete('/admin/departments/{id}', [DepartmentController::class, 'destroy']);
 
-    // ── Admin: Operating Hours ────────────────────────────────────────────────
-    Route::get('/admin/operating-hours',  [OperatingHoursController::class, 'show']);
-    Route::put('/admin/operating-hours',  [OperatingHoursController::class, 'update']);
+    // ── Admin: Operating Hours & Verification PIN ────────────────────────────
+    Route::get('/admin/operating-hours',       [OperatingHoursController::class, 'show']);
+    Route::put('/admin/operating-hours',       [OperatingHoursController::class, 'update']);
+    Route::get('/admin/verification-pin',      [VerificationPinController::class, 'show']);
+    Route::put('/admin/verification-pin',      [VerificationPinController::class, 'update']);
 
     // ── Admin: Booking Requirements & Fee Matrix ──────────────────────────────
     Route::get('/admin/booking-requirements',         [BookingRequirementController::class, 'index']);
@@ -205,8 +208,10 @@ Route::prefix('public')->group(function () {
     Route::post('/avr-venue-bookings',       [PublicVenueBookingController::class, 'store'])->middleware('throttle:public-submissions');
     Route::post('/avr-equipment-borrowings', [PublicEquipmentBorrowingController::class, 'store'])->middleware('throttle:public-submissions');
 
-    // Tracking & OTP
-    Route::post('/track',       [TrackingController::class, 'track'])->middleware('throttle:tracking');
-    Route::post('/send-otp',    [OtpController::class, 'send'])->middleware('throttle:otp');
-    Route::post('/verify-otp',  [OtpController::class, 'verify'])->middleware('throttle:otp');
+    // Tracking & OTP & PIN Verification
+    Route::post('/track',                     [TrackingController::class, 'track'])->middleware('throttle:tracking');
+    Route::post('/send-otp',                  [OtpController::class, 'send'])->middleware('throttle:otp');
+    Route::post('/verify-otp',                [OtpController::class, 'verify'])->middleware('throttle:otp');
+    Route::get('/verification-pin-settings',  [VerificationPinController::class, 'publicSettings']);
+    Route::post('/verify-pin',                [VerificationPinController::class, 'verifyPin'])->middleware('throttle:otp');
 });

@@ -5,6 +5,7 @@ import api from "@/lib/axios";
 import { getTodayISO, isPastDate, isPastTimeToday, isPastDateTime } from "@/lib/dateTimeUtils";
 
 export default function Step2Equipment({
+  identity,
   equipmentCategory, setEquipmentCategory,
   filteredCatalog,
   selectedItems, handleEquipmentToggle,
@@ -15,6 +16,9 @@ export default function Step2Equipment({
   wishesToExtend = false, setWishesToExtend,
   isPinVerified = false, setIsPinVerified,
   setShowPinModal,
+  setPinModalMeta,
+  opHours: propOpHours,
+  pinRules: propPinRules,
   handleEquipmentSubmit,
   onBack,
 }) {
@@ -27,16 +31,27 @@ export default function Step2Equipment({
   const currentGridItems = catalogList.slice(startIndex, startIndex + itemsPerPage);
   const totalSelectedCount = (selectedItems || []).reduce((sum, id) => sum + (itemQuantities[id] || 1), 0);
 
-  const [opHours, setOpHours] = useState(null);
+  const [opHours, setOpHours] = useState(propOpHours || null);
+  const [pinRules, setPinRules] = useState(propPinRules || null);
 
   useEffect(() => {
-    api.get("/public/operating-hours")
-      .catch(() => api.get("/admin/operating-hours"))
-      .then(res => {
-        if (res?.data) setOpHours(res.data);
-      })
-      .catch(() => {});
-  }, []);
+    if (propOpHours) setOpHours(propOpHours);
+  }, [propOpHours]);
+
+  useEffect(() => {
+    if (propPinRules) setPinRules(propPinRules);
+  }, [propPinRules]);
+
+  useEffect(() => {
+    if (!propOpHours) {
+      api.get("/public/operating-hours")
+        .catch(() => api.get("/admin/operating-hours"))
+        .then(res => {
+          if (res?.data) setOpHours(res.data);
+        })
+        .catch(() => {});
+    }
+  }, [propOpHours]);
 
   const formatTime12 = (tStr) => {
     if (!tStr) return "";
@@ -430,17 +445,51 @@ export default function Step2Equipment({
               const kioskOpen = opHours?.equipment_open?.substring(0, 5) || "08:00";
               const kioskClose = opHours?.equipment_close?.substring(0, 5) || "17:00";
               const isOutside = startTimeVal < kioskOpen || endTimeVal > kioskClose;
+              const requiresPinForOutside = (pinRules?.requirePinOutsideHours !== false) && isOutside;
 
               if (isOutside) {
                 return (
-                  <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-bold space-y-1">
-                    <div className="flex items-center gap-1.5 text-amber-800">
-                      <AlertTriangle size={15} className="text-amber-600 shrink-0" />
-                      <span>Kiosk Hours Notice ({formatTime12(kioskOpen)} - {formatTime12(kioskClose)})</span>
+                  <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200/80 text-amber-900 text-xs font-bold space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 text-amber-800">
+                        <AlertTriangle size={15} className="text-amber-600 shrink-0" />
+                        <span className="font-extrabold">Outside Campus Office Hours ({formatTime12(kioskOpen)} - {formatTime12(kioskClose)})</span>
+                      </div>
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-200 text-amber-900 uppercase">
+                        PIN Required
+                      </span>
                     </div>
-                    <p className="text-[10.5px] text-amber-800 font-medium leading-snug">
-                      Selected return time ({formatTime12(endTimeVal)}) is outside standard kiosk hours. You must check <strong>"Wish to Extend Return Borrowing"</strong> and verify the AVR Head PIN to proceed.
+                    <p className="text-[11px] text-amber-800 font-medium leading-snug">
+                      Selected borrowing/return time (<strong>{formatTime12(startTimeVal)} - {formatTime12(endTimeVal)}</strong>) is outside official campus hours.
+                      {requiresPinForOutside ? " An AVR Head / Admin Verification PIN is required for both internal and external users." : ""}
                     </p>
+                    {requiresPinForOutside && (
+                      <div className="pt-1.5 border-t border-amber-200/60 flex items-center justify-between gap-2">
+                        {isPinVerified ? (
+                          <div className="flex items-center gap-1.5 text-emerald-700 font-extrabold text-xs">
+                            <Check size={16} className="text-emerald-700" />
+                            <span>AVR Head PIN Verified for Outside Hours</span>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (setPinModalMeta) {
+                                setPinModalMeta({
+                                  title: "Outside Office Hours PIN",
+                                  description: `Selected borrowing/return time (${formatTime12(startTimeVal)} - ${formatTime12(endTimeVal)}) is outside official campus hours (${formatTime12(kioskOpen)} - ${formatTime12(kioskClose)}). AVR Head / Admin Verification PIN is required for authorization.`,
+                                });
+                              }
+                              setShowPinModal && setShowPinModal(true);
+                            }}
+                            className="w-full py-2 px-3 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs shadow-xs transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                          >
+                            <Clock size={14} />
+                            <span>Verify AVR Head PIN Now</span>
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
                 );
               }
@@ -478,7 +527,15 @@ export default function Step2Equipment({
                       </div>
                       <button
                         type="button"
-                        onClick={() => setShowPinModal && setShowPinModal(true)}
+                        onClick={() => {
+                          if (setPinModalMeta) {
+                            setPinModalMeta({
+                              title: "Multi-Day Return Extension PIN",
+                              description: "Next-day or extended equipment returns require AVR Head / Admin Verification PIN to proceed.",
+                            });
+                          }
+                          setShowPinModal && setShowPinModal(true);
+                        }}
                         className="w-full py-2 px-3 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs shadow-xs transition-all cursor-pointer flex items-center justify-center gap-1.5"
                       >
                         <Clock size={14} />
@@ -510,27 +567,38 @@ export default function Step2Equipment({
           <span>Back to Requester Role</span>
         </Button>
 
-        <div className="flex flex-col items-end gap-1">
-          <Button
-            type="button"
-            disabled={
-              !selectedItems ||
-              selectedItems.length === 0 ||
-              isPastDateTime(currentDate, startTimeVal) ||
-              ((wishesToExtend || endTimeVal > (opHours?.equipment_close?.substring(0, 5) || "17:00") || startTimeVal < (opHours?.equipment_open?.substring(0, 5) || "08:00")) && !isPinVerified)
-            }
-            onClick={handleEquipmentSubmit}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-5 rounded-xl font-extrabold text-xs flex items-center gap-2 shadow-md disabled:opacity-50 cursor-pointer"
-          >
-            <span>Next: Fill Details ({totalSelectedCount} items selected)</span>
-            <ChevronRight size={16} />
-          </Button>
-          {wishesToExtend && !isPinVerified ? (
-            <span className="text-[10px] font-bold text-rose-600">
-              Verify AVR Head PIN to proceed with extended borrowing
-            </span>
-          ) : null}
-        </div>
+        {(() => {
+          const kioskOpen = opHours?.equipment_open?.substring(0, 5) || "08:00";
+          const kioskClose = opHours?.equipment_close?.substring(0, 5) || "17:00";
+          const isOutside = startTimeVal < kioskOpen || endTimeVal > kioskClose;
+          const requiresPinForOutside = (pinRules?.requirePinOutsideHours !== false) && isOutside;
+          const requiresPin = wishesToExtend || requiresPinForOutside || (pinRules?.enableExternalEquipment !== false && identity === "external");
+          const isBlocked = requiresPin && !isPinVerified;
+
+          return (
+            <div className="flex flex-col items-end gap-1">
+              <Button
+                type="button"
+                disabled={
+                  !selectedItems ||
+                  selectedItems.length === 0 ||
+                  isPastDateTime(currentDate, startTimeVal) ||
+                  isBlocked
+                }
+                onClick={handleEquipmentSubmit}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-5 rounded-xl font-extrabold text-xs flex items-center gap-2 shadow-md disabled:opacity-50 cursor-pointer"
+              >
+                <span>Next: Fill Details ({totalSelectedCount} items selected)</span>
+                <ChevronRight size={16} />
+              </Button>
+              {isBlocked ? (
+                <span className="text-[10px] font-bold text-rose-600">
+                  Verify AVR Head PIN to proceed with requisition
+                </span>
+              ) : null}
+            </div>
+          );
+        })()}
       </div>
     </div>
   );

@@ -14,6 +14,8 @@
     $requestorName = $booking->requestor_name ?? $booking->filer_name ?? 'Requestor';
     $ref = $refCode ?? ($booking->reference_code ?? 'TRK-FSUU');
     $itemType = ($type ?? 'venue') === 'venue' ? 'venue reservation' : 'equipment borrowing';
+    $baseUrl = rtrim(config('app.frontend_url') ?: env('FRONTEND_URL', 'http://localhost:5173'), '/');
+    $trackUrl = $baseUrl . '/track?tracking=' . urlencode($ref);
 @endphp
 
 @if(($type ?? 'venue') === 'equipment' && ($status ?? '') === 'approved')
@@ -41,7 +43,7 @@ Status     : {{ ucfirst($status ?? 'pending') }}<br>
 ----------------------------------------
 </div>
 
-<p>You may track your request status here : {{ rtrim(config('app.frontend_url', env('FRONTEND_URL', 'http://localhost:5173')), '/') }}/track</p>
+<p>You may track your request status here: <a href="{{ $trackUrl }}">{{ $trackUrl }}</a></p>
 
 <p>If you have any questions or require assistance, please contact the System Administrator.</p>
 

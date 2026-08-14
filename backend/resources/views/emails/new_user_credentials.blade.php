@@ -14,7 +14,7 @@
     $adminName = $user->name ?? 'User';
     $officeNameVal = is_object($user->office) ? ($user->office->name ?? 'FSUU Main') : ($user->office_name ?? ($user->office ?? 'FSUU Main'));
     $roleNameVal = is_object($user->role) ? ($user->role->name ?? 'Staff') : (string)($user->role ?? 'Staff');
-    $baseUrl = rtrim(config('app.frontend_url', env('FRONTEND_URL', 'http://localhost:5173')), '/');
+    $baseUrl = rtrim(config('app.frontend_url') ?: env('FRONTEND_URL', 'http://localhost:5173'), '/');
     $activationUrl = !empty($user->invite_token) ? $baseUrl . '/activate/' . $user->invite_token : $baseUrl . '/login';
 @endphp
 
@@ -27,13 +27,13 @@ Assigned Branch Office : {{ $officeNameVal }}<br>
 Role : {{ ucfirst($roleNameVal) }}
 </div>
 
-<p>Please click the link below to activate your account and set up your Full Name and Password:</p>
+<p>Please click the button below to activate your account and set up your Full Name and Password:</p>
 
 <p><a href="{{ $activationUrl }}" style="display: inline-block; padding: 10px 18px; background-color: #2563eb; color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: bold;">Activate Your Account</a></p>
 
-<p>Or copy this link to your browser: {{ $activationUrl }}</p>
+<p>Or copy this link into your browser: <a href="{{ $activationUrl }}">{{ $activationUrl }}</a></p>
 
-<p>Security Notice: For security purposes, please log in and update your password upon your initial sign in. Do not share your login credentials with others</p>
+<p>Security Notice: For security purposes, please log in and update your password upon your initial sign in. Do not share your login credentials with others.</p>
 
 <p>If you have any questions or require assistance, please contact the System Administrator.</p>
 

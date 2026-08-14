@@ -20,12 +20,19 @@ const VENUE_STEPS = [
   { title: "UPLOAD & SUBMIT", subtitle: "Upload & submit" },
 ];
 
-
 export default function VenueBooking() {
   const [activeStep, setActiveStep] = useState(1);
   const [completedSteps, setCompletedSteps] = useState([]);
   const [venues, setVenues] = useState([]);
   const [venuesLoading, setVenuesLoading] = useState(true);
+
+  // Operating Hours & PIN Rules
+  const [opHours, setOpHours] = useState(null);
+  const [pinRules, setPinRules] = useState(null);
+  const [pinModalMeta, setPinModalMeta] = useState({
+    title: "Verification PIN Required",
+    description: "AVR Head / Admin PIN Required",
+  });
 
   // Clean public venue localStorage items on mount
   useEffect(() => {
@@ -70,6 +77,23 @@ export default function VenueBooking() {
   const [endTime, setEndTime] = useState("10:00");
   const [existingBookings, setExistingBookings] = useState([]);
   const [equipmentCatalog, setEquipmentCatalog] = useState([]);
+
+  useEffect(() => {
+    // Fetch operating hours
+    api.get("/public/operating-hours")
+      .catch(() => api.get("/admin/operating-hours"))
+      .then(res => {
+        if (res?.data) setOpHours(res.data);
+      })
+      .catch(() => {});
+
+    // Fetch verification pin rules
+    api.get("/public/verification-pin-settings")
+      .then(res => {
+        if (res?.data) setPinRules(res.data);
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     const params = new URLSearchParams();
@@ -149,16 +173,58 @@ export default function VenueBooking() {
     setSelectedDate(dateStr);
   };
 
+  const formatTime12 = (tStr) => {
+    if (!tStr) return "";
+    const [h, m] = tStr.split(":").map(Number);
+    const ampm = h >= 12 ? "PM" : "AM";
+    const h12 = h % 12 || 12;
+    return `${h12}:${String(m || 0).padStart(2, '0')} ${ampm}`;
+  };
+
   const handleStep2Next = () => {
     if (isPastDateTime(selectedDate, startTime)) {
       alert("Selected booking date or time has already passed. Please select a future date and time.");
       return;
     }
 
-    const isMultiDay = selectedEndDate && selectedEndDate > selectedDate;
-    const requiresPin = identity === "external" || isMultiDay;
+    const venueOpen = opHours?.venue_open?.substring(0, 5) || "07:30";
+    const venueClose = opHours?.venue_close?.substring(0, 5) || "17:00";
+    const isOutsideHours = (startTime && startTime < venueOpen) || (endTime && endTime > venueClose);
+    const isMultiDay = Boolean(selectedEndDate && selectedEndDate > selectedDate);
+
+    // Evaluate trigger rules
+    const outsideRequiresPin = (pinRules?.requirePinOutsideHours !== false) && isOutsideHours;
+    const multiDayRequiresPin = (pinRules?.requirePinMultiDayVenue !== false) && isMultiDay;
+    const externalRequiresPin = (pinRules?.enableExternalVenue !== false) && identity === "external";
+    const studentMandatory = !!pinRules?.requirePinForStudent;
+
+    const requiresPin = (pinRules?.isEnabled !== false) && (
+      outsideRequiresPin || multiDayRequiresPin || externalRequiresPin || studentMandatory
+    );
 
     if (requiresPin && !isPinVerified) {
+      if (outsideRequiresPin) {
+        setPinModalMeta({
+          title: "Outside Office Hours PIN",
+          description: `Selected booking time (${formatTime12(startTime)} - ${formatTime12(endTime)}) is outside official campus hours (${formatTime12(venueOpen)} - ${formatTime12(venueClose)}). AVR Head / Admin Verification PIN is required for authorization.`,
+        });
+      } else if (multiDayRequiresPin) {
+        setPinModalMeta({
+          title: "Multi-Day Reservation PIN",
+          description: "This reservation spans multiple days. AVR Head / Admin Verification PIN is required to authorize multi-day venue occupancy.",
+        });
+      } else if (externalRequiresPin) {
+        setPinModalMeta({
+          title: "External Client Verification",
+          description: "External client reservations require AVR Head / Administrative clearance PIN to proceed.",
+        });
+      } else {
+        setPinModalMeta({
+          title: "Verification PIN Required",
+          description: "AVR Head / Administrative authorization PIN is required to complete this reservation.",
+        });
+      }
+
       setShowPinModal(true);
       setPinError(false);
       setPinInput("");
@@ -249,52 +315,41 @@ export default function VenueBooking() {
         formData.append('endorsement_file', endorsementFile);
       }
 
-      const { data } = await api.post(endpoint, formData, {
+      const res = await api.post(endpoint, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
-      const ref = data.tracking_number?.reference_code || data.reference_code || (data.id ? `TRK-AVR${data.id}` : 'TRK-SUCCESS');
-      setReferenceCode(ref);
-      window.dispatchEvent(new Event("venue_bookings_updated"));
 
+      const trackingNum = res.data?.tracking_number?.tracking_number
+        || res.data?.tracking_number
+        || res.data?.reference_code
+        || res.data?.id
+        || 'FSUU-REQ-PENDING';
+
+      setReferenceCode(trackingNum);
       setShowSuccess(true);
-    } catch (error) {
-      const errObj = error.response?.data?.errors;
-      const msg = error.response?.data?.message || (errObj ? Object.values(errObj).flat().join(' ') : 'Reservation submission failed. Please check form inputs.');
-      alert("Failed to submit: " + msg);
+    } catch (err) {
+      alert(err.response?.data?.message || 'Submission failed. Please check form details.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div className={`flex flex-col items-center w-full mx-auto relative animate-in fade-in slide-in-from-bottom-5 duration-700 pb-12 ${activeStep === 2 ? "max-w-7xl" : "max-w-4xl"}`}>
-
-      {/* Header Title */}
-      <div className="text-center mb-8 w-full flex flex-col items-center justify-center">
-        <h1 className="text-3xl sm:text-4xl font-black text-slate-900 mb-2 tracking-tight text-center">
-          Venue Booking
-        </h1>
-        <p className="text-slate-500 font-medium max-w-md sm:max-w-lg mx-auto text-xs sm:text-sm leading-relaxed text-center tracking-normal">
-          Book AVR Auditoriums and meeting venues with real-time schedule checks.
-        </p>
+    <div className="w-full flex flex-col items-center">
+      {/* 4-Step Timeline Component */}
+      <div className="w-full max-w-4xl mb-6">
+        <KioskTimeline
+          steps={VENUE_STEPS}
+          currentStep={activeStep}
+          completedSteps={completedSteps}
+        />
       </div>
 
-      {/* Horizontal Process Timeline */}
-      <KioskTimeline
-        steps={VENUE_STEPS}
-        activeStep={activeStep}
-        onStepClick={(step) => setActiveStep(step)}
-        completedSteps={completedSteps}
-      />
-
-      {/* Active Step Content Container */}
-      <div className="w-full bg-white border border-slate-200/80 rounded-3xl shadow-xs overflow-hidden">
-
+      <div className="w-full max-w-5xl">
         {activeStep === 1 && (
           <Step1Identity
-            identity={identity}
-            handleIdentitySelect={handleIdentitySelect}
-            onNext={() => setActiveStep(2)}
+            selectedIdentity={identity}
+            onSelectIdentity={handleIdentitySelect}
           />
         )}
 
@@ -320,6 +375,12 @@ export default function VenueBooking() {
               timeEnd={endTime}
               setTimeEnd={setEndTime}
               existingBookings={existingBookings}
+              opHours={opHours}
+              pinRules={pinRules}
+              isPinVerified={isPinVerified}
+              setIsPinVerified={setIsPinVerified}
+              setShowPinModal={setShowPinModal}
+              setPinModalMeta={setPinModalMeta}
               onBack={() => setActiveStep(1)}
               onNext={handleStep2Next}
             />
@@ -377,7 +438,8 @@ export default function VenueBooking() {
           if (!completedSteps.includes(2)) setCompletedSteps([...completedSteps, 2]);
           setActiveStep(3);
         }}
-        description="AVR Head PIN Required"
+        title={pinModalMeta.title}
+        description={pinModalMeta.description}
       />
 
       {/* Confirmation Success Modal */}
@@ -401,20 +463,28 @@ export default function VenueBooking() {
               </p>
             </div>
 
-            <div className="pt-2">
-              <button
-                type="button"
-                onClick={() => { window.location.href = "/"; }}
-                className="w-full py-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs shadow-md cursor-pointer transition-all hover:scale-[1.02]"
+            <div className="p-3 bg-blue-50/80 border border-blue-200/80 rounded-2xl space-y-1">
+              <span className="text-[10px] uppercase tracking-wider font-extrabold text-blue-600">Tracking Reference Code</span>
+              <p className="text-xl font-black text-blue-950 font-mono select-all tracking-wider">{referenceCode}</p>
+            </div>
+
+            <div className="pt-2 flex flex-col gap-2">
+              <Link
+                to={`/track?tracking=${encodeURIComponent(referenceCode)}`}
+                className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-xs font-extrabold shadow-lg transition-all flex items-center justify-center gap-2"
               >
-                Done
-              </button>
+                <span>Track Booking Status Now</span>
+              </Link>
+              <Link
+                to="/"
+                className="w-full py-3 border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-2xl text-xs font-bold transition-all text-center"
+              >
+                Return to Homepage
+              </Link>
             </div>
           </div>
         </div>
       )}
-
     </div>
   );
 }
-
