@@ -33,6 +33,7 @@ RUN composer install --no-dev --optimize-autoloader --no-interaction
 
 # Ensure .env file exists and setup permissions
 RUN cp .env.example .env && \
+    php artisan key:generate --force && \
     touch /var/www/database/database.sqlite && \
     chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache /var/www/database /var/www/.env && \
     chmod -R 777 /var/www/storage /var/www/bootstrap/cache /var/www/database /var/www/.env
@@ -51,5 +52,5 @@ ENV APP_ENV=production \
 # Expose port
 EXPOSE 80
 
-CMD ["sh", "-c", "sed -i 's/PORT_PLACEHOLDER/'\"${PORT:-80}\"'/g' /etc/nginx/sites-available/default && touch /var/www/database/database.sqlite && chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache /var/www/database && chmod -R 777 /var/www/storage /var/www/bootstrap/cache /var/www/database && composer dump-autoload -o && if [ -z \"$APP_KEY\" ]; then php artisan key:generate --force; fi && php artisan config:clear && php artisan route:clear && php-fpm -D && php artisan migrate:fresh --force --seed && nginx -g 'daemon off;'"]
+CMD ["sh", "-c", "sed -i 's/PORT_PLACEHOLDER/'\"${PORT:-80}\"'/g' /etc/nginx/sites-available/default && touch /var/www/database/database.sqlite && chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache /var/www/database /var/www/.env && chmod -R 777 /var/www/storage /var/www/bootstrap/cache /var/www/database /var/www/.env && composer dump-autoload -o && php artisan config:clear && php artisan route:clear && php-fpm -D && php artisan migrate:fresh --force --seed && nginx -g 'daemon off;'"]
 
