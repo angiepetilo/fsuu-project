@@ -50,6 +50,7 @@ ENV APP_ENV=production \
     SESSION_DRIVER=file \
     QUEUE_CONNECTION=sync \
     FRONTEND_URL=https://fsuu-project.vercel.app \
+    RESEND_API_KEY="" \
     MAIL_MAILER=smtp \
     MAIL_HOST=smtp.gmail.com \
     MAIL_PORT=465 \
