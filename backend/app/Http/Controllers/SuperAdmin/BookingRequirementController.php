@@ -17,9 +17,12 @@ class BookingRequirementController extends Controller
     {
         $this->ensureDefaultRequirements();
 
-        return response()->json(
-            BookingRequirement::orderBy('sort_order')->orderBy('id')->get()
-        );
+        $reqs = BookingRequirement::orderBy('sort_order')->orderBy('id')->get();
+        $unique = $reqs->unique(function ($item) {
+            return strtolower(trim($item->label));
+        })->values();
+
+        return response()->json($unique);
     }
 
     /**
@@ -38,7 +41,11 @@ class BookingRequirementController extends Controller
             });
         }
 
-        return response()->json($query->get());
+        $all = $query->get()->unique(function ($item) {
+            return strtolower(trim($item->label));
+        })->values();
+
+        return response()->json($all);
     }
 
     public function store(Request $request): JsonResponse
@@ -85,36 +92,50 @@ class BookingRequirementController extends Controller
     }
 
     /**
-     * Helper to populate default initial requirements if database is empty
+     * Helper to populate default initial requirements if database is empty and purge any duplicates
      */
     private function ensureDefaultRequirements(): void
     {
         try {
-            if (BookingRequirement::count() === 0) {
-                $office = Office::first();
-                if (!$office) {
-                    $office = Office::create([
-                        'name'     => 'General Administration',
-                        'slug'     => 'general-administration',
-                        'location' => 'Main Building',
-                    ]);
-                }
+            $office = Office::first();
+            if (!$office) {
+                $office = Office::create([
+                    'name'     => 'General Administration',
+                    'slug'     => 'general-administration',
+                    'location' => 'Main Building',
+                ]);
+            }
 
-                BookingRequirement::create([
+            BookingRequirement::firstOrCreate(
+                ['label' => 'Formal request letter signed and endorsed by the Dean of Student Affairs (DSA)'],
+                [
                     'office_id'      => $office->id,
                     'classification' => 'Organization Purposes',
-                    'label'          => 'Formal request letter signed and endorsed by the Dean of Student Affairs (DSA)',
                     'description'    => 'Mandatory endorsement for all student organization venue activities.',
                     'sort_order'     => 1,
-                ]);
+                ]
+            );
 
-                BookingRequirement::create([
+            BookingRequirement::firstOrCreate(
+                ['label' => 'Formal request letter signed and endorsed by the VP for Academic Affairs (VP Acad)'],
+                [
                     'office_id'      => $office->id,
                     'classification' => 'Academic Purposes',
-                    'label'          => 'Formal request letter signed and endorsed by the VP for Academic Affairs (VP Acad)',
                     'description'    => 'Mandatory endorsement for academic events and examinations.',
                     'sort_order'     => 2,
-                ]);
+                ]
+            );
+
+            // Clean up any duplicate records with identical labels
+            $all = BookingRequirement::orderBy('id')->get();
+            $seen = [];
+            foreach ($all as $item) {
+                $key = strtolower(trim($item->label));
+                if (isset($seen[$key])) {
+                    $item->delete();
+                } else {
+                    $seen[$key] = true;
+                }
             }
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::error('ensureDefaultRequirements failed: ' . $e->getMessage());

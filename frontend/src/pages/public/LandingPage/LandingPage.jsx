@@ -23,6 +23,10 @@ export default function LandingPage() {
       .finally(() => setLoading(false));
   }, []);
 
+  const uniqueRequirements = requirements.filter(
+    (req, idx, arr) => arr.findIndex((r) => r.label?.trim()?.toLowerCase() === req.label?.trim()?.toLowerCase()) === idx
+  );
+
   return (
     <div className="w-full text-[#0f172a] font-sans relative">
 
@@ -44,13 +48,13 @@ export default function LandingPage() {
           <div className="py-8 text-center text-slate-400 text-xs font-semibold">
             <Loader2 className="animate-spin inline mr-2" size={16} /> Loading booking requirements...
           </div>
-        ) : requirements.length === 0 ? (
+        ) : uniqueRequirements.length === 0 ? (
           <div className="bg-slate-50 border border-slate-200/80 p-5 rounded-xl text-center text-xs text-slate-500 font-medium">
             No specific venue booking requirements configured.
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            {requirements.map((req, idx) => (
+            {uniqueRequirements.map((req, idx) => (
               <div key={req.id || idx} className="bg-slate-50 border border-slate-200/80 p-5 rounded-xl transition-all duration-200 hover:border-slate-300 hover:shadow-xs">
                 <p className="text-sm font-bold text-slate-900 mb-2 leading-snug">
                   {req.label}
