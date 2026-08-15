@@ -354,37 +354,32 @@ export default function VenueBooking() {
         )}
 
         {activeStep === 2 && (
-          venuesLoading ? (
-            <div className="p-10 text-center text-slate-400 text-xs font-semibold animate-pulse">
-              Loading available venues...
-            </div>
-          ) : (
-            <Step2Venue
-              identity={identity}
-              venueCategory={venueCategory}
-              setVenueCategory={setVenueCategory}
-              filteredVenues={filteredVenues}
-              selectedVenue={selectedVenue}
-              handleVenueSelect={handleVenueSelect}
-              selectedDate={selectedDate}
-              handleDateSelect={handleDateSelect}
-              selectedEndDate={selectedEndDate}
-              setSelectedEndDate={setSelectedEndDate}
-              timeStart={startTime}
-              setTimeStart={setStartTime}
-              timeEnd={endTime}
-              setTimeEnd={setEndTime}
-              existingBookings={existingBookings}
-              opHours={opHours}
-              pinRules={pinRules}
-              isPinVerified={isPinVerified}
-              setIsPinVerified={setIsPinVerified}
-              setShowPinModal={setShowPinModal}
-              setPinModalMeta={setPinModalMeta}
-              onBack={() => setActiveStep(1)}
-              onNext={handleStep2Next}
-            />
-          )
+          <Step2Venue
+            identity={identity}
+            venueCategory={venueCategory}
+            setVenueCategory={setVenueCategory}
+            filteredVenues={filteredVenues}
+            selectedVenue={selectedVenue}
+            handleVenueSelect={handleVenueSelect}
+            selectedDate={selectedDate}
+            handleDateSelect={handleDateSelect}
+            selectedEndDate={selectedEndDate}
+            setSelectedEndDate={setSelectedEndDate}
+            timeStart={startTime}
+            setTimeStart={setStartTime}
+            timeEnd={endTime}
+            setTimeEnd={setEndTime}
+            existingBookings={existingBookings}
+            opHours={opHours}
+            pinRules={pinRules}
+            isPinVerified={isPinVerified}
+            setIsPinVerified={setIsPinVerified}
+            setShowPinModal={setShowPinModal}
+            setPinModalMeta={setPinModalMeta}
+            onBack={() => setActiveStep(1)}
+            onNext={handleStep2Next}
+            venuesLoading={venuesLoading}
+          />
         )}
 
         {activeStep === 3 && (

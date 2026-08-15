@@ -349,38 +349,33 @@ export default function EquipmentBorrowing() {
         )}
 
         {activeStep === 2 && (
-          catalogLoading ? (
-            <div className="p-10 text-center text-slate-400 text-xs font-semibold animate-pulse">
-              Loading available equipment catalog...
-            </div>
-          ) : (
-            <Step2Equipment
-              identity={identity}
-              equipmentCategory={equipmentCategory}
-              setEquipmentCategory={setEquipmentCategory}
-              filteredCatalog={filteredCatalog}
-              selectedItems={selectedItems}
-              handleEquipmentToggle={handleEquipmentToggle}
-              itemQuantities={itemQuantities}
-              handleQuantityChange={handleQuantityChange}
-              isScoSelected={isScoSelected}
-              isAvrSelected={isAvrSelected}
-              startTime={startTime}
-              setStartTime={setStartTime}
-              endTime={endTime}
-              setEndTime={setEndTime}
-              wishesToExtend={wishesToExtend}
-              setWishesToExtend={setWishesToExtend}
-              isPinVerified={isPinVerified}
-              setIsPinVerified={setIsPinVerified}
-              setShowPinModal={setShowPinModal}
-              setPinModalMeta={setPinModalMeta}
-              opHours={opHours}
-              pinRules={pinRules}
-              handleEquipmentSubmit={handleEquipmentSubmit}
-              onBack={() => setActiveStep(1)}
-            />
-          )
+          <Step2Equipment
+            identity={identity}
+            equipmentCategory={equipmentCategory}
+            setEquipmentCategory={setEquipmentCategory}
+            filteredCatalog={filteredCatalog}
+            selectedItems={selectedItems}
+            handleEquipmentToggle={handleEquipmentToggle}
+            itemQuantities={itemQuantities}
+            handleQuantityChange={handleQuantityChange}
+            isScoSelected={isScoSelected}
+            isAvrSelected={isAvrSelected}
+            startTime={startTime}
+            setStartTime={setStartTime}
+            endTime={endTime}
+            setEndTime={setEndTime}
+            wishesToExtend={wishesToExtend}
+            setWishesToExtend={setWishesToExtend}
+            isPinVerified={isPinVerified}
+            setIsPinVerified={setIsPinVerified}
+            setShowPinModal={setShowPinModal}
+            setPinModalMeta={setPinModalMeta}
+            opHours={opHours}
+            pinRules={pinRules}
+            handleEquipmentSubmit={handleEquipmentSubmit}
+            onBack={() => setActiveStep(1)}
+            catalogLoading={catalogLoading}
+          />
         )}
 
         {activeStep === 3 && (

@@ -21,6 +21,7 @@ export default function Step2Equipment({
   pinRules: propPinRules,
   handleEquipmentSubmit,
   onBack,
+  catalogLoading = false,
 }) {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 4;

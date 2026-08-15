@@ -27,6 +27,7 @@ export default function Step2Venue({
   setPinModalMeta,
   onBack,
   onNext,
+  venuesLoading = false,
 }) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
