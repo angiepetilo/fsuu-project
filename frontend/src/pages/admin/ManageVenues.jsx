@@ -48,6 +48,31 @@ export default function ManageVenues() {
     setTimeout(() => setFeedback(null), 4000);
   };
 
+  const selectedOfficeId = context?.selectedOfficeId;
+  const selectedOfficeName = context?.selectedOffice || officeScope;
+
+  const filteredVenues = useMemo(() => {
+    if (!selectedOfficeId || selectedOfficeId === "all") return venues;
+    return venues.filter((v) => {
+      const offId = v.office_id || v.office?.id;
+      const offName = v.office?.name || v.office_name;
+      if (offId) return String(offId) === String(selectedOfficeId);
+      if (offName && selectedOfficeName && selectedOfficeName !== "All Offices") {
+        return offName.toLowerCase().includes(selectedOfficeName.toLowerCase());
+      }
+      return true;
+    });
+  }, [venues, selectedOfficeId, selectedOfficeName]);
+
+  useEffect(() => {
+    if (filteredVenues.length > 0) {
+      if (!selectedVenue || !filteredVenues.some((v) => v.id === selectedVenue.id)) {
+        setSelectedVenue(filteredVenues[0]);
+        setSetupForm((p) => ({ ...p, venueId: filteredVenues[0].id }));
+      }
+    }
+  }, [filteredVenues, selectedVenue]);
+
   const fetchVenues = async () => {
     setLoading(true);
     try {
@@ -323,7 +348,7 @@ export default function ManageVenues() {
 
         {/* Item 21: Embedded Availability Control Form */}
         <VenueScheduleForm
-          VENUES={venues}
+          VENUES={filteredVenues}
           selectedVenue={selectedVenue}
           setSelectedVenue={setSelectedVenue}
           setupForm={setupForm}
@@ -337,7 +362,7 @@ export default function ManageVenues() {
       {/* Item 22: Interactive Hourly Timeline Matrix Grid (Based on Selected Date) */}
       <TimeSlotMatrix
         selectedDate={setupForm.startDate}
-        items={venues.map((v) => ({
+        items={filteredVenues.map((v) => ({
           id: v.id,
           name: v.name,
           subtitle: v.location || (v.office?.name ? `${v.office.name}` : `Capacity: ${v.capacity || 100} pax`),
@@ -346,8 +371,8 @@ export default function ManageVenues() {
         schedules={venueSchedules}
         startHour={7}
         endHour={19}
-        title="Venue Daily Time-Slot Schedule Matrix"
-        emptyLabel="No venues found for this office"
+        title={`Venue Daily Time-Slot Schedule Matrix (${selectedOfficeName})`}
+        emptyLabel={`No venues found for ${selectedOfficeName}`}
       />
     </div>
   );

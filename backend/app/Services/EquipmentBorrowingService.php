@@ -96,11 +96,31 @@ class EquipmentBorrowingService
             if (isset($data['avr_venue_booking_id']) && $hasCol('avr_venue_booking_id')) {
                 $insertData['avr_venue_booking_id'] = $data['avr_venue_booking_id'];
             }
+            if (!empty($data['endorsement_url'])) {
+                if ($hasCol('endorsement_url')) $insertData['endorsement_url'] = $data['endorsement_url'];
+                if ($hasCol('endorsement_letter')) $insertData['endorsement_letter'] = $data['endorsement_url'];
+                if ($hasCol('endorsement_file')) $insertData['endorsement_file'] = $data['endorsement_url'];
+                if ($hasCol('file_path')) $insertData['file_path'] = $data['endorsement_url'];
+                if ($hasCol('attachment')) $insertData['attachment'] = $data['endorsement_url'];
+            }
 
             $borrowing = EquipmentBorrowing::forceCreate($insertData);
 
             if ($trackingId) {
                 DB::table('tracking_numbers')->where('id', $trackingId)->update(['reservation_id' => $borrowing->id]);
+            }
+
+            if (!empty($data['endorsement_url']) && \Illuminate\Support\Facades\Schema::hasTable('documents')) {
+                try {
+                    DB::table('documents')->insert([
+                        'reservation_type' => 'equipment_borrowing',
+                        'reservation_id'   => $borrowing->id,
+                        'file_path'        => $data['endorsement_url'],
+                        'document_type'    => 'endorsement_letter',
+                        'created_at'       => now(),
+                        'updated_at'       => now(),
+                    ]);
+                } catch (\Throwable $e) {}
             }
 
             foreach ($data['items'] ?? [] as $item) {

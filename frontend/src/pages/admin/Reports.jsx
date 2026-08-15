@@ -65,6 +65,61 @@ export default function Reports() {
     }
   };
 
+  const selectedOfficeId = context?.selectedOfficeId;
+  const selectedOfficeName = context?.selectedOffice || officeScope;
+
+  const filteredVenueBookings = useMemo(() => {
+    if (!selectedOfficeId || selectedOfficeId === "all") return venueBookings;
+    return venueBookings.filter(b => {
+      const offId = b.venue?.office_id || b.office_id || b.office?.id;
+      const offName = b.venue?.office?.name || b.office?.name || b.office_name;
+      if (offId) return String(offId) === String(selectedOfficeId);
+      if (offName && selectedOfficeName && selectedOfficeName !== "All Offices") {
+        return offName.toLowerCase().includes(selectedOfficeName.toLowerCase());
+      }
+      return true;
+    });
+  }, [venueBookings, selectedOfficeId, selectedOfficeName]);
+
+  const filteredEquipmentBorrowings = useMemo(() => {
+    if (!selectedOfficeId || selectedOfficeId === "all") return equipmentBorrowings;
+    return equipmentBorrowings.filter(eb => {
+      const offId = eb.office_id || eb.office?.id || eb.items?.[0]?.equipment_type?.office_id || eb.items?.[0]?.equipmentType?.office_id;
+      const offName = eb.office?.name || eb.office_name || eb.items?.[0]?.equipment_type?.office?.name;
+      if (offId) return String(offId) === String(selectedOfficeId);
+      if (offName && selectedOfficeName && selectedOfficeName !== "All Offices") {
+        return offName.toLowerCase().includes(selectedOfficeName.toLowerCase());
+      }
+      return true;
+    });
+  }, [equipmentBorrowings, selectedOfficeId, selectedOfficeName]);
+
+  const filteredInventoryItems = useMemo(() => {
+    if (!selectedOfficeId || selectedOfficeId === "all") return inventoryItems;
+    return inventoryItems.filter(item => {
+      const offId = item.office_id || item.office?.id;
+      const offName = item.office?.name || item.office_name;
+      if (offId) return String(offId) === String(selectedOfficeId);
+      if (offName && selectedOfficeName && selectedOfficeName !== "All Offices") {
+        return offName.toLowerCase().includes(selectedOfficeName.toLowerCase());
+      }
+      return true;
+    });
+  }, [inventoryItems, selectedOfficeId, selectedOfficeName]);
+
+  const filteredRuleViolations = useMemo(() => {
+    if (!selectedOfficeId || selectedOfficeId === "all") return ruleViolations;
+    return ruleViolations.filter(v => {
+      const offId = v.office_id || v.office?.id;
+      const offName = v.office?.name || v.office_name;
+      if (offId) return String(offId) === String(selectedOfficeId);
+      if (offName && selectedOfficeName && selectedOfficeName !== "All Offices") {
+        return offName.toLowerCase().includes(selectedOfficeName.toLowerCase());
+      }
+      return true;
+    });
+  }, [ruleViolations, selectedOfficeId, selectedOfficeName]);
+
   useEffect(() => {
     fetchReportsData();
     const handleInvUpdate = () => fetchReportsData();
@@ -84,9 +139,9 @@ export default function Reports() {
     let filename = `FSUU_${activeTab.toUpperCase()}_REPORT_${new Date().toISOString().slice(0, 10)}.csv`;
 
     if (activeTab === "booking_borrowing") {
-      csvContent += "=== VENUE BOOKING REPORTS ===\n";
+      csvContent += `=== VENUE BOOKING REPORTS (${selectedOfficeName}) ===\n`;
       csvContent += "Track Number,Requestor Name,Venue,Date of Usage,Time,Department / Office,Purpose,Remarks / Outcome\n";
-      venueBookings.forEach((b) => {
+      filteredVenueBookings.forEach((b) => {
         const track = b.tracking_number?.reference_code || (typeof b.tracking_number === 'string' ? b.tracking_number : '') || b.reference_code || `TRK-VB-${b.id}`;
         const name = (b.filer_name || b.requestor || "Filer").replace(/"/g, '""');
         const venue = (b.venue_name || b.venue || "AVR").replace(/"/g, '""');
@@ -99,9 +154,9 @@ export default function Reports() {
         csvContent += `"${track}","${name}","${venue}","${date}","${time}","${dept}","${purpose}","${remarks}"\n`;
       });
 
-      csvContent += "\n=== EQUIPMENT BORROWING REPORTS ===\n";
+      csvContent += `\n=== EQUIPMENT BORROWING REPORTS (${selectedOfficeName}) ===\n`;
       csvContent += "Track Number,Requestor Name,Equipment,Quantity,Date of Usage,Department / Office,Purpose,Remarks / Outcome\n";
-      equipmentBorrowings.forEach((eb) => {
+      filteredEquipmentBorrowings.forEach((eb) => {
         const track = eb.tracking_number?.reference_code || (typeof eb.tracking_number === 'string' ? eb.tracking_number : '') || eb.reference_code || `TRK-EB-${eb.id}`;
         const name = (eb.filer_name || eb.requestor || "Borrower").replace(/"/g, '""');
         const equip = (eb.equipment_name || eb.equipment || "Equipment Item").replace(/"/g, '""');
@@ -126,11 +181,11 @@ export default function Reports() {
         else deptMap[d].equip++;
       };
 
-      venueBookings
+      filteredVenueBookings
         .filter((b) => Boolean(b.has_damage) || (b.status || "").toLowerCase() === "damaged" || Boolean(b.violation))
         .forEach((b) => addBreach(b.program_office || b.department, "venue"));
 
-      equipmentBorrowings
+      filteredEquipmentBorrowings
         .filter((eb) => Boolean(eb.has_damage) || (eb.status || "").toLowerCase() === "damaged" || (eb.status || "").toLowerCase() === "lost" || Boolean(eb.is_late))
         .forEach((eb) => addBreach(eb.program_office || eb.department, eb.is_late ? "late" : "equip"));
 
@@ -138,12 +193,12 @@ export default function Reports() {
         const dLogs = JSON.parse(localStorage.getItem("fsuu_damaged_equipment_log") || "[]");
         dLogs.forEach((d) => {
           let dept = d.department || d.program_office || d.dept;
-          if (!dept && d.borrow_id && Array.isArray(equipmentBorrowings)) {
-            const matchEB = equipmentBorrowings.find(eb => String(eb.id) === String(d.borrow_id));
+          if (!dept && d.borrow_id && Array.isArray(filteredEquipmentBorrowings)) {
+            const matchEB = filteredEquipmentBorrowings.find(eb => String(eb.id) === String(d.borrow_id));
             if (matchEB) dept = matchEB.program_office || matchEB.department || matchEB.dept;
           }
-          if (!dept && d.booking_id && Array.isArray(venueBookings)) {
-            const matchVB = venueBookings.find(vb => String(vb.id) === String(d.booking_id));
+          if (!dept && d.booking_id && Array.isArray(filteredVenueBookings)) {
+            const matchVB = filteredVenueBookings.find(vb => String(vb.id) === String(d.booking_id));
             if (matchVB) dept = matchVB.program_office || matchVB.department || matchVB.dept;
           }
           addBreach(dept || "ASP", "equip");
@@ -152,11 +207,12 @@ export default function Reports() {
 
       Object.entries(deptMap).forEach(([dept, counts]) => {
         const total = counts.venue + counts.equip + counts.late;
-        csvContent += `"${dept.replace(/"/g, '""')}","${officeScope}","${counts.venue}","${counts.equip}","${counts.late}","${total}"\n`;
+        csvContent += `"${dept.replace(/"/g, '""')}","${selectedOfficeName}","${counts.venue}","${counts.equip}","${counts.late}","${total}"\n`;
       });
     } else if (activeTab === "inventory") {
+      csvContent += `=== EQUIPMENT INVENTORY STOCK TABLE (${selectedOfficeName}) ===\n`;
       csvContent += "Item Code,Category,Expected Total,Present Available,Released,Damaged,Lost,Notes\n";
-      inventoryItems.forEach((item, idx) => {
+      filteredInventoryItems.forEach((item, idx) => {
         const code = `EQ-00${idx + 1}`;
         const cat = (item.eq_name || item.name || item.category || item.eq_type || "Equipment").replace(/"/g, '""');
         const expected = item.calculated_total ?? item.total_quantity ?? 0;
@@ -310,8 +366,8 @@ export default function Reports() {
       {/* Render Active Tab Component */}
       {activeTab === "booking_borrowing" && (
         <BookingBorrowingReportTab
-          venueBookings={venueBookings}
-          equipmentBorrowings={equipmentBorrowings}
+          venueBookings={filteredVenueBookings}
+          equipmentBorrowings={filteredEquipmentBorrowings}
           setShowPdfModal={setShowPdfModal}
           loading={loading}
         />
@@ -319,16 +375,16 @@ export default function Reports() {
 
       {activeTab === "breaches" && (
         <BreachesTab
-          ruleViolations={ruleViolations}
-          venueBookings={venueBookings}
-          equipmentBorrowings={equipmentBorrowings}
-          officeScope={officeScope}
+          ruleViolations={filteredRuleViolations}
+          venueBookings={filteredVenueBookings}
+          equipmentBorrowings={filteredEquipmentBorrowings}
+          officeScope={selectedOfficeName}
         />
       )}
 
       {activeTab === "inventory" && (
         <EquipmentStockTab
-          filteredInventory={inventoryItems}
+          filteredInventory={filteredInventoryItems}
           setInventoryItems={setInventoryItems}
           loading={loading}
           fetchReportsData={fetchReportsData}

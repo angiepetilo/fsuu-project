@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { FileText, Eye, Upload, CheckCircle, FileCheck, HardDrive, ExternalLink } from "lucide-react";
+import { resolveStorageUrl } from "@/lib/utils";
 
 export default function VenueBookingInfo({
   selected,
@@ -58,24 +59,23 @@ export default function VenueBookingInfo({
   };
 
   const getDocumentUrl = () => {
-    if (staffUploadUrl) return staffUploadUrl;
+    if (staffUploadUrl) return resolveStorageUrl(staffUploadUrl);
+
+    // Prioritize newest uploaded document from documents relation, then direct fields
+    const latestDoc = Array.isArray(selected.documents) && selected.documents.length > 0
+      ? (selected.documents.find((d) => (d.document_type || d.type || "").toLowerCase().includes("endorsement")) || selected.documents[selected.documents.length - 1])?.file_path
+      : null;
 
     const docPath =
+      latestDoc ||
       selected.endorsement_url ||
       selected.endorsement_letter_url ||
       selected.endorsement_letter ||
       selected.endorsement_file ||
       selected.file_path ||
-      selected.attachment ||
-      selected.documents?.find((d) => (d.document_type || d.type || "").toLowerCase().includes("endorsement"))?.file_path ||
-      selected.documents?.[0]?.file_path;
+      selected.attachment;
 
-    if (!docPath || docPath === "#") return null;
-    if (typeof docPath === "string" && (docPath.startsWith("http") || docPath.startsWith("data:"))) return docPath;
-
-    const apiBase = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
-    const cleanPath = String(docPath).replace(/^\/?storage\//, "");
-    return `${apiBase}/storage/${cleanPath}`;
+    return resolveStorageUrl(docPath);
   };
 
   const docUrl = getDocumentUrl();

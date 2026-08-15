@@ -76,13 +76,12 @@ export default function Step3Details({
             <FileText size={18} />
           </div>
           <div>
-            <h4 className="font-extrabold text-sm">AVR Resource Center Booking Form</h4>
+            <h4 className="font-extrabold text-sm">Booking Form</h4>
             <p className="text-xs opacity-80">
               Target Venue: <span className="font-bold">{selectedVenue?.name}</span> | Date: <span className="font-bold">{selectedDate}</span>
             </p>
           </div>
         </div>
-        <span className="text-[11px] font-extrabold uppercase px-3 py-1 bg-white rounded-full border shadow-sm">AVR Hall Spec</span>
       </div>
 
       {/* DYNAMIC FORM RENDERING */}
@@ -168,9 +167,6 @@ export default function Step3Details({
               )}
             </div>
 
-
-
-
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-bold text-slate-900">Expected Person Count <span className="text-red-500">*</span></label>
               <input type="number" required value={persons} onChange={e => setPersons(e.target.value)} placeholder="e.g. 75" className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600" />
@@ -180,11 +176,10 @@ export default function Step3Details({
               <label className="text-xs font-bold text-slate-900">Start Time <span className="text-red-500">*</span></label>
               <input 
                 type="time" 
-                step="300"
-                required 
+                readOnly
+                disabled
                 value={startTime}
-                onChange={(e) => setStartTime(e.target.value)}
-                className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600" 
+                className="w-full p-3 bg-slate-100/90 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 cursor-not-allowed select-none" 
               />
             </div>
 
@@ -192,13 +187,10 @@ export default function Step3Details({
               <label className="text-xs font-bold text-slate-900">End Time <span className="text-red-500">*</span></label>
               <input 
                 type="time" 
-                step="300"
-                required 
+                readOnly
+                disabled
                 value={endTime}
-                onChange={(e) => setEndTime(e.target.value)}
-                min={startTime}
-                disabled={!startTime}
-                className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600 disabled:opacity-50 disabled:bg-slate-100" 
+                className="w-full p-3 bg-slate-100/90 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 cursor-not-allowed select-none" 
               />
             </div>
 
@@ -210,11 +202,8 @@ export default function Step3Details({
             <div className="sm:col-span-2 flex flex-col gap-2 bg-slate-50 p-4 rounded-2xl border border-slate-200/60">
               <div className="flex items-center justify-between">
                 <label className="text-xs font-bold text-slate-900">
-                  AVR Built-in Equipment Needed: <span className="text-slate-500 font-semibold text-[11px]">(Optional)</span>
+                  Equipment-Needed: <span className="text-slate-500 font-semibold text-[11px]">(Optional)</span>
                 </label>
-                <span className="text-[10px] font-extrabold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">
-                  Equipment Catalog Checklist (Optional)
-                </span>
               </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 text-xs pt-1">

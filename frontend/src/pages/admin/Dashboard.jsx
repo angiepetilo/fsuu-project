@@ -89,22 +89,35 @@ export default function Dashboard() {
         api.get("/admin/equipment-damages").catch(() => ({ data: { total_damaged_count: 0, total_lost_count: 0 } })),
       ]);
 
-      // 1. History Log Data (Across all offices if SysAd / All Offices)
-      let histVB = histRes.data?.venue_bookings || [];
-      let histEB = histRes.data?.equipment_borrowings || [];
-      if (!isSuperAdmin && officeScope !== "All Offices") {
-        histVB = histVB.filter(b => (b.office_name || b.office || "").toLowerCase().includes(officeScope.toLowerCase()));
-        histEB = histEB.filter(e => (e.office_name || e.office || "").toLowerCase().includes(officeScope.toLowerCase()));
-      }
+      const selectedOfficeId = context?.selectedOfficeId;
+      const selectedOfficeName = context?.selectedOffice || officeScope;
+
+      const matchesOffice = (item) => {
+        if (!selectedOfficeId || selectedOfficeId === "all") {
+          if (!isSuperAdmin && officeScope !== "All Offices") {
+            const name = item.office_name || item.office?.name || item.office || "";
+            return name.toLowerCase().includes(officeScope.toLowerCase());
+          }
+          return true;
+        }
+        const offId = item.office_id || item.office?.id || item.venue?.office_id || item.items?.[0]?.equipment_type?.office_id;
+        const offName = item.office_name || item.office?.name || item.venue?.office?.name;
+        if (offId) return String(offId) === String(selectedOfficeId);
+        if (offName && selectedOfficeName && selectedOfficeName !== "All Offices") {
+          return offName.toLowerCase().includes(selectedOfficeName.toLowerCase());
+        }
+        return true;
+      };
+
+      // 1. History Log Data
+      let histVB = (histRes.data?.venue_bookings || []).filter(matchesOffice);
+      let histEB = (histRes.data?.equipment_borrowings || []).filter(matchesOffice);
       setTotalVenueBookings(histVB.length);
       setTotalEquipBorrows(histEB.length);
 
       // 2. Active Venue Bookings
       const rawVb = vbRes.data?.data || vbRes.data || [];
-      let activeVB = Array.isArray(rawVb) ? rawVb : [];
-      if (!isSuperAdmin && officeScope !== "All Offices") {
-        activeVB = activeVB.filter(b => (b.office_name || b.office || "").toLowerCase().includes(officeScope.toLowerCase()));
-      }
+      let activeVB = (Array.isArray(rawVb) ? rawVb : []).filter(matchesOffice);
       setCalendarBookings(activeVB);
 
       const pendingVBCount = activeVB.filter(b => {
@@ -114,10 +127,7 @@ export default function Dashboard() {
 
       // 3. Active Equipment Borrowings
       const rawEb = ebRes.data?.data || ebRes.data || [];
-      let activeEB = Array.isArray(rawEb) ? rawEb : [];
-      if (!isSuperAdmin && officeScope !== "All Offices") {
-        activeEB = activeEB.filter(e => (e.office_name || e.office || "").toLowerCase().includes(officeScope.toLowerCase()));
-      }
+      let activeEB = (Array.isArray(rawEb) ? rawEb : []).filter(matchesOffice);
       const pendingEBCount = activeEB.filter(b => {
         const s = (b.status || b.tracking_number?.status || "").toLowerCase();
         return s === "pending";
@@ -125,15 +135,13 @@ export default function Dashboard() {
       setPendingEquipBorrowings(pendingEBCount);
       setPendingApproval(pendingVBCount + pendingEBCount);
 
-      // 4. Equipment Stock — use /admin/equipment-damages for accurate count
-      //    (physical units damaged + inspection-reported damage, avoids overcounting)
-      const eqCatalog = Array.isArray(eqRes.data) ? eqRes.data : [];
+      // 4. Equipment Stock
+      const eqCatalog = (Array.isArray(eqRes.data) ? eqRes.data : []).filter(matchesOffice);
       const dmgData = dmgRes.data || {};
-      // Use damage endpoint total when available; fall back to equipment_types sum
-      const damagedCount = typeof dmgData.total_damaged_count === 'number' && dmgData.total_damaged_count > 0
+      const damagedCount = typeof dmgData.total_damaged_count === 'number' && dmgData.total_damaged_count > 0 && (!selectedOfficeId || selectedOfficeId === "all")
         ? dmgData.total_damaged_count
         : eqCatalog.reduce((sum, e) => sum + (e.damaged_count || 0), 0);
-      const lostCount = typeof dmgData.total_lost_count === 'number' && dmgData.total_lost_count > 0
+      const lostCount = typeof dmgData.total_lost_count === 'number' && dmgData.total_lost_count > 0 && (!selectedOfficeId || selectedOfficeId === "all")
         ? dmgData.total_lost_count
         : eqCatalog.reduce((sum, e) => sum + (e.lost_count || 0), 0);
       setTotalDamaged(damagedCount);
@@ -223,7 +231,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     fetchData();
-  }, [officeScope]);
+  }, [officeScope, context?.selectedOfficeId, context?.selectedOffice]);
 
   // Calendar Day Details helper — all booking statuses mark calendar days
   const getDayDetails = (day) => {
@@ -389,35 +397,16 @@ export default function Dashboard() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
+        <div>
           <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
             {isSuperAdmin ? "System Administrator Overview" : "Dashboard Overview"}
           </h1>
-          <span className="px-2.5 py-0.5 rounded-md text-[11px] font-mono font-bold text-slate-600 border border-slate-300 bg-white">
-            {officeScope}
-          </span>
+          <p className="text-xs text-slate-500 font-semibold mt-0.5">
+            Real-time facility utilization, reservation analytics & inventory overview.
+          </p>
         </div>
 
         <div className="flex items-center gap-3">
-          {isSuperAdmin && (
-            <div className="bg-white border border-slate-300 px-3 py-1.5 rounded-lg shadow-2xs flex items-center gap-2">
-              <Filter size={13} className="text-slate-600" />
-              <select
-                value={context?.selectedOffice || "All Offices"}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  if (context?.setSelectedOffice) context.setSelectedOffice(val);
-                }}
-                className="bg-transparent text-slate-900 text-xs font-bold focus:outline-none cursor-pointer pr-1"
-              >
-                <option value="All Offices">All Offices (Combined Global View)</option>
-                {offices.map((off) => (
-                  <option key={off.id} value={off.name}>{off.name}</option>
-                ))}
-              </select>
-            </div>
-          )}
-
           <button
             type="button"
             onClick={fetchData}

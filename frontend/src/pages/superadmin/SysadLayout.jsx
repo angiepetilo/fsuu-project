@@ -43,9 +43,44 @@ export default function SysadLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const [selectedOffice, setSelectedOffice] = useState("All Offices");
+  const [selectedOfficeId, setSelectedOfficeId] = useState(() => {
+    return localStorage.getItem("fsuu_sysad_selected_office_id") || "all";
+  });
+  const [selectedOffice, setSelectedOffice] = useState(() => {
+    return localStorage.getItem("fsuu_sysad_selected_office_name") || "All Offices";
+  });
+  const [offices, setOffices] = useState([]);
   const [showNotifDropdown, setShowNotifDropdown] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  // Fetch registered offices from backend
+  useEffect(() => {
+    api.get("/admin/offices")
+      .then(res => {
+        const list = Array.isArray(res.data) ? res.data : (res.data?.data || []);
+        setOffices(list);
+      })
+      .catch(() => {
+        setOffices([
+          { id: 1, name: "AVR Office I", location: "Main Campus" },
+          { id: 2, name: "AVR Office II", location: "Morelos Campus" },
+        ]);
+      });
+  }, []);
+
+  const handleOfficeChange = (newId) => {
+    setSelectedOfficeId(newId);
+    localStorage.setItem("fsuu_sysad_selected_office_id", newId);
+    if (newId === "all") {
+      setSelectedOffice("All Offices");
+      localStorage.setItem("fsuu_sysad_selected_office_name", "All Offices");
+    } else {
+      const match = offices.find(o => String(o.id) === String(newId));
+      const name = match ? match.name : `Office #${newId}`;
+      setSelectedOffice(name);
+      localStorage.setItem("fsuu_sysad_selected_office_name", name);
+    }
+  };
 
   // Dynamic Profile Sync from System Settings
   const [profileState, setProfileState] = useState(() => {
@@ -319,8 +354,27 @@ export default function SysadLayout() {
               </div>
             </div>
 
-            {/* Right Side: Notification Bell Dropdown Sub-Component */}
+            {/* Right Side: Office Scope Selector & Notification Bell */}
             <div className="flex items-center gap-3">
+              {/* Global Office Scope Filter */}
+              <div className="flex items-center gap-2 bg-slate-100/90 hover:bg-slate-100 border border-slate-200/90 rounded-xl px-3 py-1.5 shadow-2xs transition-all">
+                <Building2 size={16} className="text-indigo-600 flex-shrink-0" />
+                <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400 hidden md:inline">Scope:</span>
+                <select
+                  value={selectedOfficeId}
+                  onChange={(e) => handleOfficeChange(e.target.value)}
+                  className="bg-transparent text-xs font-extrabold text-slate-800 outline-none cursor-pointer pr-1 focus:ring-0"
+                >
+                  <option value="all">🌐 All Offices (Global Management)</option>
+                  {offices.map((off) => (
+                    <option key={off.id} value={off.id}>
+                      🏢 {off.name} {off.location ? `(${off.location})` : ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Notification Bell Dropdown Sub-Component */}
               <SysadNotifDropdown
                 showNotifDropdown={showNotifDropdown}
                 setShowNotifDropdown={setShowNotifDropdown}
@@ -336,7 +390,16 @@ export default function SysadLayout() {
 
         {/* Page Main Canvas */}
         <main className="flex-1 p-6 sm:p-8 overflow-auto">
-          <Outlet context={{ selectedOffice, setSelectedOffice, isSuperAdmin: true, adminOffice: selectedOffice }} />
+          <Outlet context={{ 
+            selectedOffice, 
+            selectedOfficeId, 
+            setSelectedOffice, 
+            setSelectedOfficeId, 
+            handleOfficeChange,
+            offices,
+            isSuperAdmin: true, 
+            adminOffice: selectedOffice 
+          }} />
         </main>
 
         {/* Footer */}

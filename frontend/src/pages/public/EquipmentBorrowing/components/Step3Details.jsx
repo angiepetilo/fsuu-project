@@ -54,30 +54,46 @@ export default function Step3Details({
               {primaryDept === "sco" ? <Sparkles size={18} /> : <PackageOpen size={18} />}
             </div>
             <div>
-              <h4 className="font-extrabold text-sm">
-                {primaryDept === "sco" ? "SCO Media Equipment Requisition" : "AVR Equipment Borrowing Request"}
-              </h4>
+              <h4 className="font-extrabold text-sm">Borrowing Form</h4>
               <p className="text-xs opacity-80">
                 Total Selected Items: <span className="font-bold">{selectedItems.length}</span>
               </p>
             </div>
           </div>
-          <span className="text-[11px] font-extrabold uppercase px-3 py-1 bg-white rounded-full border shadow-sm">
-            {primaryDept === "sco" ? "SCO Managed" : "AVR Managed"}
-          </span>
         </div>
 
         {/* Automatic Display of Selected Borrow Date, Time Start, Time End & Extension */}
-        <div className="mt-4 pt-3 border-t border-slate-200/60 flex flex-wrap items-center gap-3 text-xs font-bold text-slate-800">
-          <div className="flex items-center gap-1.5 bg-white px-3 py-2 rounded-xl border border-slate-200/80 shadow-2xs">
-            <span className="text-slate-500 font-semibold">Start Time:</span>
-            <span className="text-blue-700">{startTime ? startTime.replace("T", " ") : "Scheduled Slot"}</span>
-          </div>
-          <div className="flex items-center gap-1.5 bg-white px-3 py-2 rounded-xl border border-slate-200/80 shadow-2xs">
-            <span className="text-slate-500 font-semibold">Expected Return:</span>
-            <span className="text-blue-700">{endTime ? endTime.replace("T", " ") : "Scheduled Slot"}</span>
-          </div>
-        </div>
+        {(() => {
+          const formatDateTimeDisplay = (dtStr, fallbackTime = "08:00") => {
+            if (!dtStr) return "Scheduled Slot";
+            const cleaned = dtStr.replace("T", " ");
+            const parts = cleaned.split(" ");
+            let datePart = parts[0];
+            let timePart = parts[1];
+            if (!timePart && datePart.length > 10) {
+              timePart = datePart.substring(10);
+              datePart = datePart.substring(0, 10);
+            }
+            if (!timePart) timePart = fallbackTime;
+            const [h, m] = timePart.split(":").map(Number);
+            const ampm = (h >= 12 && h < 24) ? "PM" : "AM";
+            const h12 = (h % 12) || 12;
+            return `${datePart} • ${h12}:${String(m || 0).padStart(2, '0')} ${ampm}`;
+          };
+
+          return (
+            <div className="mt-4 pt-3 border-t border-slate-200/60 flex flex-wrap items-center gap-3 text-xs font-bold text-slate-800">
+              <div className="flex items-center gap-1.5 bg-white px-3 py-2 rounded-xl border border-slate-200/80 shadow-2xs">
+                <span className="text-slate-500 font-semibold">Start Time:</span>
+                <span className="text-blue-700">{formatDateTimeDisplay(startTime, "08:00")}</span>
+              </div>
+              <div className="flex items-center gap-1.5 bg-white px-3 py-2 rounded-xl border border-slate-200/80 shadow-2xs">
+                <span className="text-slate-500 font-semibold">Expected Return:</span>
+                <span className="text-blue-700">{formatDateTimeDisplay(endTime, "17:00")}</span>
+              </div>
+            </div>
+          );
+        })()}
       </div>
 
       <form onSubmit={handleDetailsSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-5">

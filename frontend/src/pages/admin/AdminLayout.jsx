@@ -75,12 +75,11 @@ export default function AdminLayout() {
     (user?.id && profileState.id === user.id)
   );
 
-  const adminName = (isMatchingProfile ? profileState?.name : null) || user?.name || "Main Branch Admin";
-  const adminAvatar = (isMatchingProfile ? profileState?.avatar : null) || user?.avatar || null;
-  const adminOffice = (isMatchingProfile ? profileState?.office : null) || user?.office?.name || "FSUU Main";
-
   const userRole = user?.role?.name || user?.role || "admin";
   const isSuperAdmin = userRole === "superadmin" || userRole === "super_admin";
+
+  const adminOffice = (isMatchingProfile ? profileState?.office : null) || user?.office?.name || user?.office_name || "AVR Office I";
+  const adminOfficeId = user?.office_id || user?.office?.id || profileState?.office_id || null;
 
   // Real Database Notifications with Persistent Read State
   const [notifications, setNotifications] = useState([]);
@@ -500,7 +499,13 @@ export default function AdminLayout() {
 
         {/* Page Main Canvas */}
         <main className="flex-1 p-6 sm:p-8 overflow-auto">
-          <Outlet context={{ selectedOffice, setSelectedOffice, adminOffice, isSuperAdmin }} />
+          <Outlet context={{ 
+            selectedOffice: adminOffice, 
+            selectedOfficeId: adminOfficeId,
+            adminOffice, 
+            adminOfficeId,
+            isSuperAdmin 
+          }} />
         </main>
 
         {/* Footer */}

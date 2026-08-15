@@ -81,10 +81,22 @@ export default function VenueBookings() {
   }, [location.search, location.state, bookings]);
 
   const officeScope = context?.adminOffice || context?.selectedOffice || "All Offices";
+  const selectedOfficeId = context?.selectedOfficeId;
 
   const filteredBookings = bookings.filter(b => {
     const s = (b.status || b.tracking_number?.status || "").toLowerCase();
-    return s !== "completed" && s !== "damaged" && s !== "solved" && s !== "rejected" && s !== "cancelled";
+    const notDone = s !== "completed" && s !== "damaged" && s !== "solved" && s !== "rejected" && s !== "cancelled";
+    if (!notDone) return false;
+
+    if (selectedOfficeId && selectedOfficeId !== "all") {
+      const offId = b.venue?.office_id || b.office_id || b.office?.id;
+      const offName = b.venue?.office?.name || b.office?.name || b.office_name;
+      if (offId) return String(offId) === String(selectedOfficeId);
+      if (offName && officeScope && officeScope !== "All Offices") {
+        return offName.toLowerCase().includes(officeScope.toLowerCase());
+      }
+    }
+    return true;
   });
 
   useEffect(() => {

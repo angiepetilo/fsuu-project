@@ -18,7 +18,7 @@ class EquipmentTypeController extends Controller
     {
         $user = $request->user();
         $isSuperAdmin = $user ? $user->isSuperAdmin() : false;
-        $officeId = $user ? $user->office_id : null;
+        $officeId = $user ? ($user->office_id ?? $user->office?->id) : null;
 
         $query = EquipmentType::with([
             'office',
@@ -29,6 +29,8 @@ class EquipmentTypeController extends Controller
 
         if (!$isSuperAdmin && $officeId) {
             $query->where('office_id', $officeId);
+        } elseif ($isSuperAdmin && $request->filled('office_id') && $request->query('office_id') !== 'all') {
+            $query->where('office_id', $request->query('office_id'));
         }
 
         $types = $query->latest()->get()->map(

@@ -244,8 +244,18 @@ export default function HistoryLog() {
     }
   };
 
+  const selectedOfficeId = context?.selectedOfficeId;
+
   // Search filtering — ONLY show completed, solved, done, damaged, or violation history records
   const filteredVenues = venueHistory.filter((b) => {
+    if (selectedOfficeId && selectedOfficeId !== "all") {
+      const offId = b.venue?.office_id || b.office_id || b.office?.id;
+      const offName = b.venue?.office?.name || b.office?.name || b.office_name;
+      if (offId && String(offId) !== String(selectedOfficeId)) return false;
+      if (offName && officeScope && officeScope !== "All Offices" && !offName.toLowerCase().includes(officeScope.toLowerCase())) {
+        return false;
+      }
+    }
     const q = searchQuery.toLowerCase();
     const ref = (b.reference_code || `TRK-AVR${b.id}`).toLowerCase();
     const name = (b.filer_name || b.requestor || "").toLowerCase();
@@ -255,6 +265,14 @@ export default function HistoryLog() {
   });
 
   const filteredEquipment = equipmentHistory.filter((b) => {
+    if (selectedOfficeId && selectedOfficeId !== "all") {
+      const offId = b.office_id || b.office?.id || b.items?.[0]?.equipment_type?.office_id || b.items?.[0]?.equipmentType?.office_id;
+      const offName = b.office?.name || b.office_name || b.items?.[0]?.equipment_type?.office?.name;
+      if (offId && String(offId) !== String(selectedOfficeId)) return false;
+      if (offName && officeScope && officeScope !== "All Offices" && !offName.toLowerCase().includes(officeScope.toLowerCase())) {
+        return false;
+      }
+    }
     const q = searchQuery.toLowerCase();
     const ref = (b.reference_code || `EQUIP-REQ-${b.id}`).toLowerCase();
     const name = (b.filer_name || b.requestor || "").toLowerCase();

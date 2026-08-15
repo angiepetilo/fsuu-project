@@ -42,6 +42,12 @@ class VenueBookingController extends Controller
                     });
                 }
             })
+            ->when($user->isSuperAdmin() && request()->filled('office_id') && request('office_id') !== 'all', function ($query) {
+                $officeId = request('office_id');
+                $query->whereHas('venue', function ($vQ) use ($officeId) {
+                    $vQ->where('office_id', $officeId);
+                });
+            })
             ->latest()
             ->paginate(25);
 

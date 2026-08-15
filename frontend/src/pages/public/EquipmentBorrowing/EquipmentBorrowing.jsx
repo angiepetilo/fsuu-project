@@ -274,6 +274,11 @@ export default function EquipmentBorrowing() {
 
       const selectedOfficeId = (campusBranch || "").toLowerCase().includes("morelos") ? 2 : 1;
 
+      const itemsList = selectedItems.map((id) => ({
+        equipment_type_id: id,
+        quantity_requested: itemQuantities[id] || 1,
+      }));
+
       const payload = {
         office_id: selectedOfficeId,
         requestor_name: fullName,
@@ -286,18 +291,15 @@ export default function EquipmentBorrowing() {
         place_of_use: placeOfUse || "Campus Facility",
         handler_name: handlerName || fullName,
         start_datetime: startDT,
+        end_datetime: endDT,
         expected_return_datetime: endDT,
         borrow_date: startDT.split(" ")[0],
         intended_return_date: endDT.split(" ")[0],
         borrow_time: startDT.split(" ")[1]?.substring(0, 5) || "08:00",
         intended_return_time: endDT.split(" ")[1]?.substring(0, 5) || "17:00",
+        used_inside_campus: 1,
         contact_preference: notificationChannel || "email",
-        equipment_items: JSON.stringify(
-          selectedItems.map((id) => ({
-            equipment_type_id: id,
-            quantity_requested: itemQuantities[id] || 1,
-          }))
-        ),
+        equipment_items: JSON.stringify(itemsList),
       };
 
       const formData = new FormData();
@@ -305,6 +307,10 @@ export default function EquipmentBorrowing() {
         if (payload[key] !== undefined && payload[key] !== null) {
           formData.append(key, payload[key]);
         }
+      });
+      itemsList.forEach((item, idx) => {
+        formData.append(`items[${idx}][equipment_type_id]`, item.equipment_type_id);
+        formData.append(`items[${idx}][quantity_requested]`, item.quantity_requested);
       });
       if (endorsementFile) {
         formData.append("endorsement_file", endorsementFile);

@@ -38,7 +38,7 @@ export default function FeatureCards() {
             </div>
           </Tooltip>
 
-          <h2 className="text-[1.875rem] font-[800] mb-[1rem] text-[#0f172a] text-center w-full group-hover:text-[#2563eb] transition-colors duration-200">
+          <h2 className="text-[1.875rem] font-[800] mb-[0.75rem] leading-snug text-[#0f172a] text-center w-full group-hover:text-[#2563eb] transition-colors duration-200">
             <span className="text-[#2563eb]">Venue</span> Booking
           </h2>
 
@@ -80,7 +80,7 @@ export default function FeatureCards() {
             </div>
           </Tooltip>
 
-          <h2 className="text-[1.875rem] font-[800] mb-[1rem] text-[#0f172a] text-center w-full group-hover:text-[#d97706] transition-colors duration-200">
+          <h2 className="text-[1.875rem] font-[800] mb-[0.75rem] leading-snug text-[#0f172a] text-center w-full group-hover:text-[#d97706] transition-colors duration-200">
             <span className="text-[#d97706]">Equipment</span> Borrowing
           </h2>
 
@@ -93,4 +93,3 @@ export default function FeatureCards() {
     </section>
   );
 }
-

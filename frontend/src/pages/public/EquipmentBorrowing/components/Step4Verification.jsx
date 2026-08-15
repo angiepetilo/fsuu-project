@@ -114,11 +114,31 @@ export default function Step4Verification({
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <span className="text-slate-400 text-[10px] uppercase font-bold block">Start Datetime</span>
-                <span className="font-bold text-slate-900">{startTime ? startTime.replace("T", " ") : "—"}</span>
+                <span className="font-bold text-slate-900">
+                  {(() => {
+                    if (!startTime) return "—";
+                    const [d, t] = startTime.replace("T", " ").split(" ");
+                    if (!t) return d;
+                    const [h, m] = t.split(":").map(Number);
+                    const ampm = h >= 12 ? "PM" : "AM";
+                    const h12 = (h % 12) || 12;
+                    return `${d} • ${h12}:${String(m || 0).padStart(2, '0')} ${ampm}`;
+                  })()}
+                </span>
               </div>
               <div>
                 <span className="text-slate-400 text-[10px] uppercase font-bold block">Expected Return Datetime</span>
-                <span className="font-bold text-slate-900">{endTime ? endTime.replace("T", " ") : "—"}</span>
+                <span className="font-bold text-slate-900">
+                  {(() => {
+                    if (!endTime) return "—";
+                    const [d, t] = endTime.replace("T", " ").split(" ");
+                    if (!t) return d;
+                    const [h, m] = t.split(":").map(Number);
+                    const ampm = h >= 12 ? "PM" : "AM";
+                    const h12 = (h % 12) || 12;
+                    return `${d} • ${h12}:${String(m || 0).padStart(2, '0')} ${ampm}`;
+                  })()}
+                </span>
               </div>
             </div>
 

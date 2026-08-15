@@ -19,6 +19,11 @@ class EquipmentBorrowingController extends Controller
         $data = $request->validated();
         $data['submitted_by'] = null;
 
+        if ($request->hasFile('endorsement_file')) {
+            $path = $request->file('endorsement_file')->store('endorsements', 'public');
+            $data['endorsement_url'] = '/storage/' . $path;
+        }
+
         try {
             $borrowing = $this->service->create($data);
         } catch (EquipmentUnavailableException $e) {

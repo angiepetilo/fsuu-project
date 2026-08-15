@@ -1,12 +1,14 @@
 import React from "react";
 import { Camera, FileText, ExternalLink, X } from "lucide-react";
+import { resolveStorageUrl } from "@/lib/utils";
 
 export default function EvidenceLightboxModal({
   fullImageModal,
   setFullImageModal,
   resolvePhotoUrl,
 }) {
-  const imageUrl = typeof fullImageModal === "object" ? fullImageModal?.url : fullImageModal;
+  const rawUrl = typeof fullImageModal === "object" ? fullImageModal?.url : fullImageModal;
+  const imageUrl = resolveStorageUrl(rawUrl) || rawUrl;
 
   const isValidPhoto = (photo) => {
     if (!photo || photo === "#" || photo === "null" || photo === "undefined") return false;

@@ -218,10 +218,14 @@ export default function Step2Equipment({
                       )}
                     </div>
 
-                    {/* Badges Row (Office Tag & Stock Status Pill) */}
+                    {/* Badges Row (Campus / Office Location Tag & Stock Status Pill) */}
                     <div className="flex items-center justify-between gap-2 mb-2">
-                      <span className="text-[10px] font-extrabold uppercase px-3 py-1 rounded-xl border border-blue-200/80 bg-blue-50 text-blue-700 shrink-0">
-                        {item.dept === "sco" ? "SCO ASSET" : "AVR RESOURCE"}
+                      <span className={`text-[10px] font-extrabold uppercase px-2.5 py-1 rounded-xl border shrink-0 flex items-center gap-1 ${
+                        (item.office_name || item.location || item.campus || "").toLowerCase().includes("morelos")
+                          ? "border-amber-200/80 bg-amber-50 text-amber-800"
+                          : "border-blue-200/80 bg-blue-50 text-blue-700"
+                      }`}>
+                        🏢 {item.office_name || item.office?.name || item.location || item.campus || "Main Campus"}
                       </span>
 
                       {/* Right Stock Status Badge */}
@@ -244,11 +248,8 @@ export default function Step2Equipment({
                       )}
                     </div>
 
-                    {/* Item Title & Location/Specs */}
-                    <h4 className="font-extrabold text-slate-900 text-base mb-0.5 tracking-tight line-clamp-1">{item.name}</h4>
-                    <span className="text-[10.5px] font-extrabold text-slate-600 font-mono block mb-1">
-                      🏢 {item.office_name || item.office?.name || item.location || "Unassigned Office"}
-                    </span>
+                    {/* Item Title & Specs */}
+                    <h4 className="font-extrabold text-slate-900 text-base mb-1 tracking-tight line-clamp-1">{item.name}</h4>
                     <p className="text-xs text-slate-500 font-medium mb-3 line-clamp-1">
                       {item.spec || item.description || "Audio / Visual Equipment"}
                     </p>

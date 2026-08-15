@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import api from "@/lib/axios";
 import { formatTime12, formatTimeRange12 } from "@/lib/dateUtils";
+import { resolveStorageUrl } from "@/lib/utils";
 import EquipBorrowHeader from "../borrow-modal/EquipBorrowHeader";
 import EquipBorrowInspectionForm from "../borrow-modal/EquipBorrowInspectionForm";
 import EquipBorrowUnitAssignment from "../borrow-modal/EquipBorrowUnitAssignment";
@@ -273,18 +274,14 @@ export default function EquipmentBorrowDetailModal({
 
   const getDocumentUrl = () => {
     const docPath =
+      selected.endorsement_url ||
       selected.endorsement_letter_url ||
       selected.endorsement_letter ||
       selected.endorsement_file ||
       selected.file_path ||
       selected.attachment;
 
-    if (!docPath || docPath === "#") return null;
-    if (typeof docPath === "string" && (docPath.startsWith("http") || docPath.startsWith("data:"))) return docPath;
-
-    const apiBase = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
-    const cleanPath = String(docPath).replace(/^\/?storage\//, "");
-    return `${apiBase}/storage/${cleanPath}`;
+    return resolveStorageUrl(docPath);
   };
 
   const docUrl = getDocumentUrl();

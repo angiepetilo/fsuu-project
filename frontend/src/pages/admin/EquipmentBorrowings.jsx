@@ -76,10 +76,23 @@ export default function EquipmentBorrowings() {
     }
   }, [location.search, location.state, borrowings]);
 
+  const selectedOfficeId = context?.selectedOfficeId;
+
   // Filter active borrowings (completed/rejected/cancelled transfer directly to History Log)
   const filteredBorrowings = borrowings.filter(b => {
     const s = (b.status || b.tracking_number?.status || "").toLowerCase();
-    return s !== "completed" && s !== "rejected" && s !== "cancelled";
+    const notDone = s !== "completed" && s !== "rejected" && s !== "cancelled";
+    if (!notDone) return false;
+
+    if (selectedOfficeId && selectedOfficeId !== "all") {
+      const offId = b.office_id || b.office?.id || b.items?.[0]?.equipment_type?.office_id || b.items?.[0]?.equipmentType?.office_id;
+      const offName = b.office?.name || b.office_name || b.items?.[0]?.equipment_type?.office?.name;
+      if (offId) return String(offId) === String(selectedOfficeId);
+      if (offName && officeScope && officeScope !== "All Offices") {
+        return offName.toLowerCase().includes(officeScope.toLowerCase());
+      }
+    }
+    return true;
   });
 
   useEffect(() => {

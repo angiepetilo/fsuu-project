@@ -18,7 +18,7 @@ class EquipmentUnitController extends Controller
     {
         $user = $request->user();
         $isSuperAdmin = $user ? $user->isSuperAdmin() : false;
-        $officeId = $user ? $user->office_id : null;
+        $officeId = $user ? ($user->office_id ?? $user->office?->id) : null;
 
         $query = EquipmentUnit::with('equipmentType.office')
             ->whereNull('equipment_units.archived_at');
@@ -26,6 +26,11 @@ class EquipmentUnitController extends Controller
         if (!$isSuperAdmin && $officeId) {
             $query->whereHas('equipmentType', function ($q) use ($officeId) {
                 $q->where('office_id', $officeId);
+            });
+        } elseif ($isSuperAdmin && $request->filled('office_id') && $request->query('office_id') !== 'all') {
+            $filterOfficeId = $request->query('office_id');
+            $query->whereHas('equipmentType', function ($q) use ($filterOfficeId) {
+                $q->where('office_id', $filterOfficeId);
             });
         }
 

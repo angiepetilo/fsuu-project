@@ -41,6 +41,13 @@ class EquipmentBorrowingController extends Controller
                     });
                 }
             })
+            ->when($user->isSuperAdmin() && request()->filled('office_id') && request('office_id') !== 'all', function ($query) {
+                $officeId = request('office_id');
+                $query->where(function ($q) use ($officeId) {
+                    $q->where('office_id', $officeId)
+                      ->orWhereHas('items.equipmentType', fn ($sub) => $sub->where('office_id', $officeId));
+                });
+            })
             ->latest()
             ->paginate(25);
 

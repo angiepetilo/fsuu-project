@@ -105,7 +105,8 @@ export default function ManageEquipments() {
           barcode: bCode,
           name: u.name || u.equipmentType?.eq_name || u.equipmentType?.name || u.equipment_type?.eq_name || 'Equipment Unit',
           category: u.equipmentType?.eq_name || u.equipmentType?.name || u.equipment_type?.eq_name || u.equipment_type?.name || u.equipment_type?.eq_type || 'AV Equipment',
-          office_name: u.equipmentType?.office?.office_name || u.equipment_type?.office?.office_name || u.equipmentType?.office?.name || 'AVR | FSUU Main Campus',
+          office_id: u.equipmentType?.office_id || u.equipment_type?.office_id || u.equipmentType?.office?.id || u.equipment_type?.office?.id || u.office_id || null,
+          office_name: u.equipmentType?.office?.name || u.equipmentType?.office?.office_name || u.equipment_type?.office?.office_name || u.equipment_type?.office?.name || 'AVR Office I',
           status: dbStatus,
           condition: conditionLabel,
           available_count: dbStatus === 'available' ? 1 : 0,
@@ -309,7 +310,18 @@ export default function ManageEquipments() {
     }
   };
 
+  const officeScope = context?.adminOffice || context?.selectedOffice || "All Offices";
+  const selectedOfficeId = context?.selectedOfficeId;
+
   const filtered = units.filter(item => {
+    if (selectedOfficeId && selectedOfficeId !== "all") {
+      const offId = item.office_id || item.equipment_type?.office_id || item.equipmentType?.office_id;
+      const offName = item.office_name || item.office?.name;
+      if (offId && String(offId) !== String(selectedOfficeId)) return false;
+      if (offName && officeScope && officeScope !== "All Offices" && !offName.toLowerCase().includes(officeScope.toLowerCase())) {
+        return false;
+      }
+    }
     const matchCategory = activeCategory === "all" || (item.category || "").toLowerCase() === activeCategory.toLowerCase();
     const q = searchQuery.toLowerCase();
     const matchSearch = !searchQuery || (item.name || "").toLowerCase().includes(q) || (item.barcode || "").toLowerCase().includes(q);
@@ -324,7 +336,20 @@ export default function ManageEquipments() {
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
   const paginatedUnits = filtered.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
-  const categoryNames = Array.from(new Set(categories.map(c => c.eq_name || c.name || c.eq_type).filter(Boolean)));
+  const filteredCategories = useMemo(() => {
+    if (!selectedOfficeId || selectedOfficeId === "all") return categories;
+    return categories.filter(c => {
+      const offId = c.office_id || c.office?.id;
+      const offName = c.office?.name || c.office_name;
+      if (offId) return String(offId) === String(selectedOfficeId);
+      if (offName && officeScope && officeScope !== "All Offices") {
+        return offName.toLowerCase().includes(officeScope.toLowerCase());
+      }
+      return true;
+    });
+  }, [categories, selectedOfficeId, officeScope]);
+
+  const categoryNames = Array.from(new Set(filteredCategories.map(c => c.eq_name || c.name || c.eq_type).filter(Boolean)));
   const categoryList = [
     { id: "all", label: "All Categories" },
     ...categoryNames.map(c => ({ id: c, label: c }))
@@ -551,8 +576,12 @@ export default function ManageEquipments() {
                         <span className="bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-200/60 block w-fit">
                           {item.category}
                         </span>
-                        <span className="text-[10px] text-slate-500 font-semibold block mt-1">
-                          🏢 {item.office_name || item.office_location || item.office?.name || "Unassigned Office"}
+                        <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold border inline-flex items-center gap-1 mt-1.5 ${
+                          (item.office_name || '').includes('II') || (item.office_name || '').includes('Morelos')
+                            ? 'bg-amber-50 text-amber-800 border-amber-200/80'
+                            : 'bg-indigo-50 text-indigo-800 border-indigo-200/80'
+                        }`}>
+                          🏢 {item.office_name || "AVR Office I"}
                         </span>
                       </td>
                       <td className="px-4 py-3.5">
