@@ -99,13 +99,8 @@ class UserController extends Controller
         $targetPersonalEmail = $validated['personal_email'] ?? $validated['email'];
         $targetEmail = $validated['email'] ?? $targetPersonalEmail;
 
-        // Name fallback if not provided during initial invite
-        if (!empty($validated['name'])) {
-            $name = trim($validated['name']);
-        } else {
-            $emailPrefix = explode('@', $targetPersonalEmail)[0] ?? 'Staff';
-            $name = ucwords(str_replace(['.', '_', '-'], ' ', $emailPrefix));
-        }
+        // Name is only set if explicitly provided, otherwise completed during activation
+        $name = !empty($validated['name']) && trim($validated['name']) !== '' ? trim($validated['name']) : null;
 
         // Auto-generate temporary password: 4 random chars + 4 random digits
         $plainPassword = Str::random(4) . rand(1000, 9999);

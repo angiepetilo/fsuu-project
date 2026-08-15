@@ -127,10 +127,14 @@ class GoogleAuthController extends Controller
             ], 403);
         }
 
-        // Persist google_id and avatar on first login (or if they've changed)
+        // Persist google_id, avatar, activate account, and sync real Google name
         $user->update([
-            'google_id' => $googleUser->getId(),
-            'avatar'    => $googleUser->getAvatar(),
+            'name'         => (!empty($user->name) && $user->name !== 'User') ? $user->name : ($googleUser->getName() ?: 'Admin User'),
+            'google_id'    => $googleUser->getId(),
+            'avatar'       => $googleUser->getAvatar(),
+            'status'       => 'active',
+            'is_active'    => true,
+            'invite_token' => null,
         ]);
 
         // Revoke previous tokens — one active session per user

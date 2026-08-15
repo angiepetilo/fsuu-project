@@ -185,7 +185,16 @@ export default function UserManagementTab({ showMsg }) {
                 return (
                   <tr key={u.id || index} className="hover:bg-blue-50/40 transition-colors">
                     <td className="px-4 py-3.5 font-bold text-slate-400">{index + 1}</td>
-                    <td className="px-4 py-3.5 font-extrabold text-slate-900">{u.name}</td>
+                    <td className="px-4 py-3.5">
+                      {u.status === "pending_activation" || !u.name ? (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                          Pending Activation
+                        </span>
+                      ) : (
+                        <span className="font-extrabold text-slate-900">{u.name}</span>
+                      )}
+                    </td>
                     <td className="px-4 py-3.5 font-mono text-slate-600 font-medium">{u.personal_email || u.email}</td>
                     <td className="px-4 py-3.5 font-extrabold text-slate-800">
                       <span className="inline-flex items-center gap-1">
