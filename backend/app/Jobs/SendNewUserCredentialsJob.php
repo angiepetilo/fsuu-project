@@ -26,7 +26,7 @@ class SendNewUserCredentialsJob implements ShouldQueue
 
     public function handle(): void
     {
-        $recipient = $this->user->personal_email ?? $this->user->email;
+        $recipient = $this->user->email ?? $this->user->personal_email;
         if (empty($recipient)) {
             Log::warning('[MAIL] SendNewUserCredentialsJob: No recipient email provided.');
             return;
@@ -37,7 +37,14 @@ class SendNewUserCredentialsJob implements ShouldQueue
             Mail::to($recipient)->send(new NewUserCredentialsMail($this->user, $this->password));
             Log::info("[MAIL] SUCCESS: Credentials email delivered to: {$recipient}");
         } catch (\Throwable $e) {
-            Log::error("[MAIL] FAILED: SendNewUserCredentialsJob failed to deliver to {$recipient}: " . $e->getMessage());
+            Log::warning("[MAIL] Default mailer failed for {$recipient} ({$e->getMessage()}). Retrying via Gmail SMTP...");
+            try {
+                // Immediate failover to Gmail SMTP transport
+                Mail::mailer('smtp')->to($recipient)->send(new NewUserCredentialsMail($this->user, $this->password));
+                Log::info("[MAIL] SUCCESS: Credentials email delivered via SMTP fallback to: {$recipient}");
+            } catch (\Throwable $smtpErr) {
+                Log::error("[MAIL] FAILED: Both default and SMTP mailers failed for {$recipient}: " . $smtpErr->getMessage());
+            }
         }
     }
 
@@ -48,7 +55,7 @@ class SendNewUserCredentialsJob implements ShouldQueue
     {
         Log::error('[MAIL] SendNewUserCredentialsJob permanently failed', [
             'user_id'   => $this->user->id ?? null,
-            'recipient' => $this->user->personal_email ?? $this->user->email ?? null,
+            'recipient' => $this->user->email ?? $this->user->personal_email ?? null,
             'error'     => $e->getMessage(),
         ]);
     }

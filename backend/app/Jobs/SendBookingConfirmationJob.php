@@ -49,7 +49,16 @@ class SendBookingConfirmationJob implements ShouldQueue
             $this->booking->loadMissing('venue');
         }
 
-        Mail::to($email)->send(new BookingConfirmationMail($this->type, $this->booking));
+        try {
+            Mail::to($email)->send(new BookingConfirmationMail($this->type, $this->booking));
+        } catch (\Throwable $e) {
+            Log::warning("SendBookingConfirmationJob default mailer failed: {$e->getMessage()}. Retrying via SMTP...");
+            try {
+                Mail::mailer('smtp')->to($email)->send(new BookingConfirmationMail($this->type, $this->booking));
+            } catch (\Throwable $err) {
+                Log::error("SendBookingConfirmationJob failed on both mailers: " . $err->getMessage());
+            }
+        }
     }
 
     public function failed(\Throwable $e): void

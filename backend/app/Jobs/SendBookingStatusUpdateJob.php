@@ -48,9 +48,20 @@ class SendBookingStatusUpdateJob implements ShouldQueue
             return;
         }
 
-        Mail::to($email)->send(
-            new BookingStatusUpdateMail($this->type, $this->booking, $this->status, $this->remarks)
-        );
+        try {
+            Mail::to($email)->send(
+                new BookingStatusUpdateMail($this->type, $this->booking, $this->status, $this->remarks)
+            );
+        } catch (\Throwable $e) {
+            Log::warning("SendBookingStatusUpdateJob default mailer failed: {$e->getMessage()}. Retrying via SMTP...");
+            try {
+                Mail::mailer('smtp')->to($email)->send(
+                    new BookingStatusUpdateMail($this->type, $this->booking, $this->status, $this->remarks)
+                );
+            } catch (\Throwable $err) {
+                Log::error("SendBookingStatusUpdateJob failed on both mailers: " . $err->getMessage());
+            }
+        }
     }
 
     public function failed(\Throwable $e): void
