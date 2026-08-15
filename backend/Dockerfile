@@ -49,13 +49,13 @@ ENV APP_ENV=production \
     DB_DATABASE=/var/www/database/database.sqlite \
     SESSION_DRIVER=file \
     QUEUE_CONNECTION=sync \
-    FRONTEND_URL=http://localhost:5173 \
+    FRONTEND_URL=https://fsuu-project.vercel.app \
     MAIL_MAILER=smtp \
     MAIL_HOST=smtp.gmail.com \
-    MAIL_PORT=587 \
+    MAIL_PORT=465 \
     MAIL_USERNAME=angie.petilo@urios.edu.ph \
     MAIL_PASSWORD="lsjm movr csbz yqoc" \
-    MAIL_ENCRYPTION=tls \
+    MAIL_ENCRYPTION=ssl \
     MAIL_FROM_ADDRESS="angie.petilo@urios.edu.ph" \
     MAIL_FROM_NAME="FSUU Reserve and Booking System"
 
@@ -63,4 +63,3 @@ ENV APP_ENV=production \
 EXPOSE 80
 
 CMD ["sh", "-c", "sed -i 's/PORT_PLACEHOLDER/'\"${PORT:-80}\"'/g' /etc/nginx/sites-available/default && touch /var/www/database/database.sqlite && chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache /var/www/database /var/www/.env && chmod -R 777 /var/www/storage /var/www/bootstrap/cache /var/www/database /var/www/.env && composer dump-autoload -o && php artisan config:clear && php artisan route:clear && php-fpm -D && php artisan migrate:fresh --force --seed && nginx -g 'daemon off;'"]
-

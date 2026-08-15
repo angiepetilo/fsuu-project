@@ -187,6 +187,17 @@ Route::middleware('auth:sanctum')->group(function () {
 
 // ─── Utility ──────────────────────────────────────────────────────────────────
 Route::get('/ping', fn () => response()->json(['message' => 'Laravel says hello']));
+Route::get('/test-email', function (Request $request) {
+    $to = $request->query('to', 'angie.petilo@urios.edu.ph');
+    try {
+        \Illuminate\Support\Facades\Mail::raw("FSUU System Test Email sent at " . now()->toDateTimeString(), function ($message) use ($to) {
+            $message->to($to)->subject("FSUU System Mail Test");
+        });
+        return response()->json(['status' => 'success', 'message' => "Test email successfully sent to {$to}"]);
+    } catch (\Throwable $e) {
+        return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+    }
+});
 Route::get('/user', fn (Request $request) => $request->user())->middleware('auth:sanctum');
 
 // ─── Public (Unauthenticated) Routes ──────────────────────────────────────────
