@@ -87,7 +87,7 @@ export default function Reports() {
       csvContent += "=== VENUE BOOKING REPORTS ===\n";
       csvContent += "Track Number,Requestor Name,Venue,Date of Usage,Time,Department / Office,Purpose,Remarks / Outcome\n";
       venueBookings.forEach((b) => {
-        const track = b.tracking_number || b.reference_code || `TRK-VB-${b.id}`;
+        const track = b.tracking_number?.reference_code || (typeof b.tracking_number === 'string' ? b.tracking_number : '') || b.reference_code || `TRK-VB-${b.id}`;
         const name = (b.filer_name || b.requestor || "Filer").replace(/"/g, '""');
         const venue = (b.venue_name || b.venue || "AVR").replace(/"/g, '""');
         const date = b.date_of_usage || b.date || "—";
@@ -102,7 +102,7 @@ export default function Reports() {
       csvContent += "\n=== EQUIPMENT BORROWING REPORTS ===\n";
       csvContent += "Track Number,Requestor Name,Equipment,Quantity,Date of Usage,Department / Office,Purpose,Remarks / Outcome\n";
       equipmentBorrowings.forEach((eb) => {
-        const track = eb.tracking_number || eb.reference_code || `TRK-EB-${eb.id}`;
+        const track = eb.tracking_number?.reference_code || (typeof eb.tracking_number === 'string' ? eb.tracking_number : '') || eb.reference_code || `TRK-EB-${eb.id}`;
         const name = (eb.filer_name || eb.requestor || "Borrower").replace(/"/g, '""');
         const equip = (eb.equipment_name || eb.equipment || "Equipment Item").replace(/"/g, '""');
         const qty = eb.quantity || eb.qty || 1;
@@ -501,7 +501,7 @@ export default function Reports() {
                     <tbody>
                       {venueBookings.map((b, i) => (
                         <tr key={i} className="border-b border-slate-200">
-                          <td className="border border-slate-300 p-2 font-mono font-bold text-blue-700">{b.tracking_number || b.reference_code || `TRK-VB-${b.id}`}</td>
+                          <td className="border border-slate-300 p-2 font-mono font-bold text-blue-700">{b.tracking_number?.reference_code || (typeof b.tracking_number === 'string' ? b.tracking_number : '') || b.reference_code || `TRK-VB-${b.id}`}</td>
                           <td className="border border-slate-300 p-2 font-semibold">{b.filer_name || b.requestor || "Filer"}</td>
                           <td className="border border-slate-300 p-2">{b.venue_name || b.venue || "AVR"}</td>
                           <td className="border border-slate-300 p-2">{b.date_of_usage || b.date || "—"}</td>

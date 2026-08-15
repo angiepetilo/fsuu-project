@@ -314,11 +314,10 @@ export default function EquipmentBorrowing() {
         headers: { "Content-Type": "multipart/form-data" },
       });
 
-      const trackingNum = res.data?.tracking_number?.tracking_number
-        || res.data?.tracking_number
+      const rawTracking = res.data?.tracking_number;
+      const trackingNum = (typeof rawTracking === 'string' ? rawTracking : rawTracking?.reference_code || rawTracking?.tracking_number)
         || res.data?.reference_code
-        || res.data?.id
-        || 'FSUU-REQ-PENDING';
+        || (res.data?.id ? `TRK-EB-${res.data.id}` : 'FSUU-REQ-PENDING');
 
       setReferenceCode(trackingNum);
       setShowSuccess(true);

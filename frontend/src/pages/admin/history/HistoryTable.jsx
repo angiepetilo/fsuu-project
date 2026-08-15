@@ -1,4 +1,4 @@
-﻿import { Loader2, Eye, Pencil, RotateCcw, Trash2, MoreVertical, ChevronLeft, ChevronRight } from "lucide-react";
+import { Loader2, Eye, Pencil, RotateCcw, Trash2, MoreVertical, ChevronLeft, ChevronRight } from "lucide-react";
 
 /**
  * HistoryTable — Renders Venue or Equipment history records table with ActionMenuPopover and pagination.
@@ -55,7 +55,7 @@ export default function HistoryTable({
                 </tr>
               ) : (
                 paginatedList.map((b, idx) => {
-                  const refCode = b.reference_code || b.tracking_number || `TRK-AVR${b.id}`;
+                  const refCode = b.reference_code || b.tracking_number?.reference_code || (typeof b.tracking_number === 'string' ? b.tracking_number : '') || `TRK-AVR${b.id}`;
                   const requestor = b.filer_name || b.requestor || "FSUU Filer";
                   const department = b.program_office || b.department || "Academic Dept";
                   const venueName = b.venue_name || b.venue || "AVR Auditorium 1";
@@ -210,7 +210,7 @@ export default function HistoryTable({
               </tr>
             ) : (
               paginatedList.map((b, idx) => {
-                const refCode = b.reference_code || b.tracking_number || `EQUIP-REQ-${b.id}`;
+                const refCode = b.reference_code || b.tracking_number?.reference_code || (typeof b.tracking_number === 'string' ? b.tracking_number : '') || `EQUIP-REQ-${b.id}`;
                 const requestor = b.filer_name || b.requestor || "FSUU Filer";
                 const department = b.program_office || b.department || "Academic Dept";
                 const equipment = b.equipment_name || b.equipment || "Epson Digital Projector HD";

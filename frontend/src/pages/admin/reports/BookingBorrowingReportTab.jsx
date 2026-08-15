@@ -88,7 +88,7 @@ export default function BookingBorrowingReportTab({
                 </tr>
               ) : (
                 paginatedVenueViolations.map((b, idx) => {
-                  const trackNo = b.tracking_number || b.track_number || `TRK-VB-${1000 + (b.id || idx)}`;
+                  const trackNo = b.tracking_number?.reference_code || (typeof b.tracking_number === 'string' ? b.tracking_number : '') || b.track_number || b.reference_code || `TRK-VB-${1000 + (b.id || idx)}`;
                   const isDamaged = Boolean(b.has_damage) || (b.status || "").toLowerCase() === "damaged" || (b.status || "").toLowerCase() === "violation";
                   const schedTime = formatTime(b.time_start || b.time);
 
@@ -193,7 +193,7 @@ export default function BookingBorrowingReportTab({
                 </tr>
               ) : (
                 paginatedEquipViolations.map((eb, idx) => {
-                  const trackNo = eb.tracking_number || eb.track_number || `TRK-EB-${2000 + (eb.id || idx)}`;
+                  const trackNo = eb.tracking_number?.reference_code || (typeof eb.tracking_number === 'string' ? eb.tracking_number : '') || eb.track_number || eb.reference_code || `TRK-EB-${2000 + (eb.id || idx)}`;
                   const isDamaged = Boolean(eb.has_damage) || (eb.status || "").toLowerCase() === "damaged" || (eb.status || "").toLowerCase() === "lost";
 
                   return (
