@@ -127,14 +127,22 @@ class GoogleAuthController extends Controller
             ], 403);
         }
 
-        // Persist google_id, avatar, activate account, and sync real Google name
+        // Must activate account via invitation email before signing in with Google
+        if ($user->status === 'pending_activation' || !empty($user->invite_token)) {
+            $activationMsg = 'Please activate your account using the invitation link sent to your email first before signing in with Google.';
+            if ($isBrowserRedirect) {
+                return redirect("{$frontendUrl}/login?error=" . urlencode($activationMsg));
+            }
+
+            return response()->json([
+                'message' => $activationMsg,
+            ], 403);
+        }
+
+        // Persist google_id and avatar on login
         $user->update([
-            'name'         => (!empty($user->name) && $user->name !== 'User') ? $user->name : ($googleUser->getName() ?: 'Admin User'),
-            'google_id'    => $googleUser->getId(),
-            'avatar'       => $googleUser->getAvatar(),
-            'status'       => 'active',
-            'is_active'    => true,
-            'invite_token' => null,
+            'google_id' => $googleUser->getId(),
+            'avatar'    => $googleUser->getAvatar(),
         ]);
 
         // Revoke previous tokens — one active session per user

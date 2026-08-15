@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import api from "@/lib/axios";
 import { Loader2 } from "lucide-react";
@@ -11,10 +11,12 @@ import { Loader2 } from "lucide-react";
 export default function StaffLogin() {
   const { login } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const urlError = searchParams.get("error");
 
   // Google OAuth state
   const [googleLoading, setGoogleLoading] = useState(false);
-  const [googleError, setGoogleError] = useState("");
+  const [googleError, setGoogleError] = useState(() => urlError || "");
 
   // Password fallback state
   const [showPassword, setShowPassword] = useState(false);
