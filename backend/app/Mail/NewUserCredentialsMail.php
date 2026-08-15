@@ -10,8 +10,6 @@ use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
 
-use Illuminate\Mail\Mailables\Address;
-
 class NewUserCredentialsMail extends Mailable
 {
     use Queueable, SerializesModels;
@@ -33,11 +31,7 @@ class NewUserCredentialsMail extends Mailable
      */
     public function envelope(): Envelope
     {
-        $fromAddress = config('mail.from.address') ?: env('MAIL_USERNAME', 'angie.petilo@urios.edu.ph');
-        $fromName = config('mail.from.name', 'FSUU Reserve and Booking System');
-
         return new Envelope(
-            from: new Address($fromAddress, $fromName),
             subject: 'Your New FSUU Account Credentials',
         );
     }

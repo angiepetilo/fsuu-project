@@ -15,13 +15,8 @@ class SendNewUserCredentialsJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    /** Max attempts before moving to failed_jobs */
     public int $tries = 3;
-
-    /** Seconds to wait before retry: 30s, 60s, 120s */
     public array $backoff = [30, 60, 120];
-
-    /** Max seconds a single attempt may run */
     public int $timeout = 30;
 
     public function __construct(
@@ -38,28 +33,11 @@ class SendNewUserCredentialsJob implements ShouldQueue
         }
 
         try {
-            Log::info("[MAIL] Attempting to send credentials email to: {$recipient} via port 587...");
+            Log::info("[MAIL] Sending credentials email to: {$recipient}");
             Mail::to($recipient)->send(new NewUserCredentialsMail($this->user, $this->password));
             Log::info("[MAIL] SUCCESS: Credentials email delivered to: {$recipient}");
         } catch (\Throwable $e) {
-            Log::error("[MAIL] Primary attempt (587 TLS) failed: " . $e->getMessage() . ". Retrying via SSL port 465 fallback...");
-
-            // Automatic fallback using SSL on port 465 if port 587 was blocked or timed out by cloud host
-            try {
-                config([
-                    'mail.mailers.smtp.port' => 465,
-                    'mail.mailers.smtp.encryption' => 'ssl',
-                ]);
-                app('mail.manager')->forgetMailers();
-                Mail::to($recipient)->send(new NewUserCredentialsMail($this->user, $this->password));
-                Log::info("[MAIL] SUCCESS: Credentials email delivered via SSL 465 fallback to: {$recipient}");
-            } catch (\Throwable $e2) {
-                Log::error("[MAIL] FAILED: Email delivery failed on both ports (587 & 465)", [
-                    'recipient'      => $recipient,
-                    'primary_error'  => $e->getMessage(),
-                    'fallback_error' => $e2->getMessage(),
-                ]);
-            }
+            Log::error("[MAIL] FAILED: SendNewUserCredentialsJob failed to deliver to {$recipient}: " . $e->getMessage());
         }
     }
 
