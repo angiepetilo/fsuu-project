@@ -78,6 +78,8 @@ export default function AdminLayout() {
   const userRole = user?.role?.name || user?.role || "admin";
   const isSuperAdmin = userRole === "superadmin" || userRole === "super_admin";
 
+  const adminName = (isMatchingProfile ? profileState?.name : null) || user?.name || user?.email || "Admin User";
+  const adminAvatar = (isMatchingProfile ? profileState?.avatar : null) || user?.avatar || null;
   const adminOffice = (isMatchingProfile ? profileState?.office : null) || user?.office?.name || user?.office_name || "AVR Office I";
   const adminOfficeId = user?.office_id || user?.office?.id || profileState?.office_id || null;
 
