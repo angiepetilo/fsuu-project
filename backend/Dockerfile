@@ -50,6 +50,7 @@ ENV APP_ENV=production \
     SESSION_DRIVER=file \
     QUEUE_CONNECTION=sync \
     FRONTEND_URL=https://fsuu-project.vercel.app \
+    GOOGLE_REDIRECT_URI=https://fsuu-project.onrender.com/api/auth/google/callback \
     RESEND_API_KEY="" \
     MAIL_MAILER=smtp \
     MAIL_HOST=smtp.gmail.com \
