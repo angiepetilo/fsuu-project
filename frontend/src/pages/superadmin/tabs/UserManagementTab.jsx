@@ -56,11 +56,12 @@ export default function UserManagementTab({ showMsg }) {
     e.preventDefault();
     setFormLoading(true);
     try {
+      const emailValue = (userForm.email || userForm.personal_email || "").trim();
       if (editUser) {
         const payload = {
           name: userForm.name,
-          email: userForm.email,
-          personal_email: userForm.personal_email || userForm.email,
+          email: emailValue,
+          personal_email: emailValue,
           role: "admin",
           location: userForm.location || (locations[0]?.name || "FSUU Main Campus"),
           office_id: userForm.office_id ? parseInt(userForm.office_id, 10) : (offices[0]?.id || null),
@@ -69,12 +70,13 @@ export default function UserManagementTab({ showMsg }) {
         showMsg(`Branch Admin "${userForm.name}" updated successfully.`);
       } else {
         const payload = {
-          personal_email: userForm.personal_email,
+          email: emailValue,
+          personal_email: emailValue,
           office_id: userForm.office_id ? parseInt(userForm.office_id, 10) : (offices[0]?.id || null),
           role: "admin",
         };
         await api.post("/admin/users", payload);
-        showMsg(`Invitation sent to ${userForm.personal_email}.`);
+        showMsg(`Invitation sent to ${emailValue}.`);
       }
       setShowAddUserModal(false);
       setEditUser(null);
@@ -115,7 +117,7 @@ export default function UserManagementTab({ showMsg }) {
             Branch Office Admin Accounts
           </h3>
           <p className="text-xs text-slate-500 font-medium">
-            System Admin creates branch admin accounts for each campus office. Activation link is sent to the administrator's personal email.
+            System Admin creates branch admin accounts for each campus office. Activation link is sent to the administrator's email.
           </p>
         </div>
         <button
@@ -149,7 +151,7 @@ export default function UserManagementTab({ showMsg }) {
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-slate-50/80 border-b border-slate-100">
-              {["#", "Admin Name", "Personal Email", "Assigned Branch Office", "Role", "Actions"].map((h) => (
+              {["#", "Admin Name", "Email", "Assigned Branch Office", "Role", "Actions"].map((h) => (
                 <th key={h} className="px-4 py-3.5 text-left text-[11px] font-bold text-slate-400 uppercase tracking-wider">
                   {h}
                 </th>
@@ -186,7 +188,7 @@ export default function UserManagementTab({ showMsg }) {
                   <tr key={u.id || index} className="hover:bg-blue-50/40 transition-colors">
                     <td className="px-4 py-3.5 font-bold text-slate-400">{index + 1}</td>
                     <td className="px-4 py-3.5">
-                      {u.status === "pending_activation" || !u.name ? (
+                      {u.status === "pending_activation" || !u.name || u.name === "Pending Activation" ? (
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
                           <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
                           Pending Activation
@@ -195,7 +197,7 @@ export default function UserManagementTab({ showMsg }) {
                         <span className="font-extrabold text-slate-900">{u.name}</span>
                       )}
                     </td>
-                    <td className="px-4 py-3.5 font-mono text-slate-600 font-medium">{u.personal_email || u.email}</td>
+                    <td className="px-4 py-3.5 font-mono text-slate-600 font-medium">{u.email || u.personal_email}</td>
                     <td className="px-4 py-3.5 font-extrabold text-slate-800">
                       <span className="inline-flex items-center gap-1">
                         <Building2 size={13} className="text-slate-400 shrink-0" />
@@ -212,8 +214,8 @@ export default function UserManagementTab({ showMsg }) {
                         onClick={() => {
                           setEditUser(u);
                           setUserForm({
-                            name: u.name,
-                            email: u.email,
+                            name: u.name === "Pending Activation" ? "" : u.name,
+                            email: u.email || u.personal_email,
                             personal_email: u.personal_email || u.email,
                             role: "admin",
                             location: u.location || u.office?.location || locations[0]?.name || "FSUU Main Campus",
@@ -260,10 +262,9 @@ export default function UserManagementTab({ showMsg }) {
               {editUser ? (
                 <>
                   <div>
-                    <label className="block text-xs font-bold text-slate-900 mb-1">Admin Full Name *</label>
+                    <label className="block text-xs font-bold text-slate-900 mb-1">Admin Full Name</label>
                     <input
                       type="text"
-                      required
                       placeholder="e.g. Maria Santos"
                       value={userForm.name}
                       onChange={(e) => setUserForm({ ...userForm, name: e.target.value })}
@@ -272,29 +273,29 @@ export default function UserManagementTab({ showMsg }) {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-slate-900 mb-1">Personal Email Address *</label>
+                    <label className="block text-xs font-bold text-slate-900 mb-1">Email Address *</label>
                     <input
                       type="email"
                       required
                       placeholder="e.g. maria.santos@gmail.com"
-                      value={userForm.personal_email}
-                      onChange={(e) => setUserForm({ ...userForm, personal_email: e.target.value })}
+                      value={userForm.email || userForm.personal_email}
+                      onChange={(e) => setUserForm({ ...userForm, email: e.target.value, personal_email: e.target.value })}
                       className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-mono font-bold text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white transition-all"
                     />
                   </div>
                 </>
               ) : (
                 <div>
-                  <label className="block text-xs font-bold text-slate-900 mb-1">Personal Email Address *</label>
+                  <label className="block text-xs font-bold text-slate-900 mb-1">Email Address *</label>
                   <input
                     type="email"
                     required
                     placeholder="e.g. maria.santos@gmail.com"
-                    value={userForm.personal_email}
-                    onChange={(e) => setUserForm({ ...userForm, personal_email: e.target.value })}
+                    value={userForm.email || userForm.personal_email}
+                    onChange={(e) => setUserForm({ ...userForm, email: e.target.value, personal_email: e.target.value })}
                     className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-mono font-bold text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white transition-all"
                   />
-                  <p className="text-[10px] text-slate-400 mt-1 font-medium">An activation link will be sent to this email.</p>
+                  <p className="text-[10px] text-slate-400 mt-1 font-medium">An invitation and credentials link will be sent to this email address.</p>
                 </div>
               )}
 

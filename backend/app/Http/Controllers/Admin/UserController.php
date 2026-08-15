@@ -96,11 +96,10 @@ class UserController extends Controller
             $permissions = json_decode($permissions, true) ?? [];
         }
 
-        $targetPersonalEmail = $validated['personal_email'] ?? $validated['email'];
-        $targetEmail = $validated['email'] ?? $targetPersonalEmail;
+        $targetEmail = trim($validated['email'] ?? $validated['personal_email']);
 
-        // Name is only set if explicitly provided, otherwise completed during activation
-        $name = !empty($validated['name']) && trim($validated['name']) !== '' ? trim($validated['name']) : null;
+        // Name is only set if explicitly provided, otherwise placeholder for NOT NULL constraint
+        $name = (!empty($validated['name']) && trim($validated['name']) !== '') ? trim($validated['name']) : 'Pending Activation';
 
         // Auto-generate temporary password: 4 random chars + 4 random digits
         $plainPassword = Str::random(4) . rand(1000, 9999);
@@ -123,7 +122,7 @@ class UserController extends Controller
         $user = User::create([
             'name'           => $name,
             'email'          => $targetEmail,
-            'personal_email' => $targetPersonalEmail,
+            'personal_email' => $targetEmail,
             'password'       => Hash::make($plainPassword),
             'role_id'        => $targetRole->id,
             'office_id'      => $validated['office_id'] ?? $officeId,
