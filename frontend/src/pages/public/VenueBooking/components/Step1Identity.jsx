@@ -1,8 +1,18 @@
 import { GraduationCap, Users, User, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-export function Step1Identity({ identity, handleIdentitySelect, onNext }) {
-  const normIdentity = (identity || "").toLowerCase();
+export function Step1Identity({
+  identity,
+  selectedIdentity,
+  handleIdentitySelect,
+  onSelectIdentity,
+  onNext,
+}) {
+  const currentIdentity = (identity || selectedIdentity || "").toLowerCase();
+  const selectHandler = (val) => {
+    if (handleIdentitySelect) handleIdentitySelect(val);
+    if (onSelectIdentity) onSelectIdentity(val);
+  };
 
   return (
     <div className="p-6 sm:p-10 animate-in fade-in duration-300">
@@ -10,9 +20,9 @@ export function Step1Identity({ identity, handleIdentitySelect, onNext }) {
 
         {/* Role 1: Student */}
         <div
-          onClick={() => handleIdentitySelect("student")}
+          onClick={() => selectHandler("student")}
           className={`group bg-white rounded-[24px] p-6 text-center cursor-pointer transition-all duration-300 border-2 flex flex-col items-center justify-center min-h-[190px] ${
-            normIdentity === "student"
+            currentIdentity === "student"
               ? "border-blue-500 bg-white shadow-md shadow-blue-500/10 ring-4 ring-blue-50/60 scale-[1.02]"
               : "border-slate-200/80 shadow-2xs hover:border-blue-300 hover:shadow-md"
           }`}
@@ -26,9 +36,9 @@ export function Step1Identity({ identity, handleIdentitySelect, onNext }) {
 
         {/* Role 2: Faculty / Staff */}
         <div
-          onClick={() => handleIdentitySelect("faculty")}
+          onClick={() => selectHandler("faculty")}
           className={`group bg-white rounded-[24px] p-6 text-center cursor-pointer transition-all duration-300 border-2 flex flex-col items-center justify-center min-h-[190px] ${
-            normIdentity === "faculty"
+            currentIdentity === "faculty"
               ? "border-amber-500 bg-white shadow-md shadow-amber-500/10 ring-4 ring-amber-50/60 scale-[1.02]"
               : "border-slate-200/80 shadow-2xs hover:border-amber-300 hover:shadow-md"
           }`}
@@ -42,9 +52,9 @@ export function Step1Identity({ identity, handleIdentitySelect, onNext }) {
 
         {/* Role 3: External User */}
         <div
-          onClick={() => handleIdentitySelect("external")}
+          onClick={() => selectHandler("external")}
           className={`group bg-white rounded-[24px] p-6 text-center cursor-pointer transition-all duration-300 border-2 flex flex-col items-center justify-center min-h-[190px] ${
-            normIdentity === "external"
+            currentIdentity === "external"
               ? "border-emerald-500 bg-white shadow-md shadow-emerald-500/10 ring-4 ring-emerald-50/60 scale-[1.02]"
               : "border-slate-200/80 shadow-2xs hover:border-emerald-300 hover:shadow-md"
           }`}
@@ -61,8 +71,8 @@ export function Step1Identity({ identity, handleIdentitySelect, onNext }) {
       {/* Next Button */}
       <div className="flex justify-end pt-4 border-t border-slate-100">
         <Button
-          disabled={!identity}
-          onClick={() => identity && onNext && onNext()}
+          disabled={!currentIdentity}
+          onClick={() => currentIdentity && onNext && onNext()}
           className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3.5 rounded-full font-extrabold text-xs flex items-center gap-2 shadow-md shadow-blue-600/20 disabled:opacity-50 transition-all cursor-pointer"
         >
           <span>Next: Select Venue</span>
@@ -74,6 +84,3 @@ export function Step1Identity({ identity, handleIdentitySelect, onNext }) {
 }
 
 export default Step1Identity;
-
-
-
