@@ -114,10 +114,10 @@ export default function UserManagementTab({ showMsg }) {
         <div>
           <h3 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
             <Users size={18} className="text-blue-600" />
-            Branch Office Admin Accounts
+            Admin Accounts Management
           </h3>
           <p className="text-xs text-slate-500 font-medium">
-            System Admin creates branch admin accounts for each campus office. Activation link is sent to the administrator's email.
+            System Admin creates administrator and manager accounts. Activation links are sent to the user's email.
           </p>
         </div>
         <button
@@ -128,7 +128,7 @@ export default function UserManagementTab({ showMsg }) {
               email: "",
               personal_email: "",
               role: "admin",
-              location: locations[0]?.name || "FSUU Main Campus",
+              location: "FSUU Main Campus",
               office_id: offices[0]?.id || "",
             });
             setShowAddUserModal(true);
@@ -139,19 +139,12 @@ export default function UserManagementTab({ showMsg }) {
         </button>
       </div>
 
-      {offices.length === 0 && (
-        <div className="bg-amber-50 border border-amber-200 p-4 rounded-2xl text-amber-800 text-xs font-semibold flex items-center gap-2">
-          <AlertTriangle size={16} className="text-amber-600 shrink-0" />
-          <span>No campus branch offices created yet. Please create a campus office first in the <strong>Campuses &amp; Branch Offices</strong> tab before assigning admin accounts.</span>
-        </div>
-      )}
-
       {/* Admin Accounts Table */}
       <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-slate-50/80 border-b border-slate-100">
-              {["#", "Admin Name", "Email", "Assigned Branch Office", "Role", "Actions"].map((h) => (
+              {["#", "Admin Name", "Email", "Role", "Actions"].map((h) => (
                 <th key={h} className="px-4 py-3.5 text-left text-[11px] font-bold text-slate-400 uppercase tracking-wider">
                   {h}
                 </th>
@@ -161,29 +154,24 @@ export default function UserManagementTab({ showMsg }) {
           <tbody className="divide-y divide-slate-100 text-xs font-semibold">
             {loading ? (
               <tr>
-                <td colSpan={6} className="text-center py-10">
+                <td colSpan={5} className="text-center py-10">
                   <div className="flex items-center justify-center gap-2 text-slate-400">
                     <div className="w-4 h-4 rounded-full border-2 border-slate-200 border-t-blue-500 animate-spin" />
-                    <span className="text-xs font-semibold italic">Loading branch admins...</span>
+                    <span className="text-xs font-semibold italic">Loading admins...</span>
                   </div>
                 </td>
               </tr>
             ) : adminUsers.length === 0 ? (
               <tr>
-                <td colSpan={6} className="text-center py-10 text-slate-400">
+                <td colSpan={5} className="text-center py-10 text-slate-400">
                   <div className="flex items-center justify-center gap-2">
                     <Users size={16} className="text-slate-400" />
-                    <span>No branch admin accounts found. Click "Create Admin Account" to assign branch management access.</span>
+                    <span>No admin accounts found. Click "Create Admin Account" to add an administrator.</span>
                   </div>
                 </td>
               </tr>
             ) : (
               adminUsers.map((u, index) => {
-                const matchedOff = (typeof u.office === "object" && u.office) || offices.find((o) => o.id === u.office_id);
-                const officeName = matchedOff
-                  ? (matchedOff.location ? `${matchedOff.name} | ${matchedOff.location}` : matchedOff.name)
-                  : (u.location || "FSUU Main Campus");
-
                 return (
                   <tr key={u.id || index} className="hover:bg-blue-50/40 transition-colors">
                     <td className="px-4 py-3.5 font-bold text-slate-400">{index + 1}</td>
@@ -198,15 +186,9 @@ export default function UserManagementTab({ showMsg }) {
                       )}
                     </td>
                     <td className="px-4 py-3.5 font-mono text-slate-600 font-medium">{u.email || u.personal_email}</td>
-                    <td className="px-4 py-3.5 font-extrabold text-slate-800">
-                      <span className="inline-flex items-center gap-1">
-                        <Building2 size={13} className="text-slate-400 shrink-0" />
-                        {officeName}
-                      </span>
-                    </td>
                     <td className="px-4 py-3.5">
                       <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold border bg-blue-50 text-blue-700 border-blue-200">
-                        BRANCH ADMIN
+                        ADMIN
                       </span>
                     </td>
                     <td className="px-4 py-3.5 flex items-center gap-2">
@@ -218,8 +200,8 @@ export default function UserManagementTab({ showMsg }) {
                             email: u.email || u.personal_email,
                             personal_email: u.personal_email || u.email,
                             role: "admin",
-                            location: u.location || u.office?.location || locations[0]?.name || "FSUU Main Campus",
-                            office_id: u.office_id || u.office?.id || offices[0]?.id || "",
+                            location: "",
+                            office_id: "",
                           });
                           setShowAddUserModal(true);
                         }}
@@ -244,14 +226,14 @@ export default function UserManagementTab({ showMsg }) {
         </table>
       </div>
 
-      {/* Modal: Create / Edit Branch Admin */}
+      {/* Modal: Create / Edit Admin */}
       {showAddUserModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-[1500] flex items-center justify-center p-4 animate-in fade-in">
           <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl animate-in zoom-in-95 border border-slate-100 space-y-4">
             <div className="flex justify-between items-center pb-3 border-b border-slate-100">
               <h3 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
                 <Users size={18} className="text-blue-600" />
-                {editUser ? "Edit Branch Admin Account" : "Create New Branch Admin Account"}
+                {editUser ? "Edit Admin Account" : "Create New Admin Account"}
               </h3>
               <button onClick={() => setShowAddUserModal(false)} className="text-slate-400 hover:text-slate-600 p-1 rounded-lg cursor-pointer">
                 <X size={18} />
@@ -299,30 +281,6 @@ export default function UserManagementTab({ showMsg }) {
                 </div>
               )}
 
-              {offices.length > 0 ? (
-                <div>
-                  <label className="block text-xs font-bold text-slate-900 mb-1">Assigned Office *</label>
-                  <select
-                    value={userForm.office_id}
-                    onChange={(e) => setUserForm({ ...userForm, office_id: e.target.value })}
-                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 text-xs focus:outline-none focus:border-blue-600 focus:bg-white transition-all"
-                  >
-                    {offices.map((o) => (
-                      <option key={o.id} value={o.id}>
-                        {o.location ? `${o.name} | ${o.location}` : o.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              ) : (
-                <div>
-                  <label className="block text-xs font-bold text-slate-900 mb-1">Assigned Office</label>
-                  <div className="p-3 bg-amber-50 border border-amber-200 text-amber-800 text-[10px] font-bold rounded-xl">
-                    Create campus office first
-                  </div>
-                </div>
-              )}
-
               <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
                 <button
                   type="button"
@@ -333,7 +291,7 @@ export default function UserManagementTab({ showMsg }) {
                 </button>
                 <button
                   type="submit"
-                  disabled={formLoading || offices.length === 0}
+                  disabled={formLoading}
                   className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-extrabold text-xs shadow-md flex items-center gap-1.5 transition-all cursor-pointer"
                 >
                   {formLoading && <Loader2 size={14} className="animate-spin" />}

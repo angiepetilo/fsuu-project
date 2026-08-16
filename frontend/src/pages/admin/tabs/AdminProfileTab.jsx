@@ -198,7 +198,8 @@ export default function AdminProfileTab({
                 <input
                   type="text"
                   disabled
-                  value={profileForm.office || roleLabel}
+                  value={roleLabel || "Admin"}
+                  placeholder="Admin"
                   className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-600 text-xs"
                 />
               </div>

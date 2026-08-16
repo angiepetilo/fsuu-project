@@ -243,62 +243,21 @@ class VenueBookingController extends Controller
             }
         }
 
-        // Validate physical units belong to venue office
-        if (!empty($barcodes)) {
-            $venueOfficeId = $avrVenueBooking->venue?->office_id ?? DB::table('venues')->where('id', $avrVenueBooking->venue_id)->value('office_id');
-            if ($venueOfficeId) {
-                $crossOfficeUnits = DB::table('equipment_units')
-                    ->join('equipment_types', 'equipment_units.equipment_type_id', '=', 'equipment_types.id')
-                    ->whereIn('equipment_units.unit_code', $barcodes)
-                    ->where('equipment_types.office_id', '!=', $venueOfficeId)
-                    ->count();
-                if ($crossOfficeUnits > 0) {
-                    return response()->json([
-                        'message' => 'Cannot assign equipment units belonging to a different campus/office.',
-                        'errors'  => ['assigned_units' => ['Cross-office unit assignment is not permitted.']]
-                    ], 422);
-                }
-            }
-        }
-
-        // Count assigned physical units per equipment_type_id
-        if (!empty($barcodes) && !empty($requestedMap)) {
-            $assignedUnitsInDb = DB::table('equipment_units')
-                ->whereIn('unit_code', $barcodes)
-                ->get();
-
-            $assignedCounts = [];
-            foreach ($assignedUnitsInDb as $unitRow) {
-                $tId = (int)$unitRow->equipment_type_id;
-                $assignedCounts[$tId] = ($assignedCounts[$tId] ?? 0) + 1;
-            }
-
-            foreach ($assignedCounts as $typeId => $assignedQty) {
-                $requestedQty = $requestedMap[$typeId] ?? 0;
-                if ($requestedQty > 0 && $assignedQty > $requestedQty) {
-                    $eqTypeObj = DB::table('equipment_types')->where('id', $typeId)->first();
-                    $typeName = $eqTypeObj ? ($eqTypeObj->eq_name ?? $eqTypeObj->name) : "Type #{$typeId}";
-                    return response()->json([
-                        'message' => "Cannot assign {$assignedQty} units for {$typeName}. Only {$requestedQty} unit(s) were requested for this booking."
-                    ], 422);
-                }
-            }
-        }
-
         $avrVenueBooking->update([
             'assigned_units' => $assignedData,
         ]);
 
-        // Immediate soft hold / reserved sub-status lock on selected physical units
+        $currentStatus = strtolower($avrVenueBooking->status ?? $avrVenueBooking->trackingNumber?->status ?? '');
+
         if (!empty($barcodes)) {
+            $newUnitStatus = in_array($currentStatus, ['ongoing', 'on-going', 'post-inspection']) ? 'released' : 'reserved';
             \App\Models\EquipmentUnit::where(function($q) use ($barcodes) {
                 $q->whereIn('unit_code', $barcodes)->orWhereIn('name', $barcodes);
             })
-            ->where('status', 'available')
-            ->update(['status' => 'reserved']);
+            ->update(['status' => $newUnitStatus]);
         }
 
-        return response()->json($avrVenueBooking);
+        return response()->json($avrVenueBooking->fresh(['venue', 'trackingNumber']));
     }
 
     public function override(Request $request, VenueBooking $avrVenueBooking): JsonResponse

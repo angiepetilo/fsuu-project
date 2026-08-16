@@ -1,10 +1,9 @@
 import { useState, useEffect } from "react";
-import { BookOpen, Plus, Edit2, Trash2, X, Loader2, MapPin } from "lucide-react";
+import { BookOpen, Plus, Edit2, Trash2, X, Loader2 } from "lucide-react";
 import api from "@/lib/axios";
 
 export default function DepartmentsTab({ showMsg }) {
   const [departments, setDepartments] = useState([]);
-  const [locations, setLocations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAddDeptModal, setShowAddDeptModal] = useState(false);
   const [editDept, setEditDept] = useState(null);
@@ -12,26 +11,17 @@ export default function DepartmentsTab({ showMsg }) {
 
   const [deptForm, setDeptForm] = useState({
     code: "",
-    campus_location: "",
     name: "",
   });
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [deptRes, locRes] = await Promise.all([
-        api.get("/admin/departments"),
-        api.get("/admin/locations").catch(() => ({ data: [] })),
-      ]);
+      const deptRes = await api.get("/admin/departments");
       const deptData = Array.isArray(deptRes.data) ? deptRes.data : [];
       setDepartments(deptData);
       localStorage.setItem("fsuu_departments", JSON.stringify(deptData));
       window.dispatchEvent(new Event("departments_updated"));
-      const locList = Array.isArray(locRes.data) ? locRes.data : [];
-      setLocations(locList);
-      if (locList.length > 0 && !deptForm.campus_location) {
-        setDeptForm(prev => ({ ...prev, campus_location: locList[0].name }));
-      }
     } catch {
       setDepartments([]);
     } finally {
@@ -50,7 +40,6 @@ export default function DepartmentsTab({ showMsg }) {
       const payload = {
         code: deptForm.code,
         name: deptForm.name,
-        campus_location: deptForm.campus_location || locations[0]?.name || "FSUU Main Campus",
       };
 
       if (editDept) {
@@ -89,10 +78,10 @@ export default function DepartmentsTab({ showMsg }) {
         <div>
           <h3 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
             <BookOpen size={18} className="text-blue-600" />
-            Departments & Programs Management
+            Departments &amp; Programs Management
           </h3>
           <p className="text-xs text-slate-500 font-medium">
-            Manage academic colleges, facility departments, and campus locations for requisitions.
+            Manage academic colleges and facility departments for requisitions.
           </p>
         </div>
         <button
@@ -101,7 +90,6 @@ export default function DepartmentsTab({ showMsg }) {
             setDeptForm({
               code: "",
               name: "",
-              campus_location: locations[0]?.name || "FSUU Main Campus",
             });
             setShowAddDeptModal(true);
           }}
@@ -111,12 +99,12 @@ export default function DepartmentsTab({ showMsg }) {
         </button>
       </div>
 
-      {/* Table: [#, Code, Campus Location, Department Name, Actions] */}
+      {/* Table: [#, Code, Department Name, Actions] */}
       <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-slate-50/80 border-b border-slate-100">
-              {["#", "Code", "Campus Location", "Department Name", "Actions"].map((h) => (
+              {["#", "Code", "Department Name", "Actions"].map((h) => (
                 <th key={h} className="px-4 py-3.5 text-left text-[11px] font-bold text-slate-400 uppercase tracking-wider">
                   {h}
                 </th>
@@ -126,7 +114,7 @@ export default function DepartmentsTab({ showMsg }) {
           <tbody className="divide-y divide-slate-100 text-xs font-semibold">
             {loading ? (
               <tr>
-                <td colSpan={5} className="text-center py-10">
+                <td colSpan={4} className="text-center py-10">
                   <div className="flex items-center justify-center gap-2 text-slate-400">
                     <div className="w-4 h-4 rounded-full border-2 border-slate-200 border-t-blue-500 animate-spin" />
                     <span className="text-xs font-semibold italic">Loading departments...</span>
@@ -135,7 +123,7 @@ export default function DepartmentsTab({ showMsg }) {
               </tr>
             ) : departments.length === 0 ? (
               <tr>
-                <td colSpan={5} className="text-center py-10 text-slate-400 text-xs font-semibold">
+                <td colSpan={4} className="text-center py-10 text-slate-400 text-xs font-semibold">
                   📚 No departments configured yet. Click "Add Department" to create one.
                 </td>
               </tr>
@@ -148,12 +136,6 @@ export default function DepartmentsTab({ showMsg }) {
                       {dept.code}
                     </span>
                   </td>
-                  <td className="px-4 py-3.5">
-                    <span className="inline-flex items-center gap-1 font-semibold text-slate-700">
-                      <MapPin size={12} className="text-blue-600 shrink-0" />
-                      {dept.campus_location || dept.campus || "FSUU Main Campus"}
-                    </span>
-                  </td>
                   <td className="px-4 py-3.5 font-extrabold text-slate-900">
                     {dept.name}
                   </td>
@@ -164,7 +146,6 @@ export default function DepartmentsTab({ showMsg }) {
                         setDeptForm({
                           code: dept.code || "",
                           name: dept.name || "",
-                          campus_location: dept.campus_location || locations[0]?.name || "FSUU Main Campus",
                         });
                         setShowAddDeptModal(true);
                       }}
@@ -203,34 +184,16 @@ export default function DepartmentsTab({ showMsg }) {
             </div>
 
             <form onSubmit={handleSaveDept} className="space-y-4 text-xs">
-              <div className="grid grid-cols-3 gap-2">
-                <div>
-                  <label className="block text-xs font-bold text-slate-900 mb-1">Code *</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. CCS"
-                    value={deptForm.code}
-                    onChange={(e) => setDeptForm({ ...deptForm, code: e.target.value.toUpperCase() })}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono font-bold text-slate-900 focus:outline-none focus:border-blue-600"
-                  />
-                </div>
-                <div className="col-span-2">
-                  <label className="block text-xs font-bold text-slate-900 mb-1">Campus Location *</label>
-                  <select
-                    value={deptForm.campus_location}
-                    onChange={(e) => setDeptForm({ ...deptForm, campus_location: e.target.value })}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:outline-none focus:border-blue-600"
-                  >
-                    {locations.length > 0 ? (
-                      locations.map((loc) => (
-                        <option key={loc.id} value={loc.name}>{loc.name}</option>
-                      ))
-                    ) : (
-                      <option value="" disabled>No campus locations created yet</option>
-                    )}
-                  </select>
-                </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-900 mb-1">Department Code *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. CCS, CITEC, CCJE"
+                  value={deptForm.code}
+                  onChange={(e) => setDeptForm({ ...deptForm, code: e.target.value.toUpperCase() })}
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono font-bold text-slate-900 focus:outline-none focus:border-blue-600"
+                />
               </div>
 
               <div>
@@ -238,7 +201,7 @@ export default function DepartmentsTab({ showMsg }) {
                 <input
                   type="text"
                   required
-                  placeholder="e.g. College of Computing Studies"
+                  placeholder="e.g. College of Information, Technology, Entertainment, and Computing"
                   value={deptForm.name}
                   onChange={(e) => setDeptForm({ ...deptForm, name: e.target.value })}
                   className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:outline-none focus:border-blue-600"

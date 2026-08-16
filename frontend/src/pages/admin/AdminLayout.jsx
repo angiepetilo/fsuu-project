@@ -14,8 +14,8 @@ const NAV_GROUPS = [
     title: "GLOBAL OVERVIEW",
     items: [
       { label: "Dashboard",           icon: LayoutDashboard, path: "/admin/dashboard",          roles: ["super_admin", "admin", "staff"] },
-      { label: "Venue Booking",       icon: Building2,        path: "/admin/venue-bookings",     roles: ["super_admin", "admin", "staff"] },
-      { label: "Equipment Borrowing", icon: PackageOpen,      path: "/admin/equipment-borrowing",roles: ["super_admin", "admin", "staff"] },
+      { label: "Venue Booking",       icon: Building2,        path: "/admin/venue-bookings",     roles: ["super_admin", "admin", "staff"], permissionKey: "venue_bookings" },
+      { label: "Equipment Borrowing", icon: PackageOpen,      path: "/admin/equipment-borrowing",roles: ["super_admin", "admin", "staff"], permissionKey: "equipment_borrowing" },
     ],
   },
   {
@@ -23,8 +23,8 @@ const NAV_GROUPS = [
     items: [
       { label: "Manage Equipment",    icon: Box,              path: "/admin/manage-equipments",  roles: ["super_admin", "admin", "staff"], permissionKey: "manage_equipments" },
       { label: "Manage Venue",        icon: CalendarCheck,    path: "/admin/manage-venues",      roles: ["super_admin", "admin", "staff"], permissionKey: "manage_venues" },
-      { label: "Report",              icon: FileBarChart2,    path: "/admin/reports",            roles: ["super_admin", "admin", "staff"] },
-      { label: "History Log",         icon: FileBarChart2,    path: "/admin/history-log",        roles: ["super_admin", "admin", "staff"] },
+      { label: "Report",              icon: FileBarChart2,    path: "/admin/reports",            roles: ["super_admin", "admin", "staff"], permissionKey: "reports" },
+      { label: "History Log",         icon: FileBarChart2,    path: "/admin/history-log",        roles: ["super_admin", "admin", "staff"], permissionKey: "history_log" },
     ],
   },
   {
@@ -80,7 +80,8 @@ export default function AdminLayout() {
 
   const adminName = (isMatchingProfile ? profileState?.name : null) || user?.name || user?.email || "Admin User";
   const adminAvatar = (isMatchingProfile ? profileState?.avatar : null) || user?.avatar || null;
-  const adminOffice = (isMatchingProfile ? profileState?.office : null) || user?.office?.name || user?.office_name || "AVR Office I";
+  const officeName = isSuperAdmin ? "Super Admin" : userRole === "admin" ? "Admin" : "Staff";
+  const adminOffice = officeName;
   const adminOfficeId = user?.office_id || user?.office?.id || profileState?.office_id || null;
 
   // Real Database Notifications with Persistent Read State
@@ -171,7 +172,6 @@ export default function AdminLayout() {
   const updatesNotifs = filteredNotifications.filter(n => n.priority === 'medium' || n.priority === 'low' || (!needsActionNotifs.some(a => a.id === n.id)));
 
   const officeFilterName = isSuperAdmin ? "All Offices" : (user?.office?.name || adminOffice || "Assigned Office");
-  const officeName = user?.office?.name || (isSuperAdmin ? "Global Scope" : adminOffice || "Assigned Office");
 
   useEffect(() => {
     if (!user) {
@@ -200,6 +200,13 @@ export default function AdminLayout() {
     : userRole === "staff" 
       ? "FSUU Staff Portal" 
       : "FSUU Admin Portal";
+
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour >= 5 && hour < 12) return "Good morning";
+    if (hour >= 12 && hour < 18) return "Good afternoon";
+    return "Good evening";
+  };
 
   return (
     <div className="min-h-screen bg-[#f8fafc] flex font-sans antialiased text-slate-900 relative">
@@ -358,7 +365,7 @@ export default function AdminLayout() {
 
               <div className="flex flex-col justify-center">
                 <h1 className="font-bold text-slate-900 text-base sm:text-lg tracking-tight">
-                  Good morning, {adminName}
+                  {getGreeting()}, {adminName}
                 </h1>
                 <p className="text-xs text-slate-400 font-medium mt-0.5 hidden sm:block">
                   You're signed in as <span className="font-semibold text-slate-600 capitalize">{userRole.replace("_", " ")}</span>. Here's your booking system at a glance.
@@ -388,9 +395,9 @@ export default function AdminLayout() {
                       <div>
                         <h4 className="font-extrabold text-xs text-slate-900 flex items-center gap-2 uppercase tracking-wider">
                           <Bell size={15} className="text-blue-600" />
-                          Notifications ({officeFilterName})
+                          Notifications
                         </h4>
-                        <p className="text-[10.5px] text-slate-500 font-medium">Categorized by priority &amp; office scope</p>
+                        <p className="text-[10.5px] text-slate-500 font-medium">Latest bookings, borrows &amp; stock alerts</p>
                       </div>
                       <div className="flex items-center gap-1.5">
                         {notifications.length > 0 && (

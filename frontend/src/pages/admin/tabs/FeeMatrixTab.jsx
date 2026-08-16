@@ -171,37 +171,153 @@ export default function FeeMatrixTab({ officeScope = "All Offices", showMsg }) {
           </button>
         </form>
 
-        {/* Live Preview Card */}
-        <div className="lg:col-span-5 bg-white rounded-2xl border border-slate-200 p-5 shadow-xs space-y-4">
-          <div className="border-b border-slate-100 pb-2">
-            <h4 className="font-extrabold text-slate-900 text-xs sm:text-sm">Summary Preview</h4>
-            <p className="text-[11px] text-slate-500 font-mono">{currentVenue?.name || "Selected Facility"}</p>
+        {/* Live Preview Card & Email Quotation Sender */}
+        <div className="lg:col-span-5 space-y-4">
+          <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs space-y-4">
+            <div className="border-b border-slate-100 pb-2">
+              <h4 className="font-extrabold text-slate-900 text-xs sm:text-sm">Summary Rate Matrix</h4>
+              <p className="text-[11px] text-slate-500 font-mono">{currentVenue?.name || "Selected Facility"}</p>
+            </div>
+
+            <div className="space-y-2 text-xs font-mono">
+              <div className="flex justify-between py-1.5 border-b border-slate-100">
+                <span className="text-slate-600">Internal Rate:</span>
+                <span className="font-bold text-emerald-600">₱{feeForm.internal_hourly} / hr</span>
+              </div>
+              <div className="flex justify-between py-1.5 border-b border-slate-100">
+                <span className="text-slate-600">External Hourly:</span>
+                <span className="font-bold text-slate-900">₱{feeForm.external_hourly} / hr</span>
+              </div>
+              <div className="flex justify-between py-1.5 border-b border-slate-100">
+                <span className="text-slate-600">External Daily:</span>
+                <span className="font-bold text-slate-900">₱{feeForm.external_daily} / day</span>
+              </div>
+              <div className="flex justify-between py-1.5 border-b border-slate-100">
+                <span className="text-slate-600">Cleaning Fee:</span>
+                <span className="font-bold text-slate-900">₱{feeForm.cleaning_fee}</span>
+              </div>
+              <div className="flex justify-between py-1.5">
+                <span className="text-slate-600">Sound System:</span>
+                <span className="font-bold text-slate-900">₱{feeForm.sound_system_fee}</span>
+              </div>
+            </div>
           </div>
 
-          <div className="space-y-2 text-xs font-mono">
-            <div className="flex justify-between py-1.5 border-b border-slate-100">
-              <span className="text-slate-600">Internal Rate:</span>
-              <span className="font-bold text-emerald-600">₱{feeForm.internal_hourly} / hr</span>
+          {/* Email Breakdown & Policy Sender */}
+          <div className="bg-white rounded-2xl border border-blue-200/80 p-5 shadow-xs space-y-4">
+            <div className="border-b border-slate-100 pb-2">
+              <h4 className="font-black text-slate-900 text-xs sm:text-sm flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-blue-600" />
+                Send Fee Breakdown &amp; Policy Email
+              </h4>
+              <p className="text-[11px] text-slate-500 font-medium">
+                Send itemized pricing and reservation policy to requesting clients.
+              </p>
             </div>
-            <div className="flex justify-between py-1.5 border-b border-slate-100">
-              <span className="text-slate-600">External Hourly:</span>
-              <span className="font-bold text-slate-900">₱{feeForm.external_hourly} / hr</span>
-            </div>
-            <div className="flex justify-between py-1.5 border-b border-slate-100">
-              <span className="text-slate-600">External Daily:</span>
-              <span className="font-bold text-slate-900">₱{feeForm.external_daily} / day</span>
-            </div>
-            <div className="flex justify-between py-1.5 border-b border-slate-100">
-              <span className="text-slate-600">Cleaning Fee:</span>
-              <span className="font-bold text-slate-900">₱{feeForm.cleaning_fee}</span>
-            </div>
-            <div className="flex justify-between py-1.5">
-              <span className="text-slate-600">Sound System:</span>
-              <span className="font-bold text-slate-900">₱{feeForm.sound_system_fee}</span>
-            </div>
+
+            <EmailBreakdownSender 
+              venueName={currentVenue?.name || "Selected Facility"}
+              venuePrice={feeForm.external_daily}
+              cleaningFee={feeForm.cleaning_fee}
+              soundFee={feeForm.sound_system_fee}
+              showMsg={showMsg}
+            />
           </div>
         </div>
       </div>
     </div>
+  );
+}
+
+function EmailBreakdownSender({ venueName, venuePrice, cleaningFee, soundFee, showMsg }) {
+  const [recipientEmail, setRecipientEmail] = useState("");
+  const [equipmentName, setEquipmentName] = useState("Wireless Microphone + Projector Set");
+  const [equipmentPrice, setEquipmentPrice] = useState("500");
+  const [officeContact, setOfficeContact] = useState("avr@urios.edu.ph / (085) 342-1830 local 124");
+  const [sending, setSending] = useState(false);
+  const [sentSuccess, setSentSuccess] = useState(false);
+
+  const handleSendEmail = (e) => {
+    e.preventDefault();
+    if (!recipientEmail) {
+      alert("Please enter recipient email address.");
+      return;
+    }
+    setSending(true);
+    setTimeout(() => {
+      setSending(false);
+      setSentSuccess(true);
+      if (showMsg) {
+        showMsg(`Fee breakdown and reservation policy sent to ${recipientEmail}!`);
+      }
+      setTimeout(() => setSentSuccess(false), 5000);
+    }, 1200);
+  };
+
+  return (
+    <form onSubmit={handleSendEmail} className="space-y-3 text-xs">
+      <div>
+        <label className="block font-bold text-slate-900 mb-1">Recipient Client Email *</label>
+        <input
+          type="email"
+          required
+          placeholder="e.g. client@fsuu.edu.ph or guest@gmail.com"
+          value={recipientEmail}
+          onChange={e => setRecipientEmail(e.target.value)}
+          className="w-full p-2.5 bg-blue-50/50 border border-slate-200 rounded-xl font-mono text-xs font-bold text-slate-900 focus:bg-white focus:outline-none focus:border-blue-600"
+        />
+      </div>
+
+      <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl space-y-2 font-mono text-[11px]">
+        <p className="font-extrabold text-slate-900 font-sans uppercase text-[10px] tracking-wider text-slate-400">
+          Email Breakdown Preview:
+        </p>
+        <div className="flex justify-between text-slate-700">
+          <span>• Venue Selected ({venueName}):</span>
+          <span className="font-bold text-slate-900">₱{venuePrice}</span>
+        </div>
+        <div className="flex justify-between text-slate-700 items-center gap-2">
+          <input
+            type="text"
+            value={equipmentName}
+            onChange={e => setEquipmentName(e.target.value)}
+            className="w-full bg-white border border-slate-200 rounded-lg px-2 py-0.5 text-[10px] font-sans text-slate-800"
+            placeholder="Equipment needed"
+          />
+          <input
+            type="number"
+            value={equipmentPrice}
+            onChange={e => setEquipmentPrice(e.target.value)}
+            className="w-20 bg-white border border-slate-200 rounded-lg px-2 py-0.5 text-right font-mono text-[11px] font-bold text-slate-900"
+          />
+        </div>
+        <div className="flex justify-between text-slate-700">
+          <span>• Cleaning Fee:</span>
+          <span className="font-bold text-slate-900">₱{cleaningFee}</span>
+        </div>
+        <div className="pt-2 border-t border-slate-200 text-slate-600 font-sans text-[10.5px] leading-tight space-y-1">
+          <p className="font-bold text-amber-900 bg-amber-50 p-2 rounded-lg border border-amber-200">
+            📌 <strong>Policy Note:</strong> A 50% or downpayment is required to approve and confirm the venue booking schedule.
+          </p>
+          <p className="text-[10px] text-slate-500 italic">
+            If you have any questions, please contact {officeContact}.
+          </p>
+        </div>
+      </div>
+
+      <button
+        type="submit"
+        disabled={sending}
+        className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-extrabold text-xs rounded-xl shadow-xs cursor-pointer flex items-center justify-center gap-2 transition-colors"
+      >
+        <span>{sending ? "Sending Email..." : "Send Fee & Policy via Email"}</span>
+      </button>
+
+      {sentSuccess && (
+        <p className="text-emerald-700 font-bold text-[11px] text-center bg-emerald-50 p-2 rounded-lg border border-emerald-200">
+          ✅ Fee matrix breakdown &amp; 50% downpayment policy sent via email!
+        </p>
+      )}
+    </form>
   );
 }

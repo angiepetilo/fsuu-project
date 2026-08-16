@@ -13,7 +13,61 @@ class EquipmentCategoryService
      */
     public function formatCategoryResponse(EquipmentType $e): array
     {
-        // 1. Calculate units released in ACTIVE ON-GOING equipment borrowings ONLY
+        $hasUnitsTable = Schema::hasTable('equipment_units');
+        $registeredUnitsCount = 0;
+        $physicalReleased = 0;
+        $damagedCount = 0;
+        $lostCount = 0;
+        $reservedCount = 0;
+        $availableUnitsCount = 0;
+
+        if ($hasUnitsTable) {
+            try {
+                $registeredUnitsCount = DB::table('equipment_units')
+                    ->where('equipment_type_id', $e->id)
+                    ->whereNull('archived_at')
+                    ->count();
+
+                $physicalReleased = DB::table('equipment_units')
+                    ->where('equipment_type_id', $e->id)
+                    ->whereNull('archived_at')
+                    ->whereIn(DB::raw('LOWER(status)'), ['released', 'in_use', 'borrowed'])
+                    ->count();
+
+                $reservedCount = DB::table('equipment_units')
+                    ->where('equipment_type_id', $e->id)
+                    ->whereNull('archived_at')
+                    ->where(DB::raw('LOWER(status)'), 'reserved')
+                    ->count();
+
+                $damagedCount = DB::table('equipment_units')
+                    ->where('equipment_type_id', $e->id)
+                    ->whereNull('archived_at')
+                    ->where(function($q) {
+                        $q->whereIn(DB::raw('LOWER(status)'), ['damaged', 'maintenance', 'unavailable'])
+                          ->orWhereIn(DB::raw('LOWER(`condition`)'), ['damaged', 'maintenance', 'worn', 'under repair']);
+                    })
+                    ->count();
+
+                $lostCount = DB::table('equipment_units')
+                    ->where('equipment_type_id', $e->id)
+                    ->whereNull('archived_at')
+                    ->where(function($q) {
+                        $q->whereIn(DB::raw('LOWER(status)'), ['decommissioned', 'lost'])
+                          ->orWhereIn(DB::raw('LOWER(`condition`)'), ['lost']);
+                    })
+                    ->count();
+
+                $availableUnitsCount = DB::table('equipment_units')
+                    ->where('equipment_type_id', $e->id)
+                    ->whereNull('archived_at')
+                    ->where(DB::raw('LOWER(status)'), 'available')
+                    ->whereNotIn(DB::raw('LOWER(`condition`)'), ['damaged', 'lost', 'under repair', 'worn'])
+                    ->count();
+            } catch (\Throwable $th) {}
+        }
+
+        // 1. Calculate units released in ACTIVE ON-GOING equipment borrowings
         $borrowedCount = 0;
         try {
             if (Schema::hasTable('equipment_borrow_items') && Schema::hasTable('equipment_borrows') && Schema::hasTable('tracking_numbers')) {
@@ -70,42 +124,16 @@ class EquipmentCategoryService
             $venueCount = 0;
         }
 
-        $releasedTotal = (int) ($borrowedCount + $venueCount);
-        $totalQty = (int) ($e->calculated_total ?? $e->total_quantity ?? 0);
+        $bookingReleased = (int) ($borrowedCount + $venueCount);
+        $releasedTotal = max($physicalReleased, $bookingReleased);
 
-        // 3. Physical unit status counts
-        $damagedCount = 0;
-        $lostCount = 0;
-        $reservedCount = 0;
-        try {
-            if (Schema::hasTable('equipment_units')) {
-                $reservedCount = DB::table('equipment_units')
-                    ->where('equipment_type_id', $e->id)
-                    ->whereNull('archived_at')
-                    ->where(DB::raw('LOWER(status)'), 'reserved')
-                    ->count();
+        $totalQty = $registeredUnitsCount > 0
+            ? $registeredUnitsCount
+            : (int) ($e->total_quantity ?? 0);
 
-                $damagedCount = DB::table('equipment_units')
-                    ->where('equipment_type_id', $e->id)
-                    ->whereNull('archived_at')
-                    ->where(function($q) {
-                        $q->whereIn(DB::raw('LOWER(status)'), ['damaged', 'maintenance', 'unavailable'])
-                          ->orWhereIn(DB::raw('LOWER(`condition`)'), ['damaged', 'maintenance', 'worn']);
-                    })
-                    ->count();
-
-                $lostCount = DB::table('equipment_units')
-                    ->where('equipment_type_id', $e->id)
-                    ->whereNull('archived_at')
-                    ->where(function($q) {
-                        $q->whereIn(DB::raw('LOWER(status)'), ['decommissioned', 'lost'])
-                          ->orWhereIn(DB::raw('LOWER(`condition`)'), ['lost']);
-                    })
-                    ->count();
-            }
-        } catch (\Throwable $th) {}
-
-        $availCount = max(0, $totalQty - $releasedTotal - $reservedCount - $damagedCount - $lostCount);
+        $availCount = $registeredUnitsCount > 0
+            ? max(0, $totalQty - $releasedTotal - $reservedCount - $damagedCount - $lostCount)
+            : max(0, $totalQty - $releasedTotal);
 
         $officeName = $e->office?->name ?? 'AVR Center';
         $officeLocation = $e->office?->location ?? 'FSUU Campus';

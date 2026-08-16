@@ -249,41 +249,10 @@ export default function Step2Venue({
   return (
     <div className="p-6 sm:p-8 animate-in slide-in-from-top-2 duration-300">
 
-      {/* Header Section with Top-Right Pill Pagination Controls (Apple iOS Style) */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 pb-4 border-b border-slate-100">
-        <div>
-          <h3 className="font-black text-slate-900 text-xl tracking-tight mb-1">1. Select Venue</h3>
-          <p className="text-xs text-slate-500 font-medium">Choose from available university venues</p>
-        </div>
-
-        {/* Top-Right Pill Pagination Controls */}
-        {totalPages > 1 && (
-          <div className="flex items-center gap-3 self-end md:self-auto shrink-0">
-            <button
-              type="button"
-              onClick={() => setVenuePage(p => Math.max(0, p - 1))}
-              disabled={venuePage === 0}
-              className="px-4 py-1.5 rounded-full bg-white border border-slate-200 text-xs font-extrabold text-slate-700 hover:bg-slate-50 disabled:opacity-40 flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
-            >
-              <ChevronLeft size={14} />
-              <span>Prev 4</span>
-            </button>
-
-            <span className="text-xs font-black text-slate-700 px-1">
-              {venuePage + 1} / {totalPages}
-            </span>
-
-            <button
-              type="button"
-              onClick={() => setVenuePage(p => Math.min(totalPages - 1, p + 1))}
-              disabled={venuePage >= totalPages - 1}
-              className="px-4 py-1.5 rounded-full bg-white border border-slate-200 text-xs font-extrabold text-slate-700 hover:bg-slate-50 disabled:opacity-40 flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
-            >
-              <span>Next 4</span>
-              <ChevronRight size={14} />
-            </button>
-          </div>
-        )}
+      {/* Header Section */}
+      <div className="mb-6 pb-4 border-b border-slate-100">
+        <h3 className="font-black text-slate-900 text-xl tracking-tight mb-1">1. Select Venue</h3>
+        <p className="text-xs text-slate-500 font-medium">Choose from available university venues</p>
       </div>
 
       {/* 2-Column Main Grid Layout: Left 2x2 Venue Catalog + Right Sticky Apple iOS Calendar Panel */}
@@ -313,60 +282,40 @@ export default function Step2Venue({
                   onClick={() => {
                     if (!isMaintenance) handleVenueSelect(v);
                   }}
-                  className={`relative border-2 rounded-[28px] p-5 transition-all duration-300 flex flex-col justify-between overflow-hidden ${isMaintenance
+                  className={`relative border-2 rounded-[32px] p-6 transition-all duration-300 flex flex-col justify-between overflow-hidden ${isMaintenance
                     ? "border-amber-300/80 bg-amber-50/20 opacity-90 cursor-not-allowed shadow-2xs"
                     : isSelected
-                      ? "border-blue-600 bg-white shadow-md ring-4 ring-blue-50/60 cursor-pointer"
-                      : "border-slate-200/90 bg-white hover:border-slate-300 hover:shadow-xs cursor-pointer"
+                      ? "border-blue-600 bg-white shadow-lg ring-4 ring-blue-50/60 cursor-pointer"
+                      : "border-slate-100 bg-white hover:border-slate-300 hover:shadow-xs cursor-pointer"
                     }`}
                 >
                   <div>
-                    {/* Venue Image / Avatar Frame */}
-                    <div className="relative w-full h-40 rounded-2xl overflow-hidden bg-slate-100 mb-4 border border-slate-200/80">
-                      {venueInfo.photo ? (
-                        <img src={venueInfo.photo} alt={v.name} className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="flex flex-col items-center justify-center p-3 text-center bg-blue-50/50 w-full h-full">
-                          <Building2 size={38} className="text-blue-500 mb-1" />
-                          <span className="text-slate-700 text-xs font-extrabold truncate max-w-[90%]">{v.name}</span>
-                        </div>
-                      )}
-
-                      {/* Maintenance Block Overlay */}
-                      {isMaintenance && (
-                        <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-[1px] flex items-center justify-center p-2 text-center">
-                          <div className="bg-gradient-to-r from-amber-500 to-orange-500 text-white font-black text-[11px] px-4 py-1.5 rounded-full shadow-lg border border-amber-300 flex items-center gap-1.5 uppercase tracking-wide">
-                            <AlertTriangle size={14} className="shrink-0 text-white" />
-                            <span>MAINTENANCE BLOCK</span>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Badges Row */}
-                    <div className="flex items-center justify-between gap-2 mb-2">
-                      <span className="text-[10px] font-extrabold uppercase px-3 py-1 rounded-xl border bg-blue-50 border-blue-200 text-blue-700">
-                        {campusName}
-                      </span>
-                      <span className="text-[11px] font-extrabold text-slate-800 bg-slate-100 px-3 py-1 rounded-full border border-slate-200">
-                        {v.capacity || venueInfo.capacity || 100} Seats
+                    {/* Venue Image / Placeholder Box (Screenshot 1) */}
+                    <div className="w-full min-h-[160px] bg-blue-50/70 border border-blue-100/80 rounded-3xl p-6 flex flex-col items-center justify-center text-center">
+                      <Building2 size={44} className="text-blue-600 mb-2.5 shrink-0" />
+                      <span className="text-blue-950 font-extrabold text-sm leading-snug line-clamp-2">
+                        {v.name}
                       </span>
                     </div>
 
-                    {/* Venue Title & Location */}
-                    <h4 className="font-extrabold text-slate-900 text-base mb-1 tracking-tight line-clamp-1">{v.name}</h4>
-                    <p className="text-xs text-slate-500 font-medium mb-4 flex items-center gap-1 line-clamp-1">
-                      <MapPin size={13} className="text-slate-400 shrink-0" />
-                      <span className="truncate">{v.location ? `${v.location} • ${campusName}` : campusName}</span>
-                    </p>
+                    {/* Venue Metadata (Screenshot 1) */}
+                    <div className="mt-4 space-y-1">
+                      <h4 className="font-extrabold text-slate-900 text-sm leading-tight line-clamp-1">{v.name}</h4>
+                      <p className="text-xs text-slate-600 font-semibold line-clamp-1">
+                        {v.location ? `${v.location} [ ${campusName} ]` : `[ ${campusName} ]`}
+                      </p>
+                      <p className="text-xs text-slate-600 font-semibold">
+                        {v.capacity || venueInfo.capacity || 80} seats
+                      </p>
+                    </div>
                   </div>
 
-                  {/* Bottom Action Button */}
-                  <div className="pt-2 border-t border-slate-100">
+                  {/* Bottom Action Pill Button (Screenshot 1) */}
+                  <div className="mt-5">
                     {isMaintenance ? (
                       <button
                         disabled
-                        className="w-full py-2.5 rounded-full border border-amber-300/80 bg-amber-50 text-amber-800 text-xs font-black flex items-center justify-center gap-1.5 opacity-90 cursor-not-allowed"
+                        className="w-full py-3 rounded-full border border-amber-300 bg-amber-50 text-amber-800 text-xs font-extrabold flex items-center justify-center gap-1.5 opacity-90 cursor-not-allowed"
                       >
                         <AlertTriangle size={14} className="text-amber-600" />
                         <span>Maintenance Block</span>
@@ -375,7 +324,7 @@ export default function Step2Venue({
                       <button
                         type="button"
                         onClick={(e) => { e.stopPropagation(); handleVenueSelect(v); }}
-                        className="w-full py-2.5 rounded-full bg-blue-600 text-white text-xs font-black flex items-center justify-center gap-1.5 shadow-xs transition-colors cursor-pointer"
+                        className="w-full py-3 rounded-full bg-blue-600 text-white text-xs font-black flex items-center justify-center gap-1.5 shadow-md transition-colors cursor-pointer"
                       >
                         <CheckCircle2 size={14} />
                         <span>Selected Venue</span>
@@ -384,7 +333,7 @@ export default function Step2Venue({
                       <button
                         type="button"
                         onClick={(e) => { e.stopPropagation(); handleVenueSelect(v); }}
-                        className="w-full py-2.5 rounded-full border border-slate-200 bg-slate-50/80 hover:bg-blue-50 hover:border-blue-300 text-slate-700 hover:text-blue-700 text-xs font-black transition-all cursor-pointer shadow-2xs"
+                        className="w-full py-3 rounded-full border border-slate-200 bg-white hover:bg-blue-600 hover:text-white hover:border-blue-600 text-slate-800 text-xs font-black transition-all cursor-pointer shadow-2xs"
                       >
                         Select Venue
                       </button>
@@ -394,6 +343,35 @@ export default function Step2Venue({
               );
             })}
           </div>
+
+          {/* Pagination Controls Below Venue Selection */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-3 pt-3">
+              <button
+                type="button"
+                onClick={() => setVenuePage(p => Math.max(0, p - 1))}
+                disabled={venuePage === 0}
+                className="px-4 py-1.5 rounded-full bg-white border border-slate-200 text-xs font-extrabold text-slate-700 hover:bg-slate-50 disabled:opacity-40 flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
+              >
+                <ChevronLeft size={14} />
+                <span>Prev 4</span>
+              </button>
+
+              <span className="text-xs font-black text-slate-700 px-2">
+                {venuePage + 1} / {totalPages}
+              </span>
+
+              <button
+                type="button"
+                onClick={() => setVenuePage(p => Math.min(totalPages - 1, p + 1))}
+                disabled={venuePage >= totalPages - 1}
+                className="px-4 py-1.5 rounded-full bg-white border border-slate-200 text-xs font-extrabold text-slate-700 hover:bg-slate-50 disabled:opacity-40 flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
+              >
+                <span>Next 4</span>
+                <ChevronRight size={14} />
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Right Column: Sticky Apple iOS Backdrop Blur Calendar & Time Panel */}
@@ -418,37 +396,7 @@ export default function Step2Venue({
               </p>
             </div>
 
-            {/* External User Rental Fee Matrix Card */}
-            {isExternalUser && (
-              <div className="p-3.5 bg-emerald-50/80 border border-emerald-200 rounded-2xl space-y-2 text-xs shadow-2xs">
-                <div className="flex items-center justify-between">
-                  <span className="font-extrabold text-emerald-950 text-xs flex items-center gap-1.5 uppercase tracking-wide">
-                    <DollarSign size={15} className="text-emerald-700" />
-                    External Rental Fee Matrix
-                  </span>
-                  <span className="text-[10px] font-extrabold bg-emerald-200/80 text-emerald-900 px-2 py-0.5 rounded-full border border-emerald-300 uppercase">
-                    External Rate
-                  </span>
-                </div>
-                <p className="text-slate-600 text-[11px] font-medium leading-tight">
-                  Rental fee details for guest &amp; external entities for {selectedVenue ? <strong>{selectedVenue.name}</strong> : "selected venue"}:
-                </p>
-                <div className="grid grid-cols-3 gap-2 pt-1 text-center">
-                  <div className="p-2 bg-white border border-emerald-200/80 rounded-xl shadow-2xs">
-                    <span className="text-[9px] text-slate-500 font-bold uppercase block mb-0.5">Hourly</span>
-                    <span className="text-xs font-black text-slate-900">{feeRates.hourly}</span>
-                  </div>
-                  <div className="p-2 bg-white border border-emerald-200/80 rounded-xl shadow-2xs">
-                    <span className="text-[9px] text-slate-500 font-bold uppercase block mb-0.5">Daily</span>
-                    <span className="text-xs font-black text-slate-900">{feeRates.daily}</span>
-                  </div>
-                  <div className="p-2 bg-white border border-emerald-200/80 rounded-xl shadow-2xs">
-                    <span className="text-[9px] text-slate-500 font-bold uppercase block mb-0.5">Cleaning</span>
-                    <span className="text-xs font-black text-slate-900">{feeRates.cleaning}</span>
-                  </div>
-                </div>
-              </div>
-            )}
+
 
             {/* Status Legend */}
             <div className="flex items-center flex-wrap gap-2 text-[11px] font-bold text-slate-600 px-1">

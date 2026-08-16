@@ -32,6 +32,20 @@ function formatHourLabel(hour) {
   return `${displayH}:00 ${suffix}`;
 }
 
+function formatTime12h(timeStr) {
+  if (!timeStr) return "";
+  const str = String(timeStr).trim();
+  if (str.includes("AM") || str.includes("PM")) return str;
+  const parts = str.split(":");
+  if (parts.length < 2) return str;
+  let h = parseInt(parts[0], 10);
+  if (isNaN(h)) return str;
+  const m = parts[1].substring(0, 2);
+  const suffix = h >= 12 ? "PM" : "AM";
+  const displayH = h % 12 === 0 ? 12 : h % 12;
+  return `${displayH}:${m} ${suffix}`;
+}
+
 export default function TimeSlotMatrix({
   selectedDate,
   items = [], // Array of rows: { id, name, subtitle, code }
@@ -41,15 +55,15 @@ export default function TimeSlotMatrix({
   title = "Hourly Schedule Matrix",
   emptyLabel = "No items available",
 }) {
-  const hours = useMemo(() => {
+  const hourSlots = useMemo(() => {
     const list = [];
-    for (let h = startHour; h <= endHour; h++) {
+    for (let h = startHour; h < endHour; h++) {
       list.push(h);
     }
     return list;
   }, [startHour, endHour]);
 
-  const totalHours = endHour - startHour;
+  const totalHours = Math.max(1, endHour - startHour);
 
   // Format header date (e.g. "Tuesday, August 14, 2026")
   const formattedDateTitle = useMemo(() => {
@@ -67,33 +81,33 @@ export default function TimeSlotMatrix({
     }
   }, [selectedDate]);
 
+  const resourceHeader = title.toLowerCase().includes("venue") ? "Venue / Facility" : "Equipment Resource";
+
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
       {/* Top Header & Legend Bar */}
       <div className="p-4 bg-slate-50/80 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-blue-50 border border-blue-200 text-blue-700 flex items-center justify-center font-bold">
-            <Clock size={16} />
-          </div>
-          <div>
-            <h3 className="font-extrabold text-slate-900 text-sm">{title}</h3>
-            <p className="text-xs text-slate-500 font-semibold">{formattedDateTitle}</p>
-          </div>
+        <div>
+          <h3 className="font-extrabold text-slate-900 text-sm">{title}</h3>
+          <p className="text-xs text-slate-500 font-semibold">{formattedDateTitle}</p>
         </div>
 
-        {/* Legend Badges (Matches Reference Image) */}
+        {/* Legend Badges (Screenshot 2) */}
         <div className="flex items-center flex-wrap gap-2 text-[11px] font-bold">
           <span className="px-2.5 py-1 rounded-lg border bg-white border-slate-200 text-slate-700 shadow-2xs">
             Open / Available
           </span>
-          <span className="px-2.5 py-1 rounded-lg border bg-blue-50 border-blue-200 text-blue-700 shadow-2xs">
+          <span className="px-2.5 py-1 rounded-lg border bg-blue-600 text-white shadow-2xs">
+            ● On-Going
+          </span>
+          <span className="px-2.5 py-1 rounded-lg border bg-indigo-600 text-white shadow-2xs">
             ● Reserved
           </span>
-          <span className="px-2.5 py-1 rounded-lg border bg-amber-50 border-amber-200 text-amber-800 shadow-2xs">
+          <span className="px-2.5 py-1 rounded-lg border bg-amber-500 text-white shadow-2xs">
             ● Pending
           </span>
-          <span className="px-2.5 py-1 rounded-lg border bg-rose-50 border-rose-200 text-rose-700 shadow-2xs">
-            ● Maintenance / Blocked
+          <span className="px-2.5 py-1 rounded-lg border bg-slate-700 text-white shadow-2xs">
+            ● Maintenance
           </span>
         </div>
       </div>
@@ -102,13 +116,12 @@ export default function TimeSlotMatrix({
       <div className="overflow-x-auto">
         <div className="min-w-[860px]">
           {/* Table Header Row */}
-          <div className="grid grid-cols-[220px_1fr] bg-slate-100/90 border-b border-slate-200 text-[11px] font-mono font-bold text-slate-600">
-            <div className="p-3 border-r border-slate-200 font-sans font-extrabold text-slate-900 flex items-center gap-1.5">
-              <Calendar size={13} className="text-blue-600" />
-              <span>Resource / Venue</span>
+          <div className="grid grid-cols-[240px_1fr] bg-slate-100/90 border-b border-slate-200 text-[11px] font-mono font-bold text-slate-600">
+            <div className="p-3 border-r border-slate-200 font-sans font-extrabold text-slate-900 flex items-center">
+              <span>{resourceHeader}</span>
             </div>
-            <div className="grid" style={{ gridTemplateColumns: `repeat(${hours.length}, minmax(0, 1fr))` }}>
-              {hours.map((h) => (
+            <div className="grid" style={{ gridTemplateColumns: `repeat(${hourSlots.length}, minmax(0, 1fr))` }}>
+              {hourSlots.map((h) => (
                 <div
                   key={h}
                   className={`p-2.5 text-center border-r border-slate-200 last:border-r-0 ${
@@ -129,15 +142,17 @@ export default function TimeSlotMatrix({
           ) : (
             <div className="divide-y divide-slate-100">
               {items.map((item) => {
-                // Find all schedules matching this specific row/item
+                // Find all schedules matching this specific row/item (by ID or Barcode)
                 const rowSchedules = schedules.filter(
-                  (s) => String(s.itemId) === String(item.id)
+                  (s) =>
+                    String(s.itemId) === String(item.id) ||
+                    (item.code && (String(s.barcode) === String(item.code) || String(s.itemBarcode) === String(item.code)))
                 );
 
                 return (
                   <div
                     key={item.id}
-                    className="grid grid-cols-[220px_1fr] hover:bg-slate-50/50 transition-colors group"
+                    className="grid grid-cols-[240px_1fr] hover:bg-slate-50/50 transition-colors group"
                   >
                     {/* Left Column: Resource Title */}
                     <div className="p-3 border-r border-slate-200 bg-white group-hover:bg-slate-50/50 transition-colors flex flex-col justify-center">
@@ -153,13 +168,13 @@ export default function TimeSlotMatrix({
                     </div>
 
                     {/* Right Column: Time-Slot Gantt Timeline Area */}
-                    <div className="relative h-14 bg-white group-hover:bg-slate-50/50 transition-colors">
+                    <div className="relative h-16 bg-white group-hover:bg-slate-50/50 transition-colors">
                       {/* Background Hourly Grid Lines */}
                       <div
                         className="absolute inset-0 grid pointer-events-none"
-                        style={{ gridTemplateColumns: `repeat(${hours.length}, minmax(0, 1fr))` }}
+                        style={{ gridTemplateColumns: `repeat(${hourSlots.length}, minmax(0, 1fr))` }}
                       >
-                        {hours.map((h) => (
+                        {hourSlots.map((h) => (
                           <div
                             key={h}
                             className={`border-r border-slate-100/90 last:border-r-0 h-full ${
@@ -179,45 +194,60 @@ export default function TimeSlotMatrix({
                         // Clamping to visible operating window
                         const clampedStart = Math.max(startHour, Math.min(endHour, startDec));
                         const clampedEnd = Math.max(startHour, Math.min(endHour, endDec));
-                        const duration = Math.max(0.5, clampedEnd - clampedStart);
+                        const duration = Math.max(0.6, clampedEnd - clampedStart);
 
                         const leftPercent = ((clampedStart - startHour) / totalHours) * 100;
                         const widthPercent = (duration / totalHours) * 100;
 
+                        const rawStatus = (sched.status || "").toLowerCase();
                         const isPending =
-                          sched.status === "pending" ||
-                          sched.status === "pending_approval";
+                          rawStatus === "pending" ||
+                          rawStatus === "pending_approval";
                         const isMaintenance =
-                          sched.status === "maintenance" ||
-                          sched.status === "closed" ||
-                          sched.status === "damaged";
+                          rawStatus === "maintenance" ||
+                          rawStatus === "closed" ||
+                          rawStatus === "damaged";
+                        const isOngoing =
+                          rawStatus === "ongoing" ||
+                          rawStatus === "on-going" ||
+                          rawStatus === "borrowed";
 
-                        let blockStyle =
-                          "bg-blue-600 border-blue-700 text-white shadow-xs";
-                        if (isPending) {
-                          blockStyle =
-                            "bg-amber-500 border-amber-600 text-white shadow-xs";
+                        let blockStyle = "bg-indigo-600 border-indigo-700 text-white shadow-xs";
+                        let statusBadgeLabel = "RESERVED";
+
+                        if (isOngoing) {
+                          blockStyle = "bg-blue-600 border-blue-700 text-white shadow-xs";
+                          statusBadgeLabel = "ON-GOING";
+                        } else if (isPending) {
+                          blockStyle = "bg-amber-500 border-amber-600 text-white shadow-xs";
+                          statusBadgeLabel = "PENDING";
                         } else if (isMaintenance) {
-                          blockStyle =
-                            "bg-slate-700 border-slate-800 text-white shadow-xs";
+                          blockStyle = "bg-slate-700 border-slate-800 text-white shadow-xs";
+                          statusBadgeLabel = "BLOCKED";
                         }
+
+                        const formattedTimeRange = `${formatTime12h(sched.startTime)} - ${formatTime12h(sched.endTime)}`;
 
                         return (
                           <div
                             key={sched.id || sIdx}
                             style={{
                               left: `${leftPercent}%`,
-                              width: `${Math.max(4, widthPercent)}%`,
+                              width: `${Math.max(6, widthPercent)}%`,
                             }}
-                            title={`${sched.filerName || "Requestor"} | ${sched.title || "Booking"} (${sched.startTime} - ${sched.endTime})`}
-                            className={`absolute top-1.5 bottom-1.5 rounded-lg border px-2 py-1 flex flex-col justify-center overflow-hidden z-10 transition-all hover:scale-[1.01] hover:z-20 cursor-pointer ${blockStyle}`}
+                            title={`[${statusBadgeLabel}] ${sched.filerName || "Requestor"} | ${sched.title || "Booking"} | Time: ${formattedTimeRange} | Ref: ${sched.refCode || "N/A"}`}
+                            className={`absolute top-1 bottom-1 rounded-xl border px-2 py-0.5 flex flex-col justify-center overflow-hidden z-10 transition-all hover:scale-[1.01] hover:z-20 cursor-pointer shadow-xs ${blockStyle}`}
                           >
-                            <span className="font-extrabold text-[10.5px] leading-tight truncate">
-                              {sched.filerName || sched.title || "Scheduled"}
-                            </span>
-                            <span className="text-[9.5px] font-mono opacity-90 truncate">
-                              {sched.startTime} - {sched.endTime}
-                              {sched.refCode ? ` (${sched.refCode})` : ""}
+                            <div className="flex items-center gap-1.5 leading-tight truncate">
+                              <span className="text-[8.5px] font-black uppercase tracking-wider px-1 py-0.2 rounded bg-white/20 border border-white/30 shrink-0">
+                                {statusBadgeLabel}
+                              </span>
+                              <span className="font-extrabold text-[10.5px] truncate">
+                                {sched.filerName || sched.title || "Scheduled"}
+                              </span>
+                            </div>
+                            <span className="text-[9.5px] font-mono font-bold opacity-95 truncate mt-0.5">
+                              {formattedTimeRange} {sched.refCode ? `• [${sched.refCode}]` : ""}
                             </span>
                           </div>
                         );

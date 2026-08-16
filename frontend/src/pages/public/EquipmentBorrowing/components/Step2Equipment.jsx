@@ -113,39 +113,10 @@ export default function Step2Equipment({
 
   return (
     <div className="p-6 sm:p-8 animate-in slide-in-from-top-2 duration-300">
-      {/* Category Campus Location Tabs & Section Header with Top-Right Pagination (Matching Screenshot) */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 pb-4 border-b border-slate-100">
-        <div>
-          <h3 className="font-black text-slate-900 text-xl tracking-tight mb-1">1. Select Equipment</h3>
-          <p className="text-xs text-slate-500 font-medium">Choose from available university equipment</p>
-        </div>
-
-        {/* Top-Right Pill Pagination Controls (Matching Screenshot `< Prev 4` `1 / 2` `Next 4 >`) */}
-        <div className="flex items-center gap-3 self-end md:self-auto shrink-0">
-          <button
-            type="button"
-            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-            disabled={currentPage === 1}
-            className="px-4 py-1.5 rounded-full bg-white border border-slate-200 text-xs font-extrabold text-slate-700 hover:bg-slate-50 disabled:opacity-40 flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
-          >
-            <ChevronLeft size={14} />
-            <span>Prev 4</span>
-          </button>
-
-          <span className="text-xs font-black text-slate-700 px-1">
-            {currentPage} / {totalPages}
-          </span>
-
-          <button
-            type="button"
-            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-            disabled={currentPage === totalPages}
-            className="px-4 py-1.5 rounded-full bg-white border border-slate-200 text-xs font-extrabold text-slate-700 hover:bg-slate-50 disabled:opacity-40 flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
-          >
-            <span>Next 4</span>
-            <ChevronRight size={14} />
-          </button>
-        </div>
+      {/* Section Header */}
+      <div className="mb-6 pb-4 border-b border-slate-100">
+        <h3 className="font-black text-slate-900 text-xl tracking-tight mb-1">1. Select Equipment</h3>
+        <p className="text-xs text-slate-500 font-medium">Choose from available university equipment</p>
       </div>
 
       {/* Main Grid: Left 2x2 Catalog + Right Calendar & Time Controls */}
@@ -159,13 +130,8 @@ export default function Step2Equipment({
               const isDamagedOrLost = item.status === "damaged" || item.status === "lost";
               const availableTotal = getLiveStockCount(item);
               const selectedQty = isChecked ? (itemQuantities[item.id] || 1) : 0;
-              const remainingCount = Math.max(0, availableTotal - selectedQty);
 
               const isAvailable = !isMaintenance && !isDamagedOrLost && item.is_available !== false && availableTotal > 0;
-              const nextAvailText = getNextAvailableInfo(item);
-              const isBorrowed = availableTotal === 0 && !isMaintenance && nextAvailText.startsWith("Borrowed");
-
-              const displayPhoto = item.avatar || item.image || item.photo;
 
               return (
                 <div
@@ -173,158 +139,124 @@ export default function Step2Equipment({
                   onClick={() => {
                     if (isAvailable) handleEquipmentToggle(item.id);
                   }}
-                  className={`relative border-2 rounded-[28px] p-5 transition-all duration-300 flex flex-col justify-between overflow-hidden ${
+                  className={`relative border-2 rounded-[32px] p-6 transition-all duration-300 flex flex-col justify-between overflow-hidden ${
                     isMaintenance
                       ? "border-amber-300/80 bg-amber-50/20 opacity-90 cursor-not-allowed shadow-2xs"
                       : !isAvailable
-                      ? "border-slate-200/90 bg-slate-50/70 opacity-90 cursor-not-allowed shadow-2xs"
+                      ? "border-slate-100 bg-white opacity-90 cursor-pointer"
                       : isChecked
-                      ? "border-blue-600 bg-white shadow-md ring-4 ring-blue-50/60 cursor-pointer"
-                      : "border-slate-200/90 bg-white hover:border-slate-300 hover:shadow-xs cursor-pointer"
+                      ? "border-blue-600 bg-white shadow-lg ring-4 ring-blue-50/60 cursor-pointer"
+                      : "border-slate-100 bg-white hover:border-slate-300 hover:shadow-xs cursor-pointer"
                   }`}
                 >
                   <div>
-                    {/* Thumbnail Image Container */}
-                    <div className="relative w-full h-40 bg-slate-100/90 rounded-2xl mb-4 overflow-hidden flex items-center justify-center border border-slate-200/70">
-                      {displayPhoto ? (
-                        <img src={displayPhoto} alt={item.name} className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="flex flex-col items-center justify-center p-3 text-center">
-                          <PackageOpen size={38} className="text-blue-500" />
-                          <span className="text-xs font-extrabold text-slate-500 mt-1">{item.name}</span>
-                        </div>
-                      )}
-
-                      {/* Maintenance Block Overlay (Matching Screenshot) */}
-                      {isMaintenance && (
-                        <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-[1px] flex items-center justify-center p-2 text-center">
-                          <div className="bg-gradient-to-r from-amber-500 to-orange-500 text-white font-black text-[11px] px-4 py-1.5 rounded-full shadow-lg border border-amber-300 flex items-center gap-1.5 uppercase tracking-wide">
-                            <AlertTriangle size={14} className="shrink-0 text-white" />
-                            <span>MAINTENANCE BLOCK</span>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* No Stock / Borrowed Overlay */}
-                      {!isAvailable && !isMaintenance && (
-                        <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-[1px] flex items-center justify-center p-2 text-center">
-                          <div className={`text-white font-extrabold text-[10px] px-3 py-1 rounded-full shadow-lg border flex items-center gap-1 uppercase ${
-                            isBorrowed ? "bg-amber-600 border-amber-400" : "bg-rose-600 border-rose-400"
-                          }`}>
-                            <XCircle size={12} />
-                            <span>{isBorrowed ? "BORROWED" : "NO STOCK"}</span>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Badges Row (Campus / Office Location Tag & Stock Status Pill) */}
-                    <div className="flex items-center justify-between gap-2 mb-2">
-                      <span className={`text-[10px] font-extrabold uppercase px-2.5 py-1 rounded-xl border shrink-0 flex items-center gap-1 ${
-                        (item.office_name || item.location || item.campus || "").toLowerCase().includes("morelos")
-                          ? "border-amber-200/80 bg-amber-50 text-amber-800"
-                          : "border-blue-200/80 bg-blue-50 text-blue-700"
-                      }`}>
-                        🏢 {item.office_name || item.office?.name || item.location || item.campus || "Main Campus"}
+                    {/* Top Image / Placeholder Box (Screenshot 1) */}
+                    <div className="w-full min-h-[160px] bg-blue-50/70 border border-blue-100/80 rounded-3xl p-6 flex flex-col items-center justify-center text-center">
+                      <PackageOpen size={44} className="text-blue-600 mb-2.5 shrink-0" />
+                      <span className="text-blue-950 font-extrabold text-sm leading-snug line-clamp-2">
+                        {item.name}
                       </span>
-
-                      {/* Right Stock Status Badge */}
-                      {isMaintenance ? (
-                        <span className="text-[10px] font-extrabold text-amber-800 bg-amber-100 px-3 py-1 rounded-full border border-amber-300 inline-flex items-center gap-1">
-                          <AlertTriangle size={11} /> Maintenance
-                        </span>
-                      ) : isChecked ? (
-                        <span className="text-[11px] font-extrabold text-white bg-blue-600 px-3.5 py-1 rounded-full shadow-xs inline-flex items-center gap-1">
-                          {remainingCount} Remaining
-                        </span>
-                      ) : availableTotal > 0 ? (
-                        <span className="text-[11px] font-extrabold text-emerald-700 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200/80 inline-flex items-center gap-1">
-                          ✓ {availableTotal} Available
-                        </span>
-                      ) : (
-                        <span className="text-[10px] font-extrabold text-rose-700 bg-rose-50 px-3 py-1 rounded-full border border-rose-200/80 inline-flex items-center gap-1">
-                          🚫 No Stock
-                        </span>
-                      )}
                     </div>
 
-                    {/* Item Title & Specs */}
-                    <h4 className="font-extrabold text-slate-900 text-base mb-1 tracking-tight line-clamp-1">{item.name}</h4>
-                    <p className="text-xs text-slate-500 font-medium mb-3 line-clamp-1">
-                      {item.spec || item.description || "Audio / Visual Equipment"}
-                    </p>
+                    {/* Equipment Metadata (Screenshot 1) */}
+                    <div className="mt-4 space-y-1">
+                      <h4 className="font-extrabold text-slate-900 text-sm leading-tight line-clamp-1">{item.name}</h4>
+                      <p className="text-xs font-bold text-emerald-600">
+                        {availableTotal} Available
+                      </p>
+                    </div>
                   </div>
 
-                  {/* Bottom Action Controls */}
-                  <div className="pt-2 border-t border-slate-100">
+                  {/* Bottom Action Pill Button (Screenshot 1) */}
+                  <div className="mt-5">
                     {isMaintenance ? (
                       <button
                         disabled
-                        className="w-full py-2.5 rounded-full border border-amber-300/80 bg-amber-50 text-amber-800 text-xs font-black flex items-center justify-center gap-1.5 opacity-90 cursor-not-allowed"
+                        className="w-full py-3 rounded-full border border-amber-300 bg-amber-50 text-amber-800 text-xs font-extrabold flex items-center justify-center gap-1.5 opacity-90 cursor-not-allowed"
                       >
-                        <XCircle size={14} className="text-amber-600" />
-                        <span>Unavailable</span>
+                        <AlertTriangle size={14} className="text-amber-600" />
+                        <span>Maintenance Block</span>
                       </button>
                     ) : !isAvailable ? (
                       <button
                         disabled
-                        className="w-full py-2.5 rounded-full border border-rose-200 bg-rose-50 text-rose-700 text-xs font-black flex items-center justify-center gap-1.5 opacity-80 cursor-not-allowed"
+                        className="w-full py-3 rounded-full border border-slate-200 bg-slate-50 text-slate-500 text-xs font-extrabold flex items-center justify-center gap-1.5 opacity-80 cursor-not-allowed"
                       >
-                        <XCircle size={14} className="text-rose-500" />
-                        <span>No Stock</span>
+                        <XCircle size={14} className="text-slate-400" />
+                        <span>No Stock Available</span>
                       </button>
-                    ) : !isChecked ? (
+                    ) : isChecked ? (
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); handleEquipmentToggle(item.id); }}
+                          className="flex-1 py-3 rounded-full bg-blue-600 text-white text-xs font-black flex items-center justify-center gap-1.5 shadow-md transition-colors cursor-pointer"
+                        >
+                          <Check size={14} />
+                          <span>Selected</span>
+                        </button>
+                        <div className="flex items-center border border-blue-200 rounded-full px-2 py-1 bg-blue-50">
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); handleQuantityChange && handleQuantityChange(item.id, Math.max(1, (itemQuantities[item.id] || 1) - 1), availableTotal); }}
+                            className="w-6 h-6 rounded-full bg-white text-blue-700 font-bold text-xs flex items-center justify-center hover:bg-blue-100 shadow-2xs cursor-pointer"
+                          >
+                            -
+                          </button>
+                          <span className="font-extrabold text-xs px-2 text-blue-900">{itemQuantities[item.id] || 1}</span>
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); handleQuantityChange && handleQuantityChange(item.id, (itemQuantities[item.id] || 1) + 1, availableTotal); }}
+                            disabled={(itemQuantities[item.id] || 1) >= availableTotal}
+                            className="w-6 h-6 rounded-full bg-blue-600 disabled:bg-slate-200 text-white disabled:text-slate-400 font-bold text-xs flex items-center justify-center shadow-2xs cursor-pointer"
+                          >
+                            +
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
                       <button
                         type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleEquipmentToggle(item.id);
-                        }}
-                        className="w-full py-2.5 rounded-full border border-slate-200 bg-slate-50/80 hover:bg-blue-50 hover:border-blue-300 text-slate-700 hover:text-blue-700 text-xs font-black transition-all cursor-pointer shadow-2xs"
+                        onClick={(e) => { e.stopPropagation(); handleEquipmentToggle(item.id); }}
+                        className="w-full py-3 rounded-full border border-slate-200 bg-white hover:bg-blue-600 hover:text-white hover:border-blue-600 text-slate-800 text-xs font-black transition-all cursor-pointer shadow-2xs"
                       >
                         Select Item
                       </button>
-                    ) : (
-                      <div className="space-y-2.5" onClick={(e) => e.stopPropagation()}>
-                        <button
-                          type="button"
-                          onClick={() => handleEquipmentToggle(item.id)}
-                          className="w-full py-2.5 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-xs font-black flex items-center justify-center gap-1.5 shadow-xs transition-colors cursor-pointer"
-                        >
-                          <Check size={14} />
-                          <span>Added to Requisition</span>
-                        </button>
-
-                        <div className="flex items-center justify-between bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200">
-                          <span className="text-[11px] font-extrabold text-slate-700">Quantity:</span>
-                          <div className="flex items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() => handleQuantityChange && handleQuantityChange(item.id, Math.max(1, (itemQuantities[item.id] || 1) - 1), availableTotal)}
-                              className="w-6 h-6 rounded-md bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 font-bold text-xs flex items-center justify-center transition-colors shadow-2xs cursor-pointer"
-                            >
-                              -
-                            </button>
-                            <span className="font-extrabold text-xs text-slate-900 w-5 text-center">
-                              {itemQuantities[item.id] || 1}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => handleQuantityChange && handleQuantityChange(item.id, (itemQuantities[item.id] || 1) + 1, availableTotal)}
-                              disabled={(itemQuantities[item.id] || 1) >= availableTotal}
-                              className="w-6 h-6 rounded-md bg-blue-600 hover:bg-blue-700 disabled:bg-slate-200 disabled:text-slate-400 text-white font-bold text-xs flex items-center justify-center transition-colors shadow-2xs cursor-pointer"
-                            >
-                              +
-                            </button>
-                          </div>
-                        </div>
-                      </div>
                     )}
                   </div>
                 </div>
               );
             })}
           </div>
+
+          {/* Pagination Controls Below Equipment Selection */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-3 pt-3">
+              <button
+                type="button"
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="px-4 py-1.5 rounded-full bg-white border border-slate-200 text-xs font-extrabold text-slate-700 hover:bg-slate-50 disabled:opacity-40 flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
+              >
+                <ChevronLeft size={14} />
+                <span>Prev 4</span>
+              </button>
+
+              <span className="text-xs font-black text-slate-700 px-2">
+                {currentPage} / {totalPages}
+              </span>
+
+              <button
+                type="button"
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="px-4 py-1.5 rounded-full bg-white border border-slate-200 text-xs font-extrabold text-slate-700 hover:bg-slate-50 disabled:opacity-40 flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
+              >
+                <span>Next 4</span>
+                <ChevronRight size={14} />
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Right Column: Calendar & Time Settings */}

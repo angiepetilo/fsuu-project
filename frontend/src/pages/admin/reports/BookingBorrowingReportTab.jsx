@@ -60,12 +60,12 @@ export default function BookingBorrowingReportTab({
           </p>
         </div>
 
-        {/* Venue Table Columns: [Track Number, Requestor Name, Venue, Schedule, Dept / Office, Purpose, Remarks] */}
+        {/* Venue Table Columns: [Track Number, Requestor Name, Venue, Schedule, Department, Purpose, Remarks] */}
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-slate-50/80 border-b border-slate-100">
-                {["Track Number", "Requestor Name", "Venue", "Schedule", "Dept / Office", "Purpose", "Remarks"].map((h) => (
+                {["Track Number", "Requestor Name", "Venue", "Schedule", "Department", "Purpose", "Remarks"].map((h) => (
                   <th key={h} className="px-4 py-3.5 text-left text-[11px] font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap">
                     {h}
                   </th>
@@ -165,12 +165,12 @@ export default function BookingBorrowingReportTab({
           </div>
         </div>
 
-        {/* Equipment Table: [TRACK NUMBER, Requestor Name, Equipment, Quantity, Dept / Office, Purpose, Remarks] */}
+        {/* Equipment Table: [TRACK NUMBER, Requestor Name, Equipment, Quantity, Department, Purpose, Remarks] */}
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-slate-50/80 border-b border-slate-100">
-                {["TRACK NUMBER", "Requestor Name", "Equipment", "Quantity", "Dept / Office", "Purpose", "Remarks"].map((h) => (
+                {["TRACK NUMBER", "Requestor Name", "Equipment", "Quantity", "Department", "Purpose", "Remarks"].map((h) => (
                   <th key={h} className="px-4 py-3.5 text-left text-[11px] font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap">
                     {h}
                   </th>

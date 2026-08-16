@@ -164,12 +164,12 @@ export default function VenuesTab({ showMsg }) {
         </button>
       </div>
 
-      {/* Table: [#, Avatar, Venue, Office, Status, Action] */}
+      {/* Table: [#, Avatar, Venue, Status, Action] */}
       <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-slate-50/80 border-b border-slate-100">
-              {["#", "Avatar", "Venue", "Office", "Status", "Action"].map((h) => (
+              {["#", "Avatar", "Venue", "Status", "Action"].map((h) => (
                 <th key={h} className="px-4 py-3.5 text-left text-[11px] font-bold text-slate-400 uppercase tracking-wider">
                   {h}
                 </th>
@@ -179,7 +179,7 @@ export default function VenuesTab({ showMsg }) {
           <tbody className="divide-y divide-slate-100 text-xs font-semibold">
             {loading ? (
               <tr>
-                <td colSpan={6} className="text-center py-10">
+                <td colSpan={5} className="text-center py-10">
                   <div className="flex items-center justify-center gap-2 text-slate-400">
                     <div className="w-4 h-4 rounded-full border-2 border-slate-200 border-t-blue-500 animate-spin" />
                     <span className="text-xs font-semibold italic">Loading venues catalog...</span>
@@ -188,7 +188,7 @@ export default function VenuesTab({ showMsg }) {
               </tr>
             ) : venues.length === 0 ? (
               <tr>
-                <td colSpan={6} className="text-center py-10 text-slate-400">
+                <td colSpan={5} className="text-center py-10 text-slate-400">
                   🏛️ No venues registered. Click "Create Venue" to add your first venue.
                 </td>
               </tr>
@@ -207,14 +207,7 @@ export default function VenuesTab({ showMsg }) {
                   </td>
                   <td className="px-4 py-3.5">
                     <span className="font-extrabold text-slate-900 text-sm block">{v.name}</span>
-                    {v.location && <span className="text-[11px] text-slate-500 font-medium block">{v.location}</span>}
-                  </td>
-                  <td className="px-4 py-3.5 text-slate-700 font-extrabold">
-                    {(() => {
-                      const off = v.office || offices.find(o => o.id === v.office_id);
-                      if (!off) return "FSUU Main Campus";
-                      return off.location ? `${off.name} | ${off.location}` : off.name;
-                    })()}
+                    {v.location && <span className="text-[11px] text-slate-500 font-medium block">{v.location} (Capacity: {v.capacity || 100})</span>}
                   </td>
                   <td className="px-4 py-3.5">
                     <span className={`inline-flex px-2.5 py-0.5 rounded-full text-[10px] font-extrabold capitalize border ${
@@ -259,42 +252,41 @@ export default function VenuesTab({ showMsg }) {
         </table>
       </div>
 
-      {/* Add / Edit Modal */}
+      {/* Add / Edit Modal matching Department Clean Design */}
       {showModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-[1500] flex items-center justify-center p-4 animate-in fade-in">
-          <div className="bg-white rounded-3xl p-6 max-w-lg w-full shadow-2xl border border-slate-100 space-y-4 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl animate-in zoom-in-95 border border-slate-100 space-y-4">
             <div className="flex justify-between items-center pb-3 border-b border-slate-100">
               <h3 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
                 <Building size={18} className="text-blue-600" />
-                {editItem ? "Edit Venue Record" : "Create New Venue Catalog Record"}
+                {editItem ? "Edit Venue Catalog" : "Create New Venue Catalog"}
               </h3>
-              <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-slate-600 p-1 rounded-lg">
+              <button
+                type="button"
+                onClick={() => setShowModal(false)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg cursor-pointer"
+              >
                 <X size={18} />
               </button>
             </div>
 
             <form onSubmit={handleSave} className="space-y-4 text-xs">
               {/* Avatar Upload */}
-              <div>
-                <label className="block text-xs font-bold text-slate-900 mb-1">Venue Photo Avatar *</label>
-                <div className="flex items-center gap-3">
-                  <div className="w-16 h-16 rounded-2xl bg-slate-100 border border-slate-200 overflow-hidden flex items-center justify-center shrink-0">
-                    {form.avatar ? (
-                      <img src={form.avatar} alt="Preview" className="w-full h-full object-cover" />
-                    ) : (
-                      <ImageIcon size={24} className="text-slate-400" />
-                    )}
-                  </div>
-                  <div>
-                    <label className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold rounded-xl text-xs flex items-center gap-1.5 cursor-pointer">
-                      <Camera size={14} />
-                      <span>{form.avatar ? "Change Avatar" : "Upload Venue Photo Avatar"}</span>
-                      <input type="file" accept="image/*" onChange={handleAvatarUpload} className="hidden" />
-                    </label>
-                    <p className="text-[10px] text-slate-400 font-medium mt-1">
-                      This venue photo avatar will display in public venue booking.
-                    </p>
-                  </div>
+              <div className="flex items-center gap-4 bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
+                <div className="w-16 h-16 rounded-2xl bg-white border border-slate-200 overflow-hidden flex items-center justify-center shadow-inner shrink-0 relative">
+                  {form.avatar ? (
+                    <img src={form.avatar} alt="Preview" className="w-full h-full object-cover" />
+                  ) : (
+                    <Building size={24} className="text-slate-400" />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <label className="block font-bold text-slate-900 text-xs mb-1">Venue Photo Avatar</label>
+                  <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs cursor-pointer shadow-2xs transition-all">
+                    <Camera size={13} />
+                    <span>{form.avatar ? "Change Photo" : "Upload Photo"}</span>
+                    <input type="file" accept="image/*" onChange={handleAvatarUpload} className="hidden" />
+                  </label>
                 </div>
               </div>
 
@@ -303,55 +295,28 @@ export default function VenuesTab({ showMsg }) {
                 <input
                   type="text"
                   required
-                  placeholder="e.g. FSUU Main Auditorium, AVR Hall 1"
+                  placeholder="e.g. AVR 1, Main Auditorium"
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:outline-none focus:border-blue-600"
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:outline-none focus:border-blue-600 text-xs"
                 />
               </div>
 
-              <div className="grid grid-cols-1 gap-3">
-                {!isSuperAdmin ? (
-                  <div>
-                    <label className="block text-xs font-bold text-slate-900 mb-1">Assigned Office / Branch *</label>
-                    <input
-                      type="text"
-                      disabled
-                      value={
-                        userOfficeObj
-                          ? (userOfficeObj.location ? `${userOfficeObj.name} | ${userOfficeObj.location}` : userOfficeObj.name)
-                          : (offices.find(o => String(o.id) === String(userOfficeId))
-                              ? (offices.find(o => String(o.id) === String(userOfficeId)).location 
-                                  ? `${offices.find(o => String(o.id) === String(userOfficeId)).name} | ${offices.find(o => String(o.id) === String(userOfficeId)).location}` 
-                                  : offices.find(o => String(o.id) === String(userOfficeId)).name)
-                              : "Assigned Office Branch")
-                      }
-                      className="w-full p-3 bg-slate-100 border border-slate-200 rounded-xl font-bold text-slate-700 text-xs cursor-not-allowed"
-                    />
-                  </div>
-                ) : (
-                  offices.length > 0 && (
-                    <div>
-                      <label className="block text-xs font-bold text-slate-900 mb-1">Assigned Office / Branch *</label>
-                      <select
-                        value={form.office_id}
-                        onChange={(e) => setForm({ ...form, office_id: e.target.value })}
-                        className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 text-xs focus:outline-none"
-                      >
-                        {offices.map((o) => (
-                          <option key={o.id} value={o.id}>
-                            {o.location ? `${o.name} | ${o.location}` : o.name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  )
-                )}
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-xs font-bold text-slate-900 mb-1">Seating Capacity (Max Pax) *</label>
+                  <label className="block text-xs font-bold text-slate-900 mb-1">Location *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. 2nd Floor, Main Building"
+                    value={form.location}
+                    onChange={(e) => setForm({ ...form, location: e.target.value })}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:outline-none focus:border-blue-600 text-xs"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-900 mb-1">Capacity *</label>
                   <input
                     type="number"
                     min="1"
@@ -359,18 +324,7 @@ export default function VenuesTab({ showMsg }) {
                     placeholder="e.g. 100"
                     value={form.capacity}
                     onChange={(e) => setForm({ ...form, capacity: e.target.value })}
-                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:outline-none focus:border-blue-600"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-900 mb-1">Floor Specs</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. cb 110, cbs 101, 3rd Floor Main Building"
-                    value={form.location}
-                    onChange={(e) => setForm({ ...form, location: e.target.value })}
-                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-slate-900 focus:outline-none focus:border-blue-600"
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:outline-none focus:border-blue-600 text-xs"
                   />
                 </div>
               </div>
@@ -379,17 +333,17 @@ export default function VenuesTab({ showMsg }) {
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-100"
+                  className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-100 cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={formLoading}
-                  className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs shadow-md flex items-center gap-1.5"
+                  className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs shadow-md flex items-center gap-1.5 cursor-pointer"
                 >
                   {formLoading && <Loader2 size={14} className="animate-spin" />}
-                  <span>Save Venue Record</span>
+                  <span>{editItem ? "Save Changes" : "Save Venue Catalog"}</span>
                 </button>
               </div>
             </form>

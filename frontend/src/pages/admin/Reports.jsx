@@ -170,7 +170,7 @@ export default function Reports() {
         csvContent += `"${track}","${name}","${equip}","${qty}","${date}","${dept}","${purpose}","${remarks}"\n`;
       });
     } else if (activeTab === "breaches") {
-      csvContent += "Department / Program,Campus Office,Venue Breaches,Equipment Violations,Late Returns,Total Breaches\n";
+      csvContent += "Department / Program,Venue Breaches,Equipment Violations,Late Returns,Total Breaches\n";
 
       const deptMap = {};
       const addBreach = (dept, type) => {
@@ -579,7 +579,7 @@ export default function Reports() {
                   <table className="w-full text-[11px] border border-slate-300">
                     <thead className="bg-slate-100">
                       <tr>
-                        {["#", "Department / Program", "Campus Office", "Venue Breaches", "Equipment Violations"].map(h => (
+                        {["#", "Department / Program", "Venue Breaches", "Equipment Violations"].map(h => (
                           <th key={h} className="border border-slate-300 p-2 text-left font-bold">{h}</th>
                         ))}
                       </tr>
@@ -590,14 +590,13 @@ export default function Reports() {
                           <tr key={i}>
                             <td className="border border-slate-300 p-2 font-bold">{i + 1}</td>
                             <td className="border border-slate-300 p-2 font-bold">{v.department || v.program || "Academic Dept"}</td>
-                            <td className="border border-slate-300 p-2">{v.office || officeScope}</td>
                             <td className="border border-slate-300 p-2 text-rose-600 font-bold">{v.venue_violations ?? 0}</td>
                             <td className="border border-slate-300 p-2 text-rose-600 font-bold">{v.equipment_damages ?? 0}</td>
                           </tr>
                         ))
                       ) : (
                         <tr>
-                          <td colSpan={5} className="border border-slate-300 p-4 text-center text-slate-400">No department breaches recorded in this audit cycle.</td>
+                          <td colSpan={4} className="border border-slate-300 p-4 text-center text-slate-400">No department breaches recorded in this audit cycle.</td>
                         </tr>
                       )}
                     </tbody>

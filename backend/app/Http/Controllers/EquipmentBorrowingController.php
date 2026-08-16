@@ -136,6 +136,14 @@ class EquipmentBorrowingController extends Controller
     {
         $this->authorize('approve', $equipmentBorrowing);
 
+        if ($request->has('assigned_units')) {
+            $assignedData = $request->input('assigned_units');
+            if (is_string($assignedData)) {
+                try { $assignedData = json_decode($assignedData, true); } catch (\Throwable $t) { $assignedData = []; }
+            }
+            $equipmentBorrowing->forceFill(['assigned_units' => $assignedData])->save();
+        }
+
         if ($equipmentBorrowing->tracking_number_id) {
             \Illuminate\Support\Facades\DB::table('tracking_numbers')->where('id', $equipmentBorrowing->tracking_number_id)->update(['status' => 'on-going']);
         }
@@ -143,8 +151,11 @@ class EquipmentBorrowingController extends Controller
             $equipmentBorrowing->forceFill(['status' => 'on-going'])->save();
         }
 
-        // Hard commitment: Mark assigned physical units as 'unavailable' / in-use
+        // Mark all assigned physical units as 'released'
         $assigned = $equipmentBorrowing->assigned_units ?? [];
+        if (is_string($assigned)) {
+            try { $assigned = json_decode($assigned, true); } catch (\Throwable $t) { $assigned = []; }
+        }
         $barcodes = [];
         if (is_array($assigned)) {
             foreach ($assigned as $val) {
@@ -154,7 +165,7 @@ class EquipmentBorrowingController extends Controller
         if (!empty($barcodes)) {
             \App\Models\EquipmentUnit::where(function($q) use ($barcodes) {
                 $q->whereIn('unit_code', $barcodes)->orWhereIn('name', $barcodes);
-            })->update(['status' => 'unavailable']);
+            })->update(['status' => 'released']);
         }
 
         return response()->json($equipmentBorrowing->fresh(['items.equipmentType', 'trackingNumber']));
@@ -362,6 +373,9 @@ class EquipmentBorrowingController extends Controller
         ]);
 
         $assignedData = $validated['assigned_units'] ?? [];
+        if (is_string($assignedData)) {
+            try { $assignedData = json_decode($assignedData, true); } catch (\Throwable $t) { $assignedData = []; }
+        }
 
         // Collect barcodes
         $barcodes = [];
@@ -373,38 +387,21 @@ class EquipmentBorrowingController extends Controller
             }
         }
 
-        // Validate assigned physical units belong to borrowing's office
-        if (!empty($barcodes)) {
-            $targetOfficeId = $equipmentBorrowing->office_id ?? $equipmentBorrowing->items()->first()?->equipmentType?->office_id;
-            if ($targetOfficeId) {
-                $crossOfficeUnits = \Illuminate\Support\Facades\DB::table('equipment_units')
-                    ->join('equipment_types', 'equipment_units.equipment_type_id', '=', 'equipment_types.id')
-                    ->whereIn('equipment_units.unit_code', $barcodes)
-                    ->where('equipment_types.office_id', '!=', $targetOfficeId)
-                    ->count();
-                if ($crossOfficeUnits > 0) {
-                    return response()->json([
-                        'message' => 'Cannot assign equipment units belonging to a different campus/office.',
-                        'errors'  => ['assigned_units' => ['Cross-office unit assignment is not permitted.']]
-                    ], 422);
-                }
-            }
-        }
-
         $equipmentBorrowing->update([
             'assigned_units' => $assignedData,
         ]);
 
-        // Immediate soft hold / reserved sub-status lock on selected physical units
+        $currentStatus = strtolower($equipmentBorrowing->status ?? $equipmentBorrowing->trackingNumber?->status ?? '');
+
         if (!empty($barcodes)) {
+            $newUnitStatus = in_array($currentStatus, ['ongoing', 'on-going', 'borrowed']) ? 'released' : 'reserved';
             \App\Models\EquipmentUnit::where(function($q) use ($barcodes) {
                 $q->whereIn('unit_code', $barcodes)->orWhereIn('name', $barcodes);
             })
-            ->where('status', 'available')
-            ->update(['status' => 'reserved']);
+            ->update(['status' => $newUnitStatus]);
         }
 
-        return response()->json($equipmentBorrowing);
+        return response()->json($equipmentBorrowing->fresh(['items.equipmentType', 'trackingNumber']));
     }
 
     public function override(\Illuminate\Http\Request $request, EquipmentBorrowing $equipmentBorrowing): JsonResponse

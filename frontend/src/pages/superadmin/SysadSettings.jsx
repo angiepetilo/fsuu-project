@@ -38,31 +38,17 @@ export default function SysadSettings() {
 
   const SYSAD_TABS = [
     { id: "users", label: "User Management", icon: Users },
-    { id: "equipment", label: "Equipment Catalog", icon: Package },
+    { id: "equipment", label: "Master Equipment Category", icon: Package },
     { id: "venues", label: "Venue Catalog", icon: Building },
     { id: "fee_matrix", label: "Fee Matrix", icon: DollarSign },
     { id: "departments", label: "Departments", icon: BookOpen },
-    { id: "campuses", label: "Campuses & Offices", icon: Building2 },
     { id: "operating_hours", label: "Operating Hours", icon: Clock },
     { id: "pin", label: "Verification PIN", icon: Key },
-    { id: "profile", label: "Profile & Account", icon: User },
+    { id: "profile", label: "Profile", icon: User },
   ];
 
   return (
     <div className="space-y-6">
-      {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
-            <ShieldCheck className="text-slate-900" size={22} />
-            Super Admin System Control &amp; Configurations
-          </h1>
-          <p className="text-xs text-slate-500 font-semibold mt-0.5">
-            Master global management for campuses, offices, manager user accounts, master equipment/venue catalogs, fee matrix, and security.
-          </p>
-        </div>
-      </div>
-
       {/* Direct High-Visibility Navigation Tabs */}
       <div className="flex flex-wrap items-center gap-1.5 bg-white p-1.5 rounded-xl border border-slate-200 shadow-2xs">
         {SYSAD_TABS.map((tab) => {
@@ -91,7 +77,6 @@ export default function SysadSettings() {
       {activeTab === "venues" && <VenuesTab showMsg={showMsg} />}
       {activeTab === "fee_matrix" && <FeeMatrixTab officeScope="All Offices" showMsg={showMsg} />}
       {activeTab === "departments" && <DepartmentsTab showMsg={showMsg} />}
-      {activeTab === "campuses" && <CampusManagementTab showMsg={showMsg} />}
       {activeTab === "operating_hours" && <OperatingHoursTab showMsg={showMsg} />}
       {activeTab === "pin" && (
         <VerificationPinTab

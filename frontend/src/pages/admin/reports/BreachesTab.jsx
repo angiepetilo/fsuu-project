@@ -116,7 +116,7 @@ export default function BreachesTab({
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-slate-50/80 border-b border-slate-100">
-              {["#", "Department / Program", "Campus Office", "Venue Breaches", "Equipment Violation"].map((h) => (
+              {["#", "Department / Program", "Venue Breaches", "Equipment Violation"].map((h) => (
                 <th key={h} className="px-4 py-3.5 text-left text-[11px] font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap">
                   {h}
                 </th>
@@ -126,7 +126,7 @@ export default function BreachesTab({
           <tbody className="divide-y divide-slate-100 text-xs font-semibold">
             {displaySummaries.length === 0 ? (
               <tr>
-                <td colSpan={5} className="text-center py-10 text-slate-400">
+                <td colSpan={4} className="text-center py-10 text-slate-400">
                   No department breaches or late return violations recorded.
                 </td>
               </tr>
@@ -135,9 +135,6 @@ export default function BreachesTab({
                 <tr key={v.id || idx} className="hover:bg-slate-50/60 transition-colors">
                   <td className="px-4 py-3.5 font-bold text-slate-400">{idx + 1}</td>
                   <td className="px-4 py-3.5 font-extrabold text-slate-900">{v.department || v.program || "Academic Dept"}</td>
-                  <td className="px-4 py-3.5 text-slate-700 font-extrabold">
-                    {v.office || officeScope || "FSUU Main"}
-                  </td>
                   <td className="px-4 py-3.5 font-extrabold text-rose-600">
                     {v.venue_violations ?? 0} Breaches
                   </td>

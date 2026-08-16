@@ -62,11 +62,8 @@ export default function EquipBorrowUnitAssignment({
         {categoriesToRender.map((reqCat, catIdx) => {
           const rawAvailable = getAvailableUnitsForCategory(reqCat.category);
           
-          // Office & condition filtering: show only available & operational units from matching office
+          // Show only available & operational units
           const availableUnits = rawAvailable.filter((unit) => {
-            if (borrowingOfficeId && unit.office_id && Number(unit.office_id) !== Number(borrowingOfficeId)) {
-              return false;
-            }
             const uCond = String(unit.condition || "good").toLowerCase();
             if (uCond === "damaged" || uCond === "lost" || uCond === "under repair") {
               return false;
@@ -114,7 +111,7 @@ export default function EquipBorrowUnitAssignment({
 
                   {availableUnits.length === 0 ? (
                     <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs font-bold text-amber-800 text-center">
-                      No available units in stock for {reqCat.category} at this campus branch.
+                      No available units in stock for {reqCat.category}.
                     </div>
                   ) : (
                     <div className="space-y-2 pt-1">

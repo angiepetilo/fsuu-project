@@ -12,6 +12,9 @@ export default function UserForm({ initial, offices, onSubmit, loading, onClose,
   const [imageFile, setImageFile] = useState(null);
   const [preview, setPreview] = useState(initial?.avatar ?? null);
   const [removeImage, setRemoveImage] = useState(false);
+  const [isDisabled, setIsDisabled] = useState(
+    initial?.status === "disabled" || initial?.status === "inactive" || initial?.is_active === false
+  );
   const [permissions, setPermissions] = useState(
     initial?.permissions ?? ["venue_bookings", "equipment_borrowing", "history_log"]
   );
@@ -35,6 +38,8 @@ export default function UserForm({ initial, offices, onSubmit, loading, onClose,
       fd.append("email", email);
       fd.append("personal_email", personalEmail);
       fd.append("role", role);
+      fd.append("status", isDisabled ? "disabled" : "active");
+      fd.append("is_active", isDisabled ? "0" : "1");
       fd.append("permissions", JSON.stringify(permissions));
       if (officeId) fd.append("office_id", officeId);
       if (imageFile) fd.append("image", imageFile);
@@ -44,6 +49,8 @@ export default function UserForm({ initial, offices, onSubmit, loading, onClose,
     } else {
       fd.append("personal_email", personalEmail);
       fd.append("role", "staff");
+      fd.append("status", isDisabled ? "disabled" : "active");
+      fd.append("is_active", isDisabled ? "0" : "1");
       fd.append("permissions", JSON.stringify(permissions));
       if (officeId || userOfficeId) fd.append("office_id", officeId || userOfficeId);
     }
@@ -145,6 +152,24 @@ export default function UserForm({ initial, offices, onSubmit, loading, onClose,
             </label>
           ))}
         </div>
+      </div>
+
+      {/* Disable Account Option */}
+      <div className="bg-slate-50 rounded-xl p-3.5 border border-slate-200">
+        <label className="flex items-center justify-between cursor-pointer">
+          <div>
+            <span className="text-xs font-extrabold text-slate-900 block">Disable Account Access</span>
+            <span className="text-[10.5px] text-slate-500 font-medium block">
+              Prevent this user from logging in without permanently deleting the account.
+            </span>
+          </div>
+          <input
+            type="checkbox"
+            checked={isDisabled}
+            onChange={e => setIsDisabled(e.target.checked)}
+            className="w-4 h-4 rounded text-rose-600 focus:ring-rose-600 cursor-pointer"
+          />
+        </label>
       </div>
 
       {initial && (

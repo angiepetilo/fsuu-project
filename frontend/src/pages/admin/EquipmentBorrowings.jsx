@@ -211,13 +211,13 @@ export default function EquipmentBorrowings() {
 
 
 
-      {/* Item 15 Table: [#, track number, requestor, department, equipment, quantity, Date, Time, Status, Action] */}
+      {/* Table: [#, Track Number, Requestor, Department, Equipment, Date, Time, Status, Action] */}
       <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-slate-50/80 border-b border-slate-100">
-                {["#", "Track Number", "Requestor", "Department", "Equipment", "Quantity", "Date", "Time", "Status", "Action"].map(h => (
+                {["#", "Track Number", "Requestor", "Department", "Equipment", "Date", "Time", "Status", "Action"].map(h => (
                   <th key={h} className="px-4 py-3.5 text-left text-[11px] font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap">{h}</th>
                 ))}
               </tr>
@@ -225,7 +225,7 @@ export default function EquipmentBorrowings() {
             <tbody className="divide-y divide-slate-100 text-xs font-semibold">
               {loading ? (
                 <tr>
-                  <td colSpan={10} className="text-center py-12">
+                  <td colSpan={9} className="text-center py-12">
                     <div className="flex items-center justify-center gap-2 text-slate-400">
                       <div className="w-4 h-4 rounded-full border-2 border-slate-200 border-t-blue-600 animate-spin" />
                       <span className="text-xs font-semibold italic">Loading equipment borrowings...</span>
@@ -234,7 +234,7 @@ export default function EquipmentBorrowings() {
                 </tr>
               ) : filteredBorrowings.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="text-center py-12 text-slate-400 font-semibold">
+                  <td colSpan={9} className="text-center py-12 text-slate-400 font-semibold">
                     No equipment borrowings found under status filter "{statusFilter}".
                   </td>
                 </tr>
@@ -243,7 +243,6 @@ export default function EquipmentBorrowings() {
                 const requestor = b.filer_name || b.requestor_name || "—";
                 const department = b.program_office || b.requestor_program_office || "—";
                 const equipment = b.equipment_type?.name || b.equipment_name || b.item_name || "Audio Visual Gear";
-                const quantity = b.quantity || b.qty || 1;
                 const usageDate = formatDate(b.date_of_usage || b.start_datetime);
                 const rawStart = b.time_start || b.start_datetime;
                 const rawEnd = b.time_end || b.end_datetime;
@@ -258,7 +257,6 @@ export default function EquipmentBorrowings() {
                     <td className="px-4 py-3.5 font-extrabold text-slate-900">{requestor}</td>
                     <td className="px-4 py-3.5 text-slate-700">{department}</td>
                     <td className="px-4 py-3.5 font-bold text-blue-700">{equipment}</td>
-                    <td className="px-4 py-3.5 font-bold text-slate-900">{quantity} Units</td>
                     <td className="px-4 py-3.5 text-slate-600 whitespace-nowrap">{usageDate}</td>
                     <td className="px-4 py-3.5 text-slate-600 whitespace-nowrap">{timeRange}</td>
                     <td className="px-4 py-3.5"><StatusBadge status={currentStatus} /></td>

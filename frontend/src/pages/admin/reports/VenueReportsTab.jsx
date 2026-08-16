@@ -39,7 +39,7 @@ export default function VenueReportsTab({
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-slate-50/80 border-b border-slate-100">
-              {["#", "Requestor Name", "Venue", "Schedule", "Office / Campus", "Department", "Purpose", "Status"].map((h) => (
+              {["#", "Requestor Name", "Venue", "Schedule", "Department", "Purpose", "Status"].map((h) => (
                 <th key={h} className="px-4 py-3.5 text-left text-[11px] font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap">
                   {h}
                 </th>
@@ -49,8 +49,8 @@ export default function VenueReportsTab({
           <tbody className="divide-y divide-slate-100 text-xs font-semibold">
             {filteredVenueBookings.length === 0 ? (
               <tr>
-                <td colSpan={8} className="text-center py-12 text-slate-400">
-                  No venue booking records available for selected office scope.
+                <td colSpan={7} className="text-center py-12 text-slate-400">
+                  No venue booking records available.
                 </td>
               </tr>
             ) : (
@@ -62,14 +62,13 @@ export default function VenueReportsTab({
                     <td className="px-4 py-3.5 font-extrabold text-slate-900">{b.requestor}</td>
                     <td className="px-4 py-3.5 font-bold text-blue-700">{b.venue}</td>
                     <td className="px-4 py-3.5 text-slate-600 whitespace-nowrap">{b.date} ({b.time})</td>
-                    <td className="px-4 py-3.5 font-bold text-slate-700">{b.office}</td>
                     <td className="px-4 py-3.5 text-slate-600">{b.department}</td>
                     <td className="px-4 py-3.5 text-slate-600">{b.purpose}</td>
                     <td className="px-4 py-3.5">
                       <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold capitalize ${
                         b.status === "approved" ? "bg-emerald-100 text-emerald-800 border border-emerald-200" : "bg-green-50 text-green-700 border border-green-200"
                       }`}>
-                        {b.status}
+                        {b.status || "Completed"}
                       </span>
                     </td>
                   </tr>

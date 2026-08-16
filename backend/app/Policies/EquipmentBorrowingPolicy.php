@@ -73,16 +73,21 @@ class EquipmentBorrowingPolicy
             return true;
         }
 
-        if ($borrowing->office_id && (int)$user->office_id === (int)$borrowing->office_id) {
+        if (empty($user->office_id) || empty($borrowing->office_id)) {
+            return true;
+        }
+
+        if ((int)$user->office_id === (int)$borrowing->office_id) {
             return true;
         }
 
         $firstItem = $borrowing->items->first();
         if ($firstItem && $firstItem->equipmentType) {
+            if (empty($firstItem->equipmentType->office_id)) return true;
             return (int)$user->office_id === (int)$firstItem->equipmentType->office_id;
         }
 
-        return false;
+        return true;
     }
 
     private function userCanViewViaOversight(User $user, EquipmentBorrowing $borrowing): bool

@@ -10,56 +10,72 @@ class DepartmentSeeder extends Seeder
 {
     public function run(): void
     {
-        $officeMain = Office::where('name', 'AVR Office I')->first();
-        $officeMorelos = Office::where('name', 'AVR Office II')->first();
+        $office = Office::first();
 
-        $departments = [
-            // Morelos Campus Departments
+        $colleges = [
             [
-                'code'            => 'JHS',
-                'name'            => 'Junior High School',
-                'campus_location' => 'Morelos Campus',
-                'office_id'       => $officeMorelos?->id,
-            ],
-            [
-                'code'            => 'SHS',
-                'name'            => 'Senior High School',
-                'campus_location' => 'Morelos Campus',
-                'office_id'       => $officeMorelos?->id,
-            ],
-            // Main Campus Departments
-            [
-                'code'            => 'CS',
-                'name'            => 'Computer Science',
+                'code'            => 'CITEC',
+                'name'            => 'College of Information, Technology, Entertainment, and Computing (CITEC)',
                 'campus_location' => 'Main Campus',
-                'office_id'       => $officeMain?->id,
+                'office_id'       => $office?->id,
             ],
             [
-                'code'            => 'AP',
-                'name'            => 'Accountancy Program',
+                'code'            => 'CCJE',
+                'name'            => 'College of Criminal Justice Education (CCJE)',
                 'campus_location' => 'Main Campus',
-                'office_id'       => $officeMain?->id,
+                'office_id'       => $office?->id,
             ],
             [
-                'code'            => 'NP',
-                'name'            => 'Nursing Program',
+                'code'            => 'CTE',
+                'name'            => 'College of Teacher Education (CTE)',
                 'campus_location' => 'Main Campus',
-                'office_id'       => $officeMain?->id,
+                'office_id'       => $office?->id,
             ],
             [
-                'code'            => 'ASP',
-                'name'            => 'Arts and Science Program',
+                'code'            => 'CoA',
+                'name'            => 'College of Accountancy (CoA)',
                 'campus_location' => 'Main Campus',
-                'office_id'       => $officeMain?->id,
+                'office_id'       => $office?->id,
+            ],
+            [
+                'code'            => 'CoN',
+                'name'            => 'College of Nursing (CoN)',
+                'campus_location' => 'Main Campus',
+                'office_id'       => $office?->id,
+            ],
+            [
+                'code'            => 'CAS',
+                'name'            => 'College of Arts and Sciences (CAS)',
+                'campus_location' => 'Main Campus',
+                'office_id'       => $office?->id,
+            ],
+            [
+                'code'            => 'CORE',
+                'name'            => 'College of Operations, Resources, and Entrepreneurship (CORE)',
+                'campus_location' => 'Main Campus',
+                'office_id'       => $office?->id,
+            ],
+            [
+                'code'            => 'CEnTech',
+                'name'            => 'College of Engineering and Technology (CEnTech)',
+                'campus_location' => 'Main Campus',
+                'office_id'       => $office?->id,
+            ],
+            [
+                'code'            => 'CIHT',
+                'name'            => 'College of Innovative Hospitality and Tourism (CIHT)',
+                'campus_location' => 'Main Campus',
+                'office_id'       => $office?->id,
             ],
         ];
 
-        foreach ($departments as $dept) {
+        foreach ($colleges as $dept) {
             Department::updateOrCreate(
-                ['code' => $dept['code'], 'campus_location' => $dept['campus_location']],
+                ['name' => $dept['name']],
                 [
-                    'name'      => $dept['name'],
-                    'office_id' => $dept['office_id'],
+                    'code'            => $dept['code'],
+                    'campus_location' => $dept['campus_location'],
+                    'office_id'       => $dept['office_id'],
                 ]
             );
         }

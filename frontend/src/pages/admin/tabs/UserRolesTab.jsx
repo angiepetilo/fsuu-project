@@ -55,7 +55,7 @@ export default function UserRolesTab({
         <table className="w-full text-xs">
           <thead>
             <tr className="border-b border-slate-100 text-left text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider">
-              {["#", "User", "Personal Email", "Office", "Role", "Status", "Actions"].map((h) => (
+              {["#", "User", "Personal Email", "Role", "Status", "Actions"].map((h) => (
                 <th key={h} className="px-4 py-3 whitespace-nowrap">
                   {h}
                 </th>
@@ -65,14 +65,14 @@ export default function UserRolesTab({
           <tbody className="divide-y divide-slate-100 font-semibold">
             {loading ? (
               <tr>
-                <td colSpan={7} className="text-center py-12 text-slate-400 font-medium">
+                <td colSpan={6} className="text-center py-12 text-slate-400 font-medium">
                   <Loader2 size={18} className="animate-spin inline mr-2 text-slate-600" /> Loading users...
                 </td>
               </tr>
             ) : visibleUsers.length === 0 ? (
               <tr>
-                <td colSpan={7} className="text-center py-12 text-slate-400 font-medium">
-                  No users found for your office scope.
+                <td colSpan={6} className="text-center py-12 text-slate-400 font-medium">
+                  No users found.
                 </td>
               </tr>
             ) : (
@@ -96,7 +96,6 @@ export default function UserRolesTab({
                     <td className="px-4 py-3 font-mono text-slate-600 font-medium">
                       {u.personal_email || u.email}
                     </td>
-                    <td className="px-4 py-3 text-slate-600 font-mono">{u.office?.name ?? "FSUU Main"}</td>
                     <td className="px-4 py-3">
                       <div className="flex flex-col gap-1">
                         <div>{roleBadge(u.role)}</div>

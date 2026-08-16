@@ -182,6 +182,7 @@ class EquipmentUnitController extends Controller
         $totalUnits = EquipmentUnit::where('equipment_type_id', $typeId)->count();
         $availableUnits = EquipmentUnit::where('equipment_type_id', $typeId)
             ->where('status', 'available')
+            ->whereNotIn(\Illuminate\Support\Facades\DB::raw('LOWER(`condition`)'), ['damaged', 'lost', 'under repair', 'worn'])
             ->count();
 
         $type->update([

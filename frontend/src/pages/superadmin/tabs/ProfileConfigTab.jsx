@@ -178,25 +178,6 @@ export default function ProfileConfigTab({ showMsg }) {
               />
             </div>
 
-            <div>
-              <label className="block text-xs font-bold text-slate-900 mb-1">Assigned Campus Branch Office *</label>
-              <select
-                value={profileData.location}
-                onChange={(e) => setProfileData({ ...profileData, location: e.target.value })}
-                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:outline-none focus:border-blue-600"
-              >
-                {offices.length > 0 ? (
-                  offices.map((o) => (
-                    <option key={o.id} value={o.name}>
-                      {o.name} {o.location ? `(${o.location})` : ""}
-                    </option>
-                  ))
-                ) : (
-                  <option value="">No campus branch offices created yet</option>
-                )}
-              </select>
-            </div>
-
             <div className="md:col-span-2">
               <label className="block text-xs font-bold text-slate-900 mb-1 flex items-center justify-between">
                 <span>Personal Recovery Email</span>

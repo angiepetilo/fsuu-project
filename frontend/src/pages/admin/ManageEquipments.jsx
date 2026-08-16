@@ -3,12 +3,11 @@ import { useOutletContext } from "react-router-dom";
 import api from "@/lib/axios";
 import {
   PackageOpen, Plus, Search, Filter, Edit3, Trash2, CheckCircle2,
-  AlertTriangle, RefreshCw, Barcode, Calendar, Clock, Loader2, Eye, Copy, Check,
+  AlertTriangle, RefreshCw, Barcode, Eye, Copy, Check,
   ChevronLeft, ChevronRight, LayoutGrid
 } from "lucide-react";
 import EquipmentDetailModal from "./components/EquipmentDetailModal";
 import EquipmentModal from "./components/EquipmentModal";
-import TimeSlotMatrix from "./components/TimeSlotMatrix";
 import { PageLoader } from "@/components/ui/page-loader";
 import { StatusBadge } from "@/components/ui/status-badge";
 
@@ -17,15 +16,10 @@ export default function ManageEquipments() {
 
   const [units, setUnits] = useState([]);
   const [categories, setCategories] = useState([]);
-  const [borrowings, setBorrowings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
-  const [showScheduleView, setShowScheduleView] = useState(false);
-  const [selectedScheduleDate, setSelectedScheduleDate] = useState(
-    new Date().toISOString().substring(0, 10)
-  );
   const [editingItem, setEditingItem] = useState(null);
   const [selectedItem, setSelectedItem] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -67,18 +61,15 @@ export default function ManageEquipments() {
   const fetchEquipments = useCallback(async () => {
     setLoading(true);
     try {
-      const [catRes, unitRes, borrowRes] = await Promise.all([
+      const [catRes, unitRes] = await Promise.all([
         api.get('/admin/equipment-types'),
         api.get('/admin/equipment-units').catch(() => ({ data: [] })),
-        api.get('/avr-equipment-borrowings').catch(() => ({ data: [] })),
       ]);
 
       const catData = Array.isArray(catRes.data) ? catRes.data : [];
       const unitData = Array.isArray(unitRes.data) ? unitRes.data : [];
-      const borrowData = Array.isArray(borrowRes.data) ? borrowRes.data : [];
 
       setCategories(catData);
-      setBorrowings(borrowData);
 
       setUnits(unitData.map((u, idx) => {
         const bCode = String(u.unit_code || u.barcode || `BC-EQP-2026-00${idx + 1}`).trim();
@@ -135,60 +126,6 @@ export default function ManageEquipments() {
     window.addEventListener("equipment_inventory_updated", handleInventoryUpdate);
     return () => window.removeEventListener("equipment_inventory_updated", handleInventoryUpdate);
   }, [fetchEquipments]);
-
-  // Compute active equipment schedules for the selected date to plot on TimeSlotMatrix
-  const equipmentSchedules = useMemo(() => {
-    if (!selectedScheduleDate) return [];
-
-    const list = [];
-    borrowings.forEach((b) => {
-      const bDate = b.date_of_borrow || b.pickup_date || (b.start_datetime ? b.start_datetime.split("T")[0] : null);
-      if (bDate === selectedScheduleDate) {
-        const st = (b.status || "pending").toLowerCase();
-        if (['pending', 'approved', 'ongoing', 'borrowed', 'reserved'].includes(st)) {
-          const rawStart = b.start_time || (b.start_datetime ? b.start_datetime.split("T")[1]?.substring(0, 5) : "08:00");
-          const rawEnd = b.end_time || (b.end_datetime ? b.end_datetime.split("T")[1]?.substring(0, 5) : "17:00");
-
-          // Link to items/units
-          const items = Array.isArray(b.items) ? b.items : (Array.isArray(b.equipment_borrow_items) ? b.equipment_borrow_items : []);
-
-          if (items.length > 0) {
-            items.forEach((itemObj) => {
-              const eqTypeId = itemObj.equipment_type_id || itemObj.equipment_type?.id;
-              const eqUnitId = itemObj.equipment_unit_id || itemObj.unit_id;
-              const matchedTargetId = eqUnitId || eqTypeId;
-
-              if (matchedTargetId) {
-                list.push({
-                  id: `eb-${b.id}-${matchedTargetId}`,
-                  itemId: matchedTargetId,
-                  startTime: rawStart,
-                  endTime: rawEnd,
-                  filerName: b.filer_name || b.borrower_name || "Borrower",
-                  title: b.purpose || "Equipment Borrowing",
-                  refCode: b.tracking_number?.reference_code || b.reference_code,
-                  status: st,
-                });
-              }
-            });
-          } else if (b.equipment_type_id || b.equipment_unit_id) {
-            list.push({
-              id: `eb-${b.id}`,
-              itemId: b.equipment_unit_id || b.equipment_type_id,
-              startTime: rawStart,
-              endTime: rawEnd,
-              filerName: b.filer_name || b.borrower_name || "Borrower",
-              title: b.purpose || "Equipment Borrowing",
-              refCode: b.tracking_number?.reference_code || b.reference_code,
-              status: st,
-            });
-          }
-        }
-      }
-    });
-
-    return list;
-  }, [selectedScheduleDate, borrowings]);
 
   const handleOpenAddModal = async () => {
     let activeCats = categories;
@@ -372,18 +309,6 @@ export default function ManageEquipments() {
 
         <div className="flex items-center gap-3">
           <button
-            onClick={() => setShowScheduleView((p) => !p)}
-            className={`flex items-center gap-2 px-4 py-2 border rounded-xl text-xs font-bold shadow-xs transition-all cursor-pointer ${
-              showScheduleView
-                ? "bg-blue-50 border-blue-300 text-blue-700 font-extrabold ring-2 ring-blue-500/20"
-                : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
-            }`}
-          >
-            <Calendar size={14} className="text-blue-600" />
-            <span>{showScheduleView ? "Hide Schedule Timeline" : "Schedule Timeline"}</span>
-          </button>
-
-          <button
             onClick={fetchEquipments}
             disabled={loading}
             className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-50 shadow-xs cursor-pointer"
@@ -401,70 +326,6 @@ export default function ManageEquipments() {
           </button>
         </div>
       </div>
-
-      {/* Schedule Timeline Matrix View (Toggled via Calendar Icon Button) */}
-      {showScheduleView && (
-        <div className="space-y-4 animate-in fade-in-50 duration-200">
-          <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs">
-            <div className="flex items-center gap-2">
-              <Calendar size={16} className="text-blue-600" />
-              <span className="text-xs font-extrabold text-slate-800">Select Date to Inspect Schedule:</span>
-              <input
-                type="date"
-                value={selectedScheduleDate}
-                onChange={(e) => setSelectedScheduleDate(e.target.value)}
-                className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-              />
-            </div>
-            <div className="flex items-center gap-1.5">
-              <button
-                type="button"
-                onClick={() => {
-                  const d = new Date(selectedScheduleDate || new Date());
-                  d.setDate(d.getDate() - 1);
-                  setSelectedScheduleDate(d.toISOString().substring(0, 10));
-                }}
-                className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg transition-colors cursor-pointer"
-              >
-                ◀ Prev Day
-              </button>
-              <button
-                type="button"
-                onClick={() => setSelectedScheduleDate(new Date().toISOString().substring(0, 10))}
-                className="px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold rounded-lg transition-colors cursor-pointer"
-              >
-                Today
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  const d = new Date(selectedScheduleDate || new Date());
-                  d.setDate(d.getDate() + 1);
-                  setSelectedScheduleDate(d.toISOString().substring(0, 10));
-                }}
-                className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg transition-colors cursor-pointer"
-              >
-                Next Day ▶
-              </button>
-            </div>
-          </div>
-
-          <TimeSlotMatrix
-            selectedDate={selectedScheduleDate}
-            items={units.map((u) => ({
-              id: u.id,
-              name: u.name,
-              subtitle: `${u.category} | ${u.office_name}`,
-              code: u.barcode,
-            }))}
-            schedules={equipmentSchedules}
-            startHour={7}
-            endHour={19}
-            title="Equipment Daily Borrowing & Usage Schedule Matrix"
-            emptyLabel="No physical equipment units registered yet"
-          />
-        </div>
-      )}
 
       {/* Warning Banner if No Category Exists */}
       {categories.length === 0 && !loading && (
@@ -575,13 +436,6 @@ export default function ManageEquipments() {
                       <td className="px-4 py-3.5 font-bold text-blue-700">
                         <span className="bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-200/60 block w-fit">
                           {item.category}
-                        </span>
-                        <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold border inline-flex items-center gap-1 mt-1.5 ${
-                          (item.office_name || '').includes('II') || (item.office_name || '').includes('Morelos')
-                            ? 'bg-amber-50 text-amber-800 border-amber-200/80'
-                            : 'bg-indigo-50 text-indigo-800 border-indigo-200/80'
-                        }`}>
-                          🏢 {item.office_name || "AVR Office I"}
                         </span>
                       </td>
                       <td className="px-4 py-3.5">

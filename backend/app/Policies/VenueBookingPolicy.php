@@ -89,7 +89,15 @@ class VenueBookingPolicy
             return true;
         }
 
+        if (empty($user->office_id)) {
+            return true;
+        }
+
         $venueOfficeId = $booking->venue?->office_id ?? \App\Models\Venue::where('id', $booking->venue_id)->value('office_id');
+        if (empty($venueOfficeId)) {
+            return true;
+        }
+
         return (int)$user->office_id === (int)$venueOfficeId;
     }
 

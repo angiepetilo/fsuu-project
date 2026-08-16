@@ -131,7 +131,6 @@ export default function ManageVenues() {
               override_date: item.date,
             };
             nextOv[key] = ovObj;
-            nextOv[item.date] = ovObj;
           }
         });
         setOverrides(prev => {
@@ -169,7 +168,7 @@ export default function ManageVenues() {
   const firstDayOfWeek = new Date(currentYear, currentMonth, 1).getDay();
   const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
 
-  // Save Availability Control Status
+  // Save Availability Control Status (strictly isolated to selectedVenue)
   const handleSaveStatus = async (e) => {
     e.preventDefault();
     const venId = selectedVenue?.id || setupForm.venueId;
@@ -192,10 +191,13 @@ export default function ManageVenues() {
     setSaveLoading(true);
     const newOv = {
       venue_id: venId,
+      venueId: venId,
       override_date: dateStr,
       status: statusVal,
       reason: notesVal,
       notes: notesVal,
+      startTime: setupForm.startTime || "08:00",
+      endTime: setupForm.endTime || "17:00",
     };
 
     try {
@@ -211,7 +213,7 @@ export default function ManageVenues() {
     } finally {
       setSaveLoading(false);
       setOverrides(prev => {
-        const next = { ...prev, [key]: newOv, [dateStr]: newOv };
+        const next = { ...prev, [key]: newOv };
         try {
           localStorage.setItem("fsuu_venue_overrides", JSON.stringify(next));
           localStorage.setItem("fsuu_venue_maintenance", JSON.stringify(next));
@@ -225,9 +227,9 @@ export default function ManageVenues() {
   const getVenueDayStatus = (dateStr) => {
     const venId = selectedVenue?.id || setupForm.venueId;
     const key = `${venId}_${dateStr}`;
-    const ov = overrides[key] || overrides[dateStr];
+    const ov = overrides[key];
 
-    if (ov) {
+    if (ov && String(ov.venue_id || ov.venueId) === String(venId)) {
       return {
         status: (ov.status || "available").toLowerCase(),
         reason: ov.notes || ov.reason || `Assigned ${ov.status} status`,
@@ -283,16 +285,20 @@ export default function ManageVenues() {
       }
     });
 
-    // 2. Add maintenance / overrides for the selected date
+    // 2. Add maintenance / overrides strictly for matching venue ID on the selected date
     venues.forEach((v) => {
       const key = `${v.id}_${selectedDateStr}`;
-      const ov = overrides[key] || overrides[selectedDateStr];
-      if (ov && (ov.status === 'maintenance' || ov.status === 'closed')) {
+      const ov = overrides[key];
+      if (
+        ov &&
+        String(ov.venue_id || ov.venueId) === String(v.id) &&
+        (ov.status === 'maintenance' || ov.status === 'closed')
+      ) {
         list.push({
           id: `ov-${v.id}-${selectedDateStr}`,
           itemId: v.id,
-          startTime: ov.startTime || "07:00",
-          endTime: ov.endTime || "19:00",
+          startTime: ov.startTime || setupForm.startTime || "08:00",
+          endTime: ov.endTime || setupForm.endTime || "17:00",
           filerName: ov.status === 'closed' ? 'Closed' : 'Maintenance',
           title: ov.notes || ov.reason || 'Restricted / Scheduled Maintenance',
           refCode: 'MAINT',
@@ -302,7 +308,7 @@ export default function ManageVenues() {
     });
 
     return list;
-  }, [setupForm.startDate, bookings, overrides, venues]);
+  }, [setupForm.startDate, setupForm.startTime, setupForm.endTime, bookings, overrides, venues]);
 
   if (loading) return <PageLoader message="Loading Manage Venues..." />;
 
@@ -321,58 +327,64 @@ export default function ManageVenues() {
       </div>
 
       {feedback && (
-        <div className="fixed bottom-6 right-6 z-[3000] bg-slate-900 text-white text-xs font-extrabold px-5 py-3.5 rounded-2xl flex items-center gap-3 shadow-2xl animate-in slide-in-from-bottom-5 duration-300 border border-slate-700 max-w-md">
+        <div className="fixed bottom-6 right-6 z-[3000] bg-slate-900 text-white text-xs font-extrabold px-5 py-3.5 rounded-2xl flex items-center gap-3 shadow-xl animate-in slide-in-from-bottom-5 duration-300 border border-slate-700 max-w-md">
           <CheckCircle2 size={18} className="text-emerald-400 shrink-0" />
           <span>{feedback}</span>
         </div>
       )}
 
-      {/* Main Grid: Left Calendar & Right Availability Control Form */}
+      {/* Main Grid: Left Calendar & Right Availability Control Form (Plain Border, No Heavy Shadow) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         
-        {/* Item 20: Color-Coded Venue Schedule Calendar */}
-        <VenueScheduleCalendar
-          currentMonth={currentMonth}
-          currentYear={currentYear}
-          monthNames={monthNames}
-          prevMonth={prevMonth}
-          nextMonth={nextMonth}
-          firstDayOfWeek={firstDayOfWeek}
-          daysInMonth={daysInMonth}
-          getVenueDayStatus={getVenueDayStatus}
-          setupForm={setupForm}
-          setSetupForm={setSetupForm}
-          hoveredDayData={hoveredDayData}
-          setHoveredDayData={setHoveredDayData}
-        />
+        {/* Left Side: Color-Coded Venue Schedule Calendar (7 cols) */}
+        <div className="lg:col-span-7">
+          <VenueScheduleCalendar
+            currentMonth={currentMonth}
+            currentYear={currentYear}
+            monthNames={monthNames}
+            prevMonth={prevMonth}
+            nextMonth={nextMonth}
+            firstDayOfWeek={firstDayOfWeek}
+            daysInMonth={daysInMonth}
+            getVenueDayStatus={getVenueDayStatus}
+            setupForm={setupForm}
+            setSetupForm={setSetupForm}
+            hoveredDayData={hoveredDayData}
+            setHoveredDayData={setHoveredDayData}
+          />
+        </div>
 
-        {/* Item 21: Embedded Availability Control Form */}
-        <VenueScheduleForm
-          VENUES={filteredVenues}
-          selectedVenue={selectedVenue}
-          setSelectedVenue={setSelectedVenue}
-          setupForm={setupForm}
-          setSetupForm={setSetupForm}
-          handleSaveStatus={handleSaveStatus}
-          saveLoading={saveLoading}
-        />
+        {/* Right Side: Embedded Availability Control Form (5 cols / ~3/4 proportioned container) */}
+        <div className="lg:col-span-5 flex justify-end">
+          <div className="w-full">
+            <VenueScheduleForm
+              VENUES={filteredVenues}
+              selectedVenue={selectedVenue}
+              setSelectedVenue={setSelectedVenue}
+              setupForm={setupForm}
+              setSetupForm={setSetupForm}
+              handleSaveStatus={handleSaveStatus}
+              saveLoading={saveLoading}
+            />
+          </div>
+        </div>
 
       </div>
 
-      {/* Item 22: Interactive Hourly Timeline Matrix Grid (Based on Selected Date) */}
+      {/* Hourly Timeline Matrix Grid (Based on Selected Date - Screenshot 2) */}
       <TimeSlotMatrix
         selectedDate={setupForm.startDate}
         items={filteredVenues.map((v) => ({
           id: v.id,
           name: v.name,
-          subtitle: v.location || (v.office?.name ? `${v.office.name}` : `Capacity: ${v.capacity || 100} pax`),
+          subtitle: `[CAP: ${v.capacity || 100}] ${v.location || 'CB Building 3rd Floor'}`,
           code: `CAP: ${v.capacity || 100}`,
         }))}
         schedules={venueSchedules}
         startHour={7}
         endHour={19}
-        title={`Venue Daily Time-Slot Schedule Matrix (${selectedOfficeName})`}
-        emptyLabel={`No venues found for ${selectedOfficeName}`}
+        title="Venue Daily Time-Slot Schedule"
+        emptyLabel="No venues found"
       />
     </div>
   );

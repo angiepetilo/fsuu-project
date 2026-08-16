@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Pencil, Trash2, X, Package, Loader2, Image as ImageIcon, ChevronLeft, ChevronRight, Check } from "lucide-react";
+import { Plus, Pencil, Trash2, X, Package, Loader2, Image as ImageIcon, ChevronLeft, ChevronRight, Check, Camera } from "lucide-react";
 import api from "@/lib/axios";
 import { useAuth } from "@/context/AuthContext";
 
@@ -204,12 +204,12 @@ export default function EquipmentCategoriesTab({ showMsg }) {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
         <div>
           <h3 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
-            <Package size={18} className="text-blue-600" />
-            {isSuperAdmin ? "Master Equipment Category Catalog" : "Manage Equipment Catalog"}
+            {isSuperAdmin && <Package size={18} className="text-blue-600" />}
+            {isSuperAdmin ? "Master Equipment Category" : "Manage Equipment Catalog"}
           </h3>
           <p className="text-xs text-slate-500 font-semibold mt-0.5">
             {isSuperAdmin
-              ? "Super Admin single source of truth for top-level equipment categories across all offices."
+              ? "Super Admin single source of truth for top-level equipment categories."
               : "Select pre-approved master categories or submit a category request to Super Admin."}
           </p>
         </div>
@@ -248,7 +248,7 @@ export default function EquipmentCategoriesTab({ showMsg }) {
                 }}
                 className="flex items-center gap-2 px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-2xs transition-colors cursor-pointer"
               >
-                <Plus size={14} /> Create Master Category
+                <Plus size={14} /> Add Equipment Category
               </button>
             </>
           ) : (
@@ -268,7 +268,7 @@ export default function EquipmentCategoriesTab({ showMsg }) {
         <table className="w-full text-xs">
           <thead>
             <tr className="border-b border-slate-100 text-left text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider">
-              {["#", "Avatar", "Equipment Catalog", "Overall Stock", "Actions"].map((h) => (
+              {["#", "Avatar", "Equipment Category", "Total Stock", "Qty Present", "Released", "Damaged", "Lost", "Actions"].map((h) => (
                 <th key={h} className="px-4 py-3 whitespace-nowrap">
                   {h}
                 </th>
@@ -280,7 +280,7 @@ export default function EquipmentCategoriesTab({ showMsg }) {
             {isSuperAdmin && pendingRequests.length > 0 && (
               <>
                 <tr className="bg-amber-50/70 border-b border-amber-200/90 text-amber-900">
-                  <td colSpan={5} className="px-4 py-2 font-extrabold text-[11px] uppercase tracking-wider">
+                  <td colSpan={9} className="px-4 py-2 font-extrabold text-[11px] uppercase tracking-wider">
                     <div className="flex items-center justify-between">
                       <span className="flex items-center gap-2">
                         <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
@@ -306,15 +306,14 @@ export default function EquipmentCategoriesTab({ showMsg }) {
                       <span className="font-extrabold text-slate-600 text-xs block">{req.proposed_name}</span>
                       <span className="text-[10.5px] text-slate-400 font-mono">AV Equipment</span>
                       <span className="text-[10px] text-slate-400 font-mono block mt-0.5 italic">
-                        Requested by {req.requester?.name || "Office Manager"} — {req.office?.name || "Branch Office"}
+                        Requested by {req.requester?.name || "Admin"}
                       </span>
                     </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-3 font-mono text-xs text-slate-400">
-                        <span>Total: <b>0</b></span>
-                        <span>● 0 Available</span>
-                      </div>
-                    </td>
+                    <td className="px-4 py-3 font-mono font-bold text-slate-600">0</td>
+                    <td className="px-4 py-3 font-mono font-bold text-slate-400">0</td>
+                    <td className="px-4 py-3 font-mono font-bold text-slate-400">0</td>
+                    <td className="px-4 py-3 font-mono font-bold text-slate-400">0</td>
+                    <td className="px-4 py-3 font-mono font-bold text-slate-400">0</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
                         <button
@@ -342,13 +341,13 @@ export default function EquipmentCategoriesTab({ showMsg }) {
 
             {loading ? (
               <tr>
-                <td colSpan={5} className="text-center py-10 text-slate-400 font-medium">
+                <td colSpan={9} className="text-center py-10 text-slate-400 font-medium">
                   <Loader2 size={16} className="animate-spin inline mr-2 text-slate-600" /> Loading catalog...
                 </td>
               </tr>
             ) : categories.length === 0 && pendingRequests.length === 0 ? (
               <tr>
-                <td colSpan={5} className="text-center py-10 text-slate-400 font-medium">
+                <td colSpan={9} className="text-center py-10 text-slate-400 font-medium">
                   No equipment categories registered.
                 </td>
               </tr>
@@ -359,7 +358,7 @@ export default function EquipmentCategoriesTab({ showMsg }) {
                 const released = cat.released_count || 0;
                 const damaged = cat.damaged_count || 0;
                 const lost = cat.lost_count || 0;
-                const available = Math.max(0, total - released - damaged - lost);
+                const available = typeof cat.available_count === "number" ? cat.available_count : Math.max(0, total - released - damaged - lost);
 
                 return (
                   <tr key={cat.id || idx} className="hover:bg-slate-50/60 transition-colors">
@@ -376,26 +375,39 @@ export default function EquipmentCategoriesTab({ showMsg }) {
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
                         <span className="font-extrabold text-slate-900 text-xs">{cat.eq_name || cat.name}</span>
-                        {(cat.office_location || cat.office?.location) && (
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9.5px] font-extrabold border ${
-                            (cat.office_location || cat.office?.location || '').toLowerCase().includes('morelos')
-                              ? 'bg-purple-50 text-purple-700 border-purple-200'
-                              : 'bg-blue-50 text-blue-700 border-blue-200'
-                          }`}>
-                            {cat.office_location || cat.office?.location}
-                          </span>
-                        )}
                       </div>
                       <span className="text-[10.5px] text-slate-500 font-mono">{cat.eq_type || "AV Equipment"}</span>
                     </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-3 font-mono text-xs">
-                        <span className="text-slate-700">Total: <b>{total}</b></span>
-                        <span className="text-emerald-600 font-bold">● {available} Available</span>
-                        {released > 0 && <span className="text-blue-600 font-bold">● {released} Released</span>}
-                        {damaged > 0 && <span className="text-rose-600 font-bold">● {damaged} Damaged</span>}
-                        {lost > 0 && <span className="text-amber-600 font-bold">● {lost} Lost</span>}
-                      </div>
+                    <td className="px-4 py-3 font-mono font-bold text-slate-900">
+                      <span className="bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200">
+                        {total}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 font-mono font-extrabold text-emerald-700">
+                      <span className="bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200 inline-flex items-center gap-1">
+                        ● {available}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 font-mono font-bold text-blue-700">
+                      <span className={`px-2.5 py-1 rounded-lg border inline-flex items-center gap-1 ${
+                        released > 0 ? "bg-blue-50 border-blue-200 text-blue-700 font-extrabold" : "bg-slate-50 border-slate-200 text-slate-400"
+                      }`}>
+                        {released > 0 ? `● ${released}` : "0"}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 font-mono font-bold text-rose-700">
+                      <span className={`px-2.5 py-1 rounded-lg border inline-flex items-center gap-1 ${
+                        damaged > 0 ? "bg-rose-50 border-rose-200 text-rose-700 font-extrabold" : "bg-slate-50 border-slate-200 text-slate-400"
+                      }`}>
+                        {damaged > 0 ? `● ${damaged}` : "0"}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 font-mono font-bold text-amber-700">
+                      <span className={`px-2.5 py-1 rounded-lg border inline-flex items-center gap-1 ${
+                        lost > 0 ? "bg-amber-50 border-amber-200 text-amber-700 font-extrabold" : "bg-slate-50 border-slate-200 text-slate-400"
+                      }`}>
+                        {lost > 0 ? `● ${lost}` : "0"}
+                      </span>
                     </td>
                     <td className="px-4 py-3">
                       {isSuperAdmin ? (
@@ -408,32 +420,29 @@ export default function EquipmentCategoriesTab({ showMsg }) {
                                 eq_name: cat.eq_name || cat.name || "",
                                 eq_type: cat.eq_type || "AV Equipment",
                                 avatar: cat.avatar || "",
-                                total_quantity: cat.total_quantity ?? cat.stock ?? 0,
-                                available_count: cat.available_count ?? cat.stock ?? 0,
-                                status: cat.status || "available",
-                                office_id: cat.office_id || offices[0]?.id || "",
+                                total_quantity: cat.total_quantity || 0,
+                                available_count: cat.available_count || 0,
+                                office_id: cat.office_id || "",
                                 description: cat.description || "",
                               });
                               setShowModal(true);
                             }}
-                            className="p-1.5 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50 transition-all cursor-pointer shadow-2xs"
-                            title="Edit Master Category"
+                            className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 cursor-pointer"
+                            title="Edit Category"
                           >
                             <Pencil size={13} />
                           </button>
                           <button
                             type="button"
                             onClick={() => handleDelete(cat.id, cat.eq_name || cat.name)}
-                            className="p-1.5 rounded-lg border border-slate-300 text-rose-600 hover:bg-rose-50 transition-all cursor-pointer shadow-2xs"
+                            className="p-1.5 rounded-lg border border-rose-200 text-rose-600 hover:bg-rose-50 cursor-pointer"
                             title="Archive Category"
                           >
                             <Trash2 size={13} />
                           </button>
                         </div>
                       ) : (
-                        <span className="text-[10px] font-extrabold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-full border border-slate-200 uppercase">
-                          Master Category
-                        </span>
+                        <span className="text-[10px] text-slate-400 font-mono italic">Read-only</span>
                       )}
                     </td>
                   </tr>
@@ -482,68 +491,82 @@ export default function EquipmentCategoriesTab({ showMsg }) {
         </div>
       )}
 
-      {/* Modal */}
+      {/* Equipment Category Modal - Unified Clean Design */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl border border-slate-300 shadow-xl w-full max-w-lg overflow-hidden">
-            <div className="flex justify-between items-center p-5 border-b border-slate-200">
-              <h3 className="font-extrabold text-slate-900 text-sm">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-[1500] flex items-center justify-center p-4 animate-in fade-in">
+          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl animate-in zoom-in-95 border border-slate-100 space-y-4">
+            <div className="flex justify-between items-center pb-3 border-b border-slate-100">
+              <h3 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
+                <Package size={18} className="text-blue-600" />
                 {editItem ? "Edit Equipment Category" : "Add Equipment Category"}
               </h3>
               <button
                 type="button"
                 onClick={() => setShowModal(false)}
-                className="p-1 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-500 cursor-pointer"
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg cursor-pointer"
               >
-                <X size={16} />
+                <X size={18} />
               </button>
             </div>
 
-            <form onSubmit={handleSave} className="p-5 space-y-4 text-xs">
-              <div>
-                <label className="block font-bold text-slate-900 mb-1">Category / Equipment Catalog Name *</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Wireless Microphones, LCD Projectors, Laptops"
-                  value={form.eq_name}
-                  onChange={(e) => setForm({ ...form, eq_name: e.target.value })}
-                  className="w-full p-2.5 bg-white border border-slate-300 rounded-xl font-bold text-slate-900 focus:outline-none focus:border-slate-900"
-                />
-              </div>
-
-              <div>
-                <label className="block font-bold text-slate-900 mb-1.5">Upload Photo</label>
-                <div className="flex items-center gap-3">
-                  <div className="w-14 h-14 rounded-2xl bg-slate-50 border border-slate-300 overflow-hidden flex items-center justify-center shrink-0">
-                    {form.avatar ? (
-                      <img src={form.avatar} alt="Preview" className="w-full h-full object-cover" />
-                    ) : (
-                      <ImageIcon size={20} className="text-slate-400" />
-                    )}
-                  </div>
-                  <label className="px-4 py-2.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-bold cursor-pointer transition-all shadow-2xs inline-flex items-center justify-center text-xs">
-                    Choose Photo
+            <form onSubmit={handleSave} className="space-y-4 text-xs">
+              {/* Avatar Upload */}
+              <div className="flex items-center gap-4 bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
+                <div className="w-16 h-16 rounded-2xl bg-white border border-slate-200 overflow-hidden flex items-center justify-center shadow-inner shrink-0 relative">
+                  {form.avatar ? (
+                    <img src={form.avatar} alt="Preview" className="w-full h-full object-cover" />
+                  ) : (
+                    <Package size={24} className="text-slate-400" />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <label className="block font-bold text-slate-900 text-xs mb-1">Category Photo Avatar</label>
+                  <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs cursor-pointer shadow-2xs transition-all">
+                    <Camera size={13} />
+                    <span>{form.avatar ? "Change Photo" : "Upload Photo"}</span>
                     <input type="file" accept="image/*" onChange={handleAvatarUpload} className="hidden" />
                   </label>
                 </div>
               </div>
 
-              <div className="flex gap-2 pt-2 border-t border-slate-100">
+              <div>
+                <label className="block text-xs font-bold text-slate-900 mb-1">Category Name *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Projector, Microphone, Audio System"
+                  value={form.eq_name}
+                  onChange={(e) => setForm({ ...form, eq_name: e.target.value })}
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:outline-none focus:border-blue-600 text-xs"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-900 mb-1">Equipment Type</label>
+                <input
+                  type="text"
+                  placeholder="e.g. AV Equipment, Audio/Visual, IT Hardware"
+                  value={form.eq_type}
+                  onChange={(e) => setForm({ ...form, eq_type: e.target.value })}
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:outline-none focus:border-blue-600 text-xs"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="flex-1 py-2 rounded-xl border border-slate-300 text-slate-700 font-bold hover:bg-slate-50 cursor-pointer"
+                  className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-100 cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={formLoading}
-                  className="flex-1 py-2 rounded-xl border border-slate-900 bg-white text-slate-900 hover:bg-slate-50 font-bold shadow-xs cursor-pointer flex items-center justify-center gap-2"
+                  className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs shadow-md flex items-center gap-1.5 cursor-pointer"
                 >
-                  {formLoading && <Loader2 size={13} className="animate-spin" />}
-                  {editItem ? "Save Changes" : "Create Item"}
+                  {formLoading && <Loader2 size={14} className="animate-spin" />}
+                  <span>{editItem ? "Save Changes" : "Save Equipment Category"}</span>
                 </button>
               </div>
             </form>
@@ -597,7 +620,7 @@ export default function EquipmentCategoriesTab({ showMsg }) {
                       </div>
                       {req.reason && <p className="text-xs text-slate-600 italic">"{req.reason}"</p>}
                       <p className="text-[10.5px] text-slate-400 font-mono">
-                        Requested by: {req.requester?.name || "Office Manager"} ({req.office?.name || "Branch Office"})
+                        Requested by: {req.requester?.name || "Admin"}
                       </p>
                     </div>
 

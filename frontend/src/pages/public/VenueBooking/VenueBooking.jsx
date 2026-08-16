@@ -443,35 +443,21 @@ export default function VenueBooking() {
             <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto border-4 border-emerald-500/20 shadow-inner">
               <ShieldCheck size={42} />
             </div>
-            <h2 className="text-2xl font-black text-slate-900">Thank You!</h2>
+            <h2 className="text-2xl font-black text-slate-900">Reservation Submitted!</h2>
 
-            <div className="p-4.5 bg-slate-50 border border-slate-200/80 rounded-2xl space-y-2 text-center">
-              <p className="text-xs font-bold text-slate-800 leading-relaxed">
-                Thank you for choosing Father Saturnino Urios University for your venue reservation!
+            <div className="p-4 bg-slate-50 border border-slate-200/80 rounded-2xl space-y-1.5 text-center">
+              <p className="text-xs font-bold text-slate-800">
+                Your venue reservation request has been received.
               </p>
-              <p className="text-xs text-slate-600 font-semibold leading-relaxed">
-                Your official <strong>Tracking Number</strong> has been sent to your registered personal email address {email ? `(${email})` : ''} and contact number {contactNumber ? `(${contactNumber})` : ''}.
+              <p className="text-xs text-slate-600 font-medium leading-relaxed">
+                Your tracking details and updates have been sent to {email ? <strong>{email}</strong> : 'your email'}{contactNumber ? ` and ${contactNumber}` : ''}.
               </p>
-              <p className="text-[11px] text-slate-500 font-medium italic border-t border-slate-200/60 pt-2 mt-1">
-                Please check your inbox or phone messages to view your tracking number and check your booking progress.
-              </p>
-            </div>
-
-            <div className="p-3 bg-blue-50/80 border border-blue-200/80 rounded-2xl space-y-1">
-              <span className="text-[10px] uppercase tracking-wider font-extrabold text-blue-600">Tracking Reference Code</span>
-              <p className="text-xl font-black text-blue-950 font-mono select-all tracking-wider">{referenceCode}</p>
             </div>
 
             <div className="pt-2 flex flex-col gap-2">
               <Link
-                to={`/track?tracking=${encodeURIComponent(referenceCode)}`}
-                className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-xs font-extrabold shadow-lg transition-all flex items-center justify-center gap-2"
-              >
-                <span>Track Booking Status Now</span>
-              </Link>
-              <Link
                 to="/"
-                className="w-full py-3 border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-2xl text-xs font-bold transition-all text-center"
+                className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-xs font-extrabold shadow-lg transition-all text-center"
               >
                 Return to Homepage
               </Link>

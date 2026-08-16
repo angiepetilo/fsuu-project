@@ -354,26 +354,8 @@ export default function SysadLayout() {
               </div>
             </div>
 
-            {/* Right Side: Office Scope Selector & Notification Bell */}
+            {/* Right Side: Notification Bell */}
             <div className="flex items-center gap-3">
-              {/* Global Office Scope Filter */}
-              <div className="flex items-center gap-2 bg-slate-100/90 hover:bg-slate-100 border border-slate-200/90 rounded-xl px-3 py-1.5 shadow-2xs transition-all">
-                <Building2 size={16} className="text-indigo-600 flex-shrink-0" />
-                <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400 hidden md:inline">Scope:</span>
-                <select
-                  value={selectedOfficeId}
-                  onChange={(e) => handleOfficeChange(e.target.value)}
-                  className="bg-transparent text-xs font-extrabold text-slate-800 outline-none cursor-pointer pr-1 focus:ring-0"
-                >
-                  <option value="all">🌐 All Offices (Global Management)</option>
-                  {offices.map((off) => (
-                    <option key={off.id} value={off.id}>
-                      🏢 {off.name} {off.location ? `(${off.location})` : ""}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
               {/* Notification Bell Dropdown Sub-Component */}
               <SysadNotifDropdown
                 showNotifDropdown={showNotifDropdown}

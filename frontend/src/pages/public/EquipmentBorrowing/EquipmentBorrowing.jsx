@@ -443,31 +443,25 @@ export default function EquipmentBorrowing() {
       {/* Confirmation Success Modal */}
       {showSuccess && (
         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[2000] flex items-center justify-center p-4 animate-in fade-in duration-300">
-          <div className="bg-white rounded-3xl p-8 sm:p-10 max-w-md w-full text-center shadow-2xl animate-in zoom-in-95 duration-300 relative border border-slate-100">
-            <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-6 border-4 border-emerald-500/20 shadow-inner">
+          <div className="bg-white rounded-3xl p-8 sm:p-10 max-w-md w-full text-center shadow-2xl animate-in zoom-in-95 duration-300 relative border border-slate-100 space-y-4">
+            <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto border-4 border-emerald-500/20 shadow-inner">
               <ShieldCheck size={42} />
             </div>
-            <h2 className="text-2xl font-extrabold text-slate-900 mb-2">Thank You!</h2>
+            <h2 className="text-2xl font-black text-slate-900">Request Submitted!</h2>
 
-            <p className="text-slate-600 my-6 font-medium text-xs sm:text-sm leading-relaxed">
-              The equipment borrowed will be released once you claim the equipment with your tracking number sent via Email. Please check your registered email inbox.
-            </p>
-
-            <div className="p-4 bg-slate-50 border border-slate-200/80 rounded-2xl mb-6 space-y-1">
-              <span className="text-[10px] uppercase tracking-wider font-bold text-slate-500">Tracking Reference Code</span>
-              <p className="text-xl font-black text-blue-600 font-mono select-all tracking-wider">{referenceCode}</p>
+            <div className="p-4 bg-slate-50 border border-slate-200/80 rounded-2xl space-y-1.5 text-center">
+              <p className="text-xs font-bold text-slate-800">
+                Your equipment borrowing request has been received.
+              </p>
+              <p className="text-xs text-slate-600 font-medium leading-relaxed">
+                Your tracking details and updates have been sent to {email ? <strong>{email}</strong> : 'your email'}{contactNumber ? ` and ${contactNumber}` : ''}.
+              </p>
             </div>
 
-            <div className="flex flex-col gap-2.5">
-              <Link
-                to={`/track?tracking=${encodeURIComponent(referenceCode)}`}
-                className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-xs font-extrabold shadow-lg transition-all flex items-center justify-center gap-2"
-              >
-                <span>Track Borrowing Status Now</span>
-              </Link>
+            <div className="pt-2 flex flex-col gap-2">
               <Link
                 to="/"
-                className="w-full py-3 border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-2xl text-xs font-bold transition-all text-center"
+                className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-xs font-extrabold shadow-lg transition-all text-center"
               >
                 Return to Homepage
               </Link>

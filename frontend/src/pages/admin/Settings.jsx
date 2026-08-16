@@ -333,14 +333,13 @@ export default function Settings() {
         </p>
       </div>
 
-      {/* 5-Tab Navigation Bar */}
+      {/* Tab Navigation Bar */}
       <div className="flex flex-wrap items-center gap-1.5 bg-white p-1 rounded-xl border border-slate-200 w-fit">
         {[
           { id: "roles", label: "Role & Permission", icon: ShieldCheck },
           { id: "inventory", label: "Equipment Catalog", icon: PackageOpen },
           { id: "venues", label: "Venue Catalog", icon: Calendar },
-          { id: "fee_matrix", label: "Fee Matrix", icon: DollarSign },
-          { id: "profile", label: "Profile & Account", icon: User },
+          { id: "profile", label: "Profile", icon: User },
         ].map(tab => {
           const IconComp = tab.icon;
           const active = activeTab === tab.id || (tab.id === "inventory" && activeTab === "categories");

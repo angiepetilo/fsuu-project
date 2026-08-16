@@ -343,6 +343,23 @@ class VenueBookingService
                 })
                 ->update(['status' => 'on-going']);
 
+            // Update assigned physical units status to 'released'
+            $assigned = $booking->assigned_units ?? [];
+            if (is_string($assigned)) {
+                try { $assigned = json_decode($assigned, true); } catch (\Throwable $t) { $assigned = []; }
+            }
+            $barcodes = [];
+            if (is_array($assigned)) {
+                foreach ($assigned as $val) {
+                    if ($val) $barcodes[] = trim((string)$val);
+                }
+            }
+            if (!empty($barcodes) && \Illuminate\Support\Facades\Schema::hasTable('equipment_units')) {
+                \App\Models\EquipmentUnit::where(function($q) use ($barcodes) {
+                    $q->whereIn('unit_code', $barcodes)->orWhereIn('name', $barcodes);
+                })->update(['status' => 'released']);
+            }
+
             $this->auditLog->log($actor, 'booking_ongoing', 'avr_venue_booking', $booking->id);
 
             return $booking->fresh(['venue', 'trackingNumber', 'documents']);
@@ -373,7 +390,23 @@ class VenueBookingService
     public function complete(VenueBooking $booking, User $actor, array $data = []): VenueBooking
     {
         return DB::transaction(function () use ($booking, $actor, $data) {
-            $newStatus = (!empty($data['has_damage']) || ($data['status'] ?? '') === 'damaged' || ($data['inspection_status'] ?? '') === 'violation' || ($data['condition'] ?? '') === 'damaged')
+            $unitConditions = $data['unit_conditions'] ?? null;
+            if (is_string($unitConditions)) {
+                try { $unitConditions = json_decode($unitConditions, true); } catch (\Throwable $t) { $unitConditions = []; }
+            }
+
+            $hasDamageOrLoss = false;
+            if (is_array($unitConditions) && !empty($unitConditions)) {
+                foreach ($unitConditions as $cVal) {
+                    $cNorm = strtolower(trim((string)$cVal));
+                    if ($cNorm === 'damaged' || $cNorm === 'lost') {
+                        $hasDamageOrLoss = true;
+                        break;
+                    }
+                }
+            }
+
+            $newStatus = ($hasDamageOrLoss || !empty($data['has_damage']) || ($data['status'] ?? '') === 'damaged' || ($data['inspection_status'] ?? '') === 'violation' || ($data['condition'] ?? '') === 'damaged')
                 ? 'damaged'
                 : 'completed';
 
@@ -451,8 +484,8 @@ class VenueBookingService
 
                 $condition = ($newStatus === 'damaged' || !empty($data['has_damage'])) ? 'damaged' : ($data['condition'] ?? 'good');
                 $photo = $data['evidence_photo'] ?? $data['evidence_image'] ?? null;
-                $violationType = $data['violation_type'] ?? ($isLate ? 'Late Return / Extension' : ($condition === 'damaged' ? 'Physical Facility / Furniture Damage' : null));
-                $notes = $data['notes'] ?? $data['remarks'] ?? ($isLate ? "Completed {$minutesLate} minutes after scheduled end." : ($condition === 'damaged' ? 'Venue damage reported.' : 'Inspection completed on time.'));
+                $violationType = $data['violation_type'] ?? ($isLate ? 'Late Return / Extension' : ($condition === 'damaged' ? 'Physical Facility / Equipment Damage' : null));
+                $notes = $data['notes'] ?? $data['remarks'] ?? ($isLate ? "Completed {$minutesLate} minutes after scheduled end." : ($condition === 'damaged' ? 'Venue equipment damage reported.' : 'Inspection completed on time.'));
 
                 $inspData = [
                     'inspectable_type' => \App\Models\VenueBooking::class,
@@ -467,6 +500,7 @@ class VenueBookingService
                     'minutes_late'     => $minutesLate,
                     'notes'            => $notes,
                     'assigned_units'   => is_array($booking->assigned_units) ? json_encode($booking->assigned_units) : $booking->assigned_units,
+                    'unit_conditions'  => is_array($unitConditions) ? json_encode($unitConditions) : (is_string($unitConditions) ? $unitConditions : null),
                     'inspected_at'     => now(),
                     'updated_at'       => now(),
                 ];
@@ -485,7 +519,7 @@ class VenueBookingService
                 }
             }
 
-            // Release assigned equipment units back to available
+            // Release assigned equipment units back based on individual inspection conditions
             $assigned = $data['assigned_units'] ?? $booking->assigned_units ?? [];
             if (is_string($assigned)) {
                 $assigned = json_decode($assigned, true) ?? [];
@@ -496,15 +530,33 @@ class VenueBookingService
                     if ($val) $barcodes[] = trim((string)$val);
                 }
             }
-            if (!empty($barcodes)) {
-                if ($newStatus === 'damaged' || !empty($data['has_damage'])) {
-                    \App\Models\EquipmentUnit::where(function($q) use ($barcodes) {
-                        $q->whereIn('unit_code', $barcodes)->orWhereIn('name', $barcodes);
-                    })->update(['status' => 'unavailable', 'condition' => 'damaged']);
+
+            if (!empty($barcodes) && \Illuminate\Support\Facades\Schema::hasTable('equipment_units')) {
+                // If per-unit conditions provided, update each unit individually
+                if (is_array($unitConditions) && !empty($unitConditions)) {
+                    foreach ($unitConditions as $key => $condVal) {
+                        $uBar = $assigned[$key] ?? null;
+                        if ($uBar) {
+                            $uBar = trim((string)$uBar);
+                            $condNormalized = ucfirst(strtolower((string)$condVal));
+                            $uStatus = $condNormalized === 'Damaged' ? 'damaged' : ($condNormalized === 'Lost' ? 'lost' : 'available');
+                            $uCond = $condNormalized === 'Good' ? 'Good' : $condNormalized;
+                            \App\Models\EquipmentUnit::where(function($q) use ($uBar) {
+                                $q->where('unit_code', $uBar)->orWhere('name', $uBar);
+                            })->update(['status' => $uStatus, 'condition' => $uCond]);
+                        }
+                    }
                 } else {
-                    \App\Models\EquipmentUnit::where(function($q) use ($barcodes) {
-                        $q->whereIn('unit_code', $barcodes)->orWhereIn('name', $barcodes);
-                    })->update(['status' => 'available', 'condition' => 'Good']);
+                    // Fallback to bulk status update
+                    if ($newStatus === 'damaged' || !empty($data['has_damage'])) {
+                        \App\Models\EquipmentUnit::where(function($q) use ($barcodes) {
+                            $q->whereIn('unit_code', $barcodes)->orWhereIn('name', $barcodes);
+                        })->update(['status' => 'unavailable', 'condition' => 'Damaged']);
+                    } else {
+                        \App\Models\EquipmentUnit::where(function($q) use ($barcodes) {
+                            $q->whereIn('unit_code', $barcodes)->orWhereIn('name', $barcodes);
+                        })->update(['status' => 'available', 'condition' => 'Good']);
+                    }
                 }
             }
 

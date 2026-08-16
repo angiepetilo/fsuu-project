@@ -54,9 +54,10 @@ class NotificationController extends Controller
 
             foreach ($vbQuery->get() as $b) {
                 $st = strtolower($b->status ?? '');
-                $office = $b->office_name ?? 'FSUU Main';
+                $office = $b->office_name ?? 'AVR Office';
                 $ref = $b->reference_code ?? 'TRK-AVR';
-                $time = Carbon::parse($b->updated_at ?? $b->created_at)->diffForHumans();
+                $dt = Carbon::parse($b->updated_at ?? $b->created_at);
+                $time = $dt->isToday() ? $dt->format('h:i A') : $dt->format('M d, h:i A');
                 $rawDate = $b->updated_at ?? $b->created_at;
 
                 if ($st === 'pending') {
@@ -68,8 +69,8 @@ class NotificationController extends Controller
                         'url'         => '/admin/venue-bookings?id=' . $b->id . '&trk=' . $ref,
                         'type'        => 'pending_booking',
                         'priority'    => 'high',
-                        'title'       => 'Pending Venue Booking',
-                        'message'     => ($b->program_office ?? $b->filer_name ?? 'Requestor') . ' requested ' . ($b->venue_name ?? 'Venue'),
+                        'title'       => 'New Venue Booking',
+                        'message'     => ($b->filer_name ?? $b->program_office ?? 'Requestor') . ' booked ' . ($b->venue_name ?? 'Venue'),
                         'office'      => $office,
                         'ref'         => $ref,
                         'time'        => $time,
@@ -87,8 +88,8 @@ class NotificationController extends Controller
                         'url'         => '/admin/venue-bookings?id=' . $b->id . '&trk=' . $ref,
                         'type'        => 'booking_approved',
                         'priority'    => 'medium',
-                        'title'       => 'Booking Approved',
-                        'message'     => ($b->venue_name ?? 'Venue') . ' booking approved for ' . ($b->program_office ?? $b->filer_name ?? 'Requestor'),
+                        'title'       => 'Venue Booking Approved',
+                        'message'     => ($b->venue_name ?? 'Venue') . ' booking approved for ' . ($b->filer_name ?? 'Requestor'),
                         'office'      => $office,
                         'ref'         => $ref,
                         'time'        => $time,
@@ -106,8 +107,8 @@ class NotificationController extends Controller
                         'url'         => '/admin/venue-bookings?id=' . $b->id . '&trk=' . $ref,
                         'type'        => 'booking_ongoing',
                         'priority'    => 'medium',
-                        'title'       => 'Venue Event Ongoing',
-                        'message'     => ($b->venue_name ?? 'Venue') . ' is currently occupied by ' . ($b->program_office ?? $b->filer_name ?? 'Requestor'),
+                        'title'       => 'Venue Booking On-Going',
+                        'message'     => ($b->venue_name ?? 'Venue') . ' event in progress (' . ($b->filer_name ?? 'Requestor') . ')',
                         'office'      => $office,
                         'ref'         => $ref,
                         'time'        => $time,
@@ -125,8 +126,8 @@ class NotificationController extends Controller
                         'url'         => '/admin/history-log?id=' . $b->id . '&type=venue',
                         'type'        => 'booking_completed',
                         'priority'    => 'low',
-                        'title'       => 'Booking Completed',
-                        'message'     => ($b->venue_name ?? 'Venue') . ' event concluded (' . ($b->program_office ?? $b->filer_name ?? 'Requestor') . ')',
+                        'title'       => 'Venue Booking Completed',
+                        'message'     => ($b->venue_name ?? 'Venue') . ' event concluded',
                         'office'      => $office,
                         'ref'         => $ref,
                         'time'        => $time,
@@ -165,9 +166,10 @@ class NotificationController extends Controller
 
             foreach ($ebQuery->get() as $b) {
                 $st = strtolower($b->status ?? '');
-                $office = $b->office_name ?? 'FSUU Main';
+                $office = $b->office_name ?? 'AVR Office';
                 $ref = $b->reference_code ?? 'TRK-EQB';
-                $time = Carbon::parse($b->updated_at ?? $b->created_at)->diffForHumans();
+                $dt = Carbon::parse($b->updated_at ?? $b->created_at);
+                $time = $dt->isToday() ? $dt->format('h:i A') : $dt->format('M d, h:i A');
                 $rawDate = $b->updated_at ?? $b->created_at;
 
                 if ($st === 'damaged' || strtolower($b->inspection_condition ?? '') === 'damaged') {
@@ -179,8 +181,8 @@ class NotificationController extends Controller
                         'url'         => '/admin/equipment-borrowings?id=' . $b->id . '&trk=' . $ref,
                         'type'        => 'equipment_damaged',
                         'priority'    => 'high',
-                        'title'       => 'Equipment Damaged',
-                        'message'     => 'Damaged equipment reported during return/inspection by ' . ($b->program_office ?? $b->filer_name ?? 'Borrower'),
+                        'title'       => 'Equipment Damaged Alert',
+                        'message'     => 'Damaged equipment reported during inspection for ' . ($b->filer_name ?? 'Borrower'),
                         'office'      => $office,
                         'ref'         => $ref,
                         'time'        => $time,
@@ -198,8 +200,8 @@ class NotificationController extends Controller
                         'url'         => '/admin/equipment-borrowings?id=' . $b->id . '&trk=' . $ref,
                         'type'        => 'pending_borrow',
                         'priority'    => 'high',
-                        'title'       => 'Pending Borrow Request',
-                        'message'     => ($b->program_office ?? $b->filer_name ?? 'Borrower') . ' submitted equipment borrow request',
+                        'title'       => 'New Equipment Borrow Request',
+                        'message'     => ($b->filer_name ?? 'Borrower') . ' submitted a new equipment borrowing request',
                         'office'      => $office,
                         'ref'         => $ref,
                         'time'        => $time,
@@ -217,8 +219,8 @@ class NotificationController extends Controller
                         'url'         => '/admin/equipment-borrowings?id=' . $b->id . '&trk=' . $ref,
                         'type'        => 'borrow_approved',
                         'priority'    => 'medium',
-                        'title'       => 'Borrow Approved',
-                        'message'     => 'Equipment borrow approved for ' . ($b->program_office ?? $b->filer_name ?? 'Borrower'),
+                        'title'       => 'Borrow Request Approved',
+                        'message'     => 'Equipment borrow approved for ' . ($b->filer_name ?? 'Borrower'),
                         'office'      => $office,
                         'ref'         => $ref,
                         'time'        => $time,
@@ -237,7 +239,7 @@ class NotificationController extends Controller
                         'type'        => 'equipment_returned',
                         'priority'    => 'low',
                         'title'       => 'Equipment Returned',
-                        'message'     => 'Borrowed equipment returned in good condition (status → Available)',
+                        'message'     => 'Equipment returned in good condition by ' . ($b->filer_name ?? 'Borrower'),
                         'office'      => $office,
                         'ref'         => $ref,
                         'time'        => $time,
@@ -249,19 +251,27 @@ class NotificationController extends Controller
                 }
             }
 
-            // 3. Low/No Stock Alerts
-            $eqStockQuery = DB::table('equipment_types')
-                ->leftJoin('offices', 'equipment_types.office_id', '=', 'offices.id')
-                ->select('equipment_types.*', 'offices.name as office_name');
+            // 3. Low/No Stock Alerts across inventory
+            $eqTypes = DB::table('equipment_types')
+                ->whereNull('deleted_at')
+                ->get();
 
-            if (!$isSuperAdmin && $officeId) {
-                $eqStockQuery->where('equipment_types.office_id', $officeId);
-            }
+            foreach ($eqTypes as $eq) {
+                $totalUnits = DB::table('equipment_units')
+                    ->where('equipment_type_id', $eq->id)
+                    ->whereNull('deleted_at')
+                    ->count();
 
-            foreach ($eqStockQuery->get() as $eq) {
-                $qty = (int)($eq->total_quantity ?? $eq->available_quantity ?? 0);
-                if ($qty <= 2) {
-                    $key = 'notif-stock-' . $eq->id;
+                $availableUnits = DB::table('equipment_units')
+                    ->where('equipment_type_id', $eq->id)
+                    ->where('status', 'available')
+                    ->whereNull('deleted_at')
+                    ->count();
+
+                $catName = $eq->eq_name ?? $eq->name ?? 'Equipment Category';
+
+                if ($totalUnits > 0 && $availableUnits <= 1) {
+                    $key = 'notif-stock-' . $eq->id . '-' . $availableUnits;
                     $notifs->push([
                         'id'          => $key,
                         'target_id'   => $eq->id,
@@ -269,15 +279,14 @@ class NotificationController extends Controller
                         'url'         => '/admin/manage-equipments',
                         'type'        => 'stock_alert',
                         'priority'    => 'high',
-                        'title'       => $qty === 0 ? 'No Stock Alert' : 'Low Stock Alert',
-                        'message'     => ($eq->eq_name ?? 'Equipment') . ' available quantity is ' . $qty,
-                        'office'      => $eq->office_name ?? 'FSUU Main',
+                        'title'       => $availableUnits === 0 ? 'Out of Stock Alert' : 'Low Stock Alert',
+                        'message'     => "{$catName} has only {$availableUnits} unit(s) available in inventory.",
+                        'office'      => 'Inventory',
                         'ref'         => 'STOCK-' . $eq->id,
-                        'time'        => 'Recent',
+                        'time'        => now()->format('h:i A'),
                         'rawDate'     => now()->toDateTimeString(),
                         'is_read'     => isset($readKeys[$key]),
                         'icon'        => 'package',
-                        'color'       => 'amber',
                     ]);
                 }
             }
