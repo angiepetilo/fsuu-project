@@ -161,6 +161,9 @@ export default function EquipBorrowUnitAssignment({
                               value={selectVal}
                               onChange={(e) => {
                                 const updated = { ...assignedUnitSelections, [idxKey]: e.target.value };
+                                if (catKey !== idxKey && catKey in updated) {
+                                  delete updated[catKey];
+                                }
                                 setAssignedUnitSelections(updated);
                                 if (selected && selected.id) {
                                   localStorage.setItem(`fsuu_assigned_units_eb_${selected.id}`, JSON.stringify(updated));

@@ -180,48 +180,25 @@ export default function EquipmentBorrowDetailModal({
 
   const getRequestedCategories = () => {
     let categories = [];
-    const currentAssigned = assignedUnitSelections || selected.assigned_units || {};
 
     if (Array.isArray(selected.items) && selected.items.length > 0) {
-      categories = selected.items.map((item, catIdx) => {
+      categories = selected.items.map((item) => {
         const dbType = (dbEquipmentTypes || []).find(t => String(t.id) === String(item.equipment_type_id)) || item.equipment_type;
         const name = dbType?.eq_name || dbType?.name || item.equipment_type?.eq_name || item.equipment_type?.name || item.equipment_name || item.name || "Equipment Item";
-
-        let assignedCount = 0;
-        if (typeof currentAssigned === "object" && currentAssigned !== null) {
-          Object.keys(currentAssigned).forEach(k => {
-            if (k.startsWith(`${catIdx}-`) || k.startsWith(`${name}-`) || k.startsWith(`${item.equipment_type_id}-`)) {
-              if (currentAssigned[k]) assignedCount++;
-            }
-          });
-        }
-        if (Array.isArray(currentAssigned)) {
-          assignedCount = currentAssigned.length;
-        }
-
         const reqQty = parseInt(item.quantity_requested || item.quantity || 1, 10);
-        const finalQty = Math.max(reqQty, assignedCount, 1);
 
         return {
           category: name,
-          quantity: finalQty,
+          quantity: Math.max(reqQty, 1),
         };
       });
     } else if (selected.equipment_name || selected.equipment) {
       const name = selected.equipment_name || selected.equipment;
-      let assignedCount = 0;
-      if (typeof currentAssigned === "object" && currentAssigned !== null) {
-        assignedCount = Object.values(currentAssigned).filter(Boolean).length;
-      } else if (Array.isArray(currentAssigned)) {
-        assignedCount = currentAssigned.length;
-      }
-
       const reqQty = parseInt(selected.quantity || selected.qty || 1, 10);
-      const finalQty = Math.max(reqQty, assignedCount, 1);
 
       categories = [{
         category: name,
-        quantity: finalQty,
+        quantity: Math.max(reqQty, 1),
       }];
     }
     return categories;
