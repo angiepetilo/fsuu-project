@@ -146,9 +146,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/admin/fee-matrix/{id}', [\App\Http\Controllers\SuperAdmin\FeeMatrixController::class, 'destroy']);
 
     // ── Admin: Academic Terms & Archiving (TiDB) ──────────────────────────────
-    Route::get('/admin/academic-terms',               [\App\Http\Controllers\SuperAdmin\AcademicTermController::class, 'index']);
-    Route::get('/admin/academic-terms/active',        [\App\Http\Controllers\SuperAdmin\AcademicTermController::class, 'active']);
-    Route::post('/admin/academic-terms/close-term',   [\App\Http\Controllers\SuperAdmin\AcademicTermController::class, 'closeTerm']);
+    Route::get('/admin/academic-terms',                   [\App\Http\Controllers\SuperAdmin\AcademicTermController::class, 'index']);
+    Route::post('/admin/academic-terms',                  [\App\Http\Controllers\SuperAdmin\AcademicTermController::class, 'store']);
+    Route::get('/admin/academic-terms/active',            [\App\Http\Controllers\SuperAdmin\AcademicTermController::class, 'active']);
+    Route::put('/admin/academic-terms/{id}',              [\App\Http\Controllers\SuperAdmin\AcademicTermController::class, 'update']);
+    Route::post('/admin/academic-terms/{id}/activate',     [\App\Http\Controllers\SuperAdmin\AcademicTermController::class, 'activate']);
+    Route::delete('/admin/academic-terms/{id}',           [\App\Http\Controllers\SuperAdmin\AcademicTermController::class, 'destroy']);
+    Route::post('/admin/academic-terms/close-term',       [\App\Http\Controllers\SuperAdmin\AcademicTermController::class, 'closeTerm']);
 
     // ── Venue Bookings ─────────────────────────────────────────────────────────
     Route::get('/avr-venue-bookings',                              [VenueBookingController::class, 'index']);

@@ -1,22 +1,28 @@
 import { useState, useEffect } from "react";
-import { toast } from "sonner";
+import { Plus, Edit2, Trash2, X, Loader2, CheckCircle2, Archive, RefreshCw } from "lucide-react";
 import api from "@/lib/axios";
-import {
-  GraduationCap, Calendar, CheckCircle2, AlertTriangle,
-  Archive, ArrowRight, ShieldCheck, Database, Loader2,
-  RefreshCw, Lock, Sparkles, Building2, PackageOpen, AlertOctagon
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
 
-export default function AcademicTermsTab() {
-  const [loading, setLoading] = useState(true);
+export default function AcademicTermsTab({ showMsg }) {
+  const [terms, setTerms] = useState([]);
   const [activeTerm, setActiveTerm] = useState(null);
-  const [allTerms, setAllTerms] = useState([]);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  // Next term form state
-  const [nextTerm, setNextTerm] = useState({
+  // Modal states
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [showCloseModal, setShowCloseModal] = useState(false);
+  const [editTerm, setEditTerm] = useState(null);
+  const [formLoading, setFormLoading] = useState(false);
+
+  // Form states
+  const [termForm, setTermForm] = useState({
+    academic_year: "2026-2027",
+    semester: "1st Semester",
+    start_date: "2026-08-01",
+    end_date: "2026-12-20",
+    is_active: false,
+  });
+
+  const [closeForm, setCloseForm] = useState({
     academic_year: "2026-2027",
     semester: "2nd Semester",
     start_date: "2027-01-15",
@@ -24,17 +30,23 @@ export default function AcademicTermsTab() {
     pin: "",
   });
 
+  const notify = (msg) => {
+    if (typeof showMsg === "function") {
+      showMsg(msg);
+    }
+  };
+
   const fetchTerms = async () => {
     setLoading(true);
     try {
       const res = await api.get("/admin/academic-terms");
       if (res.data) {
+        setTerms(res.data.terms || []);
         setActiveTerm(res.data.active_term || null);
-        setAllTerms(res.data.terms || []);
       }
     } catch (err) {
       console.error("Failed to load academic terms:", err);
-      toast.error("Failed to fetch academic terms data.");
+      notify("❌ Failed to load academic terms data.");
     } finally {
       setLoading(false);
     }
@@ -44,24 +56,93 @@ export default function AcademicTermsTab() {
     fetchTerms();
   }, []);
 
+  const handleOpenAdd = () => {
+    setEditTerm(null);
+    setTermForm({
+      academic_year: "2026-2027",
+      semester: "1st Semester",
+      start_date: "",
+      end_date: "",
+      is_active: terms.length === 0,
+    });
+    setShowAddModal(true);
+  };
+
+  const handleOpenEdit = (term) => {
+    setEditTerm(term);
+    setTermForm({
+      academic_year: term.academic_year || "2026-2027",
+      semester: term.semester || "1st Semester",
+      start_date: term.start_date || "",
+      end_date: term.end_date || "",
+      is_active: term.is_active || false,
+    });
+    setShowAddModal(true);
+  };
+
+  const handleSaveTerm = async (e) => {
+    e.preventDefault();
+    setFormLoading(true);
+    try {
+      if (editTerm) {
+        await api.put(`/admin/academic-terms/${editTerm.id}`, termForm);
+        notify(`✅ Academic term "${termForm.semester} AY ${termForm.academic_year}" updated successfully!`);
+      } else {
+        await api.post("/admin/academic-terms", termForm);
+        notify(`✅ Academic term "${termForm.semester} AY ${termForm.academic_year}" created successfully!`);
+      }
+      setShowAddModal(false);
+      setEditTerm(null);
+      fetchTerms();
+    } catch (err) {
+      notify(err.response?.data?.message || "❌ Failed to save academic term.");
+    } finally {
+      setFormLoading(false);
+    }
+  };
+
+  const handleActivateTerm = async (term) => {
+    if (!confirm(`Are you sure you want to set "${term.name}" as the active academic semester?`)) return;
+    try {
+      await api.post(`/admin/academic-terms/${term.id}/activate`);
+      notify(`✅ "${term.name}" is now set as the ACTIVE academic semester.`);
+      fetchTerms();
+    } catch (err) {
+      notify(err.response?.data?.message || "❌ Failed to activate academic term.");
+    }
+  };
+
+  const handleDeleteTerm = async (term) => {
+    if (term.is_active) {
+      notify("❌ Cannot delete the currently active semester.");
+      return;
+    }
+    if (!confirm(`Are you sure you want to delete "${term.name}"?`)) return;
+    try {
+      await api.delete(`/admin/academic-terms/${term.id}`);
+      notify(`✅ Academic term "${term.name}" deleted successfully.`);
+      fetchTerms();
+    } catch (err) {
+      notify(err.response?.data?.message || "❌ Failed to delete academic term.");
+    }
+  };
+
   const handleOpenCloseModal = () => {
-    // Predict next semester logically
     if (activeTerm) {
-      const is1st = activeTerm.semester.includes("1st");
-      const is2nd = activeTerm.semester.includes("2nd");
+      const is1st = activeTerm.semester?.includes("1st");
       const currentYear = activeTerm.academic_year || "2026-2027";
       const [y1, y2] = currentYear.split("-").map(Number);
 
       if (is1st) {
-        setNextTerm({
+        setCloseForm({
           academic_year: currentYear,
           semester: "2nd Semester",
           start_date: `${y1 + 1}-01-15`,
           end_date: `${y1 + 1}-05-30`,
           pin: "",
         });
-      } else if (is2nd) {
-        setNextTerm({
+      } else {
+        setCloseForm({
           academic_year: `${y1 + 1}-${y2 + 1}`,
           semester: "1st Semester",
           start_date: `${y1 + 1}-08-01`,
@@ -70,366 +151,369 @@ export default function AcademicTermsTab() {
         });
       }
     }
-    setIsModalOpen(true);
+    setShowCloseModal(true);
   };
 
   const handleCloseTermSubmit = async (e) => {
     e.preventDefault();
-    if (!nextTerm.academic_year || !nextTerm.semester || !nextTerm.start_date || !nextTerm.end_date) {
-      toast.error("Please fill in all required next term details.");
-      return;
-    }
-
-    setSubmitting(true);
+    setFormLoading(true);
     try {
-      const res = await api.post("/admin/academic-terms/close-term", nextTerm);
-      toast.success(res.data.message || "Semester archived into TiDB successfully!");
-      setIsModalOpen(false);
+      const res = await api.post("/admin/academic-terms/close-term", closeForm);
+      notify(res.data.message || "✅ Semester archived into TiDB successfully!");
+      setShowCloseModal(false);
       fetchTerms();
-      window.dispatchEvent(new Event("equipment_inventory_updated"));
     } catch (err) {
-      const msg = err.response?.data?.message || err.response?.data?.errors?.pin?.[0] || "Failed to archive semester.";
-      toast.error(msg);
+      const msg = err.response?.data?.message || err.response?.data?.errors?.pin?.[0] || "❌ Failed to close semester.";
+      notify(msg);
     } finally {
-      setSubmitting(false);
+      setFormLoading(false);
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center py-16 gap-3 text-slate-500">
-        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-        <p className="text-sm font-medium">Loading Academic Term Records...</p>
-      </div>
-    );
-  }
-
-  const archivedTerms = allTerms.filter(t => !t.is_active);
-
   return (
-    <div className="space-y-6">
-      {/* Header Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 p-6 rounded-2xl text-white shadow-md">
-        <div className="space-y-1">
-          <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-blue-500/20 text-blue-300 text-xs font-semibold uppercase tracking-wider border border-blue-400/30">
-            <Database className="w-3.5 h-3.5" />
-            TiDB Cloud Archival & Lifecycle
-          </div>
-          <h2 className="text-2xl font-bold tracking-tight">Academic Terms & Archiving</h2>
-          <p className="text-blue-200 text-sm max-w-2xl">
-            Control the university active semester lifecycle. When a term ends, archive all completed bookings, borrowing logs, and violations into TiDB while resetting the staff queues to a clean slate.
+    <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-6">
+      {/* Top Header Card */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+        <div>
+          <h2 className="text-lg font-bold text-slate-900">Academic Terms & Archiving</h2>
+          <p className="text-xs text-slate-500 mt-0.5">
+            Manage academic years, semesters, and TiDB cloud archival transitions.
           </p>
         </div>
-        <Button
-          onClick={fetchTerms}
-          variant="outline"
-          className="self-start sm:self-center border-white/20 text-slate-800 bg-white hover:bg-slate-100 font-semibold shrink-0"
-        >
-          <RefreshCw className="w-4 h-4 mr-2" />
-          Sync Terms
-        </Button>
+
+        <div className="flex items-center gap-2">
+          {activeTerm && (
+            <button
+              type="button"
+              onClick={handleOpenCloseModal}
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold transition-all shadow-xs cursor-pointer"
+            >
+              <Archive size={14} />
+              <span>Close Active Semester</span>
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={handleOpenAdd}
+            className="flex items-center gap-1.5 px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition-all shadow-xs cursor-pointer"
+          >
+            <Plus size={14} />
+            <span>Add Academic Term</span>
+          </button>
+        </div>
       </div>
 
-      {/* Current Active Semester Card */}
+      {/* Active Semester Summary Bar */}
       {activeTerm && (
-        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs relative overflow-hidden">
-          <div className="absolute top-0 left-0 w-2 h-full bg-blue-600" />
-
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-            <div className="space-y-3">
-              <div className="flex items-center gap-3">
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                  CURRENT ACTIVE SEMESTER
-                </span>
-                <span className="text-xs font-semibold text-slate-500">
-                  AY {activeTerm.academic_year}
-                </span>
-              </div>
-
-              <div>
-                <h3 className="text-2xl font-extrabold text-slate-900">
-                  {activeTerm.name}
-                </h3>
-                <p className="text-sm font-medium text-slate-600 flex items-center gap-2 mt-1">
-                  <Calendar className="w-4 h-4 text-blue-600" />
-                  Official Period: <span className="font-semibold text-slate-900">{activeTerm.start_date}</span> to <span className="font-semibold text-slate-900">{activeTerm.end_date}</span>
-                </p>
-              </div>
-
-              {/* Term Snapshot Metrics */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-2">
-                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
-                  <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
-                    <Building2 className="w-3.5 h-3.5 text-blue-600" />
-                    Venue Bookings
-                  </div>
-                  <div className="text-xl font-bold text-slate-900 mt-1">
-                    {activeTerm.venue_bookings_count ?? 0}
-                  </div>
-                </div>
-
-                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
-                  <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
-                    <PackageOpen className="w-3.5 h-3.5 text-indigo-600" />
-                    Gear Borrowings
-                  </div>
-                  <div className="text-xl font-bold text-slate-900 mt-1">
-                    {activeTerm.equipment_borrowings_count ?? 0}
-                  </div>
-                </div>
-
-                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 col-span-2 sm:col-span-1">
-                  <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
-                    <AlertOctagon className="w-3.5 h-3.5 text-amber-600" />
-                    Breaches & Damages
-                  </div>
-                  <div className="text-xl font-bold text-amber-700 mt-1">
-                    {activeTerm.breaches_count ?? 0}
-                  </div>
-                </div>
-              </div>
+        <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                ACTIVE
+              </span>
+              <span className="font-bold text-slate-900 text-sm">{activeTerm.name}</span>
             </div>
+            <p className="text-slate-500 mt-1">
+              Dates: <span className="font-semibold text-slate-700">{activeTerm.start_date}</span> to <span className="font-semibold text-slate-700">{activeTerm.end_date}</span>
+            </p>
+          </div>
 
-            {/* Action Trigger Button */}
-            <div className="flex flex-col gap-2 shrink-0 lg:max-w-xs">
-              <Button
-                onClick={handleOpenCloseModal}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-6 rounded-xl shadow-md transition-all flex items-center justify-center gap-2"
-              >
-                <GraduationCap className="w-5 h-5" />
-                Close Semester & Roll Over
-              </Button>
-              <p className="text-xs text-slate-500 text-center leading-relaxed">
-                Archives all active term records to TiDB and opens a fresh queue for the next semester.
-              </p>
-            </div>
+          <div className="flex items-center gap-4 text-slate-600 text-xs font-medium">
+            <div>Venues: <span className="font-bold text-slate-900">{activeTerm.venue_bookings_count ?? 0}</span></div>
+            <div>Equipments: <span className="font-bold text-slate-900">{activeTerm.equipment_borrowings_count ?? 0}</span></div>
+            <div>Breaches: <span className="font-bold text-slate-900">{activeTerm.breaches_count ?? 0}</span></div>
           </div>
         </div>
       )}
 
-      {/* TiDB Archive Vault Table */}
-      <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
-        <div className="p-5 border-b border-slate-100 flex items-center justify-between">
-          <div className="space-y-0.5">
-            <h3 className="font-bold text-slate-900 text-lg flex items-center gap-2">
-              <Archive className="w-5 h-5 text-indigo-600" />
-              TiDB Historical Semester Vault
-            </h3>
-            <p className="text-xs text-slate-500">
-              Permanently archived academic semesters. All completed transactions and inspection logs remain 100% accessible.
-            </p>
-          </div>
-          <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700">
-            {archivedTerms.length} Past Term{archivedTerms.length !== 1 ? "s" : ""}
-          </span>
+      {/* Terms Table */}
+      {loading ? (
+        <div className="flex flex-col items-center justify-center py-12 text-slate-400 gap-2">
+          <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
+          <span className="text-xs font-medium">Loading Academic Terms...</span>
         </div>
-
-        {archivedTerms.length === 0 ? (
-          <div className="py-12 text-center text-slate-400 space-y-2">
-            <Archive className="w-10 h-10 mx-auto text-slate-300 stroke-1" />
-            <p className="text-sm font-semibold">No archived semesters yet.</p>
-            <p className="text-xs text-slate-400 max-w-sm mx-auto">
-              When you close the current academic term, its historical snapshot will be securely stored here.
-            </p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-slate-50 text-slate-500 uppercase text-[11px] font-bold tracking-wider border-b border-slate-100">
-                <tr>
-                  <th className="px-5 py-3">Academic Term</th>
-                  <th className="px-5 py-3">Period</th>
-                  <th className="px-5 py-3 text-center">Venues</th>
-                  <th className="px-5 py-3 text-center">Equipments</th>
-                  <th className="px-5 py-3 text-center">Breaches</th>
-                  <th className="px-5 py-3">Archived By</th>
-                  <th className="px-5 py-3">Archival Status</th>
+      ) : terms.length === 0 ? (
+        <div className="text-center py-12 text-slate-400 text-xs font-medium">
+          No academic terms configured yet. Click "Add Academic Term" to get started.
+        </div>
+      ) : (
+        <div className="overflow-x-auto border border-slate-200 rounded-xl">
+          <table className="w-full text-left text-xs text-slate-700">
+            <thead className="bg-slate-50 text-slate-600 font-bold border-b border-slate-200 uppercase text-[10px] tracking-wider">
+              <tr>
+                <th className="py-3 px-4">#</th>
+                <th className="py-3 px-4">Academic Term Name</th>
+                <th className="py-3 px-4">Academic Year</th>
+                <th className="py-3 px-4">Semester</th>
+                <th className="py-3 px-4">Date Range</th>
+                <th className="py-3 px-4 text-center">Status</th>
+                <th className="py-3 px-4 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {terms.map((term, index) => (
+                <tr key={term.id} className="hover:bg-slate-50/80 transition-colors">
+                  <td className="py-3 px-4 text-slate-400 font-medium">{index + 1}</td>
+                  <td className="py-3 px-4 font-bold text-slate-900">{term.name}</td>
+                  <td className="py-3 px-4 font-medium text-slate-700">{term.academic_year}</td>
+                  <td className="py-3 px-4 font-medium text-slate-700">{term.semester}</td>
+                  <td className="py-3 px-4 text-slate-600">
+                    {term.start_date} → {term.end_date}
+                  </td>
+                  <td className="py-3 px-4 text-center">
+                    {term.is_active ? (
+                      <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                        Active
+                      </span>
+                    ) : (
+                      <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-600 border border-slate-200">
+                        Archived (TiDB)
+                      </span>
+                    )}
+                  </td>
+                  <td className="py-3 px-4 text-right">
+                    <div className="flex items-center justify-end gap-2">
+                      {!term.is_active && (
+                        <button
+                          type="button"
+                          onClick={() => handleActivateTerm(term)}
+                          className="px-2 py-1 text-[11px] font-bold text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded cursor-pointer"
+                        >
+                          Set Active
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => handleOpenEdit(term)}
+                        className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg cursor-pointer"
+                        title="Edit Term"
+                      >
+                        <Edit2 size={14} />
+                      </button>
+                      {!term.is_active && (
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteTerm(term)}
+                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg cursor-pointer"
+                          title="Delete Term"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      )}
+                    </div>
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 text-slate-700">
-                {archivedTerms.map((term) => (
-                  <tr key={term.id} className="hover:bg-slate-50/80 transition-colors">
-                    <td className="px-5 py-3.5">
-                      <div className="font-bold text-slate-900">{term.name}</div>
-                      <div className="text-xs text-slate-500">AY {term.academic_year} • {term.semester}</div>
-                    </td>
-                    <td className="px-5 py-3.5 text-xs font-medium text-slate-600">
-                      {term.start_date} → {term.end_date}
-                    </td>
-                    <td className="px-5 py-3.5 text-center font-bold text-slate-900">
-                      {term.total_venue_bookings}
-                    </td>
-                    <td className="px-5 py-3.5 text-center font-bold text-slate-900">
-                      {term.total_equipment_borrowings}
-                    </td>
-                    <td className="px-5 py-3.5 text-center">
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${term.total_breaches > 0 ? "bg-amber-100 text-amber-800" : "bg-emerald-100 text-emerald-800"}`}>
-                        {term.total_breaches}
-                      </span>
-                    </td>
-                    <td className="px-5 py-3.5 text-xs text-slate-600">
-                      {term.closed_by_user?.name || "Super Admin"}
-                      <div className="text-[10px] text-slate-400">
-                        {term.closed_at ? new Date(term.closed_at).toLocaleDateString() : "—"}
-                      </div>
-                    </td>
-                    <td className="px-5 py-3.5">
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
-                        <Database className="w-3 h-3 text-blue-600" />
-                        Archived in TiDB
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
-      {/* Close Term & Initialize Next Semester Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-xl w-full p-6 space-y-6">
-            <div className="flex items-start justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-3 bg-blue-100 text-blue-700 rounded-xl">
-                  <GraduationCap className="w-6 h-6" />
-                </div>
-                <div>
-                  <h3 className="text-xl font-bold text-slate-900">
-                    Close Semester & Initialize Next Term
-                  </h3>
-                  <p className="text-xs text-slate-500">
-                    Seal current term records and launch the next academic period.
-                  </p>
-                </div>
-              </div>
+      {/* Add / Edit Term Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in duration-100">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-2xl max-w-md w-full p-6 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <h3 className="text-sm font-bold text-slate-900">
+                {editTerm ? "Edit Academic Term" : "Add New Academic Term"}
+              </h3>
               <button
-                onClick={() => setIsModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 text-lg font-bold p-1"
+                type="button"
+                onClick={() => setShowAddModal(false)}
+                className="text-slate-400 hover:text-slate-600 p-1"
               >
-                ✕
+                <X size={16} />
               </button>
             </div>
 
-            {/* Impact Explanation Callout */}
-            <div className="bg-blue-50/70 border border-blue-200 rounded-xl p-4 text-xs text-blue-900 space-y-1.5">
-              <p className="font-bold flex items-center gap-1.5 text-blue-950">
-                <Sparkles className="w-4 h-4 text-blue-600" />
-                What will happen upon closing:
-              </p>
-              <ul className="list-disc list-inside space-y-0.5 text-blue-800">
-                <li>Current records for <strong>{activeTerm?.name}</strong> will be sealed into TiDB archive.</li>
-                <li>Staff & Office Manager reservation queues will open with a <strong>fresh, clean slate (0 active rows)</strong>.</li>
-                <li>All venue catalogs, registered equipment barcodes, and user accounts remain intact.</li>
-              </ul>
+            <form onSubmit={handleSaveTerm} className="space-y-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Academic Year *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. 2026-2027"
+                  value={termForm.academic_year}
+                  onChange={(e) => setTermForm({ ...termForm, academic_year: e.target.value })}
+                  className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:border-blue-500 font-medium"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Semester *</label>
+                <select
+                  value={termForm.semester}
+                  onChange={(e) => setTermForm({ ...termForm, semester: e.target.value })}
+                  className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:border-blue-500 bg-white font-medium"
+                >
+                  <option value="1st Semester">1st Semester</option>
+                  <option value="2nd Semester">2nd Semester</option>
+                  <option value="Summer Term">Summer Term</option>
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Start Date *</label>
+                  <input
+                    type="date"
+                    required
+                    value={termForm.start_date}
+                    onChange={(e) => setTermForm({ ...termForm, start_date: e.target.value })}
+                    className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">End Date *</label>
+                  <input
+                    type="date"
+                    required
+                    value={termForm.end_date}
+                    onChange={(e) => setTermForm({ ...termForm, end_date: e.target.value })}
+                    className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-2 flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="is_active"
+                  checked={termForm.is_active}
+                  onChange={(e) => setTermForm({ ...termForm, is_active: e.target.checked })}
+                  className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                />
+                <label htmlFor="is_active" className="text-xs font-semibold text-slate-700 cursor-pointer">
+                  Set as Active Semester immediately
+                </label>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-4 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowAddModal(false)}
+                  disabled={formLoading}
+                  className="px-3.5 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-lg"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={formLoading}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+                >
+                  {formLoading && <Loader2 size={14} className="animate-spin" />}
+                  <span>{editTerm ? "Update Term" : "Save Academic Term"}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Close Term Modal */}
+      {showCloseModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in duration-100">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-2xl max-w-md w-full p-6 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <h3 className="text-sm font-bold text-slate-900">
+                Close Semester & Roll Over
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowCloseModal(false)}
+                className="text-slate-400 hover:text-slate-600 p-1"
+              >
+                <X size={16} />
+              </button>
             </div>
 
-            {/* Form */}
-            <form onSubmit={handleCloseTermSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Next Academic Year *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. 2026-2027"
-                    value={nextTerm.academic_year}
-                    onChange={(e) => setNextTerm({ ...nextTerm, academic_year: e.target.value })}
-                    className="w-full text-sm px-3 py-2 border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-blue-600 font-medium"
-                  />
-                </div>
+            <div className="text-xs text-slate-600 bg-amber-50 border border-amber-200 p-3 rounded-lg leading-relaxed">
+              This will archive all completed bookings for <strong>{activeTerm?.name}</strong> to TiDB and initialize the next academic semester for all staff portals.
+            </div>
 
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Next Semester *
-                  </label>
-                  <select
-                    value={nextTerm.semester}
-                    onChange={(e) => setNextTerm({ ...nextTerm, semester: e.target.value })}
-                    className="w-full text-sm px-3 py-2 border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-blue-600 bg-white font-medium"
-                  >
-                    <option value="1st Semester">1st Semester</option>
-                    <option value="2nd Semester">2nd Semester</option>
-                    <option value="Summer Term">Summer Term</option>
-                  </select>
-                </div>
+            <form onSubmit={handleCloseTermSubmit} className="space-y-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Next Academic Year *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. 2026-2027"
+                  value={closeForm.academic_year}
+                  onChange={(e) => setCloseForm({ ...closeForm, academic_year: e.target.value })}
+                  className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:border-blue-500 font-medium"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Next Semester *</label>
+                <select
+                  value={closeForm.semester}
+                  onChange={(e) => setCloseForm({ ...closeForm, semester: e.target.value })}
+                  className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:border-blue-500 bg-white font-medium"
+                >
+                  <option value="1st Semester">1st Semester</option>
+                  <option value="2nd Semester">2nd Semester</option>
+                  <option value="Summer Term">Summer Term</option>
+                </select>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Start Date *
-                  </label>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Start Date *</label>
                   <input
                     type="date"
                     required
-                    value={nextTerm.start_date}
-                    onChange={(e) => setNextTerm({ ...nextTerm, start_date: e.target.value })}
-                    className="w-full text-sm px-3 py-2 border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-blue-600"
+                    value={closeForm.start_date}
+                    onChange={(e) => setCloseForm({ ...closeForm, start_date: e.target.value })}
+                    className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:border-blue-500"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    End Date *
-                  </label>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">End Date *</label>
                   <input
                     type="date"
                     required
-                    value={nextTerm.end_date}
-                    onChange={(e) => setNextTerm({ ...nextTerm, end_date: e.target.value })}
-                    className="w-full text-sm px-3 py-2 border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-blue-600"
+                    value={closeForm.end_date}
+                    onChange={(e) => setCloseForm({ ...closeForm, end_date: e.target.value })}
+                    className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:border-blue-500"
                   />
                 </div>
               </div>
 
-              {/* Master Verification PIN */}
-              <div className="pt-2">
-                <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
-                  <Lock className="w-3.5 h-3.5 text-blue-600" />
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
                   Master Security Verification PIN (if enabled)
                 </label>
                 <input
                   type="password"
-                  placeholder="Enter 6-digit Master PIN..."
-                  maxLength={6}
-                  value={nextTerm.pin}
-                  onChange={(e) => setNextTerm({ ...nextTerm, pin: e.target.value })}
-                  className="w-full text-sm px-3 py-2 border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-blue-600 tracking-widest font-mono"
+                  placeholder="Enter Master PIN..."
+                  value={closeForm.pin}
+                  onChange={(e) => setCloseForm({ ...closeForm, pin: e.target.value })}
+                  className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:border-blue-500 tracking-wider"
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
-                <Button
+              <div className="flex items-center justify-end gap-2 pt-4 border-t border-slate-100">
+                <button
                   type="button"
-                  variant="outline"
-                  onClick={() => setIsModalOpen(false)}
-                  disabled={submitting}
+                  onClick={() => setShowCloseModal(false)}
+                  disabled={formLoading}
+                  className="px-3.5 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-lg"
                 >
                   Cancel
-                </Button>
-                <Button
+                </button>
+                <button
                   type="submit"
-                  disabled={submitting}
-                  className="bg-blue-600 hover:bg-blue-700 text-white font-bold"
+                  disabled={formLoading}
+                  className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
                 >
-                  {submitting ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Archiving to TiDB...
-                    </>
-                  ) : (
-                    <>
-                      <Database className="w-4 h-4 mr-2" />
-                      Archive & Initialize Next Term
-                    </>
-                  )}
-                </Button>
+                  {formLoading && <Loader2 size={14} className="animate-spin" />}
+                  <span>Archive & Start Next Term</span>
+                </button>
               </div>
             </form>
           </div>

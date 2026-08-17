@@ -42,6 +42,107 @@ class AcademicTermController extends Controller
     }
 
     /**
+     * Create a new academic term.
+     */
+    public function store(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'academic_year' => 'required|string|max:50',
+            'semester'      => 'required|string|max:50',
+            'start_date'    => 'required|date',
+            'end_date'      => 'required|date|after:start_date',
+            'is_active'     => 'nullable|boolean',
+        ]);
+
+        $name = $validated['semester'] . ' AY ' . $validated['academic_year'];
+
+        if (!empty($validated['is_active'])) {
+            AcademicTerm::where('is_active', true)->update(['is_active' => false]);
+        }
+
+        $term = AcademicTerm::create([
+            'name'          => $name,
+            'academic_year' => $validated['academic_year'],
+            'semester'      => $validated['semester'],
+            'start_date'    => $validated['start_date'],
+            'end_date'      => $validated['end_date'],
+            'is_active'     => !empty($validated['is_active']),
+        ]);
+
+        return response()->json([
+            'message' => "Academic term \"{$term->name}\" created successfully!",
+            'term'    => $term,
+        ], 201);
+    }
+
+    /**
+     * Update an academic term.
+     */
+    public function update(Request $request, $id): JsonResponse
+    {
+        $term = AcademicTerm::findOrFail($id);
+
+        $validated = $request->validate([
+            'academic_year' => 'sometimes|required|string|max:50',
+            'semester'      => 'sometimes|required|string|max:50',
+            'start_date'    => 'sometimes|required|date',
+            'end_date'      => 'sometimes|required|date',
+            'is_active'     => 'nullable|boolean',
+        ]);
+
+        if (isset($validated['semester']) || isset($validated['academic_year'])) {
+            $year = $validated['academic_year'] ?? $term->academic_year;
+            $sem = $validated['semester'] ?? $term->semester;
+            $term->name = $sem . ' AY ' . $year;
+        }
+
+        if (isset($validated['is_active']) && $validated['is_active']) {
+            AcademicTerm::where('id', '!=', $term->id)->update(['is_active' => false]);
+            $term->is_active = true;
+        }
+
+        $term->fill($validated);
+        $term->save();
+
+        return response()->json([
+            'message' => "Academic term \"{$term->name}\" updated successfully!",
+            'term'    => $term,
+        ]);
+    }
+
+    /**
+     * Activate a specific academic term.
+     */
+    public function activate($id): JsonResponse
+    {
+        $term = AcademicTerm::findOrFail($id);
+
+        AcademicTerm::where('is_active', true)->update(['is_active' => false]);
+        $term->update(['is_active' => true]);
+
+        return response()->json([
+            'message' => "Academic term \"{$term->name}\" is now set as the ACTIVE semester.",
+            'term'    => $term,
+        ]);
+    }
+
+    /**
+     * Delete an academic term.
+     */
+    public function destroy($id): JsonResponse
+    {
+        $term = AcademicTerm::findOrFail($id);
+
+        if ($term->is_active) {
+            return response()->json(['message' => 'Cannot delete the currently ACTIVE academic term.'], 422);
+        }
+
+        $term->delete();
+
+        return response()->json(['message' => "Academic term \"{$term->name}\" deleted successfully."]);
+    }
+
+    /**
      * Close the current semester and initialize the next academic term.
      */
     public function closeTerm(Request $request): JsonResponse
