@@ -160,16 +160,25 @@ class AcademicTermController extends Controller
             'pin'           => 'nullable|string',
         ]);
 
-        // Verify Master PIN if enabled
-        if (\Illuminate\Support\Facades\Schema::hasTable('verification_pin_settings')) {
-            $pinSetting = \App\Models\VerificationPinSetting::first();
-            if ($pinSetting && $pinSetting->is_enabled) {
-                if (empty($validated['pin']) || !password_verify($validated['pin'], $pinSetting->pin_hash)) {
-                    return response()->json([
-                        'message' => 'Invalid Security Verification PIN. Authorization failed.',
-                        'errors'  => ['pin' => ['Invalid Master PIN.']]
-                    ], 422);
+        // Security Verification: Accept Super Admin Account Password OR Verification PIN
+        $securityInput = $validated['pin'] ?? $request->input('password');
+
+        if (!empty($securityInput) && $user) {
+            $passwordMatches = \Illuminate\Support\Facades\Hash::check($securityInput, $user->password);
+            $pinMatches = false;
+
+            if (\Illuminate\Support\Facades\Schema::hasTable('verification_pin_settings')) {
+                $pinSetting = \App\Models\VerificationPinSetting::first();
+                if ($pinSetting && !empty($pinSetting->pin_hash)) {
+                    $pinMatches = password_verify($securityInput, $pinSetting->pin_hash);
                 }
+            }
+
+            if (!$passwordMatches && !$pinMatches) {
+                return response()->json([
+                    'message' => 'Invalid password or verification PIN. Authorization failed.',
+                    'errors'  => ['pin' => ['Invalid password or Master PIN.']]
+                ], 422);
             }
         }
 

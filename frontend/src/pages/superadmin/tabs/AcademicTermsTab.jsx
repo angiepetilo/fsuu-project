@@ -486,11 +486,11 @@ export default function AcademicTermsTab({ showMsg }) {
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Master Security Verification PIN (if enabled)
+                  Super Admin Password or Master PIN
                 </label>
                 <input
                   type="password"
-                  placeholder="Enter Master PIN..."
+                  placeholder="Enter your account password (e.g. password123)..."
                   value={closeForm.pin}
                   onChange={(e) => setCloseForm({ ...closeForm, pin: e.target.value })}
                   className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:border-blue-500 tracking-wider"
