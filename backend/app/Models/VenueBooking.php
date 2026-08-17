@@ -37,6 +37,8 @@ class VenueBooking extends Model
         'school_id',
         'agreed_to_policy',
         'assigned_units',
+        'endorsement_url',
+        'endorsement_letter',
     ];
 
     protected $casts = [
@@ -46,7 +48,7 @@ class VenueBooking extends Model
         'assigned_units'   => 'array',
     ];
 
-    protected $appends = ['reference_code', 'status'];
+    protected $appends = ['reference_code', 'status', 'endorsement_url'];
 
     public function getReferenceCodeAttribute(): ?string
     {
@@ -56,6 +58,19 @@ class VenueBooking extends Model
     public function getStatusAttribute(): string
     {
         return $this->attributes['status'] ?? $this->trackingNumber?->status ?? 'pending';
+    }
+
+    public function getEndorsementUrlAttribute(): ?string
+    {
+        if (!empty($this->attributes['endorsement_url'])) {
+            return $this->attributes['endorsement_url'];
+        }
+        if (!empty($this->attributes['endorsement_letter'])) {
+            return $this->attributes['endorsement_letter'];
+        }
+        $doc = $this->documents->where('document_type', 'endorsement_letter')->last()
+            ?? $this->documents->last();
+        return $doc?->file_path;
     }
 
     public function trackingNumber(): BelongsTo

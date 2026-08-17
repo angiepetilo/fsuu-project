@@ -59,28 +59,31 @@ export default function VenueBookingInfo({
   };
 
   const getDocumentUrl = () => {
+    // 1. Direct endorsement URL on selected booking
+    if (selected.endorsement_url) return resolveStorageUrl(selected.endorsement_url);
+    if (selected.endorsement_letter) return resolveStorageUrl(selected.endorsement_letter);
+    if (selected.endorsement_letter_url) return resolveStorageUrl(selected.endorsement_letter_url);
+    if (selected.endorsement_file) return resolveStorageUrl(selected.endorsement_file);
+
+    // 2. Search documents relation (pick latest document)
+    if (Array.isArray(selected.documents) && selected.documents.length > 0) {
+      const docsReversed = [...selected.documents].reverse();
+      const endorsementDoc = docsReversed.find(d => 
+        (d.document_type || d.type || "").toLowerCase().includes("endorsement")
+      );
+      if (endorsementDoc?.file_path) return resolveStorageUrl(endorsementDoc.file_path);
+      if (docsReversed[0]?.file_path) return resolveStorageUrl(docsReversed[0].file_path);
+    }
+
+    if (selected.file_path) return resolveStorageUrl(selected.file_path);
+    if (selected.attachment) return resolveStorageUrl(selected.attachment);
     if (staffUploadUrl) return resolveStorageUrl(staffUploadUrl);
-
-    // Prioritize newest uploaded document from documents relation, then direct fields
-    const latestDoc = Array.isArray(selected.documents) && selected.documents.length > 0
-      ? (selected.documents.find((d) => (d.document_type || d.type || "").toLowerCase().includes("endorsement")) || selected.documents[selected.documents.length - 1])?.file_path
-      : null;
-
-    const docPath =
-      latestDoc ||
-      selected.endorsement_url ||
-      selected.endorsement_letter_url ||
-      selected.endorsement_letter ||
-      selected.endorsement_file ||
-      selected.file_path ||
-      selected.attachment;
-
-    return resolveStorageUrl(docPath);
+    return null;
   };
 
   const docUrl = getDocumentUrl();
   const isPdf = String(docUrl || "").toLowerCase().includes(".pdf") || String(docUrl || "").toLowerCase().includes("data:application/pdf");
-  const fallbackImage = "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=800&q=80";
+  const [imageLoadError, setImageLoadError] = useState(false);
 
   const handleOpenDocument = (url) => {
     if (!url) return;
@@ -214,16 +217,20 @@ export default function VenueBookingInfo({
                 </div>
               ) : (
                 <>
-                  <img
-                    src={docUrl}
-                    alt="Endorsement Letter Preview"
-                    className="w-full h-full object-cover opacity-75"
-                    onError={(e) => {
-                      if (e.target.src !== fallbackImage) {
-                        e.target.src = fallbackImage;
-                      }
-                    }}
-                  />
+                  {!imageLoadError ? (
+                    <img
+                      src={docUrl}
+                      alt="Endorsement Letter Preview"
+                      className="w-full h-full object-contain bg-slate-950 p-1"
+                      onError={() => setImageLoadError(true)}
+                    />
+                  ) : (
+                    <div className="w-full h-full p-4 bg-slate-900 flex flex-col items-center justify-center text-center space-y-2">
+                      <FileText size={28} className="text-blue-400" />
+                      <p className="text-xs font-bold text-white">Endorsement Image Attached</p>
+                      <p className="text-[10px] font-mono text-slate-400 truncate max-w-[180px]">{docUrl.split('/').pop()}</p>
+                    </div>
+                  )}
                   <button
                     type="button"
                     onClick={() => handleOpenDocument(docUrl)}

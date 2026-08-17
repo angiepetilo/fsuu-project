@@ -33,7 +33,7 @@ export default function EvidenceLightboxModal({
     : (String(imageUrl || "").toLowerCase().includes(".pdf") || String(imageUrl || "").toLowerCase().includes("data:application/pdf"));
 
   const resolvedUrl = resolvePhotoUrl ? resolvePhotoUrl(imageUrl) : imageUrl;
-  const fallbackImage = "https://images.unsplash.com/photo-1568667256549-094345857637?w=600&auto=format&fit=crop&q=60";
+  const [imgError, setImgError] = React.useState(false);
 
   // Helper to open Data URLs without triggering browser about:blank#blocked
   const handleOpenExternal = () => {
@@ -99,16 +99,26 @@ export default function EvidenceLightboxModal({
               className="w-full h-full rounded-xl border-none bg-white"
             />
           ) : (
-            <img
-              src={resolvedUrl || fallbackImage}
-              alt={imageTitle}
-              className="max-w-full max-h-[75vh] object-contain rounded-xl"
-              onError={(e) => {
-                if (e.target.src !== fallbackImage) {
-                  e.target.src = fallbackImage;
-                }
-              }}
-            />
+            !imgError ? (
+              <img
+                src={resolvedUrl}
+                alt={imageTitle}
+                className="max-w-full max-h-[75vh] object-contain rounded-xl"
+                onError={() => setImgError(true)}
+              />
+            ) : (
+              <div className="text-center p-6 space-y-3 text-slate-300">
+                <FileText size={40} className="mx-auto text-slate-500" />
+                <p className="text-sm font-bold">Document Image Attached</p>
+                <button
+                  type="button"
+                  onClick={handleOpenExternal}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold"
+                >
+                  Click to Open Document
+                </button>
+              </div>
+            )
           )}
         </div>
       </div>
