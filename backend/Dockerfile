@@ -35,7 +35,6 @@ COPY composer.json composer.lock* /var/www/
 
 # Install Composer dependencies with git-clone fallback (bypasses GitHub 429 rate limits)
 RUN composer config --global process-timeout 2000 && \
-    composer config --global git-clone-protection false && \
     (composer install --no-dev --no-scripts --no-autoloader --no-interaction --prefer-dist || \
      composer install --no-dev --no-scripts --no-autoloader --no-interaction --prefer-source)
 
