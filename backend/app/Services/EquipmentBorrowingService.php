@@ -70,20 +70,25 @@ class EquipmentBorrowingService
             if ($hasCol('office_id')) $insertData['office_id'] = $officeId;
             if ($hasCol('status')) $insertData['status'] = 'pending';
 
-            if ($hasCol('requestor_name')) $insertData['requestor_name'] = $data['requestor_name'];
-            if ($hasCol('filer_name')) $insertData['filer_name'] = $data['requestor_name'];
+            $name = $data['requestor_name'] ?? $data['filer_name'] ?? 'Filer';
+            if ($hasCol('requestor_name')) $insertData['requestor_name'] = $name;
+            if ($hasCol('filer_name')) $insertData['filer_name'] = $name;
 
-            if ($hasCol('requestor_email')) $insertData['requestor_email'] = $data['requestor_email'];
-            if ($hasCol('email_address')) $insertData['email_address'] = $data['requestor_email'];
+            $email = $data['requestor_email'] ?? $data['email_address'] ?? 'requestor@urios.edu.ph';
+            if ($hasCol('requestor_email')) $insertData['requestor_email'] = $email;
+            if ($hasCol('email_address')) $insertData['email_address'] = $email;
 
-            if ($hasCol('requestor_contact_number')) $insertData['requestor_contact_number'] = $data['requestor_contact_number'];
-            if ($hasCol('contact_number')) $insertData['contact_number'] = $data['requestor_contact_number'];
+            $contact = $data['requestor_contact_number'] ?? $data['contact_number'] ?? '09123456789';
+            if ($hasCol('requestor_contact_number')) $insertData['requestor_contact_number'] = $contact;
+            if ($hasCol('contact_number')) $insertData['contact_number'] = $contact;
 
-            if ($hasCol('requestor_program_office')) $insertData['requestor_program_office'] = $data['requestor_program_office'];
-            if ($hasCol('program_office')) $insertData['program_office'] = $data['requestor_program_office'];
+            $officeDept = $data['requestor_program_office'] ?? $data['program_office'] ?? 'Department';
+            if ($hasCol('requestor_program_office')) $insertData['requestor_program_office'] = $officeDept;
+            if ($hasCol('program_office')) $insertData['program_office'] = $officeDept;
 
-            if ($hasCol('requestor_identity_type')) $insertData['requestor_identity_type'] = $data['requestor_identity_type'];
-            if ($hasCol('classification')) $insertData['classification'] = $data['requestor_identity_type'];
+            $identity = $data['requestor_identity_type'] ?? $data['classification'] ?? 'student';
+            if ($hasCol('requestor_identity_type')) $insertData['requestor_identity_type'] = $identity;
+            if ($hasCol('classification')) $insertData['classification'] = $identity;
 
             if ($hasCol('start_datetime')) $insertData['start_datetime'] = $data['start_datetime'];
             if ($hasCol('end_datetime')) $insertData['end_datetime'] = $data['end_datetime'];
@@ -308,7 +313,7 @@ class EquipmentBorrowingService
 
     private function assertExternalHasVenueBooking(array $data): void
     {
-        if ($data['requestor_identity_type'] !== 'external') {
+        if (($data['requestor_identity_type'] ?? $data['classification'] ?? 'student') !== 'external') {
             return;
         }
 
