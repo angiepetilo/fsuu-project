@@ -204,6 +204,7 @@ class ListingController extends Controller
                 'venue_bookings.filer_name',
                 'venue_bookings.program_office',
                 'venue_bookings.date_of_usage',
+                'venue_bookings.reservation_end_date',
                 'venue_bookings.time_start',
                 'venue_bookings.time_end',
                 'tracking_numbers.status'

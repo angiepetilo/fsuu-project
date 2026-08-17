@@ -46,7 +46,9 @@ class SendBookingConfirmationJob implements ShouldQueue
 
         // Load relationships needed by the blade template
         if ($this->type === 'venue') {
-            $this->booking->loadMissing('venue');
+            $this->booking->loadMissing(['venue', 'trackingNumber', 'documents']);
+        } else {
+            $this->booking->loadMissing(['items', 'trackingNumber', 'office']);
         }
 
         try {

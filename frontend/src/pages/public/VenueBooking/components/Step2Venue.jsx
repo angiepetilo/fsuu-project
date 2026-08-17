@@ -184,13 +184,14 @@ export default function Step2Venue({
       };
     }
 
-    // 2. Filter bookings strictly for the SELECTED venue & date
+    // 2. Filter bookings strictly for the SELECTED venue & date (including multi-day spans)
     const dayBookings = existingBookings.filter(b => {
       const bVenueName = (b.venue?.name || b.venue_name || "").toLowerCase();
-      const matchVenue = b.venue_id === selectedVenue.id ||
+      const matchVenue = String(b.venue_id) === String(selectedVenue.id) ||
         (bVenueName && (bVenueName.includes(vName) || vName.includes(bVenueName)));
-      const bDate = b.date_of_usage ? b.date_of_usage.substring(0, 10) : b.date_of_use;
-      return matchVenue && bDate === dateStr;
+      const bStartDate = b.date_of_usage ? b.date_of_usage.substring(0, 10) : (b.date_of_use || "");
+      const bEndDate = b.reservation_end_date ? b.reservation_end_date.substring(0, 10) : bStartDate;
+      return matchVenue && bStartDate <= dateStr && bEndDate >= dateStr;
     });
 
     if (dayBookings.length === 0) {
@@ -245,6 +246,53 @@ export default function Step2Venue({
       bookings: dayBookings,
     };
   };
+
+  const checkOverlap = (s1, e1, s2, e2) => {
+    const toMin = (t) => {
+      if (!t) return 0;
+      const [h, m] = t.split(":").map(Number);
+      return (h || 0) * 60 + (m || 0);
+    };
+    return Math.max(toMin(s1), toMin(s2)) < Math.min(toMin(e1), toMin(e2));
+  };
+
+  const targetEndDate = selectedEndDate && selectedEndDate >= selectedDate ? selectedEndDate : selectedDate;
+
+  const conflictingBooking = (selectedVenue && selectedDate && timeStart && timeEnd)
+    ? existingBookings.find(b => {
+        const bVenueName = (b.venue?.name || b.venue_name || "").toLowerCase();
+        const vName = (selectedVenue.name || "").toLowerCase();
+        const matchVenue = String(b.venue_id) === String(selectedVenue.id) ||
+          (bVenueName && (bVenueName.includes(vName) || vName.includes(bVenueName)));
+        if (!matchVenue) return false;
+
+        const bStartDate = b.date_of_usage ? b.date_of_usage.substring(0, 10) : (b.date_of_use || "");
+        const bEndDate = b.reservation_end_date ? b.reservation_end_date.substring(0, 10) : bStartDate;
+        
+        const dateOverlap = bStartDate <= targetEndDate && bEndDate >= selectedDate;
+        if (!dateOverlap) return false;
+
+        const bStart = b.time_start?.substring(0, 5) || "08:00";
+        const bEnd = b.time_end?.substring(0, 5) || "17:00";
+        return checkOverlap(timeStart, timeEnd, bStart, bEnd);
+      })
+    : null;
+
+  const isInvalidEndDate = Boolean(selectedEndDate && selectedEndDate < selectedDate);
+  const isInvalidTimeRange = Boolean(timeStart && timeEnd && timeEnd <= timeStart && (!selectedEndDate || selectedEndDate === selectedDate));
+  const isPastSelection = isPastDateTime(selectedDate, timeStart);
+  const isConflict = Boolean(conflictingBooking);
+
+  const canProceed = Boolean(
+    selectedVenue &&
+    selectedDate &&
+    timeStart &&
+    timeEnd &&
+    !isPastSelection &&
+    !isInvalidEndDate &&
+    !isInvalidTimeRange &&
+    !isConflict
+  );
 
   return (
     <div className="p-6 sm:p-8 animate-in slide-in-from-top-2 duration-300">
@@ -478,151 +526,152 @@ export default function Step2Venue({
             </div>
 
             {/* Time Picker Controls & Overlap Conflict Detection */}
-            {(() => {
-              const selDay = selectedDate ? parseInt(selectedDate.split("-")[2], 10) : 0;
-              const info = selDay ? getDayInfo(selDay) : { bookings: [] };
+            <div className="space-y-3 pt-1">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-extrabold text-slate-800">Time Start *</label>
+                  <input
+                    type="time"
+                    step="300"
+                    value={timeStart}
+                    onChange={e => setTimeStart(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-100/80 border border-slate-200 rounded-2xl text-xs font-extrabold text-slate-900 focus:bg-white focus:border-blue-600 focus:outline-none transition-all shadow-inner"
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-extrabold text-slate-800">Time End *</label>
+                  <input
+                    type="time"
+                    step="300"
+                    value={timeEnd}
+                    onChange={e => setTimeEnd(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-100/80 border border-slate-200 rounded-2xl text-xs font-extrabold text-slate-900 focus:bg-white focus:border-blue-600 focus:outline-none transition-all shadow-inner"
+                  />
+                </div>
+              </div>
 
-              const checkOverlap = (s1, e1, s2, e2) => {
-                const toMin = (t) => {
-                  if (!t) return 0;
-                  const [h, m] = t.split(":").map(Number);
-                  return h * 60 + m;
-                };
-                return Math.max(toMin(s1), toMin(s2)) < Math.min(toMin(e1), toMin(e2));
-              };
+              <div>
+                <label className="text-xs font-extrabold text-slate-800 block mb-1">Reservation End Date (Multi-Day)</label>
+                <input
+                  type="date"
+                  min={selectedDate || getTodayISO()}
+                  value={selectedEndDate || selectedDate || ''}
+                  onChange={e => setSelectedEndDate && setSelectedEndDate(e.target.value)}
+                  className={`w-full px-3.5 py-2 bg-slate-100/80 border rounded-2xl text-xs font-extrabold text-slate-900 focus:bg-white focus:outline-none transition-all shadow-inner ${isInvalidEndDate ? 'border-rose-500 bg-rose-50/50' : 'border-slate-200 focus:border-blue-600'}`}
+                />
+              </div>
 
-              const conflictingBooking = info.bookings.find(b => {
-                const bStart = b.time_start?.substring(0, 5) || "08:00";
-                const bEnd = b.time_end?.substring(0, 5) || "12:00";
-                return checkOverlap(timeStart, timeEnd, bStart, bEnd);
-              });
-
-              return (
-                <div className="space-y-3 pt-1">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="flex flex-col gap-1">
-                      <label className="text-xs font-extrabold text-slate-800">Time Start *</label>
-                      <input
-                        type="time"
-                        step="300"
-                        value={timeStart}
-                        onChange={e => setTimeStart(e.target.value)}
-                        className="w-full px-3 py-2 bg-slate-100/80 border border-slate-200 rounded-2xl text-xs font-extrabold text-slate-900 focus:bg-white focus:border-blue-600 focus:outline-none transition-all shadow-inner"
-                      />
+              {selectedDate && timeStart && timeEnd && (
+                <div className="space-y-2 pt-1">
+                  {isInvalidEndDate ? (
+                    <div className="p-3 bg-rose-50 border border-rose-200 rounded-2xl text-xs font-bold text-rose-800 space-y-1">
+                      <div className="flex items-center gap-1.5 text-rose-700">
+                        <AlertTriangle size={15} />
+                        <span>Invalid Reservation End Date!</span>
+                      </div>
+                      <p className="text-[11px] font-semibold text-rose-700 leading-snug">
+                        Reservation end date ({selectedEndDate}) cannot be earlier than the start date ({selectedDate}). Please select a date equal to or ahead of the start date.
+                      </p>
                     </div>
-                    <div className="flex flex-col gap-1">
-                      <label className="text-xs font-extrabold text-slate-800">Time End *</label>
-                      <input
-                        type="time"
-                        step="300"
-                        value={timeEnd}
-                        onChange={e => setTimeEnd(e.target.value)}
-                        className="w-full px-3 py-2 bg-slate-100/80 border border-slate-200 rounded-2xl text-xs font-extrabold text-slate-900 focus:bg-white focus:border-blue-600 focus:outline-none transition-all shadow-inner"
-                      />
+                  ) : isInvalidTimeRange ? (
+                    <div className="p-3 bg-rose-50 border border-rose-200 rounded-2xl text-xs font-bold text-rose-800 space-y-1">
+                      <div className="flex items-center gap-1.5 text-rose-700">
+                        <AlertTriangle size={15} />
+                        <span>Invalid Time Range!</span>
+                      </div>
+                      <p className="text-[11px] font-semibold text-rose-700 leading-snug">
+                        Time End ({formatTime12(timeEnd)}) must be later than Time Start ({formatTime12(timeStart)}).
+                      </p>
                     </div>
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-extrabold text-slate-800 block mb-1">Reservation End Date (Multi-Day)</label>
-                    <input
-                      type="date"
-                      min={selectedDate}
-                      value={selectedEndDate || selectedDate || ''}
-                      onChange={e => setSelectedEndDate && setSelectedEndDate(e.target.value)}
-                      className="w-full px-3.5 py-2 bg-slate-100/80 border border-slate-200 rounded-2xl text-xs font-extrabold text-slate-900 focus:bg-white focus:border-blue-600 focus:outline-none transition-all shadow-inner"
-                    />
-                  </div>
-
-                  {selectedDate && timeStart && timeEnd && (
-                    <div className="space-y-2 pt-1">
-                      {isPastTimeToday(selectedDate, timeStart) ? (
-                        <div className="p-3 bg-rose-50 border border-rose-200 rounded-2xl text-xs font-bold text-rose-800 space-y-1">
-                          <div className="flex items-center gap-1.5 text-rose-700">
-                            <AlertTriangle size={15} />
-                            <span>Past Time Selected!</span>
-                          </div>
-                          <p className="text-[11px] font-semibold text-rose-700 leading-snug">
-                            Selected start time ({formatTime12(timeStart)}) has already passed for today. Please select a future time slot.
-                          </p>
-                        </div>
-                      ) : conflictingBooking ? (
-                        <div className="p-3 bg-rose-50 border border-rose-200 rounded-2xl text-xs font-bold text-rose-800 space-y-1">
-                          <div className="flex items-center gap-1.5 text-rose-700">
-                            <AlertTriangle size={15} />
-                            <span>Time Overlap Conflict!</span>
-                          </div>
-                          <p className="text-[11px] font-semibold text-rose-700 leading-snug">
-                            {selectedVenue?.name} is already reserved from <strong>{conflictingBooking.time_start?.substring(0, 5)} to {conflictingBooking.time_end?.substring(0, 5)}</strong> on {selectedDate} by <strong>{conflictingBooking.filer_name || conflictingBooking.requestor_name}</strong>.
-                          </p>
-                        </div>
-                      ) : (
-                        <div className="p-2.5 bg-blue-50 border border-blue-200/60 rounded-2xl text-[11px] font-bold text-blue-900 flex items-center gap-1.5">
-                          <CheckCircle2 size={15} className="text-blue-600 shrink-0" />
-                          <span>
-                            Selected: <strong>{selectedDate}</strong> ({formatTime12(timeStart)} - {formatTime12(timeEnd)}). Available!
-                          </span>
-                        </div>
-                      )}
-
-                      {(() => {
-                        const venueOpen = opHours?.venue_open?.substring(0, 5) || "07:30";
-                        const venueClose = opHours?.venue_close?.substring(0, 5) || "17:00";
-                        const isOutside = timeStart < venueOpen || timeEnd > venueClose;
-                        const requiresPinForOutside = (pinRules?.requirePinOutsideHours !== false) && isOutside;
-
-                        if (isOutside) {
-                          return (
-                            <div className="p-3.5 bg-amber-50 border border-amber-200/80 rounded-2xl text-xs font-bold text-amber-900 space-y-2 mt-2">
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-1.5 text-amber-800">
-                                  <AlertTriangle size={15} className="text-amber-600 shrink-0" />
-                                  <span className="font-extrabold">Outside Campus Office Hours ({formatTime12(venueOpen)} - {formatTime12(venueClose)})</span>
-                                </div>
-                                <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-200 text-amber-900 uppercase">
-                                  PIN Required
-                                </span>
-                              </div>
-                              <p className="text-[11px] font-semibold text-amber-800 leading-snug">
-                                Selected booking time (<strong>{formatTime12(timeStart)} - {formatTime12(timeEnd)}</strong>) is outside official campus office hours.
-                                {requiresPinForOutside ? " An AVR Head / Admin Verification PIN is required for both internal and external users." : ""}
-                              </p>
-                              {requiresPinForOutside && (
-                                <div className="pt-1.5 border-t border-amber-200/60 flex items-center justify-between gap-2">
-                                  {isPinVerified ? (
-                                    <div className="flex items-center gap-1.5 text-emerald-700 font-extrabold text-xs">
-                                      <CheckCircle2 size={15} />
-                                      <span>AVR Head PIN Verified for Outside Hours</span>
-                                    </div>
-                                  ) : (
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        if (setPinModalMeta) {
-                                          setPinModalMeta({
-                                            title: "Outside Office Hours PIN",
-                                            description: `Selected booking time (${formatTime12(timeStart)} - ${formatTime12(timeEnd)}) is outside official campus hours (${formatTime12(venueOpen)} - ${formatTime12(venueClose)}). AVR Head / Admin Verification PIN is required for authorization.`,
-                                          });
-                                        }
-                                        setShowPinModal && setShowPinModal(true);
-                                      }}
-                                      className="w-full py-2 px-3 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs shadow-xs transition-all cursor-pointer flex items-center justify-center gap-1.5"
-                                    >
-                                      <Clock size={14} />
-                                      <span>Verify AVR Head PIN Now</span>
-                                    </button>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          );
-                        }
-                        return null;
-                      })()}
+                  ) : isPastSelection ? (
+                    <div className="p-3 bg-rose-50 border border-rose-200 rounded-2xl text-xs font-bold text-rose-800 space-y-1">
+                      <div className="flex items-center gap-1.5 text-rose-700">
+                        <AlertTriangle size={15} />
+                        <span>Past Time Selected!</span>
+                      </div>
+                      <p className="text-[11px] font-semibold text-rose-700 leading-snug">
+                        Selected start time ({formatTime12(timeStart)}) has already passed for today. Please select a future time slot.
+                      </p>
+                    </div>
+                  ) : isConflict ? (
+                    <div className="p-3.5 bg-rose-50 border-2 border-rose-300 rounded-2xl text-xs font-bold text-rose-800 space-y-1.5 shadow-sm">
+                      <div className="flex items-center gap-1.5 text-rose-700 font-extrabold">
+                        <AlertTriangle size={16} className="text-rose-600 shrink-0" />
+                        <span>Time Slot Blocked / Already Reserved!</span>
+                      </div>
+                      <p className="text-[11px] font-semibold text-rose-700 leading-snug">
+                        <strong>{selectedVenue?.name}</strong> is already booked on <strong>{conflictingBooking.date_of_usage ? conflictingBooking.date_of_usage.substring(0, 10) : selectedDate}</strong> from <strong>{formatTime12(conflictingBooking.time_start?.substring(0, 5))} to {formatTime12(conflictingBooking.time_end?.substring(0, 5))}</strong>.
+                      </p>
+                      <p className="text-[11px] font-bold text-rose-900 leading-snug bg-rose-100/70 p-2 rounded-xl border border-rose-200">
+                        You cannot proceed to fill details for an overlapping schedule. Please choose a different date, time, or venue.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="p-2.5 bg-blue-50 border border-blue-200/60 rounded-2xl text-[11px] font-bold text-blue-900 flex items-center gap-1.5">
+                      <CheckCircle2 size={15} className="text-blue-600 shrink-0" />
+                      <span>
+                        Selected: <strong>{selectedDate}</strong> {selectedEndDate && selectedEndDate !== selectedDate ? `to ${selectedEndDate}` : ''} ({formatTime12(timeStart)} - {formatTime12(timeEnd)}). Available!
+                      </span>
                     </div>
                   )}
+
+                  {(() => {
+                    const venueOpen = opHours?.venue_open?.substring(0, 5) || "07:30";
+                    const venueClose = opHours?.venue_close?.substring(0, 5) || "17:00";
+                    const isOutside = timeStart < venueOpen || timeEnd > venueClose;
+                    const requiresPinForOutside = (pinRules?.requirePinOutsideHours !== false) && isOutside;
+
+                    if (isOutside) {
+                      return (
+                        <div className="p-3.5 bg-amber-50 border border-amber-200/80 rounded-2xl text-xs font-bold text-amber-900 space-y-2 mt-2">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-1.5 text-amber-800">
+                              <AlertTriangle size={15} className="text-amber-600 shrink-0" />
+                              <span className="font-extrabold">Outside Campus Office Hours ({formatTime12(venueOpen)} - {formatTime12(venueClose)})</span>
+                            </div>
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-200 text-amber-900 uppercase">
+                              PIN Required
+                            </span>
+                          </div>
+                          <p className="text-[11px] font-semibold text-amber-800 leading-snug">
+                            Selected booking time (<strong>{formatTime12(timeStart)} - {formatTime12(timeEnd)}</strong>) is outside official campus office hours.
+                            {requiresPinForOutside ? " An AVR Head / Admin Verification PIN is required for authorization." : ""}
+                          </p>
+                          {requiresPinForOutside && (
+                            <div className="pt-1.5 border-t border-amber-200/60 flex items-center justify-between gap-2">
+                              {isPinVerified ? (
+                                <div className="flex items-center gap-1.5 text-emerald-700 font-extrabold text-xs">
+                                  <CheckCircle2 size={15} />
+                                  <span>AVR Head PIN Verified for Outside Hours</span>
+                                </div>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (setPinModalMeta) {
+                                      setPinModalMeta({
+                                        title: "Outside Office Hours PIN",
+                                        description: `Selected booking time (${formatTime12(timeStart)} - ${formatTime12(timeEnd)}) is outside official campus hours (${formatTime12(venueOpen)} - ${formatTime12(venueClose)}). AVR Head / Admin Verification PIN is required for authorization.`,
+                                      });
+                                    }
+                                    setShowPinModal && setShowPinModal(true);
+                                  }}
+                                  className="w-full py-2 px-3 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs shadow-xs transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                                >
+                                  <Clock size={14} />
+                                  <span>Verify AVR Head PIN Now</span>
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
                 </div>
-              );
-            })()}
+              )}
+            </div>
 
           </div>
         </div>
@@ -643,9 +692,9 @@ export default function Step2Venue({
 
         <Button
           type="button"
-          disabled={!selectedVenue || !selectedDate || !timeStart || !timeEnd || isPastDateTime(selectedDate, timeStart)}
-          onClick={() => selectedVenue && selectedDate && !isPastDateTime(selectedDate, timeStart) && onNext && onNext()}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-5 rounded-xl font-extrabold text-xs flex items-center gap-2 shadow-md disabled:opacity-50 cursor-pointer"
+          disabled={!canProceed}
+          onClick={() => canProceed && onNext && onNext()}
+          className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-5 rounded-xl font-extrabold text-xs flex items-center gap-2 shadow-md disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
         >
           <span>Next: Fill Details</span>
           <ChevronRight size={16} />

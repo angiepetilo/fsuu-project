@@ -182,8 +182,53 @@ export default function VenueBooking() {
   };
 
   const handleStep2Next = () => {
+    if (!selectedVenue) {
+      alert("Please select a venue first.");
+      return;
+    }
+    if (!selectedDate) {
+      alert("Please select a reservation date.");
+      return;
+    }
     if (isPastDateTime(selectedDate, startTime)) {
       alert("Selected booking date or time has already passed. Please select a future date and time.");
+      return;
+    }
+    if (selectedEndDate && selectedEndDate < selectedDate) {
+      alert("Reservation end date cannot be earlier than the start date.");
+      return;
+    }
+    if (endTime <= startTime && (!selectedEndDate || selectedEndDate === selectedDate)) {
+      alert("Time End must be later than Time Start.");
+      return;
+    }
+
+    // Hard block if conflicting booking exists
+    const targetEndDate = selectedEndDate && selectedEndDate >= selectedDate ? selectedEndDate : selectedDate;
+    const vName = (selectedVenue.name || "").toLowerCase();
+    const conflict = existingBookings.find(b => {
+      const bVenueName = (b.venue?.name || b.venue_name || "").toLowerCase();
+      const matchVenue = String(b.venue_id) === String(selectedVenue.id) ||
+        (bVenueName && (bVenueName.includes(vName) || vName.includes(bVenueName)));
+      if (!matchVenue) return false;
+
+      const bStartDate = b.date_of_usage ? b.date_of_usage.substring(0, 10) : (b.date_of_use || "");
+      const bEndDate = b.reservation_end_date ? b.reservation_end_date.substring(0, 10) : bStartDate;
+      const dateOverlap = bStartDate <= targetEndDate && bEndDate >= selectedDate;
+      if (!dateOverlap) return false;
+
+      const toMin = (t) => {
+        if (!t) return 0;
+        const [h, m] = t.split(":").map(Number);
+        return (h || 0) * 60 + (m || 0);
+      };
+      const bStart = b.time_start?.substring(0, 5) || "08:00";
+      const bEnd = b.time_end?.substring(0, 5) || "17:00";
+      return Math.max(toMin(startTime), toMin(bStart)) < Math.min(toMin(endTime), toMin(bEnd));
+    });
+
+    if (conflict) {
+      alert(`Conflict Detected! ${selectedVenue.name} is already booked from ${formatTime12(conflict.time_start?.substring(0, 5))} to ${formatTime12(conflict.time_end?.substring(0, 5))} on ${conflict.date_of_usage?.substring(0, 10) || selectedDate}. You cannot proceed with this schedule.`);
       return;
     }
 

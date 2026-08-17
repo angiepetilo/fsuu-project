@@ -24,12 +24,18 @@ class VenueBookingService
     {
         return DB::transaction(function () use ($data) {
             $startDt = $data['start_datetime'] ?? ($data['date_of_usage'] . ' ' . ($data['time_start'] ?? '08:00:00'));
-            $endDt   = $data['end_datetime']   ?? ($data['date_of_usage'] . ' ' . ($data['time_end'] ?? '12:00:00'));
+            $reservationEndDate = $data['reservation_end_date'] ?? $data['end_date'] ?? ($data['date_of_usage'] ?? date('Y-m-d', strtotime($startDt)));
+            $endDt   = $data['end_datetime']   ?? ($reservationEndDate . ' ' . ($data['time_end'] ?? '12:00:00'));
 
             // Parse date, time_start, time_end
             $dateOfUsage = date('Y-m-d', strtotime($startDt));
+            $reservationEndDate = date('Y-m-d', strtotime($endDt));
             $timeStart   = date('H:i:s', strtotime($startDt));
             $timeEnd     = date('H:i:s', strtotime($endDt));
+
+            if (strtotime($endDt) <= strtotime($startDt)) {
+                throw new \InvalidArgumentException('Reservation end datetime must be strictly ahead of start datetime.');
+            }
 
             $venue = Venue::where('id', $data['venue_id'])
                 ->lockForUpdate()
@@ -39,13 +45,23 @@ class VenueBookingService
                 ->join('tracking_numbers', 'venue_bookings.tracking_number_id', '=', 'tracking_numbers.id')
                 ->where('venue_bookings.venue_id', $venue->id)
                 ->whereIn('tracking_numbers.status', ['pending', 'approved'])
-                ->where('venue_bookings.date_of_usage', $dateOfUsage)
-                ->where('venue_bookings.time_start', '<', $timeEnd)
-                ->where('venue_bookings.time_end', '>', $timeStart)
+                ->where(function ($q) use ($dateOfUsage, $reservationEndDate, $timeStart, $timeEnd) {
+                    $q->where(function ($sub) use ($dateOfUsage, $timeStart, $timeEnd) {
+                        $sub->where('venue_bookings.date_of_usage', '<=', $dateOfUsage)
+                            ->whereRaw('COALESCE(venue_bookings.reservation_end_date, venue_bookings.date_of_usage) >= ?', [$dateOfUsage])
+                            ->where('venue_bookings.time_start', '<', $timeEnd)
+                            ->where('venue_bookings.time_end', '>', $timeStart);
+                    })->orWhere(function ($sub2) use ($dateOfUsage, $reservationEndDate, $timeStart, $timeEnd) {
+                        $sub2->where('venue_bookings.date_of_usage', '<=', $reservationEndDate)
+                            ->whereRaw('COALESCE(venue_bookings.reservation_end_date, venue_bookings.date_of_usage) >= ?', [$dateOfUsage])
+                            ->where('venue_bookings.time_start', '<', $timeEnd)
+                            ->where('venue_bookings.time_end', '>', $timeStart);
+                    });
+                })
                 ->exists();
 
             if ($hasOverlap) {
-                throw new VenueOverlapException();
+                throw new VenueOverlapException('This venue is already booked for the selected date and time range.');
             }
 
             $referenceCode = 'TRK-AVR' . rand(1000, 9999);
