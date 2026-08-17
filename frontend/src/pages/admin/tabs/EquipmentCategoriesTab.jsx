@@ -268,7 +268,7 @@ export default function EquipmentCategoriesTab({ showMsg }) {
         <table className="w-full text-xs">
           <thead>
             <tr className="border-b border-slate-100 text-left text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider">
-              {["#", "Avatar", "Equipment Category", "Total Stock", "Qty Present", "Released", "Damaged", "Lost", "Actions"].map((h) => (
+              {["#", "Avatar", "Equipment Category", "Total Stock", "Qty Present", "Reserved", "Released", "Damaged", "Lost", "Actions"].map((h) => (
                 <th key={h} className="px-4 py-3 whitespace-nowrap">
                   {h}
                 </th>
@@ -280,7 +280,7 @@ export default function EquipmentCategoriesTab({ showMsg }) {
             {isSuperAdmin && pendingRequests.length > 0 && (
               <>
                 <tr className="bg-amber-50/70 border-b border-amber-200/90 text-amber-900">
-                  <td colSpan={9} className="px-4 py-2 font-extrabold text-[11px] uppercase tracking-wider">
+                  <td colSpan={10} className="px-4 py-2 font-extrabold text-[11px] uppercase tracking-wider">
                     <div className="flex items-center justify-between">
                       <span className="flex items-center gap-2">
                         <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
@@ -302,14 +302,15 @@ export default function EquipmentCategoriesTab({ showMsg }) {
                         <Package size={16} />
                       </div>
                     </td>
-                    <td className="px-4 py-3">
-                      <span className="font-extrabold text-slate-600 text-xs block">{req.proposed_name}</span>
-                      <span className="text-[10.5px] text-slate-400 font-mono">AV Equipment</span>
-                      <span className="text-[10px] text-slate-400 font-mono block mt-0.5 italic">
+                    <td className="px-4 py-3 max-w-[200px]">
+                      <span className="font-extrabold text-slate-600 text-xs block truncate" title={req.proposed_name}>{req.proposed_name}</span>
+                      <span className="text-[10.5px] text-slate-400 font-mono truncate block">AV Equipment</span>
+                      <span className="text-[10px] text-slate-400 font-mono block mt-0.5 italic truncate">
                         Requested by {req.requester?.name || "Admin"}
                       </span>
                     </td>
                     <td className="px-4 py-3 font-mono font-bold text-slate-600">0</td>
+                    <td className="px-4 py-3 font-mono font-bold text-slate-400">0</td>
                     <td className="px-4 py-3 font-mono font-bold text-slate-400">0</td>
                     <td className="px-4 py-3 font-mono font-bold text-slate-400">0</td>
                     <td className="px-4 py-3 font-mono font-bold text-slate-400">0</td>
@@ -341,13 +342,13 @@ export default function EquipmentCategoriesTab({ showMsg }) {
 
             {loading ? (
               <tr>
-                <td colSpan={9} className="text-center py-10 text-slate-400 font-medium">
+                <td colSpan={10} className="text-center py-10 text-slate-400 font-medium">
                   <Loader2 size={16} className="animate-spin inline mr-2 text-slate-600" /> Loading catalog...
                 </td>
               </tr>
             ) : categories.length === 0 && pendingRequests.length === 0 ? (
               <tr>
-                <td colSpan={9} className="text-center py-10 text-slate-400 font-medium">
+                <td colSpan={10} className="text-center py-10 text-slate-400 font-medium">
                   No equipment categories registered.
                 </td>
               </tr>
@@ -358,6 +359,7 @@ export default function EquipmentCategoriesTab({ showMsg }) {
                 const released = cat.released_count || 0;
                 const damaged = cat.damaged_count || 0;
                 const lost = cat.lost_count || 0;
+                const reserved = cat.reserved_count || cat.reserved || 0;
                 const available = typeof cat.available_count === "number" ? cat.available_count : Math.max(0, total - released - damaged - lost);
 
                 return (
@@ -372,11 +374,11 @@ export default function EquipmentCategoriesTab({ showMsg }) {
                         )}
                       </div>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 max-w-[200px]">
                       <div className="flex items-center gap-2">
-                        <span className="font-extrabold text-slate-900 text-xs">{cat.eq_name || cat.name}</span>
+                        <span className="font-extrabold text-slate-900 text-xs truncate" title={cat.eq_name || cat.name}>{cat.eq_name || cat.name}</span>
                       </div>
-                      <span className="text-[10.5px] text-slate-500 font-mono">{cat.eq_type || "AV Equipment"}</span>
+                      <span className="text-[10.5px] text-slate-500 font-mono truncate block" title={cat.eq_type || "AV Equipment"}>{cat.eq_type || "AV Equipment"}</span>
                     </td>
                     <td className="px-4 py-3 font-mono font-bold text-slate-900">
                       <span className="bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200">
@@ -386,6 +388,13 @@ export default function EquipmentCategoriesTab({ showMsg }) {
                     <td className="px-4 py-3 font-mono font-extrabold text-emerald-700">
                       <span className="bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200 inline-flex items-center gap-1">
                         ● {available}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 font-mono font-bold text-indigo-700">
+                      <span className={`px-2.5 py-1 rounded-lg border inline-flex items-center gap-1 ${
+                        reserved > 0 ? "bg-indigo-50 border-indigo-200 text-indigo-700 font-extrabold" : "bg-slate-50 border-slate-200 text-slate-400"
+                      }`}>
+                        {reserved > 0 ? `● ${reserved}` : "0"}
                       </span>
                     </td>
                     <td className="px-4 py-3 font-mono font-bold text-blue-700">

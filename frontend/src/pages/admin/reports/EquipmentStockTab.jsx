@@ -219,24 +219,10 @@ export default function EquipmentStockTab({
                 <th className="py-3 px-4">CATEGORY</th>
                 <th className="py-3 px-4 text-center">QTY EXPECTED</th>
                 <th className="py-3 px-4 text-center">QTY PRESENT</th>
-                <th className="py-3 px-4 text-center">
-                  <span className="flex items-center justify-center gap-1">
-                    RELEASED
-                    <span className="text-[8px] font-bold text-blue-400 bg-blue-50 border border-blue-200 px-1 py-0.5 rounded normal-case">auto</span>
-                  </span>
-                </th>
-                <th className="py-3 px-4 text-center">
-                  <span className="flex items-center justify-center gap-1">
-                    DAMAGED
-                    <span className="text-[8px] font-bold text-rose-400 bg-rose-50 border border-rose-200 px-1 py-0.5 rounded normal-case">auto</span>
-                  </span>
-                </th>
-                <th className="py-3 px-4 text-center">
-                  <span className="flex items-center justify-center gap-1">
-                    LOST
-                    <span className="text-[8px] font-bold text-amber-500 bg-amber-50 border border-amber-200 px-1 py-0.5 rounded normal-case">auto</span>
-                  </span>
-                </th>
+                <th className="py-3 px-4 text-center">RESERVED</th>
+                <th className="py-3 px-4 text-center">RELEASED</th>
+                <th className="py-3 px-4 text-center">DAMAGED</th>
+                <th className="py-3 px-4 text-center">LOST</th>
                 <th className="py-3 px-4">NOTES</th>
                 <th className="py-3 px-4 text-center">OVERRIDE</th>
               </tr>
@@ -244,13 +230,13 @@ export default function EquipmentStockTab({
             <tbody className="divide-y divide-slate-100 font-semibold text-xs">
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="text-center py-12 text-slate-400">
+                  <td colSpan={10} className="text-center py-12 text-slate-400">
                     <Loader2 size={20} className="animate-spin inline mr-2" /> Loading inventory items...
                   </td>
                 </tr>
               ) : filteredInventory.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="text-center py-12 text-slate-400">
+                  <td colSpan={10} className="text-center py-12 text-slate-400">
                     No inventory items registered yet.
                   </td>
                 </tr>
@@ -267,6 +253,7 @@ export default function EquipmentStockTab({
                   const initialReleased = Math.max(0, typeof item.released_count === 'number' ? item.released_count : 0);
                   const totalDamaged = Math.max(0, typeof item.damaged_count === 'number' ? item.damaged_count : 0);
                   const totalLost = Math.max(0, typeof item.lost_count === 'number' ? item.lost_count : 0);
+                  const totalReserved = Math.max(0, typeof item.reserved_count === 'number' ? item.reserved_count : (typeof item.reserved === 'number' ? item.reserved : 0));
 
                   const draft = inventoryDrafts[key] || {};
                   const currentReleased = draft.qty_released ?? initialReleased;
@@ -287,11 +274,20 @@ export default function EquipmentStockTab({
                   return (
                     <tr key={key || idx} className={`transition-colors ${overrideRows.has(key) ? "bg-amber-50/40 border-l-2 border-amber-300" : "hover:bg-slate-50/60"}`}>
                       <td className="py-3.5 px-4 font-mono font-bold text-slate-600 whitespace-nowrap">{itemCode}</td>
-                      <td className="py-3.5 px-4 font-bold text-slate-900 whitespace-nowrap">{categoryName}</td>
+                      <td className="py-3.5 px-4 font-bold text-slate-900 max-w-[220px] truncate" title={categoryName}>{categoryName}</td>
                       <td className="py-3.5 px-4 text-center font-extrabold text-slate-900 text-sm">{expectedQty}</td>
                       
                       <td className="py-3.5 px-4 text-center font-extrabold text-sm text-emerald-600">
                         {availablePresent}
+                      </td>
+
+                      {/* RESERVED */}
+                      <td className="py-3.5 px-4 text-center">
+                        <span className={`inline-flex items-center justify-center min-w-[32px] px-2.5 py-0.5 rounded-full text-xs font-extrabold border ${
+                          totalReserved > 0
+                            ? "bg-indigo-50 text-indigo-700 border-indigo-200"
+                            : "bg-slate-50 text-slate-400 border-slate-200"
+                        }`}>{totalReserved}</span>
                       </td>
 
                       {/* RELEASED — read-only by default, unlocked only in Override mode */}
@@ -346,13 +342,14 @@ export default function EquipmentStockTab({
                       </td>
 
                       {/* NOTES — always editable */}
-                      <td className="py-4 px-4">
+                      <td className="py-4 px-4 max-w-[200px]">
                         <input
                           type="text"
                           placeholder="Notes..."
                           value={currentDraft.notes}
                           onChange={(e) => handleNotesChange(key, e.target.value)}
-                          className="w-full px-3 py-1.5 border border-slate-200 rounded-xl bg-white text-xs font-medium focus:outline-none focus:border-blue-600 shadow-xs"
+                          title={currentDraft.notes}
+                          className="w-full px-3 py-1.5 border border-slate-200 rounded-xl bg-white text-xs font-medium focus:outline-none focus:border-blue-600 shadow-xs truncate"
                         />
                       </td>
 

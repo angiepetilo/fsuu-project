@@ -205,9 +205,9 @@ export default function VenuesTab({ showMsg }) {
                       )}
                     </div>
                   </td>
-                  <td className="px-4 py-3.5">
-                    <span className="font-extrabold text-slate-900 text-sm block">{v.name}</span>
-                    {v.location && <span className="text-[11px] text-slate-500 font-medium block">{v.location} (Capacity: {v.capacity || 100})</span>}
+                  <td className="px-4 py-3.5 max-w-[240px]">
+                    <span className="font-extrabold text-slate-900 text-sm block truncate" title={v.name}>{v.name}</span>
+                    {v.location && <span className="text-[11px] text-slate-500 font-medium block truncate" title={`${v.location} (Capacity: ${v.capacity || 100})`}>{v.location} (Capacity: {v.capacity || 100})</span>}
                   </td>
                   <td className="px-4 py-3.5">
                     <span className={`inline-flex px-2.5 py-0.5 rounded-full text-[10px] font-extrabold capitalize border ${

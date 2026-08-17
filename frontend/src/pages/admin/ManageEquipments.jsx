@@ -432,9 +432,9 @@ export default function ManageEquipments() {
                           </button>
                         </div>
                       </td>
-                      <td className="px-4 py-3.5 font-extrabold text-slate-900">{item.name}</td>
-                      <td className="px-4 py-3.5 font-bold text-blue-700">
-                        <span className="bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-200/60 block w-fit">
+                      <td className="px-4 py-3.5 font-extrabold text-slate-900 max-w-[200px] truncate" title={item.name}>{item.name}</td>
+                      <td className="px-4 py-3.5 font-bold text-blue-700 max-w-[180px]">
+                        <span className="bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-200/60 block w-fit max-w-full truncate" title={item.category}>
                           {item.category}
                         </span>
                       </td>

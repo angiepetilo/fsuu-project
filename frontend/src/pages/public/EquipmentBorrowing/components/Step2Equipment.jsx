@@ -130,6 +130,7 @@ export default function Step2Equipment({
               const isDamagedOrLost = item.status === "damaged" || item.status === "lost";
               const availableTotal = getLiveStockCount(item);
               const selectedQty = isChecked ? (itemQuantities[item.id] || 1) : 0;
+              const remainingAvailable = isChecked ? Math.max(0, availableTotal - selectedQty) : availableTotal;
 
               const isAvailable = !isMaintenance && !isDamagedOrLost && item.is_available !== false && availableTotal > 0;
 
@@ -153,16 +154,16 @@ export default function Step2Equipment({
                     {/* Top Image / Placeholder Box (Screenshot 1) */}
                     <div className="w-full min-h-[160px] bg-blue-50/70 border border-blue-100/80 rounded-3xl p-6 flex flex-col items-center justify-center text-center">
                       <PackageOpen size={44} className="text-blue-600 mb-2.5 shrink-0" />
-                      <span className="text-blue-950 font-extrabold text-sm leading-snug line-clamp-2">
+                      <span className="text-blue-950 font-extrabold text-sm leading-snug line-clamp-2" title={item.name}>
                         {item.name}
                       </span>
                     </div>
 
                     {/* Equipment Metadata (Screenshot 1) */}
                     <div className="mt-4 space-y-1">
-                      <h4 className="font-extrabold text-slate-900 text-sm leading-tight line-clamp-1">{item.name}</h4>
-                      <p className="text-xs font-bold text-emerald-600">
-                        {availableTotal} Available
+                      <h4 className="font-extrabold text-slate-900 text-sm leading-tight truncate" title={item.name}>{item.name}</h4>
+                      <p className={`text-xs font-bold ${remainingAvailable === 0 ? "text-amber-600" : "text-emerald-600"}`}>
+                        {remainingAvailable} Available
                       </p>
                     </div>
                   </div>
