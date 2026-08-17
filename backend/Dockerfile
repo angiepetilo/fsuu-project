@@ -25,11 +25,25 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 # Set working directory
 WORKDIR /var/www
 
+# Configure Composer environment settings for resilient network downloads
+ENV COMPOSER_ALLOW_SUPERUSER=1 \
+    COMPOSER_PROCESS_TIMEOUT=2000 \
+    COMPOSER_MAX_PARALLEL_HTTP=6
+
+# Copy composer files first for optimal Docker layer caching
+COPY composer.json composer.lock* /var/www/
+
+# Install Composer dependencies with retries and fallback
+RUN composer config --global process-timeout 2000 && \
+    (composer install --no-dev --no-scripts --no-autoloader --no-interaction --prefer-dist || \
+     composer install --no-dev --no-scripts --no-autoloader --no-interaction --prefer-dist || \
+     composer install --no-dev --no-scripts --no-autoloader --no-interaction)
+
 # Copy existing application code
 COPY . /var/www
 
-# Install Composer dependencies
-RUN composer install --no-dev --optimize-autoloader --no-interaction
+# Generate optimized classmap autoloader
+RUN composer dump-autoload --optimize --no-dev
 
 # Ensure .env file exists and setup permissions
 RUN cp .env.example .env && \

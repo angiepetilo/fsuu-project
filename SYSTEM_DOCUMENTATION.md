@@ -1,9 +1,9 @@
 # Father Saturnino Urios University (FSUU)
 ## Automated Venue Reservation & Equipment Borrowing Management System
-# FSUU Facilities & Equipment Reservation System — System Documentation (v2.2.0)
+# FSUU Facilities & Equipment Reservation System — System Documentation (v2.3.0)
 
 ## Overview & Architecture
-This platform provides multi-office, role-based reservation management for Father Saturnino Urios University (FSUU). It handles **Venue Bookings** and **Equipment Borrowings** with real-time stock computation, physical unit barcode tracking, department breach analytics, and **instant WebSocket broadcasting via Pusher & Laravel Echo**.
+This platform provides multi-office, role-based reservation management for Father Saturnino Urios University (FSUU). It handles **Venue Bookings** and **Equipment Borrowings** with real-time stock computation, physical unit barcode tracking, department breach analytics, strict schedule collision prevention, automated email confirmation with tracking codes, and **instant WebSocket broadcasting via Pusher & Laravel Echo**.
 
 ---
 
@@ -28,7 +28,9 @@ The **FSUU Automated Venue Reservation & Equipment Borrowing Management System**
 
 ### Primary Objectives:
 - **Public Convenience**: Enable students, faculty, staff, and external clients to easily book campus venues and borrow institutional equipment online with real-time availability checks.
-- **Conflict Prevention**: Eliminate double-booking of venues and over-borrowing of equipment using real-time Gantt timeline matrices and time-slot collision detection.
+- **Strict Collision & Double-Booking Prevention**: Prohibit overlapping bookings on the same venue, date, and time slot. Prevent users from advancing to detail entry if a conflict is detected.
+- **End-to-End Email Notifications**: Automatically dispatch rich email receipts containing the official Tracking Reference Code, venue details, scheduled dates/times, and direct status lookup links.
+- **Document & Endorsement Verification**: Seamlessly upload and preview signed endorsement letters (PDF/PNG/JPG) with Cloudinary cloud storage and direct admin lightbox verification.
 - **Granular Asset Accountability**: Track physical equipment down to unique serial barcodes (e.g., `MAIN-PRJ-001`), monitoring individual equipment conditions (*Good*, *Damaged*, *Lost*) through mandatory post-event inspections.
 - **Multi-Category & Multi-Unit Support**: Seamlessly support borrowing requests containing multiple equipment categories with multiple physical units, tracking each unit's individual inspection outcome.
 - **Institutional Department Governance**: Automatically charge and monitor policy breaches, damaged assets, lost items, and overdue returns against the university's 9 academic colleges.
@@ -44,18 +46,18 @@ The **FSUU Automated Venue Reservation & Equipment Borrowing Management System**
 |  React 18  *  Vite  *  Tailwind CSS  *  Lucide Icons  *  Axios       |
 +-----------------------------------------------------------------------+
                                   |
-                                  | REST API (JSON / Multipart)
+                                  | REST API (JSON / Multipart Form-Data)
                                   v
 +-----------------------------------------------------------------------+
 |                          APPLICATION LAYER                            |
 |  Laravel 11 (PHP 8.2+)  *  Sanctum Auth  *  Form Requests  * Policies |
 +-----------------------------------------------------------------------+
                                   |
-                                  | Eloquent ORM
+                                  | Eloquent ORM / Query Builder
                                   v
 +-----------------------------------------------------------------------+
 |                           DATABASE LAYER                              |
-|  MySQL / MariaDB / SQLite (Relational Schema, Soft Deletes, FKs)      |
+|  MySQL / MariaDB / SQLite / TiDB (Relational Schema, Soft Deletes)    |
 +-----------------------------------------------------------------------+
 ```
 
@@ -69,7 +71,8 @@ The **FSUU Automated Venue Reservation & Equipment Borrowing Management System**
 - **Framework**: Laravel 11.
 - **Authentication**: Laravel Sanctum (token-based API authentication) and Google OAuth 2.0.
 - **Authorization**: Granular Policy classes (`VenueBookingPolicy`, `EquipmentBorrowingPolicy`).
-- **Database Abstraction**: Eloquent ORM with soft-delete archiving (`archived_at`).
+- **Cloud Media Storage**: Cloudinary integration (`MediaUploadService`) with fallback to local public disk.
+- **Mail Pipeline**: Queueable Mails (`BookingConfirmationMail`, `BookingStatusUpdateMail`) with dual-mailer retry (Resend / SMTP).
 - **Analytics & History**: `HistoryLogService`, `DepartmentAnalyticsController`, and `InspectionService`.
 
 ---
@@ -94,8 +97,8 @@ The system is seeded and configured to support the 9 official colleges of Father
 
 | Role | Identifiers | Scope & Responsibilities | Portal URL |
 | :--- | :--- | :--- | :--- |
-| **Public User** | Unauthenticated | Submits venue reservations, files equipment requests, and tracks request status via Reference Code. | `/`, `/book-venue`, `/borrow-equipment`, `/track` |
-| **Staff** | `role: staff` | Handles day-to-day front desk operations: scans/assigns unit barcodes, marks requests as *On-Going* (release), and performs post-inspections. | `/admin/*` |
+| **Public User** | Unauthenticated | Submits venue reservations, files equipment requests, uploads endorsements, and tracks request status via Reference Code. | `/`, `/book-venue`, `/borrow-equipment`, `/track` |
+| **Staff** | `role: staff` | Handles day-to-day front desk operations: scans/assigns unit barcodes, verifies endorsement letters, marks requests as *On-Going* (release), and performs post-inspections. | `/admin/*` |
 | **Office Manager (Admin)** | `role: admin` | Manages facility operations: reviews & approves/rejects bookings, manages venue catalog, requests new equipment categories, and oversees staff. | `/admin/*` |
 | **Super Admin (SysAd)** | `role: super_admin` | Full institutional authority: manages user accounts/invitations, approves equipment categories, configures operating hours, sets fee matrices, and oversees global audit logs. | `/sysad/*` |
 
@@ -122,30 +125,63 @@ graph TD
 
 ---
 
-### 5.2. Public Venue Reservation Workflow
+### 5.2. Public Venue Reservation Workflow (Updated System Flow)
 
 ```mermaid
 graph TD
-    V1["1. Select Date & Time Window"] --> V2["2. Select Venue (Filtered by Availability)"]
-    V2 --> V3["3. Select Equipment Add-ons (Optional)"]
-    V3 --> V4["4. Fill Requestor Details & Department"]
-    V4 --> V5["5. Submit Booking -> Receive Tracking Code & Email"]
-    V5 --> V6["6. Admin Reviews & Approves Booking"]
-    V6 --> V7["7. Staff Assigns Physical Equipment Barcodes"]
-    V7 --> V8["8. Event Starts -> Set 'On-Going' (Stock Released)"]
-    V8 --> V9["9. Event Ends -> Conduct Post-Inspection (Good / Damaged / Lost)"]
-    V9 --> V10["10. Booking Completed & Archived in History Log"]
+    S1["Step 1: Role / Identity Selection<br>(Student / Faculty / External / Admin)"] --> S2["Step 2: Venue Selection, Date & Time Picker<br>+ Live Schedule Collision Checking"]
+    S2 --> S2A{"Collision or Invalid Range?"}
+    S2A -- "Yes (Overlapping Booking / Past / End < Start)" --> S2B["BLOCK Proceeding<br>Disable 'Next: Fill Details' Button<br>Show Red Warning Banner"]
+    S2A -- "No (Available & Valid)" --> S2C{"Requires Admin PIN?<br>(Outside Hours / Multi-Day / External)"}
+    S2C -- "Yes" --> S2D["Prompt Admin Verification PIN Modal"]
+    S2D --> S3["Step 3: Filer & Event Details<br>+ Equipment Add-On Selection"]
+    S2C -- "No" --> S3
+    S3 --> S4["Step 4: Endorsement Letter Upload<br>(PDF/PNG/JPG) & Policy Agreement"]
+    S4 --> S5["Submission (Multipart/Form-Data)<br>Pessimistic Lock & Overlap Validation"]
+    S5 --> S6["Generate Tracking Code (TRK-AVR...)<br>Save to Documents Table<br>Dispatch Real-Time WebSocket Event"]
+    S6 --> S7["Send Automated Confirmation Email<br>to Requestor with Tracking Code & Schedule"]
+    S7 --> S8["Admin/Staff Portal Review<br>View Accurate Endorsement Preview<br>Approve / Reject / Assign Equipment"]
+    S8 --> S9["Event Concludes -> Conduct Post-Inspection<br>Archive Record in History Log"]
 ```
+
+#### Detailed Breakdown of Venue Reservation Steps:
+
+1. **Step 1 — Identity & Role Selection**:
+   - The filer selects their institutional identity: *Student*, *Faculty / Staff*, *External Client*, or *Admin Walk-in*.
+2. **Step 2 — Venue Selection, Multi-Day Extensions & Conflict Validation**:
+   - **Calendar Availability**: Calendar displays color-coded badges (*Available*, *Partially Booked*, *Fully Booked*).
+   - **Real-Time Overlap Detection**: As soon as a venue, date, start time, end time, and optional multi-day end date are selected, the system calculates time-slot intersections against all active (`pending`, `approved`) reservations.
+   - **Strict Automatic Blocking**: If an overlapping reservation exists:
+     - A prominent red banner informs the user: *"Time Slot Blocked / Already Reserved! [Venue] is already booked on [Date] from [Start Time] to [End Time]. You cannot proceed to fill details for an overlapping schedule."*
+     - The **"Next: Fill Details"** button is **automatically disabled**.
+     - `handleStep2Next()` prevents advancing to Step 3.
+   - **Multi-Day End Date Rule**: `Reservation End Date` must be equal to or ahead of `date_of_usage` (`min={selectedDate}`). `timeEnd` must be strictly later than `timeStart` on single-day bookings.
+   - **Verification PIN Modal**: If the booking spans multiple days, falls outside official hours (7:30 AM – 5:00 PM), or is requested by an external client, an AVR Head / Admin Authorization PIN is required.
+3. **Step 3 — Filer Information & Equipment Selection**:
+   - Filer enters Full Name, Email Address, Contact Number, Academic Department/Office, Event Purpose, and Expected Attendee Count.
+   - Selects optional AVR equipment add-ons (Projectors, HDMI cables, Projector Screens, Microphones) with real-time stock limits.
+4. **Step 4 — Endorsement Document Upload & Policy Agreement**:
+   - Filer uploads signed endorsement letter / clearance document (PDF, PNG, JPG up to 10MB).
+   - Checks the institutional policy and safety rules acknowledgment checkbox.
+5. **Backend Processing & Email Dispatch**:
+   - `VenueBookingController` uploads the file via `MediaUploadService` to Cloudinary/Local storage.
+   - `VenueBookingService` executes a `lockForUpdate()` transaction, re-verifies date/time collision, generates a unique Tracking Reference Code (`TRK-AVR####`), and inserts the record into `venue_bookings`, `documents`, and `tracking_numbers`.
+   - `SendBookingConfirmationJob` eagerly loads relational models and sends `BookingConfirmationMail` to the requestor with full venue details and tracking link.
+   - Pusher broadcasts `booking.created` to admin dashboards.
+6. **Admin Verification & Lightbox Modal**:
+   - Office Managers view the booking in the Admin portal.
+   - [VenueBookingInfo.jsx](file:///c:/Booking%20system/frontend/src/pages/admin/components/booking-modal/VenueBookingInfo.jsx) resolves the exact uploaded endorsement document directly from `selected.endorsement_url` or `documents` table without placeholder image corruption.
+   - Clicking "Open Document" or "Open External" in [EvidenceLightboxModal.jsx](file:///c:/Booking%20system/frontend/src/pages/admin/components/booking-modal/EvidenceLightboxModal.jsx) opens the original PDF or image in high definition.
 
 ---
 
 ### 5.3. Public Equipment Borrowing Workflow
 
-1. **Step 1 (Usage Date & Time)**: Borrower selects usage date and pickup/return times.
+1. **Step 1 (Usage Date & Time)**: Borrower selects usage date, start/pickup time, and return time.
 2. **Step 2 (Equipment Selection)**: Borrower browses equipment category cards and specifies requested quantities. The available counter live-decrements as the user increments selection quantity:
    $$\text{Remaining Available} = \max(0, \text{Total Available} - \text{Selected Quantity})$$
-3. **Step 3 (Filer Details & Place of Use)**: Borrower inputs contact information, college/program, campus place of use, and purpose.
-4. **Submission**: Tracking number generated, notification sent, and status set to `PENDING`.
+3. **Step 3 (Filer Details & Place of Use)**: Borrower inputs contact information, college/program, campus place of use, purpose, and attaches endorsement document.
+4. **Submission**: Unique tracking number generated (`EQ-2026-####`), confirmation email dispatched, and status set to `PENDING`.
 
 ---
 
@@ -178,21 +214,16 @@ flowchart TD
 2. **Hand-over / Event Start (`Status: ON-GOING`)**:
    - Staff clicks **"Set On-Going / Release"**.
    - Unit barcodes transition to status `released` / `borrowed`.
-   - **Stock Count Adjustment**:
-     - `RESERVED` decrements to 0.
-     - `RELEASED` increases by assigned quantity.
+   - `RESERVED` decrements to 0; `RELEASED` increases by assigned quantity.
 3. **Return & Post-Inspection (`Status: COMPLETED`)**:
-   - Staff inspects each unit independently:
-     - **Good**: Unit status returns to `available`, condition `Good`. `QTY PRESENT` restored.
-     - **Damaged**: Unit status set to `damaged`, condition `Damaged`. Category stock increments `DAMAGED +1`, `QTY PRESENT` decremented.
-     - **Lost**: Unit status set to `lost`, condition `Lost`. Category stock increments `LOST +1`.
+   - Staff inspects each unit independently (*Good*, *Damaged*, *Lost*).
    - **Timeliness Check**: Staff records if returned *On Time* or *Late Return* (with minutes overdue).
 
 ---
 
 ### 5.5. Multi-Category & Multi-Unit Inspection Tracking
 
-When a single borrowing contains **multiple categories** (e.g., Projector, Microphone, Cable) and **multiple units per category**, the system records every unit individually:
+When a single borrowing contains **multiple categories** and **multiple units per category**, the system records every unit individually:
 
 ```json
 {
@@ -211,33 +242,50 @@ When a single borrowing contains **multiple categories** (e.g., Projector, Micro
 }
 ```
 
-- Each physical barcode is updated in `equipment_units` table without cross-contamination.
-- In the **History Log Modal**, each unit renders its exact condition badge (`GOOD`, `DAMAGED`, `LOST`).
+---
+
+## 6. Seeded Facilities & Master Equipment Inventory
+
+### 6.1. Seeded Venues
+| Venue Name | Seating Capacity | Location | Type |
+| :--- | :--- | :--- | :--- |
+| **AVR 1 (Audio-Visual Room 1)** | 100 persons | FSUU Main Campus | AVR / Conference |
+| **AVR 2 (Audio-Visual Room 2)** | 300 persons | FSUU Main Campus | Auditorium / Large AVR |
+| **HAGGENBURG HALL** | 400 persons | FSUU Main Campus | Grand Multi-purpose Hall |
+
+### 6.2. Seeded Equipment Categories
+| Equipment Category | Unit Code Prefix | Default Stock | Barcode Examples |
+| :--- | :--- | :--- | :--- |
+| **Projector** | `PRJ` | 5 units | `MAIN-PRJ-001` to `MAIN-PRJ-005` |
+| **HDMI** | `HDMI` | 5 units | `MAIN-HDMI-001` to `MAIN-HDMI-005` |
+| **Projector Screen** | `SCR` | 5 units | `MAIN-SCR-001` to `MAIN-SCR-005` |
+| **Camera** | `CAM` | 5 units | `MAIN-CAM-001` to `MAIN-CAM-005` |
+| **Microphone** | `MIC` | 5 units | `MAIN-MIC-001` to `MAIN-MIC-005` |
+| **Wireless Microphone** | `WMIC` | 5 units | `MAIN-WMIC-001` to `MAIN-WMIC-005` |
 
 ---
 
-## 6. Core System Modules & Features
+## 7. Core System Modules & Features
 
-### 6.1. Public Portal
+### 7.1. Public Portal
 - **Landing Page (`/`)**: Gateway for venue booking, equipment borrowing, and status tracking.
-- **Venue Booking Form (`/book-venue`)**: Multi-step wizard with real-time schedule conflict validation.
-- **Equipment Borrowing Form (`/borrow-equipment`)**: Multi-step wizard with live stock calculation per time window.
+- **Venue Booking Form (`/book-venue`)**: 4-step wizard with live collision blocking, multi-day support, and endorsement letter upload.
+- **Equipment Borrowing Form (`/borrow-equipment`)**: 3-step wizard with live stock calculation per time window.
 - **Tracking & Status Lookup (`/track`)**: Public tracking portal allowing requestors to view progress, approvals, and claim details using their Reference Code.
 
-### 6.2. Facility & Venue Management (`/admin/manage-venues`)
+### 7.2. Facility & Venue Management (`/admin/manage-venues`)
 - Create, update, and soft-delete university venues.
 - Configure seating capacities, room amenities, and facility photos.
 - 12-column responsive layout (7-col calendar, 5-col form) with plain minimalist cards.
-- Isolated venue availability overrides strictly keyed by `${venueId}_${date}` to prevent cross-venue schedule leakage.
+- Isolated venue availability overrides strictly keyed by `${venueId}_${date}`.
 - Gantt Timeline Matrix calibrated strictly to operating hours (7:00 AM – 7:00 PM).
 
-### 6.3. Equipment & Inventory Management (`/admin/manage-equipments`)
+### 7.3. Equipment & Inventory Management (`/admin/manage-equipments`)
 - Register physical units with unique barcodes, serial numbers, purchase dates, and lifespan years.
 - Live inventory stock table showing **Item No.**, **Category**, **Total Stock**, **Qty Present**, **Reserved**, **Released**, **Damaged**, and **Lost**.
-- Ellipsis text truncation with full hover tooltips.
 - Direct barcode copy-to-clipboard functionality.
 
-### 6.4. Reports & Departmental Analytics (`/admin/reports`)
+### 7.4. Reports & Departmental Analytics (`/admin/reports`)
 - **Booking & Borrowing Reports Tab**: Comprehensive table showing all historical bookings and borrowings with `CLEAN` or `VIOLATION` outcome tags.
 - **Rule & Late Violations Tab (`BreachesTab`)**: Real-time analytics breakdown tracking departmental violations across 4 categories:
   1. *Venue Violations & Facility Damage*
@@ -246,7 +294,7 @@ When a single borrowing contains **multiple categories** (e.g., Projector, Micro
   4. *Equipment Lost*
 - **Equipment Stock Tab**: Live synchronization of physical units with master categories.
 
-### 6.5. Super Admin System Control (`/sysad/settings`)
+### 7.5. Super Admin System Control (`/sysad/settings`)
 - **User Management**: Invite staff, assign roles (`staff`, `admin`, `super_admin`), and toggle permissions.
 - **Equipment Catalog**: Approve category requests and manage master categories.
 - **Venue Catalog**: Manage university-wide facilities and room configurations.
@@ -257,7 +305,7 @@ When a single borrowing contains **multiple categories** (e.g., Projector, Micro
 
 ---
 
-## 7. Database Schema & Key Data Models
+## 8. Database Schema & Key Data Models
 
 ```
 +-------------------+       +-----------------------+       +---------------------+
@@ -282,38 +330,44 @@ When a single borrowing contains **multiple categories** (e.g., Projector, Micro
 | reservation_id    |       | email_address         |                  |
 | approved_by       |       | program_office (dept) |                  |
 +-------------------+       | date_of_usage         |                  |
-                            | time_start / time_end |                  |
-                            | assigned_units (JSON) |------------------+
-                            +-----------------------+                  |
-                                                                       |
+                            | reservation_end_date  |                  |
++-------------------+       | time_start / time_end |                  |
+|     documents     |       | assigned_units (JSON) |------------------+
 +-------------------+       +-----------------------+                  |
-|    inspections    |       |   equipment_borrows   |                  |
-+-------------------+       +-----------------------+                  |
-| id (PK)           |       | id (PK)               |                  |
-| inspectable_type  |       | tracking_number_id    |                  |
-| inspectable_id    |       | filer_name            |                  |
-| condition         |       | program_office (dept) |                  |
-| is_late (boolean) |       | date_of_usage         |                  |
-| minutes_late      |       | time_start / time_end |                  |
-| violation_type    |       | assigned_units (JSON) |------------------+
-| unit_conditions   |       +-----------------------+
+| id (PK)           |                                                  |
+| venue_booking_id  |       +-----------------------+                  |
+| file_path         |       |   equipment_borrows   |                  |
+| document_type     |       +-----------------------+                  |
++-------------------+       | id (PK)               |                  |
+                            | tracking_number_id    |                  |
++-------------------+       | filer_name            |                  |
+|    inspections    |       | program_office (dept) |                  |
++-------------------+       | date_of_usage         |                  |
+| id (PK)           |       | time_start / time_end |                  |
+| inspectable_type  |       | assigned_units (JSON) |------------------+
+| inspectable_id    |       +-----------------------+
+| condition         |
+| is_late (boolean) |
+| minutes_late      |
+| violation_type    |
+| unit_conditions   |
 | notes             |
 +-------------------+
 ```
 
 ---
 
-## 8. API Route Reference
+## 9. API Route Reference
 
 ### Public Routes (`/api/public/*`)
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
 | `GET` | `/public/venues` | Lists all active venues for public booking |
+| `GET` | `/public/venue-bookings` | Lists pending/approved reservations for calendar collision checks |
 | `GET` | `/public/equipment-types` | Lists equipment categories with live dynamic stock |
 | `GET` | `/public/departments` | Lists academic departments and colleges |
-| `GET` | `/public/venue-availability` | Checks venue schedule availability |
 | `GET` | `/public/operating-hours` | Gets current institutional operating hours |
-| `POST` | `/public/avr-venue-bookings` | Submits a new venue reservation request |
+| `POST` | `/public/avr-venue-bookings` | Submits a new venue reservation request with endorsement file |
 | `POST` | `/public/avr-equipment-borrowings` | Submits a new equipment borrowing request |
 | `POST` | `/public/track` | Looks up booking status by Reference Code |
 
@@ -334,15 +388,15 @@ When a single borrowing contains **multiple categories** (e.g., Projector, Micro
 
 ## 10. Security, Data Protection & Maintenance
 
-1. **Authorization Policies**: All administrative endpoints enforce granular Laravel policies ensuring unauthorized users cannot approve or cancel requests.
-2. **Pessimistic Row Locking**: `->lockForUpdate()` is used during booking submissions inside `DB::transaction(...)` to eliminate race conditions and double-bookings.
-3. **Soft Deletes**: Critical assets (venues, physical units, bookings) utilize `SoftDeletes` (`archived_at` column) to prevent accidental permanent data loss.
-4. **Input Sanitization & Validation**: Form Requests validate all incoming payloads, enforcing string trimming, email format rules, and date boundaries.
-5. **Audit Trail Logging**: Every status transition and inspection outcome is logged in the `history_logs` and `inspections` tables with timestamp and actor metadata.
+1. **Pessimistic Row Locking**: `->lockForUpdate()` is used during booking submissions inside `DB::transaction(...)` to eliminate race conditions and double-bookings.
+2. **Strict Time Overlap Guarding**: Overlap validation runs on both client-side and server-side, evaluating single-day and multi-day date/time intersections.
+3. **Cloud Media Integrity**: Uploaded endorsements are uploaded to Cloudinary/local storage with HTTPS URLs and tied to the `documents` relational table, preventing placeholder image substitution.
+4. **Automated Notification Queue**: Queued mail jobs serialize booking relationships safely and use dual-mailer fallback (SMTP / Resend) to guarantee delivery of tracking codes.
+5. **Soft Deletes**: Critical assets utilize `SoftDeletes` (`archived_at` column) to prevent accidental permanent data loss.
 
 ---
 
-## 11. 🚀 Production Deployment Guide & Complete Environment Variables (Render & Vercel)
+## 11. Production Deployment Guide & Complete Environment Variables (Render & Vercel)
 
 ### 11.1. Render (Backend Laravel REST API) Environment Variables
 In your **Render Dashboard** $\rightarrow$ **Laravel Web Service** $\rightarrow$ **Environment**, configure the following keys:
@@ -352,12 +406,11 @@ In your **Render Dashboard** $\rightarrow$ **Laravel Web Service** $\rightarrow$
 | `APP_NAME` | `FSUU Reservation System` | Application institutional name |
 | `APP_ENV` | `production` | Production environment flag |
 | `APP_DEBUG` | `false` | Disables debug stacktraces in production |
-| `APP_KEY` | `base64:...` | Laravel 32-character encryption key (`php artisan key:generate`) |
+| `APP_KEY` | `base64:...` | Laravel encryption key (`php artisan key:generate`) |
 | `APP_URL` | `https://your-backend.onrender.com` | Live Render backend URL |
-| `FRONTEND_URL` | `https://your-frontend.vercel.app` | Live Vercel frontend URL for CORS & OAuth redirects |
+| `FRONTEND_URL` | `https://your-frontend.vercel.app` | Live Vercel frontend URL for CORS & tracking links |
 | `DB_CONNECTION` | `pgsql` / `mysql` / `sqlite` | Production database connection driver |
-| `DB_HOST` | `dpg-xxxx.render.com` | Database host (if using PostgreSQL/MySQL) |
-| `DB_PORT` | `5432` / `3306` | Database port |
+| `DB_HOST` | `dpg-xxxx.render.com` | Database host |
 | `DB_DATABASE` | `fsuu_booking_db` | Database schema name |
 | `DB_USERNAME` | `fsuu_user` | Database username |
 | `DB_PASSWORD` | `your_secure_db_password` | Database password |
@@ -366,10 +419,12 @@ In your **Render Dashboard** $\rightarrow$ **Laravel Web Service** $\rightarrow$
 | `PUSHER_APP_KEY` | `89f3021817090b62bd2f` | Pusher public application key |
 | `PUSHER_APP_SECRET` | `65d7106cdb9b525a1bfc` | Pusher private application secret |
 | `PUSHER_APP_CLUSTER` | `ap1` | Pusher Asia-Pacific server cluster |
-| `PUSHER_SCHEME` | `https` | Forces SSL encrypted WebSocket transmission |
-| `CLOUDINARY_URL` | `cloudinary://243499257123114:Axo0_LVuSCam2Ojb98In0cY8mL0@tymkk5ea` | Cloudinary persistent media storage (venues, gear, PDFs) |
-| `MAIL_MAILER` | `resend` / `smtp` | Mail driver for sending confirmation & approval emails |
-| `RESEND_API_KEY` | `re_your_resend_api_key` | Resend API key for automated booking emails |
+| `CLOUDINARY_URL` | `cloudinary://243499257123114:Axo0_LVuSCam2Ojb98In0cY8mL0@tymkk5ea` | Cloudinary persistent media storage (venues, gear, endorsements) |
+| `MAIL_MAILER` | `smtp` / `resend` | Mail driver for sending confirmation & tracking emails |
+| `MAIL_HOST` | `smtp-relay.brevo.com` | SMTP host |
+| `MAIL_PORT` | `587` | SMTP port |
+| `MAIL_USERNAME` | `b59e96001@smtp-brevo.com` | SMTP login |
+| `MAIL_PASSWORD` | `xsmtpsib-...` | SMTP API / app password |
 | `MAIL_FROM_ADDRESS` | `noreply@urios.edu.ph` | Sender email address for automated receipts |
 | `MAIL_FROM_NAME` | `FSUU Facilities & Equipment` | Sender display name |
 
@@ -386,36 +441,6 @@ In your **Vercel Dashboard** $\rightarrow$ **Project Settings** $\rightarrow$ **
 
 ---
 
-## 12. 📝 Public Booking & Borrowing Form Architecture & Locations
-
-### 12.1. Venue Booking Form
-- **Public URL**: `/book-venue`
-- **Frontend Source Directory**: `frontend/src/pages/public/VenueBooking/`
-  - `VenueBooking.jsx`: Main 4-step wizard container managing step state, validation, and submission.
-  - `components/Step1Schedule.jsx`: Date picker, usage hours (7:00 AM – 7:00 PM), and lead-time check.
-  - `components/Step2Venue.jsx`: Dynamic venue cards with capacity filters and live availability slots.
-  - `components/Step3Details.jsx`: Equipment add-ons (with available stock caps) and applicant information.
-  - `components/Step4Review.jsx`: Policy agreement, endorsement letter upload, and final review summary.
-- **Backend Handler**: `POST /api/public/avr-venue-bookings` $\rightarrow$ `Public\VenueBookingController.php` $\rightarrow$ `VenueBookingService.php`.
-
-### 12.2. Equipment Borrowing Form
-- **Public URL**: `/borrow-equipment`
-- **Frontend Source Directory**: `frontend/src/pages/public/EquipmentBorrowing/`
-  - `EquipmentBorrowing.jsx`: Main 3-step wizard container.
-  - `components/Step1EquipmentUsage.jsx`: Usage date, pickup/return times, and place of use.
-  - `components/Step2EquipmentSelection.jsx`: Multi-category selection with live dynamic remaining quantity counters.
-  - `components/Step3BorrowerDetails.jsx`: Filer details, academic department dropdown, endorsement PDF attachment, and OTP verification.
-- **Backend Handler**: `POST /api/public/avr-equipment-borrowings` $\rightarrow$ `Public\EquipmentBorrowingController.php` $\rightarrow$ `EquipmentBorrowingService.php`.
-
-### 12.3. Status Tracking Portal
-- **Public URL**: `/track` (or `/track?ref=TRK-VB-2026-101`)
-- **Frontend Source File**: `frontend/src/pages/public/TrackBooking.jsx`
-- **Backend Handler**: `POST /api/public/track` $\rightarrow$ `TrackingController.php`.
-- **Live WebSocket Channel**: Subscribes to `booking.{reference_code}` via Laravel Echo to auto-advance the multi-step timeline when staff approves or releases items.
-
----
-
-*Documentation Version: 2.2.0*  
+*Documentation Version: 2.3.0*  
 *Father Saturnino Urios University (FSUU)*  
 *Automated Venue Reservation & Equipment Borrowing Management System*
-
