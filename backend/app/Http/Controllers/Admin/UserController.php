@@ -107,7 +107,9 @@ class UserController extends Controller
 
         $avatarPath = null;
         if ($request->hasFile('image')) {
-            $avatarPath = $request->file('image')->store('avatars', 'public');
+            $avatarPath = app(\App\Services\MediaUploadService::class)->upload($request->file('image'), 'avatars');
+        } elseif (!empty($validated['avatar'])) {
+            $avatarPath = app(\App\Services\MediaUploadService::class)->upload($validated['avatar'], 'avatars');
         }
 
         // Auto-assign matching office_id if empty but location is provided

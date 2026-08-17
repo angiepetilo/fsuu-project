@@ -20,8 +20,7 @@ class EquipmentBorrowingController extends Controller
         $data['submitted_by'] = null;
 
         if ($request->hasFile('endorsement_file')) {
-            $path = $request->file('endorsement_file')->store('endorsements', 'public');
-            $data['endorsement_url'] = '/storage/' . $path;
+            $data['endorsement_url'] = app(\App\Services\MediaUploadService::class)->upload($request->file('endorsement_file'), 'endorsements');
         }
 
         try {

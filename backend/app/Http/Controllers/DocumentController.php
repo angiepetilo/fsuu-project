@@ -14,7 +14,7 @@ class DocumentController extends Controller
 
     public function store(StoreDocumentRequest $request): JsonResponse
     {
-        $path = $request->file('file')->store('documents');
+        $path = app(\App\Services\MediaUploadService::class)->upload($request->file('file'), 'documents');
 
         $document = $this->service->recordUpload(
             $request->input('reference_type'),

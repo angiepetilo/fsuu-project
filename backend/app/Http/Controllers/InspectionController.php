@@ -27,10 +27,13 @@ class InspectionController extends Controller
     {
         $refId = $request->input('reference_id') ?? $request->input('inspectable_id');
         $refType = $request->input('reference_type') ?? $request->input('inspectable_type') ?? 'avr_venue_booking';
-        $condition = $request->input('condition') ?? ($request->boolean('has_damage') ? 'damaged' : 'good');
-        $notes = $request->input('notes') ?? $request->input('condition_notes') ?? $request->input('remarks');
         $photo = $request->input('evidence_photo') ?? $request->input('evidence_image');
-        $violationType = $request->input('violation_type');
+        if ($request->hasFile('evidence_photo')) {
+            $photo = $request->file('evidence_photo');
+        }
+        if ($photo) {
+            $photo = app(\App\Services\MediaUploadService::class)->upload($photo, 'inspections');
+        }
         $assignedUnits = $request->input('assigned_units');
         $unitConditions = $request->input('unit_conditions');
 

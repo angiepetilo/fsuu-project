@@ -83,6 +83,10 @@ class EquipmentTypeController extends Controller
         // Cross-office near-duplicate check (Advisory warning only)
         $warning = $this->categoryService->checkNearDuplicateWarning($validated['eq_name'], (int)$validated['office_id']);
 
+        if (!empty($validated['avatar'])) {
+            $validated['avatar'] = app(\App\Services\MediaUploadService::class)->upload($validated['avatar'], 'equipment_types');
+        }
+
         $type = EquipmentType::create($validated);
         $type->load('office');
 
@@ -127,6 +131,10 @@ class EquipmentTypeController extends Controller
         $updateData = $request->all();
         if (!$isSuperAdmin && $officeId) {
             $updateData['office_id'] = $officeId;
+        }
+
+        if (array_key_exists('avatar', $updateData) && !empty($updateData['avatar'])) {
+            $updateData['avatar'] = app(\App\Services\MediaUploadService::class)->upload($updateData['avatar'], 'equipment_types');
         }
 
         $type->update($updateData);

@@ -142,12 +142,11 @@ class AuthController extends Controller
         if (isset($validated['personal_email'])) $user->personal_email = $validated['personal_email'];
         
         if (array_key_exists('avatar', $validated)) {
-            $user->avatar = $this->saveBase64Image($validated['avatar'], 'avatars');
+            $user->avatar = app(\App\Services\MediaUploadService::class)->upload($validated['avatar'], 'avatars');
         }
 
         if ($request->hasFile('image')) {
-            $path = $request->file('image')->store('avatars', 'public');
-            $user->avatar = Storage::url($path);
+            $user->avatar = app(\App\Services\MediaUploadService::class)->upload($request->file('image'), 'avatars');
         }
 
         $user->save();
