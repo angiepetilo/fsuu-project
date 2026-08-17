@@ -14,7 +14,6 @@ export default function VenueBookingInfo({
 
   const storageKeyHardcopy = `fsuu_hardcopy_${selected.id}`;
   const storageKeyNotes = `fsuu_hardcopy_notes_${selected.id}`;
-  const storageKeyUpload = `fsuu_staff_upload_${selected.id}`;
 
   const [isHardcopy, setIsHardcopy] = useState(false);
   const [hardcopyNotes, setHardcopyNotes] = useState("");
@@ -23,13 +22,14 @@ export default function VenueBookingInfo({
   const [showUploadForm, setShowUploadForm] = useState(false);
 
   useEffect(() => {
+    setStaffUploadUrl(null);
     try {
+      // Clear any legacy stale localStorage upload entries
+      localStorage.removeItem(`fsuu_staff_upload_${selected.id}`);
       const savedHc = localStorage.getItem(storageKeyHardcopy);
       const savedNotes = localStorage.getItem(storageKeyNotes);
-      const savedUp = localStorage.getItem(storageKeyUpload);
       if (savedHc === "true" || selected.physical_hardcopy_received) setIsHardcopy(true);
       if (savedNotes) setHardcopyNotes(savedNotes);
-      if (savedUp) setStaffUploadUrl(savedUp);
     } catch {}
   }, [selected.id]);
 
@@ -40,9 +40,6 @@ export default function VenueBookingInfo({
     reader.onload = (evt) => {
       const result = evt.target.result;
       setStaffUploadUrl(result);
-      try {
-        localStorage.setItem(storageKeyUpload, result);
-      } catch {}
       setSaveSuccessMsg("Endorsement letter file attached.");
       setTimeout(() => setSaveSuccessMsg(null), 3000);
     };
@@ -204,7 +201,7 @@ export default function VenueBookingInfo({
                   <div>
                     <h5 className="text-xs font-extrabold text-white">Signed Endorsement Clearance</h5>
                     <p className="text-[10px] font-mono text-slate-400 mt-0.5 truncate max-w-[180px]">
-                      {docUrl.split('/').pop()}
+                      {docUrl.startsWith('data:') ? 'Official Attached PDF' : docUrl.split('/').pop()}
                     </p>
                   </div>
                   <button

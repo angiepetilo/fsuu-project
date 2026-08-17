@@ -27,6 +27,9 @@ class VenueBookingController extends Controller
             return response()->json(['message' => $e->getMessage()], 409);
         } catch (\App\Exceptions\VenueReservationTooSoonException $e) {
             return response()->json(['message' => $e->getMessage()], 422);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Public Venue Booking Store Error: ' . $e->getMessage());
+            return response()->json(['message' => $e->getMessage()], 422);
         }
 
         return response()->json($booking, 201);

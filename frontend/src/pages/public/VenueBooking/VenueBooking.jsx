@@ -360,9 +360,7 @@ export default function VenueBooking() {
         formData.append('endorsement_file', endorsementFile);
       }
 
-      const res = await api.post(endpoint, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
+      const res = await api.post(endpoint, formData);
 
       const rawTracking = res.data?.tracking_number;
       const trackingNum = (typeof rawTracking === 'string' ? rawTracking : rawTracking?.reference_code || rawTracking?.tracking_number)
