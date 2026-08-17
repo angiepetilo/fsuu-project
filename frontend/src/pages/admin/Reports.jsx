@@ -31,14 +31,35 @@ export default function Reports() {
   const [equipmentBorrowings, setEquipmentBorrowings] = useState([]);
   const [ruleViolations, setRuleViolations] = useState([]);
   const [inventoryItems, setInventoryItems] = useState([]);
+  const [academicTerms, setAcademicTerms] = useState([]);
+  const [selectedTermId, setSelectedTermId] = useState("");
   const [loading, setLoading] = useState(true);
+
+  // Load academic terms list once
+  useEffect(() => {
+    const loadTerms = async () => {
+      try {
+        const res = await api.get("/admin/academic-terms");
+        if (res.data?.terms) {
+          setAcademicTerms(res.data.terms);
+          if (res.data.active_term?.id && !selectedTermId) {
+            setSelectedTermId(String(res.data.active_term.id));
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load academic terms in Reports:", err);
+      }
+    };
+    loadTerms();
+  }, []);
 
   const fetchReportsData = async () => {
     setLoading(true);
     try {
+      const termParam = selectedTermId ? `?academic_term_id=${selectedTermId}` : "";
       const [histRes, daRes, eqRes] = await Promise.all([
-        api.get("/admin/history-log").catch(() => ({ data: { venue_bookings: [], equipment_borrowings: [] } })),
-        api.get("/admin/department-analytics").catch(() => ({ data: { rule_violations: [], late_returns: [] } })),
+        api.get(`/admin/history-log${termParam}`).catch(() => ({ data: { venue_bookings: [], equipment_borrowings: [] } })),
+        api.get(`/admin/department-analytics${termParam}`).catch(() => ({ data: { rule_violations: [], late_returns: [] } })),
         api.get("/admin/equipment-types").catch(() => ({ data: [] })),
       ]);
 
@@ -64,6 +85,10 @@ export default function Reports() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchReportsData();
+  }, [selectedTermId]);
 
   const selectedOfficeId = context?.selectedOfficeId;
   const selectedOfficeName = context?.selectedOffice || officeScope;
@@ -298,6 +323,24 @@ export default function Reports() {
 
         {/* Global Export & Dispatch Action Buttons (Scoped to Active Tab) */}
         <div className="flex items-center gap-2 flex-wrap">
+          {academicTerms.length > 0 && (
+            <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-2.5 py-1 rounded-xl">
+              <label className="text-[11px] font-bold text-slate-600 whitespace-nowrap">Semester :</label>
+              <select
+                value={selectedTermId}
+                onChange={(e) => setSelectedTermId(e.target.value)}
+                className="p-1 bg-transparent border-0 font-bold text-slate-900 text-xs focus:outline-none cursor-pointer"
+              >
+                <option value="">All Terms (TiDB Archive)</option>
+                {academicTerms.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name} {t.is_active ? "(Active)" : "(Archived)"}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           <button
             type="button"
             onClick={handleExportCSV}
