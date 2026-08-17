@@ -36,6 +36,9 @@ class InspectionController extends Controller
         }
         $assignedUnits = $request->input('assigned_units');
         $unitConditions = $request->input('unit_conditions');
+        $condition = $request->input('condition') ?? 'good';
+        $notes = $request->input('notes') ?? '';
+        $violationType = $request->input('violation_type');
 
         // Check if inspection record already exists for this booking/borrowing
         $inspection = null;
