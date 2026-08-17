@@ -218,36 +218,48 @@ export default function VenueEquipmentChecklist({
                             <div className="font-mono text-xs text-slate-800 py-1">
                               {currentSelectedBarcode ? `Barcode: ${currentSelectedBarcode}` : "No specific barcode logged"}
                             </div>
-                          ) : (
-                            <select
-                              value={currentSelectedBarcode}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                setAssignedUnitSelections(prev => ({
-                                  ...prev,
-                                  [unitKey]: val
-                                }));
-                              }}
-                              className="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs font-mono font-bold text-slate-800 focus:outline-none focus:border-slate-400 cursor-pointer"
-                            >
-                              <option value="">-- Assign Physical Barcode --</option>
-                              {hasStock ? (
-                                availableUnits.map((u, i) => {
-                                  const bCode = u.unit_code || u.barcode || u.serial_number || u.code || `UNIT-${u.id}`;
-                                  const uName = u.name || item.category;
-                                  return (
-                                    <option key={`unit-opt-${u.id || i}`} value={bCode}>
-                                      {bCode} - {uName}
-                                    </option>
-                                  );
-                                })
-                              ) : (
-                                <option value="DEFAULT-SYSTEM-UNIT" disabled>
-                                  No available physical stock for {item.category}
-                                </option>
-                              )}
-                            </select>
-                          )}
+                          ) : (() => {
+                            const otherSelectedBarcodes = Object.entries(assignedUnitSelections || {})
+                              .filter(([k, v]) => k !== unitKey && Boolean(v))
+                              .map(([_, v]) => String(v).trim().toUpperCase());
+
+                            const filteredUnits = availableUnits.filter((u) => {
+                              const bCode = String(u.unit_code || u.barcode || u.serial_number || u.code || `UNIT-${u.id}`).trim().toUpperCase();
+                              const isCurrent = bCode === String(currentSelectedBarcode).trim().toUpperCase();
+                              return isCurrent || !otherSelectedBarcodes.includes(bCode);
+                            });
+
+                            return (
+                              <select
+                                value={currentSelectedBarcode}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setAssignedUnitSelections(prev => ({
+                                    ...prev,
+                                    [unitKey]: val
+                                  }));
+                                }}
+                                className="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs font-mono font-bold text-slate-800 focus:outline-none focus:border-slate-400 cursor-pointer"
+                              >
+                                <option value="">-- Assign Physical Barcode --</option>
+                                {filteredUnits.length > 0 ? (
+                                  filteredUnits.map((u, i) => {
+                                    const bCode = u.unit_code || u.barcode || u.serial_number || u.code || `UNIT-${u.id}`;
+                                    const uName = u.name || item.category;
+                                    return (
+                                      <option key={`unit-opt-${u.id || i}`} value={bCode}>
+                                        {bCode} - {uName}
+                                      </option>
+                                    );
+                                  })
+                                ) : (
+                                  <option value="" disabled>
+                                    {hasStock ? "All available units in this category are assigned to other slots" : `No available physical stock for ${item.category}`}
+                                  </option>
+                                )}
+                              </select>
+                            );
+                          })()}
                         </div>
                       );
                     })}

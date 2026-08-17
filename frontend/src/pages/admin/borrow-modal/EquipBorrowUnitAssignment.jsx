@@ -125,32 +125,34 @@ export default function EquipBorrowUnitAssignment({
                           (Array.isArray(assignedUnitSelections) ? assignedUnitSelections[uIdx] : "") ||
                           "";
 
-                        const otherSelectedBarcodes = Object.entries(assignedUnitSelections)
-                          .filter(([k, v]) => k !== idxKey && k !== catKey && Boolean(v))
-                          .map(([_, v]) => String(v).trim());
+                        const otherSelectedBarcodes = Object.entries(assignedUnitSelections || {})
+                          .filter(([k, v]) => k !== idxKey && k !== catKey && k !== String(uIdx) && Boolean(v))
+                          .map(([_, v]) => String(v).trim().toUpperCase());
 
                         const filteredAvailableUnits = availableUnits.filter((unit) => {
-                          const bCode = String(unit.unit_code || unit.name || unit.id).trim();
-                          const uName = String(unit.name || "").trim();
+                          const bCode = String(unit.unit_code || unit.barcode || unit.serial_number || unit.code || unit.id || "").trim().toUpperCase();
+                          const uName = String(unit.name || "").trim().toUpperCase();
 
-                          if (otherSelectedBarcodes.includes(bCode) || (uName && otherSelectedBarcodes.includes(uName))) {
+                          const isCurrent = (bCode && bCode === String(val).trim().toUpperCase()) || 
+                                            (uName && uName === String(val).trim().toUpperCase());
+
+                          if (!isCurrent && (otherSelectedBarcodes.includes(bCode) || (uName && otherSelectedBarcodes.includes(uName)))) {
                             return false;
                           }
 
                           const uStat = String(unit.status || "available").toLowerCase();
-                          const isSaved = bCode === String(val).trim() || (uName && uName === String(val).trim());
-                          return uStat === "available" || isSaved;
+                          return uStat === "available" || isCurrent;
                         });
 
                         const matchedUnit = filteredAvailableUnits.find((u) => {
-                          const code = String(u.unit_code || "").trim();
-                          const name = String(u.name || "").trim();
-                          const id = String(u.id || "").trim();
-                          const target = String(val).trim();
+                          const code = String(u.unit_code || u.barcode || u.serial_number || u.code || "").trim().toUpperCase();
+                          const name = String(u.name || "").trim().toUpperCase();
+                          const id = String(u.id || "").trim().toUpperCase();
+                          const target = String(val).trim().toUpperCase();
                           return (code && code === target) || (name && name === target) || (id && id === target);
                         });
 
-                        const selectVal = matchedUnit ? (matchedUnit.unit_code || matchedUnit.name) : val;
+                        const selectVal = matchedUnit ? (matchedUnit.unit_code || matchedUnit.barcode || matchedUnit.name) : val;
 
                         return (
                           <div key={uIdx} className="relative">
@@ -170,11 +172,20 @@ export default function EquipBorrowUnitAssignment({
                               className="w-full p-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-50 cursor-pointer"
                             >
                               <option value="">-- Assign Barcode (Unit {uIdx + 1}) --</option>
-                              {filteredAvailableUnits.map((unit) => (
-                                <option key={unit.id} value={unit.unit_code || unit.name}>
-                                  {unit.unit_code || unit.barcode || unit.id} — {unit.name || reqCat.category}
+                              {filteredAvailableUnits.length > 0 ? (
+                                filteredAvailableUnits.map((unit) => {
+                                  const displayCode = unit.unit_code || unit.barcode || unit.serial_number || unit.code || `UNIT-${unit.id}`;
+                                  return (
+                                    <option key={unit.id} value={displayCode}>
+                                      {displayCode} — {unit.name || reqCat.category}
+                                    </option>
+                                  );
+                                })
+                              ) : (
+                                <option value="" disabled>
+                                  All units in this category are assigned to other slots
                                 </option>
-                              ))}
+                              )}
                             </select>
                           </div>
                         );
@@ -196,6 +207,16 @@ export default function EquipBorrowUnitAssignment({
                     const val = assignedUnitSelections[idxKey] || assignedUnitSelections[catKey] || "";
 
                     if (isOngoing && (!val || val === "—")) {
+                      const otherSelectedBarcodes = Object.entries(assignedUnitSelections || {})
+                        .filter(([k, v]) => k !== idxKey && k !== catKey && k !== String(uIdx) && Boolean(v))
+                        .map(([_, v]) => String(v).trim().toUpperCase());
+
+                      const filteredUnits = availableUnits.filter((unit) => {
+                        const bCode = String(unit.unit_code || unit.barcode || unit.serial_number || unit.code || unit.id || "").trim().toUpperCase();
+                        const uName = String(unit.name || "").trim().toUpperCase();
+                        return !otherSelectedBarcodes.includes(bCode) && (!uName || !otherSelectedBarcodes.includes(uName));
+                      });
+
                       return (
                         <div key={uIdx} className="relative">
                           <select
@@ -214,11 +235,14 @@ export default function EquipBorrowUnitAssignment({
                             className="w-full p-2 bg-amber-50/50 border border-amber-300 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-50 cursor-pointer"
                           >
                             <option value="">-- Assign Barcode (Unit {uIdx + 1}) --</option>
-                            {availableUnits.map((unit) => (
-                              <option key={unit.id} value={unit.unit_code || unit.name}>
-                                {unit.unit_code || unit.barcode || unit.id} — {unit.name || reqCat.category}
-                              </option>
-                            ))}
+                            {filteredUnits.map((unit) => {
+                              const displayCode = unit.unit_code || unit.barcode || unit.serial_number || unit.code || `UNIT-${unit.id}`;
+                              return (
+                                <option key={unit.id} value={displayCode}>
+                                  {displayCode} — {unit.name || reqCat.category}
+                                </option>
+                              );
+                            })}
                           </select>
                         </div>
                       );
