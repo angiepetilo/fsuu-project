@@ -4,7 +4,7 @@ import api from "@/lib/axios";
 import {
   PackageOpen, Plus, Search, Filter, Edit3, Trash2, CheckCircle2,
   AlertTriangle, RefreshCw, Barcode, Eye, Copy, Check,
-  ChevronLeft, ChevronRight, LayoutGrid
+  ChevronLeft, ChevronRight, LayoutGrid, Loader2
 } from "lucide-react";
 import EquipmentDetailModal from "./components/EquipmentDetailModal";
 import EquipmentModal from "./components/EquipmentModal";

@@ -40,24 +40,7 @@ export default function EquipmentCategoriesTab({ showMsg }) {
       ]);
 
       const rawCats = Array.isArray(catRes.data) ? catRes.data : [];
-      let activeRelCount = 0;
-      try {
-        for (let i = 0; i < localStorage.length; i++) {
-          const k = localStorage.key(i);
-          if (k && k.startsWith("fsuu_assigned_units_")) {
-            const v = localStorage.getItem(k);
-            if (v) {
-              const obj = JSON.parse(v);
-              Object.values(obj).forEach(bCode => { if (bCode) activeRelCount++; });
-            }
-          }
-        }
-      } catch {}
-
-      setCategories(rawCats.map(c => ({
-        ...c,
-        released_count: c.released_count ?? (activeRelCount > 0 ? activeRelCount : 0),
-      })));
+      setCategories(rawCats);
       setOffices(Array.isArray(offRes.data) ? offRes.data : []);
     } catch {
       const saved = JSON.parse(localStorage.getItem("fsuu_equipment_types") || "[]");
@@ -386,36 +369,36 @@ export default function EquipmentCategoriesTab({ showMsg }) {
                       </span>
                     </td>
                     <td className="px-4 py-3 font-mono font-extrabold text-emerald-700">
-                      <span className="bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200 inline-flex items-center gap-1">
-                        ● {available}
+                      <span className="bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200 inline-flex items-center">
+                        {available}
                       </span>
                     </td>
                     <td className="px-4 py-3 font-mono font-bold text-indigo-700">
-                      <span className={`px-2.5 py-1 rounded-lg border inline-flex items-center gap-1 ${
+                      <span className={`px-2.5 py-1 rounded-lg border inline-flex items-center ${
                         reserved > 0 ? "bg-indigo-50 border-indigo-200 text-indigo-700 font-extrabold" : "bg-slate-50 border-slate-200 text-slate-400"
                       }`}>
-                        {reserved > 0 ? `● ${reserved}` : "0"}
+                        {reserved}
                       </span>
                     </td>
                     <td className="px-4 py-3 font-mono font-bold text-blue-700">
-                      <span className={`px-2.5 py-1 rounded-lg border inline-flex items-center gap-1 ${
+                      <span className={`px-2.5 py-1 rounded-lg border inline-flex items-center ${
                         released > 0 ? "bg-blue-50 border-blue-200 text-blue-700 font-extrabold" : "bg-slate-50 border-slate-200 text-slate-400"
                       }`}>
-                        {released > 0 ? `● ${released}` : "0"}
+                        {released}
                       </span>
                     </td>
                     <td className="px-4 py-3 font-mono font-bold text-rose-700">
-                      <span className={`px-2.5 py-1 rounded-lg border inline-flex items-center gap-1 ${
+                      <span className={`px-2.5 py-1 rounded-lg border inline-flex items-center ${
                         damaged > 0 ? "bg-rose-50 border-rose-200 text-rose-700 font-extrabold" : "bg-slate-50 border-slate-200 text-slate-400"
                       }`}>
-                        {damaged > 0 ? `● ${damaged}` : "0"}
+                        {damaged}
                       </span>
                     </td>
                     <td className="px-4 py-3 font-mono font-bold text-amber-700">
-                      <span className={`px-2.5 py-1 rounded-lg border inline-flex items-center gap-1 ${
+                      <span className={`px-2.5 py-1 rounded-lg border inline-flex items-center ${
                         lost > 0 ? "bg-amber-50 border-amber-200 text-amber-700 font-extrabold" : "bg-slate-50 border-slate-200 text-slate-400"
                       }`}>
-                        {lost > 0 ? `● ${lost}` : "0"}
+                        {lost}
                       </span>
                     </td>
                     <td className="px-4 py-3">

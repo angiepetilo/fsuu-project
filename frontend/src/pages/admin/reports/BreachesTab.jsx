@@ -50,18 +50,23 @@ export default function BreachesTab({
   const completedVenueBreaches = venueBookings
     .filter((b) => {
       const s = (b.status || "").toLowerCase();
-      return (s === "completed" || s === "damaged" || s === "solved" || s === "done") && (Boolean(b.has_damage) || s === "damaged" || s === "violation" || Boolean(b.violation));
+      return (s === "completed" || s === "damaged" || s === "solved" || s === "done") && (Boolean(b.has_damage) || s === "damaged" || s === "violation" || Boolean(b.violation) || Boolean(b.violation_type));
     })
     .map((b) => ({
       department: b.program_office || b.department || "Academic Dept",
+      is_venue: true,
       violation_type: b.violation || b.violation_type || "Venue Violation",
     }));
 
   const completedEquipBreaches = equipmentBorrowings
-    .filter((eb) => Boolean(eb.has_damage) || (eb.status || "").toLowerCase() === "damaged" || (eb.status || "").toLowerCase() === "lost" || Boolean(eb.is_late))
+    .filter((eb) => Boolean(eb.has_damage) || (eb.status || "").toLowerCase() === "damaged" || (eb.status || "").toLowerCase() === "lost" || Boolean(eb.is_late) || Boolean(eb.violation) || Boolean(eb.violation_type))
     .map((eb) => ({
       department: eb.program_office || eb.department || "Academic Dept",
-      violation_type: eb.violation || (eb.status === "lost" ? "Lost Equipment" : (eb.is_late ? "Late Equipment Return" : "Equipment Damage")),
+      is_venue: false,
+      is_late: Boolean(eb.is_late) || String(eb.timeliness || "").toLowerCase().includes("late") || String(eb.violation_type || "").toLowerCase().includes("overdue"),
+      unit_conditions: eb.unit_conditions || null,
+      status: (eb.status || "").toLowerCase(),
+      violation_type: eb.violation || eb.violation_type || (eb.status === "lost" ? "Lost Equipment" : (eb.is_late ? "Late Equipment Return" : "Equipment Damage")),
     }));
 
   const cleanDeptName = (raw) => {
@@ -84,15 +89,41 @@ export default function BreachesTab({
     if (!deptSummaryMap[dName]) {
       deptSummaryMap[dName] = { department: dName, venue_violations: 0, late_returns: 0, equipment_damages: 0, equipment_lost: 0 };
     }
-    const vType = String(b.violation_type || "").toLowerCase();
-    if (vType.includes("late")) {
-      deptSummaryMap[dName].late_returns += 1;
-    } else if (vType.includes("lost")) {
-      deptSummaryMap[dName].equipment_lost += 1;
-    } else if (vType.includes("equipment") || vType.includes("damage")) {
-      deptSummaryMap[dName].equipment_damages += 1;
-    } else {
+
+    if (b.is_venue) {
       deptSummaryMap[dName].venue_violations += 1;
+      return;
+    }
+
+    const vType = String(b.violation_type || "").toLowerCase();
+
+    // 1. Late Return check
+    if (b.is_late || vType.includes("late") || vType.includes("overdue")) {
+      deptSummaryMap[dName].late_returns += 1;
+    }
+
+    // 2. Granular Per-Unit Conditions check (Damaged / Lost)
+    let unitCounted = false;
+    if (b.unit_conditions && typeof b.unit_conditions === "object") {
+      Object.values(b.unit_conditions).forEach((cond) => {
+        const c = String(cond || "").toLowerCase();
+        if (c === "damaged") {
+          deptSummaryMap[dName].equipment_damages += 1;
+          unitCounted = true;
+        } else if (c === "lost") {
+          deptSummaryMap[dName].equipment_lost += 1;
+          unitCounted = true;
+        }
+      });
+    }
+
+    // Fallback if no granular unit conditions object
+    if (!unitCounted) {
+      if (vType.includes("lost") || b.status === "lost") {
+        deptSummaryMap[dName].equipment_lost += 1;
+      } else if (vType.includes("damage") || b.status === "damaged") {
+        deptSummaryMap[dName].equipment_damages += 1;
+      }
     }
   });
 

@@ -259,12 +259,19 @@ export default function Step3Details({
                             }}
                             className="rounded text-blue-600 focus:ring-blue-500 accent-blue-600 w-4 h-4 cursor-pointer disabled:cursor-not-allowed"
                           />
-                          <span className="truncate text-xs font-bold">{item.name}</span>
+                          <div className="flex flex-col min-w-0">
+                            <span className="truncate text-xs font-bold">{item.name}</span>
+                            {!isOutOfStock && (
+                              <span className="text-[10px] text-slate-400 font-mono">
+                                {realStock} unit{realStock === 1 ? "" : "s"} available
+                              </span>
+                            )}
+                          </div>
                         </label>
 
                         {isOutOfStock ? (
                           <span className="text-[10px] font-extrabold text-rose-600 bg-rose-50 border border-rose-200 px-1.5 py-0.5 rounded-md shrink-0">
-                            No Stock Registered
+                            Out of Stock
                           </span>
                         ) : isChecked && (
                           <div className="flex items-center gap-1 shrink-0">

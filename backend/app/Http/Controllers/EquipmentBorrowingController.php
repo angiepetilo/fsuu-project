@@ -277,12 +277,15 @@ class EquipmentBorrowingController extends Controller
         if (is_array($unitConditions)) {
             foreach ($unitConditions as $key => $condVal) {
                 $uBar = $assigned[$key] ?? null;
+                if (!$uBar && is_string($key)) {
+                    $uBar = $key;
+                }
                 if ($uBar) {
                     $uBar = trim((string)$uBar);
                     $condNormalized = ucfirst(strtolower($condVal));
                     $uStatus = $condNormalized === 'Damaged' ? 'damaged' : ($condNormalized === 'Lost' ? 'lost' : 'available');
                     \App\Models\EquipmentUnit::where(function($q) use ($uBar) {
-                        $q->where('unit_code', $uBar)->orWhere('name', $uBar);
+                        $q->where('unit_code', $uBar)->orWhere('name', $uBar)->orWhere('id', $uBar);
                     })->update(['status' => $uStatus, 'condition' => $condNormalized]);
                 }
             }

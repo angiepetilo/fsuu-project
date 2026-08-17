@@ -1,59 +1,107 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# 🏛️ FSUU Facilities & Equipment Reservation System — Backend REST API
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+**Father Saturnino Urios University (FSUU)**  
+*Laravel 11 REST API Service with Pusher Real-Time Broadcasting & Multi-Office Support*
 
-## About Laravel
+---
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## 📋 Overview
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+This directory contains the **Laravel 11 backend service** for the FSUU Venue Reservation & Equipment Borrowing System. It manages database persistence, authentication (Sanctum & Google OAuth), real-time WebSockets via Pusher, PDF generation, email notifications, and automated department accountability analytics.
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+---
 
-## Learning Laravel
+## ⚙️ Requirements & Tech Stack
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+* **PHP**: 8.2 or higher
+* **Composer**: 2.x
+* **Database**: MySQL 8.0+ / MariaDB / SQLite
+* **Real-time WebSockets**: Pusher Channels / Laravel Reverb (`pusher/pusher-php-server`)
+* **Email Delivery**: Resend API (`resend/resend-laravel`)
+* **Authentication**: Laravel Sanctum & Laravel Socialite (Google OAuth)
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+---
 
-## Laravel Sponsors
+## 🚀 Quick Setup & Installation
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+### 1. Install PHP Dependencies
+```bash
+composer install
+```
 
-### Premium Partners
+### 2. Environment Configuration
+Copy the example environment file and configure database and broadcast credentials:
+```bash
+cp .env.example .env
+php artisan key:generate
+```
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+Key environment variables in `.env`:
+```ini
+APP_NAME="FSUU Reservation System"
+APP_ENV=local
+APP_URL=http://localhost:8000
+FRONTEND_URL=http://localhost:5173
 
-## Contributing
+DB_CONNECTION=sqlite
+# or MySQL:
+# DB_CONNECTION=mysql
+# DB_HOST=127.0.0.1
+# DB_PORT=3306
+# DB_DATABASE=fsuu_booking_system
+# DB_USERNAME=root
+# DB_PASSWORD=
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+# Broadcasting (Pusher WebSockets)
+BROADCAST_CONNECTION=pusher
+PUSHER_APP_ID=your_pusher_app_id
+PUSHER_APP_KEY=your_pusher_key
+PUSHER_APP_SECRET=your_pusher_secret
+PUSHER_APP_CLUSTER=ap1
 
-## Code of Conduct
+# Mail Delivery (Resend API)
+MAIL_MAILER=resend
+RESEND_API_KEY=your_resend_api_key
+MAIL_FROM_ADDRESS=noreply@fsuu.edu.ph
+```
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+### 3. Database Migration & Seeding
+```bash
+php artisan migrate:fresh --seed
+```
 
-## Security Vulnerabilities
+### 4. Run Development Server
+```bash
+php artisan serve
+```
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+---
 
-## License
+## 📡 Broadcast Channels & Real-Time Events
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+* `admin-notifications` (`booking.created`): Broadcasts instant alert when any public reservation is filed.
+* `booking.{reference_code}` (`booking.status_updated`): Broadcasts status updates directly to the applicant's live tracker (`/track`).
+* `equipment-inventory` (`inventory.updated`): Broadcasts real-time stock and physical barcode changes to admin inventory tables.
+
+---
+
+## 📁 Key Directories
+
+```
+app/
+├── Events/             # Real-time WebSocket broadcast event classes
+├── Http/
+│   ├── Controllers/    # API endpoint controllers (Public, Admin, SuperAdmin)
+│   ├── Requests/       # Form request validation classes
+│   └── Middleware/     # Sanctum, CORS, and role authentication middleware
+├── Models/             # Eloquent models (Venues, Equipment, Inspections, Bookings)
+├── Policies/           # Authorization policies
+└── Services/           # Core business logic (Inventory, Collision, History, Breaches)
+database/
+├── migrations/         # Relational database schema migrations
+└── seeders/            # Database seeders (Roles, Users, Departments)
+routes/
+├── api.php             # REST API endpoint route definitions
+├── channels.php        # Real-time WebSocket channel authorization rules
+└── web.php             # Static file handler and SPA routing
+```

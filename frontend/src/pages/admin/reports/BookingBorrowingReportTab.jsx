@@ -194,7 +194,9 @@ export default function BookingBorrowingReportTab({
               ) : (
                 paginatedEquipViolations.map((eb, idx) => {
                   const trackNo = eb.tracking_number?.reference_code || (typeof eb.tracking_number === 'string' ? eb.tracking_number : '') || eb.track_number || eb.reference_code || `TRK-EB-${2000 + (eb.id || idx)}`;
-                  const isDamaged = Boolean(eb.has_damage) || (eb.status || "").toLowerCase() === "damaged" || (eb.status || "").toLowerCase() === "lost";
+                  const isLost = (eb.status || "").toLowerCase() === "lost" || String(eb.violation_type || "").toLowerCase().includes("lost") || (eb.inspection_condition || "").toLowerCase() === "lost";
+                  const isDamaged = (eb.status || "").toLowerCase() === "damaged" || (eb.inspection_condition || "").toLowerCase() === "damaged" || (Boolean(eb.has_damage) && !Boolean(eb.is_late));
+                  const isLate = Boolean(eb.is_late) || String(eb.timeliness || "").toLowerCase().includes("late") || String(eb.violation_type || "").toLowerCase().includes("overdue");
 
                   return (
                     <tr key={eb.id || idx} className="hover:bg-slate-50/60 transition-colors">
@@ -207,10 +209,12 @@ export default function BookingBorrowingReportTab({
                       </td>
                       <td className="px-4 py-3.5 text-slate-600 max-w-xs truncate">{eb.purpose || "Academic Seminar"}</td>
                       <td className="px-4 py-3.5 font-extrabold">
-                        {(eb.status || "").toLowerCase() === "lost" ? (
+                        {isLost ? (
                           <span className="inline-flex px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-amber-100 text-amber-800 border border-amber-200">LOST</span>
                         ) : isDamaged ? (
-                          <span className="inline-flex px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-rose-100 text-rose-800 border border-rose-200">VIOLATION</span>
+                          <span className="inline-flex px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-rose-100 text-rose-800 border border-rose-200">DAMAGE VIOLATION</span>
+                        ) : isLate ? (
+                          <span className="inline-flex px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-amber-50 text-amber-700 border border-amber-300">LATE RETURN</span>
                         ) : (
                           <span className="inline-flex px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-emerald-100 text-emerald-800 border border-emerald-200">CLEAN</span>
                         )}

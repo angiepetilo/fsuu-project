@@ -65,6 +65,11 @@ class InspectionController extends Controller
             $inspection = Inspection::forceCreate($data);
         }
 
+        // Broadcast live inventory update event
+        try {
+            event(new \App\Events\InventoryStockUpdated(null, 'inspected', ['condition' => $condition]));
+        } catch (\Throwable $e) {}
+
         return response()->json($inspection, 200);
     }
 }

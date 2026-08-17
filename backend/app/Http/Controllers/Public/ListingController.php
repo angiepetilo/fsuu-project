@@ -89,8 +89,15 @@ class ListingController extends Controller
                 'equipmentUnits as calculated_total' => function ($q) {
                     $q->whereNull('archived_at');
                 },
+                'equipmentUnits as calculated_operational' => function ($q) {
+                    $q->whereNull('archived_at')
+                      ->whereNotIn(DB::raw('LOWER(status)'), ['damaged', 'lost', 'decommissioned', 'maintenance'])
+                      ->whereNotIn(DB::raw('LOWER(`condition`)'), ['damaged', 'lost', 'under repair']);
+                },
                 'equipmentUnits as calculated_available' => function ($q) {
-                    $q->whereNull('archived_at')->where('status', 'available');
+                    $q->whereNull('archived_at')
+                      ->where('status', 'available')
+                      ->whereNotIn(DB::raw('LOWER(`condition`)'), ['damaged', 'lost', 'under repair']);
                 }
             ]);
 
@@ -101,8 +108,9 @@ class ListingController extends Controller
         $equipmentTypes = $query->get()
             ->map(function ($e) use ($dateStr, $startTimeStr, $endTimeStr) {
                 $hasRegisteredUnits = $e->calculated_total > 0;
-                $total = (int)($hasRegisteredUnits ? $e->calculated_total : 0);
-                $avail = (int)($hasRegisteredUnits ? $e->calculated_available : 0);
+                $total = (int)($hasRegisteredUnits ? $e->calculated_total : ($e->total_quantity ?? 0));
+                $operational = (int)($hasRegisteredUnits ? $e->calculated_operational : ($e->total_quantity ?? 0));
+                $avail = (int)($hasRegisteredUnits ? $e->calculated_available : $operational);
 
                 if ($dateStr && $startTimeStr && $endTimeStr) {
                     $startDT = $dateStr . ' ' . (strlen($startTimeStr) === 5 ? $startTimeStr . ':00' : $startTimeStr);
@@ -113,7 +121,7 @@ class ListingController extends Controller
                         ->whereHas('equipmentBorrow', function ($query) use ($dateStr, $startTimeStr, $endTimeStr, $startDT, $endDT) {
                             $query->where(function ($stQuery) {
                                     $stQuery->whereHas('trackingNumber', function ($t) {
-                                        $t->whereNotIn('status', ['rejected', 'cancelled']);
+                                        $t->whereNotIn('status', ['rejected', 'cancelled', 'completed', 'done']);
                                     })
                                     ->orWhereNull('tracking_number_id');
                                 })
@@ -128,7 +136,7 @@ class ListingController extends Controller
                     // 2. Calculate Venue Bookings overlapping this date & time slot
                     $venueCommitted = \App\Models\VenueBooking::where(function ($stQuery) {
                             $stQuery->whereHas('trackingNumber', function ($t) {
-                                $t->whereNotIn('status', ['rejected', 'cancelled']);
+                                $t->whereNotIn('status', ['rejected', 'cancelled', 'completed', 'done']);
                             })
                             ->orWhereNull('tracking_number_id');
                         })
@@ -156,7 +164,7 @@ class ListingController extends Controller
                         });
 
                     $totalCommitted = $borrowCommitted + $venueCommitted;
-                    $avail = max(0, $total - $totalCommitted);
+                    $avail = max(0, $operational - $totalCommitted);
                 }
 
                 return [
@@ -168,6 +176,7 @@ class ListingController extends Controller
                     'barcode'         => $e->barcode,
                     'avatar'          => $e->avatar,
                     'total_quantity'  => $total,
+                    'present_count'   => $operational,
                     'available_count' => $avail,
                     'status'          => $avail > 0 ? 'available' : 'unavailable',
                     'office_id'       => $e->office_id,

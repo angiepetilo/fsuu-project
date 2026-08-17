@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate, Outlet } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import api from "@/lib/axios";
+import echoInstance from "@/lib/echo";
+import { toast } from "sonner";
 import {
   LayoutDashboard, CalendarCheck, PackageOpen, Settings,
   ChevronRight, LogOut, Bell, Menu, X, Box, Building2,
@@ -116,8 +118,38 @@ export default function AdminLayout() {
 
   useEffect(() => {
     fetchNotifs();
-    const interval = setInterval(fetchNotifs, 20000); // 20s live poll
-    return () => clearInterval(interval);
+    const interval = setInterval(fetchNotifs, 30000);
+
+    // Listen on real-time Pusher WebSockets
+    const notifChannel = echoInstance?.channel("admin-notifications");
+    if (notifChannel?.listen) {
+      notifChannel.listen(".booking.created", (data) => {
+        const title = data.type === "venue_booking" ? "New Venue Reservation" : "New Equipment Borrow";
+        toast.info(`${title} • ${data.reference_code || ''}`, {
+          description: `${data.filer_name || 'Applicant'} (${data.program_office || 'Department'}) - ${data.place_of_use || 'Campus'}`,
+        });
+        fetchNotifs();
+        window.dispatchEvent(new Event("equipment_inventory_updated"));
+      });
+
+      notifChannel.listen(".booking.status_updated", () => {
+        fetchNotifs();
+        window.dispatchEvent(new Event("equipment_inventory_updated"));
+      });
+    }
+
+    const eqChannel = echoInstance?.channel("equipment-inventory");
+    if (eqChannel?.listen) {
+      eqChannel.listen(".inventory.updated", () => {
+        window.dispatchEvent(new Event("equipment_inventory_updated"));
+      });
+    }
+
+    return () => {
+      clearInterval(interval);
+      echoInstance?.leave("admin-notifications");
+      echoInstance?.leave("equipment-inventory");
+    };
   }, []);
 
   const markAsRead = async (notifId) => {

@@ -89,8 +89,6 @@ export default function EquipBorrowInspectionForm({
                     const val =
                       assignedUnitSelections[idxKey] ||
                       assignedUnitSelections[catKey] ||
-                      assignedUnitSelections[uIdx] ||
-                      (Array.isArray(assignedUnitSelections) ? assignedUnitSelections[uIdx] : "") ||
                       "";
 
                     const matched = (physicalUnits || []).find(u => {
@@ -105,41 +103,54 @@ export default function EquipBorrowInspectionForm({
                       ? `${matched.unit_code || matched.barcode || matched.id} — ${matched.name || reqCat.category}`
                       : (val || `${reqCat.category} Unit ${uIdx + 1}`);
 
-                    const currentCond = unitReturnedConditions[idxKey] || unitReturnedConditions[catKey] || "Damaged";
+                    const resolvedCode = matched?.unit_code || val;
+                    const currentCond =
+                      (resolvedCode && unitReturnedConditions[resolvedCode]) ||
+                      (val && unitReturnedConditions[val]) ||
+                      (matched?.name && unitReturnedConditions[matched.name]) ||
+                      unitReturnedConditions[idxKey] ||
+                      unitReturnedConditions[catKey] ||
+                      "Damaged";
 
                     return (
                       <div key={uIdx} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2 bg-white rounded-lg border border-slate-200 shadow-2xs">
-                        <span className="font-mono text-[11px] font-bold text-slate-800 truncate max-w-[200px]">
+                        <span className="font-mono text-[11px] font-bold text-slate-800 truncate max-w-[200px]" title={displayLabel}>
                           {displayLabel}
                         </span>
                         <div className="flex items-center gap-1 shrink-0">
-                          {["Good", "Damaged", "Lost"].map((cOption) => (
-                            <button
-                              key={cOption}
-                              type="button"
-                              disabled={readOnly}
-                              onClick={() => {
-                                if (readOnly) return;
-                                const updated = {
-                                  ...unitReturnedConditions,
-                                  [idxKey]: cOption,
-                                  [catKey]: cOption
-                                };
-                                setUnitReturnedConditions(updated);
-                              }}
-                              className={`px-2.5 py-1 rounded-md text-[10px] font-black uppercase transition-all ${
-                                currentCond === cOption
-                                  ? cOption === "Good"
-                                    ? "bg-emerald-600 text-white border border-emerald-700 shadow-xs"
-                                    : cOption === "Damaged"
-                                    ? "bg-rose-600 text-white border border-rose-700 shadow-xs"
-                                    : "bg-slate-900 text-white border border-slate-950 shadow-xs"
-                                  : "bg-slate-100 text-slate-600 border border-slate-200"
-                              } ${readOnly ? "cursor-default opacity-90" : "cursor-pointer"}`}
-                            >
-                              {cOption}
-                            </button>
-                          ))}
+                          {["Good", "Damaged", "Lost"].map((cOption) => {
+                            const isSelected = String(currentCond).toLowerCase() === cOption.toLowerCase();
+                            return (
+                              <button
+                                key={cOption}
+                                type="button"
+                                disabled={readOnly}
+                                onClick={() => {
+                                  if (readOnly) return;
+                                  const updated = {
+                                    ...unitReturnedConditions,
+                                    [idxKey]: cOption,
+                                    [catKey]: cOption,
+                                  };
+                                  if (resolvedCode) {
+                                    updated[resolvedCode] = cOption;
+                                  }
+                                  setUnitReturnedConditions(updated);
+                                }}
+                                className={`px-2.5 py-1 rounded-md text-[10px] font-black uppercase transition-all ${
+                                  isSelected
+                                    ? cOption === "Good"
+                                      ? "bg-emerald-600 text-white border border-emerald-700 shadow-xs"
+                                      : cOption === "Damaged"
+                                      ? "bg-rose-600 text-white border border-rose-700 shadow-xs"
+                                      : "bg-slate-900 text-white border border-slate-950 shadow-xs"
+                                    : "bg-slate-100 text-slate-600 border border-slate-200"
+                                } ${readOnly ? "cursor-default opacity-90" : "cursor-pointer"}`}
+                              >
+                                {cOption}
+                              </button>
+                            );
+                          })}
                         </div>
                       </div>
                     );

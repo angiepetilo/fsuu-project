@@ -142,6 +142,21 @@ class EquipmentBorrowingService
                 SendBookingConfirmationJob::dispatch('equipment', $borrowing->load('items'));
             } catch (\Throwable $e) {}
 
+            // Broadcast real-time Pusher event
+            try {
+                event(new \App\Events\BookingCreated(
+                    'equipment_borrowing',
+                    $referenceCode,
+                    $data['filer_name'] ?? $data['requestor_name'] ?? 'Applicant',
+                    $data['program_office'] ?? $data['requestor_program_office'] ?? 'Department',
+                    $data['place_of_use'] ?? 'Campus Facility',
+                    substr($data['start_datetime'] ?? date('Y-m-d'), 0, 10),
+                    substr($data['start_datetime'] ?? '08:00', 11, 5),
+                    substr($data['end_datetime'] ?? '12:00', 11, 5),
+                    $borrowing->id
+                ));
+            } catch (\Throwable $e) {}
+
             return $borrowing->fresh(['items', 'trackingNumber']);
         });
     }
@@ -181,8 +196,14 @@ class EquipmentBorrowingService
                 $recipient
             );
 
-            // Dispatch status update email asynchronously
-            SendBookingStatusUpdateJob::dispatch('equipment', $borrowing->fresh(), 'approved', $remarks);
+            // Send status update email asynchronously
+            SendBookingStatusUpdateJob::dispatch('equipment', $borrowing, 'approved', $remarks);
+
+            // Broadcast real-time status update
+            try {
+                $ref = $borrowing->reference_code ?? $borrowing->trackingNumber?->reference_code ?? ('TRK-EB-' . $borrowing->id);
+                event(new \App\Events\BookingStatusUpdated('equipment_borrowing', $ref, 'approved', $borrowing->id, $remarks));
+            } catch (\Throwable $e) {}
 
             return $borrowing->fresh();
         });
@@ -362,7 +383,7 @@ class EquipmentBorrowingService
         $availableInSlot = max(0, $totalStock - $totalCommitted);
 
         if ($requestedQuantity > $availableInSlot) {
-            \Illuminate\Support\Facades\Log::warning("Requested quantity ({$requestedQuantity}) for equipment type ID {$equipmentTypeId} exceeds time-slot available stock ({$availableInSlot}). Submitted for admin review.");
+            throw new \App\Exceptions\EquipmentUnavailableException("Requested quantity ({$requestedQuantity}) exceeds available stock ({$availableInSlot}) for this time slot.");
         }
     }
 

@@ -190,6 +190,21 @@ class VenueBookingService
                 \Illuminate\Support\Facades\Log::error('Failed to dispatch venue booking confirmation email: ' . $e->getMessage());
             }
 
+            // Dispatch real-time Pusher event
+            try {
+                event(new \App\Events\BookingCreated(
+                    'venue_booking',
+                    $referenceCode,
+                    $filerName,
+                    $office,
+                    $venue->name ?? 'AVR Facility',
+                    $dateOfUsage,
+                    $timeStart,
+                    $timeEnd,
+                    $bookingId
+                ));
+            } catch (\Throwable $e) {}
+
             return $booking;
         });
     }
@@ -237,6 +252,12 @@ class VenueBookingService
 
             // Send status update email asynchronously
             SendBookingStatusUpdateJob::dispatch('venue', $booking->fresh('venue'), 'approved', $remarks);
+
+            // Broadcast real-time status update
+            try {
+                $ref = $booking->reference_code ?? $booking->trackingNumber?->reference_code ?? ('TRK-VB-' . $booking->id);
+                event(new \App\Events\BookingStatusUpdated('venue_booking', $ref, 'approved', $booking->id, $remarks));
+            } catch (\Throwable $e) {}
 
             return $booking->fresh();
         });

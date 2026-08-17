@@ -193,12 +193,46 @@ export default function EquipBorrowUnitAssignment({
                   {Array.from({ length: reqCat.quantity }).map((_, uIdx) => {
                     const idxKey = `${catIdx}-${uIdx}`;
                     const catKey = `${reqCat.category}-${uIdx}`;
-                    const val = assignedUnitSelections[idxKey] || assignedUnitSelections[catKey] || "—";
+                    const val = assignedUnitSelections[idxKey] || assignedUnitSelections[catKey] || "";
+
+                    if (isOngoing && (!val || val === "—")) {
+                      return (
+                        <div key={uIdx} className="relative">
+                          <select
+                            value={val}
+                            onChange={(e) => {
+                              const updated = { ...assignedUnitSelections, [idxKey]: e.target.value };
+                              if (catKey !== idxKey && catKey in updated) {
+                                delete updated[catKey];
+                              }
+                              setAssignedUnitSelections(updated);
+                              if (selected && selected.id) {
+                                localStorage.setItem(`fsuu_assigned_units_eb_${selected.id}`, JSON.stringify(updated));
+                                api.put(`/avr-equipment-borrowings/${selected.id}/assign-units`, { assigned_units: updated }).catch(() => {});
+                              }
+                            }}
+                            className="w-full p-2 bg-amber-50/50 border border-amber-300 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-50 cursor-pointer"
+                          >
+                            <option value="">-- Assign Barcode (Unit {uIdx + 1}) --</option>
+                            {availableUnits.map((unit) => (
+                              <option key={unit.id} value={unit.unit_code || unit.name}>
+                                {unit.unit_code || unit.barcode || unit.id} — {unit.name || reqCat.category}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      );
+                    }
+
                     return (
                       <div key={uIdx} className="flex items-center justify-between p-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-800">
                         <span>Unit {uIdx + 1}</span>
-                        <span className="bg-white px-2 py-0.5 rounded-lg border border-slate-200 text-blue-700 font-extrabold">
-                          {val}
+                        <span className={`px-2 py-0.5 rounded-lg border font-extrabold ${
+                          val && val !== "—"
+                            ? "bg-white border-slate-200 text-blue-700"
+                            : "bg-amber-100/60 border-amber-300 text-amber-800"
+                        }`}>
+                          {val || "Unassigned"}
                         </span>
                       </div>
                     );

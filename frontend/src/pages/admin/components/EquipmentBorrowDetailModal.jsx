@@ -61,22 +61,74 @@ export default function EquipmentBorrowDetailModal({
       .finally(() => setEqLoading(false));
   }, []);
 
+  const getRequestedCategories = () => {
+    let categories = [];
+
+    if (Array.isArray(selected.items) && selected.items.length > 0) {
+      categories = selected.items.map((item) => {
+        const dbType = (dbEquipmentTypes || []).find(t => String(t.id) === String(item.equipment_type_id)) || item.equipment_type;
+        const name = dbType?.eq_name || dbType?.name || item.equipment_type?.eq_name || item.equipment_type?.name || item.equipment_name || item.name || "Equipment Item";
+        const reqQty = parseInt(item.quantity_requested || item.quantity || 1, 10);
+
+        return {
+          category: name,
+          quantity: Math.max(reqQty, 1),
+        };
+      });
+    } else if (selected.equipment_name || selected.equipment) {
+      const name = selected.equipment_name || selected.equipment;
+      const reqQty = parseInt(selected.quantity || selected.qty || 1, 10);
+
+      categories = [{
+        category: name,
+        quantity: Math.max(reqQty, 1),
+      }];
+    }
+    return categories;
+  };
+
   // Restore assigned physical unit barcodes from DB and localStorage
   useEffect(() => {
     if (selected && selected.id) {
       let savedUnits = {};
 
+      const reqCats = getRequestedCategories();
+
       if (selected.assigned_units) {
         if (typeof selected.assigned_units === "object" && !Array.isArray(selected.assigned_units)) {
           savedUnits = { ...selected.assigned_units };
         } else if (Array.isArray(selected.assigned_units)) {
-          selected.assigned_units.forEach((u, i) => {
-            savedUnits[`0-${i}`] = String(u);
+          let globalUnitIdx = 0;
+          reqCats.forEach((catObj, cIdx) => {
+            const qty = parseInt(catObj.quantity, 10) || 1;
+            for (let u = 0; u < qty; u++) {
+              if (selected.assigned_units[globalUnitIdx] !== undefined) {
+                const uCode = String(selected.assigned_units[globalUnitIdx]);
+                savedUnits[`${cIdx}-${u}`] = uCode;
+                savedUnits[`${catObj.category}-${u}`] = uCode;
+                globalUnitIdx++;
+              }
+            }
           });
         } else if (typeof selected.assigned_units === "string") {
           try {
             const parsed = JSON.parse(selected.assigned_units);
-            if (typeof parsed === "object") savedUnits = parsed;
+            if (Array.isArray(parsed)) {
+              let globalUnitIdx = 0;
+              reqCats.forEach((catObj, cIdx) => {
+                const qty = parseInt(catObj.quantity, 10) || 1;
+                for (let u = 0; u < qty; u++) {
+                  if (parsed[globalUnitIdx] !== undefined) {
+                    const uCode = String(parsed[globalUnitIdx]);
+                    savedUnits[`${cIdx}-${u}`] = uCode;
+                    savedUnits[`${catObj.category}-${u}`] = uCode;
+                    globalUnitIdx++;
+                  }
+                }
+              });
+            } else if (typeof parsed === "object") {
+              savedUnits = parsed;
+            }
           } catch {}
         }
       }
@@ -108,20 +160,19 @@ export default function EquipmentBorrowDetailModal({
         }
       }
 
-      // Check existing inspection properties directly from selected object first
-      if (selected.assigned_units && typeof selected.assigned_units === "object") {
-        setAssignedUnitSelections((prev) => ({ ...prev, ...selected.assigned_units }));
+      if (selected.timeliness) {
+        setTimeliness(selected.timeliness);
       }
-      if (selected.unit_conditions && typeof selected.unit_conditions === "object") {
-        setUnitReturnedConditions(selected.unit_conditions);
-      }
-      if (selected.has_damage || selected.inspection_condition === "damaged" || selected.status === "damaged" || selected.violation) {
+      if (selected.condition === "damaged" || selected.condition === "lost" || selected.inspection_condition === "damaged" || selected.inspection_condition === "lost") {
         setInspectionStatus("violation");
       } else if (selected.inspection_condition === "good" || selected.inspection_condition === "clean") {
         setInspectionStatus("clean");
       }
       if (selected.violation || selected.inspection_notes) {
         setViolationNotes(selected.violation || selected.inspection_notes || "");
+      }
+      if (selected.unit_conditions && typeof selected.unit_conditions === "object") {
+        setUnitReturnedConditions(selected.unit_conditions);
       }
 
       // Check existing inspection from backend API
@@ -176,32 +227,6 @@ export default function EquipmentBorrowDetailModal({
       }
     } catch {}
     return String(dateStr);
-  };
-
-  const getRequestedCategories = () => {
-    let categories = [];
-
-    if (Array.isArray(selected.items) && selected.items.length > 0) {
-      categories = selected.items.map((item) => {
-        const dbType = (dbEquipmentTypes || []).find(t => String(t.id) === String(item.equipment_type_id)) || item.equipment_type;
-        const name = dbType?.eq_name || dbType?.name || item.equipment_type?.eq_name || item.equipment_type?.name || item.equipment_name || item.name || "Equipment Item";
-        const reqQty = parseInt(item.quantity_requested || item.quantity || 1, 10);
-
-        return {
-          category: name,
-          quantity: Math.max(reqQty, 1),
-        };
-      });
-    } else if (selected.equipment_name || selected.equipment) {
-      const name = selected.equipment_name || selected.equipment;
-      const reqQty = parseInt(selected.quantity || selected.qty || 1, 10);
-
-      categories = [{
-        category: name,
-        quantity: Math.max(reqQty, 1),
-      }];
-    }
-    return categories;
   };
 
   const requestedCategories = getRequestedCategories();

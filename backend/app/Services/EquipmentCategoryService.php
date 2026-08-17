@@ -69,6 +69,7 @@ class EquipmentCategoryService
 
         // 1. Calculate units released in ACTIVE ON-GOING equipment borrowings
         $borrowedCount = 0;
+        $approvedBorrowCount = 0;
         try {
             if (Schema::hasTable('equipment_borrow_items') && Schema::hasTable('equipment_borrows') && Schema::hasTable('tracking_numbers')) {
                 $borrowedCount = DB::table('equipment_borrow_items')
@@ -78,13 +79,23 @@ class EquipmentCategoryService
                     ->whereNull('equipment_borrows.archived_at')
                     ->whereIn(DB::raw('LOWER(tracking_numbers.status)'), ['on-going', 'ongoing', 'borrowed'])
                     ->sum('equipment_borrow_items.quantity_requested');
+
+                $approvedBorrowCount = DB::table('equipment_borrow_items')
+                    ->join('equipment_borrows', 'equipment_borrow_items.equipment_borrow_id', '=', 'equipment_borrows.id')
+                    ->join('tracking_numbers', 'equipment_borrows.tracking_number_id', '=', 'tracking_numbers.id')
+                    ->where('equipment_borrow_items.equipment_type_id', $e->id)
+                    ->whereNull('equipment_borrows.archived_at')
+                    ->whereIn(DB::raw('LOWER(tracking_numbers.status)'), ['approved', 'scheduled'])
+                    ->sum('equipment_borrow_items.quantity_requested');
             }
         } catch (\Throwable $th) {
             $borrowedCount = 0;
+            $approvedBorrowCount = 0;
         }
 
         // 2. Calculate units released in ACTIVE ON-GOING venue bookings
         $venueCount = 0;
+        $approvedVenueCount = 0;
         try {
             if (Schema::hasTable('venue_bookings') && Schema::hasTable('tracking_numbers')) {
                 $activeVbs = DB::table('venue_bookings')
@@ -105,7 +116,38 @@ class EquipmentCategoryService
                         }
                     }
 
-                    // Fallback to regex parsing for legacy bookings without structured rows
+                    $eqText = strtoupper($vb->equipment_notes ?? '');
+                    $typeName = strtoupper($e->eq_name ?? $e->name ?? '');
+                    $typeId = (string) $e->id;
+
+                    if (preg_match('/(?:^|,\s*)' . preg_quote($typeId, '/') . '\s*\(Qty:\s*(\d+)\)/i', $eqText, $m)) {
+                        return (int)$m[1];
+                    }
+                    if ($typeName && str_contains($eqText, $typeName)) {
+                        preg_match('/' . preg_quote($typeName, '/') . '[^\d]*(\d+)/i', $eqText, $m);
+                        return isset($m[1]) ? (int)$m[1] : 1;
+                    }
+                    return 0;
+                });
+
+                $approvedVbs = DB::table('venue_bookings')
+                    ->join('tracking_numbers', 'venue_bookings.tracking_number_id', '=', 'tracking_numbers.id')
+                    ->whereNull('venue_bookings.archived_at')
+                    ->whereIn(DB::raw('LOWER(tracking_numbers.status)'), ['approved', 'scheduled'])
+                    ->select('venue_bookings.id', 'venue_bookings.equipment_notes')
+                    ->get();
+
+                $approvedVenueCount = $approvedVbs->sum(function ($vb) use ($e) {
+                    if (Schema::hasTable('venue_booking_equipment')) {
+                        $structItems = DB::table('venue_booking_equipment')
+                            ->where('venue_booking_id', $vb->id)
+                            ->get();
+
+                        if ($structItems->count() > 0) {
+                            return (int) $structItems->where('equipment_type_id', $e->id)->sum('quantity_requested');
+                        }
+                    }
+
                     $eqText = strtoupper($vb->equipment_notes ?? '');
                     $typeName = strtoupper($e->eq_name ?? $e->name ?? '');
                     $typeId = (string) $e->id;
@@ -122,18 +164,29 @@ class EquipmentCategoryService
             }
         } catch (\Throwable $th) {
             $venueCount = 0;
+            $approvedVenueCount = 0;
         }
 
         $bookingReleased = (int) ($borrowedCount + $venueCount);
-        $releasedTotal = max($physicalReleased, $bookingReleased);
+        $bookingReserved = (int) ($approvedBorrowCount + $approvedVenueCount);
+
+        // If physical units are registered, actual release strictly reflects physical units in released/borrowed status
+        if ($registeredUnitsCount > 0) {
+            $releasedTotal = $physicalReleased;
+            $unassignedOngoing = max(0, $bookingReleased - $physicalReleased);
+            $reservedTotal = max($reservedCount, $bookingReserved + $unassignedOngoing);
+        } else {
+            $releasedTotal = $bookingReleased;
+            $reservedTotal = max($reservedCount, $bookingReserved);
+        }
 
         $totalQty = $registeredUnitsCount > 0
             ? $registeredUnitsCount
             : (int) ($e->total_quantity ?? 0);
 
-        $availCount = $registeredUnitsCount > 0
-            ? max(0, $totalQty - $releasedTotal - $reservedCount - $damagedCount - $lostCount)
-            : max(0, $totalQty - $releasedTotal);
+        // Physical units currently sitting on the shelf (Total - Checked Out - Damaged - Lost)
+        $presentCount = max(0, $totalQty - $releasedTotal - $damagedCount - $lostCount);
+        $reservedCapped = min($presentCount, $reservedTotal);
 
         $officeName = $e->office?->name ?? 'AVR Center';
         $officeLocation = $e->office?->location ?? 'FSUU Campus';
@@ -150,9 +203,10 @@ class EquipmentCategoryService
             'barcode'         => $e->barcode,
             'avatar'          => $e->avatar,
             'total_quantity'  => $totalQty,
-            'available_count' => $availCount,
+            'present_count'   => $presentCount,
+            'available_count' => $presentCount,
             'released_count'  => $releasedTotal,
-            'reserved_count'  => $reservedCount,
+            'reserved_count'  => $reservedCapped,
             'damaged_count'   => $damagedCount,
             'lost_count'      => $lostCount,
             'date_purchased'  => $e->date_purchased,

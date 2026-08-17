@@ -180,9 +180,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/documents/{document}/reject',  [DocumentController::class, 'reject']);
     Route::get('/inspections',                   [InspectionController::class, 'index']);
     Route::post('/inspections',                  [InspectionController::class, 'store']);
-
-    // ── SysAd (global-scope notifications) ────────────────────────────────────
-    Route::get('/sysad/notifications', [SuperAdminNotificationController::class, 'index']);
 });
 
 // ─── Utility ──────────────────────────────────────────────────────────────────

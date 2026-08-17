@@ -1,16 +1,70 @@
-# React + Vite
+# 🎨 FSUU Facilities & Equipment Reservation System — Frontend SPA
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+**Father Saturnino Urios University (FSUU)**  
+*React 18 Single Page Application (SPA) with Vite, Tailwind CSS, and Laravel Echo*
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## 📋 Overview
 
-## React Compiler
+This directory contains the **React 18 frontend** for the FSUU Venue Reservation & Equipment Borrowing System. It provides responsive public wizards for booking facilities and borrowing gear, a live tracking portal (`/track`), and rich administrative control panels for Staff, Admins, and SuperAdmins.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+---
 
-## Expanding the Oxlint configuration
+## ⚙️ Tech Stack & Key Libraries
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+* **Framework**: React 18
+* **Build Tool**: Vite 8
+* **Styling**: Tailwind CSS v4 & Lucide React
+* **Routing**: React Router v7
+* **Real-time WebSockets**: Laravel Echo & Pusher JS (`laravel-echo`, `pusher-js`)
+* **State & Data Fetching**: Axios, React Query
+* **Notifications & Feedback**: Sonner Toast Notifications
+
+---
+
+## 🚀 Quick Setup & Installation
+
+### 1. Install Node Dependencies
+```bash
+npm install
+```
+
+### 2. Environment Configuration
+Create or configure `.env`:
+```ini
+VITE_API_BASE_URL=http://localhost:8000/api
+
+# Pusher WebSockets (Optional - has graceful offline fallback)
+VITE_PUSHER_APP_KEY=your_pusher_key
+VITE_PUSHER_APP_CLUSTER=ap1
+```
+
+### 3. Run Development Server
+```bash
+npm run dev
+```
+
+### 4. Build for Production
+```bash
+npm run build
+```
+
+---
+
+## 📁 Directory Structure
+
+```
+src/
+├── components/         # Reusable UI primitives (Modals, Badges, Cards, Sonner)
+├── context/            # AuthContext (Sanctum authentication & role sessions)
+├── lib/
+│   ├── axios.js        # Configured Axios instance with interceptors
+│   └── echo.js         # Laravel Echo WebSocket singleton with offline fallback
+├── pages/
+│   ├── admin/          # Admin management (Dashboard, Venues, Equipments, Reports, History)
+│   ├── auth/           # Staff login and Google OAuth callback
+│   ├── public/         # Public portal (Landing, VenueBooking, EquipmentBorrowing, TrackBooking)
+│   └── superadmin/     # Super Admin layout & global settings
+└── App.jsx             # Top-level routing and lazy-loaded code-splitting
+```

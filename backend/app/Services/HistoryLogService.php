@@ -116,6 +116,10 @@ class HistoryLogService
                 'tracking_numbers.status',
                 'inspections.condition as inspection_condition',
                 'inspections.notes as inspection_notes',
+                'inspections.is_late as is_late',
+                'inspections.timeliness as timeliness',
+                'inspections.minutes_late as minutes_late',
+                'inspections.violation_type as violation_type',
                 'inspections.assigned_units as inspection_assigned_units',
                 'inspections.unit_conditions as inspection_unit_conditions',
                 'equipment_borrows.assigned_units as eb_assigned_units',
@@ -133,8 +137,11 @@ class HistoryLogService
             ->values()
             ->map(function ($b) {
                 $item = (array) $b;
-                $hasDamage = ($b->inspection_condition ?? '') === 'damaged' || strtolower($b->status ?? '') === 'damaged';
-                $violationText = $b->inspection_notes ?? ($hasDamage ? 'Rule Violation / Damage Reported' : null);
+                $isDamaged = ($b->inspection_condition ?? '') === 'damaged' || strtolower($b->status ?? '') === 'damaged';
+                $isLost = ($b->inspection_condition ?? '') === 'lost' || strtolower($b->status ?? '') === 'lost';
+                $isLate = !empty($b->is_late) || str_contains(strtolower($b->timeliness ?? ''), 'late') || str_contains(strtolower($b->violation_type ?? ''), 'overdue');
+                $hasViolation = $isDamaged || $isLost || $isLate || !empty($b->violation_type);
+                $violationText = $b->violation_type ?? $b->inspection_notes ?? ($hasViolation ? 'Policy Breach / Inspection Outcome Recorded' : null);
 
                 // Attach items
                 $items = [];
@@ -143,7 +150,7 @@ class HistoryLogService
                         $items = DB::table('equipment_borrow_items')
                             ->leftJoin('equipment_types', 'equipment_borrow_items.equipment_type_id', '=', 'equipment_types.id')
                             ->where('equipment_borrow_items.equipment_borrow_id', $b->id)
-                            ->select('equipment_borrow_items.*', 'equipment_types.eq_name', 'equipment_types.name as equipment_name')
+                            ->select('equipment_borrow_items.*', 'equipment_types.eq_name', 'equipment_types.eq_name as equipment_name')
                             ->get()
                             ->map(function ($it) {
                                 return [
@@ -174,12 +181,15 @@ class HistoryLogService
                     'items'           => $items,
                     'equipment_name'  => !empty($items) ? ($items[0]['equipment_name'] ?? 'Equipment') : 'Equipment Item',
                     'quantity'        => !empty($items) ? ($items[0]['quantity_requested'] ?? 1) : 1,
-                    'has_damage'      => $hasDamage,
-                    'has_violation'   => !empty($violationText),
+                    'has_damage'      => $isDamaged,
+                    'is_lost'         => $isLost,
+                    'is_late'         => $isLate,
+                    'has_violation'   => $hasViolation,
                     'violation'       => $violationText,
+                    'violation_type'  => $b->violation_type ?? ($isDamaged ? 'Physical Damage' : ($isLost ? 'Lost Property' : ($isLate ? 'Late Return' : null))),
                     'assigned_units'  => $assignedUnits,
                     'unit_conditions' => $unitConditions,
-                    'violations'      => !empty($violationText) ? 1 : 0,
+                    'violations'      => $hasViolation ? 1 : 0,
                 ]);
             });
     }

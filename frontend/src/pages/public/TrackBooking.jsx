@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { Search, Hash, CheckCircle2, Loader2, AlertCircle, Building2, PackageOpen, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import api from "@/lib/axios";
+import echoInstance from "@/lib/echo";
 
 export default function TrackBooking() {
   const [searchParams] = useSearchParams();
@@ -55,6 +56,26 @@ export default function TrackBooking() {
       executeTrack(urlRef);
     }
   }, [searchParams]);
+
+  // Real-time status update via Pusher WebSockets
+  useEffect(() => {
+    const ref = booking?.reference_code || trackCode;
+    if (!ref) return;
+
+    const channelName = `booking.${ref}`;
+    const channel = echoInstance?.channel(channelName);
+    if (channel?.listen) {
+      channel.listen(".booking.status_updated", (data) => {
+        if (data.status) {
+          setBooking((prev) => (prev ? { ...prev, status: data.status, remarks: data.remarks || prev.remarks } : prev));
+        }
+      });
+    }
+
+    return () => {
+      echoInstance?.leave(channelName);
+    };
+  }, [booking?.reference_code, trackCode]);
 
 
   const isVenue = booking?.type === 'venue' || (booking?.reference_code || trackCode).startsWith('VN') || (booking?.reference_code || trackCode).includes('AVR');
