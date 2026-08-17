@@ -145,6 +145,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/admin/fee-matrix/{id}',    [\App\Http\Controllers\SuperAdmin\FeeMatrixController::class, 'update']);
     Route::delete('/admin/fee-matrix/{id}', [\App\Http\Controllers\SuperAdmin\FeeMatrixController::class, 'destroy']);
 
+    // ── Admin: Academic Terms & Archiving (TiDB) ──────────────────────────────
+    Route::get('/admin/academic-terms',               [\App\Http\Controllers\SuperAdmin\AcademicTermController::class, 'index']);
+    Route::get('/admin/academic-terms/active',        [\App\Http\Controllers\SuperAdmin\AcademicTermController::class, 'active']);
+    Route::post('/admin/academic-terms/close-term',   [\App\Http\Controllers\SuperAdmin\AcademicTermController::class, 'closeTerm']);
+
     // ── Venue Bookings ─────────────────────────────────────────────────────────
     Route::get('/avr-venue-bookings',                              [VenueBookingController::class, 'index']);
     Route::get('/avr-venue-bookings/{avrVenueBooking}',            [VenueBookingController::class, 'show']);

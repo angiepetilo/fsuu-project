@@ -23,16 +23,19 @@ class HistoryLogController extends Controller
     {
         try {
             $type = $request->query('type', 'all'); // 'venue' | 'equipment' | 'all'
+            $academicTermId = $request->query('academic_term_id') ?: $request->query('term_id');
+            $academicTermId = $academicTermId && is_numeric($academicTermId) ? (int)$academicTermId : null;
+
             $user = $request->user();
             $isSuperAdmin = $user ? $user->isSuperAdmin() : true;
             $officeId = $user ? $user->office_id : null;
 
             $venueBookings       = in_array($type, ['venue', 'all']) 
-                ? $this->historyService->getVenueBookingsHistory($officeId, $isSuperAdmin) 
+                ? $this->historyService->getVenueBookingsHistory($officeId, $isSuperAdmin, $academicTermId) 
                 : collect();
 
             $equipmentBorrowings = in_array($type, ['equipment', 'all']) 
-                ? $this->historyService->getEquipmentBorrowingsHistory($officeId, $isSuperAdmin) 
+                ? $this->historyService->getEquipmentBorrowingsHistory($officeId, $isSuperAdmin, $academicTermId) 
                 : collect();
 
             if ($type === 'venue') {

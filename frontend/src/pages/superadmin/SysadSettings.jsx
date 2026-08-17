@@ -2,7 +2,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import {
   Users, Building2, Package, BookOpen, Clock,
-  DollarSign, Key, User, ShieldCheck, Building
+  DollarSign, Key, User, ShieldCheck, Building, GraduationCap
 } from "lucide-react";
 
 import EquipmentCategoriesTab from "../admin/tabs/EquipmentCategoriesTab";
@@ -14,6 +14,7 @@ import OperatingHoursTab from "./tabs/OperatingHoursTab";
 import FeeMatrixTab from "../admin/tabs/FeeMatrixTab";
 import VerificationPinTab from "./tabs/VerificationPinTab";
 import ProfileConfigTab from "./tabs/ProfileConfigTab";
+import AcademicTermsTab from "./tabs/AcademicTermsTab";
 
 export default function SysadSettings() {
   const [activeTab, setActiveTab] = useState("users");
@@ -43,6 +44,7 @@ export default function SysadSettings() {
     { id: "fee_matrix", label: "Fee Matrix", icon: DollarSign },
     { id: "departments", label: "Departments", icon: BookOpen },
     { id: "operating_hours", label: "Operating Hours", icon: Clock },
+    { id: "academic_terms", label: "Academic Terms & Archiving", icon: GraduationCap },
     { id: "pin", label: "Verification PIN", icon: Key },
     { id: "profile", label: "Profile", icon: User },
   ];
@@ -78,6 +80,7 @@ export default function SysadSettings() {
       {activeTab === "fee_matrix" && <FeeMatrixTab officeScope="All Offices" showMsg={showMsg} />}
       {activeTab === "departments" && <DepartmentsTab showMsg={showMsg} />}
       {activeTab === "operating_hours" && <OperatingHoursTab showMsg={showMsg} />}
+      {activeTab === "academic_terms" && <AcademicTermsTab showMsg={showMsg} />}
       {activeTab === "pin" && (
         <VerificationPinTab
           pinConfig={pinConfig}

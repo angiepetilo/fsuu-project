@@ -332,15 +332,90 @@ When a single borrowing contains **multiple categories** (e.g., Projector, Micro
 
 ---
 
-## 9. Security, Data Protection & Maintenance
+## 10. Security, Data Protection & Maintenance
 
 1. **Authorization Policies**: All administrative endpoints enforce granular Laravel policies ensuring unauthorized users cannot approve or cancel requests.
-2. **Soft Deletes**: Critical assets (venues, physical units, bookings) utilize `SoftDeletes` (`archived_at` column) to prevent accidental permanent data loss.
-3. **Input Sanitization & Validation**: Form Requests validate all incoming payloads, enforcing string trimming, email format rules, and date boundaries.
-4. **Audit Trail Logging**: Every status transition and inspection outcome is logged in the `history_logs` and `inspections` tables with timestamp and actor metadata.
+2. **Pessimistic Row Locking**: `->lockForUpdate()` is used during booking submissions inside `DB::transaction(...)` to eliminate race conditions and double-bookings.
+3. **Soft Deletes**: Critical assets (venues, physical units, bookings) utilize `SoftDeletes` (`archived_at` column) to prevent accidental permanent data loss.
+4. **Input Sanitization & Validation**: Form Requests validate all incoming payloads, enforcing string trimming, email format rules, and date boundaries.
+5. **Audit Trail Logging**: Every status transition and inspection outcome is logged in the `history_logs` and `inspections` tables with timestamp and actor metadata.
 
 ---
 
-*Documentation Version: 2.1.0*  
+## 11. 🚀 Production Deployment Guide & Complete Environment Variables (Render & Vercel)
+
+### 11.1. Render (Backend Laravel REST API) Environment Variables
+In your **Render Dashboard** $\rightarrow$ **Laravel Web Service** $\rightarrow$ **Environment**, configure the following keys:
+
+| Environment Variable Key | Production Example Value | Purpose / Description |
+| :--- | :--- | :--- |
+| `APP_NAME` | `FSUU Reservation System` | Application institutional name |
+| `APP_ENV` | `production` | Production environment flag |
+| `APP_DEBUG` | `false` | Disables debug stacktraces in production |
+| `APP_KEY` | `base64:...` | Laravel 32-character encryption key (`php artisan key:generate`) |
+| `APP_URL` | `https://your-backend.onrender.com` | Live Render backend URL |
+| `FRONTEND_URL` | `https://your-frontend.vercel.app` | Live Vercel frontend URL for CORS & OAuth redirects |
+| `DB_CONNECTION` | `pgsql` / `mysql` / `sqlite` | Production database connection driver |
+| `DB_HOST` | `dpg-xxxx.render.com` | Database host (if using PostgreSQL/MySQL) |
+| `DB_PORT` | `5432` / `3306` | Database port |
+| `DB_DATABASE` | `fsuu_booking_db` | Database schema name |
+| `DB_USERNAME` | `fsuu_user` | Database username |
+| `DB_PASSWORD` | `your_secure_db_password` | Database password |
+| `BROADCAST_CONNECTION` | `pusher` | Enables Pusher real-time WebSocket broadcasting |
+| `PUSHER_APP_ID` | `2186773` | Pusher application ID |
+| `PUSHER_APP_KEY` | `89f3021817090b62bd2f` | Pusher public application key |
+| `PUSHER_APP_SECRET` | `65d7106cdb9b525a1bfc` | Pusher private application secret |
+| `PUSHER_APP_CLUSTER` | `ap1` | Pusher Asia-Pacific server cluster |
+| `PUSHER_SCHEME` | `https` | Forces SSL encrypted WebSocket transmission |
+| `CLOUDINARY_URL` | `cloudinary://243499257123114:Axo0_LVuSCam2Ojb98In0cY8mL0@tymkk5ea` | Cloudinary persistent media storage (venues, gear, PDFs) |
+| `MAIL_MAILER` | `resend` / `smtp` | Mail driver for sending confirmation & approval emails |
+| `RESEND_API_KEY` | `re_your_resend_api_key` | Resend API key for automated booking emails |
+| `MAIL_FROM_ADDRESS` | `noreply@urios.edu.ph` | Sender email address for automated receipts |
+| `MAIL_FROM_NAME` | `FSUU Facilities & Equipment` | Sender display name |
+
+---
+
+### 11.2. Vercel (Frontend React SPA) Environment Variables
+In your **Vercel Dashboard** $\rightarrow$ **Project Settings** $\rightarrow$ **Environment Variables**, configure the following:
+
+| Environment Variable Key | Production Example Value | Purpose / Description |
+| :--- | :--- | :--- |
+| `VITE_API_BASE_URL` | `https://your-backend.onrender.com/api` | Direct HTTPS pointer to your live Render backend API |
+| `VITE_PUSHER_APP_KEY` | `89f3021817090b62bd2f` | Public Pusher key for live Laravel Echo connection |
+| `VITE_PUSHER_APP_CLUSTER` | `ap1` | Pusher server cluster region |
+
+---
+
+## 12. 📝 Public Booking & Borrowing Form Architecture & Locations
+
+### 12.1. Venue Booking Form
+- **Public URL**: `/book-venue`
+- **Frontend Source Directory**: `frontend/src/pages/public/VenueBooking/`
+  - `VenueBooking.jsx`: Main 4-step wizard container managing step state, validation, and submission.
+  - `components/Step1Schedule.jsx`: Date picker, usage hours (7:00 AM – 7:00 PM), and lead-time check.
+  - `components/Step2Venue.jsx`: Dynamic venue cards with capacity filters and live availability slots.
+  - `components/Step3Details.jsx`: Equipment add-ons (with available stock caps) and applicant information.
+  - `components/Step4Review.jsx`: Policy agreement, endorsement letter upload, and final review summary.
+- **Backend Handler**: `POST /api/public/avr-venue-bookings` $\rightarrow$ `Public\VenueBookingController.php` $\rightarrow$ `VenueBookingService.php`.
+
+### 12.2. Equipment Borrowing Form
+- **Public URL**: `/borrow-equipment`
+- **Frontend Source Directory**: `frontend/src/pages/public/EquipmentBorrowing/`
+  - `EquipmentBorrowing.jsx`: Main 3-step wizard container.
+  - `components/Step1EquipmentUsage.jsx`: Usage date, pickup/return times, and place of use.
+  - `components/Step2EquipmentSelection.jsx`: Multi-category selection with live dynamic remaining quantity counters.
+  - `components/Step3BorrowerDetails.jsx`: Filer details, academic department dropdown, endorsement PDF attachment, and OTP verification.
+- **Backend Handler**: `POST /api/public/avr-equipment-borrowings` $\rightarrow$ `Public\EquipmentBorrowingController.php` $\rightarrow$ `EquipmentBorrowingService.php`.
+
+### 12.3. Status Tracking Portal
+- **Public URL**: `/track` (or `/track?ref=TRK-VB-2026-101`)
+- **Frontend Source File**: `frontend/src/pages/public/TrackBooking.jsx`
+- **Backend Handler**: `POST /api/public/track` $\rightarrow$ `TrackingController.php`.
+- **Live WebSocket Channel**: Subscribes to `booking.{reference_code}` via Laravel Echo to auto-advance the multi-step timeline when staff approves or releases items.
+
+---
+
+*Documentation Version: 2.2.0*  
 *Father Saturnino Urios University (FSUU)*  
 *Automated Venue Reservation & Equipment Borrowing Management System*
+

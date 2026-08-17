@@ -11,7 +11,7 @@ class HistoryLogService
     /**
      * Fetch and format completed/archived venue booking history records
      */
-    public function getVenueBookingsHistory(?int $officeId, bool $isSuperAdmin): Collection
+    public function getVenueBookingsHistory(?int $officeId, bool $isSuperAdmin, ?int $academicTermId = null): Collection
     {
         $vbQuery = DB::table('venue_bookings')
             ->join('tracking_numbers', 'venue_bookings.tracking_number_id', '=', 'tracking_numbers.id')
@@ -25,8 +25,13 @@ class HistoryLogService
                 $join->on('venue_bookings.id', '=', 'documents.venue_booking_id');
             })
             ->whereNull('venue_bookings.archived_at')
-            ->whereIn(DB::raw('LOWER(tracking_numbers.status)'), ['completed', 'solved', 'done', 'damaged', 'violation'])
-            ->select(
+            ->whereIn(DB::raw('LOWER(tracking_numbers.status)'), ['completed', 'solved', 'done', 'damaged', 'violation']);
+
+        if ($academicTermId) {
+            $vbQuery->where('venue_bookings.academic_term_id', $academicTermId);
+        }
+
+        $vbQuery->select(
                 'venue_bookings.id',
                 'venue_bookings.filer_name',
                 'venue_bookings.program_office',
@@ -89,7 +94,7 @@ class HistoryLogService
     /**
      * Fetch and format completed/archived equipment borrowing history records
      */
-    public function getEquipmentBorrowingsHistory(?int $officeId, bool $isSuperAdmin): Collection
+    public function getEquipmentBorrowingsHistory(?int $officeId, bool $isSuperAdmin, ?int $academicTermId = null): Collection
     {
         $ebQuery = DB::table('equipment_borrows')
             ->join('tracking_numbers', 'equipment_borrows.tracking_number_id', '=', 'tracking_numbers.id')
@@ -99,8 +104,13 @@ class HistoryLogService
                      ->where('inspections.inspectable_type', 'App\\Models\\EquipmentBorrow');
             })
             ->whereNull('equipment_borrows.archived_at')
-            ->whereIn(DB::raw('LOWER(tracking_numbers.status)'), ['completed', 'solved', 'done', 'damaged', 'lost', 'violation'])
-            ->select(
+            ->whereIn(DB::raw('LOWER(tracking_numbers.status)'), ['completed', 'solved', 'done', 'damaged', 'lost', 'violation']);
+
+        if ($academicTermId) {
+            $ebQuery->where('equipment_borrows.academic_term_id', $academicTermId);
+        }
+
+        $ebQuery->select(
                 'equipment_borrows.id',
                 'equipment_borrows.filer_name',
                 'equipment_borrows.program_office',

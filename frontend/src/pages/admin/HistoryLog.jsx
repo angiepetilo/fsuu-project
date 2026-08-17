@@ -68,11 +68,31 @@ export default function HistoryLog() {
   const [historyType, setHistoryType] = useState("venue"); // "venue" | "equipment"
   const [venueHistory, setVenueHistory] = useState([]);
   const [equipmentHistory, setEquipmentHistory] = useState([]);
+  const [academicTerms, setAcademicTerms] = useState([]);
+  const [selectedTermId, setSelectedTermId] = useState("");
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [feedback, setFeedback] = useState(null);
   const [activeMenuId, setActiveMenuId] = useState(null);
   const [activeMenuEl, setActiveMenuEl] = useState(null);
+
+  // Fetch academic terms list once
+  useEffect(() => {
+    const loadTerms = async () => {
+      try {
+        const res = await api.get("/admin/academic-terms");
+        if (res.data?.terms) {
+          setAcademicTerms(res.data.terms);
+          if (res.data.active_term?.id && !selectedTermId) {
+            setSelectedTermId(String(res.data.active_term.id));
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load academic terms in HistoryLog:", err);
+      }
+    };
+    loadTerms();
+  }, []);
 
   // View Details Modal State & Inspection Record States
   const [selectedVenueModal, setSelectedVenueModal] = useState(null);
@@ -90,7 +110,8 @@ export default function HistoryLog() {
   const fetchHistory = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await api.get(`/admin/history-log?type=${historyType}`);
+      const termParam = selectedTermId ? `&academic_term_id=${selectedTermId}` : "";
+      const res = await api.get(`/admin/history-log?type=${historyType}${termParam}`);
       const vb = res.data?.venue_bookings || [];
       const eb = res.data?.equipment_borrowings || [];
 
@@ -122,7 +143,7 @@ export default function HistoryLog() {
     } finally {
       setLoading(false);
     }
-  }, [historyType]);
+  }, [historyType, selectedTermId]);
 
   useEffect(() => {
     fetchHistory();
@@ -328,18 +349,38 @@ export default function HistoryLog() {
         </div>
       )}
 
-      {/* Category Dropdown & Search Bar */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
-        <div className="flex items-center gap-3">
-          <label className="text-xs font-bold text-slate-700">Category Log :</label>
-          <select
-            value={historyType}
-            onChange={(e) => setHistoryType(e.target.value)}
-            className="p-2 bg-white border border-slate-200 rounded-lg font-bold text-slate-900 text-xs focus:outline-none focus:border-slate-400 cursor-pointer"
-          >
-            <option value="venue">Venue Bookings History</option>
-            <option value="equipment">Equipment Borrowings History</option>
-          </select>
+      {/* Category Dropdown, Semester Filter & Search Bar */}
+      <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-bold text-slate-700 whitespace-nowrap">Category Log :</label>
+            <select
+              value={historyType}
+              onChange={(e) => setHistoryType(e.target.value)}
+              className="p-2 bg-white border border-slate-200 rounded-lg font-bold text-slate-900 text-xs focus:outline-none focus:border-slate-400 cursor-pointer"
+            >
+              <option value="venue">Venue Bookings History</option>
+              <option value="equipment">Equipment Borrowings History</option>
+            </select>
+          </div>
+
+          {academicTerms.length > 0 && (
+            <div className="flex items-center gap-2">
+              <label className="text-xs font-bold text-slate-700 whitespace-nowrap">Semester :</label>
+              <select
+                value={selectedTermId}
+                onChange={(e) => setSelectedTermId(e.target.value)}
+                className="p-2 bg-white border border-slate-200 rounded-lg font-bold text-slate-900 text-xs focus:outline-none focus:border-slate-400 cursor-pointer"
+              >
+                <option value="">All Academic Terms (TiDB Archive)</option>
+                {academicTerms.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name} {t.is_active ? "(Active)" : "(Archived)"}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
 
         <div className="relative w-full sm:w-64">
