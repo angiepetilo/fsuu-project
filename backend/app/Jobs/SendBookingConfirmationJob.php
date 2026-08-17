@@ -61,6 +61,15 @@ class SendBookingConfirmationJob implements ShouldQueue
                 Log::error("SendBookingConfirmationJob failed on both mailers: " . $err->getMessage());
             }
         }
+
+        // Send SMS confirmation for equipment borrowing requests
+        if ($this->type === 'equipment') {
+            try {
+                \App\Services\SmsService::sendBorrowingConfirmation($this->booking);
+            } catch (\Throwable $smsErr) {
+                Log::warning("SendBookingConfirmationJob SMS dispatch failed: " . $smsErr->getMessage());
+            }
+        }
     }
 
     public function failed(\Throwable $e): void

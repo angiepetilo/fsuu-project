@@ -1,4 +1,4 @@
-import { Loader2, Play, Mail, CheckCircle2, PackageCheck, AlertCircle } from "lucide-react";
+import { Loader2, Play, Mail, CheckCircle2, PackageCheck, AlertCircle, Smartphone } from "lucide-react";
 import api from "@/lib/axios";
 
 /**
@@ -19,6 +19,9 @@ export default function EquipBorrowUnitAssignment({
   resendMsg,
   resendLoading,
   handleResendEmail,
+  smsMsg,
+  smsLoading,
+  handleSendOverdueSms,
 }) {
   const borrowingOfficeId = selected?.office_id || selected?.office?.id || (selected?.items && selected.items[0]?.equipment_type?.office_id);
 
@@ -302,7 +305,7 @@ export default function EquipBorrowUnitAssignment({
         )}
 
         {/* Resend Email Delivery Button */}
-        <div>
+        <div className="space-y-1.5">
           {resendMsg && (
             <p className="text-[10.5px] font-mono text-emerald-600 font-bold mb-1">
               {resendMsg}
@@ -317,6 +320,27 @@ export default function EquipBorrowUnitAssignment({
             {resendLoading ? <Loader2 size={14} className="animate-spin" /> : <Mail size={14} className="text-slate-600" />}
             Resend Email Delivery
           </button>
+
+          {/* Overdue SMS Alert Trigger (Available on Ongoing or Approved) */}
+          {(isOngoing || isApproved) && (
+            <div>
+              {smsMsg && (
+                <p className="text-[10.5px] font-mono text-amber-600 font-bold mb-1">
+                  {smsMsg}
+                </p>
+              )}
+              <button
+                type="button"
+                onClick={handleSendOverdueSms}
+                disabled={smsLoading}
+                className="w-full py-2 bg-amber-50 hover:bg-amber-100/80 text-amber-900 rounded-lg text-xs font-bold border border-amber-300/80 flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 transition-colors"
+                title="Send urgent SMS reminder to borrower's phone number via Semaphore"
+              >
+                {smsLoading ? <Loader2 size={14} className="animate-spin" /> : <Smartphone size={14} className="text-amber-700" />}
+                Send Overdue SMS Notice
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

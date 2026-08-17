@@ -180,6 +180,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/avr-equipment-borrowings/{equipmentBorrowing}/undo',    [EquipmentBorrowingController::class, 'undo']);
     Route::post('/avr-equipment-borrowings/{equipmentBorrowing}/cancel',  [EquipmentBorrowingController::class, 'cancel']);
     Route::post('/avr-equipment-borrowings/{id}/resend-email',            [EquipmentBorrowingController::class, 'resendEmail']);
+    Route::post('/avr-equipment-borrowings/{id}/send-overdue-sms',        [EquipmentBorrowingController::class, 'sendOverdueSms']);
     Route::put('/avr-equipment-borrowings/{equipmentBorrowing}/assign-units', [EquipmentBorrowingController::class, 'assignUnits']);
     Route::put('/avr-equipment-borrowings/{equipmentBorrowing}/override',     [EquipmentBorrowingController::class, 'override']);
 

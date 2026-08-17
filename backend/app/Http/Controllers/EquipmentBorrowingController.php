@@ -367,6 +367,25 @@ class EquipmentBorrowingController extends Controller
         }
     }
 
+    public function sendOverdueSms(\Illuminate\Http\Request $request, int $id): JsonResponse
+    {
+        $borrow = EquipmentBorrowing::with('items', 'trackingNumber')->find($id);
+        if (!$borrow) {
+            return response()->json(['message' => 'Equipment borrowing record not found'], 404);
+        }
+
+        try {
+            $res = \App\Services\SmsService::sendOverdueAlert($borrow);
+            $contact = $borrow->contact_number ?? $borrow->requestor_contact_number ?? 'Borrower';
+            return response()->json([
+                'message' => "✅ Overdue SMS alert dispatched to {$contact}",
+                'result'  => $res,
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json(['message' => 'Failed to send overdue SMS: ' . $e->getMessage()], 500);
+        }
+    }
+
     public function assignUnits(\Illuminate\Http\Request $request, EquipmentBorrowing $equipmentBorrowing): JsonResponse
     {
         $this->authorize('assignUnit', $equipmentBorrowing);

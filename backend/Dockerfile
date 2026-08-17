@@ -28,16 +28,16 @@ WORKDIR /var/www
 # Configure Composer environment settings for resilient network downloads
 ENV COMPOSER_ALLOW_SUPERUSER=1 \
     COMPOSER_PROCESS_TIMEOUT=2000 \
-    COMPOSER_MAX_PARALLEL_HTTP=6
+    COMPOSER_MAX_PARALLEL_HTTP=1
 
 # Copy composer files first for optimal Docker layer caching
 COPY composer.json composer.lock* /var/www/
 
-# Install Composer dependencies with retries and fallback
+# Install Composer dependencies with git-clone fallback (bypasses GitHub 429 rate limits)
 RUN composer config --global process-timeout 2000 && \
+    composer config --global git-clone-protection false && \
     (composer install --no-dev --no-scripts --no-autoloader --no-interaction --prefer-dist || \
-     composer install --no-dev --no-scripts --no-autoloader --no-interaction --prefer-dist || \
-     composer install --no-dev --no-scripts --no-autoloader --no-interaction)
+     composer install --no-dev --no-scripts --no-autoloader --no-interaction --prefer-source)
 
 # Copy existing application code
 COPY . /var/www

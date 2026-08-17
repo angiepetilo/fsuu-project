@@ -288,6 +288,9 @@ export default function EquipmentBorrowDetailModal({
 
   const docUrl = getDocumentUrl();
 
+  const [smsMsg, setSmsMsg] = useState(null);
+  const [smsLoading, setSmsLoading] = useState(false);
+
   const handleResendEmail = async () => {
     setResendLoading(true);
     try {
@@ -299,6 +302,20 @@ export default function EquipmentBorrowDetailModal({
       setTimeout(() => setResendMsg(null), 4000);
     } finally {
       setResendLoading(false);
+    }
+  };
+
+  const handleSendOverdueSms = async () => {
+    setSmsLoading(true);
+    try {
+      const res = await api.post(`/avr-equipment-borrowings/${selected.id}/send-overdue-sms`);
+      setSmsMsg(res.data?.message || "Overdue SMS alert dispatched.");
+      setTimeout(() => setSmsMsg(null), 4000);
+    } catch (err) {
+      setSmsMsg(err.response?.data?.message || "Failed to send Overdue SMS.");
+      setTimeout(() => setSmsMsg(null), 4000);
+    } finally {
+      setSmsLoading(false);
     }
   };
 
@@ -493,6 +510,9 @@ export default function EquipmentBorrowDetailModal({
             resendMsg={resendMsg}
             resendLoading={resendLoading}
             handleResendEmail={handleResendEmail}
+            smsMsg={smsMsg}
+            smsLoading={smsLoading}
+            handleSendOverdueSms={handleSendOverdueSms}
           />
 
         </div>
