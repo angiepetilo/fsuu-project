@@ -313,12 +313,13 @@ export default function EquipmentBorrowing() {
         formData.append(`items[${idx}][quantity_requested]`, item.quantity_requested);
       });
       if (endorsementFile) {
-        formData.append("endorsement_file", endorsementFile);
+        const fileToAppend = endorsementFile instanceof File ? endorsementFile : (endorsementFile?.file instanceof File ? endorsementFile.file : endorsementFile);
+        if (fileToAppend) {
+          formData.append("endorsement_file", fileToAppend);
+        }
       }
 
-      const res = await api.post("/public/avr-equipment-borrowings", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      const res = await api.post("/public/avr-equipment-borrowings", formData);
 
       const rawTracking = res.data?.tracking_number;
       const trackingNum = (typeof rawTracking === 'string' ? rawTracking : rawTracking?.reference_code || rawTracking?.tracking_number)

@@ -112,23 +112,27 @@ class ListingController extends Controller
                 $operational = (int)($hasRegisteredUnits ? $e->calculated_operational : ($e->total_quantity ?? 0));
                 $avail = (int)($hasRegisteredUnits ? $e->calculated_available : $operational);
 
+                $matchTypeIds = [$e->id, $e->eq_name, $e->name, $e->eq_type];
+
                 if ($dateStr && $startTimeStr && $endTimeStr) {
-                    $startDT = $dateStr . ' ' . (strlen($startTimeStr) === 5 ? $startTimeStr . ':00' : $startTimeStr);
-                    $endDT = $dateStr . ' ' . (strlen($endTimeStr) === 5 ? $endTimeStr . ':00' : $endTimeStr);
+                    $cleanDate = substr($dateStr, 0, 10);
 
                     // 1. Calculate Equipment Borrowings overlapping this time slot
-                    $borrowCommitted = \App\Models\EquipmentBorrowItem::where('equipment_type_id', $e->id)
-                        ->whereHas('equipmentBorrow', function ($query) use ($dateStr, $startTimeStr, $endTimeStr, $startDT, $endDT) {
+                    $borrowCommitted = \App\Models\EquipmentBorrowItem::whereIn('equipment_type_id', $matchTypeIds)
+                        ->whereHas('equipmentBorrow', function ($query) use ($cleanDate, $startTimeStr, $endTimeStr) {
                             $query->where(function ($stQuery) {
                                     $stQuery->whereHas('trackingNumber', function ($t) {
                                         $t->whereNotIn('status', ['rejected', 'cancelled', 'completed', 'done']);
                                     })
-                                    ->orWhereNull('tracking_number_id');
+                                    ->orWhereNotIn('status', ['rejected', 'cancelled', 'completed', 'done']);
                                 })
-                                ->where(function($sub) use ($dateStr, $startTimeStr, $endTimeStr) {
-                                    $sub->where('date_of_usage', $dateStr)
-                                        ->where('time_start', '<', $endTimeStr)
-                                        ->where('time_end', '>', $startTimeStr);
+                                ->where(function($sub) use ($cleanDate, $startTimeStr, $endTimeStr) {
+                                    $sub->where(function($dq) use ($cleanDate) {
+                                        $dq->whereDate('date_of_usage', $cleanDate)
+                                           ->orWhere('date_of_usage', 'like', "{$cleanDate}%");
+                                    })
+                                    ->where('time_start', '<', $endTimeStr)
+                                    ->where('time_end', '>', $startTimeStr);
                                 });
                         })
                         ->sum('quantity_requested');
@@ -138,19 +142,22 @@ class ListingController extends Controller
                             $stQuery->whereHas('trackingNumber', function ($t) {
                                 $t->whereNotIn('status', ['rejected', 'cancelled', 'completed', 'done']);
                             })
-                            ->orWhereNull('tracking_number_id');
+                            ->orWhereNotIn('status', ['rejected', 'cancelled', 'completed', 'done']);
                         })
-                        ->where('date_of_usage', $dateStr)
+                        ->where(function($dq) use ($cleanDate) {
+                            $dq->whereDate('date_of_usage', $cleanDate)
+                               ->orWhere('date_of_usage', 'like', "{$cleanDate}%");
+                        })
                         ->where('time_start', '<', $endTimeStr)
                         ->where('time_end', '>', $startTimeStr)
                         ->get()
-                        ->sum(function ($vb) use ($e) {
+                        ->sum(function ($vb) use ($e, $matchTypeIds) {
                             if (\Illuminate\Support\Facades\Schema::hasTable('venue_booking_equipment')) {
                                 $structItems = DB::table('venue_booking_equipment')
                                     ->where('venue_booking_id', $vb->id)
                                     ->get();
                                 if ($structItems->count() > 0) {
-                                    return (int) $structItems->where('equipment_type_id', $e->id)->sum('quantity_requested');
+                                    return (int) $structItems->whereIn('equipment_type_id', $matchTypeIds)->sum('quantity_requested');
                                 }
                             }
 

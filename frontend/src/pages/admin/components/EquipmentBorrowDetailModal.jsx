@@ -40,6 +40,10 @@ export default function EquipmentBorrowDetailModal({
   const [resendLoading, setResendLoading] = useState(false);
   const [resendMsg, setResendMsg] = useState(null);
 
+  // SMS notice state
+  const [smsMsg, setSmsMsg] = useState(null);
+  const [smsLoading, setSmsLoading] = useState(false);
+
   // Override State for Admin / SysAd
   const [isOverrideActive, setIsOverrideActive] = useState(false);
   const [overrideCategory, setOverrideCategory] = useState("PROJECTOR");
@@ -287,9 +291,6 @@ export default function EquipmentBorrowDetailModal({
   };
 
   const docUrl = getDocumentUrl();
-
-  const [smsMsg, setSmsMsg] = useState(null);
-  const [smsLoading, setSmsLoading] = useState(false);
 
   const handleResendEmail = async () => {
     setResendLoading(true);

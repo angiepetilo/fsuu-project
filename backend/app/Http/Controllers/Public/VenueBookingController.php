@@ -19,6 +19,8 @@ class VenueBookingController extends Controller
 
         if ($request->hasFile('endorsement_file')) {
             $data['endorsement_url'] = app(\App\Services\MediaUploadService::class)->upload($request->file('endorsement_file'), 'endorsements');
+        } elseif ($request->filled('endorsement_file')) {
+            $data['endorsement_url'] = app(\App\Services\MediaUploadService::class)->upload($request->input('endorsement_file'), 'endorsements');
         }
 
         try {

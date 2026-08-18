@@ -114,7 +114,7 @@ export default function Step4Verification({
             ) : (
               <div className="p-3 bg-white rounded-xl border border-slate-200/80 text-xs font-semibold text-slate-600 flex items-center gap-2">
                 <CheckCircle2 size={15} className="text-emerald-500 shrink-0" />
-                <span>Signed Endorsement Letter (DSA or VP Acad Clearance)</span>
+                <span>Signed Endorsement Letter (Director of OISAA or OVPASA Clearance)</span>
               </div>
             )}
           </div>

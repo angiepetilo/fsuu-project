@@ -357,7 +357,10 @@ export default function VenueBooking() {
         }
       });
       if (endorsementFile) {
-        formData.append('endorsement_file', endorsementFile);
+        const fileToAppend = endorsementFile instanceof File ? endorsementFile : (endorsementFile?.file instanceof File ? endorsementFile.file : endorsementFile);
+        if (fileToAppend) {
+          formData.append('endorsement_file', fileToAppend);
+        }
       }
 
       const res = await api.post(endpoint, formData);

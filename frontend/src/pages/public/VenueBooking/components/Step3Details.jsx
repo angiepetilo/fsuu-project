@@ -155,10 +155,10 @@ export default function Step3Details({
               {classification && (
                 <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs font-semibold text-amber-900 animate-in fade-in">
                   {classification === "organization" && (
-                    <span>📄 <strong>Mandatory Endorsement:</strong> Formal request letter signed and endorsed by the <strong>Dean of Student Affairs (DSA)</strong>.</span>
+                    <span>📄 <strong>Mandatory Endorsement:</strong> Formal request letter signed and endorsed by the <strong>Director of OISAA</strong>.</span>
                   )}
                   {classification === "academic" && (
-                    <span>📄 <strong>Mandatory Endorsement:</strong> Formal request letter signed and endorsed by the <strong>VP for Academic Affairs (VP Acad)</strong>.</span>
+                    <span>📄 <strong>Mandatory Endorsement:</strong> Formal request letter signed and endorsed by the <strong>OVPASA</strong>.</span>
                   )}
                   {classification === "admin" && (
                     <span>📄 <strong>Mandatory Endorsement:</strong> Formal request letter signed and endorsed by the <strong>Office / Department Head</strong>.</span>

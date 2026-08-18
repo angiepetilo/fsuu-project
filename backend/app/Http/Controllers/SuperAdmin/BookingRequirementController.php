@@ -106,8 +106,17 @@ class BookingRequirementController extends Controller
                 ]);
             }
 
+            // Rename any legacy records in the database
+            BookingRequirement::where('label', 'like', '%Dean of Student Affairs%')
+                ->orWhere('label', 'like', '%(DSA)%')
+                ->update(['label' => 'Formal request letter signed and endorsed by the Director of OISAA']);
+
+            BookingRequirement::where('label', 'like', '%VP for Academic Affairs%')
+                ->orWhere('label', 'like', '%(VP Acad)%')
+                ->update(['label' => 'Formal request letter signed and endorsed by the OVPASA']);
+
             BookingRequirement::firstOrCreate(
-                ['label' => 'Formal request letter signed and endorsed by the Dean of Student Affairs (DSA)'],
+                ['label' => 'Formal request letter signed and endorsed by the Director of OISAA'],
                 [
                     'office_id'      => $office->id,
                     'classification' => 'Organization Purposes',
@@ -117,7 +126,7 @@ class BookingRequirementController extends Controller
             );
 
             BookingRequirement::firstOrCreate(
-                ['label' => 'Formal request letter signed and endorsed by the VP for Academic Affairs (VP Acad)'],
+                ['label' => 'Formal request letter signed and endorsed by the OVPASA'],
                 [
                     'office_id'      => $office->id,
                     'classification' => 'Academic Purposes',

@@ -24,8 +24,7 @@ class HistoryLogService
             ->leftJoin('documents', function ($join) {
                 $join->on('venue_bookings.id', '=', 'documents.venue_booking_id');
             })
-            ->whereNull('venue_bookings.archived_at')
-            ->whereIn(DB::raw('LOWER(tracking_numbers.status)'), ['completed', 'solved', 'done', 'damaged', 'violation']);
+            ->whereNull('venue_bookings.archived_at');
 
         if ($academicTermId) {
             $vbQuery->where('venue_bookings.academic_term_id', $academicTermId);
@@ -103,8 +102,7 @@ class HistoryLogService
                 $join->on('equipment_borrows.id', '=', 'inspections.inspectable_id')
                      ->where('inspections.inspectable_type', 'App\\Models\\EquipmentBorrow');
             })
-            ->whereNull('equipment_borrows.archived_at')
-            ->whereIn(DB::raw('LOWER(tracking_numbers.status)'), ['completed', 'solved', 'done', 'damaged', 'lost', 'violation']);
+            ->whereNull('equipment_borrows.archived_at');
 
         if ($academicTermId) {
             $ebQuery->where('equipment_borrows.academic_term_id', $academicTermId);

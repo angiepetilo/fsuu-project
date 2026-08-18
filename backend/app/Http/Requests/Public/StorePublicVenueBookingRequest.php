@@ -34,7 +34,7 @@ class StorePublicVenueBookingRequest extends FormRequest
             'time_start' => ['nullable', 'string'],
             'time_end' => ['nullable', 'string'],
             'equipment_items' => ['nullable'],
-            'endorsement_file' => ['nullable', 'file', 'mimes:pdf,png,jpg,jpeg,webp', 'max:20480'],
+            'endorsement_file' => ['nullable'],
         ];
     }
 }
