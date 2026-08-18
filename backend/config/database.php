@@ -62,11 +62,12 @@ return [
             'strict' => true,
             'engine' => null,
             'options' => extension_loaded('pdo_mysql') ? (
-                env('MYSQL_ATTR_SSL_CA')
-                    ? [\PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA')]
-                    : (env('DB_PORT') == '4000' || str_contains((string)env('DB_HOST'), 'tidbcloud.com')
-                        ? [\PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT => false]
-                        : [])
+                str_contains((string)env('DB_HOST'), 'tidbcloud.com') || env('DB_PORT') == '4000' || env('MYSQL_ATTR_SSL_CA')
+                    ? array_filter([
+                        \PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA', file_exists('/etc/ssl/certs/ca-certificates.crt') ? '/etc/ssl/certs/ca-certificates.crt' : null),
+                        \PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT => false,
+                      ], fn($v) => $v !== null)
+                    : []
             ) : [],
         ],
 

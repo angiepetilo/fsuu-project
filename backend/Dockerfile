@@ -72,7 +72,8 @@ ENV APP_ENV=production \
     MAIL_PASSWORD="lsjm movr csbz yqoc" \
     MAIL_ENCRYPTION=ssl \
     MAIL_FROM_ADDRESS="angie.petilo@urios.edu.ph" \
-    MAIL_FROM_NAME="FSUU Reserve and Booking System"
+    MAIL_FROM_NAME="FSUU Reserve and Booking System" \
+    MYSQL_ATTR_SSL_CA=/etc/ssl/certs/ca-certificates.crt
 
 # Expose port
 EXPOSE 80
