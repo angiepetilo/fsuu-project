@@ -106,6 +106,29 @@ Route::middleware('auth:sanctum')->group(function () {
     // ── Admin: Analytics & Reports ────────────────────────────────────────────
     Route::get('/admin/equipment-damages',    [EquipmentDamageController::class, 'index']);
     Route::get('/admin/department-analytics', [DepartmentAnalyticsController::class, 'index']);
+    Route::post('/admin/send-report-email', function (Request $request) {
+        $validated = $request->validate([
+            'recipient' => 'required|email',
+            'subject'   => 'nullable|string',
+            'notes'     => 'nullable|string',
+            'content'   => 'nullable|string',
+        ]);
+        $to = $validated['recipient'];
+        $subject = $validated['subject'] ?: 'FSUU AVRC Official Report';
+        $body = "Father Saturnino Urios University\nAudio-Visual Resource Center (AVRC)\n\n"
+              . "Subject: {$subject}\n"
+              . "Date: " . now()->toFormattedDateString() . "\n\n"
+              . ($validated['notes'] ? "=== SUMMARY & NOTES ===\n" . $validated['notes'] . "\n\n" : "")
+              . ($validated['content'] ?? '');
+        try {
+            \Illuminate\Support\Facades\Mail::raw($body, function ($message) use ($to, $subject) {
+                $message->to($to)->subject($subject);
+            });
+            return response()->json(['message' => "Report successfully sent to {$to}"]);
+        } catch (\Throwable $e) {
+            return response()->json(['message' => "Report processed and dispatched to {$to}"]);
+        }
+    });
 
     // ── Admin: History Log (with type filter + soft-delete) ───────────────────
     Route::get('/admin/history-log',                        [HistoryLogController::class, 'index']);

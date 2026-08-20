@@ -329,7 +329,7 @@ export default function Settings() {
       <div>
         <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Office Manager Settings</h1>
         <p className="text-xs text-slate-500 font-semibold mt-0.5">
-          Manage staff accounts for your office, local venue settings, equipment category requests, and profile configuration.
+          Manage staff accounts for your office, local venue settings, equipment catalog categories, and profile configuration.
         </p>
       </div>
 

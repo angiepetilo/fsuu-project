@@ -39,7 +39,7 @@ export default function SysadSettings() {
 
   const SYSAD_TABS = [
     { id: "users", label: "User Management", icon: Users },
-    { id: "equipment", label: "Master Equipment Category", icon: Package },
+    { id: "equipment", label: "Equipment Categories", icon: Package },
     { id: "venues", label: "Venue Catalog", icon: Building },
     { id: "fee_matrix", label: "Fee Matrix", icon: DollarSign },
     { id: "departments", label: "Departments", icon: BookOpen },

@@ -14,8 +14,7 @@ export default function EquipmentDetailModal({
         {/* Modal Header — Item 35: Clean White Header */}
         <div className="px-6 py-4 bg-white border-b border-slate-100 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="px-3 py-1 rounded-xl bg-blue-50 border border-blue-200 text-blue-700 font-mono text-xs font-bold tracking-wider flex items-center gap-1.5">
-              <Barcode size={14} />
+            <div className="px-3 py-1 rounded-xl bg-blue-50 border border-blue-200 text-blue-700 font-mono text-xs font-bold tracking-wider">
               {selectedItem.barcode}
             </div>
             <h3 className="text-sm font-extrabold text-slate-900">Equipment Specification & Details</h3>

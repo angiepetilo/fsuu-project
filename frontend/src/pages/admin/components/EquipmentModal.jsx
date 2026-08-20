@@ -32,8 +32,7 @@ export default function EquipmentModal({
           <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl w-full max-w-lg overflow-hidden">
             {/* Clean White Header - Item 35 */}
             <div className="px-6 py-4 bg-white border-b border-slate-100 flex items-center justify-between">
-              <h3 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
-                <Edit3 size={18} className="text-blue-600" />
+              <h3 className="text-sm font-extrabold text-slate-900">
                 Edit Equipment: {editingItem.name}
               </h3>
               <button
@@ -193,8 +192,7 @@ export default function EquipmentModal({
           <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl w-full max-w-lg overflow-hidden">
             {/* Clean White Header - Item 35 */}
             <div className="px-6 py-4 bg-white border-b border-slate-100 flex items-center justify-between">
-              <h3 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
-                <Plus size={18} className="text-blue-600" />
+              <h3 className="text-sm font-extrabold text-slate-900">
                 Add New Equipment Model
               </h3>
               <button

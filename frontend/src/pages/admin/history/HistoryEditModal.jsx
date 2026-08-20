@@ -20,8 +20,7 @@ export default function HistoryEditModal({
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-[1500] flex items-center justify-center p-4 animate-in fade-in">
       <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl border border-slate-200 space-y-4">
         <div className="flex justify-between items-center pb-3 border-b border-slate-200">
-          <h3 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
-            <Pencil size={16} className="text-slate-600" />
+          <h3 className="font-extrabold text-slate-900 text-sm">
             Edit Record Status ({editingRecord.reference_code || editingRecord.tracking_number?.reference_code || (typeof editingRecord.tracking_number === 'string' ? editingRecord.tracking_number : '') || editingRecord.id})
           </h3>
           <button

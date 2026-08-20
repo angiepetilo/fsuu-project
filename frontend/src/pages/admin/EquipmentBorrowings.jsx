@@ -211,9 +211,10 @@ export default function EquipmentBorrowings() {
 
 
 
-      {/* Table: [#, Track Number, Requestor, Department, Equipment, Date, Time, Status, Action] */}
+      {/* Table & Mobile Cards Container */}
       <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
-        <div className="overflow-x-auto">
+        {/* Desktop Table (>= md) */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-slate-50/80 border-b border-slate-100">
@@ -274,6 +275,62 @@ export default function EquipmentBorrowings() {
               })}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile Cards View (< md) */}
+        <div className="md:hidden divide-y divide-slate-100">
+          {loading ? (
+            <div className="text-center py-10 text-slate-400">
+              <div className="w-5 h-5 rounded-full border-2 border-slate-200 border-t-blue-500 animate-spin mx-auto mb-2" />
+              <span className="text-xs font-semibold italic">Loading borrowings...</span>
+            </div>
+          ) : filteredBorrowings.length === 0 ? (
+            <div className="text-center py-10 text-slate-400 text-xs font-semibold">
+              No equipment borrowings found under "{statusFilter}".
+            </div>
+          ) : (
+            paginatedBorrowings.map((b) => {
+              const refCode = b.tracking_number?.reference_code || b.reference_code || `EQUIP-REQ-${b.id}`;
+              const requestor = b.filer_name || b.requestor_name || "—";
+              const department = b.program_office || b.requestor_program_office || "—";
+              const equipment = b.equipment_type?.name || b.equipment_name || b.item_name || "Audio Visual Gear";
+              const usageDate = formatDate(b.date_of_usage || b.start_datetime);
+              const rawStart = b.time_start || b.start_datetime;
+              const rawEnd = b.time_end || b.end_datetime;
+              const timeRange = formatTimeRange12(rawStart, rawEnd);
+              const currentStatus = b.status || b.tracking_number?.status || "pending";
+
+              return (
+                <div key={`eb-card-${b.id}`} className="p-4 space-y-3 bg-white hover:bg-slate-50/50 transition-colors">
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono text-xs font-black text-blue-600 tracking-tight">{refCode}</span>
+                    <StatusBadge status={currentStatus} />
+                  </div>
+                  <div>
+                    <h4 className="font-extrabold text-slate-900 text-sm">{requestor}</h4>
+                    <p className="text-xs text-slate-500 font-semibold">{department}</p>
+                  </div>
+                  <div className="bg-slate-50 p-3 rounded-xl text-xs space-y-1.5 border border-slate-100">
+                    <div className="flex justify-between items-center text-slate-700">
+                      <span className="text-slate-500 font-medium">Equipment:</span>
+                      <span className="font-bold text-blue-700">{equipment}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-slate-700">
+                      <span className="text-slate-500 font-medium">Schedule:</span>
+                      <span className="font-bold text-slate-900">{usageDate} ({timeRange})</span>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setSelected(b)}
+                    className="w-full py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-xl font-extrabold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-2xs"
+                  >
+                    <Eye size={15} />
+                    <span>View Borrowing Details</span>
+                  </button>
+                </div>
+              );
+            })
+          )}
         </div>
 
         {/* Pagination Footer */}

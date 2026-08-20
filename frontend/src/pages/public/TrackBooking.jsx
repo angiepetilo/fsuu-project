@@ -224,8 +224,8 @@ export default function TrackBooking() {
                 Progress Timeline ({isVenue ? "Venue Process" : "Equipment Kiosk Process"})
               </h4>
 
-              <div className="relative flex justify-between items-start">
-
+              {/* Desktop Horizontal Timeline (>= sm) */}
+              <div className="hidden sm:flex relative justify-between items-start">
                 {/* Connecting Line Track */}
                 <div className="absolute top-4 left-[18px] right-[18px] -translate-y-1/2 h-1 z-0 bg-slate-200 rounded-full">
                   <div
@@ -257,6 +257,37 @@ export default function TrackBooking() {
                       <span className="text-[10px] font-semibold text-slate-400 leading-tight mt-0.5 hidden sm:block">
                         {step.desc}
                       </span>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Mobile Vertical Timeline (< sm) */}
+              <div className="sm:hidden space-y-4 relative pl-4 border-l-2 border-slate-200 ml-3">
+                {activeSteps.map((step, idx) => {
+                  const stepNum = idx + 1;
+                  const isActive = stepNum === currentStep;
+                  const isCompleted = stepNum < currentStep;
+
+                  return (
+                    <div key={idx} className="relative flex items-center gap-3">
+                      <div
+                        className={`w-7 h-7 rounded-full border-2 -ml-[23px] flex items-center justify-center text-xs font-extrabold transition-all shrink-0
+                          ${isCompleted ? 'bg-blue-600 border-blue-600 text-white' : ''}
+                          ${isActive ? 'bg-blue-600 border-blue-600 text-white ring-4 ring-blue-600/20' : ''}
+                          ${!isCompleted && !isActive ? 'bg-white border-slate-300 text-slate-400' : ''}
+                        `}
+                      >
+                        {isCompleted ? <CheckCircle2 size={13} /> : stepNum}
+                      </div>
+                      <div>
+                        <p className={`text-xs font-extrabold ${isActive ? 'text-blue-700' : isCompleted ? 'text-slate-900' : 'text-slate-400'}`}>
+                          {step.label}
+                        </p>
+                        {step.desc && (
+                          <p className="text-[10.5px] text-slate-500 font-medium">{step.desc}</p>
+                        )}
+                      </div>
                     </div>
                   );
                 })}

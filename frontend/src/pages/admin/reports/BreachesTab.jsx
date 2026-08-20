@@ -127,6 +127,8 @@ export default function BreachesTab({
     }
   });
 
+  const [violationNotes, setViolationNotes] = useState(() => localStorage.getItem("fsuu_report_breaches_notes") || "");
+
   const departmentSummaries = Object.values(deptSummaryMap);
   const displaySummaries = departmentSummaries.length > 0 ? departmentSummaries : ruleViolations;
 
@@ -177,6 +179,23 @@ export default function BreachesTab({
             )}
           </tbody>
         </table>
+      </div>
+
+      {/* User Violations Report Typing Box */}
+      <div className="p-4 sm:p-5 bg-slate-50/70 border-t border-slate-100 space-y-2">
+        <label className="block text-xs font-extrabold text-slate-800">
+          Rule &amp; Late Return Violations Report Notes
+        </label>
+        <textarea
+          rows={3}
+          value={violationNotes}
+          onChange={(e) => {
+            setViolationNotes(e.target.value);
+            localStorage.setItem("fsuu_report_breaches_notes", e.target.value);
+          }}
+          placeholder="Type your rule breaches, late return violations report summary, disciplinary notes, or department compliance recommendations here..."
+          className="w-full p-3 bg-white border border-slate-200 rounded-2xl text-xs font-medium text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 shadow-2xs transition-all"
+        />
       </div>
     </div>
   );

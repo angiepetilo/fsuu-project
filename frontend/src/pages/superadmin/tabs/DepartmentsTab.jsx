@@ -174,8 +174,7 @@ export default function DepartmentsTab({ showMsg }) {
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-[1500] flex items-center justify-center p-4 animate-in fade-in">
           <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl animate-in zoom-in-95 border border-slate-100 space-y-4">
             <div className="flex justify-between items-center pb-3 border-b border-slate-100">
-              <h3 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
-                <BookOpen size={18} className="text-blue-600" />
+              <h3 className="font-extrabold text-slate-900 text-sm">
                 {editDept ? "Edit Department Record" : "Add New Department"}
               </h3>
               <button onClick={() => setShowAddDeptModal(false)} className="text-slate-400 hover:text-slate-600 p-1 rounded-lg">

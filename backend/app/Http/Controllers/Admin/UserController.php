@@ -180,6 +180,8 @@ class UserController extends Controller
             'email'          => ['sometimes', 'email', 'max:255', Rule::unique('users')->ignore($targetUser->id)],
             'personal_email' => ['nullable', 'email', 'max:255'],
             'role'           => 'sometimes|string',
+            'status'         => 'nullable|string',
+            'is_active'      => 'nullable',
             'office_id'      => 'nullable|exists:offices,id',
             'location'       => 'nullable|string|max:255',
             'new_password'   => 'nullable|string|min:6',
@@ -189,6 +191,8 @@ class UserController extends Controller
         if (isset($validated['name'])) $targetUser->name = $validated['name'];
         if (isset($validated['email'])) $targetUser->email = $validated['email'];
         if (isset($validated['personal_email'])) $targetUser->personal_email = $validated['personal_email'];
+        if (isset($validated['status'])) $targetUser->status = $validated['status'];
+        if (isset($validated['is_active'])) $targetUser->is_active = filter_var($validated['is_active'], FILTER_VALIDATE_BOOLEAN);
 
         if ($isSuperAdmin) {
             if (array_key_exists('office_id', $validated)) {

@@ -19,23 +19,33 @@ class AuthController extends Controller
 
         $loginInput = trim($request->email);
 
-        if (!Auth::attempt(['email' => $loginInput, 'password' => $request->password])) {
-            // Secondary attempt checking personal_email
-            if (!Auth::attempt(['personal_email' => $loginInput, 'password' => $request->password])) {
-                throw ValidationException::withMessages([
-                    'email' => ['Invalid credentials.'],
-                ]);
-            }
-        }
+        // Case-insensitive user lookup by primary email or personal email
+        $user = \App\Models\User::where(function ($query) use ($loginInput) {
+            $lower = strtolower($loginInput);
+            $query->whereRaw('LOWER(email) = ?', [$lower])
+                  ->orWhereRaw('LOWER(personal_email) = ?', [$lower]);
+        })->first();
 
-        $user = auth()->user()->load(['office', 'role']);
+        if (!$user || !\Illuminate\Support\Facades\Hash::check($request->password, $user->password)) {
+            throw ValidationException::withMessages([
+                'email' => ['Invalid email or password. Please verify your credentials.'],
+            ]);
+        }
 
         if ($user->status === 'pending_activation') {
-            Auth::logout();
             return response()->json([
-                'message' => 'Please check your email to activate your account.'
+                'message' => 'Your account is pending activation. Please check your email for the invitation link.'
             ], 403);
         }
+
+        if ($user->status === 'inactive' || $user->status === 'disabled' || $user->is_active === false || !is_null($user->archived_at)) {
+            return response()->json([
+                'message' => 'This account is currently deactivated or disabled. Please contact the system administrator.'
+            ], 403);
+        }
+
+        Auth::login($user);
+        $user->load(['office', 'role']);
 
         // Delete old tokens to keep things clean for SPA
         $user->tokens()->delete();
