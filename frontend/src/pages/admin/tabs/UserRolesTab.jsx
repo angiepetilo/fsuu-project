@@ -47,7 +47,7 @@ export default function UserRolesTab({
           onClick={() => setShowCreate(true)}
           className="flex items-center gap-2 px-3.5 py-2 bg-white border border-slate-900 text-slate-900 hover:bg-slate-50 rounded-xl text-xs font-bold transition-colors shadow-2xs cursor-pointer"
         >
-          <PlusCircle size={14} /> Add User
+          <PlusCircle size={14} /> Add Staff Account
         </button>
       </div>
 
@@ -110,8 +110,7 @@ export default function UserRolesTab({
                     </td>
                     <td className="px-4 py-3">
                       {isPending ? (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold border bg-amber-50 text-amber-700 border-amber-200">
-                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                        <span className="text-amber-600 font-bold text-xs uppercase tracking-wide">
                           PENDING
                         </span>
                       ) : (
@@ -127,29 +126,31 @@ export default function UserRolesTab({
                           <button
                             type="button"
                             onClick={() => onResendInvite && onResendInvite(u)}
-                            className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100 text-[11px] font-bold transition-all cursor-pointer shadow-2xs"
+                            className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 text-[11px] font-bold transition-all cursor-pointer shadow-2xs"
                             title="Resend activation invitation email"
                           >
                             <Mail size={12} /> Resend
                           </button>
                         ) : (
-                          <button
-                            type="button"
-                            onClick={() => setEditUser(u)}
-                            className="p-1.5 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50 transition-all cursor-pointer shadow-2xs"
-                            title="Edit User"
-                          >
-                            <Pencil size={13} />
-                          </button>
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => setEditUser(u)}
+                              className="p-1.5 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50 transition-all cursor-pointer shadow-2xs"
+                              title="Edit User"
+                            >
+                              <Pencil size={13} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setDeleteUser(u)}
+                              className="p-1.5 rounded-lg border border-slate-300 text-rose-600 hover:bg-rose-50 transition-all cursor-pointer shadow-2xs"
+                              title="Archive User"
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          </>
                         )}
-                        <button
-                          type="button"
-                          onClick={() => setDeleteUser(u)}
-                          className="p-1.5 rounded-lg border border-slate-300 text-rose-600 hover:bg-rose-50 transition-all cursor-pointer shadow-2xs"
-                          title="Archive User"
-                        >
-                          <Trash2 size={13} />
-                        </button>
                       </div>
                     </td>
                   </tr>

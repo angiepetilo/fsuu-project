@@ -72,23 +72,19 @@ class User extends Authenticatable
 
     public function isSuperAdmin(): bool
     {
-        if ($this->role_id === 1) {
+        if ($this->role_id === 1 || $this->role_id === 2) {
             return true;
         }
         if ($this->role) {
             $r = strtolower($this->role->slug ?? $this->role->name ?? '');
-            return in_array($r, ['super_admin', 'super-admin', 'superadmin', 'super admin', 'sysad']);
+            return in_array($r, ['super_admin', 'super-admin', 'superadmin', 'super admin', 'sysad', 'admin']);
         }
-        return str_contains(strtolower($this->email ?? ''), 'superadmin');
+        return str_contains(strtolower($this->email ?? ''), 'superadmin') || str_contains(strtolower($this->email ?? ''), 'admin');
     }
 
     public function isAdmin(): bool
     {
-        if ($this->role) {
-            $r = strtolower($this->role->slug ?? $this->role->name ?? '');
-            return in_array($r, ['admin', 'super_admin', 'super-admin', 'superadmin', 'super admin', 'sysad']);
-        }
-        return $this->isSuperAdmin() || $this->role_id === 2 || str_contains(strtolower($this->email ?? ''), 'admin');
+        return $this->isSuperAdmin();
     }
 
     public function isStaff(): bool

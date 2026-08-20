@@ -236,17 +236,18 @@ export default function Reports() {
       });
     } else if (activeTab === "inventory") {
       csvContent += `=== EQUIPMENT INVENTORY STOCK TABLE (${selectedOfficeName}) ===\n`;
-      csvContent += "Item Code,Category,Expected Total,Present Available,Released,Damaged,Lost,Notes\n";
+      csvContent += "Item Code,Category,Expected Total,Present Available,Reserved,Released,Damaged,Lost,Notes\n";
       filteredInventoryItems.forEach((item, idx) => {
         const code = `EQ-00${idx + 1}`;
         const cat = (item.eq_name || item.name || item.category || item.eq_type || "Equipment").replace(/"/g, '""');
         const expected = item.calculated_total ?? item.total_quantity ?? 0;
         const available = item.calculated_available ?? item.available_count ?? expected;
+        const reserved = item.reserved_count ?? item.reserved ?? 0;
         const released = item.released_count ?? 0;
         const damaged = item.damaged_count ?? 0;
         const lost = item.lost_count ?? 0;
         const notes = (item.description || "").replace(/"/g, '""');
-        csvContent += `"${code}","${cat}","${expected}","${available}","${released}","${damaged}","${lost}","${notes}"\n`;
+        csvContent += `"${code}","${cat}","${expected}","${available}","${reserved}","${released}","${damaged}","${lost}","${notes}"\n`;
       });
     }
 
@@ -263,14 +264,27 @@ export default function Reports() {
     setTimeout(() => setFeedback(null), 3500);
   };
 
-  // ── 2. OPEN EMAIL MODAL ──
+  // ── 2. OPEN EMAIL MODAL (Pre-fill with user typed report notes & table summary) ──
   const handleOpenEmailModal = () => {
+    const venueNotes = localStorage.getItem("fsuu_report_venue_notes") || "";
+    const equipNotes = localStorage.getItem("fsuu_report_equipment_notes") || "";
+    const breachesNotes = localStorage.getItem("fsuu_report_breaches_notes") || "";
+
+    let initialNotes = "";
+    if (activeTab === "booking_borrowing") {
+      initialNotes = `VENUE BOOKING REPORT NOTES:\n${venueNotes || "None"}\n\nEQUIPMENT BORROWING REPORT NOTES:\n${equipNotes || "None"}`;
+    } else if (activeTab === "breaches") {
+      initialNotes = `RULE & LATE RETURN VIOLATIONS REPORT NOTES:\n${breachesNotes || "None"}`;
+    } else {
+      initialNotes = `Official Equipment Stock Audit Report for ${officeScope}.`;
+    }
+
     setEmailSubject(`[FSUU AVR Audit] ${tabLabels[activeTab]} - ${new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`);
-    setEmailNotes(`Attached is the latest official ${tabLabels[activeTab]} generated from the FSUU Booking & Inventory System (${officeScope}).`);
+    setEmailNotes(initialNotes);
     setShowEmailModal(true);
   };
 
-  // ── 3. SEND REPORT EMAIL ──
+  // ── 3. SEND REPORT EMAIL (Itemized text payload) ──
   const handleSendEmailSubmit = async (e) => {
     e.preventDefault();
     if (!recipientEmail.trim()) {
@@ -278,14 +292,41 @@ export default function Reports() {
       return;
     }
     setSendingEmail(true);
+
+    let contentData = "";
+    if (activeTab === "booking_borrowing") {
+      contentData += `=== VENUE BOOKINGS (${filteredVenueBookings.length} records) ===\n`;
+      filteredVenueBookings.forEach((b, i) => {
+        const track = b.tracking_number?.reference_code || b.reference_code || `TRK-VB-${b.id}`;
+        contentData += `${i + 1}. [${track}] ${b.filer_name || "Filer"} | ${b.venue_name || "AVR"} | ${b.date_of_usage || "—"} | ${b.status || "CLEAN"}\n`;
+      });
+      contentData += `\n=== EQUIPMENT BORROWINGS (${filteredEquipmentBorrowings.length} records) ===\n`;
+      filteredEquipmentBorrowings.forEach((eb, i) => {
+        const track = eb.tracking_number?.reference_code || eb.reference_code || `TRK-EB-${eb.id}`;
+        const eq = eb.equipment_name || eb.equipment?.name || "Equipment";
+        contentData += `${i + 1}. [${track}] ${eb.filer_name || "Borrower"} | ${eq} (Qty: ${eb.quantity || 1}) | ${eb.date_of_usage || "—"} | ${eb.status || "CLEAN"}\n`;
+      });
+    } else if (activeTab === "breaches") {
+      contentData += `=== DEPARTMENT VIOLATION TOTALS ===\n`;
+      filteredRuleViolations.forEach((v, i) => {
+        contentData += `${i + 1}. ${v.department || "Academic Dept"}: ${v.venue_violations || 0} Venue Breaches, ${v.late_returns || 0} Late Returns, ${v.equipment_damages || 0} Damaged, ${v.equipment_lost || 0} Lost\n`;
+      });
+    } else if (activeTab === "inventory") {
+      contentData += `=== EQUIPMENT STOCK INVENTORY ===\n`;
+      filteredInventoryItems.forEach((it, i) => {
+        contentData += `${i + 1}. ${it.eq_name || it.name}: Expected: ${it.total_quantity || 0}, Available: ${it.available_count || 0}, Released: ${it.released_count || 0}, Damaged: ${it.damaged_count || 0}, Lost: ${it.lost_count || 0}\n`;
+      });
+    }
+
     try {
       await api.post("/admin/send-report-email", {
         recipient: recipientEmail.trim(),
         subject: emailSubject,
         notes: emailNotes,
+        content: contentData,
         tab: activeTab,
         scope: officeScope,
-      }).catch(() => null);
+      });
 
       setShowEmailModal(false);
       setFeedback(`✅ ${tabLabels[activeTab]} successfully dispatched to ${recipientEmail.trim()}`);
@@ -304,6 +345,11 @@ export default function Reports() {
   const handlePrintPDF = () => {
     window.print();
   };
+
+  // Retrieve current persisted user notes for PDF modal
+  const currentVenueNotes = localStorage.getItem("fsuu_report_venue_notes") || "";
+  const currentEquipNotes = localStorage.getItem("fsuu_report_equipment_notes") || "";
+  const currentBreachesNotes = localStorage.getItem("fsuu_report_breaches_notes") || "";
 
   return (
     <div className="space-y-6">
@@ -586,56 +632,128 @@ export default function Reports() {
 
               {/* Tab Data Table for PDF */}
               {activeTab === "booking_borrowing" && (
-                <div className="space-y-4">
-                  <h4 className="font-extrabold text-xs text-slate-900 uppercase tracking-wider border-b border-slate-200 pb-1">
-                    Venue Reservation Records
-                  </h4>
-                  <table className="w-full text-[11px] border border-slate-300">
-                    <thead className="bg-slate-100">
-                      <tr>
-                        {["Track No.", "Requestor", "Venue", "Schedule", "Department", "Purpose", "Remarks"].map(h => (
-                          <th key={h} className="border border-slate-300 p-2 text-left font-bold">{h}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {venueBookings.map((b, i) => (
-                        <tr key={i} className="border-b border-slate-200">
-                          <td className="border border-slate-300 p-2 font-mono font-bold text-blue-700">{b.tracking_number?.reference_code || (typeof b.tracking_number === 'string' ? b.tracking_number : '') || b.reference_code || `TRK-VB-${b.id}`}</td>
-                          <td className="border border-slate-300 p-2 font-semibold">{b.filer_name || b.requestor || "Filer"}</td>
-                          <td className="border border-slate-300 p-2">{b.venue_name || b.venue || "AVR"}</td>
-                          <td className="border border-slate-300 p-2">{b.date_of_usage || b.date || "—"}</td>
-                          <td className="border border-slate-300 p-2">{b.program_office || b.department || "Academic Dept"}</td>
-                          <td className="border border-slate-300 p-2">{b.purpose || "Event"}</td>
-                          <td className="border border-slate-300 p-2 font-bold">{Boolean(b.has_damage) || b.status === "damaged" ? "VIOLATION" : "CLEAN"}</td>
+                <div className="space-y-6">
+                  {/* 1. Venue Bookings Table */}
+                  <div className="space-y-2">
+                    <h4 className="font-extrabold text-xs text-slate-900 uppercase tracking-wider border-b border-slate-200 pb-1">
+                      Venue Reservation Records ({filteredVenueBookings.length} total)
+                    </h4>
+                    <table className="w-full text-[11px] border border-slate-300">
+                      <thead className="bg-slate-100">
+                        <tr>
+                          {["#", "Track No.", "Requestor", "Venue", "Schedule", "Department", "Purpose", "Status"].map(h => (
+                            <th key={h} className="border border-slate-300 p-2 text-left font-bold">{h}</th>
+                          ))}
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {filteredVenueBookings.length === 0 ? (
+                          <tr>
+                            <td colSpan={8} className="border border-slate-300 p-3 text-center text-slate-400">
+                              No venue booking records found.
+                            </td>
+                          </tr>
+                        ) : (
+                          filteredVenueBookings.map((b, i) => (
+                            <tr key={i} className="border-b border-slate-200">
+                              <td className="border border-slate-300 p-2 text-center text-slate-500 font-bold">{i + 1}</td>
+                              <td className="border border-slate-300 p-2 font-mono font-bold text-blue-700">{b.tracking_number?.reference_code || b.reference_code || `TRK-VB-${b.id}`}</td>
+                              <td className="border border-slate-300 p-2 font-semibold">{b.filer_name || b.requestor || "Filer"}</td>
+                              <td className="border border-slate-300 p-2">{b.venue_name || b.venue?.name || b.venue || "AVR"}</td>
+                              <td className="border border-slate-300 p-2">{b.date_of_usage || b.date || "—"}</td>
+                              <td className="border border-slate-300 p-2">{b.program_office || b.department || "Academic Dept"}</td>
+                              <td className="border border-slate-300 p-2">{b.purpose || "Event"}</td>
+                              <td className="border border-slate-300 p-2 font-bold">{b.status || "CLEAN"}</td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+
+                    {/* Venue Report Summary & Notes */}
+                    <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1 mt-2">
+                      <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 block">
+                        Venue Booking Report Summary &amp; Notes:
+                      </span>
+                      <p className="text-[11px] text-slate-800 leading-relaxed font-medium whitespace-pre-wrap">
+                        {currentVenueNotes || "No specific observations or executive notes recorded for venue bookings."}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* 2. Equipment Borrowings Table */}
+                  <div className="space-y-2 pt-2 border-t border-slate-200">
+                    <h4 className="font-extrabold text-xs text-slate-900 uppercase tracking-wider border-b border-slate-200 pb-1">
+                      Equipment Borrowing Records ({filteredEquipmentBorrowings.length} total)
+                    </h4>
+                    <table className="w-full text-[11px] border border-slate-300">
+                      <thead className="bg-slate-100">
+                        <tr>
+                          {["#", "Track No.", "Requestor", "Equipment", "Qty", "Schedule", "Department", "Status"].map(h => (
+                            <th key={h} className="border border-slate-300 p-2 text-left font-bold">{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredEquipmentBorrowings.length === 0 ? (
+                          <tr>
+                            <td colSpan={8} className="border border-slate-300 p-3 text-center text-slate-400">
+                              No equipment borrowing records found.
+                            </td>
+                          </tr>
+                        ) : (
+                          filteredEquipmentBorrowings.map((eb, i) => (
+                            <tr key={i} className="border-b border-slate-200">
+                              <td className="border border-slate-300 p-2 text-center text-slate-500 font-bold">{i + 1}</td>
+                              <td className="border border-slate-300 p-2 font-mono font-bold text-blue-700">{eb.tracking_number?.reference_code || eb.reference_code || `TRK-EB-${eb.id}`}</td>
+                              <td className="border border-slate-300 p-2 font-semibold">{eb.filer_name || eb.requestor || "Borrower"}</td>
+                              <td className="border border-slate-300 p-2">{eb.equipment_name || eb.equipment?.name || "Equipment"}</td>
+                              <td className="border border-slate-300 p-2 text-center font-bold">{eb.quantity || 1}</td>
+                              <td className="border border-slate-300 p-2">{eb.date_of_usage || eb.date || "—"}</td>
+                              <td className="border border-slate-300 p-2">{eb.program_office || eb.department || "Academic Dept"}</td>
+                              <td className="border border-slate-300 p-2 font-bold">{eb.status || "CLEAN"}</td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+
+                    {/* Equipment Report Summary & Notes */}
+                    <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1 mt-2">
+                      <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 block">
+                        Equipment Borrowing Report Summary &amp; Notes:
+                      </span>
+                      <p className="text-[11px] text-slate-800 leading-relaxed font-medium whitespace-pre-wrap">
+                        {currentEquipNotes || "No specific observations or executive notes recorded for equipment borrowings."}
+                      </p>
+                    </div>
+                  </div>
                 </div>
               )}
 
               {activeTab === "breaches" && (
                 <div className="space-y-4">
                   <h4 className="font-extrabold text-xs text-slate-900 uppercase tracking-wider border-b border-slate-200 pb-1">
-                    Department Breach Summary
+                    Department Breach &amp; Late Return Summary
                   </h4>
                   <table className="w-full text-[11px] border border-slate-300">
                     <thead className="bg-slate-100">
                       <tr>
-                        {["#", "Department / Program", "Venue Breaches", "Equipment Violations"].map(h => (
+                        {["#", "Department / Program", "Venue Breaches", "Equipment Violations Summary"].map(h => (
                           <th key={h} className="border border-slate-300 p-2 text-left font-bold">{h}</th>
                         ))}
                       </tr>
                     </thead>
                     <tbody>
-                      {ruleViolations.length > 0 ? (
-                        ruleViolations.map((v, i) => (
+                      {filteredRuleViolations.length > 0 ? (
+                        filteredRuleViolations.map((v, i) => (
                           <tr key={i}>
                             <td className="border border-slate-300 p-2 font-bold">{i + 1}</td>
                             <td className="border border-slate-300 p-2 font-bold">{v.department || v.program || "Academic Dept"}</td>
-                            <td className="border border-slate-300 p-2 text-rose-600 font-bold">{v.venue_violations ?? 0}</td>
-                            <td className="border border-slate-300 p-2 text-rose-600 font-bold">{v.equipment_damages ?? 0}</td>
+                            <td className="border border-slate-300 p-2 text-rose-600 font-bold">{v.venue_violations ?? 0} Breaches</td>
+                            <td className="border border-slate-300 p-2 font-bold text-slate-800">
+                              {`${v.late_returns || 0} Late Return / ${v.equipment_damages || 0} Damaged / ${v.equipment_lost || 0} Lost`}
+                            </td>
                           </tr>
                         ))
                       ) : (
@@ -645,6 +763,16 @@ export default function Reports() {
                       )}
                     </tbody>
                   </table>
+
+                  {/* Violations Report Notes */}
+                  <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 block">
+                      Rule &amp; Late Return Violations Report Notes:
+                    </span>
+                    <p className="text-[11px] text-slate-800 leading-relaxed font-medium whitespace-pre-wrap">
+                      {currentBreachesNotes || "No specific disciplinary remarks or compliance recommendations recorded."}
+                    </p>
+                  </div>
                 </div>
               )}
 
@@ -656,18 +784,19 @@ export default function Reports() {
                   <table className="w-full text-[11px] border border-slate-300">
                     <thead className="bg-slate-100">
                       <tr>
-                        {["Item Code", "Category", "Expected Qty", "Present Available", "Released", "Damaged", "Lost", "Notes"].map(h => (
+                        {["Item Code", "Category", "Expected Qty", "Present Available", "Reserved", "Released", "Damaged", "Lost", "Notes"].map(h => (
                           <th key={h} className="border border-slate-300 p-2 text-left font-bold">{h}</th>
                         ))}
                       </tr>
                     </thead>
                     <tbody>
-                      {inventoryItems.map((item, idx) => (
+                      {filteredInventoryItems.map((item, idx) => (
                         <tr key={idx}>
                           <td className="border border-slate-300 p-2 font-mono font-bold text-slate-700">EQ-00{idx + 1}</td>
                           <td className="border border-slate-300 p-2 font-bold text-slate-900">{item.eq_type || item.eq_name || item.name || "Equipment"}</td>
                           <td className="border border-slate-300 p-2 text-center font-bold">{item.calculated_total ?? item.total_quantity ?? 0}</td>
                           <td className="border border-slate-300 p-2 text-center font-bold text-emerald-600">{item.calculated_available ?? item.available_count ?? 0}</td>
+                          <td className="border border-slate-300 p-2 text-center font-bold text-indigo-600">{item.reserved_count ?? item.reserved ?? 0}</td>
                           <td className="border border-slate-300 p-2 text-center font-bold text-blue-600">{item.released_count ?? 0}</td>
                           <td className="border border-slate-300 p-2 text-center font-bold text-rose-600">{item.damaged_count ?? 0}</td>
                           <td className="border border-slate-300 p-2 text-center font-bold text-amber-600">{item.lost_count ?? 0}</td>

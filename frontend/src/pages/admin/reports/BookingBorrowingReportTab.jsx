@@ -11,6 +11,9 @@ export default function BookingBorrowingReportTab({
   const [evidenceModalImage, setEvidenceModalImage] = useState(null);
   const [selectedRecord, setSelectedRecord] = useState(null);
 
+  const [venueReportNotes, setVenueReportNotes] = useState(() => localStorage.getItem("fsuu_report_venue_notes") || "");
+  const [equipReportNotes, setEquipReportNotes] = useState(() => localStorage.getItem("fsuu_report_equipment_notes") || "");
+
   const [venuePage, setVenuePage] = useState(1);
   const [equipPage, setEquipPage] = useState(1);
   const ITEMS_PER_PAGE = 10;
@@ -191,6 +194,23 @@ export default function BookingBorrowingReportTab({
             </div>
           </div>
         )}
+
+        {/* User Venue Report Typing Box */}
+        <div className="p-4 sm:p-5 bg-slate-50/70 border-t border-slate-100 space-y-2">
+          <label className="block text-xs font-extrabold text-slate-800">
+            Venue Booking Report Summary &amp; Notes
+          </label>
+          <textarea
+            rows={3}
+            value={venueReportNotes}
+            onChange={(e) => {
+              setVenueReportNotes(e.target.value);
+              localStorage.setItem("fsuu_report_venue_notes", e.target.value);
+            }}
+            placeholder="Type your venue booking report observations, audit summary, or executive notes here..."
+            className="w-full p-3 bg-white border border-slate-200 rounded-2xl text-xs font-medium text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 shadow-2xs transition-all"
+          />
+        </div>
       </div>
 
       {/* ── 2. EQUIPMENT BORROWING REPORTS TABLE ── */}
@@ -311,6 +331,23 @@ export default function BookingBorrowingReportTab({
             </div>
           </div>
         )}
+
+        {/* User Equipment Report Typing Box */}
+        <div className="p-4 sm:p-5 bg-slate-50/70 border-t border-slate-100 space-y-2">
+          <label className="block text-xs font-extrabold text-slate-800">
+            Equipment Borrowing Report Summary &amp; Notes
+          </label>
+          <textarea
+            rows={3}
+            value={equipReportNotes}
+            onChange={(e) => {
+              setEquipReportNotes(e.target.value);
+              localStorage.setItem("fsuu_report_equipment_notes", e.target.value);
+            }}
+            placeholder="Type your equipment borrowing report observations, utilization remarks, or audit notes here..."
+            className="w-full p-3 bg-white border border-slate-200 rounded-2xl text-xs font-medium text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 shadow-2xs transition-all"
+          />
+        </div>
       </div>
 
       {/* Record Quick View Details Modal */}

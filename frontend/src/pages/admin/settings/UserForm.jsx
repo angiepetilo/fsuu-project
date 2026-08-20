@@ -128,7 +128,6 @@ export default function UserForm({ initial, offices, onSubmit, loading, onClose,
       {/* Staff Feature Access Permissions */}
       <div className="bg-white rounded-xl p-3.5 border border-slate-200 space-y-2.5">
         <div className="flex items-center gap-2 border-b border-slate-100 pb-1.5">
-          <Sliders size={14} className="text-slate-600" />
           <span className="text-xs font-extrabold text-slate-900">Staff Feature Access Permissions</span>
         </div>
 

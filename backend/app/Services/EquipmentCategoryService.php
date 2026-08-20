@@ -180,21 +180,16 @@ class EquipmentCategoryService
         $bookingReleased = (int) ($borrowedCount + $venueCount);
         $bookingReserved = (int) ($approvedBorrowCount + $approvedVenueCount);
 
-        // If physical units are registered, actual release strictly reflects physical units in released/borrowed status
-        if ($registeredUnitsCount > 0) {
-            $releasedTotal = $physicalReleased;
-            $unassignedOngoing = max(0, $bookingReleased - $physicalReleased);
-            $reservedTotal = max($reservedCount, $bookingReserved + $unassignedOngoing);
-        } else {
-            $releasedTotal = $bookingReleased;
-            $reservedTotal = max($reservedCount, $bookingReserved);
-        }
+        // Actual release reflects the maximum of physically released units and ongoing bookings
+        $releasedTotal = max($physicalReleased, $bookingReleased);
+        // Reserved reflects units in pending/approved bookings or tagged as reserved
+        $reservedTotal = max($reservedCount, $bookingReserved);
 
         $totalQty = $registeredUnitsCount > 0
             ? $registeredUnitsCount
             : (int) ($e->total_quantity ?? 0);
 
-        // Physical units currently sitting on the shelf (Total - Checked Out - Damaged - Lost)
+        // Physical units currently sitting on the shelf (Total - Checked Out/Released - Damaged - Lost)
         $presentCount = max(0, $totalQty - $releasedTotal - $damagedCount - $lostCount);
         $reservedCapped = min($presentCount, $reservedTotal);
 
