@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useOutletContext } from "react-router-dom";
 import api from "@/lib/axios";
+import notify from "@/lib/notify";
 import {
   PackageOpen, Plus, Search, Filter, Edit3, Trash2, CheckCircle2,
   AlertTriangle, RefreshCw, Barcode, Eye, Copy, Check,
-  ChevronLeft, ChevronRight, LayoutGrid, Loader2
+  ChevronLeft, ChevronRight, LayoutGrid, Loader2, MoreVertical
 } from "lucide-react";
 import EquipmentDetailModal from "./components/EquipmentDetailModal";
 import EquipmentModal from "./components/EquipmentModal";
@@ -22,11 +23,22 @@ export default function ManageEquipments() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [selectedItem, setSelectedItem] = useState(null);
+  const [openActionId, setOpenActionId] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [feedback, setFeedback] = useState(null);
   const [copiedBarcode, setCopiedBarcode] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 10;
+
+  useEffect(() => {
+    const handleOutsideClick = (e) => {
+      if (!e.target.closest('.action-menu-container')) {
+        setOpenActionId(null);
+      }
+    };
+    document.addEventListener('click', handleOutsideClick);
+    return () => document.removeEventListener('click', handleOutsideClick);
+  }, []);
 
   const handleCopyBarcode = (barcode) => {
     if (!barcode) return;
@@ -191,7 +203,7 @@ export default function ManageEquipments() {
 
       await api.post("/admin/equipment-units", payload);
 
-      setFeedback(`✅ Physical equipment unit "${formData.name}" registered under category "${matchedCat.eq_name || matchedCat.name || matchedCat.eq_type}". Category stock updated!`);
+      notify.success("Equipment Unit Added", `Physical unit "${formData.name}" registered successfully under ${matchedCat.eq_name || matchedCat.name || matchedCat.eq_type}.`);
       setFormData({
         name: "",
         barcode: "",
@@ -203,9 +215,8 @@ export default function ManageEquipments() {
       });
       setShowAddModal(false);
       fetchEquipments();
-      setTimeout(() => setFeedback(null), 5000);
     } catch (err) {
-      alert(err.response?.data?.message ?? "Failed to save equipment unit.");
+      notify.error("Failed to Save Unit", err.response?.data?.message ?? "An error occurred while saving the equipment unit.");
     } finally {
       setIsSubmitting(false);
     }
@@ -232,12 +243,11 @@ export default function ManageEquipments() {
       };
 
       await api.put(`/admin/equipment-units/${editingItem.id}`, payload);
-      setFeedback(`✅ Physical unit "${editFormData.name}" updated!`);
+      notify.success("Equipment Unit Updated", `Unit "${editFormData.name}" changes have been saved successfully.`);
       setEditingItem(null);
       fetchEquipments();
-      setTimeout(() => setFeedback(null), 4000);
     } catch (err) {
-      alert(err.response?.data?.message ?? "Failed to update physical unit.");
+      notify.error("Failed to Update Unit", err.response?.data?.message ?? "An error occurred while updating the equipment unit.");
     } finally {
       setIsSubmitting(false);
     }
@@ -247,11 +257,10 @@ export default function ManageEquipments() {
     if (confirm(`Archive physical unit "${name}"? Soft-delete will apply.`)) {
       try {
         await api.delete(`/admin/equipment-units/${id}`);
-        setFeedback(`✅ Equipment unit "${name}" archived.`);
+        notify.error("Equipment Unit Archived", `Unit "${name}" has been removed from active inventory.`);
         fetchEquipments();
-        setTimeout(() => setFeedback(null), 4000);
       } catch {
-        alert("Failed to archive equipment unit.");
+        notify.error("Archive Failed", "Failed to archive the equipment unit.");
       }
     }
   };
@@ -463,41 +472,77 @@ export default function ManageEquipments() {
                       </td>
                       <td className="px-4 py-3.5 text-slate-600 whitespace-nowrap">{item.date_purchased}</td>
                       <td className="px-4 py-3.5 text-slate-600 whitespace-nowrap">{ageYears.toFixed(1)} / {lifespanYears} yrs</td>
-                      <td className="px-4 py-3.5 flex items-center gap-1.5">
-                        <button
-                          onClick={() => setSelectedItem(item)}
-                          className="p-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-all cursor-pointer"
-                          title="View Details"
-                        >
-                          <Eye size={14} />
-                        </button>
-                        <button
-                          onClick={() => {
-                            setEditingItem(item);
-                            setEditFormData({
-                              name: item.name,
-                              barcode: item.barcode,
-                              category: item.category,
-                              date_purchased: item.date_purchased,
-                              lifespan_years: String(item.lifespan_years),
-                              total_units: "1",
-                              status: item.status || "available",
-                              condition: item.condition || "Good",
-                              description: item.description || "",
-                            });
-                          }}
-                          className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 cursor-pointer"
-                          title="Edit Unit"
-                        >
-                          <Edit3 size={14} />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteEquipment(item.id, item.name)}
-                          className="p-1.5 rounded-lg border border-rose-200 text-rose-600 hover:bg-rose-50 cursor-pointer"
-                          title="Archive Unit"
-                        >
-                          <Trash2 size={14} />
-                        </button>
+                      <td className="px-4 py-3.5 relative">
+                        <div className="relative action-menu-container inline-block">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setOpenActionId(openActionId === item.id ? null : item.id);
+                            }}
+                            className={`p-1.5 rounded-xl border transition-all cursor-pointer shadow-2xs ${
+                              openActionId === item.id
+                                ? "bg-blue-600 border-blue-600 text-white shadow-md shadow-blue-600/20"
+                                : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                            }`}
+                            title="Actions"
+                          >
+                            <MoreVertical size={15} />
+                          </button>
+
+                          {openActionId === item.id && (
+                            <div className="absolute right-0 top-full mt-1.5 w-44 bg-white rounded-2xl shadow-2xl border border-slate-200/90 py-1.5 z-40 animate-in fade-in zoom-in-95 backdrop-blur-md">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setOpenActionId(null);
+                                  setSelectedItem(item);
+                                }}
+                                className="w-full px-3.5 py-2 text-left text-xs font-bold text-slate-700 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-2.5 transition-colors cursor-pointer"
+                              >
+                                <Eye size={14} className="text-blue-500" />
+                                <span>View Details</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setOpenActionId(null);
+                                  setEditingItem(item);
+                                  setEditFormData({
+                                    name: item.name,
+                                    barcode: item.barcode,
+                                    category: item.category,
+                                    date_purchased: item.date_purchased,
+                                    lifespan_years: String(item.lifespan_years),
+                                    total_units: "1",
+                                    status: item.status || "available",
+                                    condition: item.condition || "Good",
+                                    description: item.description || "",
+                                  });
+                                }}
+                                className="w-full px-3.5 py-2 text-left text-xs font-bold text-slate-700 hover:bg-slate-50 hover:text-slate-900 flex items-center gap-2.5 transition-colors cursor-pointer"
+                              >
+                                <Edit3 size={14} className="text-slate-500" />
+                                <span>Edit Unit</span>
+                              </button>
+
+                              <div className="border-t border-slate-100 my-1"></div>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setOpenActionId(null);
+                                  handleDeleteEquipment(item.id, item.name);
+                                }}
+                                className="w-full px-3.5 py-2 text-left text-xs font-bold text-rose-600 hover:bg-rose-50 flex items-center gap-2.5 transition-colors cursor-pointer"
+                              >
+                                <Trash2 size={14} className="text-rose-500" />
+                                <span>Archive Unit</span>
+                              </button>
+                            </div>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );

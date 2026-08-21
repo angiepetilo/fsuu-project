@@ -128,34 +128,34 @@ export function PinModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-[2500] flex items-center justify-center p-4 animate-in fade-in duration-200">
-      <div className="bg-white rounded-3xl p-7 sm:p-9 max-w-md w-full text-center shadow-2xl relative border border-slate-200/80 animate-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 bg-black/10 z-[2500] flex items-center justify-center p-4 animate-in fade-in duration-150">
+      <div className="bg-white rounded-2xl p-6 sm:p-7 max-w-sm w-full text-center shadow-2xl relative border border-slate-200 animate-in zoom-in-95 duration-150">
         <button
           type="button"
           onClick={onClose}
-          className="absolute top-5 right-5 text-slate-400 hover:text-slate-600 transition-colors p-1"
+          className="absolute top-4 right-4 text-slate-400 hover:text-slate-700 transition-colors p-1"
         >
-          <X size={20} />
+          <X size={18} />
         </button>
 
-        {/* Orange Title matching brand design */}
-        <h3 className="text-2xl sm:text-3xl font-black text-orange-500 mb-1 tracking-tight">
+        {/* Plain Text Title */}
+        <h3 className="text-sm sm:text-base font-bold text-slate-900 mb-1">
           {activeTitle}
         </h3>
 
-        {/* Subtitle text */}
-        <p className="text-xs sm:text-sm text-slate-600 font-bold mb-6">
+        {/* Plain Text Description */}
+        <p className="text-xs text-slate-600 font-normal mb-5 leading-relaxed">
           {activeDesc}
         </p>
 
         {error && (
-          <div className="mb-5 p-3 bg-rose-50 border border-rose-200 text-rose-600 text-xs font-bold rounded-2xl flex items-center justify-center gap-2 animate-in fade-in">
-            <AlertCircle size={16} className="shrink-0" />
+          <div className="mb-4 p-2.5 bg-slate-50 border border-slate-200 text-slate-700 text-xs rounded-lg flex items-center justify-center gap-2 animate-in fade-in">
+            <AlertCircle size={14} className="shrink-0 text-slate-500" />
             <span>{errorMessage || "Invalid PIN Code. Please check the PIN issued by the AVR Head."}</span>
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-5">
           {/* 6 Digit Input Boxes */}
           <div className="flex items-center justify-center gap-2 sm:gap-2.5">
             {digits.map((digit, idx) => (
@@ -169,30 +169,29 @@ export function PinModal({
                 disabled={loading}
                 onChange={(e) => handleChange(idx, e.target.value)}
                 onKeyDown={(e) => handleKeyDown(idx, e)}
-                className="w-11 h-16 sm:w-12 sm:h-16 bg-white border-2 border-orange-400 rounded-[20px] text-center text-xl font-mono font-black text-slate-900 focus:outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-400/20 shadow-2xs transition-all disabled:opacity-50"
+                className="w-9 h-11 sm:w-10 sm:h-12 bg-white border border-slate-300 rounded-lg text-center text-base font-mono font-bold text-slate-900 focus:outline-none focus:border-slate-600 focus:ring-1 focus:ring-slate-400 transition-all disabled:opacity-50"
               />
             ))}
           </div>
 
           {/* Action Buttons */}
-          <div className="flex gap-3 pt-2">
-            <Button
+          <div className="flex gap-2.5 pt-1">
+            <button
               type="button"
-              variant="outline"
               disabled={loading}
               onClick={onClose}
-              className="flex-1 py-5 rounded-full border-slate-300 text-slate-700 font-extrabold text-sm hover:bg-slate-50 cursor-pointer transition-all disabled:opacity-50"
+              className="flex-1 py-2.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-100 hover:text-slate-900 active:bg-slate-200 active:scale-[0.99] text-slate-700 font-semibold text-xs cursor-pointer transition-all disabled:opacity-50"
             >
               Cancel
-            </Button>
-            <Button
+            </button>
+            <button
               type="submit"
               disabled={loading}
-              className="flex-1 py-5 rounded-full bg-amber-100 hover:bg-amber-200 border border-amber-300 text-amber-900 font-extrabold text-sm cursor-pointer shadow-xs transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+              className="flex-1 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold text-xs cursor-pointer shadow-sm active:scale-[0.99] transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
             >
-              {loading && <Loader2 size={16} className="animate-spin" />}
+              {loading && <Loader2 size={13} className="animate-spin" />}
               <span>{loading ? "Verifying..." : "Verify Pin"}</span>
-            </Button>
+            </button>
           </div>
         </form>
       </div>

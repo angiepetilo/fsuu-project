@@ -89,27 +89,31 @@ export default function AdminProfileTab({
           </div>
 
           <div>
-            <p className="text-xs font-extrabold text-slate-900">Profile Photo</p>
-            <p className="text-[11px] text-slate-500 font-medium mt-0.5 leading-snug">
+            <p className="text-xs font-bold text-slate-900">Profile Photo</p>
+            <p className="text-[11px] text-slate-500 font-normal mt-0.5 leading-snug">
               This photo will appear in the sidebar and across the system.
             </p>
           </div>
 
-          <label className="w-full px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-bold rounded-lg text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs transition-colors">
-            <Camera size={13} />
-            <span>{profileAvatarPreview ? 'Change Photo' : 'Upload Photo'}</span>
-            <input type="file" accept="image/*" onChange={handleAvatarChange} className="hidden" />
-          </label>
+          {isEditing && (
+            <div className="w-full space-y-2">
+              <label className="w-full px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold rounded-lg text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs transition-colors">
+                <Camera size={13} />
+                <span>{profileAvatarPreview ? 'Change Photo' : 'Upload Photo'}</span>
+                <input type="file" accept="image/*" onChange={handleAvatarChange} className="hidden" />
+              </label>
 
-          {profileAvatarPreview && (
-            <button
-              type="button"
-              onClick={() => setProfileAvatarPreview(null)}
-              className="w-full px-3 py-1.5 border border-slate-300 text-rose-600 hover:bg-rose-50 font-bold rounded-lg text-xs flex items-center justify-center gap-1 cursor-pointer transition-colors shadow-2xs"
-            >
-              <Trash2 size={13} />
-              <span>Remove</span>
-            </button>
+              {profileAvatarPreview && (
+                <button
+                  type="button"
+                  onClick={() => setProfileAvatarPreview(null)}
+                  className="w-full px-3 py-1.5 border border-slate-200 text-rose-600 hover:bg-rose-50 font-semibold rounded-lg text-xs flex items-center justify-center gap-1 cursor-pointer transition-colors"
+                >
+                  <Trash2 size={13} />
+                  <span>Remove</span>
+                </button>
+              )}
+            </div>
           )}
         </div>
 
@@ -117,31 +121,51 @@ export default function AdminProfileTab({
         <div className="flex-1 min-w-0 space-y-4">
 
           {/* Personal Information card */}
-          <form onSubmit={(e) => { e.preventDefault(); handleSaveProfile(e); setIsEditing(false); }}
-            className="bg-white rounded-2xl border border-slate-200 shadow-xs p-5 space-y-4">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleSaveProfile(e);
+              setIsEditing(false);
+            }}
+            className="bg-white rounded-2xl border border-slate-200 shadow-xs p-5 space-y-4"
+          >
             <div className="flex items-start justify-between gap-3">
               <div>
-                <h3 className="font-extrabold text-slate-900 text-sm">Personal Information</h3>
-                <p className="text-[11px] text-slate-500 font-medium mt-0.5">
+                <h3 className="font-bold text-slate-900 text-sm">Personal Information</h3>
+                <p className="text-xs text-slate-500 font-normal mt-0.5">
                   Your name is shown on the dashboard greeting and reservation records.
                 </p>
               </div>
               <div className="flex items-center gap-2 shrink-0">
-                <span className="px-2.5 py-1 bg-white border border-slate-300 text-slate-700 text-[11px] font-extrabold rounded-lg">
+                <span className="px-2.5 py-1 bg-slate-100 border border-slate-200 text-slate-700 text-[11px] font-semibold rounded-md">
                   {roleLabel}
                 </span>
                 {isEditing ? (
-                  <button
-                    type="submit"
-                    className="px-3 py-1.5 bg-blue-600 text-white text-[11px] font-extrabold rounded-lg hover:bg-blue-700 transition-colors cursor-pointer shadow-2xs flex items-center gap-1"
-                  >
-                    <Save size={12} /> Save
-                  </button>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setIsEditing(false)}
+                      className="px-3 py-1.5 border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-lg transition-colors cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="px-3 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-700 active:bg-blue-800 transition-colors cursor-pointer shadow-xs flex items-center gap-1.5"
+                    >
+                      <Save size={13} />
+                      <span>Save Changes</span>
+                    </button>
+                  </div>
                 ) : (
                   <button
                     type="button"
-                    onClick={() => setIsEditing(true)}
-                    className="px-3 py-1.5 bg-blue-600 text-white text-[11px] font-extrabold rounded-lg hover:bg-blue-700 transition-colors cursor-pointer shadow-2xs"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setIsEditing(true);
+                    }}
+                    className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-semibold rounded-lg transition-colors cursor-pointer shadow-xs"
                   >
                     Edit Profile
                   </button>
@@ -150,9 +174,9 @@ export default function AdminProfileTab({
             </div>
 
             {/* 2-col fields grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
                   Full Name <span className="text-rose-500">*</span>
                 </label>
                 <input
@@ -161,12 +185,16 @@ export default function AdminProfileTab({
                   disabled={!isEditing}
                   value={profileForm.name}
                   onChange={(e) => setProfileForm({ ...profileForm, name: e.target.value })}
-                  className="w-full p-2.5 bg-white border border-slate-200 rounded-xl font-bold text-slate-900 text-xs focus:outline-none focus:border-blue-500 disabled:bg-slate-50 disabled:text-slate-600"
+                  className={`w-full p-2.5 border rounded-lg font-medium text-xs transition-colors ${
+                    isEditing
+                      ? "bg-white border-slate-300 text-slate-900 focus:outline-none focus:border-blue-600"
+                      : "bg-slate-50 border-slate-200 text-slate-600 cursor-not-allowed"
+                  }`}
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
                   Email Address <span className="text-rose-500">*</span>
                 </label>
                 <input
@@ -175,12 +203,16 @@ export default function AdminProfileTab({
                   disabled={!isEditing}
                   value={profileForm.personal_email || profileForm.email || ''}
                   onChange={(e) => setProfileForm({ ...profileForm, personal_email: e.target.value })}
-                  className="w-full p-2.5 bg-white border border-slate-200 rounded-xl font-mono font-bold text-slate-900 text-xs focus:outline-none focus:border-blue-500 disabled:bg-slate-50 disabled:text-slate-600"
+                  className={`w-full p-2.5 border rounded-lg font-mono font-medium text-xs transition-colors ${
+                    isEditing
+                      ? "bg-white border-slate-300 text-slate-900 focus:outline-none focus:border-blue-600"
+                      : "bg-slate-50 border-slate-200 text-slate-600 cursor-not-allowed"
+                  }`}
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
                   Login Email <span className="text-rose-500">*</span>
                 </label>
                 <input
@@ -189,18 +221,21 @@ export default function AdminProfileTab({
                   disabled={!isEditing}
                   value={profileForm.email}
                   onChange={(e) => setProfileForm({ ...profileForm, email: e.target.value })}
-                  className="w-full p-2.5 bg-white border border-slate-200 rounded-xl font-mono font-bold text-slate-900 text-xs focus:outline-none focus:border-blue-500 disabled:bg-slate-50 disabled:text-slate-600"
+                  className={`w-full p-2.5 border rounded-lg font-mono font-medium text-xs transition-colors ${
+                    isEditing
+                      ? "bg-white border-slate-300 text-slate-900 focus:outline-none focus:border-blue-600"
+                      : "bg-slate-50 border-slate-200 text-slate-600 cursor-not-allowed"
+                  }`}
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Account</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Account Role</label>
                 <input
                   type="text"
                   disabled
                   value={roleLabel || "Admin"}
-                  placeholder="Admin"
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-600 text-xs"
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg font-medium text-slate-600 text-xs cursor-not-allowed"
                 />
               </div>
             </div>

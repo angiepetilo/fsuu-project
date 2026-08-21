@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
-import { Plus, Pencil, Trash2, X, Package, Loader2, Image as ImageIcon, ChevronLeft, ChevronRight, Camera } from "lucide-react";
+import { Plus, Pencil, Trash2, X, Package, Loader2, Image as ImageIcon, ChevronLeft, ChevronRight, Camera, MoreVertical } from "lucide-react";
 import api from "@/lib/axios";
+import notify from "@/lib/notify";
 import { useAuth } from "@/context/AuthContext";
 
 export default function EquipmentCategoriesTab({ showMsg }) {
@@ -12,10 +13,21 @@ export default function EquipmentCategoriesTab({ showMsg }) {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editItem, setEditItem] = useState(null);
+  const [openActionId, setOpenActionId] = useState(null);
   const [formLoading, setFormLoading] = useState(false);
 
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 10;
+
+  useEffect(() => {
+    const handleOutsideClick = (e) => {
+      if (!e.target.closest('.action-menu-container')) {
+        setOpenActionId(null);
+      }
+    };
+    document.addEventListener('click', handleOutsideClick);
+    return () => document.removeEventListener('click', handleOutsideClick);
+  }, []);
 
   const [form, setForm] = useState({
     eq_name: "",
@@ -119,10 +131,10 @@ export default function EquipmentCategoriesTab({ showMsg }) {
     try {
       if (editItem) {
         await api.put(`/admin/equipment-types/${editItem.id}`, payload);
-        if (showMsg) showMsg(`Equipment category "${form.eq_name}" updated successfully!`);
+        notify.success("Category Updated", `Equipment category "${form.eq_name}" updated successfully.`);
       } else {
         await api.post("/admin/equipment-types", payload);
-        if (showMsg) showMsg(`Equipment category "${form.eq_name}" created successfully!`);
+        notify.success("Category Created", `Equipment category "${form.eq_name}" created successfully.`);
       }
       setShowModal(false);
       setEditItem(null);
@@ -130,7 +142,7 @@ export default function EquipmentCategoriesTab({ showMsg }) {
       window.dispatchEvent(new Event("equipment_inventory_updated"));
     } catch (err) {
       const msg = err.response?.data?.message || "Failed to save equipment category.";
-      if (showMsg) showMsg(msg, true);
+      notify.error("Category Save Failed", msg);
     } finally {
       setFormLoading(false);
     }
@@ -140,11 +152,11 @@ export default function EquipmentCategoriesTab({ showMsg }) {
     if (confirm(`Archive equipment category "${name}"? Soft-delete will apply.`)) {
       try {
         await api.delete(`/admin/equipment-types/${id}`);
-        if (showMsg) showMsg(`Equipment category "${name}" archived.`);
+        notify.error("Category Archived", `Equipment category "${name}" has been archived.`);
         fetchCategories();
         window.dispatchEvent(new Event("equipment_inventory_updated"));
       } catch {
-        if (showMsg) showMsg("Failed to archive equipment category.", true);
+        notify.error("Archive Failed", "Failed to archive equipment category.");
       }
     }
   };
@@ -264,24 +276,53 @@ export default function EquipmentCategoriesTab({ showMsg }) {
                         {lost}
                       </span>
                     </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-1.5">
+                    <td className="px-4 py-3 relative">
+                      <div className="relative action-menu-container inline-block">
                         <button
                           type="button"
-                          onClick={() => handleOpenEditModal(cat)}
-                          className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 cursor-pointer"
-                          title="Edit Category"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setOpenActionId(openActionId === cat.id ? null : cat.id);
+                          }}
+                          className={`p-1.5 rounded-xl border transition-all cursor-pointer shadow-2xs ${
+                            openActionId === cat.id
+                              ? "bg-blue-600 border-blue-600 text-white shadow-md shadow-blue-600/20"
+                              : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                          }`}
+                          title="Actions"
                         >
-                          <Pencil size={13} />
+                          <MoreVertical size={15} />
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(cat.id, cat.eq_name || cat.name)}
-                          className="p-1.5 rounded-lg border border-rose-200 text-rose-600 hover:bg-rose-50 cursor-pointer"
-                          title="Archive Category"
-                        >
-                          <Trash2 size={13} />
-                        </button>
+
+                        {openActionId === cat.id && (
+                          <div className="absolute right-0 top-full mt-1.5 w-44 bg-white rounded-2xl shadow-2xl border border-slate-200/90 py-1.5 z-40 animate-in fade-in zoom-in-95 backdrop-blur-md">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setOpenActionId(null);
+                                handleOpenEditModal(cat);
+                              }}
+                              className="w-full px-3.5 py-2 text-left text-xs font-bold text-slate-700 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-2.5 transition-colors cursor-pointer"
+                            >
+                              <Pencil size={13} className="text-blue-500" />
+                              <span>Edit Category</span>
+                            </button>
+
+                            <div className="border-t border-slate-100 my-1"></div>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setOpenActionId(null);
+                                handleDelete(cat.id, cat.eq_name || cat.name);
+                              }}
+                              className="w-full px-3.5 py-2 text-left text-xs font-bold text-rose-600 hover:bg-rose-50 flex items-center gap-2.5 transition-colors cursor-pointer"
+                            >
+                              <Trash2 size={13} className="text-rose-500" />
+                              <span>Archive Category</span>
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </td>
                   </tr>

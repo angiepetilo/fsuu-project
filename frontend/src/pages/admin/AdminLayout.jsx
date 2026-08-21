@@ -10,6 +10,8 @@ import {
   FileBarChart2, User, ChevronDown, ShieldCheck, Building,
   Loader2
 } from "lucide-react";
+import NotificationDropdown from "@/components/notifications/NotificationDropdown";
+import IncidentDetailModal from "@/components/notifications/IncidentDetailModal";
 
 const NAV_GROUPS = [
   {
@@ -47,6 +49,7 @@ export default function AdminLayout() {
   const [showNotifDropdown, setShowNotifDropdown] = useState(false);
   const [selectedOffice, setSelectedOffice] = useState("All Offices");
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [selectedIncident, setSelectedIncident] = useState(null);
 
   // Dynamic Profile Sync from System Settings
   const [profileState, setProfileState] = useState(() => {
@@ -255,27 +258,31 @@ export default function AdminLayout() {
         </div>
       )}
 
-      {/* ── Sidebar (Navy #0B1F3A) ── */}
+      {/* ── Sidebar ── */}
       <aside
         className={`
-          fixed inset-y-0 left-0 z-40 flex flex-col bg-[#0B1F3A] text-white transition-all duration-300 ease-in-out border-r border-slate-800/50
+          fixed inset-y-0 left-0 z-40 flex flex-col bg-slate-900 text-white transition-all duration-300 ease-in-out border-r border-slate-800
           ${sidebarOpen ? "w-64" : "w-[76px]"}
           ${mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
         `}
       >
         {/* Brand Header */}
-        <div className={`flex items-center gap-3.5 px-5 py-5 border-b border-slate-800/60 ${!sidebarOpen && "justify-center px-0"}`}>
-          <img src="/fsuu_logo.png" alt="FSUU" className="h-10 w-10 flex-shrink-0 object-contain" />
+        <div className={`flex items-center gap-3 px-5 py-4 border-b border-slate-800 ${!sidebarOpen && "justify-center px-0"}`}>
+          <img src="/fsuu_logo.png" alt="FSUU" className="h-9 w-9 flex-shrink-0 object-contain" />
           {sidebarOpen && (
             <div className="flex flex-col min-w-0">
-              <span className="font-extrabold text-sm tracking-tight leading-tight text-white">{portalTitle}</span>
-              <span className="text-[11px] text-slate-400 font-semibold truncate">{officeName}</span>
+              <span className="font-bold text-sm text-white tracking-tight leading-tight">
+                {isSuperAdmin ? "FSUU Super Admin" : userRole === "staff" ? "FSUU Staff" : "FSUU Admin"}
+              </span>
+              <span className="text-[11px] text-slate-400 font-medium tracking-wide mt-0.5 truncate">
+                {officeName || "AVR Operations"}
+              </span>
             </div>
           )}
         </div>
 
         {/* Grouped Navigation */}
-        <nav className="flex-1 overflow-y-auto py-5 px-3 space-y-6 scrollbar-none">
+        <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-5 scrollbar-none">
           {NAV_GROUPS.map((group) => {
             const filteredItems = group.items.filter(item => {
               if (!item.roles.includes(userRole)) return false;
@@ -288,9 +295,9 @@ export default function AdminLayout() {
             if (filteredItems.length === 0) return null;
 
             return (
-              <div key={group.title} className="space-y-1.5">
+              <div key={group.title} className="space-y-1">
                 {sidebarOpen && (
-                  <p className="px-3 text-[10px] font-bold tracking-wider text-slate-400 uppercase">
+                  <p className="px-3 text-[10px] font-semibold tracking-wider text-slate-400 uppercase">
                     {group.title}
                   </p>
                 )}
@@ -303,16 +310,16 @@ export default function AdminLayout() {
                       onClick={() => setMobileOpen(false)}
                       title={!sidebarOpen ? label : undefined}
                       className={`
-                        flex items-center gap-3.5 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all duration-200
+                        flex items-center gap-3 px-3 py-2 rounded-lg font-medium text-xs transition-colors duration-150 relative
                         ${active
-                          ? "bg-blue-600 text-white shadow-md shadow-blue-600/25"
-                          : "text-slate-400 hover:text-white hover:bg-slate-800/60"
+                          ? "bg-blue-600 text-white"
+                          : "text-slate-300 hover:text-white hover:bg-slate-800"
                         }
-                        ${!sidebarOpen && "justify-center px-2.5"}
+                        ${!sidebarOpen && "justify-center px-0"}
                       `}
                     >
-                      <Icon size={18} className="flex-shrink-0" />
-                      {sidebarOpen && <span>{label}</span>}
+                      <Icon size={16} className="flex-shrink-0" />
+                      {sidebarOpen && <span className="truncate">{label}</span>}
                     </Link>
                   );
                 })}
@@ -324,20 +331,20 @@ export default function AdminLayout() {
         {/* Collapse toggle (desktop) */}
         <button
           onClick={() => setSidebarOpen(v => !v)}
-          className="hidden lg:flex items-center justify-center h-10 mx-3 mb-3 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/60 transition-all text-xs gap-1.5 font-bold"
+          className="hidden lg:flex items-center justify-center h-9 mx-3 mb-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors text-xs gap-1.5 font-medium cursor-pointer"
         >
           {sidebarOpen ? <><ChevronRight size={14} className="rotate-180" /><span>Collapse</span></> : <ChevronRight size={14} />}
         </button>
 
         {/* User Card */}
-        <div className={`border-t border-slate-800/60 p-3 bg-[#07162b] ${!sidebarOpen && "flex justify-center"}`}>
+        <div className={`border-t border-slate-800 p-3 bg-slate-900 ${!sidebarOpen && "flex justify-center"}`}>
           {sidebarOpen ? (
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <div
                 onClick={() => setUserMenuOpen(v => !v)}
-                className="flex items-center gap-3 p-2 rounded-xl hover:bg-slate-800/60 transition-all cursor-pointer"
+                className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-slate-800 transition-colors cursor-pointer"
               >
-                <div className="w-9 h-9 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0 shadow-xs overflow-hidden">
+                <div className="w-8 h-8 rounded-full bg-slate-800 text-slate-200 border border-slate-700 flex items-center justify-center text-xs font-semibold flex-shrink-0 overflow-hidden">
                   {adminAvatar ? (
                     <img src={adminAvatar} alt={adminName} className="w-full h-full object-cover" />
                   ) : (
@@ -345,19 +352,19 @@ export default function AdminLayout() {
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs font-bold text-white truncate">{adminName}</p>
-                  <p className="text-[10px] text-slate-400 truncate capitalize">{userRole.replace("_", " ")}</p>
+                  <p className="text-xs font-medium text-slate-200 truncate">{adminName}</p>
+                  <p className="text-[10.5px] text-slate-400 truncate capitalize">{userRole.replace("_", " ")}</p>
                 </div>
-                <ChevronDown size={14} className={`text-slate-400 transition-transform ${userMenuOpen ? "rotate-180" : ""}`} />
+                <ChevronDown size={13} className={`text-slate-400 transition-transform ${userMenuOpen ? "rotate-180" : ""}`} />
               </div>
 
               {userMenuOpen && (
                 <div className="pt-1 border-t border-slate-800">
                   <button
                     onClick={handleLogout}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-rose-400 hover:bg-rose-500/10 rounded-lg transition-all"
+                    className="w-full flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors cursor-pointer"
                   >
-                    <LogOut size={14} /> Sign Out
+                    <LogOut size={13} /> Sign Out
                   </button>
                 </div>
               )}
@@ -366,9 +373,9 @@ export default function AdminLayout() {
             <div
               onClick={handleLogout}
               title="Sign Out"
-              className="w-9 h-9 rounded-full bg-rose-500/20 text-rose-400 hover:bg-rose-500/30 flex items-center justify-center cursor-pointer transition-all"
+              className="w-8 h-8 rounded-full bg-slate-800 text-rose-400 hover:bg-rose-500/20 flex items-center justify-center cursor-pointer transition-colors"
             >
-              <LogOut size={16} />
+              <LogOut size={14} />
             </div>
           )}
         </div>
@@ -377,7 +384,7 @@ export default function AdminLayout() {
       {/* Mobile Backdrop */}
       {mobileOpen && (
         <div
-          className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs z-30 lg:hidden"
+          className="fixed inset-0 bg-slate-950/40 z-30 lg:hidden"
           onClick={() => setMobileOpen(false)}
         />
       )}
@@ -386,160 +393,41 @@ export default function AdminLayout() {
       <div className={`flex-1 flex flex-col min-h-screen transition-all duration-300 ${sidebarOpen ? "lg:ml-64" : "lg:ml-[76px]"}`}>
 
         {/* Top Header */}
-        <header className="sticky top-0 z-20 bg-white/80 backdrop-blur-md border-b border-slate-200/80 shadow-xs">
+        <header className="sticky top-0 z-20 bg-white border-b border-slate-200 shadow-2xs">
           <div className="flex items-center justify-between px-6 h-16">
             <div className="flex items-center gap-4">
               <button
-                className="lg:hidden p-2 rounded-xl text-slate-600 hover:bg-slate-100 transition-all"
+                className="lg:hidden p-2 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors"
                 onClick={() => setMobileOpen(v => !v)}
               >
-                {mobileOpen ? <X size={20} /> : <Menu size={20} />}
+                {mobileOpen ? <X size={18} /> : <Menu size={18} />}
               </button>
 
               <div className="flex flex-col justify-center">
-                <div className="flex items-center gap-2">
-                  <h1 className="font-extrabold text-slate-900 text-base sm:text-lg tracking-tight">
+                <div className="flex items-center gap-2.5">
+                  <h1 className="font-bold text-slate-900 text-base sm:text-lg tracking-tight">
                     AVR Operations &amp; Booking Management
                   </h1>
-                  <span className="text-[10px] font-extrabold uppercase tracking-wider bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-full">
+                  <span className="text-[11px] font-semibold bg-slate-100 text-slate-700 border border-slate-200 px-2.5 py-0.5 rounded-md">
                     {userRole === "staff" ? "Staff Portal" : "Admin Portal"}
                   </span>
                 </div>
-                <p className="text-xs text-slate-400 font-medium mt-0.5 hidden sm:block">
-                  {getGreeting()}, <span className="font-bold text-slate-700">{adminName}</span> • Manage venue reservations, equipment inventory, and borrowing operations.
+                <p className="text-xs text-slate-500 font-normal mt-0.5 hidden sm:block">
+                  {getGreeting()}, <span className="font-medium text-slate-700">{adminName}</span> • Manage venue reservations, equipment inventory, and borrowing operations.
                 </p>
               </div>
             </div>
 
             <div className="flex items-center gap-3">
               {/* Notification Bell Dropdown */}
-              <div className="relative">
-                <button
-                  onClick={() => setShowNotifDropdown(v => !v)}
-                  className="relative p-2.5 rounded-full border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-all cursor-pointer shadow-2xs active:scale-95 flex items-center justify-center"
-                  title="Office Restricted Notifications"
-                >
-                  <Bell size={18} />
-                  {actionBadgeCount > 0 && (
-                    <span className="absolute -top-1 -right-1 min-w-[20px] h-[20px] px-1 bg-red-600 text-white font-black text-[10px] rounded-full flex items-center justify-center border-2 border-white shadow-md animate-pulse">
-                      {actionBadgeCount}
-                    </span>
-                  )}
-                </button>
-
-                {showNotifDropdown && (
-                  <div className="absolute right-0 mt-3 w-80 sm:w-96 bg-white rounded-2xl shadow-2xl border border-slate-200 z-50 overflow-hidden animate-in fade-in zoom-in-95 p-4 space-y-3">
-                    <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                      <div>
-                        <h4 className="font-extrabold text-xs text-slate-900 flex items-center gap-2 uppercase tracking-wider">
-                          <Bell size={15} className="text-blue-600" />
-                          Notifications
-                        </h4>
-                        <p className="text-[10.5px] text-slate-500 font-medium">Latest bookings, borrows &amp; stock alerts</p>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        {notifications.length > 0 && (
-                          <button
-                            type="button"
-                            onClick={markAllAsRead}
-                            className="text-[10px] font-bold text-slate-500 hover:text-blue-600 hover:underline cursor-pointer"
-                          >
-                            Mark all read
-                          </button>
-                        )}
-                        <span className="text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-full">
-                          {actionBadgeCount} Unread
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="max-h-80 overflow-y-auto space-y-3 text-xs pr-0.5">
-                      {/* Section 1: Needs Action (High Priority) */}
-                      {needsActionNotifs.length > 0 && (
-                        <div className="space-y-1.5">
-                          <span className="text-[10px] font-extrabold text-red-600 uppercase tracking-wider block">Needs Action</span>
-                          {needsActionNotifs.map((n) => {
-                            const isRead = readNotifIds.has(n.id);
-                            return (
-                              <div
-                                key={n.id}
-                                onClick={() => handleNotificationClick(n)}
-                                className={`p-3 rounded-xl border transition-all space-y-1 cursor-pointer ${
-                                  isRead
-                                    ? "bg-slate-50/50 hover:bg-slate-100/70 border-slate-200/60 opacity-75"
-                                    : "bg-red-50/50 hover:bg-red-50/80 border-red-200 shadow-2xs"
-                                }`}
-                              >
-                                <div className="flex items-center justify-between">
-                                  <span className={`font-bold text-[11px] flex items-center gap-1.5 ${isRead ? "text-slate-700" : "text-red-900"}`}>
-                                    <span className={`w-2 h-2 rounded-full ${isRead ? "bg-slate-300" : "bg-red-600"}`}></span>
-                                    {n.title}
-                                  </span>
-                                  <span className="text-[9.5px] font-medium text-slate-400">{n.time}</span>
-                                </div>
-                                <p className="text-slate-700 text-[11px] font-medium leading-relaxed">{n.message}</p>
-                                <div className="flex items-center justify-between pt-1 text-[10px]">
-                                  <span className="font-medium text-slate-500">🏢 {n.office}</span>
-                                  <span className="font-mono text-blue-600 font-bold hover:underline">{n.ref} →</span>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-
-                      {/* Section 2: Updates (Medium & Low Priority) */}
-                      {updatesNotifs.length > 0 && (
-                        <div className="space-y-1.5">
-                          <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider block">Updates</span>
-                          {updatesNotifs.map((n) => {
-                            const isRead = readNotifIds.has(n.id);
-                            return (
-                              <div
-                                key={n.id}
-                                onClick={() => handleNotificationClick(n)}
-                                className={`p-3 rounded-xl border transition-all space-y-1 cursor-pointer ${
-                                  isRead
-                                    ? "bg-slate-50/50 hover:bg-slate-100/70 border-slate-200/60 opacity-75"
-                                    : "bg-slate-50 hover:bg-slate-100 border-slate-200/80 shadow-2xs"
-                                }`}
-                              >
-                                <div className="flex items-center justify-between">
-                                  <span className={`font-bold text-[11px] flex items-center gap-1.5 ${isRead ? "text-slate-600" : "text-slate-800"}`}>
-                                    <span className={`w-2 h-2 rounded-full ${isRead ? "bg-slate-300" : (n.priority === 'medium' ? 'bg-green-600' : 'bg-slate-400')}`}></span>
-                                    {n.title}
-                                  </span>
-                                  <span className="text-[9.5px] font-medium text-slate-400">{n.time}</span>
-                                </div>
-                                <p className="text-slate-600 text-[11px] font-medium leading-relaxed">{n.message}</p>
-                                <div className="flex items-center justify-between pt-1 text-[10px]">
-                                  <span className="font-medium text-slate-500">🏢 {n.office}</span>
-                                  <span className="font-mono text-blue-600 font-bold hover:underline">{n.ref} →</span>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-
-                      {filteredNotifications.length === 0 && (
-                        <div className="p-6 text-center text-slate-400 text-xs font-medium">
-                          No active notifications for {officeFilterName}
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="pt-2 border-t border-slate-100 text-center">
-                      <button
-                        onClick={() => setShowNotifDropdown(false)}
-                        className="w-full py-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-bold transition-all cursor-pointer"
-                      >
-                        Close Panel
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
+              <NotificationDropdown
+                notifications={filteredNotifications}
+                readNotifIds={readNotifIds}
+                markAsRead={markAsRead}
+                markAllAsRead={markAllAsRead}
+                onSelectIncident={(incident) => setSelectedIncident(incident)}
+                isSuperAdmin={isSuperAdmin}
+              />
             </div>
           </div>
         </header>
@@ -554,6 +442,14 @@ export default function AdminLayout() {
             isSuperAdmin 
           }} />
         </main>
+
+        {/* Incident Detail Modal for Damaged, Lost & Policy Violations */}
+        {selectedIncident && (
+          <IncidentDetailModal
+            incident={selectedIncident}
+            onClose={() => setSelectedIncident(null)}
+          />
+        )}
 
         {/* Footer */}
         <footer className="text-center py-4 text-xs text-slate-400 font-semibold border-t border-slate-200/80 bg-white">

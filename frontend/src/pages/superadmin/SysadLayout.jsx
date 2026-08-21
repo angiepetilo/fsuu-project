@@ -8,7 +8,8 @@ import {
   FileBarChart2, User, ChevronDown, ShieldCheck, Filter, Globe,
   Loader2
 } from "lucide-react";
-import SysadNotifDropdown from "./components/SysadNotifDropdown";
+import NotificationDropdown from "@/components/notifications/NotificationDropdown";
+import IncidentDetailModal from "@/components/notifications/IncidentDetailModal";
 
 const SYSAD_NAV_GROUPS = [
   {
@@ -50,8 +51,8 @@ export default function SysadLayout() {
     return localStorage.getItem("fsuu_sysad_selected_office_name") || "All Offices";
   });
   const [offices, setOffices] = useState([]);
-  const [showNotifDropdown, setShowNotifDropdown] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [selectedIncident, setSelectedIncident] = useState(null);
 
   // Fetch registered offices from backend
   useEffect(() => {
@@ -214,32 +215,32 @@ export default function SysadLayout() {
       {/* ── Sidebar ── */}
       <aside
         className={`
-          fixed inset-y-0 left-0 z-40 flex flex-col bg-[#070b19] text-white transition-all duration-300 ease-in-out border-r border-indigo-900/40
+          fixed inset-y-0 left-0 z-40 flex flex-col bg-slate-900 text-white transition-all duration-300 ease-in-out border-r border-slate-800
           ${sidebarOpen ? "w-64" : "w-[76px]"}
           ${mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
         `}
       >
-        {/* Brand Header with SuperAdmin Gold Badge */}
-        <div className={`flex items-center gap-3.5 px-5 py-5 border-b border-indigo-900/40 ${!sidebarOpen && "justify-center px-0"}`}>
-          <img src="/fsuu_logo.png" alt="FSUU" className="h-10 w-10 flex-shrink-0 object-contain" />
+        {/* Brand Header */}
+        <div className={`flex items-center gap-3 px-5 py-4 border-b border-slate-800 ${!sidebarOpen && "justify-center px-0"}`}>
+          <img src="/fsuu_logo.png" alt="FSUU" className="h-9 w-9 flex-shrink-0 object-contain" />
           {sidebarOpen && (
             <div className="flex flex-col min-w-0">
-              <span className="font-extrabold text-sm tracking-tight leading-tight text-white flex items-center gap-1.5">
+              <span className="font-bold text-sm text-white tracking-tight leading-tight">
                 FSUU
               </span>
-              <span className="text-[10px] text-amber-400 font-extrabold uppercase tracking-wider flex items-center gap-1 mt-0.5">
-                PMO
+              <span className="text-[11px] text-slate-400 font-medium tracking-wide mt-0.5">
+                PMO Office
               </span>
             </div>
           )}
         </div>
 
         {/* Grouped Navigation */}
-        <nav className="flex-1 overflow-y-auto py-5 px-3 space-y-6 scrollbar-none">
+        <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-5 scrollbar-none">
           {SYSAD_NAV_GROUPS.map((group) => (
-            <div key={group.title} className="space-y-1.5">
+            <div key={group.title} className="space-y-1">
               {sidebarOpen && (
-                <p className="px-3 text-[10px] font-bold tracking-wider text-indigo-300/60 uppercase">
+                <p className="px-3 text-[10px] font-semibold tracking-wider text-slate-400 uppercase">
                   {group.title}
                 </p>
               )}
@@ -252,16 +253,16 @@ export default function SysadLayout() {
                     to={item.path}
                     onClick={() => setMobileOpen(false)}
                     className={`
-                      flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-bold text-xs transition-all duration-150 group relative
+                      flex items-center gap-3 px-3 py-2 rounded-lg font-medium text-xs transition-colors duration-150 relative
                       ${active
-                        ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-indigo-600/30"
-                        : "text-slate-400 hover:text-white hover:bg-slate-800/60"
+                        ? "bg-blue-600 text-white"
+                        : "text-slate-300 hover:text-white hover:bg-slate-800"
                       }
                       ${!sidebarOpen && "justify-center px-0"}
                     `}
                     title={!sidebarOpen ? item.label : undefined}
                   >
-                    <Icon size={18} className={`flex-shrink-0 transition-transform duration-200 ${active ? "scale-110" : "group-hover:scale-110"}`} />
+                    <Icon size={16} className="flex-shrink-0" />
                     {sidebarOpen && <span className="truncate">{item.label}</span>}
                   </Link>
                 );
@@ -273,20 +274,20 @@ export default function SysadLayout() {
         {/* Collapse toggle (desktop) */}
         <button
           onClick={() => setSidebarOpen(v => !v)}
-          className="hidden lg:flex items-center justify-center h-10 mx-3 mb-3 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/60 transition-all text-xs gap-1.5 font-bold"
+          className="hidden lg:flex items-center justify-center h-9 mx-3 mb-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors text-xs gap-1.5 font-medium cursor-pointer"
         >
           {sidebarOpen ? <><ChevronRight size={14} className="rotate-180" /><span>Collapse</span></> : <ChevronRight size={14} />}
         </button>
 
         {/* User Card */}
-        <div className={`border-t border-indigo-900/40 p-3 bg-[#040711] ${!sidebarOpen && "flex justify-center"}`}>
+        <div className={`border-t border-slate-800 p-3 bg-slate-900 ${!sidebarOpen && "flex justify-center"}`}>
           {sidebarOpen ? (
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <div
                 onClick={() => setUserMenuOpen(v => !v)}
-                className="flex items-center gap-3 p-2 rounded-xl hover:bg-slate-800/60 transition-all cursor-pointer"
+                className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-slate-800 transition-colors cursor-pointer"
               >
-                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-amber-500 to-indigo-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0 shadow-xs overflow-hidden border border-amber-400/40">
+                <div className="w-8 h-8 rounded-full bg-slate-800 text-slate-200 border border-slate-700 flex items-center justify-center text-xs font-semibold flex-shrink-0 overflow-hidden">
                   {adminAvatar ? (
                     <img src={adminAvatar} alt={adminName} className="w-full h-full object-cover" />
                   ) : (
@@ -294,18 +295,18 @@ export default function SysadLayout() {
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs font-bold text-white truncate">{adminName}</p>
+                  <p className="text-xs font-medium text-slate-200 truncate">{adminName}</p>
                 </div>
-                <ChevronDown size={14} className={`text-slate-400 transition-transform ${userMenuOpen ? "rotate-180" : ""}`} />
+                <ChevronDown size={13} className={`text-slate-400 transition-transform ${userMenuOpen ? "rotate-180" : ""}`} />
               </div>
 
               {userMenuOpen && (
                 <div className="pt-1 border-t border-slate-800">
                   <button
                     onClick={handleLogout}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-rose-400 hover:bg-rose-500/10 rounded-lg transition-all"
+                    className="w-full flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors cursor-pointer"
                   >
-                    <LogOut size={14} /> Sign Out
+                    <LogOut size={13} /> Sign Out
                   </button>
                 </div>
               )}
@@ -314,9 +315,9 @@ export default function SysadLayout() {
             <div
               onClick={handleLogout}
               title="Sign Out"
-              className="w-9 h-9 rounded-full bg-rose-500/20 text-rose-400 hover:bg-rose-500/30 flex items-center justify-center cursor-pointer transition-all"
+              className="w-8 h-8 rounded-full bg-slate-800 text-rose-400 hover:bg-rose-500/20 flex items-center justify-center cursor-pointer transition-colors"
             >
-              <LogOut size={16} />
+              <LogOut size={14} />
             </div>
           )}
         </div>
@@ -325,7 +326,7 @@ export default function SysadLayout() {
       {/* Mobile Backdrop */}
       {mobileOpen && (
         <div
-          className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs z-30 lg:hidden"
+          className="fixed inset-0 bg-slate-950/40 z-30 lg:hidden"
           onClick={() => setMobileOpen(false)}
         />
       )}
@@ -334,27 +335,27 @@ export default function SysadLayout() {
       <div className={`flex-1 flex flex-col min-h-screen transition-all duration-300 ${sidebarOpen ? "lg:ml-64" : "lg:ml-[76px]"}`}>
 
         {/* Top Header */}
-        <header className="sticky top-0 z-20 bg-white/90 backdrop-blur-md border-b border-slate-200/80 shadow-xs">
+        <header className="sticky top-0 z-20 bg-white border-b border-slate-200 shadow-2xs">
           <div className="flex items-center justify-between px-6 h-16">
 
             <div className="flex items-center gap-4">
               <button
-                className="lg:hidden p-2 rounded-xl text-slate-600 hover:bg-slate-100 transition-all"
+                className="lg:hidden p-2 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors"
                 onClick={() => setMobileOpen(v => !v)}
               >
-                {mobileOpen ? <X size={20} /> : <Menu size={20} />}
+                {mobileOpen ? <X size={18} /> : <Menu size={18} />}
               </button>
 
               <div className="flex flex-col justify-center">
-                <div className="flex items-center gap-2">
-                  <h1 className="font-extrabold text-slate-900 text-base sm:text-lg tracking-tight">
+                <div className="flex items-center gap-2.5">
+                  <h1 className="font-bold text-slate-900 text-base sm:text-lg tracking-tight">
                     Super Admin System Portal
                   </h1>
-                  <span className="text-[10px] font-black uppercase tracking-widest bg-gradient-to-r from-amber-500 to-indigo-600 text-white px-2 py-0.5 rounded-full shadow-2xs">
+                  <span className="text-[11px] font-semibold bg-slate-100 text-slate-700 border border-slate-200 px-2.5 py-0.5 rounded-md">
                     Super Admin
                   </span>
                 </div>
-                <p className="text-xs text-slate-500 font-medium mt-0.5 hidden sm:block">
+                <p className="text-xs text-slate-500 font-normal mt-0.5 hidden sm:block">
                   Global system administration, user accounts, system configuration &amp; audit controls
                 </p>
               </div>
@@ -362,15 +363,13 @@ export default function SysadLayout() {
 
             {/* Right Side: Notification Bell */}
             <div className="flex items-center gap-3">
-              {/* Notification Bell Dropdown Sub-Component */}
-              <SysadNotifDropdown
-                showNotifDropdown={showNotifDropdown}
-                setShowNotifDropdown={setShowNotifDropdown}
-                filteredNotifications={filteredNotifications}
-                selectedOffice={selectedOffice}
+              <NotificationDropdown
+                notifications={filteredNotifications}
                 readNotifIds={readNotifIds}
                 markAsRead={markAsRead}
                 markAllAsRead={markAllAsRead}
+                onSelectIncident={(incident) => setSelectedIncident(incident)}
+                isSuperAdmin={true}
               />
             </div>
           </div>
@@ -389,6 +388,14 @@ export default function SysadLayout() {
             adminOffice: selectedOffice 
           }} />
         </main>
+
+        {/* Incident Detail Modal for Damaged, Lost & Policy Violations */}
+        {selectedIncident && (
+          <IncidentDetailModal
+            incident={selectedIncident}
+            onClose={() => setSelectedIncident(null)}
+          />
+        )}
 
         {/* Footer */}
         <footer className="text-center py-4 text-xs text-slate-400 font-semibold border-t border-slate-200/80 bg-white flex items-center justify-center gap-2">

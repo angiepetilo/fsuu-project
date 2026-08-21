@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { toast } from "sonner";
+import notify from "@/lib/notify";
 import {
   Users, Building2, Package, BookOpen, Clock,
   DollarSign, Key, User, ShieldCheck, Building, GraduationCap
@@ -24,9 +24,9 @@ export default function SysadSettings() {
     const cleanMsg = (msg || "").replace(/^✅\s*|^❌\s*/, "").trim();
 
     if (errCheck) {
-      try { toast.error(cleanMsg); } catch {}
+      notify.error("Action Failed", cleanMsg);
     } else {
-      try { toast.success(cleanMsg); } catch {}
+      notify.success("Success", cleanMsg);
     }
   };
 

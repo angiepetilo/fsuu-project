@@ -137,19 +137,18 @@ export default function EquipmentModal({
                     value={editFormData.condition || "Good"}
                     onChange={e => {
                       const val = e.target.value;
+                      const newStatus = val === "Good" ? "available" : "unavailable";
                       setEditFormData({
                         ...editFormData,
                         condition: val,
-                        ...(val === "Damaged" ? { status: "unavailable" } : {})
+                        status: newStatus,
                       });
                     }}
                     className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none"
                   >
                     <option value="Good">Good</option>
-                    <option value="Minor Wear">Minor Wear &amp; Tear</option>
                     <option value="Damaged">Damaged</option>
-                    <option value="Under Repair">Under Repair</option>
-                    <option value="Lost">Lost / Decommissioned</option>
+                    <option value="Lost">Lost</option>
                   </select>
                 </div>
               </div>
@@ -299,19 +298,18 @@ export default function EquipmentModal({
                     value={formData.condition || "Good"}
                     onChange={e => {
                       const val = e.target.value;
+                      const newStatus = val === "Good" ? "available" : "unavailable";
                       setFormData({
                         ...formData,
                         condition: val,
-                        ...(val === "Damaged" ? { status: "unavailable" } : {})
+                        status: newStatus,
                       });
                     }}
                     className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none"
                   >
                     <option value="Good">Good</option>
-                    <option value="Minor Wear">Minor Wear &amp; Tear</option>
                     <option value="Damaged">Damaged</option>
-                    <option value="Under Repair">Under Repair</option>
-                    <option value="Lost">Lost / Decommissioned</option>
+                    <option value="Lost">Lost</option>
                   </select>
                 </div>
               </div>

@@ -629,27 +629,27 @@ export default function Step2Venue({
 
                     if (isOutside) {
                       return (
-                        <div className="p-3.5 bg-amber-50 border border-amber-200/80 rounded-2xl text-xs font-bold text-amber-900 space-y-2 mt-2">
+                        <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 space-y-2 mt-2">
                           <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-1.5 text-amber-800">
-                              <AlertTriangle size={15} className="text-amber-600 shrink-0" />
-                              <span className="font-extrabold">Outside Campus Office Hours ({formatTime12(venueOpen)} - {formatTime12(venueClose)})</span>
-                            </div>
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-200 text-amber-900 uppercase">
-                              PIN Required
+                            <span className="font-semibold text-slate-800">
+                              Outside Office Hours ({formatTime12(venueOpen)} – {formatTime12(venueClose)})
                             </span>
+                            {requiresPinForOutside && (
+                              <span className="px-2 py-0.5 rounded-md text-[10px] font-medium bg-slate-200 text-slate-700">
+                                PIN Required
+                              </span>
+                            )}
                           </div>
-                          <p className="text-[11px] font-semibold text-amber-800 leading-snug">
-                            Selected booking time (<strong>{formatTime12(timeStart)} - {formatTime12(timeEnd)}</strong>) is outside official campus office hours.
-                            {requiresPinForOutside ? " An AVR Head / Admin Verification PIN is required for authorization." : ""}
+                          <p className="text-xs text-slate-600 font-normal leading-relaxed">
+                            Selected booking time ({formatTime12(timeStart)} – {formatTime12(timeEnd)}) is outside campus hours.
+                            {requiresPinForOutside ? " AVR Head / Admin Verification PIN is required for authorization." : ""}
                           </p>
                           {requiresPinForOutside && (
-                            <div className="pt-1.5 border-t border-amber-200/60 flex items-center justify-between gap-2">
+                            <div className="pt-1.5 border-t border-slate-200 flex items-center justify-between gap-2">
                               {isPinVerified ? (
-                                <div className="flex items-center gap-1.5 text-emerald-700 font-extrabold text-xs">
-                                  <CheckCircle2 size={15} />
-                                  <span>AVR Head PIN Verified for Outside Hours</span>
-                                </div>
+                                <span className="text-xs font-medium text-slate-700">
+                                  ✓ PIN verified for outside hours
+                                </span>
                               ) : (
                                 <button
                                   type="button"
@@ -662,10 +662,9 @@ export default function Step2Venue({
                                     }
                                     setShowPinModal && setShowPinModal(true);
                                   }}
-                                  className="w-full py-2 px-3 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs shadow-xs transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                                  className="w-full py-2 px-3 rounded-lg border border-blue-600 bg-blue-50/70 hover:bg-blue-600 text-blue-700 hover:text-white active:bg-blue-700 active:scale-[0.99] font-semibold text-xs transition-all cursor-pointer text-center shadow-2xs"
                                 >
-                                  <Clock size={14} />
-                                  <span>Verify AVR Head PIN Now</span>
+                                  Verify PIN
                                 </button>
                               )}
                             </div>

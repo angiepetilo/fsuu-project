@@ -242,6 +242,9 @@ export default function VenueBooking() {
       const diffTime = endD - startD;
       diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     }
+    // More than 1 day (spans 2 or more days)
+    const isMultiDay = diffDays >= 1;
+
     // Evaluate trigger rules accurately based on checked/unchecked settings
     const isSystemPinActive = pinRules?.isEnabled === true || (pinRules?.isEnabled !== false && pinRules?.isEnabled !== "false");
     const outsideRequiresPin = (pinRules?.requirePinOutsideHours === true || (pinRules?.requirePinOutsideHours !== false && pinRules?.requirePinOutsideHours !== "false")) && isOutsideHours;

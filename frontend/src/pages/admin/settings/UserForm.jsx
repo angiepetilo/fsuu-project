@@ -181,18 +181,18 @@ export default function UserForm({ initial, offices, onSubmit, loading, onClose,
         </div>
       )}
 
-      <div className="flex gap-2 pt-2 border-t border-slate-100">
+      <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
         <button
           type="button"
           onClick={onClose}
-          className="flex-1 py-2 rounded-xl border border-slate-300 text-slate-700 font-bold text-xs hover:bg-slate-50 transition-all cursor-pointer"
+          className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 font-medium text-xs transition-colors cursor-pointer"
         >
           Cancel
         </button>
         <button
           type="submit"
           disabled={loading}
-          className="flex-1 py-2 rounded-xl border border-slate-900 bg-white text-slate-900 hover:bg-slate-50 font-bold text-xs transition-all shadow-xs disabled:opacity-60 flex items-center justify-center gap-2 cursor-pointer"
+          className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold text-xs transition-colors shadow-xs disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
         >
           {loading && <Loader2 size={13} className="animate-spin" />}
           {initial ? "Save Changes" : "Send Invite"}
