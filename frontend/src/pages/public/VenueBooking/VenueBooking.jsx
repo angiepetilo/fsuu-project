@@ -506,7 +506,7 @@ export default function VenueBooking() {
                 Your venue reservation request has been received.
               </p>
               <p className="text-xs text-slate-600 font-medium leading-relaxed">
-                Your tracking details and updates have been sent to {email ? <strong>{email}</strong> : 'your email'}{contactNumber ? ` and ${contactNumber}` : ''}.
+                Your tracking details and updates have been sent to {email ? <strong>{email}</strong> : 'your email'}.
               </p>
             </div>
 
