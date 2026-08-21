@@ -200,11 +200,19 @@ export default function EquipmentBorrowing() {
 
     const kioskOpen = opHours?.equipment_open?.substring(0, 5) || "08:00";
     const kioskClose = opHours?.equipment_close?.substring(0, 5) || "17:00";
-    const isOutsideHours = startTimeStr < kioskOpen || endTimeStr > kioskClose || wishesToExtend;
-    const isNextDayOrMore = Boolean(endDateStr && startDateStr && endDateStr > startDateStr);
+    const isOutsideHours = startTimeStr < kioskOpen || endTimeStr > kioskClose;
+    
+    let diffDays = 0;
+    if (endDateStr && startDateStr && endDateStr > startDateStr) {
+      const startD = new Date(startDateStr);
+      const endD = new Date(endDateStr);
+      const diffTime = endD - startD;
+      diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    }
+    const isMultiDay = diffDays > 2;
 
     const outsideRequiresPin = (pinRules?.requirePinOutsideHours !== false) && isOutsideHours;
-    const multiDayRequiresPin = (pinRules?.requirePinMultiDayEquipment !== false) && (isNextDayOrMore || wishesToExtend);
+    const multiDayRequiresPin = (pinRules?.requirePinMultiDayEquipment !== false) && isMultiDay;
     const externalRequiresPin = (pinRules?.enableExternalEquipment !== false) && identity === "external";
     const studentMandatory = !!pinRules?.requirePinForStudent;
 
@@ -220,8 +228,8 @@ export default function EquipmentBorrowing() {
         });
       } else if (multiDayRequiresPin) {
         setPinModalMeta({
-          title: "Multi-Day Equipment Return PIN",
-          description: "Next-day / extended equipment returns require AVR Head / Admin Verification PIN to proceed.",
+          title: "Extended Borrowing PIN",
+          description: "This equipment borrowing spans more than two days. AVR Head / Admin Verification PIN is required to authorize extended borrowing.",
         });
       } else if (externalRequiresPin) {
         setPinModalMeta({

@@ -19,13 +19,14 @@ export default function EquipBorrowInspectionForm({
   handleSaveInspection,
   inspectionSuccessMsg,
   readOnly = false,
+  isPreRelease = false,
 }) {
   return (
     <form onSubmit={(e) => { e.preventDefault(); if (!readOnly && handleSaveInspection) handleSaveInspection(e); }} className="p-4 bg-white rounded-xl border border-slate-200 space-y-3 animate-in fade-in">
       <div className="flex items-center justify-between border-b border-slate-200 pb-2">
         <h4 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
           <FileCheck size={14} className="text-slate-600" />
-          Equipment Inspection Record {readOnly && <span className="text-[10px] text-slate-400 font-mono">(Read Only History Log)</span>}
+          {isPreRelease ? "Equipment Inspection Record (Before)" : "Equipment Inspection Record (After)"} {readOnly && <span className="text-[10px] text-slate-400 font-mono">(Read Only History Log)</span>}
         </h4>
         {inspectionSuccessMsg && (
           <span className="text-[10px] font-mono font-bold text-emerald-600">
@@ -36,7 +37,7 @@ export default function EquipBorrowInspectionForm({
 
       <div className="space-y-2.5 text-xs">
         <div>
-          <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">Returned Condition *</label>
+          <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">{isPreRelease ? "Dispatch Condition *" : "Returned Condition *"}</label>
           <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
@@ -161,9 +162,10 @@ export default function EquipBorrowInspectionForm({
           </div>
         )}
 
-        <div>
-          <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">Return Timeliness *</label>
-          <div className="grid grid-cols-2 gap-2">
+        {!isPreRelease && (
+          <div>
+            <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">Return Timeliness *</label>
+            <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
               disabled={readOnly}
@@ -194,6 +196,7 @@ export default function EquipBorrowInspectionForm({
             </button>
           </div>
         </div>
+        )}
 
         <div>
           <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">Condition Notes</label>

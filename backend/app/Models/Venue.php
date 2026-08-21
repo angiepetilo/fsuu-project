@@ -21,6 +21,11 @@ class Venue extends Model
         'location',
         'capacity',
         'status',
+        'allowed_equipment',
+    ];
+
+    protected $casts = [
+        'allowed_equipment' => 'array',
     ];
 
     public function office(): BelongsTo

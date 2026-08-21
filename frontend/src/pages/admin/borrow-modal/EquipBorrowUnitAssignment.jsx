@@ -14,6 +14,9 @@ export default function EquipBorrowUnitAssignment({
   isPending,
   isOngoing,
   isCompleted,
+  unitReturnedConditions = {},
+  inspectionStatus,
+  timeliness,
   handleAction,
   actionLoading,
   resendMsg,
@@ -251,16 +254,43 @@ export default function EquipBorrowUnitAssignment({
                       );
                     }
 
+                    const resolvedCond = val ? unitReturnedConditions[val] || unitReturnedConditions[idxKey] || unitReturnedConditions[catKey] : null;
+
+                    let displayCond = resolvedCond;
+                    if (!displayCond && (isOngoing || isCompleted)) {
+                      if (inspectionStatus === "violation") {
+                        displayCond = "Damaged";
+                      } else if (timeliness === "late") {
+                        displayCond = "Late Return";
+                      } else {
+                        displayCond = "Good";
+                      }
+                    }
+
                     return (
-                      <div key={uIdx} className="flex items-center justify-between p-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-800">
+                      <div key={uIdx} className="flex flex-col sm:flex-row sm:items-center justify-between p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-800 gap-2">
                         <span>Unit {uIdx + 1}</span>
-                        <span className={`px-2 py-0.5 rounded-lg border font-extrabold ${
-                          val && val !== "—"
-                            ? "bg-white border-slate-200 text-blue-700"
-                            : "bg-amber-100/60 border-amber-300 text-amber-800"
-                        }`}>
-                          {val || "Unassigned"}
-                        </span>
+                        <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                          <span className={`px-2 py-0.5 rounded-lg border font-extrabold ${
+                            val && val !== "—"
+                              ? "bg-white border-slate-200 text-blue-700 shadow-xs"
+                              : "bg-amber-100/60 border-amber-300 text-amber-800"
+                          }`}>
+                            {val || "Unassigned"}
+                          </span>
+                          
+                          {(isCompleted || isOngoing) && displayCond && val && val !== "—" && (
+                            <span className={`px-2 py-0.5 rounded-lg border font-extrabold shadow-xs ${
+                              displayCond.toLowerCase() === 'good' || displayCond.toLowerCase() === 'clean'
+                                ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                : displayCond.toLowerCase() === 'late return' || displayCond.toLowerCase() === 'late'
+                                ? "bg-amber-50 text-amber-700 border-amber-200"
+                                : "bg-rose-50 text-rose-700 border-rose-200"
+                            }`}>
+                              {displayCond}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     );
                   })}

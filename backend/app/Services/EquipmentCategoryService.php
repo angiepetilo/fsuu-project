@@ -80,7 +80,7 @@ class EquipmentCategoryService
                     ->whereIn('equipment_borrow_items.equipment_type_id', $borrowTypeIds)
                     ->whereNull('equipment_borrows.archived_at')
                     ->where(function($q) {
-                        $q->whereIn(DB::raw('LOWER(COALESCE(tracking_numbers.status, equipment_borrows.status))'), ['on-going', 'ongoing', 'borrowed', 'released']);
+                        $q->whereIn(DB::raw('LOWER(COALESCE(tracking_numbers.status, equipment_borrows.status))'), ['approved', 'on-going', 'ongoing', 'borrowed', 'released']);
                     })
                     ->sum('equipment_borrow_items.quantity_requested');
 
@@ -90,7 +90,7 @@ class EquipmentCategoryService
                     ->whereIn('equipment_borrow_items.equipment_type_id', $borrowTypeIds)
                     ->whereNull('equipment_borrows.archived_at')
                     ->where(function($q) {
-                        $q->whereIn(DB::raw('LOWER(COALESCE(tracking_numbers.status, equipment_borrows.status))'), ['pending', 'approved', 'scheduled', 'reserved']);
+                        $q->whereIn(DB::raw('LOWER(COALESCE(tracking_numbers.status, equipment_borrows.status))'), ['pending', 'scheduled', 'reserved']);
                     })
                     ->sum('equipment_borrow_items.quantity_requested');
             }
@@ -108,7 +108,7 @@ class EquipmentCategoryService
                     ->leftJoin('tracking_numbers', 'venue_bookings.tracking_number_id', '=', 'tracking_numbers.id')
                     ->whereNull('venue_bookings.archived_at')
                     ->where(function($q) {
-                        $q->whereIn(DB::raw('LOWER(COALESCE(tracking_numbers.status, venue_bookings.status))'), ['on-going', 'ongoing']);
+                        $q->whereIn(DB::raw('LOWER(COALESCE(tracking_numbers.status, venue_bookings.status))'), ['approved', 'on-going', 'ongoing']);
                     })
                     ->select('venue_bookings.id', 'venue_bookings.equipment_notes')
                     ->get();
@@ -142,7 +142,7 @@ class EquipmentCategoryService
                     ->leftJoin('tracking_numbers', 'venue_bookings.tracking_number_id', '=', 'tracking_numbers.id')
                     ->whereNull('venue_bookings.archived_at')
                     ->where(function($q) {
-                        $q->whereIn(DB::raw('LOWER(COALESCE(tracking_numbers.status, venue_bookings.status))'), ['pending', 'approved', 'scheduled', 'reserved']);
+                        $q->whereIn(DB::raw('LOWER(COALESCE(tracking_numbers.status, venue_bookings.status))'), ['pending', 'scheduled', 'reserved']);
                     })
                     ->select('venue_bookings.id', 'venue_bookings.equipment_notes')
                     ->get();
@@ -180,10 +180,17 @@ class EquipmentCategoryService
         $bookingReleased = (int) ($borrowedCount + $venueCount);
         $bookingReserved = (int) ($approvedBorrowCount + $approvedVenueCount);
 
-        // Actual release reflects the maximum of physically released units and ongoing bookings
-        $releasedTotal = max($physicalReleased, $bookingReleased);
-        // Reserved reflects units in pending/approved bookings or tagged as reserved
-        $reservedTotal = max($reservedCount, $bookingReserved);
+        // If physical units are registered, actual release strictly reflects physical units in released/borrowed status
+        if ($registeredUnitsCount > 0) {
+            $releasedTotal = $physicalReleased;
+            $unassignedOngoing = max(0, $bookingReleased - $physicalReleased);
+            $reservedTotal = max($reservedCount, $bookingReserved + $unassignedOngoing);
+        } else {
+            $releasedTotal = max($bookingReleased, (int) ($e->released_count ?? 0));
+            $reservedTotal = max($reservedCount, $bookingReserved);
+            $damagedCount = (int) ($e->damaged_count ?? 0);
+            $lostCount = (int) ($e->lost_count ?? 0);
+        }
 
         $totalQty = $registeredUnitsCount > 0
             ? $registeredUnitsCount
@@ -195,7 +202,7 @@ class EquipmentCategoryService
 
         $officeName = $e->office?->name ?? 'AVR Center';
         $officeLocation = $e->office?->location ?? 'FSUU Campus';
-        $campusLabel = $e->office ? "{$officeName} — {$officeLocation}" : 'AVR Center';
+        $campusLabel = $e->office ? "{$officeName} - {$officeLocation}" : 'AVR Center';
 
         return [
             'id'              => $e->id,

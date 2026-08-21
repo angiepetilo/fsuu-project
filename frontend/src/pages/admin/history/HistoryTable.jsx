@@ -10,6 +10,7 @@ export default function HistoryTable({
   paginatedList,
   startIndex,
   ITEMS_PER_PAGE,
+  setItemsPerPage,
   currentPage,
   totalPages,
   setCurrentPage,
@@ -76,11 +77,11 @@ export default function HistoryTable({
                       <td className="px-4 py-3 whitespace-nowrap">
                         {isBreach ? (
                           <span className="font-mono text-xs font-bold text-rose-600 uppercase">
-                            ● Damaged
+                            ● Policy Violation
                           </span>
                         ) : (
                           <span className="font-mono text-xs font-bold text-emerald-600 uppercase">
-                            ● Good
+                            ● Completed
                           </span>
                         )}
                       </td>
@@ -142,10 +143,25 @@ export default function HistoryTable({
         {/* Pagination Footer */}
         {filteredRecords.length > 0 && (
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-6 py-3.5 bg-white border-t border-slate-200 text-xs font-semibold text-slate-600">
-            <div>
-              Showing <span className="font-bold text-slate-900">{startIndex + 1}</span> to{" "}
-              <span className="font-bold text-slate-900">{Math.min(startIndex + ITEMS_PER_PAGE, filteredRecords.length)}</span> of{" "}
-              <span className="font-bold text-slate-900">{filteredRecords.length}</span> records
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <span className="text-slate-500 font-bold">Rows per page:</span>
+                <select
+                  value={ITEMS_PER_PAGE}
+                  onChange={(e) => setItemsPerPage(Number(e.target.value))}
+                  className="bg-transparent border border-slate-200 rounded-md px-1 py-0.5 outline-none focus:border-slate-400 font-bold cursor-pointer"
+                >
+                  <option value={10}>10</option>
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                </select>
+              </div>
+              <div>
+                Showing <span className="font-bold text-slate-900">{startIndex + 1}</span> to{" "}
+                <span className="font-bold text-slate-900">{Math.min(startIndex + ITEMS_PER_PAGE, filteredRecords.length)}</span> of{" "}
+                <span className="font-bold text-slate-900">{filteredRecords.length}</span> records
+              </div>
             </div>
 
             <div className="flex items-center gap-2">
@@ -212,8 +228,11 @@ export default function HistoryTable({
                 const usageDate = formatDate(b.date_of_usage || b.date);
                 const timeRange = formatTimeRange(b.time_start, b.time_end);
                 const displayIndex = startIndex + idx + 1;
-                const isBreach = (b.status || "").toLowerCase() === "damaged" || (b.status || "").toLowerCase() === "lost" || Boolean(b.has_damage) || Boolean(b.violation);
-
+                const isDamaged = (b.status || "").toLowerCase() === "damaged" || Boolean(b.has_damage);
+                const isLost = (b.status || "").toLowerCase() === "lost" || Boolean(b.is_lost);
+                const isLate = (b.status || "").toLowerCase() === "late return" || (b.status || "").toLowerCase() === "returned late" || (b.timeliness || "").toLowerCase() === "late" || Boolean(b.is_late);
+                const isOtherBreach = Boolean(b.violation) && !isLate && !isDamaged && !isLost;
+                const isBreach = isDamaged || isLost || isOtherBreach;
                 return (
                   <tr key={`history-log-eq-${b.id || idx}-${idx}`} className="hover:bg-slate-50/60 transition-colors">
                     <td className="px-4 py-3 text-slate-400 font-mono">{displayIndex}</td>
@@ -229,9 +248,13 @@ export default function HistoryTable({
                         <span className="font-mono text-xs font-bold text-rose-600 uppercase">
                           ● Damaged
                         </span>
+                      ) : isLate ? (
+                        <span className="font-mono text-xs font-bold text-amber-500 uppercase">
+                          ● Late Return
+                        </span>
                       ) : (
                         <span className="font-mono text-xs font-bold text-emerald-600 uppercase">
-                          ● Good
+                          ● Completed
                         </span>
                       )}
                     </td>
@@ -293,10 +316,25 @@ export default function HistoryTable({
       {/* Pagination Footer */}
       {filteredRecords.length > 0 && (
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-6 py-3.5 bg-white border-t border-slate-200 text-xs font-semibold text-slate-600">
-          <div>
-            Showing <span className="font-bold text-slate-900">{startIndex + 1}</span> to{" "}
-            <span className="font-bold text-slate-900">{Math.min(startIndex + ITEMS_PER_PAGE, filteredRecords.length)}</span> of{" "}
-            <span className="font-bold text-slate-900">{filteredRecords.length}</span> records
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <span className="text-slate-500 font-bold">Rows per page:</span>
+              <select
+                value={ITEMS_PER_PAGE}
+                onChange={(e) => setItemsPerPage && setItemsPerPage(Number(e.target.value))}
+                className="bg-transparent border border-slate-200 rounded-md px-1 py-0.5 outline-none focus:border-slate-400 font-bold cursor-pointer"
+              >
+                <option value={10}>10</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
+            </div>
+            <div>
+              Showing <span className="font-bold text-slate-900">{startIndex + 1}</span> to{" "}
+              <span className="font-bold text-slate-900">{Math.min(startIndex + ITEMS_PER_PAGE, filteredRecords.length)}</span> of{" "}
+              <span className="font-bold text-slate-900">{filteredRecords.length}</span> records
+            </div>
           </div>
 
           <div className="flex items-center gap-2">
