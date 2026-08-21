@@ -18,6 +18,7 @@ class DatabaseSeeder extends Seeder
             DepartmentSeeder::class,
             VenueSeeder::class,
             EquipmentSeeder::class,
+            AcademicTermSeeder::class,
         ]);
     }
 }

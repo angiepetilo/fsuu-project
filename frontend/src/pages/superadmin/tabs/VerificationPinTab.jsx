@@ -334,10 +334,10 @@ export default function VerificationPinTab({
               <div className="space-y-0.5 pr-4">
                 <div className="flex items-center gap-2">
                   <Calendar size={15} className="text-slate-600" />
-                  <span className="font-bold text-slate-900 text-xs">Require PIN for Multi-Day Venue Bookings (2 or more reserved days)</span>
+                  <span className="font-bold text-slate-900 text-xs">Require PIN for Multi-Day Venue Bookings (More than 1 day — 2+ days)</span>
                 </div>
                 <p className="text-[11px] text-slate-500 font-medium">
-                  Enforces PIN verification whenever a venue reservation spans multiple dates.
+                  Enforces PIN verification for all users (students, faculty, external) whenever a venue reservation spans more than 1 day.
                 </p>
               </div>
               <input
@@ -353,10 +353,10 @@ export default function VerificationPinTab({
               <div className="space-y-0.5 pr-4">
                 <div className="flex items-center gap-2">
                   <PackageOpen size={15} className="text-slate-600" />
-                  <span className="font-bold text-slate-900 text-xs">Require PIN for Next-Day / Multi-Day Equipment Returns</span>
+                  <span className="font-bold text-slate-900 text-xs">Require PIN for Next-Day / Multi-Day Equipment Returns (More than 1 day)</span>
                 </div>
                 <p className="text-[11px] text-slate-500 font-medium">
-                  Enforces PIN verification whenever borrowed items are scheduled to be kept overnight or returned on later days.
+                  Enforces PIN verification for all users whenever borrowed items are scheduled to be kept overnight or returned on later days.
                 </p>
               </div>
               <input

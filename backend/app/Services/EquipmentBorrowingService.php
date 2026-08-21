@@ -70,7 +70,14 @@ class EquipmentBorrowingService
             if ($hasCol('office_id')) $insertData['office_id'] = $officeId;
             if ($hasCol('status')) $insertData['status'] = 'pending';
             if ($hasCol('academic_term_id')) {
-                $insertData['academic_term_id'] = \Illuminate\Support\Facades\DB::table('academic_terms')->where('is_active', true)->value('id') ?? 1;
+                $activeTermId = null;
+                if (\Illuminate\Support\Facades\Schema::hasTable('academic_terms')) {
+                    $activeTermId = \Illuminate\Support\Facades\DB::table('academic_terms')
+                        ->where('is_active', true)
+                        ->value('id')
+                        ?: \Illuminate\Support\Facades\DB::table('academic_terms')->value('id');
+                }
+                $insertData['academic_term_id'] = $activeTermId ?: null;
             }
 
             $name = $data['requestor_name'] ?? $data['filer_name'] ?? 'Filer';
