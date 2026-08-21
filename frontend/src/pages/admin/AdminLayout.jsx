@@ -397,11 +397,16 @@ export default function AdminLayout() {
               </button>
 
               <div className="flex flex-col justify-center">
-                <h1 className="font-bold text-slate-900 text-base sm:text-lg tracking-tight">
-                  {getGreeting()}, {adminName}
-                </h1>
+                <div className="flex items-center gap-2">
+                  <h1 className="font-extrabold text-slate-900 text-base sm:text-lg tracking-tight">
+                    AVR Operations &amp; Booking Management
+                  </h1>
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-full">
+                    {userRole === "staff" ? "Staff Portal" : "Admin Portal"}
+                  </span>
+                </div>
                 <p className="text-xs text-slate-400 font-medium mt-0.5 hidden sm:block">
-                  You're signed in as <span className="font-semibold text-slate-600 capitalize">{userRole.replace("_", " ")}</span>. Here's your booking system at a glance.
+                  {getGreeting()}, <span className="font-bold text-slate-700">{adminName}</span> • Manage venue reservations, equipment inventory, and borrowing operations.
                 </p>
               </div>
             </div>
