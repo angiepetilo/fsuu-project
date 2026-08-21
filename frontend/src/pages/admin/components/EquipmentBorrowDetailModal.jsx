@@ -36,6 +36,11 @@ export default function EquipmentBorrowDetailModal({
   const [savingInspection, setSavingInspection] = useState(false);
   const [inspectionSuccessMsg, setInspectionSuccessMsg] = useState(null);
 
+  // Pre-Use Inspection State
+  const [preInspectionStatus, setPreInspectionStatus] = useState("clean");
+  const [preUnitReturnedConditions, setPreUnitReturnedConditions] = useState({});
+  const [preViolationNotes, setPreViolationNotes] = useState("");
+
   // Email resend state
   const [resendLoading, setResendLoading] = useState(false);
   const [resendMsg, setResendMsg] = useState(null);
@@ -183,27 +188,44 @@ export default function EquipmentBorrowDetailModal({
       api.get(`/inspections?inspectable_id=${selected.id}&inspectable_type=equipment_borrow`)
         .then((res) => {
           const list = Array.isArray(res.data) ? res.data : res.data?.data ?? [];
-          const existing = list[0];
-          if (existing) {
-            if (existing.assigned_units && typeof existing.assigned_units === "object") {
-              setAssignedUnitSelections((prev) => ({ ...prev, ...existing.assigned_units }));
+          
+          const preUse = list.find(i => i.inspection_type === 'pre_use');
+          const postUse = list.find(i => i.inspection_type === 'post_use') || list.find(i => !i.inspection_type || i.inspection_type !== 'pre_use');
+
+          if (postUse) {
+            if (postUse.assigned_units && typeof postUse.assigned_units === "object") {
+              setAssignedUnitSelections((prev) => ({ ...prev, ...postUse.assigned_units }));
             }
-            if (existing.unit_conditions && typeof existing.unit_conditions === "object") {
-              setUnitReturnedConditions((prev) => ({ ...prev, ...existing.unit_conditions }));
+            if (postUse.unit_conditions && typeof postUse.unit_conditions === "object") {
+              setUnitReturnedConditions((prev) => ({ ...prev, ...postUse.unit_conditions }));
             }
-            if (existing.condition === "damaged" || existing.condition === "violation") {
+            if (postUse.condition === "damaged" || postUse.condition === "violation") {
               setInspectionStatus("violation");
-            } else if (existing.condition === "good" || existing.condition === "clean") {
+            } else if (postUse.condition === "good" || postUse.condition === "clean") {
               setInspectionStatus("clean");
             }
-            if (existing.timeliness) {
-              setTimeliness(existing.timeliness);
+            if (postUse.timeliness) {
+              setTimeliness(postUse.timeliness);
             }
-            if (existing.notes) {
-              setViolationNotes(existing.notes);
+            if (postUse.notes) {
+              setViolationNotes(postUse.notes);
             }
-            if (existing.evidence_image || existing.evidence_photo) {
-              setEvidencePhoto(existing.evidence_image || existing.evidence_photo || null);
+            if (postUse.evidence_image || postUse.evidence_photo) {
+              setEvidencePhoto(postUse.evidence_image || postUse.evidence_photo || null);
+            }
+          }
+
+          if (preUse) {
+            if (preUse.unit_conditions && typeof preUse.unit_conditions === "object") {
+              setPreUnitReturnedConditions((prev) => ({ ...prev, ...preUse.unit_conditions }));
+            }
+            if (preUse.condition === "damaged" || preUse.condition === "violation") {
+              setPreInspectionStatus("violation");
+            } else if (preUse.condition === "good" || preUse.condition === "clean") {
+              setPreInspectionStatus("clean");
+            }
+            if (preUse.notes) {
+              setPreViolationNotes(preUse.notes);
             }
           }
         })
@@ -217,7 +239,7 @@ export default function EquipmentBorrowDetailModal({
   const isPending = currentStatus === "pending";
   const isApproved = currentStatus === "approved";
   const isOngoing = currentStatus === "ongoing" || currentStatus === "on-going";
-  const isCompleted = currentStatus === "completed" || currentStatus === "done" || currentStatus === "returned";
+  const isCompleted = currentStatus === "completed" || currentStatus === "done" || currentStatus === "returned" || currentStatus === "damaged" || currentStatus === "lost" || currentStatus === "late return" || currentStatus === "returned late";
   const isPostUseEligible = isOngoing || isCompleted;
 
   const formatDateTimeFiled = (dateStr) => {
@@ -320,23 +342,27 @@ export default function EquipmentBorrowDetailModal({
     }
   };
 
-  const handleSaveInspection = async (e) => {
+  const handleSaveInspection = async (e, typeOverride = null) => {
     if (e) e.preventDefault();
     setSavingInspection(true);
+    
+    const inspectionType = typeOverride || (isPostUseEligible ? "post_use" : "pre_use");
+    const isPreUse = inspectionType === "pre_use";
+    
     try {
       await api.post("/inspections", {
         inspectable_type: "equipment_borrow",
         inspectable_id: selected.id,
-        inspection_type: "post_use",
-        condition: inspectionStatus === "clean" ? "good" : "damaged",
+        inspection_type: inspectionType,
+        condition: isPreUse ? (preInspectionStatus === "clean" ? "good" : "damaged") : (inspectionStatus === "clean" ? "good" : "damaged"),
         timeliness: timeliness,
-        notes: violationNotes || (inspectionStatus === "clean" ? "Returned safely in good condition." : "Returned with damaged/lost equipment."),
+        notes: isPreUse ? preViolationNotes : (violationNotes || (inspectionStatus === "clean" ? "Returned safely in good condition." : "Returned with damaged/lost equipment.")),
         evidence_image: evidencePhoto,
         assigned_units: assignedUnitSelections,
-        unit_conditions: unitReturnedConditions,
+        unit_conditions: isPreUse ? preUnitReturnedConditions : unitReturnedConditions,
       });
 
-      setInspectionSuccessMsg("Post-use equipment inspection stored.");
+      setInspectionSuccessMsg(isPreUse ? "Pre-release inspection stored." : "Post-use equipment inspection stored.");
       setTimeout(() => setInspectionSuccessMsg(null), 3000);
     } catch {
       setInspectionSuccessMsg("Inspection record saved.");
@@ -400,6 +426,35 @@ export default function EquipmentBorrowDetailModal({
                 }).catch(() => {})
               );
             }
+          } else if (condChoice === "Damaged" || condChoice === "Lost") {
+            // No physical unit was assigned (abstract mode), but the item was damaged/lost
+            // Automate the count on the master equipment category so QTY PRESENT/RESERVED updates
+            const cleanCatName = String(catName).toLowerCase();
+            const matchedType = dbEquipmentTypes.find(t => 
+              String(t.eq_name || t.name || t.category || "").toLowerCase() === cleanCatName
+            );
+            
+            if (matchedType && matchedType.id) {
+              dbUpdatePromises.push(
+                api.get(`/admin/equipment-types/${matchedType.id}`).then(res => {
+                  const curr = res.data;
+                  let damageIncr = condChoice === "Damaged" ? 1 : 0;
+                  let lostIncr = condChoice === "Lost" ? 1 : 0;
+                  
+                  return api.put(`/admin/equipment-types/${matchedType.id}`, {
+                    available_count: Math.max(0, (curr.available_count || curr.present_count || curr.total_quantity || 1) - 1),
+                    damaged_count: (curr.damaged_count || 0) + damageIncr,
+                    lost_count: (curr.lost_count || 0) + lostIncr,
+                    // Required fields based on EquipmentTypeController store logic
+                    office_id: curr.office_id,
+                    eq_name: curr.eq_name || curr.name,
+                    eq_type: curr.eq_type || curr.category,
+                    total_quantity: curr.total_quantity,
+                    status: curr.status,
+                  });
+                }).catch(err => console.warn(`Failed to update abstract unit damage/loss for ${catName}:`, err))
+              );
+            }
           }
         }
       });
@@ -450,7 +505,7 @@ export default function EquipmentBorrowDetailModal({
               </div>
               <div className="grid grid-cols-3 py-1 border-t border-slate-200/60">
                 <span className="text-slate-500 font-bold">Contact Phone</span>
-                <span className="col-span-2 font-extrabold text-slate-900">{selected.requestor_contact_number || selected.contact_number || "—"}</span>
+                <span className="col-span-2 font-extrabold text-slate-900">{selected.requestor_contact_number || selected.contact_number || selected.contact_no || "—"}</span>
               </div>
               <div className="grid grid-cols-3 py-1 border-t border-slate-200/60">
                 <span className="text-slate-500 font-bold">Email</span>
@@ -472,9 +527,32 @@ export default function EquipmentBorrowDetailModal({
               </div>
             </div>
 
-            {/* Post-Event Inspection (Shown when On-going / Released or Completed) */}
-            {isPostUseEligible && (
+            {/* Pre-Release Inspection Form (Visible if Approved or Later) */}
+            {(isApproved || isOngoing || isCompleted) && (
               <EquipBorrowInspectionForm
+                isPreRelease={true}
+                inspectionStatus={preInspectionStatus}
+                setInspectionStatus={setPreInspectionStatus}
+                timeliness={timeliness}
+                setTimeliness={setTimeliness}
+                categoriesToRender={categoriesToRender}
+                assignedUnitSelections={assignedUnitSelections}
+                physicalUnits={physicalUnits}
+                unitReturnedConditions={preUnitReturnedConditions}
+                setUnitReturnedConditions={setPreUnitReturnedConditions}
+                violationNotes={preViolationNotes}
+                setViolationNotes={setPreViolationNotes}
+                savingInspection={savingInspection}
+                handleSaveInspection={(e) => handleSaveInspection(e, "pre_use")}
+                inspectionSuccessMsg={inspectionSuccessMsg}
+                readOnly={isCompleted || isOngoing}
+              />
+            )}
+
+            {/* Post-Event Inspection (Visible if Ongoing or Completed) */}
+            {(isOngoing || isCompleted) && (
+              <EquipBorrowInspectionForm
+                isPreRelease={false}
                 inspectionStatus={inspectionStatus}
                 setInspectionStatus={setInspectionStatus}
                 timeliness={timeliness}
@@ -487,7 +565,7 @@ export default function EquipmentBorrowDetailModal({
                 violationNotes={violationNotes}
                 setViolationNotes={setViolationNotes}
                 savingInspection={savingInspection}
-                handleSaveInspection={handleSaveInspection}
+                handleSaveInspection={(e) => handleSaveInspection(e, "post_use")}
                 inspectionSuccessMsg={inspectionSuccessMsg}
                 readOnly={isCompleted}
               />
@@ -502,6 +580,9 @@ export default function EquipmentBorrowDetailModal({
             getAvailableUnitsForCategory={getAvailableUnitsForCategory}
             assignedUnitSelections={assignedUnitSelections}
             setAssignedUnitSelections={setAssignedUnitSelections}
+            unitReturnedConditions={unitReturnedConditions}
+            inspectionStatus={inspectionStatus}
+            timeliness={timeliness}
             isApproved={isApproved}
             isPending={isPending}
             isOngoing={isOngoing}

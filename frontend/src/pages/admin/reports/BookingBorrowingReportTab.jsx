@@ -77,6 +77,13 @@ export default function BookingBorrowingReportTab({
         </span>
       );
     }
+    if (s === "LATE RETURN" || s === "RETURNED LATE") {
+      return (
+        <span className="inline-flex items-center px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider bg-amber-50 text-amber-600 border border-amber-300">
+          LATE RETURN
+        </span>
+      );
+    }
     return (
       <span className="inline-flex items-center px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider bg-slate-100 text-slate-700 border border-slate-200">
         {s}
@@ -246,10 +253,12 @@ export default function BookingBorrowingReportTab({
                     status = "LOST";
                   } else if (eb.has_damage || String(eb.inspection_condition).toLowerCase() === 'damaged') {
                     status = "DAMAGED";
+                  } else if (eb.is_late || String(status).toUpperCase() === 'LATE RETURN' || String(status).toUpperCase() === 'RETURNED LATE' || String(eb.timeliness).toLowerCase() === 'late') {
+                    status = "LATE RETURN";
                   } else if (eb.inspection_condition) {
-                    status = eb.inspection_condition;
+                    status = (eb.inspection_condition === "good" || eb.inspection_condition === "clean") ? "COMPLETED" : eb.inspection_condition;
                   } else if (String(status).toUpperCase() === "COMPLETED" || String(status).toUpperCase() === "RETURNED") {
-                    status = "GOOD CONDITION";
+                    status = "COMPLETED";
                   }
                   const timeFormatted = formatTimeRange12(eb.time_start || eb.time, eb.time_end);
                   const equipLabel =

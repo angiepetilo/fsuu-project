@@ -267,7 +267,7 @@ class EquipmentBorrowingController extends Controller
         if ($condition === 'damaged' || $condition === 'lost') {
             $finalStatus = $condition;
         } else if ($isLate) {
-            $finalStatus = 'returned late';
+            $finalStatus = 'late return';
         }
 
         if ($equipmentBorrowing->tracking_number_id) {
