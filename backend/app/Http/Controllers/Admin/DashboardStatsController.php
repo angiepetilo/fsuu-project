@@ -5,10 +5,6 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use App\Models\VenueBooking;
-use App\Models\EquipmentBorrowing;
-use App\Models\EquipmentUnit;
-use App\Models\EquipmentType;
 use Carbon\Carbon;
 
 class DashboardStatsController extends Controller
@@ -22,8 +18,6 @@ class DashboardStatsController extends Controller
     private function getAvrStats($user)
     {
         $now = Carbon::now();
-        $isSuperAdmin = $user && $user->isSuperAdmin();
-        $officeId = $user ? $user->office_id : null;
 
         $activeTerm = \App\Models\AcademicTerm::where('is_active', true)->first();
         $termId = $activeTerm ? $activeTerm->id : null;
@@ -38,10 +32,6 @@ class DashboardStatsController extends Controller
             $pendingBookingsQuery->where('venue_bookings.academic_term_id', $termId);
         }
 
-        if (!$isSuperAdmin && $officeId) {
-            $pendingBookingsQuery->join('venues', 'venue_bookings.venue_id', '=', 'venues.id')
-                ->where('venues.office_id', $officeId);
-        }
         $pendingBookings = $pendingBookingsQuery->count();
 
         // Pending Borrowings
@@ -54,19 +44,11 @@ class DashboardStatsController extends Controller
             $pendingBorrowingsQuery->where('equipment_borrows.academic_term_id', $termId);
         }
 
-        if (!$isSuperAdmin && $officeId) {
-            $pendingBorrowingsQuery->where('equipment_borrows.office_id', $officeId);
-        }
         $pendingBorrowings = $pendingBorrowingsQuery->count();
 
         // Count available equipment & damage reports
         $equipUnitQuery = DB::table('equipment_units')
             ->whereNull('equipment_units.archived_at');
-
-        if (!$isSuperAdmin && $officeId) {
-            $equipUnitQuery->join('equipment_types', 'equipment_units.equipment_type_id', '=', 'equipment_types.id')
-                ->where('equipment_types.office_id', $officeId);
-        }
 
         $availableEquipment = (clone $equipUnitQuery)
             ->where(DB::raw('LOWER(equipment_units.status)'), 'available')
@@ -90,9 +72,6 @@ class DashboardStatsController extends Controller
             $overdueReturnsQuery->where('equipment_borrows.academic_term_id', $termId);
         }
 
-        if (!$isSuperAdmin && $officeId) {
-            $overdueReturnsQuery->where('equipment_borrows.office_id', $officeId);
-        }
         $overdueReturns = $overdueReturnsQuery->count();
 
         // Completed Today
@@ -106,9 +85,6 @@ class DashboardStatsController extends Controller
             $completedTodayQuery->where('equipment_borrows.academic_term_id', $termId);
         }
 
-        if (!$isSuperAdmin && $officeId) {
-            $completedTodayQuery->where('equipment_borrows.office_id', $officeId);
-        }
         $completedToday = $completedTodayQuery->count();
 
         // Top 5 Borrowed Equipment (joined with equipment_borrow_items)
@@ -122,10 +98,6 @@ class DashboardStatsController extends Controller
 
         if ($termId) {
             $topEquipmentBuilder->where('equipment_borrows.academic_term_id', $termId);
-        }
-
-        if (!$isSuperAdmin && $officeId) {
-            $topEquipmentBuilder->where('equipment_types.office_id', $officeId);
         }
 
         $topEquipmentData = $topEquipmentBuilder
@@ -142,7 +114,7 @@ class DashboardStatsController extends Controller
             ];
         });
 
-        // Total Equipment Damages & Lost from Inspections (Scoped per office)
+        // Total Equipment Damages & Lost from Inspections
         $damagesQuery = DB::table('inspections')
             ->leftJoin('venue_bookings', function($j) {
                 $j->on('inspections.inspectable_id', '=', 'venue_bookings.id')
@@ -171,12 +143,6 @@ class DashboardStatsController extends Controller
             });
         }
 
-        if (!$isSuperAdmin && $officeId) {
-            $damagesQuery->where(function($q) use ($officeId) {
-                $q->where('equipment_borrows.office_id', $officeId)
-                  ->orWhere('venues.office_id', $officeId);
-            });
-        }
         $inspectionDamages = $damagesQuery->count();
 
         $damagedUnitsQuery = DB::table('equipment_units')
@@ -186,11 +152,6 @@ class DashboardStatsController extends Controller
                   ->orWhereIn(DB::raw('LOWER(equipment_units.`condition`)'), ['damaged']);
             });
 
-        if (!$isSuperAdmin && $officeId) {
-            $damagedUnitsQuery->join('equipment_types', 'equipment_units.equipment_type_id', '=', 'equipment_types.id')
-                ->where('equipment_types.office_id', $officeId);
-        }
-        
         $physicalDamages = $damagedUnitsQuery->count();
         $totalEquipmentDamages = $inspectionDamages + $physicalDamages;
 
@@ -219,15 +180,9 @@ class DashboardStatsController extends Controller
             });
         }
 
-        if (!$isSuperAdmin && $officeId) {
-            $lostQuery->where(function($q) use ($officeId) {
-                $q->where('equipment_borrows.office_id', $officeId)
-                  ->orWhere('venues.office_id', $officeId);
-            });
-        }
         $totalEquipmentLost = $lostQuery->count();
 
-        // Programs with Violations / Late Returns from Real Inspections (Scoped per office)
+        // Programs with Violations / Late Returns from Real Inspections
         $violationsQuery = DB::table('inspections')
             ->leftJoin('venue_bookings', function($j) {
                 $j->on('inspections.inspectable_id', '=', 'venue_bookings.id')
@@ -256,13 +211,6 @@ class DashboardStatsController extends Controller
             $violationsQuery->where(function($q) use ($termId) {
                 $q->where('equipment_borrows.academic_term_id', $termId)
                   ->orWhere('venue_bookings.academic_term_id', $termId);
-            });
-        }
-
-        if (!$isSuperAdmin && $officeId) {
-            $violationsQuery->where(function($q) use ($officeId) {
-                $q->where('equipment_borrows.office_id', $officeId)
-                  ->orWhere('venues.office_id', $officeId);
             });
         }
 

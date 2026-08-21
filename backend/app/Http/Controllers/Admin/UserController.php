@@ -22,7 +22,7 @@ class UserController extends Controller
     {
         try {
             $user = $request->user() ?? auth()->user();
-            $query = User::with(['office', 'role'])->where('id', '!=', 1);
+            $query = User::with(['role'])->where('id', '!=', 1);
 
             // Exclude default superadmin email
             $query->where('email', '!=', 'admin');
@@ -33,18 +33,14 @@ class UserController extends Controller
             });
 
             if ($user && !$user->isSuperAdmin()) {
-                $officeId = $user->office_id;
                 $userId = $user->id;
 
                 $query->where('id', '!=', $userId)
-                ->where(function ($q) use ($officeId, $userId) {
-                    if ($officeId) {
-                        $q->where('office_id', $officeId);
-                    }
-                    $q->orWhere('created_by', $userId);
+                ->where(function ($q) use ($userId) {
+                    $q->where('created_by', $userId);
                 })
                 ->whereDoesntHave('role', function ($r) {
-                    $r->whereIn('name', ['admin', 'office_manager', 'branch_admin', 'Admin', 'Branch Admin']);
+                    $r->whereIn('name', ['admin', 'Admin']);
                 });
             }
 
@@ -56,7 +52,7 @@ class UserController extends Controller
     }
 
     /**
-     * Store a newly created user (Branch Admin).
+     * Store a newly created user.
      */
     public function store(Request $request): JsonResponse
     {
@@ -70,23 +66,20 @@ class UserController extends Controller
             'email'          => 'nullable|email|max:255|unique:users,email',
             'personal_email' => 'required_without:email|nullable|email|max:255',
             'role'           => 'nullable|string',
-            'office_id'      => 'nullable|exists:offices,id',
             'location'       => 'nullable|string|max:255',
             'image'          => 'nullable|image|max:2048',
             'permissions'    => 'nullable',
         ]);
 
         $isSuperAdmin = $authUser->isSuperAdmin();
-        $officeId = $authUser->office_id;
 
         $roleName = $validated['role'] ?? 'staff';
-        // Non-superadmins cannot create high-privilege roles (super_admin, sysad, admin, office_manager)
+        // Non-superadmins cannot create high-privilege roles
         if (!$isSuperAdmin) {
             $normalizedRole = strtolower(str_replace(['-', '_', ' '], '', $roleName));
-            if (in_array($normalizedRole, ['superadmin', 'sysad', 'admin', 'officemanager', 'branchadmin'])) {
-                return response()->json(['message' => 'Unauthorized to assign administrative or manager roles.'], 403);
+            if (in_array($normalizedRole, ['superadmin', 'sysad', 'admin'])) {
+                return response()->json(['message' => 'Unauthorized to assign administrative roles.'], 403);
             }
-            $validated['office_id'] = $officeId;
         }
 
         $targetRole = Role::firstOrCreate(['name' => $roleName]);
@@ -112,22 +105,12 @@ class UserController extends Controller
             $avatarPath = app(\App\Services\MediaUploadService::class)->upload($validated['avatar'], 'avatars');
         }
 
-        // Auto-assign matching office_id if empty but location is provided
-        if (empty($validated['office_id']) && !empty($validated['location']) && $isSuperAdmin) {
-            $matchedOffice = \App\Models\Office::where('location', $validated['location'])->first()
-                ?? \App\Models\Office::where('name', 'LIKE', '%' . $validated['location'] . '%')->first();
-            if ($matchedOffice) {
-                $validated['office_id'] = $matchedOffice->id;
-            }
-        }
-
         $user = User::create([
             'name'           => $name,
             'email'          => $targetEmail,
             'personal_email' => $targetEmail,
             'password'       => Hash::make($plainPassword),
             'role_id'        => $targetRole->id,
-            'office_id'      => $validated['office_id'] ?? $officeId,
             'location'       => $validated['location'] ?? null,
             'avatar'         => $avatarPath ? Storage::url($avatarPath) : null,
             'permissions'    => $permissions,
@@ -138,7 +121,7 @@ class UserController extends Controller
             'created_by'     => auth()->id(),
         ]);
 
-        $user->load(['office', 'role']);
+        $user->load(['role']);
 
         // Dispatch clean formal credentials email job
         try {
@@ -163,15 +146,11 @@ class UserController extends Controller
         $targetUser = User::with('role')->findOrFail($id);
         $authUser = $request->user() ?? auth()->user();
         $isSuperAdmin = $authUser ? $authUser->isSuperAdmin() : false;
-        $officeId = $authUser ? $authUser->office_id : null;
 
         // Non-superadmin authorization checks:
         if (!$isSuperAdmin) {
             if ($targetUser->isSuperAdmin() || $targetUser->isAdmin()) {
                 return response()->json(['message' => 'Unauthorized to modify administrative accounts.'], 403);
-            }
-            if ($officeId && (int)$targetUser->office_id !== (int)$officeId) {
-                return response()->json(['message' => 'Unauthorized to modify accounts from another office.'], 403);
             }
         }
 
@@ -182,7 +161,6 @@ class UserController extends Controller
             'role'           => 'sometimes|string',
             'status'         => 'nullable|string',
             'is_active'      => 'nullable',
-            'office_id'      => 'nullable|exists:offices,id',
             'location'       => 'nullable|string|max:255',
             'new_password'   => 'nullable|string|min:6',
             'permissions'    => 'nullable',
@@ -195,24 +173,15 @@ class UserController extends Controller
         if (isset($validated['is_active'])) $targetUser->is_active = filter_var($validated['is_active'], FILTER_VALIDATE_BOOLEAN);
 
         if ($isSuperAdmin) {
-            if (array_key_exists('office_id', $validated)) {
-                $targetUser->office_id = $validated['office_id'];
-            } elseif (!empty($validated['location'])) {
-                $matchedOffice = \App\Models\Office::where('location', $validated['location'])->first()
-                    ?? \App\Models\Office::where('name', 'LIKE', '%' . $validated['location'] . '%')->first();
-                if ($matchedOffice) {
-                    $targetUser->office_id = $matchedOffice->id;
-                }
-            }
             if (!empty($validated['role'])) {
                 $r = Role::firstOrCreate(['name' => $validated['role']]);
                 $targetUser->role_id = $r->id;
             }
         } else {
-            // Non-superadmin cannot change user's office or elevate role
+            // Non-superadmin cannot elevate role
             if (!empty($validated['role'])) {
                 $normalizedRole = strtolower(str_replace(['-', '_', ' '], '', $validated['role']));
-                if (in_array($normalizedRole, ['superadmin', 'sysad', 'admin', 'officemanager', 'branchadmin'])) {
+                if (in_array($normalizedRole, ['superadmin', 'sysad', 'admin'])) {
                     return response()->json(['message' => 'Unauthorized to elevate account to administrative roles.'], 403);
                 }
                 $r = Role::firstOrCreate(['name' => $validated['role']]);
@@ -238,7 +207,7 @@ class UserController extends Controller
 
         return response()->json([
             'message' => 'User updated successfully',
-            'user'    => $targetUser->load(['office', 'role']),
+            'user'    => $targetUser->load(['role']),
         ]);
     }
 
@@ -250,7 +219,6 @@ class UserController extends Controller
         $targetUser = User::with('role')->findOrFail($id);
         $authUser = $request->user() ?? auth()->user();
         $isSuperAdmin = $authUser ? $authUser->isSuperAdmin() : false;
-        $officeId = $authUser ? $authUser->office_id : null;
 
         if ($authUser && $authUser->id === $targetUser->id) {
             return response()->json(['message' => 'Cannot delete your own account'], 403);
@@ -259,9 +227,6 @@ class UserController extends Controller
         if (!$isSuperAdmin) {
             if ($targetUser->isSuperAdmin() || $targetUser->isAdmin()) {
                 return response()->json(['message' => 'Unauthorized to delete administrative accounts.'], 403);
-            }
-            if ($officeId && (int)$targetUser->office_id !== (int)$officeId) {
-                return response()->json(['message' => 'Unauthorized to delete accounts from another office.'], 403);
             }
         }
 
@@ -276,13 +241,6 @@ class UserController extends Controller
     public function resendInvite(Request $request, int $id): JsonResponse
     {
         $targetUser = User::findOrFail($id);
-        $authUser = $request->user() ?? auth()->user();
-        $isSuperAdmin = $authUser ? $authUser->isSuperAdmin() : false;
-        $officeId = $authUser ? $authUser->office_id : null;
-
-        if (!$isSuperAdmin && $officeId && (int)$targetUser->office_id !== (int)$officeId) {
-            return response()->json(['message' => 'Unauthorized to manage accounts from another office.'], 403);
-        }
 
         if (!$targetUser->invite_token) {
             $targetUser->invite_token = Str::random(40);

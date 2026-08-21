@@ -7,7 +7,6 @@ import {
 
 import EquipmentCategoriesTab from "../admin/tabs/EquipmentCategoriesTab";
 import VenuesTab from "./tabs/VenuesTab";
-import CampusManagementTab from "./tabs/CampusManagementTab";
 import UserManagementTab from "./tabs/UserManagementTab";
 import DepartmentsTab from "./tabs/DepartmentsTab";
 import OperatingHoursTab from "./tabs/OperatingHoursTab";

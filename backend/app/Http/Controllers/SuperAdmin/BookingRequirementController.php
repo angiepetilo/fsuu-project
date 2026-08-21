@@ -4,7 +4,6 @@ namespace App\Http\Controllers\SuperAdmin;
 
 use App\Http\Controllers\Controller;
 use App\Models\BookingRequirement;
-use App\Models\Office;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -32,14 +31,7 @@ class BookingRequirementController extends Controller
     {
         $this->ensureDefaultRequirements();
 
-        $user = $request->user();
         $query = BookingRequirement::orderBy('sort_order')->orderBy('id');
-
-        if ($user && !$user->isSuperAdmin() && $user->office_id) {
-            $query->where(function ($q) use ($user) {
-                $q->where('office_id', $user->office_id)->orWhereNull('office_id');
-            });
-        }
 
         $all = $query->get()->unique(function ($item) {
             return strtolower(trim($item->label));
@@ -51,16 +43,11 @@ class BookingRequirementController extends Controller
     public function store(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'office_id'      => 'nullable|exists:offices,id',
             'classification' => 'required|string|max:50',
             'label'          => 'required|string|max:255',
             'description'    => 'nullable|string|max:500',
             'sort_order'     => 'nullable|integer|min:0',
         ]);
-
-        if (empty($data['office_id'])) {
-            $data['office_id'] = Office::first()?->id;
-        }
 
         $req = BookingRequirement::create($data);
 
@@ -97,15 +84,6 @@ class BookingRequirementController extends Controller
     private function ensureDefaultRequirements(): void
     {
         try {
-            $office = Office::first();
-            if (!$office) {
-                $office = Office::create([
-                    'name'     => 'General Administration',
-                    'slug'     => 'general-administration',
-                    'location' => 'Main Building',
-                ]);
-            }
-
             // Rename any legacy records in the database
             BookingRequirement::where('label', 'like', '%Dean of Student Affairs%')
                 ->orWhere('label', 'like', '%(DSA)%')
@@ -118,7 +96,6 @@ class BookingRequirementController extends Controller
             BookingRequirement::firstOrCreate(
                 ['label' => 'Formal request letter signed and endorsed by the Director of OISAA'],
                 [
-                    'office_id'      => $office->id,
                     'classification' => 'Organization Purposes',
                     'description'    => 'Mandatory endorsement for all student organization venue activities.',
                     'sort_order'     => 1,
@@ -128,7 +105,6 @@ class BookingRequirementController extends Controller
             BookingRequirement::firstOrCreate(
                 ['label' => 'Formal request letter signed and endorsed by the OVPASA'],
                 [
-                    'office_id'      => $office->id,
                     'classification' => 'Academic Purposes',
                     'description'    => 'Mandatory endorsement for academic events and examinations.',
                     'sort_order'     => 2,

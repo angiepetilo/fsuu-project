@@ -17,8 +17,7 @@ class ListingController extends Controller
     public function venues(): JsonResponse
     {
         return response()->json(
-            Venue::with('office')
-                ->where('status', '!=', 'maintenance')
+            Venue::where('status', '!=', 'maintenance')
                 ->get()
                 ->map(function ($v) {
                     $imgUrl = str_starts_with($v->avatar ?? '', '/storage/') ? url($v->avatar) : $v->avatar;
@@ -28,11 +27,9 @@ class ListingController extends Controller
                         'avatar'    => $imgUrl,
                         'photo'     => $imgUrl,
                         'image'     => $imgUrl,
-                        'location'  => $v->office?->location ?? $v->location ?? 'FSUU Campus',
+                        'location'  => $v->location ?? 'FSUU Campus',
                         'capacity'  => $v->capacity ?? 100,
                         'type'      => 'avr',
-                        'office'    => $v->office,
-                        'office_id' => $v->office_id,
                         'status'    => $v->status ?? 'Available',
                         'allowed_equipment' => $v->allowed_equipment,
                     ];
@@ -47,7 +44,7 @@ class ListingController extends Controller
     public function departments(): JsonResponse
     {
         return response()->json(
-            \App\Models\Department::with('office')->orderBy('name')->get()
+            \App\Models\Department::orderBy('name')->get()
         );
     }
 
@@ -83,10 +80,7 @@ class ListingController extends Controller
             }
         }
 
-        $officeId = $request->query('office_id') ?? $request->query('office');
-
-        $query = EquipmentType::with('office')
-            ->withCount([
+        $query = EquipmentType::withCount([
                 'equipmentUnits as calculated_total' => function ($q) {
                     $q->whereNull('archived_at');
                 },
@@ -101,10 +95,6 @@ class ListingController extends Controller
                       ->whereNotIn(DB::raw('LOWER(`condition`)'), ['damaged', 'lost', 'under repair']);
                 }
             ]);
-
-        if ($officeId) {
-            $query->where('office_id', $officeId);
-        }
 
         $equipmentTypes = $query->get()
             ->map(function ($e) use ($dateStr, $startTimeStr, $endTimeStr) {
@@ -181,8 +171,6 @@ class ListingController extends Controller
                     'present_count'   => $operational,
                     'available_count' => $avail,
                     'status'          => $avail > 0 ? 'available' : 'unavailable',
-                    'office_id'       => $e->office_id,
-                    'office'          => $e->office,
                     'dept'            => 'avr',
                     'category'        => $e->eq_type ?? 'AVR Equipment',
                 ];

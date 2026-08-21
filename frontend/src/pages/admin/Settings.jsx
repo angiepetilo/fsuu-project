@@ -25,7 +25,6 @@ export default function Settings() {
 
   // User Management State
   const [users, setUsers] = useState([]);
-  const [offices, setOffices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [formLoading, setFormLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -39,10 +38,9 @@ export default function Settings() {
   const [currentUser, setCurrentUser] = useState(() => {
     return {
       id: authUser?.id || 1,
-      name: authUser?.name || "Main Branch Admin",
+      name: authUser?.name || "Administrator",
       email: authUser?.email || "admin@fsuu.edu.ph",
       personal_email: authUser?.personal_email || authUser?.email || "admin@gmail.com",
-      office: authUser?.office?.name || "AVR office",
       avatar: authUser?.avatar || null,
       role: authUser?.role?.name || authUser?.role || "admin",
     };
@@ -55,7 +53,6 @@ export default function Settings() {
     name: currentUser.name,
     email: currentUser.email,
     personal_email: currentUser.personal_email || currentUser.email,
-    office: currentUser.office || "AVR office",
     current_password: "",
     new_password: "",
   });
@@ -87,7 +84,6 @@ export default function Settings() {
       name: currentUser.name,
       email: currentUser.email,
       personal_email: currentUser.personal_email || prev.personal_email,
-      office: currentUser.office || prev.office,
     }));
     if (currentUser.avatar) setProfileAvatarPreview(currentUser.avatar);
   }, [currentUser]);
@@ -106,14 +102,9 @@ export default function Settings() {
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const [uRes, oRes] = await Promise.all([
-        api.get("/admin/users").catch(() => api.get("/users")),
-        api.get("/admin/offices").catch(() => api.get("/offices")),
-      ]);
+      const uRes = await api.get("/admin/users").catch(() => api.get("/users"));
       const uData = Array.isArray(uRes.data) ? uRes.data : uRes.data?.data ?? [];
-      const oData = Array.isArray(oRes.data) ? oRes.data : oRes.data?.data ?? [];
       setUsers(uData);
-      setOffices(oData);
     } catch {
       // Fallback
     } finally {
@@ -136,30 +127,21 @@ export default function Settings() {
     fetchVenues();
   }, []);
 
-  const adminOfficeScope = selectedOffice;
-  const userOfficeId = authUser?.office_id ?? authUser?.office?.id ?? null;
   const isSuperAdmin = authUser?.role === "super_admin" || authUser?.role?.name === "super_admin" || authUser?.role === "superadmin" || authUser?.role?.name === "superadmin";
 
   const visibleUsers = users.filter(u => {
     if (isSuperAdmin) return true;
 
-    // Do not display logged-in Office Manager's own account in Role & Permission
     if (authUser?.id && String(u.id) === String(authUser.id)) {
       return false;
     }
 
-    // Hide superadmin & office-manager/admin role accounts from staff list for non-superadmin users
     const uRole = (u.role?.name || u.role || "").toString().toLowerCase();
-    if (["super_admin", "superadmin", "sysad", "super-admin", "admin", "office_manager", "branch_admin"].includes(uRole)) {
+    if (["super_admin", "superadmin", "sysad", "super-admin", "admin"].includes(uRole)) {
       return false;
     }
 
-    // Filter strictly by office_id or created_by matching logged in office manager
-    const uOfficeId = u.office_id ?? u.office?.id ?? null;
-    const isSameOffice = userOfficeId && uOfficeId && String(uOfficeId) === String(userOfficeId);
-    const isCreatedByMe = authUser?.id && (String(u.created_by) === String(authUser.id));
-
-    return isSameOffice || isCreatedByMe;
+    return true;
   });
 
   const handleResendInvite = async (user) => {
@@ -238,8 +220,7 @@ export default function Settings() {
       capacity: parseInt(venueForm.capacity, 10) || 100,
       status: (venueForm.status || "Available").toLowerCase(),
       avatar: venuePhotoPreview || null,
-      location: venueForm.location || user?.office?.location || user?.office?.name || "Main Campus",
-      office_id: userOfficeId,
+      location: venueForm.location || "Main Campus",
     };
     try {
       await api.post("/admin/venues", payload);
@@ -264,8 +245,7 @@ export default function Settings() {
       capacity: parseInt(venueForm.capacity, 10) || 100,
       status: (venueForm.status || "Available").toLowerCase(),
       avatar: venuePhotoPreview || null,
-      location: venueForm.location || user?.office?.location || user?.office?.name || "Main Campus",
-      office_id: userOfficeId,
+      location: venueForm.location || "Main Campus",
     };
     try {
       await api.put(`/admin/venues/${editVenue.id}`, payload);
@@ -419,11 +399,9 @@ export default function Settings() {
       {showCreate && (
         <Modal title="Add New Staff Account" onClose={() => setShowCreate(false)}>
           <UserForm
-            offices={offices}
             onSubmit={handleCreateUser}
             loading={formLoading}
             onClose={() => setShowCreate(false)}
-            userOfficeId={userOfficeId}
             isSuperAdmin={isSuperAdmin}
           />
         </Modal>
@@ -433,11 +411,9 @@ export default function Settings() {
         <Modal title="Edit User Account & Access" onClose={() => setEditUser(null)}>
           <UserForm
             initial={editUser}
-            offices={offices}
             onSubmit={handleEditUserSubmit}
             loading={formLoading}
             onClose={() => setEditUser(null)}
-            userOfficeId={userOfficeId}
             isSuperAdmin={isSuperAdmin}
           />
         </Modal>

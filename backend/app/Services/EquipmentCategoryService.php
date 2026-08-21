@@ -200,16 +200,8 @@ class EquipmentCategoryService
         $presentCount = max(0, $totalQty - $releasedTotal - $damagedCount - $lostCount);
         $reservedCapped = min($presentCount, $reservedTotal);
 
-        $officeName = $e->office?->name ?? 'AVR Center';
-        $officeLocation = $e->office?->location ?? 'FSUU Campus';
-        $campusLabel = $e->office ? "{$officeName} - {$officeLocation}" : 'AVR Center';
-
         return [
             'id'              => $e->id,
-            'office_id'       => $e->office_id,
-            'office_name'     => $officeName,
-            'office_location' => $officeLocation,
-            'campus_label'    => $campusLabel,
             'eq_name'         => $e->eq_name ?? $e->name,
             'eq_type'         => $e->eq_type ?? $e->category,
             'barcode'         => $e->barcode,
@@ -225,53 +217,20 @@ class EquipmentCategoryService
             'lifespan_years'  => $e->lifespan_years ?? 5,
             'status'          => $e->status ?? 'available',
             'description'     => $e->description,
-            'office'          => $e->office,
             'created_at'      => $e->created_at,
         ];
     }
 
     /**
-     * Same-office duplicate check (Case-insensitive exact match).
-     * Blocks creation to prevent fragmenting an office's own stock.
+     * Case-insensitive exact match check.
      */
-    public function hasSameOfficeDuplicate(string $name, int $officeId, ?int $excludeId = null): bool
+    public function hasDuplicateName(string $name, ?int $excludeId = null): bool
     {
         $norm = strtolower(trim($name));
         return EquipmentType::where(DB::raw('LOWER(TRIM(eq_name))'), $norm)
-            ->where('office_id', $officeId)
             ->when($excludeId, function($q) use ($excludeId) {
                 $q->where('id', '!=', $excludeId);
             })
             ->exists();
-    }
-
-    /**
-     * Cross-office near-duplicate check (Advisory notice only).
-     * Does NOT block category creation.
-     */
-    public function checkNearDuplicateWarning(string $name, int $officeId, ?int $excludeId = null): ?string
-    {
-        $norm = strtolower(trim($name));
-        $matches = EquipmentType::with('office')
-            ->where(function($q) use ($norm, $name) {
-                $q->where(DB::raw('LOWER(TRIM(eq_name))'), $norm)
-                  ->orWhere('eq_name', 'LIKE', "%{$name}%");
-            })
-            ->where('office_id', '!=', $officeId)
-            ->when($excludeId, function($q) use ($excludeId) {
-                $q->where('id', '!=', $excludeId);
-            })
-            ->get();
-
-        if ($matches->count() > 0) {
-            $officesList = $matches->map(function($m) {
-                $loc = $m->office?->location ?? "Office #{$m->office_id}";
-                return "'{$m->eq_name}' at {$loc}";
-            })->unique()->implode(', ');
-
-            return "Advisory Notice: Similar category name already exists at other branch ({$officesList}). Consider aligning naming if this represents shared inventory equipment.";
-        }
-
-        return null;
     }
 }

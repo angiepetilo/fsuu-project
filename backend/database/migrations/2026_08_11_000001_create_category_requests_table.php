@@ -12,7 +12,6 @@ return new class extends Migration
             $table->id();
             $table->string('proposed_name');
             $table->text('reason')->nullable();
-            $table->foreignId('office_id')->nullable()->constrained('offices')->nullOnDelete();
             $table->foreignId('requested_by')->nullable()->constrained('users')->nullOnDelete();
             $table->string('status')->default('pending'); // pending, approved, rejected
             $table->text('admin_notes')->nullable();

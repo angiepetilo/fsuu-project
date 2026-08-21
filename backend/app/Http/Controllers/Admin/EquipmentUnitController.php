@@ -16,23 +16,8 @@ class EquipmentUnitController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $user = $request->user();
-        $isSuperAdmin = $user ? $user->isSuperAdmin() : false;
-        $officeId = $user ? ($user->office_id ?? $user->office?->id) : null;
-
-        $query = EquipmentUnit::with('equipmentType.office')
+        $query = EquipmentUnit::with('equipmentType')
             ->whereNull('equipment_units.archived_at');
-
-        if (!$isSuperAdmin && $officeId) {
-            $query->whereHas('equipmentType', function ($q) use ($officeId) {
-                $q->where('office_id', $officeId);
-            });
-        } elseif ($isSuperAdmin && $request->filled('office_id') && $request->query('office_id') !== 'all') {
-            $filterOfficeId = $request->query('office_id');
-            $query->whereHas('equipmentType', function ($q) use ($filterOfficeId) {
-                $q->where('office_id', $filterOfficeId);
-            });
-        }
 
         return response()->json($query->latest()->get());
     }
@@ -52,20 +37,6 @@ class EquipmentUnitController extends Controller
             'condition'         => 'nullable|string|max:100',
             'description'       => 'nullable|string',
         ]);
-
-        $user = $request->user();
-        $isSuperAdmin = $user ? $user->isSuperAdmin() : false;
-        $officeId = $user ? $user->office_id : null;
-
-        $targetCategory = EquipmentType::findOrFail($validated['equipment_type_id']);
-        if (!$isSuperAdmin && $officeId && (int)$targetCategory->office_id !== (int)$officeId) {
-            return response()->json([
-                'message' => 'Cannot create equipment units under a category belonging to a different campus/office.',
-                'errors'  => [
-                    'equipment_type_id' => ['Cross-office unit creation is not permitted.']
-                ]
-            ], 403);
-        }
 
         $rawCondition = $request->input('condition', 'Good');
         $canonicalCondition = match(strtolower(trim($rawCondition))) {
@@ -90,7 +61,7 @@ class EquipmentUnitController extends Controller
         // Sync category stock count
         $this->syncCategoryStock($unit->equipment_type_id);
 
-        return response()->json($unit->load('equipmentType.office'), 201);
+        return response()->json($unit->load('equipmentType'), 201);
     }
 
     /**
@@ -99,14 +70,6 @@ class EquipmentUnitController extends Controller
     public function update(Request $request, int $id): JsonResponse
     {
         $unit = EquipmentUnit::with('equipmentType')->findOrFail($id);
-
-        $user = $request->user();
-        $isSuperAdmin = $user ? $user->isSuperAdmin() : false;
-        $officeId = $user ? $user->office_id : null;
-
-        if (!$isSuperAdmin && $officeId && $unit->equipmentType && (int)$unit->equipmentType->office_id !== (int)$officeId) {
-            return response()->json(['message' => 'Unauthorized to modify equipment units from another office.'], 403);
-        }
 
         $validated = $request->validate([
             'equipment_type_id' => 'sometimes|exists:equipment_types,id',
@@ -118,13 +81,6 @@ class EquipmentUnitController extends Controller
             'condition'         => 'nullable|string|max:100',
             'description'       => 'nullable|string',
         ]);
-
-        if (isset($validated['equipment_type_id']) && !$isSuperAdmin && $officeId) {
-            $newCat = EquipmentType::findOrFail($validated['equipment_type_id']);
-            if ((int)$newCat->office_id !== (int)$officeId) {
-                return response()->json(['message' => 'Cannot transfer equipment units to another office.'], 403);
-            }
-        }
 
         if (isset($validated['condition'])) {
             $validated['condition'] = match(strtolower(trim($validated['condition']))) {
@@ -146,7 +102,7 @@ class EquipmentUnitController extends Controller
             $this->syncCategoryStock($unit->equipment_type_id);
         }
 
-        return response()->json($unit->load('equipmentType.office'));
+        return response()->json($unit->load('equipmentType'));
     }
 
     /**
@@ -155,14 +111,6 @@ class EquipmentUnitController extends Controller
     public function destroy(Request $request, int $id): JsonResponse
     {
         $unit = EquipmentUnit::with('equipmentType')->findOrFail($id);
-
-        $user = $request->user();
-        $isSuperAdmin = $user ? $user->isSuperAdmin() : false;
-        $officeId = $user ? $user->office_id : null;
-
-        if (!$isSuperAdmin && $officeId && $unit->equipmentType && (int)$unit->equipmentType->office_id !== (int)$officeId) {
-            return response()->json(['message' => 'Unauthorized to archive equipment units from another office.'], 403);
-        }
 
         $typeId = $unit->equipment_type_id;
 

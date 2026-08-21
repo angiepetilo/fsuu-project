@@ -8,7 +8,6 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\GoogleAuthController;
 
 // ─── SuperAdmin Controllers ───────────────────────────────────────────────────
-use App\Http\Controllers\SuperAdmin\OfficeController;
 use App\Http\Controllers\SuperAdmin\LocationController;
 use App\Http\Controllers\SuperAdmin\DepartmentController;
 use App\Http\Controllers\SuperAdmin\OperatingHoursController;
@@ -61,13 +60,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/user/profile', [AuthController::class, 'updateProfile']);
     Route::get('/dashboard/stats', [DashboardStatsController::class, 'index']);
 
-    // ── Admin: Users & Offices ─────────────────────────────────────────────────
+    // ── Admin: Users ───────────────────────────────────────────────────────────
     Route::post('/admin/users/{id}/resend-invite', [UserController::class, 'resendInvite']);
     Route::apiResource('admin/users', UserController::class)->except(['show']);
-    Route::get('/admin/offices',         [OfficeController::class, 'index']);
-    Route::post('/admin/offices',        [OfficeController::class, 'store']);
-    Route::put('/admin/offices/{id}',    [OfficeController::class, 'update']);
-    Route::delete('/admin/offices/{id}', [OfficeController::class, 'destroy']);
 
     // ── Admin: Locations ───────────────────────────────────────────────────────
     Route::get('/admin/locations',         [LocationController::class, 'index']);
@@ -228,7 +223,7 @@ Route::get('/test-email', function (Request $request) {
         return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
     }
 });
-Route::get('/user', fn (Request $request) => $request->user()->load(['office', 'role']))->middleware('auth:sanctum');
+Route::get('/user', fn (Request $request) => $request->user()->load(['role']))->middleware('auth:sanctum');
 
 // ─── Public (Unauthenticated) Routes ──────────────────────────────────────────
 Route::prefix('public')->group(function () {

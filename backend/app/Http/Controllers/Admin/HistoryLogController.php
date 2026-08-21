@@ -29,16 +29,12 @@ class HistoryLogController extends Controller
             }
             $academicTermId = $academicTermId && is_numeric($academicTermId) ? (int)$academicTermId : null;
 
-            $user = $request->user();
-            $isSuperAdmin = $user ? $user->isSuperAdmin() : true;
-            $officeId = $user ? $user->office_id : null;
-
             $venueBookings       = in_array($type, ['venue', 'all']) 
-                ? $this->historyService->getVenueBookingsHistory($officeId, $isSuperAdmin, $academicTermId) 
+                ? $this->historyService->getVenueBookingsHistory(null, true, $academicTermId) 
                 : collect();
 
             $equipmentBorrowings = in_array($type, ['equipment', 'all']) 
-                ? $this->historyService->getEquipmentBorrowingsHistory($officeId, $isSuperAdmin, $academicTermId) 
+                ? $this->historyService->getEquipmentBorrowingsHistory(null, true, $academicTermId) 
                 : collect();
 
             if ($type === 'venue') {

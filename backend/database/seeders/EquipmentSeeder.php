@@ -4,22 +4,12 @@ namespace Database\Seeders;
 
 use App\Models\EquipmentType;
 use App\Models\EquipmentUnit;
-use App\Models\Office;
 use Illuminate\Database\Seeder;
 
 class EquipmentSeeder extends Seeder
 {
     public function run(): void
     {
-        $office = Office::first();
-        if (!$office) {
-            $office = Office::firstOrCreate([
-                'name'     => 'AVR Office I',
-                'location' => 'Main Campus',
-                'slug'     => 'avr-office-i-main-campus',
-            ]);
-        }
-
         $equipmentCategories = [
             [
                 'eq_name'        => 'Projector',
@@ -70,7 +60,6 @@ class EquipmentSeeder extends Seeder
 
             $eqType = EquipmentType::withTrashed()->updateOrCreate(
                 [
-                    'office_id' => $office->id,
                     'eq_name'   => $item['eq_name'],
                 ],
                 [

@@ -17,7 +17,7 @@ class User extends Authenticatable
     public const DELETED_AT = 'archived_at';
 
     /**
-     * Note: office_id, role_id, and is_active are excluded from $fillable
+     * Note: role_id and is_active are excluded from $fillable
      * and must be assigned via forceFill/forceCreate in trusted service code.
      */
     protected $fillable = [
@@ -27,7 +27,6 @@ class User extends Authenticatable
         'google_id',
         'avatar',
         'password',
-        'office_id',
         'location',
         'role_id',
         'created_by',
@@ -36,7 +35,6 @@ class User extends Authenticatable
         'invited_at',
         'status',
     ];
-
 
     protected $hidden = [
         'password',
@@ -49,11 +47,6 @@ class User extends Authenticatable
         'permissions' => 'array',
         'invited_at'  => 'datetime',
     ];
-
-    public function office(): BelongsTo
-    {
-        return $this->belongsTo(Office::class);
-    }
 
     public function role(): BelongsTo
     {
@@ -72,19 +65,29 @@ class User extends Authenticatable
 
     public function isSuperAdmin(): bool
     {
-        if ($this->role_id === 1 || $this->role_id === 2) {
+        if ($this->role_id === 1) {
             return true;
         }
         if ($this->role) {
             $r = strtolower($this->role->slug ?? $this->role->name ?? '');
-            return in_array($r, ['super_admin', 'super-admin', 'superadmin', 'super admin', 'sysad', 'admin']);
+            return in_array($r, ['super_admin', 'super-admin', 'superadmin', 'super admin', 'sysad']);
         }
-        return str_contains(strtolower($this->email ?? ''), 'superadmin') || str_contains(strtolower($this->email ?? ''), 'admin');
+        return str_contains(strtolower($this->email ?? ''), 'superadmin');
     }
 
     public function isAdmin(): bool
     {
-        return $this->isSuperAdmin();
+        if ($this->isSuperAdmin()) {
+            return true;
+        }
+        if ($this->role_id === 2) {
+            return true;
+        }
+        if ($this->role) {
+            $r = strtolower($this->role->slug ?? $this->role->name ?? '');
+            return in_array($r, ['admin', 'office_admin']);
+        }
+        return str_contains(strtolower($this->email ?? ''), 'admin');
     }
 
     public function isStaff(): bool
@@ -93,11 +96,6 @@ class User extends Authenticatable
             return false;
         }
         return true;
-    }
-
-    public function isBranchAdmin(): bool
-    {
-        return $this->isAdmin() && !$this->isSuperAdmin();
     }
 
     public function hasPermission($area = null, $action = null): bool
@@ -126,4 +124,3 @@ class User extends Authenticatable
         return true;
     }
 }
-

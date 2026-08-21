@@ -13,16 +13,10 @@ class CategoryRequest extends Model
     protected $fillable = [
         'proposed_name',
         'reason',
-        'office_id',
         'requested_by',
         'status',
         'admin_notes',
     ];
-
-    public function office(): BelongsTo
-    {
-        return $this->belongsTo(Office::class);
-    }
 
     public function requester(): BelongsTo
     {

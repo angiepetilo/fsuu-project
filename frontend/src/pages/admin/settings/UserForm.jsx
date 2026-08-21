@@ -2,12 +2,11 @@ import { useState } from "react";
 import { ImagePlus, User, Loader2, Sliders } from "lucide-react";
 import PasswordInput from "./PasswordInput";
 
-export default function UserForm({ initial, offices, onSubmit, loading, onClose, userOfficeId, isSuperAdmin }) {
+export default function UserForm({ initial, onSubmit, loading, onClose, isSuperAdmin }) {
   const [name, setName] = useState(initial?.name ?? "");
   const [email, setEmail] = useState(initial?.email ?? "");
   const [personalEmail, setPersonalEmail] = useState(initial?.personal_email ?? "");
   const [role, setRole] = useState(initial?.role?.name ?? initial?.role ?? "staff");
-  const [officeId, setOfficeId] = useState(initial?.office_id ?? (userOfficeId || ""));
   const [newPassword, setNewPassword] = useState("");
   const [imageFile, setImageFile] = useState(null);
   const [preview, setPreview] = useState(initial?.avatar ?? null);
@@ -41,7 +40,6 @@ export default function UserForm({ initial, offices, onSubmit, loading, onClose,
       fd.append("status", isDisabled ? "disabled" : "active");
       fd.append("is_active", isDisabled ? "0" : "1");
       fd.append("permissions", JSON.stringify(permissions));
-      if (officeId) fd.append("office_id", officeId);
       if (imageFile) fd.append("image", imageFile);
       if (removeImage) fd.append("remove_image", "1");
       fd.append("_method", "PUT");
@@ -52,7 +50,6 @@ export default function UserForm({ initial, offices, onSubmit, loading, onClose,
       fd.append("status", isDisabled ? "disabled" : "active");
       fd.append("is_active", isDisabled ? "0" : "1");
       fd.append("permissions", JSON.stringify(permissions));
-      if (officeId || userOfficeId) fd.append("office_id", officeId || userOfficeId);
     }
     onSubmit(fd);
   };

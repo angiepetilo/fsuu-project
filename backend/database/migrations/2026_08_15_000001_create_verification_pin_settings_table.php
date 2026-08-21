@@ -10,7 +10,6 @@ return new class extends Migration
     {
         Schema::create('verification_pin_settings', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('office_id')->nullable()->constrained('offices')->cascadeOnDelete();
             $table->string('master_pin', 10)->default('123456');
             $table->boolean('is_enabled')->default(true);
             $table->boolean('require_outside_hours')->default(true);

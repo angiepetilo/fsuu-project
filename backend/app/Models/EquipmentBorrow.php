@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class EquipmentBorrow extends Model
@@ -14,9 +15,6 @@ class EquipmentBorrow extends Model
 
     public const DELETED_AT = 'archived_at';
 
-    /**
-     * Note: office_id is excluded from $fillable and assigned via trusted service code.
-     */
     protected $fillable = [
         'tracking_number_id',
         'submitted_by',
@@ -57,11 +55,6 @@ class EquipmentBorrow extends Model
         return $this->belongsTo(TrackingNumber::class);
     }
 
-    public function office(): BelongsTo
-    {
-        return $this->belongsTo(Office::class);
-    }
-
     public function submittedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'submitted_by');
@@ -72,21 +65,13 @@ class EquipmentBorrow extends Model
         return $this->hasMany(EquipmentBorrowItem::class, 'equipment_borrow_id');
     }
 
-    public function inspections(): \Illuminate\Database\Eloquent\Relations\MorphMany
+    public function inspections(): MorphMany
     {
         return $this->morphMany(Inspection::class, 'inspectable');
     }
 
-    public function approvals(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function approvals(): HasMany
     {
         return $this->hasMany(Approval::class, 'reference_id')->where('reference_type', 'avr_equipment_borrow');
-    }
-
-    public function scopeForOffice($query, ?int $officeId)
-    {
-        if ($officeId) {
-            return $query->where('office_id', $officeId);
-        }
-        return $query;
     }
 }
