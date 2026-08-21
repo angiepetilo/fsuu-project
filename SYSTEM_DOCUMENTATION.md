@@ -197,6 +197,28 @@ In **Manage Equipments** (Add & Edit physical unit forms):
 
 ---
 
+## 8. Security, Privacy & Data Protection Architecture
+
+### 8.1. Multi-Tier Security Controls
+1. **Authentication & Identity**:
+   - Laravel Sanctum token-based authentication with cryptographically signed bearer tokens.
+   - Google OAuth 2.0 institutional login restricted to `@urios.edu.ph`.
+   - Strong password hashing with Bcrypt (cost factor 12).
+2. **Access Control (RBAC)**:
+   - Granular Laravel Policy classes (`VenueBookingPolicy`, `EquipmentBorrowingPolicy`, `UserPolicy`).
+   - Office-based data isolation restricting staff/admin operations strictly to their facility.
+   - Super Admin exclusive privileges for global settings and multi-campus incident alerts.
+3. **Database Integrity & Injection Defense**:
+   - 100% parameterized SQL execution via Laravel Eloquent ORM and Query Builder (zero raw concatenated SQL).
+   - Pessimistic Row Locking (`->lockForUpdate()`) preventing double-booking race conditions during simultaneous requests.
+   - Soft Deletes (`archived_at`) protecting critical assets, users, and bookings against accidental data loss.
+4. **Application & Network Defense**:
+   - Rate limiting throttle middleware on public booking endpoints (`throttle:60,1`).
+   - Automated XSS neutralization via React virtual DOM escaping.
+   - Optional 4-Digit Security Verification PIN modal gating sensitive administrative actions.
+
+---
+
 *Documentation Version: 2.4.0*  
 *Father Saturnino Urios University (FSUU)*  
 *Automated Venue Reservation & Equipment Borrowing Management System*
