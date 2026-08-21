@@ -44,24 +44,8 @@ export default function SysadLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const [offices, setOffices] = useState([]);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [selectedIncident, setSelectedIncident] = useState(null);
-
-  // Fetch registered offices from backend
-  useEffect(() => {
-    api.get("/admin/offices")
-      .then(res => {
-        const list = Array.isArray(res.data) ? res.data : (res.data?.data || []);
-        setOffices(list);
-      })
-      .catch(() => {
-        setOffices([
-          { id: 1, name: "AVR Office I", location: "Main Campus" },
-          { id: 2, name: "AVR Office II", location: "Morelos Campus" },
-        ]);
-      });
-  }, []);
 
   // Dynamic Profile Sync from System Settings
   const [profileState, setProfileState] = useState(() => {
@@ -356,9 +340,8 @@ export default function SysadLayout() {
         {/* Page Main Canvas */}
         <main className="flex-1 p-6 sm:p-8 overflow-auto">
           <Outlet context={{ 
-            offices,
             isSuperAdmin: true, 
-            adminOffice: "All Offices" 
+            adminOffice: "Main Campus" 
           }} />
         </main>
 

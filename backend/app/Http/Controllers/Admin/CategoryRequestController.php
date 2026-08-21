@@ -12,15 +12,8 @@ class CategoryRequestController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $user = $request->user();
-        $query = CategoryRequest::with(['office', 'requester']);
-
-        if ($user && $user->office_id && !$user->isSuperAdmin()) {
-            $query->where('office_id', $user->office_id);
-        }
-
+        $query = CategoryRequest::with(['requester']);
         $requests = $query->latest()->get();
-
         return response()->json($requests);
     }
 
@@ -36,31 +29,19 @@ class CategoryRequestController extends Controller
         $catReq = CategoryRequest::create([
             'proposed_name' => trim($request->input('proposed_name')),
             'reason' => $request->input('reason'),
-            'office_id' => $user->office_id ?? null,
             'requested_by' => $user->id,
             'status' => 'pending',
         ]);
 
-        return response()->json($catReq->load(['office', 'requester']), 201);
+        return response()->json($catReq->load(['requester']), 201);
     }
 
     public function approve(Request $request, int $id): JsonResponse
     {
-        $user = $request->user();
         $catReq = CategoryRequest::findOrFail($id);
 
-        $isSuperAdmin = $user ? $user->isSuperAdmin() : false;
-        $officeId = $user ? $user->office_id : null;
-
-        // Non-superadmin can only approve category requests belonging to their own office
-        if (!$isSuperAdmin && $officeId && (int)$catReq->office_id !== (int)$officeId) {
-            return response()->json(['message' => 'Unauthorized to approve category requests from another office.'], 403);
-        }
-
         // Check if category already exists in EquipmentType
-        $existing = EquipmentType::where('office_id', $catReq->office_id)
-            ->where('eq_name', $catReq->proposed_name)
-            ->first();
+        $existing = EquipmentType::where('eq_name', $catReq->proposed_name)->first();
 
         if (!$existing) {
             $existing = EquipmentType::create([
@@ -69,13 +50,12 @@ class CategoryRequestController extends Controller
                 'status'           => 'available',
                 'total_quantity'   => 0,
                 'available_count'  => 0,
-                'office_id'        => $catReq->office_id,
             ]);
         }
 
         $catReq->update([
             'status' => 'approved',
-            'admin_notes' => $request->input('admin_notes', 'Approved by ' . ($isSuperAdmin ? 'Super Admin' : 'Office Manager') . '.'),
+            'admin_notes' => $request->input('admin_notes', 'Approved.'),
         ]);
 
         return response()->json([
@@ -87,20 +67,11 @@ class CategoryRequestController extends Controller
 
     public function reject(Request $request, int $id): JsonResponse
     {
-        $user = $request->user();
         $catReq = CategoryRequest::findOrFail($id);
-
-        $isSuperAdmin = $user ? $user->isSuperAdmin() : false;
-        $officeId = $user ? $user->office_id : null;
-
-        // Non-superadmin can only reject category requests belonging to their own office
-        if (!$isSuperAdmin && $officeId && (int)$catReq->office_id !== (int)$officeId) {
-            return response()->json(['message' => 'Unauthorized to reject category requests from another office.'], 403);
-        }
 
         $catReq->update([
             'status' => 'rejected',
-            'admin_notes' => $request->input('admin_notes', 'Rejected by ' . ($isSuperAdmin ? 'Super Admin' : 'Office Manager') . '.'),
+            'admin_notes' => $request->input('admin_notes', 'Rejected.'),
         ]);
 
         return response()->json([

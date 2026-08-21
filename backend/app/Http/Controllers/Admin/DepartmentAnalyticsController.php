@@ -10,10 +10,6 @@ class DepartmentAnalyticsController extends Controller
 {
     public function index(): JsonResponse
     {
-        $user = auth()->user();
-        $isSuperAdmin = $user ? $user->isSuperAdmin() : true;
-        $officeId = $user ? $user->office_id : null;
-
         $academicTermId = request('academic_term_id') ?: request('term_id');
         if (empty($academicTermId)) {
             $academicTermId = DB::table('academic_terms')->where('is_active', true)->value('id');
@@ -34,9 +30,6 @@ class DepartmentAnalyticsController extends Controller
                   ->orWhereNotNull('inspections.violation_type');
             });
 
-        if (!$isSuperAdmin && $officeId) {
-            $venueQuery->where('venues.office_id', $officeId);
-        }
         if ($academicTermId) {
             $venueQuery->where('venue_bookings.academic_term_id', $academicTermId);
         }
@@ -60,9 +53,6 @@ class DepartmentAnalyticsController extends Controller
                   ->orWhereNotNull('inspections.violation_type');
             });
 
-        if (!$isSuperAdmin && $officeId) {
-            $equipQuery->where('equipment_borrows.office_id', $officeId);
-        }
         if ($academicTermId) {
             $equipQuery->where('equipment_borrows.academic_term_id', $academicTermId);
         }
@@ -94,13 +84,6 @@ class DepartmentAnalyticsController extends Controller
                 $q->where('inspections.is_late', true)
                   ->orWhere('inspections.timeliness', 'late');
             });
-
-        if (!$isSuperAdmin && $officeId) {
-            $lateQuery->where(function($q) use ($officeId) {
-                $q->where('equipment_borrows.office_id', $officeId)
-                  ->orWhere('venues.office_id', $officeId);
-            });
-        }
 
         $lateRecords = $lateQuery
             ->select(

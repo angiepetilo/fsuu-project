@@ -13,7 +13,6 @@ use App\Models\VenueBooking;
 use App\Models\EquipmentBorrowing;
 use App\Models\EquipmentBorrowItem as EquipmentBorrowingItem;
 use App\Models\EquipmentType;
-use App\Models\Office;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
@@ -29,7 +28,6 @@ class EquipmentBorrowingService
     {
         return DB::transaction(function () use ($data) {
             $this->assertExternalHasVenueBooking($data);
-            $this->assertSingleOffice($data['items'] ?? []);
 
             foreach ($data['items'] ?? [] as $item) {
                 $this->assertQuantityAvailable(
@@ -56,18 +54,12 @@ class EquipmentBorrowingService
 
             $hasCol = fn ($col) => \Illuminate\Support\Facades\Schema::hasColumn('equipment_borrows', $col);
 
-            $officeId = EquipmentType::whereIn('id', array_column($data['items'] ?? [], 'equipment_type_id'))
-                ->value('office_id') ?? 1;
-
             $insertData = [
                 'tracking_number_id' => $trackingId,
                 'purpose' => $data['purpose'],
                 'place_of_use' => $data['place_of_use'],
                 'submitted_by' => $data['submitted_by'] ?? null,
             ];
-
-            if ($hasCol('submission_channel')) $insertData['submission_channel'] = $data['submission_channel'] ?? 'public_kiosk';
-            if ($hasCol('office_id')) $insertData['office_id'] = $officeId;
             if ($hasCol('status')) $insertData['status'] = 'pending';
             if ($hasCol('academic_term_id')) {
                 $activeTermId = null;
@@ -331,25 +323,6 @@ class EquipmentBorrowingService
 
         if ($venueBookingId && ! VenueBooking::where('id', $venueBookingId)->exists()) {
             throw new ExternalRequiresVenueBookingException('The specified venue booking does not exist.');
-        }
-    }
-
-    private function assertSingleOffice(array $items): void
-    {
-        $equipmentTypeIds = array_column($items, 'equipment_type_id');
-        
-        $officeIds = EquipmentType::whereIn('id', $equipmentTypeIds)
-            ->pluck('office_id')
-            ->filter()
-            ->unique();
-
-        if ($officeIds->count() > 1) {
-            $offices = Office::whereIn('id', $officeIds)->get();
-            $types = $offices->pluck('type')->map(fn($t) => strtolower($t ?? ''))->filter()->unique();
-            if ($types->count() <= 1) {
-                return;
-            }
-            throw new BookingActionNotAllowedException('A single request cannot contain equipment from multiple different offices.');
         }
     }
 

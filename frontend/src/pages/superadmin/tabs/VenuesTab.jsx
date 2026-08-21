@@ -1,17 +1,9 @@
 import { useState, useEffect } from "react";
 import { Plus, Edit2, Trash2, X, Building, CheckCircle2, Loader2, Image as ImageIcon, Camera } from "lucide-react";
 import api from "@/lib/axios";
-import { useAuth } from "@/context/AuthContext";
 
 export default function VenuesTab({ showMsg }) {
-  const { user } = useAuth();
-  const userRole = (user?.role?.name || user?.role || "").toString().toLowerCase();
-  const isSuperAdmin = ["super_admin", "superadmin", "sysad", "super-admin"].includes(userRole);
-  const userOfficeId = user?.office_id ?? user?.office?.id ?? null;
-  const userOfficeObj = user?.office ?? null;
-
   const [venues, setVenues] = useState([]);
-  const [offices, setOffices] = useState([]);
   const [equipmentCatalog, setEquipmentCatalog] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -21,7 +13,6 @@ export default function VenuesTab({ showMsg }) {
   const [form, setForm] = useState({
     name: "",
     avatar: "",
-    office_id: "",
     status: "available",
     location: "",
     capacity: 100,
@@ -31,13 +22,11 @@ export default function VenuesTab({ showMsg }) {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [venueRes, offRes, equipRes] = await Promise.all([
+      const [venueRes, equipRes] = await Promise.all([
         api.get("/admin/venues"),
-        api.get("/admin/offices").catch(() => ({ data: [] })),
         api.get("/public/equipment-types").catch(() => ({ data: [] })),
       ]);
       setVenues(Array.isArray(venueRes.data) ? venueRes.data : []);
-      setOffices(Array.isArray(offRes.data) ? offRes.data : []);
       setEquipmentCatalog(Array.isArray(equipRes.data) ? equipRes.data : []);
     } catch {
       setVenues([]);
@@ -65,14 +54,9 @@ export default function VenuesTab({ showMsg }) {
     e.preventDefault();
     setFormLoading(true);
 
-    const resolvedOfficeId = !isSuperAdmin 
-      ? (userOfficeId || form.office_id || offices[0]?.id) 
-      : (form.office_id || offices[0]?.id);
-
     const payload = {
       name: form.name,
       avatar: form.avatar || null,
-      office_id: resolvedOfficeId ? parseInt(resolvedOfficeId, 10) : null,
       status: form.status || "available",
       location: form.location || null,
       capacity: parseInt(form.capacity, 10) || 100,
@@ -98,23 +82,14 @@ export default function VenuesTab({ showMsg }) {
         const venueObj = savedVenue || payload;
         if (venueObj) {
           const idx = list.findIndex(item => item.id === venueObj.id || item.name === form.name);
-          const formatted = {
-            id: venueObj.id || Date.now(),
-            name: form.name,
-            photo: form.avatar || payload.avatar,
-            avatar: form.avatar || payload.avatar,
-            image: form.avatar || payload.avatar,
-            location: form.location,
-            capacity: form.capacity,
-            status: form.status || 'Available',
-            allowed_equipment: form.allowed_equipment || [],
-          };
-          if (idx >= 0) list[idx] = { ...list[idx], ...formatted };
-          else list.push(formatted);
+          if (idx >= 0) {
+            list[idx] = { ...list[idx], ...venueObj };
+          } else {
+            list.push(venueObj);
+          }
           localStorage.setItem("fsuu_venue_availability", JSON.stringify(list));
-          window.dispatchEvent(new Event("venue_availability_updated"));
         }
-      } catch { }
+      } catch {}
 
       setShowModal(false);
       setEditItem(null);
@@ -127,14 +102,13 @@ export default function VenuesTab({ showMsg }) {
   };
 
   const handleDelete = async (id, name) => {
-    if (confirm(`Archive venue "${name}"? Soft-delete will apply.`)) {
-      try {
-        await api.delete(`/admin/venues/${id}`);
-        showMsg(`✅ Venue "${name}" archived.`);
-        fetchData();
-      } catch {
-        showMsg("❌ Failed to archive venue.");
-      }
+    if (!window.confirm(`Are you sure you want to archive venue "${name}"?`)) return;
+    try {
+      await api.delete(`/admin/venues/${id}`);
+      showMsg(`✅ Venue "${name}" archived.`);
+      fetchData();
+    } catch (err) {
+      showMsg(err.response?.data?.message || "❌ Failed to delete venue.");
     }
   };
 
@@ -144,7 +118,6 @@ export default function VenuesTab({ showMsg }) {
       <div className="flex justify-between items-center bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs">
         <div>
           <h3 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
-
             Venue Catalog Management
           </h3>
           <p className="text-xs text-slate-500 font-medium">
@@ -157,7 +130,6 @@ export default function VenuesTab({ showMsg }) {
             setForm({
               name: "",
               avatar: "",
-              office_id: !isSuperAdmin ? (userOfficeId || offices[0]?.id || "") : (offices[0]?.id || ""),
               status: "available",
               location: "",
               capacity: 100,
@@ -232,7 +204,6 @@ export default function VenuesTab({ showMsg }) {
                         setForm({
                           name: v.name || "",
                           avatar: v.avatar || "",
-                          office_id: v.office_id || userOfficeId || offices[0]?.id || "",
                           status: v.status || "available",
                           location: v.location || "",
                           capacity: v.capacity || 100,
@@ -260,7 +231,7 @@ export default function VenuesTab({ showMsg }) {
         </table>
       </div>
 
-      {/* Add / Edit Modal matching Department Clean Design */}
+      {/* Add / Edit Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-[1500] flex items-center justify-center p-4 animate-in fade-in">
           <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl animate-in zoom-in-95 border border-slate-100 space-y-4">

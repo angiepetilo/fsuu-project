@@ -10,7 +10,6 @@ return new class extends Migration
     {
         Schema::create('venues', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('office_id')->constrained('offices')->cascadeOnDelete();
             $table->string('name');
             $table->longText('avatar')->nullable();
             $table->string('location')->nullable();

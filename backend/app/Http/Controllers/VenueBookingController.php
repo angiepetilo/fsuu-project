@@ -31,7 +31,7 @@ class VenueBookingController extends Controller
             $academicTermId = DB::table('academic_terms')->where('is_active', true)->value('id');
         }
 
-        $bookings = VenueBooking::with(['trackingNumber', 'venue.office', 'documents'])
+        $bookings = VenueBooking::with(['trackingNumber', 'venue', 'documents'])
             ->where(function ($q) {
                 $completedStatuses = ['completed', 'done', 'returned', 'damaged', 'lost', 'returned late', 'returned_late', 'rejected', 'cancelled'];
                 $q->where(function ($q2) use ($completedStatuses) {
@@ -47,21 +47,6 @@ class VenueBookingController extends Controller
             })
             ->when($academicTermId, function ($query) use ($academicTermId) {
                 $query->where('academic_term_id', $academicTermId);
-            })
-
-            ->when(!$user->isSuperAdmin(), function ($query) use ($user) {
-                $officeId = $user->office_id;
-                if ($officeId) {
-                    $query->whereHas('venue', function ($vQ) use ($officeId) {
-                        $vQ->where('office_id', $officeId);
-                    });
-                }
-            })
-            ->when($user->isSuperAdmin() && request()->filled('office_id') && request('office_id') !== 'all', function ($query) {
-                $officeId = request('office_id');
-                $query->whereHas('venue', function ($vQ) use ($officeId) {
-                    $vQ->where('office_id', $officeId);
-                });
             })
             ->latest()
             ->paginate(25);

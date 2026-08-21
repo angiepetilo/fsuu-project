@@ -10,7 +10,6 @@ return new class extends Migration
     {
         Schema::create('operating_hours', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('office_id')->constrained('offices')->cascadeOnDelete();
             // Venue Reservation Hours
             $table->time('venue_open')->default('07:00:00');
             $table->time('venue_close')->default('17:00:00');
@@ -22,8 +21,6 @@ return new class extends Migration
             $table->unsignedSmallInteger('return_grace_mins')->default(30);
             $table->unsignedSmallInteger('auto_cancel_mins')->default(30);
             $table->timestamps();
-
-            $table->unique('office_id'); // one record per office
         });
     }
 

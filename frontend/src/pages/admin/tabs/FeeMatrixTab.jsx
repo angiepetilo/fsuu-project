@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Save, Printer, Mail, X, Send, Loader2, CheckCircle2, Building, DollarSign, FileText } from "lucide-react";
 import api from "@/lib/axios";
 
-export default function FeeMatrixTab({ officeScope = "All Offices", showMsg }) {
+export default function FeeMatrixTab({ showMsg }) {
   const [venues, setVenues] = useState([]);
   const [selectedVenueId, setSelectedVenueId] = useState("");
   const [feeForm, setFeeForm] = useState({
@@ -33,20 +33,11 @@ export default function FeeMatrixTab({ officeScope = "All Offices", showMsg }) {
         const saved = JSON.parse(localStorage.getItem("fsuu_venue_availability") || "[]");
         const combined = list.length > 0 ? list : saved;
 
-        const filtered = combined.filter((v) => {
-          if (officeScope === "All Offices") return true;
-          const vOffice = (v.office_name || v.office || v.location || "").toLowerCase();
-          const scope = officeScope.toLowerCase();
-          if (scope.includes("main")) return vOffice.includes("main") || !vOffice;
-          if (scope.includes("morelos")) return vOffice.includes("morelos");
-          return true;
-        });
-
-        setVenues(filtered);
-        if (filtered.length > 0) {
-          const firstId = String(filtered[0].id);
+        setVenues(combined);
+        if (combined.length > 0) {
+          const firstId = String(combined[0].id);
           setSelectedVenueId(firstId);
-          loadSavedMatrix(firstId, filtered[0]);
+          loadSavedMatrix(firstId, combined[0]);
         }
       } catch {
         setVenues([]);
@@ -56,7 +47,7 @@ export default function FeeMatrixTab({ officeScope = "All Offices", showMsg }) {
     };
 
     fetchVenues();
-  }, [officeScope]);
+  }, []);
 
   const loadSavedMatrix = (venueId, venueObj) => {
     const key = `fsuu_fee_matrix_${venueId}`;
@@ -134,7 +125,7 @@ export default function FeeMatrixTab({ officeScope = "All Offices", showMsg }) {
             Fee Matrix Configuration
           </h3>
           <p className="text-xs text-slate-500 font-medium mt-0.5">
-            Configure rental rates, facility pricing, and venue policy for <span className="font-bold text-slate-900">{officeScope}</span>.
+            Configure rental rates, facility pricing, and venue policy.
           </p>
         </div>
 
@@ -181,11 +172,11 @@ export default function FeeMatrixTab({ officeScope = "All Offices", showMsg }) {
               className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white cursor-pointer transition-all"
             >
               {venues.length === 0 ? (
-                <option value="">No venues found under {officeScope}</option>
+                <option value="">No venues found</option>
               ) : (
                 venues.map((v) => (
                   <option key={v.id} value={v.id}>
-                    {v.name} ({v.office_name || v.location || officeScope})
+                    {v.name} ({v.location || "FSUU Campus"})
                   </option>
                 ))
               )}

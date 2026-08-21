@@ -15,8 +15,6 @@ class NotificationController extends Controller
     {
         try {
             $user = $request->user();
-            $isSuperAdmin = $user ? $user->isSuperAdmin() : false;
-            $officeId = $user ? $user->office_id : null;
             $userId = $user ? $user->id : null;
 
             $readKeys = DB::table('notification_reads')
@@ -30,7 +28,6 @@ class NotificationController extends Controller
             $vbQuery = DB::table('venue_bookings')
                 ->join('tracking_numbers', 'venue_bookings.tracking_number_id', '=', 'tracking_numbers.id')
                 ->leftJoin('venues', 'venue_bookings.venue_id', '=', 'venues.id')
-                ->leftJoin('offices', 'venues.office_id', '=', 'offices.id')
                 ->whereNull('venue_bookings.archived_at')
                 ->select(
                     'venue_bookings.id',
@@ -42,21 +39,14 @@ class NotificationController extends Controller
                     'venue_bookings.created_at',
                     'venue_bookings.updated_at',
                     'venues.name as venue_name',
-                    'offices.name as office_name',
-                    'offices.id as office_id',
                     'tracking_numbers.reference_code',
                     'tracking_numbers.status'
                 )
                 ->orderByDesc('venue_bookings.updated_at')
                 ->limit(30);
 
-            if (!$isSuperAdmin && $officeId) {
-                $vbQuery->where('offices.id', $officeId);
-            }
-
             foreach ($vbQuery->get() as $b) {
                 $st = strtolower($b->status ?? '');
-                $office = $b->office_name ?? 'AVR Office';
                 $ref = $b->reference_code ?? 'TRK-AVR';
                 $dt = Carbon::parse($b->updated_at ?? $b->created_at);
                 $time = $dt->isToday() ? $dt->format('h:i A') : $dt->format('M d, h:i A');
@@ -79,7 +69,6 @@ class NotificationController extends Controller
                     'person_email'   => $b->email_address ?? 'N/A',
                     'item_name'      => $b->venue_name ?? 'Venue Facility',
                     'ref'            => $ref,
-                    'office'         => $office,
                     'time'           => $time,
                     'rawDate'        => $rawDate,
                     'is_read'        => isset($readKeys[$key]),
@@ -89,7 +78,6 @@ class NotificationController extends Controller
             // 2. Equipment Borrowing Notifications
             $ebQuery = DB::table('equipment_borrows')
                 ->join('tracking_numbers', 'equipment_borrows.tracking_number_id', '=', 'tracking_numbers.id')
-                ->leftJoin('offices', 'equipment_borrows.office_id', '=', 'offices.id')
                 ->whereNull('equipment_borrows.archived_at')
                 ->select(
                     'equipment_borrows.id',
@@ -97,24 +85,16 @@ class NotificationController extends Controller
                     'equipment_borrows.program_office',
                     'equipment_borrows.email_address',
                     'equipment_borrows.contact_number',
-                    'equipment_borrows.equipment_list',
                     'equipment_borrows.created_at',
                     'equipment_borrows.updated_at',
-                    'offices.name as office_name',
-                    'offices.id as office_id',
                     'tracking_numbers.reference_code',
                     'tracking_numbers.status'
                 )
                 ->orderByDesc('equipment_borrows.updated_at')
                 ->limit(30);
 
-            if (!$isSuperAdmin && $officeId) {
-                $ebQuery->where('offices.id', $officeId);
-            }
-
             foreach ($ebQuery->get() as $b) {
                 $st = strtolower($b->status ?? '');
-                $office = $b->office_name ?? 'AVR Office';
                 $ref = $b->reference_code ?? 'TRK-BORROW';
                 $dt = Carbon::parse($b->updated_at ?? $b->created_at);
                 $time = $dt->isToday() ? $dt->format('h:i A') : $dt->format('M d, h:i A');
@@ -137,7 +117,6 @@ class NotificationController extends Controller
                     'person_email'   => $b->email_address ?? 'N/A',
                     'item_name'      => 'Requested Equipment',
                     'ref'            => $ref,
-                    'office'         => $office,
                     'time'           => $time,
                     'rawDate'        => $rawDate,
                     'is_read'        => isset($readKeys[$key]),
@@ -165,8 +144,6 @@ class NotificationController extends Controller
                     $personOffice = 'FSUU Department';
                     $personEmail = 'N/A';
                     $refCode = 'TRK-INCIDENT';
-                    $officeName = 'Main Campus';
-                    $recOfficeId = null;
                     $itemName = 'Physical Unit';
                     $unitCodes = [];
 
@@ -181,45 +158,34 @@ class NotificationController extends Controller
                         $borrowId = $ins->inspectable_id ?: $ins->reference_id;
                         $borrow = DB::table('equipment_borrows')
                             ->leftJoin('tracking_numbers', 'equipment_borrows.tracking_number_id', '=', 'tracking_numbers.id')
-                            ->leftJoin('offices', 'equipment_borrows.office_id', '=', 'offices.id')
                             ->where('equipment_borrows.id', $borrowId)
-                            ->select('equipment_borrows.*', 'tracking_numbers.reference_code', 'offices.name as office_name', 'offices.id as office_id')
+                            ->select('equipment_borrows.*', 'tracking_numbers.reference_code')
                             ->first();
 
                         if ($borrow) {
-                            $recOfficeId = $borrow->office_id;
                             $personName = $borrow->filer_name ?? 'Borrower';
                             $personContact = $borrow->contact_number ?? 'N/A';
                             $personOffice = $borrow->program_office ?? 'Department';
                             $personEmail = $borrow->email_address ?? 'N/A';
                             $refCode = $borrow->reference_code ?? 'TRK-BORROW';
-                            $officeName = $borrow->office_name ?? 'AVR Office';
                         }
                     } elseif ($ins->inspectable_type === 'venue_booking' || $ins->reference_type === 'venue_booking' || str_contains($ins->inspectable_type ?? '', 'VenueBooking')) {
                         $bookingId = $ins->inspectable_id ?: $ins->reference_id;
                         $booking = DB::table('venue_bookings')
                             ->leftJoin('tracking_numbers', 'venue_bookings.tracking_number_id', '=', 'tracking_numbers.id')
                             ->leftJoin('venues', 'venue_bookings.venue_id', '=', 'venues.id')
-                            ->leftJoin('offices', 'venues.office_id', '=', 'offices.id')
                             ->where('venue_bookings.id', $bookingId)
-                            ->select('venue_bookings.*', 'venues.name as venue_name', 'tracking_numbers.reference_code', 'offices.name as office_name', 'offices.id as office_id')
+                            ->select('venue_bookings.*', 'venues.name as venue_name', 'tracking_numbers.reference_code')
                             ->first();
 
                         if ($booking) {
-                            $recOfficeId = $booking->office_id;
                             $personName = $booking->filer_name ?? 'Requestor';
                             $personContact = $booking->contact_number ?? 'N/A';
                             $personOffice = $booking->program_office ?? 'Department';
                             $personEmail = $booking->email_address ?? 'N/A';
                             $refCode = $booking->reference_code ?? 'TRK-VENUE';
-                            $officeName = $booking->office_name ?? 'AVR Office';
                             $itemName = $booking->venue_name ?? 'Venue Facility';
                         }
-                    }
-
-                    // Office restriction check
-                    if (!$isSuperAdmin && $officeId && $recOfficeId && (string)$recOfficeId !== (string)$officeId) {
-                        continue;
                     }
 
                     $rawDate = $ins->inspected_at ?? $ins->created_at ?? now();
@@ -244,7 +210,6 @@ class NotificationController extends Controller
                             'notes'             => $ins->notes ?: 'Physical equipment unit returned with damage.',
                             'evidence_photo'    => $ins->evidence_photo ?? null,
                             'ref'               => $refCode,
-                            'office'            => $officeName,
                             'priority'          => 'high',
                             'time'              => $formattedTime,
                             'rawDate'           => $rawDate,
@@ -267,7 +232,6 @@ class NotificationController extends Controller
                             'unit_code'         => !empty($unitCodes) ? implode(', ', $unitCodes) : 'N/A',
                             'notes'             => $ins->notes ?: 'Physical equipment unit not returned / marked lost.',
                             'ref'               => $refCode,
-                            'office'            => $officeName,
                             'priority'          => 'high',
                             'time'              => $formattedTime,
                             'rawDate'           => $rawDate,
@@ -294,7 +258,6 @@ class NotificationController extends Controller
                             'violation_details' => $violationTitle,
                             'notes'             => $ins->notes ?: "Violation: {$violationTitle}",
                             'ref'               => $refCode,
-                            'office'            => $officeName,
                             'priority'          => 'high',
                             'time'              => $formattedTime,
                             'rawDate'           => $rawDate,

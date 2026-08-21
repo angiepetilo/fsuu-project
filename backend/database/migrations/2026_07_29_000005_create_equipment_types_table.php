@@ -10,7 +10,6 @@ return new class extends Migration
     {
         Schema::create('equipment_types', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('office_id')->constrained('offices')->cascadeOnDelete();
             $table->string('eq_name');
             $table->string('eq_type');
             $table->string('barcode')->nullable();

@@ -49,22 +49,6 @@ class EquipmentBorrowingController extends Controller
             ->when($academicTermId, function ($query) use ($academicTermId) {
                 $query->where('academic_term_id', $academicTermId);
             })
-            ->when(!$user->isSuperAdmin(), function ($query) use ($user) {
-                $officeId = $user->office_id;
-                if ($officeId) {
-                    $query->where(function ($q) use ($officeId) {
-                        $q->where('office_id', $officeId)
-                          ->orWhereHas('items.equipmentType', fn ($sub) => $sub->where('office_id', $officeId));
-                    });
-                }
-            })
-            ->when($user->isSuperAdmin() && request()->filled('office_id') && request('office_id') !== 'all', function ($query) {
-                $officeId = request('office_id');
-                $query->where(function ($q) use ($officeId) {
-                    $q->where('office_id', $officeId)
-                      ->orWhereHas('items.equipmentType', fn ($sub) => $sub->where('office_id', $officeId));
-                });
-            })
             ->latest()
             ->paginate(25);
 

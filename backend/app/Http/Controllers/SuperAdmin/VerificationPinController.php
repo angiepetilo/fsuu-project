@@ -4,7 +4,6 @@ namespace App\Http\Controllers\SuperAdmin;
 
 use App\Http\Controllers\Controller;
 use App\Models\VerificationPinSetting;
-use App\Models\Office;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -15,16 +14,10 @@ class VerificationPinController extends Controller
      */
     public function show(Request $request): JsonResponse
     {
-        $user = $request->user();
-        $officeId = $user ? ($user->office_id ?: 1) : 1;
-
-        $setting = VerificationPinSetting::where('office_id', $officeId)
-            ->orWhereNull('office_id')
-            ->first();
+        $setting = VerificationPinSetting::first();
 
         if (!$setting) {
             $setting = VerificationPinSetting::create([
-                'office_id'                  => $officeId,
                 'master_pin'                 => '123456',
                 'is_enabled'                 => true,
                 'require_outside_hours'      => true,
@@ -37,7 +30,6 @@ class VerificationPinController extends Controller
 
         return response()->json([
             'id'                          => $setting->id,
-            'office_id'                   => $setting->office_id,
             'masterPin'                   => $setting->master_pin,
             'isEnabled'                   => (bool) $setting->is_enabled,
             'requirePinOutsideHours'      => (bool) $setting->require_outside_hours,
@@ -55,9 +47,6 @@ class VerificationPinController extends Controller
      */
     public function update(Request $request): JsonResponse
     {
-        $user = $request->user();
-        $officeId = $user ? ($user->office_id ?: 1) : 1;
-
         $validated = $request->validate([
             'masterPin'                   => 'nullable|string|min:4|max:10',
             'isEnabled'                   => 'nullable|boolean',
@@ -70,12 +59,10 @@ class VerificationPinController extends Controller
             'pinMode'                     => 'nullable|string',
         ]);
 
-        $setting = VerificationPinSetting::where('office_id', $officeId)
-            ->orWhereNull('office_id')
-            ->first();
+        $setting = VerificationPinSetting::first();
 
         if (!$setting) {
-            $setting = new VerificationPinSetting(['office_id' => $officeId]);
+            $setting = new VerificationPinSetting();
         }
 
         if (isset($validated['masterPin']) && !empty($validated['masterPin'])) {
@@ -113,7 +100,6 @@ class VerificationPinController extends Controller
         return response()->json([
             'message'                     => 'Verification PIN & trigger rules saved successfully.',
             'id'                          => $setting->id,
-            'office_id'                   => $setting->office_id,
             'masterPin'                   => $setting->master_pin,
             'isEnabled'                   => (bool) $setting->is_enabled,
             'requirePinOutsideHours'      => (bool) $setting->require_outside_hours,

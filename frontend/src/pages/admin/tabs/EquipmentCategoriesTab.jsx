@@ -2,14 +2,9 @@ import { useState, useEffect } from "react";
 import { Plus, Pencil, Trash2, X, Package, Loader2, Image as ImageIcon, ChevronLeft, ChevronRight, Camera, MoreVertical } from "lucide-react";
 import api from "@/lib/axios";
 import notify from "@/lib/notify";
-import { useAuth } from "@/context/AuthContext";
 
 export default function EquipmentCategoriesTab({ showMsg }) {
-  const { user } = useAuth();
-  const userOfficeId = user?.office_id ?? user?.office?.id ?? null;
-
   const [categories, setCategories] = useState([]);
-  const [offices, setOffices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editItem, setEditItem] = useState(null);
@@ -36,21 +31,15 @@ export default function EquipmentCategoriesTab({ showMsg }) {
     total_quantity: 0,
     available_count: 0,
     status: "available",
-    office_id: "",
     description: "",
   });
 
   const fetchCategories = async () => {
     setLoading(true);
     try {
-      const [catRes, offRes] = await Promise.all([
-        api.get("/admin/equipment-types"),
-        api.get("/admin/offices").catch(() => ({ data: [] })),
-      ]);
-
+      const catRes = await api.get("/admin/equipment-types");
       const rawCats = Array.isArray(catRes.data) ? catRes.data : [];
       setCategories(rawCats);
-      setOffices(Array.isArray(offRes.data) ? offRes.data : []);
     } catch {
       const saved = JSON.parse(localStorage.getItem("fsuu_equipment_types") || "[]");
       setCategories(saved);
@@ -91,7 +80,6 @@ export default function EquipmentCategoriesTab({ showMsg }) {
       total_quantity: 0,
       available_count: 0,
       status: "available",
-      office_id: offices[0]?.id || userOfficeId || "",
       description: "",
     });
     setShowModal(true);
@@ -106,7 +94,6 @@ export default function EquipmentCategoriesTab({ showMsg }) {
       total_quantity: cat.total_quantity || 0,
       available_count: cat.available_count || 0,
       status: cat.status || "available",
-      office_id: cat.office_id || offices[0]?.id || userOfficeId || "",
       description: cat.description || "",
     });
     setShowModal(true);
@@ -116,12 +103,9 @@ export default function EquipmentCategoriesTab({ showMsg }) {
     e.preventDefault();
     setFormLoading(true);
 
-    const resolvedOfficeId = form.office_id || offices[0]?.id || userOfficeId;
-
     const payload = {
       ...form,
       eq_type: form.eq_type || "AV Equipment",
-      office_id: resolvedOfficeId ? parseInt(resolvedOfficeId, 10) : null,
       total_quantity: parseInt(form.total_quantity, 10) || 0,
       available_count: parseInt(form.available_count, 10) || 0,
       avatar: form.avatar || null,
@@ -139,112 +123,109 @@ export default function EquipmentCategoriesTab({ showMsg }) {
       setShowModal(false);
       setEditItem(null);
       fetchCategories();
-      window.dispatchEvent(new Event("equipment_inventory_updated"));
     } catch (err) {
-      const msg = err.response?.data?.message || "Failed to save equipment category.";
-      notify.error("Category Save Failed", msg);
+      notify.error("Action Failed", err.response?.data?.message || "Failed to save category.");
     } finally {
       setFormLoading(false);
     }
   };
 
   const handleDelete = async (id, name) => {
-    if (confirm(`Archive equipment category "${name}"? Soft-delete will apply.`)) {
-      try {
-        await api.delete(`/admin/equipment-types/${id}`);
-        notify.error("Category Archived", `Equipment category "${name}" has been archived.`);
-        fetchCategories();
-        window.dispatchEvent(new Event("equipment_inventory_updated"));
-      } catch {
-        notify.error("Archive Failed", "Failed to archive equipment category.");
-      }
+    if (!window.confirm(`Are you sure you want to archive category "${name}"?`)) return;
+    try {
+      await api.delete(`/admin/equipment-types/${id}`);
+      notify.success("Category Archived", `Equipment category "${name}" archived successfully.`);
+      fetchCategories();
+    } catch (err) {
+      notify.error("Archive Failed", err.response?.data?.message || "Failed to archive category.");
     }
   };
 
   return (
     <div className="space-y-4">
-      {/* Header bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
+      {/* Top Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs">
         <div>
           <h3 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
-            Equipment Categories
+            Equipment Catalog Categories
           </h3>
-          <p className="text-xs text-slate-500 font-semibold mt-0.5">
-            Create and manage equipment category classifications and inventory records.
+          <p className="text-xs text-slate-500 font-medium mt-0.5">
+            Add categories with visual photo avatars to represent equipment models available for borrowing.
           </p>
         </div>
-
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={handleOpenAddModal}
-            className="flex items-center gap-2 px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-2xs transition-colors cursor-pointer"
-          >
-            <Plus size={14} /> Add Equipment Category
-          </button>
-        </div>
+        <button
+          onClick={handleOpenAddModal}
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-extrabold shadow-sm transition-all cursor-pointer"
+        >
+          <Plus size={15} /> Add Category
+        </button>
       </div>
 
-      {/* Equipment Catalog Table */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-        <table className="w-full text-xs">
+      {/* Main Table: [Avatar, Category Name, Total, Available, Reserved, Released, Damaged, Lost, Action] */}
+      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+        <table className="w-full text-left text-xs border-collapse">
           <thead>
-            <tr className="border-b border-slate-100 text-left text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider">
-              {["#", "Avatar", "Equipment Category", "Total Stock", "Qty Present", "Reserved", "Released", "Damaged", "Lost", "Actions"].map((h) => (
-                <th key={h} className="px-4 py-3 whitespace-nowrap">
-                  {h}
-                </th>
-              ))}
+            <tr className="bg-slate-50/80 border-b border-slate-200/80 text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">
+              <th className="px-4 py-3.5 w-16">Avatar</th>
+              <th className="px-4 py-3.5">Category Name</th>
+              <th className="px-4 py-3.5">Total</th>
+              <th className="px-4 py-3.5">Available</th>
+              <th className="px-4 py-3.5">Reserved</th>
+              <th className="px-4 py-3.5">Released</th>
+              <th className="px-4 py-3.5">Damaged</th>
+              <th className="px-4 py-3.5">Lost</th>
+              <th className="px-4 py-3.5 w-20 text-center">Action</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100 font-semibold">
+          <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
             {loading ? (
               <tr>
-                <td colSpan={10} className="text-center py-10 text-slate-400 font-medium">
-                  <Loader2 size={16} className="animate-spin inline mr-2 text-slate-600" /> Loading catalog...
+                <td colSpan={9} className="text-center py-10 text-slate-400">
+                  <div className="flex items-center justify-center gap-2">
+                    <Loader2 size={16} className="animate-spin text-blue-600" />
+                    <span>Loading equipment categories...</span>
+                  </div>
                 </td>
               </tr>
-            ) : categories.length === 0 ? (
+            ) : paginatedCategories.length === 0 ? (
               <tr>
-                <td colSpan={10} className="text-center py-10 text-slate-400 font-medium">
-                  No equipment categories registered.
+                <td colSpan={9} className="text-center py-10 text-slate-400">
+                  📦 No equipment categories registered yet. Click "Add Category" to get started.
                 </td>
               </tr>
             ) : (
-              paginatedCategories.map((cat, idx) => {
-                const displayIndex = startIndex + idx + 1;
-                const total = cat.total_quantity ?? 0;
-                const released = cat.released_count || 0;
-                const damaged = cat.damaged_count || 0;
-                const lost = cat.lost_count || 0;
-                const reserved = cat.reserved_count || cat.reserved || 0;
-                const available = typeof cat.available_count === "number" ? cat.available_count : Math.max(0, total - released - damaged - lost);
+              paginatedCategories.map((cat) => {
+                const total = cat.total_quantity ?? cat.total_units ?? 0;
+                const available = cat.available_count ?? total;
+                const reserved = cat.reserved_count ?? 0;
+                const released = cat.released_count ?? 0;
+                const damaged = cat.damaged_count ?? 0;
+                const lost = cat.lost_count ?? 0;
 
                 return (
-                  <tr key={cat.id || idx} className="hover:bg-slate-50/60 transition-colors">
-                    <td className="px-4 py-3 font-mono font-bold text-slate-400">{displayIndex}</td>
+                  <tr key={cat.id} className="hover:bg-slate-50/80 transition-colors">
                     <td className="px-4 py-3">
-                      <div className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-200 overflow-hidden flex items-center justify-center">
+                      <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 overflow-hidden flex items-center justify-center shadow-inner shrink-0">
                         {cat.avatar ? (
-                          <img src={cat.avatar} alt={cat.eq_name} className="w-full h-full object-cover" />
+                          <img src={cat.avatar} alt={cat.eq_name || cat.name} className="w-full h-full object-cover" />
                         ) : (
-                          <Package size={16} className="text-slate-400" />
+                          <Package size={18} className="text-slate-400" />
                         )}
                       </div>
                     </td>
-                    <td className="px-4 py-3 max-w-[200px]">
-                      <div className="flex items-center gap-2">
-                        <span className="font-extrabold text-slate-900 text-xs truncate" title={cat.eq_name || cat.name}>{cat.eq_name || cat.name}</span>
-                      </div>
-                      <span className="text-[10.5px] text-slate-500 font-mono truncate block" title={cat.eq_type || "AV Equipment"}>{cat.eq_type || "AV Equipment"}</span>
+                    <td className="px-4 py-3">
+                      <div className="font-extrabold text-slate-900 text-xs">{cat.eq_name || cat.name}</div>
+                      {cat.description && (
+                        <div className="text-[11px] text-slate-400 truncate max-w-xs">{cat.description}</div>
+                      )}
                     </td>
                     <td className="px-4 py-3 font-mono font-bold text-slate-900">
-                      <span className="bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200">
+                      <span className="px-2.5 py-1 rounded-lg bg-slate-100 border border-slate-200 inline-flex items-center">
                         {total}
                       </span>
                     </td>
-                    <td className="px-4 py-3 font-mono font-extrabold text-emerald-700">
-                      <span className="bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200 inline-flex items-center">
+                    <td className="px-4 py-3 font-mono font-bold text-emerald-700">
+                      <span className="px-2.5 py-1 rounded-lg bg-emerald-50 border border-emerald-200 inline-flex items-center">
                         {available}
                       </span>
                     </td>
@@ -371,7 +352,7 @@ export default function EquipmentCategoriesTab({ showMsg }) {
         </div>
       )}
 
-      {/* Equipment Category Modal - Unified Clean Design */}
+      {/* Equipment Category Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-[1500] flex items-center justify-center p-4 animate-in fade-in">
           <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl animate-in zoom-in-95 border border-slate-100 space-y-4">

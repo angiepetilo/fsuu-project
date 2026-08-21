@@ -10,7 +10,6 @@ return new class extends Migration
     {
         Schema::create('booking_requirements', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('office_id')->nullable()->constrained('offices')->nullOnDelete();
             $table->string('classification')->default('all');
             $table->string('label');
             $table->text('description')->nullable();

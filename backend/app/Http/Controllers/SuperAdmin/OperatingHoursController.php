@@ -15,7 +15,6 @@ class OperatingHoursController extends Controller
 
         if (!$hours) {
             return response()->json([
-                'office_id'           => 1,
                 'venue_open'          => '07:30',
                 'venue_close'         => '17:00',
                 'equipment_open'      => '08:00',
@@ -31,15 +30,10 @@ class OperatingHoursController extends Controller
 
     public function show(Request $request): JsonResponse
     {
-        $user = $request->user();
-        $officeId = $user->office_id ?: 1;
-
-        $hours = OperatingHour::where('office_id', $officeId)->first();
+        $hours = OperatingHour::first();
 
         if (!$hours) {
-            // Return sensible defaults if not configured yet
             return response()->json([
-                'office_id'           => $officeId,
                 'venue_open'          => '07:00',
                 'venue_close'         => '17:00',
                 'equipment_open'      => '07:00',
@@ -55,9 +49,6 @@ class OperatingHoursController extends Controller
 
     public function update(Request $request): JsonResponse
     {
-        $user = $request->user();
-        $officeId = $user->office_id ?: 1;
-
         $data = $request->validate([
             'venue_open'          => 'required',
             'venue_close'         => 'required',
@@ -80,12 +71,13 @@ class OperatingHoursController extends Controller
         $data['venue_close'] = $formatTime($data['venue_close']);
         $data['equipment_open'] = $formatTime($data['equipment_open']);
         $data['equipment_close'] = $formatTime($data['equipment_close']);
-        $data['office_id'] = $officeId;
 
-        $hours = OperatingHour::updateOrCreate(
-            ['office_id' => $officeId],
-            $data
-        );
+        $hours = OperatingHour::first();
+        if ($hours) {
+            $hours->update($data);
+        } else {
+            $hours = OperatingHour::create($data);
+        }
 
         return response()->json($hours);
     }

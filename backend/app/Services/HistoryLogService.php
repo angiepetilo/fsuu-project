@@ -11,12 +11,11 @@ class HistoryLogService
     /**
      * Fetch and format completed/archived venue booking history records
      */
-    public function getVenueBookingsHistory(?int $officeId, bool $isSuperAdmin, ?int $academicTermId = null): Collection
+    public function getVenueBookingsHistory(?int $officeId = null, bool $isSuperAdmin = true, ?int $academicTermId = null): Collection
     {
         $vbQuery = DB::table('venue_bookings')
             ->join('tracking_numbers', 'venue_bookings.tracking_number_id', '=', 'tracking_numbers.id')
             ->leftJoin('venues', 'venue_bookings.venue_id', '=', 'venues.id')
-            ->leftJoin('offices', 'venues.office_id', '=', 'offices.id')
             ->leftJoin('inspections', function ($join) {
                 $join->on('venue_bookings.id', '=', 'inspections.inspectable_id')
                      ->where('inspections.inspectable_type', 'App\\Models\\VenueBooking');
@@ -48,8 +47,6 @@ class HistoryLogService
                 'venue_bookings.contact_number as contact_no',
                 'venue_bookings.equipment_notes',
                 'venues.name as venue_name',
-                'offices.name as office_name',
-                'offices.id as office_id',
                 'tracking_numbers.reference_code',
                 'tracking_numbers.status',
                 'inspections.condition as inspection_condition',
@@ -94,11 +91,10 @@ class HistoryLogService
     /**
      * Fetch and format completed/archived equipment borrowing history records
      */
-    public function getEquipmentBorrowingsHistory(?int $officeId, bool $isSuperAdmin, ?int $academicTermId = null): Collection
+    public function getEquipmentBorrowingsHistory(?int $officeId = null, bool $isSuperAdmin = true, ?int $academicTermId = null): Collection
     {
         $ebQuery = DB::table('equipment_borrows')
             ->join('tracking_numbers', 'equipment_borrows.tracking_number_id', '=', 'tracking_numbers.id')
-            ->leftJoin('offices', 'equipment_borrows.office_id', '=', 'offices.id')
             ->leftJoin('inspections', function ($join) {
                 $join->on('equipment_borrows.id', '=', 'inspections.inspectable_id')
                      ->where('inspections.inspectable_type', 'App\\Models\\EquipmentBorrow');
@@ -124,8 +120,6 @@ class HistoryLogService
                 'equipment_borrows.time_end',
                 'equipment_borrows.purpose',
                 'equipment_borrows.contact_number as contact_no',
-                'offices.name as office_name',
-                'offices.id as office_id',
                 'tracking_numbers.reference_code',
                 'tracking_numbers.status',
                 'inspections.condition as inspection_condition',

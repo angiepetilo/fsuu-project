@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\VenueBooking;
 use App\Models\EntryVerification;
 use App\Models\User;
+use App\Models\VerificationPinSetting;
 use Illuminate\Auth\Access\AuthorizationException;
 
 class EntryVerificationService
@@ -17,9 +18,10 @@ class EntryVerificationService
         string $contactMethodVerified,
         string $rawPin
     ): EntryVerification {
-        $office = $booking->venue->office;
+        $setting = VerificationPinSetting::first();
+        $masterPin = $setting ? $setting->master_pin : '123456';
 
-        if (! $office->checkPin($rawPin)) {
+        if ($rawPin !== $masterPin) {
             throw new AuthorizationException('Invalid PIN.');
         }
 

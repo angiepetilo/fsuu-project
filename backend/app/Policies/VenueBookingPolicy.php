@@ -16,8 +16,7 @@ class VenueBookingPolicy
 
     public function view(User $user, VenueBooking $booking): bool
     {
-        return $this->belongsToUsersOffice($user, $booking)
-            || $this->userCanViewViaOversight($user, $booking);
+        return true;
     }
 
     public function create(User $user): bool
@@ -27,12 +26,8 @@ class VenueBookingPolicy
 
     public function approve(User $user, VenueBooking $booking): bool
     {
-        if ($user->isSuperAdmin()) {
+        if ($user->isSuperAdmin() || $user->isAdmin()) {
             return true;
-        }
-
-        if (!$this->belongsToUsersOffice($user, $booking)) {
-            return false;
         }
 
         if (method_exists($user, 'hasPermission')) {
@@ -44,12 +39,8 @@ class VenueBookingPolicy
 
     public function reject(User $user, VenueBooking $booking): bool
     {
-        if ($user->isSuperAdmin()) {
+        if ($user->isSuperAdmin() || $user->isAdmin()) {
             return true;
-        }
-
-        if (!$this->belongsToUsersOffice($user, $booking)) {
-            return false;
         }
 
         if (method_exists($user, 'hasPermission')) {
@@ -61,8 +52,8 @@ class VenueBookingPolicy
 
     public function cancel(User $user, VenueBooking $booking): bool
     {
-        if (! $this->belongsToUsersOffice($user, $booking)) {
-            return false;
+        if ($user->isSuperAdmin() || $user->isAdmin()) {
+            return true;
         }
 
         if (! $user->hasPermission(PermissionArea::VenueBooking, PermissionAction::Approve)) {
@@ -80,35 +71,6 @@ class VenueBookingPolicy
 
     public function assignUnit(User $user, VenueBooking $booking): bool
     {
-        return $this->belongsToUsersOffice($user, $booking);
-    }
-
-    private function belongsToUsersOffice(User $user, VenueBooking $booking): bool
-    {
-        if ($user->isSuperAdmin()) {
-            return true;
-        }
-
-        if (empty($user->office_id)) {
-            return true;
-        }
-
-        $venueOfficeId = $booking->venue?->office_id ?? \App\Models\Venue::where('id', $booking->venue_id)->value('office_id');
-        if (empty($venueOfficeId)) {
-            return true;
-        }
-
-        return (int)$user->office_id === (int)$venueOfficeId;
-    }
-
-    private function userCanViewViaOversight(User $user, VenueBooking $booking): bool
-    {
-        $userOffice = $user->office;
-
-        if (! $userOffice) {
-            return false;
-        }
-
-        return $userOffice->can_view_office_id === $booking->venue->office_id;
+        return true;
     }
 }
