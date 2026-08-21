@@ -81,7 +81,7 @@ export default function EquipmentBorrowings() {
   // Filter active borrowings (completed/rejected/cancelled transfer directly to History Log)
   const filteredBorrowings = borrowings.filter(b => {
     const s = (b.status || b.tracking_number?.status || "").toLowerCase();
-    const notDone = s !== "completed" && s !== "rejected" && s !== "cancelled";
+    const notDone = !["completed", "rejected", "cancelled", "damaged", "lost", "late return", "returned late"].includes(s);
     if (!notDone) return false;
 
     if (selectedOfficeId && selectedOfficeId !== "all") {

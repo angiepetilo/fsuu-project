@@ -33,6 +33,8 @@ class VenueController extends Controller
             'location'  => 'nullable|string|max:255',
             'capacity'  => 'nullable|integer|min:1',
             'status'    => 'nullable|string',
+            'allowed_equipment' => 'nullable|array',
+            'allowed_equipment.*' => 'integer|exists:equipment_types,id',
         ]);
 
         if (empty($data['office_id']) && $user && $user->office_id) {
@@ -68,6 +70,8 @@ class VenueController extends Controller
             'location'  => 'nullable|string|max:255',
             'capacity'  => 'sometimes|integer|min:1',
             'status'    => 'sometimes|string',
+            'allowed_equipment' => 'nullable|array',
+            'allowed_equipment.*' => 'integer|exists:equipment_types,id',
         ]);
 
         if (array_key_exists('avatar', $data) && !empty($data['avatar'])) {

@@ -447,7 +447,10 @@ class VenueBookingService
                 }
             }
 
-            $newStatus = ($hasDamageOrLoss || !empty($data['has_damage']) || ($data['status'] ?? '') === 'damaged' || ($data['inspection_status'] ?? '') === 'violation' || ($data['condition'] ?? '') === 'damaged')
+            // Note: We no longer force $newStatus to 'damaged' just because $hasDamageOrLoss is true.
+            // This allows the venue's overall Inspection Outcome to remain 'Satisfactory' (completed) 
+            // even if a borrowed equipment unit is damaged, as per user request.
+            $newStatus = (!empty($data['has_damage']) || ($data['status'] ?? '') === 'damaged' || ($data['inspection_status'] ?? '') === 'violation' || ($data['condition'] ?? '') === 'damaged')
                 ? 'damaged'
                 : 'completed';
 

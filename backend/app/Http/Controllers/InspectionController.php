@@ -20,6 +20,19 @@ class InspectionController extends Controller
             });
         }
 
+        $refType = $request->query('reference_type') ?? $request->query('inspectable_type');
+        if ($refType) {
+            $query->where(function ($q) use ($refType) {
+                if ($refType === 'avr_venue_booking' || $refType === 'venue_booking' || $refType === 'App\Models\VenueBooking') {
+                    $q->whereIn('inspectable_type', ['avr_venue_booking', 'venue_booking', 'App\Models\VenueBooking'])
+                      ->orWhereIn('reference_type', ['avr_venue_booking', 'venue_booking', 'App\Models\VenueBooking']);
+                } else {
+                    $q->where('inspectable_type', $refType)
+                      ->orWhere('reference_type', $refType);
+                }
+            });
+        }
+
         return response()->json($query->get());
     }
 

@@ -156,8 +156,17 @@ export default function EquipmentStockTab({
           const mappedStatus = draft.condition === 'Worn' ? 'maintenance' : (draft.condition === 'Damaged' ? 'damaged' : (draft.condition === 'Lost' ? 'decommissioned' : 'available'));
 
           if (typeof item.id === 'number' && item.id < 1000000) {
+            const finalReleased = draft.qty_released ?? (item.released_count || 0);
+            const finalDamaged = draft.qty_damaged ?? (item.damaged_count || 0);
+            const finalLost = draft.qty_lost ?? (item.lost_count || 0);
+            const total = item.calculated_total ?? item.total_quantity ?? 0;
+            const newAvailable = Math.max(0, total - finalReleased - finalDamaged - finalLost);
+
             return api.put(`/admin/equipment-types/${item.id}`, {
-              available_count: (item.total_quantity || 0) - (draft.qty_released || 0) - (draft.qty_damaged || 0) - (draft.qty_lost || 0),
+              available_count: newAvailable,
+              damaged_count: finalDamaged,
+              lost_count: finalLost,
+              released_count: finalReleased,
               status: mappedStatus,
               description: draft.notes,
             }).catch(() => null);

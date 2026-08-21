@@ -442,60 +442,95 @@ export default function Step2Equipment({
             })()}
 
             {/* Wish to Extend Return Borrowing Gate */}
-            <div className="p-3.5 rounded-2xl bg-amber-50/80 border border-amber-200/80 space-y-2">
-              <label className="flex items-start gap-2.5 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={wishesToExtend || false}
-                  onChange={(e) => {
-                    const checked = e.target.checked;
-                    setWishesToExtend && setWishesToExtend(checked);
-                    if (!checked && setIsPinVerified) setIsPinVerified(false);
-                  }}
-                  className="mt-0.5 w-4 h-4 text-blue-600 rounded-md border-amber-300 focus:ring-blue-500"
-                />
-                <div>
-                  <span className="font-extrabold text-slate-900 text-xs">Wish to Extend Return Borrowing</span>
-                  <p className="text-[10px] text-slate-600 font-medium leading-tight mt-0.5">
-                    Check if returning next-day or extending beyond standard 5:00 PM cutoff.
-                  </p>
-                </div>
-              </label>
+            {(() => {
+              let diffDays = 0;
+              const dateEnd = getDatePart(endTime);
+              if (dateEnd && currentDate && dateEnd > currentDate) {
+                const startD = new Date(currentDate);
+                const endD = new Date(dateEnd);
+                const diffTime = endD - startD;
+                diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+              }
+              const isMultiDay = diffDays > 2;
+              const requiresPinForMultiDay = (pinRules?.requirePinMultiDayEquipment !== false) && isMultiDay;
 
-              {wishesToExtend && (
-                <div className="pt-2 border-t border-amber-200/60 space-y-2 animate-in fade-in duration-200">
-                  {!isPinVerified ? (
-                    <div className="space-y-2">
-                      <div className="text-[11px] font-bold text-amber-900 flex items-center gap-1.5">
-                        <XCircle size={14} className="text-amber-600 shrink-0" />
-                        <span>AVR Head / Admin PIN verification required before proceeding.</span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (setPinModalMeta) {
-                            setPinModalMeta({
-                              title: "Multi-Day Return Extension PIN",
-                              description: "Next-day or extended equipment returns require AVR Head / Admin Verification PIN to proceed.",
-                            });
-                          }
-                          setShowPinModal && setShowPinModal(true);
-                        }}
-                        className="w-full py-2 px-3 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs shadow-xs transition-all cursor-pointer flex items-center justify-center gap-1.5"
-                      >
-                        <Clock size={14} />
-                        <span>Verify AVR Head PIN Now</span>
-                      </button>
+              return (
+                <div className="p-3.5 rounded-2xl bg-amber-50/80 border border-amber-200/80 space-y-2">
+                  <label className="flex items-start gap-2.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={wishesToExtend || false}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        setWishesToExtend && setWishesToExtend(checked);
+                        if (!checked) {
+                          setEndTime && setEndTime(`${currentDate}T${endTimeVal}`);
+                          if (setIsPinVerified) setIsPinVerified(false);
+                        }
+                      }}
+                      className="mt-0.5 w-4 h-4 text-blue-600 rounded-md border-amber-300 focus:ring-blue-500"
+                    />
+                    <div>
+                      <span className="font-extrabold text-slate-900 text-xs">Wish to Extend Return Borrowing</span>
+                      <p className="text-[10px] text-slate-600 font-medium leading-tight mt-0.5">
+                        Check if returning next-day or extending beyond standard 5:00 PM cutoff.
+                      </p>
                     </div>
-                  ) : (
-                    <div className="p-2 rounded-xl bg-emerald-100 border border-emerald-300 text-emerald-900 text-xs font-extrabold flex items-center gap-2">
-                      <Check size={16} className="text-emerald-700" />
-                      <span>AVR Head PIN Verified for Extension</span>
+                  </label>
+
+                  {wishesToExtend && (
+                    <div className="pt-2 border-t border-amber-200/60 space-y-2 animate-in fade-in duration-200">
+                      <div className="flex flex-col gap-1.5 pb-2">
+                        <label className="text-xs font-extrabold text-slate-800">Return End Date (Multi-Day)</label>
+                        <input
+                          type="date"
+                          min={currentDate || getTodayISO()}
+                          value={dateEnd || currentDate || ''}
+                          onChange={e => {
+                            const newDate = e.target.value;
+                            if (setEndTime) setEndTime(`${newDate}T${endTimeVal}`);
+                          }}
+                          className={`w-full px-3.5 py-2 bg-white border rounded-xl text-xs font-extrabold text-slate-900 focus:outline-none transition-all shadow-inner ${dateEnd < currentDate ? 'border-rose-500 focus:border-rose-600' : 'border-slate-200 focus:border-blue-600'}`}
+                        />
+                      </div>
+
+                      {requiresPinForMultiDay && (
+                        !isPinVerified ? (
+                          <div className="space-y-2">
+                            <div className="text-[11px] font-bold text-amber-900 flex items-center gap-1.5">
+                              <XCircle size={14} className="text-amber-600 shrink-0" />
+                              <span>Extension exceeds 2 days. AVR Head / Admin PIN verification required.</span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (setPinModalMeta) {
+                                  setPinModalMeta({
+                                    title: "Extended Borrowing PIN",
+                                    description: "This equipment borrowing spans more than two days. AVR Head / Admin Verification PIN is required to authorize extended borrowing.",
+                                  });
+                                }
+                                setShowPinModal && setShowPinModal(true);
+                              }}
+                              className="w-full py-2 px-3 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs shadow-xs transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                            >
+                              <Clock size={14} />
+                              <span>Verify AVR Head PIN Now</span>
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="p-2 rounded-xl bg-emerald-100 border border-emerald-300 text-emerald-900 text-xs font-extrabold flex items-center gap-2">
+                            <Check size={16} className="text-emerald-700" />
+                            <span>AVR Head PIN Verified for Extension</span>
+                          </div>
+                        )
+                      )}
                     </div>
                   )}
                 </div>
-              )}
-            </div>
+              );
+            })()}
+
           </div>
         </div>
       </div>
@@ -517,7 +552,19 @@ export default function Step2Equipment({
           const kioskClose = opHours?.equipment_close?.substring(0, 5) || "17:00";
           const isOutside = startTimeVal < kioskOpen || endTimeVal > kioskClose;
           const requiresPinForOutside = (pinRules?.requirePinOutsideHours !== false) && isOutside;
-          const requiresPin = wishesToExtend || requiresPinForOutside || (pinRules?.enableExternalEquipment !== false && identity === "external");
+          
+          let diffDays = 0;
+          const dateEnd = getDatePart(endTime);
+          if (dateEnd && currentDate && dateEnd > currentDate) {
+            const startD = new Date(currentDate);
+            const endD = new Date(dateEnd);
+            const diffTime = endD - startD;
+            diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          }
+          const isMultiDay = diffDays > 2;
+          const requiresPinForMultiDay = (pinRules?.requirePinMultiDayEquipment !== false) && isMultiDay;
+          
+          const requiresPin = requiresPinForMultiDay || requiresPinForOutside || (pinRules?.enableExternalEquipment !== false && identity === "external");
           const isBlocked = requiresPin && !isPinVerified;
 
           return (
@@ -528,6 +575,7 @@ export default function Step2Equipment({
                   !selectedItems ||
                   selectedItems.length === 0 ||
                   isPastDateTime(currentDate, startTimeVal) ||
+                  (getDatePart(endTime) < currentDate) ||
                   isBlocked
                 }
                 onClick={handleEquipmentSubmit}

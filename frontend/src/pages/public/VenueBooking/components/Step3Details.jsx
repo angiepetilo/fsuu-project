@@ -227,7 +227,21 @@ export default function Step3Details({
 
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 text-xs pt-1">
                 {(() => {
-                  const catalogToRender = equipmentCatalog.map(e => ({
+                  let baseCatalog = equipmentCatalog;
+                  
+                  if (selectedVenue?.allowed_equipment && Array.isArray(selectedVenue.allowed_equipment)) {
+                    if (selectedVenue.allowed_equipment.length > 0) {
+                      baseCatalog = equipmentCatalog.filter(e => selectedVenue.allowed_equipment.includes(e.id));
+                    } else {
+                      baseCatalog = []; // empty array means no equipment allowed
+                    }
+                  }
+
+                  if (!baseCatalog || baseCatalog.length === 0) {
+                    return <div className="col-span-full text-slate-500 italic text-center py-4 bg-white rounded-xl border border-dashed border-slate-200">No equipment configured or available for this venue.</div>;
+                  }
+
+                  const catalogToRender = baseCatalog.map(e => ({
                     id: e.id || e.eq_name || e.name,
                     name: e.eq_name || e.name || e.category,
                     available_count: e.available_count ?? e.available_quantity,

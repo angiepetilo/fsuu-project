@@ -12,6 +12,7 @@ export default function VenuesTab({ showMsg }) {
 
   const [venues, setVenues] = useState([]);
   const [offices, setOffices] = useState([]);
+  const [equipmentCatalog, setEquipmentCatalog] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editItem, setEditItem] = useState(null);
@@ -24,17 +25,20 @@ export default function VenuesTab({ showMsg }) {
     status: "available",
     location: "",
     capacity: 100,
+    allowed_equipment: [],
   });
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [venueRes, offRes] = await Promise.all([
+      const [venueRes, offRes, equipRes] = await Promise.all([
         api.get("/admin/venues"),
         api.get("/admin/offices").catch(() => ({ data: [] })),
+        api.get("/public/equipment-types").catch(() => ({ data: [] })),
       ]);
       setVenues(Array.isArray(venueRes.data) ? venueRes.data : []);
       setOffices(Array.isArray(offRes.data) ? offRes.data : []);
+      setEquipmentCatalog(Array.isArray(equipRes.data) ? equipRes.data : []);
     } catch {
       setVenues([]);
     } finally {
@@ -72,6 +76,7 @@ export default function VenuesTab({ showMsg }) {
       status: form.status || "available",
       location: form.location || null,
       capacity: parseInt(form.capacity, 10) || 100,
+      allowed_equipment: form.allowed_equipment || [],
     };
 
     try {
@@ -102,6 +107,7 @@ export default function VenuesTab({ showMsg }) {
             location: form.location,
             capacity: form.capacity,
             status: form.status || 'Available',
+            allowed_equipment: form.allowed_equipment || [],
           };
           if (idx >= 0) list[idx] = { ...list[idx], ...formatted };
           else list.push(formatted);
@@ -155,6 +161,7 @@ export default function VenuesTab({ showMsg }) {
               status: "available",
               location: "",
               capacity: 100,
+              allowed_equipment: [],
             });
             setShowModal(true);
           }}
@@ -229,6 +236,7 @@ export default function VenuesTab({ showMsg }) {
                           status: v.status || "available",
                           location: v.location || "",
                           capacity: v.capacity || 100,
+                          allowed_equipment: v.allowed_equipment || [],
                         });
                         setShowModal(true);
                       }}
@@ -325,6 +333,32 @@ export default function VenuesTab({ showMsg }) {
                     onChange={(e) => setForm({ ...form, capacity: e.target.value })}
                     className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:outline-none focus:border-blue-600 text-xs"
                   />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-900 mb-2">Allowed Equipment for this Venue (Optional)</label>
+                <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl max-h-40 overflow-y-auto grid grid-cols-2 gap-2">
+                  {equipmentCatalog.map(eq => (
+                    <label key={eq.id} className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        className="accent-blue-600 w-4 h-4"
+                        checked={form.allowed_equipment.includes(eq.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setForm({ ...form, allowed_equipment: [...form.allowed_equipment, eq.id] });
+                          } else {
+                            setForm({ ...form, allowed_equipment: form.allowed_equipment.filter(id => id !== eq.id) });
+                          }
+                        }}
+                      />
+                      <span className="text-xs font-semibold text-slate-700">{eq.name}</span>
+                    </label>
+                  ))}
+                  {equipmentCatalog.length === 0 && (
+                    <span className="text-xs text-slate-500 italic col-span-2">No equipment catalog found.</span>
+                  )}
                 </div>
               </div>
 
