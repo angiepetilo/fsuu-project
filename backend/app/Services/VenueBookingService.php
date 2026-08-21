@@ -112,7 +112,14 @@ class VenueBookingService
             ];
 
             if (\Illuminate\Support\Facades\Schema::hasColumn('venue_bookings', 'academic_term_id')) {
-                $insertData['academic_term_id'] = \Illuminate\Support\Facades\DB::table('academic_terms')->where('is_active', true)->value('id') ?? 1;
+                $activeTermId = null;
+                if (\Illuminate\Support\Facades\Schema::hasTable('academic_terms')) {
+                    $activeTermId = \Illuminate\Support\Facades\DB::table('academic_terms')
+                        ->where('is_active', true)
+                        ->value('id')
+                        ?: \Illuminate\Support\Facades\DB::table('academic_terms')->value('id');
+                }
+                $insertData['academic_term_id'] = $activeTermId ?: null;
             }
 
             if (!empty($data['endorsement_url'])) {

@@ -209,14 +209,17 @@ export default function EquipmentBorrowing() {
       const diffTime = endD - startD;
       diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     }
-    const isMultiDay = diffDays > 2;
+    // More than 1 day (spans 2 or more days)
+    const isMultiDay = diffDays >= 1;
 
-    const outsideRequiresPin = (pinRules?.requirePinOutsideHours !== false) && isOutsideHours;
-    const multiDayRequiresPin = (pinRules?.requirePinMultiDayEquipment !== false) && isMultiDay;
-    const externalRequiresPin = (pinRules?.enableExternalEquipment !== false) && identity === "external";
-    const studentMandatory = !!pinRules?.requirePinForStudent;
+    // Evaluate trigger rules accurately based on checked/unchecked settings
+    const isSystemPinActive = pinRules?.isEnabled === true || (pinRules?.isEnabled !== false && pinRules?.isEnabled !== "false");
+    const outsideRequiresPin = (pinRules?.requirePinOutsideHours === true || (pinRules?.requirePinOutsideHours !== false && pinRules?.requirePinOutsideHours !== "false")) && isOutsideHours;
+    const multiDayRequiresPin = (pinRules?.requirePinMultiDayEquipment === true || (pinRules?.requirePinMultiDayEquipment !== false && pinRules?.requirePinMultiDayEquipment !== "false")) && isMultiDay;
+    const externalRequiresPin = (pinRules?.enableExternalEquipment === true || (pinRules?.enableExternalEquipment !== false && pinRules?.enableExternalEquipment !== "false")) && identity === "external";
+    const studentMandatory = pinRules?.requirePinForStudent === true || pinRules?.pinMode === "required";
 
-    const requiresPin = (pinRules?.isEnabled !== false) && (
+    const requiresPin = isSystemPinActive && (
       outsideRequiresPin || multiDayRequiresPin || externalRequiresPin || studentMandatory
     );
 
@@ -227,9 +230,10 @@ export default function EquipmentBorrowing() {
           description: `Selected borrowing/return time (${formatTime12(startTimeStr)} - ${formatTime12(endTimeStr)}) is outside official campus kiosk hours (${formatTime12(kioskOpen)} - ${formatTime12(kioskClose)}). AVR Head / Admin Verification PIN is required for authorization.`,
         });
       } else if (multiDayRequiresPin) {
+        const spanText = diffDays > 1 ? `${diffDays + 1} days` : "2 days";
         setPinModalMeta({
           title: "Extended Borrowing PIN",
-          description: "This equipment borrowing spans more than two days. AVR Head / Admin Verification PIN is required to authorize extended borrowing.",
+          description: `This equipment borrowing spans ${spanText} (more than 1 day). AVR Head / Admin Verification PIN is required for all users to authorize extended borrowing.`,
         });
       } else if (externalRequiresPin) {
         setPinModalMeta({
