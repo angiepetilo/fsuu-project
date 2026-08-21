@@ -287,13 +287,15 @@ export default function HistoryLog() {
   });
 
   const [currentPage, setCurrentPage] = useState(1);
-  const ITEMS_PER_PAGE = 10;
-
+  const [itemsPerPage, setItemsPerPage] = useState(25);
+  
   useEffect(() => {
     setCurrentPage(1);
-  }, [historyType, searchQuery]);
+  }, [historyType, searchQuery, itemsPerPage]);
 
   const activeList = historyType === "venue" ? filteredVenues : filteredEquipment;
+  const ITEMS_PER_PAGE = itemsPerPage;
+
   const totalPages = Math.ceil(activeList.length / ITEMS_PER_PAGE) || 1;
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
   const paginatedList = activeList.slice(startIndex, startIndex + ITEMS_PER_PAGE);
@@ -387,6 +389,7 @@ export default function HistoryLog() {
         paginatedList={paginatedList}
         startIndex={startIndex}
         ITEMS_PER_PAGE={ITEMS_PER_PAGE}
+        setItemsPerPage={setItemsPerPage}
         currentPage={currentPage}
         totalPages={totalPages}
         setCurrentPage={setCurrentPage}

@@ -235,7 +235,14 @@ export default function VenueBooking() {
     const venueOpen = opHours?.venue_open?.substring(0, 5) || "07:30";
     const venueClose = opHours?.venue_close?.substring(0, 5) || "17:00";
     const isOutsideHours = (startTime && startTime < venueOpen) || (endTime && endTime > venueClose);
-    const isMultiDay = Boolean(selectedEndDate && selectedEndDate > selectedDate);
+    let diffDays = 0;
+    if (selectedEndDate && selectedEndDate > selectedDate) {
+      const startD = new Date(selectedDate);
+      const endD = new Date(selectedEndDate);
+      const diffTime = endD - startD;
+      diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    }
+    const isMultiDay = diffDays > 2;
 
     // Evaluate trigger rules
     const outsideRequiresPin = (pinRules?.requirePinOutsideHours !== false) && isOutsideHours;
@@ -255,8 +262,8 @@ export default function VenueBooking() {
         });
       } else if (multiDayRequiresPin) {
         setPinModalMeta({
-          title: "Multi-Day Reservation PIN",
-          description: "This reservation spans multiple days. AVR Head / Admin Verification PIN is required to authorize multi-day venue occupancy.",
+          title: "Extended Reservation PIN",
+          description: "This reservation spans more than two days. AVR Head / Admin Verification PIN is required to authorize extended venue occupancy.",
         });
       } else if (externalRequiresPin) {
         setPinModalMeta({

@@ -121,7 +121,7 @@ export default function VenueBookingInfo({
 
         <div className="flex justify-between items-baseline py-1 border-b border-slate-100">
           <span className="text-slate-500">Contact Number :</span>
-          <span className="font-mono text-slate-800">{selected.contact_number || selected.phone || "—"}</span>
+          <span className="font-mono text-slate-800">{selected.contact_number || selected.contact_no || selected.phone || "—"}</span>
         </div>
 
         <div className="flex justify-between items-baseline py-1 border-b border-slate-100">

@@ -69,6 +69,24 @@ export default function BreachesTab({
       violation_type: eb.violation || eb.violation_type || (eb.status === "lost" ? "Lost Equipment" : (eb.is_late ? "Late Equipment Return" : "Equipment Damage")),
     }));
 
+  // Extract equipment damages that occurred DURING venue bookings (even if the venue itself was clean)
+  const venueEquipmentBreaches = venueBookings
+    .filter(b => b.unit_conditions && typeof b.unit_conditions === "object")
+    .map((b) => ({
+      department: b.program_office || b.department || "Academic Dept",
+      is_venue: false, // Treat as equipment violation
+      is_late: false,
+      unit_conditions: b.unit_conditions,
+      status: "completed",
+      violation_type: "Equipment Damage",
+    }))
+    .filter(eb => {
+      return Object.values(eb.unit_conditions).some(c => {
+        const cLower = String(c || "").toLowerCase();
+        return cLower === "damaged" || cLower === "lost";
+      });
+    });
+
   const cleanDeptName = (raw) => {
     if (!raw) return "Academic Dept";
     const str = String(raw).trim();
@@ -80,10 +98,22 @@ export default function BreachesTab({
   };
 
   // Combine synced History Log records + local inspection breaches
-  const allSyncedBreaches = [...completedVenueBreaches, ...completedEquipBreaches, ...localBreaches];
+  const allSyncedBreaches = [...completedVenueBreaches, ...completedEquipBreaches, ...venueEquipmentBreaches, ...localBreaches];
 
   // Department summary counts for overview
   const deptSummaryMap = {};
+  
+  // Seed all departments to ensure those with 0 breaches are displayed
+  const seedDept = (deptNameRaw) => {
+    const dName = cleanDeptName(deptNameRaw);
+    if (!deptSummaryMap[dName]) {
+      deptSummaryMap[dName] = { department: dName, venue_violations: 0, late_returns: 0, equipment_damages: 0, equipment_lost: 0 };
+    }
+  };
+  
+  venueBookings.forEach(b => seedDept(b.program_office || b.department || "Academic Dept"));
+  equipmentBorrowings.forEach(eb => seedDept(eb.program_office || eb.department || "Academic Dept"));
+
   allSyncedBreaches.forEach((b) => {
     const dName = cleanDeptName(b.department);
     if (!deptSummaryMap[dName]) {
@@ -149,7 +179,7 @@ export default function BreachesTab({
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-slate-50/80 border-b border-slate-100">
-              {["#", "Department / Program", "Venue Breaches", "Equipment Violation"].map((h) => (
+              {["#", "Department / Program", "Policy Violation", "Equipment Violation"].map((h) => (
                 <th key={h} className="px-4 py-3.5 text-left text-[11px] font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap">
                   {h}
                 </th>
@@ -169,7 +199,7 @@ export default function BreachesTab({
                   <td className="px-4 py-3.5 font-bold text-slate-400">{idx + 1}</td>
                   <td className="px-4 py-3.5 font-extrabold text-slate-900">{v.department || v.program || "Academic Dept"}</td>
                   <td className="px-4 py-3.5 font-extrabold text-rose-600">
-                    {v.venue_violations ?? 0} Breaches
+                    {v.venue_violations ?? 0} Violations
                   </td>
                   <td className="px-4 py-3.5 font-extrabold text-slate-800 font-mono">
                     {`${v.late_returns || 0} Late Return / ${v.equipment_damages || 0} Damaged / ${v.equipment_lost || 0} Lost`}

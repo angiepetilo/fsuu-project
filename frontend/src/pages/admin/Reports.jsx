@@ -191,11 +191,12 @@ export default function Reports() {
         const purpose = (eb.purpose || "Academic Seminar").replace(/"/g, '""');
         const isLost = (eb.status || "").toLowerCase() === "lost";
         const isDamaged = (eb.status || "").toLowerCase() === "damaged" || Boolean(eb.has_damage);
-        const remarks = isLost ? "LOST" : isDamaged ? "VIOLATION / DAMAGED" : "CLEAN / GOOD";
+        const isLate = (eb.status || "").toLowerCase() === "late return" || (eb.status || "").toLowerCase() === "returned late" || (eb.timeliness || "").toLowerCase() === "late" || Boolean(eb.is_late);
+        const remarks = isLost ? "LOST" : isDamaged ? "VIOLATION / DAMAGED" : isLate ? "LATE RETURN" : "CLEAN / GOOD";
         csvContent += `"${track}","${name}","${equip}","${qty}","${date}","${dept}","${purpose}","${remarks}"\n`;
       });
     } else if (activeTab === "breaches") {
-      csvContent += "Department / Program,Venue Breaches,Equipment Violations,Late Returns,Total Breaches\n";
+      csvContent += "Department / Program,Policy Violations,Equipment Violations,Late Returns,Total Violations\n";
 
       const deptMap = {};
       const addBreach = (dept, type) => {
@@ -210,9 +211,24 @@ export default function Reports() {
         .filter((b) => Boolean(b.has_damage) || (b.status || "").toLowerCase() === "damaged" || Boolean(b.violation))
         .forEach((b) => addBreach(b.program_office || b.department, "venue"));
 
+      // Include equipment damaged during venue bookings
+      filteredVenueBookings
+        .filter(b => b.unit_conditions && typeof b.unit_conditions === "object")
+        .forEach(b => {
+          Object.values(b.unit_conditions).forEach(c => {
+            const cLower = String(c || "").toLowerCase();
+            if (cLower === "damaged" || cLower === "lost") {
+              addBreach(b.program_office || b.department, "equip");
+            }
+          });
+        });
+
       filteredEquipmentBorrowings
-        .filter((eb) => Boolean(eb.has_damage) || (eb.status || "").toLowerCase() === "damaged" || (eb.status || "").toLowerCase() === "lost" || Boolean(eb.is_late))
-        .forEach((eb) => addBreach(eb.program_office || eb.department, eb.is_late ? "late" : "equip"));
+        .filter((eb) => Boolean(eb.has_damage) || (eb.status || "").toLowerCase() === "damaged" || (eb.status || "").toLowerCase() === "lost" || (eb.status || "").toLowerCase() === "late return" || (eb.status || "").toLowerCase() === "returned late" || Boolean(eb.is_late) || (eb.timeliness || "").toLowerCase() === "late")
+        .forEach((eb) => {
+          const isEqDmg = Boolean(eb.has_damage) || (eb.status || "").toLowerCase() === "damaged" || (eb.status || "").toLowerCase() === "lost";
+          addBreach(eb.program_office || eb.department, isEqDmg ? "equip" : "late");
+        });
 
       try {
         const dLogs = JSON.parse(localStorage.getItem("fsuu_damaged_equipment_log") || "[]");

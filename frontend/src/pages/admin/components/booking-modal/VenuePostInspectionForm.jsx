@@ -20,6 +20,7 @@ export default function VenuePostInspectionForm({
   handleSavePostInspection,
   savingInspection = false,
   inspectionSuccessMsg = null,
+  isOngoing = false,
 }) {
   const [showCustomModal, setShowCustomModal] = useState(false);
   const [customViolationInput, setCustomViolationInput] = useState("");
@@ -44,10 +45,12 @@ export default function VenuePostInspectionForm({
         <div>
           <h4 className="text-xs font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
             <ShieldCheck size={16} className="text-slate-600" />
-            Post-Event Inspection Form
+            Post-Event Inspection Form {isOngoing ? "(Before)" : "(After)"}
           </h4>
           <p className="text-[11px] font-medium text-slate-500 mt-0.5">
-            Record facility status and log any policy breaches or room damages.
+            {isHistoryView 
+              ? "(Read Only History Log)"
+              : "Record facility status and log any policy breaches or room damages."}
           </p>
         </div>
 
@@ -67,7 +70,12 @@ export default function VenuePostInspectionForm({
           <button
             type="button"
             disabled={isHistoryView}
-            onClick={() => setInspectionStatus && setInspectionStatus("clean")}
+            onClick={() => {
+              if (setInspectionStatus) setInspectionStatus("clean");
+              if (setViolationNotes && (!violationNotes || violationNotes.toLowerCase().includes("breach") || violationNotes.toLowerCase().includes("damage"))) {
+                setViolationNotes("Satisfactory Condition (Clean Room)");
+              }
+            }}
             className={`p-2.5 rounded-lg border text-xs font-bold transition-all cursor-pointer flex items-center justify-between ${
               inspectionStatus === "clean"
                 ? "border-slate-900 bg-white text-emerald-600 ring-1 ring-slate-900"
@@ -83,7 +91,12 @@ export default function VenuePostInspectionForm({
           <button
             type="button"
             disabled={isHistoryView}
-            onClick={() => setInspectionStatus && setInspectionStatus("violation")}
+            onClick={() => {
+              if (setInspectionStatus) setInspectionStatus("violation");
+              if (setViolationNotes && (violationNotes === "Satisfactory Condition (Clean Room)" || violationNotes === "Satisfactory condition recorded. No policy breach notes.")) {
+                setViolationNotes("");
+              }
+            }}
             className={`p-2.5 rounded-lg border text-xs font-bold transition-all cursor-pointer flex items-center justify-between ${
               inspectionStatus === "violation"
                 ? "border-slate-900 bg-white text-rose-600 ring-1 ring-slate-900"

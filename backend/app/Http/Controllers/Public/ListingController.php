@@ -34,6 +34,7 @@ class ListingController extends Controller
                         'office'    => $v->office,
                         'office_id' => $v->office_id,
                         'status'    => $v->status ?? 'Available',
+                        'allowed_equipment' => $v->allowed_equipment,
                     ];
                 })
         );
