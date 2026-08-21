@@ -44,12 +44,6 @@ export default function SysadLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const [selectedOfficeId, setSelectedOfficeId] = useState(() => {
-    return localStorage.getItem("fsuu_sysad_selected_office_id") || "all";
-  });
-  const [selectedOffice, setSelectedOffice] = useState(() => {
-    return localStorage.getItem("fsuu_sysad_selected_office_name") || "All Offices";
-  });
   const [offices, setOffices] = useState([]);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [selectedIncident, setSelectedIncident] = useState(null);
@@ -68,20 +62,6 @@ export default function SysadLayout() {
         ]);
       });
   }, []);
-
-  const handleOfficeChange = (newId) => {
-    setSelectedOfficeId(newId);
-    localStorage.setItem("fsuu_sysad_selected_office_id", newId);
-    if (newId === "all") {
-      setSelectedOffice("All Offices");
-      localStorage.setItem("fsuu_sysad_selected_office_name", "All Offices");
-    } else {
-      const match = offices.find(o => String(o.id) === String(newId));
-      const name = match ? match.name : `Office #${newId}`;
-      setSelectedOffice(name);
-      localStorage.setItem("fsuu_sysad_selected_office_name", name);
-    }
-  };
 
   // Dynamic Profile Sync from System Settings
   const [profileState, setProfileState] = useState(() => {
@@ -192,9 +172,7 @@ export default function SysadLayout() {
     } catch {}
   };
 
-  const filteredNotifications = selectedOffice === "All Offices"
-    ? sysadNotifications
-    : sysadNotifications.filter(n => n.office === selectedOffice);
+  const filteredNotifications = sysadNotifications;
 
   if (!user) return null;
 
@@ -378,14 +356,9 @@ export default function SysadLayout() {
         {/* Page Main Canvas */}
         <main className="flex-1 p-6 sm:p-8 overflow-auto">
           <Outlet context={{ 
-            selectedOffice, 
-            selectedOfficeId, 
-            setSelectedOffice, 
-            setSelectedOfficeId, 
-            handleOfficeChange,
             offices,
             isSuperAdmin: true, 
-            adminOffice: selectedOffice 
+            adminOffice: "All Offices" 
           }} />
         </main>
 
