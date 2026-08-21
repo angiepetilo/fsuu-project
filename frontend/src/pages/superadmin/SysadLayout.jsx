@@ -346,11 +346,16 @@ export default function SysadLayout() {
               </button>
 
               <div className="flex flex-col justify-center">
-                <h1 className="font-bold text-slate-900 text-base sm:text-lg tracking-tight flex items-center gap-2">
-                  <span>Super Admin System Portal</span>
-                </h1>
-                <p className="text-xs text-slate-400 font-medium mt-0.5 hidden sm:block">
-                  Global management, combined analytics, office reports & inventory filter
+                <div className="flex items-center gap-2">
+                  <h1 className="font-extrabold text-slate-900 text-base sm:text-lg tracking-tight">
+                    Super Admin System Portal
+                  </h1>
+                  <span className="text-[10px] font-black uppercase tracking-widest bg-gradient-to-r from-amber-500 to-indigo-600 text-white px-2 py-0.5 rounded-full shadow-2xs">
+                    Super Admin
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500 font-medium mt-0.5 hidden sm:block">
+                  Global system administration, user accounts, system configuration &amp; audit controls
                 </p>
               </div>
             </div>

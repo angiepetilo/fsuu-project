@@ -158,7 +158,7 @@ export default function EquipmentCategoriesTab({ showMsg }) {
             Equipment Categories
           </h3>
           <p className="text-xs text-slate-500 font-semibold mt-0.5">
-            Create and manage equipment category classifications across campus offices.
+            Create and manage equipment category classifications and inventory records.
           </p>
         </div>
 
@@ -178,7 +178,7 @@ export default function EquipmentCategoriesTab({ showMsg }) {
         <table className="w-full text-xs">
           <thead>
             <tr className="border-b border-slate-100 text-left text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider">
-              {["#", "Avatar", "Equipment Category", "Office", "Total Stock", "Qty Present", "Reserved", "Released", "Damaged", "Lost", "Actions"].map((h) => (
+              {["#", "Avatar", "Equipment Category", "Total Stock", "Qty Present", "Reserved", "Released", "Damaged", "Lost", "Actions"].map((h) => (
                 <th key={h} className="px-4 py-3 whitespace-nowrap">
                   {h}
                 </th>
@@ -188,13 +188,13 @@ export default function EquipmentCategoriesTab({ showMsg }) {
           <tbody className="divide-y divide-slate-100 font-semibold">
             {loading ? (
               <tr>
-                <td colSpan={11} className="text-center py-10 text-slate-400 font-medium">
+                <td colSpan={10} className="text-center py-10 text-slate-400 font-medium">
                   <Loader2 size={16} className="animate-spin inline mr-2 text-slate-600" /> Loading catalog...
                 </td>
               </tr>
             ) : categories.length === 0 ? (
               <tr>
-                <td colSpan={11} className="text-center py-10 text-slate-400 font-medium">
+                <td colSpan={10} className="text-center py-10 text-slate-400 font-medium">
                   No equipment categories registered.
                 </td>
               </tr>
@@ -207,7 +207,6 @@ export default function EquipmentCategoriesTab({ showMsg }) {
                 const lost = cat.lost_count || 0;
                 const reserved = cat.reserved_count || cat.reserved || 0;
                 const available = typeof cat.available_count === "number" ? cat.available_count : Math.max(0, total - released - damaged - lost);
-                const officeName = cat.office?.name || (offices.find(o => o.id === cat.office_id)?.name) || "AVR Main";
 
                 return (
                   <tr key={cat.id || idx} className="hover:bg-slate-50/60 transition-colors">
@@ -226,11 +225,6 @@ export default function EquipmentCategoriesTab({ showMsg }) {
                         <span className="font-extrabold text-slate-900 text-xs truncate" title={cat.eq_name || cat.name}>{cat.eq_name || cat.name}</span>
                       </div>
                       <span className="text-[10.5px] text-slate-500 font-mono truncate block" title={cat.eq_type || "AV Equipment"}>{cat.eq_type || "AV Equipment"}</span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="px-2 py-0.5 rounded-lg bg-slate-100 border border-slate-200 text-slate-700 text-[11px] font-bold">
-                        {officeName}
-                      </span>
                     </td>
                     <td className="px-4 py-3 font-mono font-bold text-slate-900">
                       <span className="bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200">
@@ -384,23 +378,6 @@ export default function EquipmentCategoriesTab({ showMsg }) {
                   className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:outline-none focus:border-blue-600 text-xs"
                 />
               </div>
-
-              {offices.length > 0 && (
-                <div>
-                  <label className="block text-xs font-bold text-slate-900 mb-1">Assigned Office *</label>
-                  <select
-                    value={form.office_id}
-                    onChange={(e) => setForm({ ...form, office_id: e.target.value })}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:outline-none focus:border-blue-600 text-xs"
-                  >
-                    {offices.map((off) => (
-                      <option key={off.id} value={off.id}>
-                        {off.name} {off.location ? `(${off.location})` : ""}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
 
               <div>
                 <label className="block text-xs font-bold text-slate-900 mb-1">Description / Notes</label>
