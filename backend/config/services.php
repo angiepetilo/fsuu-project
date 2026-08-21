@@ -44,4 +44,10 @@ return [
         'redirect'      => env('GOOGLE_REDIRECT_URI') ?: (env('APP_ENV') === 'production' ? 'https://fsuu-project.onrender.com/api/auth/google/callback' : 'http://localhost:8000/api/auth/google/callback'),
     ],
 
+    'iprogsms' => [
+        'api_key'     => env('IPROG_SMS_API_KEY'),
+        'api_url'     => env('IPROG_SMS_API_URL', 'https://sms.iprogtech.com/api/v1/sms_messages'),
+        'sender_name' => env('IPROG_SMS_SENDER_NAME'),
+    ],
+
 ];

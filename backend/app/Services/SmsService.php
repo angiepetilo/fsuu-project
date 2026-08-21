@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Log;
 class SmsService
 {
     /**
-     * Send an SMS via Semaphore API.
+     * Send an SMS via iPROG SMS API (or Semaphore fallback).
      *
      * @param string $phoneNumber e.g. "09639556586", "+639639556586"
      * @param string $message
@@ -17,10 +17,11 @@ class SmsService
      */
     public static function send(string $phoneNumber, string $message): ?array
     {
-        $apiKey = env('SEMAPHORE_API_KEY');
+        $iprogKey = config('services.iprogsms.api_key') ?: env('IPROG_SMS_API_KEY');
+        $semaphoreKey = env('SEMAPHORE_API_KEY');
 
-        if (empty($apiKey)) {
-            Log::warning("SmsService: SEMAPHORE_API_KEY is not configured.");
+        if (empty($iprogKey) && empty($semaphoreKey)) {
+            Log::warning("SmsService: Neither IPROG_SMS_API_KEY nor SEMAPHORE_API_KEY is configured in .env.");
             return null;
         }
 
@@ -40,21 +41,62 @@ class SmsService
             return null;
         }
 
-        try {
-            $senderName = env('SEMAPHORE_SENDER_NAME', 'SEMAPHORE');
-            $response = Http::timeout(10)->post('https://api.semaphore.co/api/v4/messages', [
-                'apikey'     => $apiKey,
-                'number'     => $cleanNumber,
-                'message'    => $message,
-                'sendername' => $senderName,
-            ]);
+        // 1. Primary: iPROG SMS Gateway (https://www.iprogsms.com/api/v1/documentation)
+        if (!empty($iprogKey)) {
+            try {
+                $apiUrl = config('services.iprogsms.api_url') ?: env('IPROG_SMS_API_URL', 'https://sms.iprogtech.com/api/v1/sms_messages');
+                $senderName = config('services.iprogsms.sender_name') ?: env('IPROG_SMS_SENDER_NAME');
 
-            Log::info("SmsService sent to {$cleanNumber}: " . $response->body());
-            return $response->json();
-        } catch (\Throwable $e) {
-            Log::error("SmsService failed to send SMS to {$cleanNumber}: " . $e->getMessage());
-            return null;
+                $payload = [
+                    'api_key'      => $iprogKey,
+                    'phone_number' => $cleanNumber,
+                    'message'      => $message,
+                ];
+                if (!empty($senderName)) {
+                    $payload['sender_name'] = $senderName;
+                }
+
+                $response = Http::timeout(10)
+                    ->withHeaders([
+                        'Accept'        => 'application/json',
+                        'Authorization' => "Bearer {$iprogKey}",
+                    ])
+                    ->post($apiUrl, $payload);
+
+                $resJson = $response->json();
+                Log::info("iProgSMS sent to {$cleanNumber}: status={$response->status()} body=" . $response->body());
+
+                // If iProg succeeded (HTTP 200/201 and not error status 500)
+                if ($response->successful() && (!isset($resJson['status']) || $resJson['status'] < 400)) {
+                    return $resJson;
+                }
+
+                Log::warning("iProgSMS returned error, falling back to backup gateway if available: " . $response->body());
+            } catch (\Throwable $e) {
+                Log::error("iProgSMS failed to send to {$cleanNumber}: " . $e->getMessage());
+            }
         }
+
+        // 2. Fallback: Semaphore SMS Gateway
+        if (!empty($semaphoreKey)) {
+            try {
+                $senderName = env('SEMAPHORE_SENDER_NAME', 'SEMAPHORE');
+                $response = Http::timeout(10)->post('https://api.semaphore.co/api/v4/messages', [
+                    'apikey'     => $semaphoreKey,
+                    'number'     => $cleanNumber,
+                    'message'    => $message,
+                    'sendername' => $senderName,
+                ]);
+
+                Log::info("Semaphore sent to {$cleanNumber}: " . $response->body());
+                return $response->json();
+            } catch (\Throwable $e) {
+                Log::error("Semaphore failed to send SMS to {$cleanNumber}: " . $e->getMessage());
+                return null;
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -80,10 +122,7 @@ class SmsService
             ?? $borrowing->trackingNumber?->reference_code 
             ?? "EQ-2026-{$borrowing->id}";
 
-        $baseUrl = rtrim(config('app.frontend_url') ?: env('FRONTEND_URL', 'https://fsuu-project.vercel.app'), '/');
-        $trackUrl = "{$baseUrl}/track?tracking={$refCode}";
-
-        $message = "FSUU Equipment Borrowing: Good day, {$requestorName}! Your request is received. Tracking Code: {$refCode}. Pickup Instructions: Present your physical School ID at the office at least 15 mins before scheduled start time. Track online: {$trackUrl}";
+        $message = "FSUU Equipment Borrowing: Good day, {$requestorName}! Your request has been received. Reference Code: {$refCode}. Pickup Notice: Please present your School ID at the AVR Center office before scheduled time.";
 
         return self::send($contactNumber, $message);
     }
@@ -111,11 +150,39 @@ class SmsService
             ?? $borrowing->trackingNumber?->reference_code 
             ?? "EQ-2026-{$borrowing->id}";
 
-        $lateNote = $minutesLate ? " ({$minutesLate} mins overdue)" : "";
-        $baseUrl = rtrim(config('app.frontend_url') ?: env('FRONTEND_URL', 'https://fsuu-project.vercel.app'), '/');
-        $trackUrl = "{$baseUrl}/track?tracking={$refCode}";
+        $lateNote = $minutesLate ? " ({$minutesLate} mins late)" : "";
 
-        $message = "URGENT FSUU NOTICE: Good day, {$requestorName}. Your borrowed equipment [{$refCode}] is now OVERDUE for return{$lateNote}. Please return the physical unit(s) immediately to the designated office to avoid university violation penalties. Track status: {$trackUrl}";
+        $message = "URGENT FSUU NOTICE: Good day, {$requestorName}. Your borrowed equipment [{$refCode}] is now OVERDUE for return{$lateNote}. Please return all physical units immediately to the AVR Center to avoid violation records.";
+
+        return self::send($contactNumber, $message);
+    }
+
+    /**
+     * Send Upcoming Due / Grace Period Advance Reminder (e.g. 15 minutes before scheduled return time).
+     */
+    public static function sendUpcomingDueReminder($borrowing, int $minutesRemaining = 15): ?array
+    {
+        $contactNumber = $borrowing->contact_number 
+            ?? $borrowing->requestor_contact_number 
+            ?? $borrowing->borrower_contact_number 
+            ?? null;
+
+        if (!$contactNumber) {
+            return null;
+        }
+
+        $requestorName = $borrowing->filer_name 
+            ?? $borrowing->requestor_name 
+            ?? $borrowing->borrower_name 
+            ?? 'Borrower';
+
+        $refCode = $borrowing->reference_code 
+            ?? $borrowing->trackingNumber?->reference_code 
+            ?? "EQ-2026-{$borrowing->id}";
+
+        $endTime = $borrowing->time_end ? substr((string)$borrowing->time_end, 0, 5) : 'scheduled time';
+
+        $message = "FSUU AVR Reminder: Good day, {$requestorName}. Your borrowed equipment [{$refCode}] is due for return in {$minutesRemaining} mins ({$endTime}). Please return it promptly to avoid late return penalties.";
 
         return self::send($contactNumber, $message);
     }
