@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useOutletContext } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import api from "@/lib/axios";
-import { toast } from "sonner";
+import notify from "@/lib/notify";
 import {
   AlertCircle, CheckCircle, Loader2,
   ShieldCheck, Calendar, PackageOpen, DollarSign, User,
@@ -97,9 +97,9 @@ export default function Settings() {
     const cleanMsg = (msg || "").replace(/^✅\s*|^❌\s*/, "").trim();
 
     if (errCheck) {
-      try { toast.error(cleanMsg); } catch {}
+      notify.error("Action Failed", cleanMsg);
     } else {
-      try { toast.success(cleanMsg); } catch {}
+      notify.success("Success", cleanMsg);
     }
   };
 

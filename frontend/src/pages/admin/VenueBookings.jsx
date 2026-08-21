@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useOutletContext, useLocation } from "react-router-dom";
 import api from "@/lib/axios";
-import { toast } from "sonner";
+import notify from "@/lib/notify";
 import {
   Loader2, RefreshCw, AlertCircle, Eye, Building2, ChevronLeft, ChevronRight
 } from "lucide-react";
@@ -129,18 +129,19 @@ export default function VenueBookings() {
       const refCode = selected?.reference_code || selected?.tracking_number?.reference_code || `TRK-AVR${bookingId}`;
 
       if (action === "complete") {
-        toast.success(`Venue booking (${refCode}) completed and transferred to History Log!`);
-        setFeedbackMessage(`✅ Venue booking (${refCode}) transferred to History Log.`);
+        notify.success("Reservation Completed", `Venue booking (${refCode}) transferred to History Log.`);
         setSelectedId(null);
         setShowRejectForm(false);
       } else if (action === "reject") {
-        toast.error(`Venue booking (${refCode}) rejected and transferred to History Log.`);
-        setFeedbackMessage(`Venue booking (${refCode}) rejected and transferred to History Log.`);
+        notify.error("Reservation Rejected", `Venue booking (${refCode}) rejected and transferred to History Log.`);
         setSelectedId(null);
         setShowRejectForm(false);
+      } else if (action === "approve") {
+        notify.success("Reservation Approved", `Venue booking (${refCode}) has been approved.`);
+      } else if (action === "ongoing") {
+        notify.info("Event On-Going", `Venue booking (${refCode}) is now in-progress.`);
       } else {
-        toast.success(`Venue booking updated: ${newStatus}`);
-        setFeedbackMessage(`✅ Reservation request ${action}ed successfully!`);
+        notify.success("Status Updated", `Venue booking (${refCode}) updated to ${newStatus}.`);
       }
 
       // Patch the specific venue booking record in-place
@@ -161,9 +162,8 @@ export default function VenueBookings() {
           return b;
         })
       );
-      setTimeout(() => setFeedbackMessage(null), 3500);
     } catch (err) {
-      toast.error(err.response?.data?.message ?? "Action failed.");
+      notify.error("Action Failed", err.response?.data?.message ?? "Action failed.");
     } finally {
       setActionLoading(null);
     }

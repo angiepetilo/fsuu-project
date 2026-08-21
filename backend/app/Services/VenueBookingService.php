@@ -587,13 +587,16 @@ class VenueBookingService
                 if (is_array($unitConditions) && !empty($unitConditions)) {
                     foreach ($unitConditions as $key => $condVal) {
                         $uBar = $assigned[$key] ?? null;
+                        if (!$uBar && is_string($key)) {
+                            $uBar = $key;
+                        }
                         if ($uBar) {
                             $uBar = trim((string)$uBar);
                             $condNormalized = ucfirst(strtolower((string)$condVal));
-                            $uStatus = ($condNormalized === 'Damaged' || $condNormalized === 'Lost') ? 'damaged' : 'available';
-                            $uCond = $condNormalized === 'Good' ? 'Good' : $condNormalized;
+                            $uStatus = ($condNormalized === 'Damaged' || $condNormalized === 'Lost') ? 'unavailable' : 'available';
+                            $uCond = $condNormalized === 'Damaged' ? 'Damaged' : ($condNormalized === 'Lost' ? 'Lost' : 'Good');
                             \App\Models\EquipmentUnit::where(function($q) use ($uBar) {
-                                $q->where('unit_code', $uBar)->orWhere('name', $uBar);
+                                $q->where('unit_code', $uBar)->orWhere('name', $uBar)->orWhere('id', $uBar);
                             })->update(['status' => $uStatus, 'condition' => $uCond]);
                         }
                     }
@@ -602,7 +605,7 @@ class VenueBookingService
                     if ($newStatus === 'damaged' || !empty($data['has_damage'])) {
                         \App\Models\EquipmentUnit::where(function($q) use ($barcodes) {
                             $q->whereIn('unit_code', $barcodes)->orWhereIn('name', $barcodes);
-                        })->update(['status' => 'damaged', 'condition' => 'Damaged']);
+                        })->update(['status' => 'unavailable', 'condition' => 'Damaged']);
                     } else {
                         \App\Models\EquipmentUnit::where(function($q) use ($barcodes) {
                             $q->whereIn('unit_code', $barcodes)->orWhereIn('name', $barcodes);

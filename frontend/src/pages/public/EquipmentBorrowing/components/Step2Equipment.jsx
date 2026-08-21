@@ -394,27 +394,27 @@ export default function Step2Equipment({
 
               if (isOutside) {
                 return (
-                  <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200/80 text-amber-900 text-xs font-bold space-y-2">
+                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-700 space-y-2">
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1.5 text-amber-800">
-                        <AlertTriangle size={15} className="text-amber-600 shrink-0" />
-                        <span className="font-extrabold">Outside Campus Office Hours ({formatTime12(kioskOpen)} - {formatTime12(kioskClose)})</span>
-                      </div>
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-200 text-amber-900 uppercase">
-                        PIN Required
+                      <span className="font-semibold text-slate-800">
+                        Outside Office Hours ({formatTime12(kioskOpen)} – {formatTime12(kioskClose)})
                       </span>
+                      {requiresPinForOutside && (
+                        <span className="px-2 py-0.5 rounded-md text-[10px] font-medium bg-slate-200 text-slate-700">
+                          PIN Required
+                        </span>
+                      )}
                     </div>
-                    <p className="text-[11px] text-amber-800 font-medium leading-snug">
-                      Selected borrowing/return time (<strong>{formatTime12(startTimeVal)} - {formatTime12(endTimeVal)}</strong>) is outside official campus hours.
-                      {requiresPinForOutside ? " An AVR Head / Admin Verification PIN is required for both internal and external users." : ""}
+                    <p className="text-xs text-slate-600 font-normal leading-relaxed">
+                      Selected borrowing/return time ({formatTime12(startTimeVal)} – {formatTime12(endTimeVal)}) is outside campus hours.
+                      {requiresPinForOutside ? " AVR Head / Admin Verification PIN is required." : ""}
                     </p>
                     {requiresPinForOutside && (
-                      <div className="pt-1.5 border-t border-amber-200/60 flex items-center justify-between gap-2">
+                      <div className="pt-1.5 border-t border-slate-200 flex items-center justify-between gap-2">
                         {isPinVerified ? (
-                          <div className="flex items-center gap-1.5 text-emerald-700 font-extrabold text-xs">
-                            <Check size={16} className="text-emerald-700" />
-                            <span>AVR Head PIN Verified for Outside Hours</span>
-                          </div>
+                          <span className="text-xs font-medium text-slate-700">
+                            ✓ PIN verified for outside hours
+                          </span>
                         ) : (
                           <button
                             type="button"
@@ -422,15 +422,14 @@ export default function Step2Equipment({
                               if (setPinModalMeta) {
                                 setPinModalMeta({
                                   title: "Outside Office Hours PIN",
-                                  description: `Selected borrowing/return time (${formatTime12(startTimeVal)} - ${formatTime12(endTimeVal)}) is outside official campus hours (${formatTime12(kioskOpen)} - ${formatTime12(kioskClose)}). AVR Head / Admin Verification PIN is required for authorization.`,
+                                  description: `Selected borrowing time (${formatTime12(startTimeVal)} - ${formatTime12(endTimeVal)}) is outside campus hours (${formatTime12(kioskOpen)} - ${formatTime12(kioskClose)}). AVR Head / Admin Verification PIN is required.`,
                                 });
                               }
                               setShowPinModal && setShowPinModal(true);
                             }}
-                            className="w-full py-2 px-3 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs shadow-xs transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                            className="w-full py-2 px-3 rounded-lg border border-blue-600 bg-blue-50/70 hover:bg-blue-600 text-blue-700 hover:text-white active:bg-blue-700 active:scale-[0.99] font-semibold text-xs transition-all cursor-pointer text-center shadow-2xs"
                           >
-                            <Clock size={14} />
-                            <span>Verify AVR Head PIN Now</span>
+                            Verify PIN
                           </button>
                         )}
                       </div>
@@ -451,11 +450,11 @@ export default function Step2Equipment({
                 const diffTime = endD - startD;
                 diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
               }
-              const isMultiDay = diffDays > 2;
+              const isMultiDay = diffDays >= 1;
               const requiresPinForMultiDay = (pinRules?.requirePinMultiDayEquipment !== false) && isMultiDay;
 
               return (
-                <div className="p-3.5 rounded-2xl bg-amber-50/80 border border-amber-200/80 space-y-2">
+                <div className="p-3.5 rounded-xl bg-white border border-slate-200 space-y-2.5">
                   <label className="flex items-start gap-2.5 cursor-pointer">
                     <input
                       type="checkbox"
@@ -468,20 +467,20 @@ export default function Step2Equipment({
                           if (setIsPinVerified) setIsPinVerified(false);
                         }
                       }}
-                      className="mt-0.5 w-4 h-4 text-blue-600 rounded-md border-amber-300 focus:ring-blue-500"
+                      className="mt-0.5 w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer"
                     />
                     <div>
-                      <span className="font-extrabold text-slate-900 text-xs">Wish to Extend Return Borrowing</span>
-                      <p className="text-[10px] text-slate-600 font-medium leading-tight mt-0.5">
-                        Check if returning next-day or extending beyond standard 5:00 PM cutoff.
+                      <span className="font-semibold text-slate-800 text-xs">Wish to Extend Return Borrowing</span>
+                      <p className="text-xs text-slate-500 font-normal leading-tight mt-0.5">
+                        Check if returning next-day or extending beyond standard cutoff.
                       </p>
                     </div>
                   </label>
 
                   {wishesToExtend && (
-                    <div className="pt-2 border-t border-amber-200/60 space-y-2 animate-in fade-in duration-200">
-                      <div className="flex flex-col gap-1.5 pb-2">
-                        <label className="text-xs font-extrabold text-slate-800">Return End Date (Multi-Day)</label>
+                    <div className="pt-2 border-t border-slate-200 space-y-2 animate-in fade-in duration-150">
+                      <div className="flex flex-col gap-1">
+                        <label className="text-xs font-medium text-slate-700">Return End Date</label>
                         <input
                           type="date"
                           min={currentDate || getTodayISO()}
@@ -490,38 +489,35 @@ export default function Step2Equipment({
                             const newDate = e.target.value;
                             if (setEndTime) setEndTime(`${newDate}T${endTimeVal}`);
                           }}
-                          className={`w-full px-3.5 py-2 bg-white border rounded-xl text-xs font-extrabold text-slate-900 focus:outline-none transition-all shadow-inner ${dateEnd < currentDate ? 'border-rose-500 focus:border-rose-600' : 'border-slate-200 focus:border-blue-600'}`}
+                          className={`w-full px-3 py-1.5 bg-white border rounded-lg text-xs font-normal text-slate-800 focus:outline-none transition-colors ${dateEnd < currentDate ? 'border-rose-400 focus:border-rose-500' : 'border-slate-300 focus:border-blue-600'}`}
                         />
                       </div>
 
                       {requiresPinForMultiDay && (
                         !isPinVerified ? (
-                          <div className="space-y-2">
-                            <div className="text-[11px] font-bold text-amber-900 flex items-center gap-1.5">
-                              <XCircle size={14} className="text-amber-600 shrink-0" />
-                              <span>Extension exceeds 2 days. AVR Head / Admin PIN verification required.</span>
-                            </div>
+                          <div className="space-y-1.5 pt-1">
+                            <p className="text-xs text-slate-600 font-normal">
+                              Multi-day borrowing requires AVR Head / Admin verification PIN.
+                            </p>
                             <button
                               type="button"
                               onClick={() => {
                                 if (setPinModalMeta) {
                                   setPinModalMeta({
                                     title: "Extended Borrowing PIN",
-                                    description: "This equipment borrowing spans more than two days. AVR Head / Admin Verification PIN is required to authorize extended borrowing.",
+                                    description: "Multi-day borrowing requires AVR Head / Admin Verification PIN for authorization.",
                                   });
                                 }
                                 setShowPinModal && setShowPinModal(true);
                               }}
-                              className="w-full py-2 px-3 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs shadow-xs transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                              className="w-full py-2 px-3 rounded-lg border border-blue-600 bg-blue-50/70 hover:bg-blue-600 text-blue-700 hover:text-white active:bg-blue-700 active:scale-[0.99] font-semibold text-xs transition-all cursor-pointer text-center shadow-2xs"
                             >
-                              <Clock size={14} />
-                              <span>Verify AVR Head PIN Now</span>
+                              Verify PIN
                             </button>
                           </div>
                         ) : (
-                          <div className="p-2 rounded-xl bg-emerald-100 border border-emerald-300 text-emerald-900 text-xs font-extrabold flex items-center gap-2">
-                            <Check size={16} className="text-emerald-700" />
-                            <span>AVR Head PIN Verified for Extension</span>
+                          <div className="pt-1 text-xs font-semibold text-emerald-700">
+                            ✓ PIN verified for multi-day extension
                           </div>
                         )
                       )}

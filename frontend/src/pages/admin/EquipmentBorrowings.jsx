@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useOutletContext, useLocation } from "react-router-dom";
 import api from "@/lib/axios";
-import { toast } from "sonner";
+import notify from "@/lib/notify";
 import {
   Loader2, RefreshCw, AlertCircle, Eye, PackageOpen, ChevronLeft, ChevronRight
 } from "lucide-react";
@@ -120,16 +120,17 @@ export default function EquipmentBorrowings() {
       const refCode = selected?.reference_code || selected?.tracking_number?.reference_code || `EQ-${id}`;
 
       if (type === "complete") {
-        toast.success(`Borrowing request (${refCode}) completed and transferred to History Log!`);
-        setFeedbackMsg(`✅ Borrowing form (${refCode}) transferred to History Log.`);
+        notify.success("Equipment Returned", `Borrowing request (${refCode}) completed and archived to History Log.`);
         setSelectedId(null); // Close modal automatically on complete!
       } else if (type === "reject") {
-        toast.error(`Borrowing request (${refCode}) rejected and transferred to History Log.`);
-        setFeedbackMsg(`Borrowing form (${refCode}) rejected and transferred to History Log.`);
+        notify.error("Borrow Request Rejected", `Borrowing request (${refCode}) rejected and transferred to History Log.`);
         setSelectedId(null);
+      } else if (type === "approve") {
+        notify.success("Borrow Request Approved", `Borrowing request (${refCode}) has been approved.`);
+      } else if (type === "ongoing") {
+        notify.info("Equipment Released", `Items for (${refCode}) marked as released to borrower.`);
       } else {
-        toast.success(`Borrowing request updated: ${newStatus}`);
-        setFeedbackMsg(`✅ Borrowing request ${type}ed successfully!`);
+        notify.success("Status Updated", `Borrowing request (${refCode}) updated to ${newStatus}.`);
       }
 
       // Patch the specific borrowing record in-place
@@ -150,9 +151,8 @@ export default function EquipmentBorrowings() {
           return b;
         })
       );
-      setTimeout(() => setFeedbackMsg(null), 3500);
     } catch (err) {
-      toast.error(err.response?.data?.message ?? "Action failed.");
+      notify.error("Action Failed", err.response?.data?.message ?? "Action failed.");
     } finally {
       setActionLoading(null);
     }
