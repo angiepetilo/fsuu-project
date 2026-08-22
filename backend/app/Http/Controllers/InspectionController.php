@@ -101,7 +101,12 @@ class InspectionController extends Controller
         // Synchronize physical units condition and availability status
         if (is_array($unitConditions)) {
             foreach ($unitConditions as $key => $condVal) {
-                $condStr = strtolower(trim((string)$condVal));
+                if (is_array($condVal)) {
+                    $rawCondition = $condVal['condition'] ?? $condVal['status'] ?? 'good';
+                } else {
+                    $rawCondition = $condVal;
+                }
+                $condStr = strtolower(trim((string)$rawCondition));
                 $uStatus = ($condStr === 'damaged' || $condStr === 'lost') ? 'unavailable' : 'available';
                 $uCond = $condStr === 'damaged' ? 'Damaged' : ($condStr === 'lost' ? 'Lost' : 'Good');
                 
