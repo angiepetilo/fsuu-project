@@ -21,6 +21,7 @@ export default function VenuePostInspectionForm({
   savingInspection = false,
   inspectionSuccessMsg = null,
   isOngoing = false,
+  onSetPostInspection = null,
 }) {
   const [showCustomModal, setShowCustomModal] = useState(false);
   const [customViolationInput, setCustomViolationInput] = useState("");
@@ -72,20 +73,19 @@ export default function VenuePostInspectionForm({
             disabled={isHistoryView}
             onClick={() => {
               if (setInspectionStatus) setInspectionStatus("clean");
-              if (setViolationNotes && (!violationNotes || violationNotes.toLowerCase().includes("breach") || violationNotes.toLowerCase().includes("damage"))) {
+              if (setViolationNotes && (!violationNotes || violationNotes.toLowerCase().includes("breach") || violationNotes.toLowerCase().includes("damage") || violationNotes.toLowerCase().includes("violation"))) {
                 setViolationNotes("Satisfactory Condition (Clean Room)");
               }
             }}
-            className={`p-2.5 rounded-lg border text-xs font-bold transition-all cursor-pointer flex items-center justify-between ${
+            className={`p-2.5 rounded-lg border text-xs font-bold transition-all cursor-pointer flex items-center justify-center ${
               inspectionStatus === "clean"
                 ? "border-slate-900 bg-white text-emerald-600 ring-1 ring-slate-900"
                 : "border-slate-200 bg-white text-slate-400 hover:text-slate-700 hover:border-slate-300"
             } ${isHistoryView ? "cursor-not-allowed opacity-80" : ""}`}
           >
             <span className={inspectionStatus === "clean" ? "text-emerald-600 font-extrabold" : "text-slate-600"}>
-              ● Satisfactory (Clean)
+              Satisfactory (Clean)
             </span>
-            {inspectionStatus === "clean" && <span className="text-[9px] uppercase font-mono text-emerald-600">Active</span>}
           </button>
 
           <button
@@ -97,16 +97,15 @@ export default function VenuePostInspectionForm({
                 setViolationNotes("");
               }
             }}
-            className={`p-2.5 rounded-lg border text-xs font-bold transition-all cursor-pointer flex items-center justify-between ${
+            className={`p-2.5 rounded-lg border text-xs font-bold transition-all cursor-pointer flex items-center justify-center ${
               inspectionStatus === "violation"
                 ? "border-slate-900 bg-white text-rose-600 ring-1 ring-slate-900"
                 : "border-slate-200 bg-white text-slate-400 hover:text-slate-700 hover:border-slate-300"
             } ${isHistoryView ? "cursor-not-allowed opacity-80" : ""}`}
           >
             <span className={inspectionStatus === "violation" ? "text-rose-600 font-extrabold" : "text-slate-600"}>
-              ● Policy Breach / Damages
+              Policy Violation
             </span>
-            {inspectionStatus === "violation" && <span className="text-[9px] uppercase font-mono text-rose-600">Active</span>}
           </button>
         </div>
       </div>
@@ -169,18 +168,30 @@ export default function VenuePostInspectionForm({
         )}
       </div>
 
-      {/* Save Action Button */}
-      {!isHistoryView && handleSavePostInspection && (
-        <div className="flex justify-end pt-2 border-t border-slate-200">
-          <button
-            type="button"
-            disabled={savingInspection}
-            onClick={handleSavePostInspection}
-            className="px-4 py-2 bg-white hover:bg-slate-50 border border-slate-900 text-slate-900 rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer disabled:opacity-50 transition-colors"
-          >
-            {savingInspection ? <Loader2 size={13} className="animate-spin" /> : <FileCheck size={13} />}
-            <span>Save Inspection Record</span>
-          </button>
+      {/* Save Action & Workflow Transition Buttons */}
+      {!isHistoryView && (
+        <div className="flex flex-wrap items-center justify-end gap-2 pt-2 border-t border-slate-200">
+          {isOngoing && onSetPostInspection && (
+            <button
+              type="button"
+              onClick={onSetPostInspection}
+              className="px-4 py-2 bg-white hover:bg-slate-50 border border-slate-900 text-slate-900 rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
+            >
+              <FileCheck size={13} />
+              <span>Set Post-Event Inspection</span>
+            </button>
+          )}
+          {handleSavePostInspection && (
+            <button
+              type="button"
+              disabled={savingInspection}
+              onClick={handleSavePostInspection}
+              className="px-4 py-2 bg-white hover:bg-slate-50 border border-slate-900 text-slate-900 rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer disabled:opacity-50 transition-colors"
+            >
+              {savingInspection ? <Loader2 size={13} className="animate-spin" /> : <FileCheck size={13} />}
+              <span>Save Inspection Record</span>
+            </button>
+          )}
         </div>
       )}
 

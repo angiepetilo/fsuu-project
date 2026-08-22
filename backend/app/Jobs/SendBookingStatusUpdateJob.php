@@ -48,20 +48,50 @@ class SendBookingStatusUpdateJob implements ShouldQueue
             return;
         }
 
+        // Dynamically apply database-configured SMTP settings
+        \App\Models\SystemSetting::configureMailer();
+
+        $refCode = $this->booking->reference_code 
+            ?? $this->booking->trackingNumber?->reference_code 
+            ?? ($this->type === 'venue' ? "TRK-AVR-{$this->booking->id}" : "EQ-{$this->booking->id}");
+        $recipientName = $this->booking->filer_name ?? $this->booking->requestor_name ?? 'FSUU Filer';
+        $statusUpper = strtoupper($this->status);
+        $subject = "Booking Status Update: {$statusUpper} — {$refCode}";
+
+        $mailSent = false;
+        $mailError = null;
+
         try {
             Mail::to($email)->send(
                 new BookingStatusUpdateMail($this->type, $this->booking, $this->status, $this->remarks)
             );
+            $mailSent = true;
         } catch (\Throwable $e) {
             Log::warning("SendBookingStatusUpdateJob default mailer failed: {$e->getMessage()}. Retrying via SMTP...");
             try {
                 Mail::mailer('smtp')->to($email)->send(
                     new BookingStatusUpdateMail($this->type, $this->booking, $this->status, $this->remarks)
                 );
+                $mailSent = true;
             } catch (\Throwable $err) {
+                $mailError = $err->getMessage();
                 Log::error("SendBookingStatusUpdateJob failed on both mailers: " . $err->getMessage());
             }
         }
+
+        // Record in communication logs
+        \App\Models\CommunicationLog::record([
+            'channel'         => 'email',
+            'category'        => 'status_update',
+            'recipient_name'  => $recipientName,
+            'recipient_email' => $email,
+            'recipient_phone' => $this->booking->contact_number ?? $this->booking->phone_number ?? null,
+            'reference_code'  => $refCode,
+            'subject'         => $subject,
+            'message_preview' => "Status updated to {$statusUpper} for {$refCode}. Remarks: " . ($this->remarks ?: 'None'),
+            'status'          => $mailSent ? 'sent' : 'failed',
+            'error_message'   => $mailError,
+        ]);
     }
 
     public function failed(\Throwable $e): void

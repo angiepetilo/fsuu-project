@@ -30,3 +30,73 @@ export function resolveStorageUrl(path) {
   const cleanPath = path.replace(/^\/?storage\//, "").replace(/^\/+/, "");
   return `${apiBase}/storage/${cleanPath}`;
 }
+
+/**
+ * Opens any document (PDF, PNG, JPG, WEBP, or Cloudinary raw file) directly in another browser tab
+ * WITHOUT downloading it, by converting it to an in-memory typed Blob URL.
+ */
+export async function openFileInNewTab(url) {
+  if (!url) return;
+
+  // 1. Data URL (Base64)
+  if (url.startsWith("data:")) {
+    try {
+      const parts = url.split(",");
+      const isPdfDoc = parts[0].includes("pdf");
+      const mime = parts[0].match(/:(.*?);/)?.[1] || (isPdfDoc ? "application/pdf" : "image/jpeg");
+      const bstr = atob(parts[1]);
+      let n = bstr.length;
+      const u8arr = new Uint8Array(n);
+      while (n--) {
+        u8arr[n] = bstr.charCodeAt(n);
+      }
+      const blob = new Blob([u8arr], { type: mime });
+      const blobUrl = URL.createObjectURL(blob);
+      window.open(blobUrl, "_blank", "noopener,noreferrer");
+      return;
+    } catch {
+      window.open(url, "_blank", "noopener,noreferrer");
+      return;
+    }
+  }
+
+  // 2. Resolve remote URL
+  let resolvedUrl = resolveStorageUrl(url);
+
+  // If Cloudinary raw upload, try to fetch as blob with true content type to prevent auto-download
+  try {
+    const newTab = window.open("about:blank", "_blank");
+
+    const response = await fetch(resolvedUrl, { mode: "cors" });
+    const arrayBuffer = await response.arrayBuffer();
+    const uint8 = new Uint8Array(arrayBuffer);
+
+    // Sniff MIME type from file magic byte signatures
+    let mimeType = "image/png";
+    if (uint8[0] === 0x25 && uint8[1] === 0x50 && uint8[2] === 0x44 && uint8[3] === 0x46) {
+      mimeType = "application/pdf";
+    } else if (uint8[0] === 0x89 && uint8[1] === 0x50 && uint8[2] === 0x4E && uint8[3] === 0x47) {
+      mimeType = "image/png";
+    } else if (uint8[0] === 0xFF && uint8[1] === 0xD8 && uint8[2] === 0xFF) {
+      mimeType = "image/jpeg";
+    } else if (uint8[0] === 0x47 && uint8[1] === 0x49 && uint8[2] === 0x46) {
+      mimeType = "image/gif";
+    } else if (uint8[0] === 0x52 && uint8[1] === 0x49 && uint8[2] === 0x46 && uint8[3] === 0x46) {
+      mimeType = "image/webp";
+    } else if (response.headers.get("content-type") && !response.headers.get("content-type").includes("octet-stream")) {
+      mimeType = response.headers.get("content-type");
+    }
+
+    const blob = new Blob([uint8], { type: mimeType });
+    const blobUrl = URL.createObjectURL(blob);
+
+    if (newTab) {
+      newTab.location.href = blobUrl;
+    } else {
+      window.open(blobUrl, "_blank", "noopener,noreferrer");
+    }
+  } catch {
+    // If CORS prevents fetch, open directly
+    window.open(resolvedUrl, "_blank", "noopener,noreferrer");
+  }
+}

@@ -195,14 +195,15 @@ export default function AdminProfileTab({
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Email Address <span className="text-rose-500">*</span>
+                  Email Address (Login Credentials) <span className="text-rose-500">*</span>
                 </label>
                 <input
                   type="email"
                   required
                   disabled={!isEditing}
-                  value={profileForm.personal_email || profileForm.email || ''}
-                  onChange={(e) => setProfileForm({ ...profileForm, personal_email: e.target.value })}
+                  value={profileForm.email}
+                  onChange={(e) => setProfileForm({ ...profileForm, email: e.target.value })}
+                  placeholder="e.g. admin@fsuu.edu.ph"
                   className={`w-full p-2.5 border rounded-lg font-mono font-medium text-xs transition-colors ${
                     isEditing
                       ? "bg-white border-slate-300 text-slate-900 focus:outline-none focus:border-blue-600"
@@ -213,14 +214,14 @@ export default function AdminProfileTab({
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Login Email <span className="text-rose-500">*</span>
+                  Personal / Recovery Email <span className="text-slate-400 font-normal">(Optional)</span>
                 </label>
                 <input
                   type="email"
-                  required
                   disabled={!isEditing}
-                  value={profileForm.email}
-                  onChange={(e) => setProfileForm({ ...profileForm, email: e.target.value })}
+                  value={profileForm.personal_email || ""}
+                  onChange={(e) => setProfileForm({ ...profileForm, personal_email: e.target.value })}
+                  placeholder="e.g. personal@gmail.com"
                   className={`w-full p-2.5 border rounded-lg font-mono font-medium text-xs transition-colors ${
                     isEditing
                       ? "bg-white border-slate-300 text-slate-900 focus:outline-none focus:border-blue-600"

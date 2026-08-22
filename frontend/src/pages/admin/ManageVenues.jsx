@@ -262,14 +262,19 @@ export default function ManageVenues() {
       };
     }
 
-    // Check bookings for selected venue on dateStr
+    // Check bookings for selected venue on dateStr (including multi-day spans)
     const matchedBookings = bookings.filter((b) => {
-      let bDate = b.date_of_usage || b.date_of_use || b.date || b.start_datetime || "";
-      if (bDate.includes("T")) bDate = bDate.split("T")[0];
+      let startD = b.date_of_usage || b.date_of_use || b.date || b.start_datetime || "";
+      if (startD.includes("T")) startD = startD.split("T")[0];
       
+      let endD = b.reservation_end_date || b.date_of_usage_end || b.end_date || b.end_datetime || startD;
+      if (endD.includes("T")) endD = endD.split("T")[0];
+
       const vId = b.venue_id || b.venue?.id;
-      const activeStatus = ['pending', 'approved', 'ongoing'].includes((b.status || '').toLowerCase());
-      return bDate === dateStr && String(vId) === String(venId) && activeStatus;
+      const activeStatus = ['pending', 'approved', 'ongoing', 'reserved'].includes((b.status || '').toLowerCase());
+      const inRange = startD && (dateStr >= startD && dateStr <= endD);
+
+      return inRange && String(vId) === String(venId) && activeStatus;
     });
 
     if (matchedBookings.length >= 3) {
@@ -288,12 +293,17 @@ export default function ManageVenues() {
 
     const list = [];
 
-    // 1. Add active bookings for the selected date
+    // 1. Add active bookings for the selected date (including multi-day spans)
     bookings.forEach((b) => {
-      let bDate = b.date_of_usage || b.date_of_use || b.date || b.start_datetime || "";
-      if (bDate.includes("T")) bDate = bDate.split("T")[0];
+      let startD = b.date_of_usage || b.date_of_use || b.date || b.start_datetime || "";
+      if (startD.includes("T")) startD = startD.split("T")[0];
+
+      let endD = b.reservation_end_date || b.date_of_usage_end || b.end_date || b.end_datetime || startD;
+      if (endD.includes("T")) endD = endD.split("T")[0];
       
-      if (bDate === selectedDateStr) {
+      const inRange = startD && (selectedDateStr >= startD && selectedDateStr <= endD);
+
+      if (inRange) {
         const vId = b.venue_id || b.venue?.id;
         const st = (b.status || "pending").toLowerCase();
         if (['pending', 'approved', 'ongoing', 'reserved'].includes(st)) {
@@ -361,17 +371,7 @@ export default function ManageVenues() {
 
   return (
     <div className="space-y-6">
-      {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-            Manage Venue
-          </h1>
-          <p className="text-xs text-slate-500 font-semibold mt-0.5">
-            Select venue to inspect calendar availability status and assign date-time operating controls.
-          </p>
-        </div>
-      </div>
+
 
       {feedback && (
         <div className="fixed bottom-6 right-6 z-[3000] bg-slate-900 text-white text-xs font-extrabold px-5 py-3.5 rounded-2xl flex items-center gap-3 shadow-xl animate-in slide-in-from-bottom-5 duration-300 border border-slate-700 max-w-md">

@@ -51,43 +51,14 @@ export default function AdminLayout() {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [selectedIncident, setSelectedIncident] = useState(null);
 
-  // Dynamic Profile Sync from System Settings
-  const [profileState, setProfileState] = useState(() => {
-    try {
-      const saved = localStorage.getItem("fsuu_admin_profile");
-      return saved ? JSON.parse(saved) : null;
-    } catch { return null; }
-  });
-
-  useEffect(() => {
-    const handleProfileUpdate = () => {
-      try {
-        const saved = localStorage.getItem("fsuu_admin_profile");
-        if (saved) setProfileState(JSON.parse(saved));
-      } catch {}
-    };
-
-    window.addEventListener("admin_profile_updated", handleProfileUpdate);
-    window.addEventListener("storage", handleProfileUpdate);
-    return () => {
-      window.removeEventListener("admin_profile_updated", handleProfileUpdate);
-      window.removeEventListener("storage", handleProfileUpdate);
-    };
-  }, []);
-
-  const isMatchingProfile = profileState && (
-    (user?.email && profileState.email === user.email) ||
-    (user?.id && profileState.id === user.id)
-  );
-
   const userRole = user?.role?.name || user?.role || "admin";
   const isSuperAdmin = userRole === "superadmin" || userRole === "super_admin";
 
-  const adminName = (isMatchingProfile ? profileState?.name : null) || user?.name || user?.email || "Admin User";
-  const adminAvatar = (isMatchingProfile ? profileState?.avatar : null) || user?.avatar || null;
-  const officeName = isSuperAdmin ? "Super Admin" : userRole === "admin" ? "Admin" : "Staff";
-  const adminOffice = officeName;
-  const adminOfficeId = user?.office_id || user?.office?.id || profileState?.office_id || null;
+  const adminName = user?.name || user?.email || "Admin User";
+  const adminAvatar = user?.avatar || null;
+  const officeName = user?.office?.name || (isSuperAdmin ? "Super Admin" : "AVR Operations");
+  const adminOffice = user?.office?.name || selectedOffice || "All Offices";
+  const adminOfficeId = user?.office_id || user?.office?.id || null;
 
   // Real Database Notifications with Persistent Read State
   const [notifications, setNotifications] = useState([]);
@@ -243,6 +214,63 @@ export default function AdminLayout() {
     if (hour >= 12 && hour < 18) return "Good afternoon";
     return "Good evening";
   };
+
+  const getFeatureDetails = (path) => {
+    if (path.includes("/dashboard")) {
+      return {
+        title: "Dashboard",
+        subtitle: `${getGreeting()}, ${adminName} • Live facility utilization & inventory overview.`
+      };
+    }
+    if (path.includes("/venue-booking")) {
+      return {
+        title: "Venue Booking",
+        subtitle: "Review, approve, and manage campus venue reservation schedules."
+      };
+    }
+    if (path.includes("/equipment-borrowing")) {
+      return {
+        title: "Equipment Borrowing",
+        subtitle: "Walk-in & advance equipment requisitions, custodial dispatch, and return tracking."
+      };
+    }
+    if (path.includes("/manage-equipment")) {
+      return {
+        title: "Manage Equipment",
+        subtitle: "Physical unit inventory, barcode registry, and equipment categories."
+      };
+    }
+    if (path.includes("/manage-venue")) {
+      return {
+        title: "Manage Venue",
+        subtitle: "Campus facility catalog, capacity configurations, and operating availability."
+      };
+    }
+    if (path.includes("/report")) {
+      return {
+        title: "Reports & Analytics",
+        subtitle: "Utilization metrics, statistical summaries, and official export logs."
+      };
+    }
+    if (path.includes("/history-log")) {
+      return {
+        title: "History Log",
+        subtitle: "Comprehensive audit trail and transaction history records."
+      };
+    }
+    if (path.includes("/settings")) {
+      return {
+        title: "Office Manager Settings",
+        subtitle: "Staff accounts for your office, local venue settings, equipment catalog categories, and profile."
+      };
+    }
+    return {
+      title: "AVR Operations",
+      subtitle: `${getGreeting()}, ${adminName} • Audio-Visual Resource Center Management.`
+    };
+  };
+
+  const currentFeature = getFeatureDetails(location.pathname);
 
   return (
     <div className="min-h-screen bg-[#f8fafc] flex font-sans antialiased text-slate-900 relative">
@@ -405,15 +433,15 @@ export default function AdminLayout() {
 
               <div className="flex flex-col justify-center">
                 <div className="flex items-center gap-2.5">
-                  <h1 className="font-bold text-slate-900 text-base sm:text-lg tracking-tight">
-                    AVR Operations &amp; Booking Management
+                  <h1 className="font-extrabold text-slate-900 text-base sm:text-lg tracking-tight">
+                    {currentFeature.title}
                   </h1>
                   <span className="text-[11px] font-semibold bg-slate-100 text-slate-700 border border-slate-200 px-2.5 py-0.5 rounded-md">
                     {userRole === "staff" ? "Staff Portal" : "Admin Portal"}
                   </span>
                 </div>
                 <p className="text-xs text-slate-500 font-normal mt-0.5 hidden sm:block">
-                  {getGreeting()}, <span className="font-medium text-slate-700">{adminName}</span> • Manage venue reservations, equipment inventory, and borrowing operations.
+                  {currentFeature.subtitle}
                 </p>
               </div>
             </div>

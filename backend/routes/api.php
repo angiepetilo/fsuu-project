@@ -39,9 +39,10 @@ use App\Http\Controllers\Public\EquipmentBorrowingController as PublicEquipmentB
 use App\Http\Controllers\Public\TrackingController;
 use App\Http\Controllers\Public\OtpController;
 
-// ─── Public Operating Hours & Overrides ─────────────────────────────────────────
+// ─── Public Operating Hours, Overrides & System Settings ────────────────────
 Route::get('/public/operating-hours', [OperatingHoursController::class, 'publicShow']);
 Route::get('/public/venue-overrides', [VenueAvailabilityController::class, 'publicOverrides']);
+Route::get('/public/system-settings', [\App\Http\Controllers\Admin\SystemSettingController::class, 'publicShow']);
 
 // ─── Authentication ────────────────────────────────────────────────────────────
 Route::get('/auth/google/redirect', [GoogleAuthController::class, 'redirect']);
@@ -158,6 +159,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/admin/academic-terms/{id}/activate',     [\App\Http\Controllers\SuperAdmin\AcademicTermController::class, 'activate']);
     Route::delete('/admin/academic-terms/{id}',           [\App\Http\Controllers\SuperAdmin\AcademicTermController::class, 'destroy']);
     Route::post('/admin/academic-terms/close-term',       [\App\Http\Controllers\SuperAdmin\AcademicTermController::class, 'closeTerm']);
+
+    // ── Admin & SuperAdmin: System Settings, Dynamic SMTP & Communication Logs ───
+    Route::get('/admin/system-settings',             [\App\Http\Controllers\Admin\SystemSettingController::class, 'show']);
+    Route::put('/admin/system-settings',             [\App\Http\Controllers\Admin\SystemSettingController::class, 'update']);
+    Route::post('/admin/system-settings/test-smtp',  [\App\Http\Controllers\Admin\SystemSettingController::class, 'testSmtp']);
+    Route::get('/admin/communication-logs',          [\App\Http\Controllers\Admin\CommunicationLogController::class, 'index']);
 
     // ── Venue Bookings ─────────────────────────────────────────────────────────
     Route::get('/avr-venue-bookings',                              [VenueBookingController::class, 'index']);

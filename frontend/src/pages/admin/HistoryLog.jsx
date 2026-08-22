@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { useOutletContext, useLocation } from "react-router-dom";
 import api from "@/lib/axios";
@@ -58,7 +58,6 @@ function ActionMenuPopover({ buttonEl, isOpen, onClose, children }) {
     document.body
   );
 }
-
 
 export default function HistoryLog() {
   const context = useOutletContext();
@@ -276,14 +275,16 @@ export default function HistoryLog() {
 
   const selectedOfficeId = context?.selectedOfficeId;
 
-  // Search filtering — ONLY show completed, solved, done, damaged, or violation history records
+  const activeStatuses = ["pending", "approved", "ongoing", "on-going", "reserved"];
+
+  // Search filtering — show all historical records (completed, late return, solved, damaged, lost, etc.)
   const filteredVenues = venueHistory.filter((b) => {
     const q = searchQuery.toLowerCase();
     const ref = (b.reference_code || `TRK-AVR${b.id}`).toLowerCase();
     const name = (b.filer_name || b.requestor || "").toLowerCase();
     const status = (b.status || b.tracking_number?.status || "").toLowerCase();
-    const isCompletedOrDamaged = status === "completed" || status === "solved" || status === "done" || status === "damaged" || status === "lost" || status === "violation" || status === "returned late";
-    return isCompletedOrDamaged && (!searchQuery || ref.includes(q) || name.includes(q));
+    const isHistorical = !activeStatuses.includes(status);
+    return isHistorical && (!searchQuery || ref.includes(q) || name.includes(q));
   });
 
   const filteredEquipment = equipmentHistory.filter((b) => {
@@ -291,8 +292,8 @@ export default function HistoryLog() {
     const ref = (b.reference_code || `EQUIP-REQ-${b.id}`).toLowerCase();
     const name = (b.filer_name || b.requestor || "").toLowerCase();
     const status = (b.status || b.tracking_number?.status || "").toLowerCase();
-    const isCompletedOrDamaged = status === "completed" || status === "solved" || status === "done" || status === "damaged" || status === "lost" || status === "violation" || status === "returned late";
-    return isCompletedOrDamaged && (!searchQuery || ref.includes(q) || name.includes(q));
+    const isHistorical = !activeStatuses.includes(status);
+    return isHistorical && (!searchQuery || ref.includes(q) || name.includes(q));
   });
 
   const [currentPage, setCurrentPage] = useState(1);
@@ -315,22 +316,13 @@ export default function HistoryLog() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-            History Log
-          </h1>
-          <p className="text-xs text-slate-500 font-semibold mt-0.5">
-            Complete historical records of completed venue reservations and equipment loan activities.
-          </p>
-        </div>
-
+      {/* Action Toolbar */}
+      <div className="flex items-center justify-end gap-4">
         <button
           type="button"
           onClick={fetchHistory}
           disabled={loading}
-          className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 rounded-lg text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-60 shadow-xs"
+          className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 hover:bg-blue-700 hover:text-white hover:border-blue-700 transition-colors cursor-pointer disabled:opacity-60 shadow-xs"
         >
           <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
           <span>Refresh</span>
@@ -472,4 +464,3 @@ export default function HistoryLog() {
     </div>
   );
 }
-

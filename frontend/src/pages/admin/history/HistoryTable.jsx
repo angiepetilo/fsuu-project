@@ -81,7 +81,7 @@ export default function HistoryTable({
                           </span>
                         ) : (
                           <span className="font-mono text-xs font-bold text-emerald-600 uppercase">
-                            ● Completed
+                            ● Good
                           </span>
                         )}
                       </td>
@@ -230,7 +230,7 @@ export default function HistoryTable({
                 const displayIndex = startIndex + idx + 1;
                 const isDamaged = (b.status || "").toLowerCase() === "damaged" || Boolean(b.has_damage);
                 const isLost = (b.status || "").toLowerCase() === "lost" || Boolean(b.is_lost);
-                const isLate = (b.status || "").toLowerCase() === "late return" || (b.status || "").toLowerCase() === "returned late" || (b.timeliness || "").toLowerCase() === "late" || Boolean(b.is_late);
+                const isLate = Boolean(b.is_late) || b.is_late === 1 || b.is_late === "1" || b.is_late === true || (b.status || "").toLowerCase().includes("late") || (b.timeliness || "").toLowerCase().includes("late") || String(b.violation_type || "").toLowerCase().includes("late") || String(b.violation || "").toLowerCase().includes("late");
                 const isOtherBreach = Boolean(b.violation) && !isLate && !isDamaged && !isLost;
                 const isBreach = isDamaged || isLost || isOtherBreach;
                 return (
@@ -244,17 +244,13 @@ export default function HistoryTable({
                     <td className="px-4 py-3 text-slate-600 font-mono whitespace-nowrap">{usageDate}</td>
                     <td className="px-4 py-3 text-slate-600 font-mono whitespace-nowrap">{timeRange}</td>
                     <td className="px-4 py-3 whitespace-nowrap">
-                      {isBreach ? (
-                        <span className="font-mono text-xs font-bold text-rose-600 uppercase">
-                          ● Damaged
-                        </span>
-                      ) : isLate ? (
-                        <span className="font-mono text-xs font-bold text-amber-500 uppercase">
+                      {isLate ? (
+                        <span className="font-mono text-xs font-bold text-amber-600 uppercase">
                           ● Late Return
                         </span>
                       ) : (
                         <span className="font-mono text-xs font-bold text-emerald-600 uppercase">
-                          ● Completed
+                          ● Good
                         </span>
                       )}
                     </td>

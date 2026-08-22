@@ -47,10 +47,15 @@ Status     : {{ ucfirst($status ?? 'pending') }}<br>
 
 <p>If you have any questions or require assistance, please contact the System Administrator.</p>
 
+@php
+    $sysSettings = \App\Models\SystemSetting::getSettings();
+@endphp
 <p class="signoff">
 Respectfully,<br>
-System Administrator<br>
-Father Saturnino Urios University, Butuan City
+<strong>{{ $sysSettings->system_name ?: 'System Administrator' }}</strong><br>
+{{ $sysSettings->organization_name ?: 'Father Saturnino Urios University' }}<br>
+@if(!empty($sysSettings->contact_phone)) Contact Phone: {{ $sysSettings->contact_phone }} &bull; @endif
+@if(!empty($sysSettings->contact_email)) Email: <a href="mailto:{{ $sysSettings->contact_email }}" style="color: #2563eb;">{{ $sysSettings->contact_email }}</a> @endif
 </p>
 </body>
 </html>

@@ -21,24 +21,25 @@ export default function ProfileConfigTab({ showMsg }) {
   const [passFeedback, setPassFeedback] = useState(null);
   const [passError, setPassError] = useState(null);
 
-  const [profileData, setProfileData] = useState(() => {
-    try {
-      const saved = localStorage.getItem("fsuu_sysad_profile");
-      return saved ? JSON.parse(saved) : {
-        name: user?.name || "Super Admin",
-        email: user?.email || "sysad@fsuu.edu.ph",
-        personal_email: user?.personal_email || "",
-        avatar: user?.avatar || null,
-      };
-    } catch {
-      return {
-        name: user?.name || "Super Admin",
-        email: user?.email || "sysad@fsuu.edu.ph",
-        personal_email: "",
-        avatar: user?.avatar || null,
-      };
+  const [profileData, setProfileData] = useState(() => ({
+    name: user?.name || "Super Administrator",
+    email: user?.email || "superadmin@fsuu.edu.ph",
+    personal_email: user?.personal_email || "",
+    avatar: user?.avatar || null,
+  }));
+
+  // Ensure state automatically reflects the logged-in user when switching accounts
+  useEffect(() => {
+    if (user) {
+      setProfileData({
+        name: user.name || "Super Administrator",
+        email: user.email || "superadmin@fsuu.edu.ph",
+        personal_email: user.personal_email || "",
+        avatar: user.avatar || null,
+      });
+      setAvatarPreview(user.avatar || null);
     }
-  });
+  }, [user]);
 
   const handleAvatarChange = (e) => {
     const file = e.target.files[0];
@@ -66,12 +67,11 @@ export default function ProfileConfigTab({ showMsg }) {
       if (res.data?.user && updateAuthUser) {
         updateAuthUser(res.data.user);
       }
-    } catch {}
-
-    localStorage.setItem("fsuu_sysad_profile", JSON.stringify(profileData));
-    window.dispatchEvent(new Event("sysad_profile_updated"));
-    notify.success("Profile Updated", "Super Administrator profile settings saved successfully.");
-    setIsEditing(false);
+      notify.success("Profile Updated", "Profile settings saved successfully.");
+      setIsEditing(false);
+    } catch (err) {
+      notify.error("Update Failed", err.response?.data?.message || "Failed to update profile.");
+    }
   };
 
   const handleChangePassword = async (e) => {
@@ -224,14 +224,15 @@ export default function ProfileConfigTab({ showMsg }) {
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Email Address <span className="text-rose-500">*</span>
+                  Email Address (Login Credentials) <span className="text-rose-500">*</span>
                 </label>
                 <input
                   type="email"
                   required
                   disabled={!isEditing}
-                  value={profileData.personal_email || profileData.email || ""}
-                  onChange={(e) => setProfileData({ ...profileData, personal_email: e.target.value })}
+                  value={profileData.email}
+                  onChange={(e) => setProfileData({ ...profileData, email: e.target.value })}
+                  placeholder="e.g. admin@fsuu.edu.ph"
                   className={`w-full p-2.5 border rounded-lg font-mono font-medium text-xs transition-colors ${
                     isEditing
                       ? "bg-white border-slate-300 text-slate-900 focus:outline-none focus:border-blue-600"
@@ -242,14 +243,14 @@ export default function ProfileConfigTab({ showMsg }) {
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Login Email <span className="text-rose-500">*</span>
+                  Personal / Recovery Email <span className="text-slate-400 font-normal">(Optional)</span>
                 </label>
                 <input
                   type="email"
-                  required
                   disabled={!isEditing}
-                  value={profileData.email}
-                  onChange={(e) => setProfileData({ ...profileData, email: e.target.value })}
+                  value={profileData.personal_email || ""}
+                  onChange={(e) => setProfileData({ ...profileData, personal_email: e.target.value })}
+                  placeholder="e.g. personal@gmail.com"
                   className={`w-full p-2.5 border rounded-lg font-mono font-medium text-xs transition-colors ${
                     isEditing
                       ? "bg-white border-slate-300 text-slate-900 focus:outline-none focus:border-blue-600"

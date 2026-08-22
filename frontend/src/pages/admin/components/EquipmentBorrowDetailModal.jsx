@@ -174,6 +174,9 @@ export default function EquipmentBorrowDetailModal({
       if (selected.timeliness) {
         setTimeliness(selected.timeliness);
       }
+      if (selected.is_late || (selected.status || "").toLowerCase().includes("late") || String(selected.violation_type || "").toLowerCase().includes("late") || String(selected.violation || "").toLowerCase().includes("late")) {
+        setTimeliness("late");
+      }
       if (selected.condition === "damaged" || selected.condition === "lost" || selected.inspection_condition === "damaged" || selected.inspection_condition === "lost") {
         setInspectionStatus("violation");
       } else if (selected.inspection_condition === "good" || selected.inspection_condition === "clean") {

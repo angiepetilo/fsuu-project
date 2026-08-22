@@ -114,7 +114,8 @@ class HistoryLogService
                 $activeStatuses = ['pending', 'approved', 'ongoing', 'reserved'];
                 $query->whereNotNull('tracking_numbers.status')
                       ->whereNotIn(DB::raw('LOWER(tracking_numbers.status)'), $activeStatuses);
-            });
+            })
+            ->orderBy('inspections.id', 'desc');
 
         if ($academicTermId) {
             $ebQuery->where('equipment_borrows.academic_term_id', $academicTermId);

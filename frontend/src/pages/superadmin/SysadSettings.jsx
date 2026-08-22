@@ -2,7 +2,7 @@ import { useState } from "react";
 import notify from "@/lib/notify";
 import {
   Users, Building2, Package, BookOpen, Clock,
-  DollarSign, Key, User, ShieldCheck, Building, GraduationCap
+  DollarSign, Key, User, Sliders, Building, GraduationCap
 } from "lucide-react";
 
 import EquipmentCategoriesTab from "../admin/tabs/EquipmentCategoriesTab";
@@ -14,6 +14,8 @@ import FeeMatrixTab from "../admin/tabs/FeeMatrixTab";
 import VerificationPinTab from "./tabs/VerificationPinTab";
 import ProfileConfigTab from "./tabs/ProfileConfigTab";
 import AcademicTermsTab from "./tabs/AcademicTermsTab";
+import SystemSettingsTab from "./tabs/SystemSettingsTab";
+import CommunicationLogsTab from "./tabs/CommunicationLogsTab";
 
 export default function SysadSettings() {
   const [activeTab, setActiveTab] = useState("users");
@@ -45,7 +47,8 @@ export default function SysadSettings() {
     { id: "operating_hours", label: "Operating Hours", icon: Clock },
     { id: "academic_terms", label: "Academic Terms & Archiving", icon: GraduationCap },
     { id: "pin", label: "Verification PIN", icon: Key },
-    { id: "confirmation", label: "Confirmation", icon: ShieldCheck },
+    { id: "communication_logs", label: "Communications Log", icon: Building2 },
+    { id: "system_settings", label: "System Settings", icon: Sliders },
     { id: "profile", label: "Profile", icon: User },
   ];
 
@@ -90,17 +93,8 @@ export default function SysadSettings() {
           showMsg={showMsg}
         />
       )}
-      {activeTab === "confirmation" && (
-        <div className="bg-white rounded-2xl border border-slate-200/80 p-10 shadow-xs text-center space-y-3">
-          <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto border border-blue-100">
-            <ShieldCheck size={24} />
-          </div>
-          <h3 className="text-sm font-extrabold text-slate-900">Confirmation</h3>
-          <p className="text-xs text-slate-500 max-w-md mx-auto">
-            Confirmation settings and template configurations will appear here.
-          </p>
-        </div>
-      )}
+      {activeTab === "communication_logs" && <CommunicationLogsTab />}
+      {activeTab === "system_settings" && <SystemSettingsTab showMsg={showMsg} />}
       {activeTab === "profile" && <ProfileConfigTab showMsg={showMsg} />}
     </div>
   );

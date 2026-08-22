@@ -38,13 +38,33 @@ class MediaUploadService
 
         // Case 1: UploadedFile (Multipart Form Request)
         if ($file instanceof UploadedFile) {
+            $origExt = strtolower($file->getClientOriginalExtension());
+            if (empty($origExt) || $origExt === 'tmp') {
+                $mime = $file->getMimeType();
+                $origExt = match ($mime) {
+                    'application/pdf' => 'pdf',
+                    'image/png'       => 'png',
+                    'image/gif'       => 'gif',
+                    'image/webp'      => 'webp',
+                    default           => 'jpg',
+                };
+            }
+            $origName = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
+            $cleanName = Str::slug($origName) ?: 'doc';
+
             if ($this->isCloudinaryEnabled()) {
                 try {
-                    $resourceType = strtolower($file->getClientOriginalExtension()) === 'pdf' ? 'raw' : 'auto';
-                    $upload = cloudinary()->uploadApi()->upload($file->getRealPath(), [
-                        'folder'        => 'fsuu/' . $folder,
-                        'resource_type' => $resourceType,
-                    ]);
+                    $isPdf = $origExt === 'pdf';
+                    $options = [
+                        'folder'          => 'fsuu/' . $folder,
+                        'use_filename'    => true,
+                        'unique_filename' => true,
+                        'resource_type'   => $isPdf ? 'image' : 'auto',
+                    ];
+                    if ($isPdf) {
+                        $options['format'] = 'pdf';
+                    }
+                    $upload = cloudinary()->uploadApi()->upload($file->getRealPath(), $options);
                     if (!empty($upload['secure_url'])) {
                         return $upload['secure_url'];
                     }
@@ -54,7 +74,8 @@ class MediaUploadService
             }
 
             // Fallback: Local Public Storage
-            $path = $file->store($folder, 'public');
+            $fileName = $cleanName . '_' . time() . '_' . Str::random(6) . '.' . $origExt;
+            $path = $file->storeAs($folder, $fileName, 'public');
             return url(Storage::url($path));
         }
 

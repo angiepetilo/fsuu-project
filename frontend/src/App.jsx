@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { BrowserRouter, Routes, Route, Link, useLocation, Navigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { cleanupLocalStorage } from "@/lib/cleanupLocalStorage";
@@ -47,6 +47,31 @@ function AppContent() {
   const isSysadPage    = location.pathname.startsWith("/sysad");
   const hideHeaderFooter = isAuthPage || isAdminPage || isSysadPage;
 
+  const [publicSettings, setPublicSettings] = useState(() => {
+    try {
+      const saved = localStorage.getItem("fsuu_system_settings");
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return {
+      system_name: "FSUU Facilities & Equipment Booking System",
+      organization_name: "Father Saturnino Urios University",
+      contact_email: "support.booking@fsuu.edu.ph",
+      contact_phone: "(085) 342-1830",
+    };
+  });
+
+  useEffect(() => {
+    fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000/api'}/public/system-settings`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data) {
+          setPublicSettings((prev) => ({ ...prev, ...data }));
+          localStorage.setItem("fsuu_system_settings", JSON.stringify(data));
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   return (
     <>
       {/* Navigation — only on public pages */}
@@ -58,7 +83,7 @@ function AppContent() {
               <img src="/fsuu_logo.png" alt="FSUU Seal" className="h-11 w-auto transition-transform duration-300 group-hover:scale-105" />
               <div className="flex flex-col">
                 <span className="font-extrabold text-xl tracking-tight text-slate-900 leading-tight">FSUU</span>
-                <span className="text-xs text-slate-500 font-semibold">Reserve and Booking System</span>
+                <span className="text-xs text-slate-500 font-semibold">{publicSettings.system_name || "Reserve and Booking System"}</span>
               </div>
             </Link>
           </div>
@@ -92,6 +117,7 @@ function AppContent() {
               <Route path="dashboard"           element={<Dashboard />} />
               <Route path="venue-bookings"      element={<VenueBookings />} />
               <Route path="equipment-borrowing" element={<EquipmentBorrowings />} />
+              <Route path="equipment-borrowings" element={<EquipmentBorrowings />} />
               <Route path="manage-equipments"   element={<ManageEquipments />} />
               <Route path="manage-venues"       element={<ManageVenues />} />
               <Route path="reports"             element={<Reports />} />
@@ -105,6 +131,7 @@ function AppContent() {
               <Route path="dashboard"           element={<Dashboard />} />
               <Route path="venue-bookings"      element={<VenueBookings />} />
               <Route path="equipment-borrowing" element={<EquipmentBorrowings />} />
+              <Route path="equipment-borrowings" element={<EquipmentBorrowings />} />
               <Route path="manage-equipments"   element={<ManageEquipments />} />
               <Route path="manage-venues"       element={<ManageVenues />} />
               <Route path="reports"             element={<Reports />} />
@@ -116,8 +143,40 @@ function AppContent() {
       </main>
 
       {!hideHeaderFooter && (
-        <footer className="text-center py-12 border-t border-slate-200 mt-20 text-slate-500 text-sm font-medium">
-          © {new Date().getFullYear()} Father Saturnino Urios University. All rights reserved.
+        <footer className="border-t border-slate-200 bg-white/60 backdrop-blur-xs mt-20">
+          <div className="max-w-[1280px] mx-auto px-6 sm:px-8 py-10 flex flex-col sm:flex-row items-center justify-between gap-6 text-slate-500 text-xs">
+            <div className="flex flex-col items-center sm:items-start gap-1">
+              <span className="font-extrabold text-sm text-slate-900">
+                {publicSettings.organization_name || "Father Saturnino Urios University"}
+              </span>
+              <span className="text-slate-500 font-medium">
+                {publicSettings.system_name || "Facilities & Equipment Booking System"}
+              </span>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-center gap-6 font-semibold text-slate-600">
+              {publicSettings.contact_phone && (
+                <div className="flex items-center gap-1.5">
+                  <span className="text-slate-400">Tel:</span>
+                  <a href={`tel:${publicSettings.contact_phone}`} className="hover:text-blue-600 transition-colors">
+                    {publicSettings.contact_phone}
+                  </a>
+                </div>
+              )}
+              {publicSettings.contact_email && (
+                <div className="flex items-center gap-1.5">
+                  <span className="text-slate-400">Email:</span>
+                  <a href={`mailto:${publicSettings.contact_email}`} className="hover:text-blue-600 transition-colors">
+                    {publicSettings.contact_email}
+                  </a>
+                </div>
+              )}
+            </div>
+
+            <div className="text-center sm:text-right text-slate-400 font-medium">
+              © {new Date().getFullYear()} All rights reserved.
+            </div>
+          </div>
         </footer>
       )}
 

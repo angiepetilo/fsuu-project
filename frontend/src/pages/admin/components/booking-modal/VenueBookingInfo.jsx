@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { FileText, Eye, Upload, CheckCircle, FileCheck, HardDrive, ExternalLink } from "lucide-react";
-import { resolveStorageUrl } from "@/lib/utils";
+import { FileText, ExternalLink, Upload, CheckCircle, HardDrive } from "lucide-react";
+import { resolveStorageUrl, openFileInNewTab } from "@/lib/utils";
 
 export default function VenueBookingInfo({
   selected,
@@ -8,7 +8,6 @@ export default function VenueBookingInfo({
   formatDateTimeFiled,
   formatDate,
   requestedCategories = [],
-  setFullImageModal,
 }) {
   if (!selected) return null;
 
@@ -20,11 +19,12 @@ export default function VenueBookingInfo({
   const [staffUploadUrl, setStaffUploadUrl] = useState(null);
   const [saveSuccessMsg, setSaveSuccessMsg] = useState(null);
   const [showUploadForm, setShowUploadForm] = useState(false);
+  const [imageLoadError, setImageLoadError] = useState(false);
 
   useEffect(() => {
     setStaffUploadUrl(null);
+    setImageLoadError(false);
     try {
-      // Clear any legacy stale localStorage upload entries
       localStorage.removeItem(`fsuu_staff_upload_${selected.id}`);
       const savedHc = localStorage.getItem(storageKeyHardcopy);
       const savedNotes = localStorage.getItem(storageKeyNotes);
@@ -56,13 +56,11 @@ export default function VenueBookingInfo({
   };
 
   const getDocumentUrl = () => {
-    // 1. Direct endorsement URL on selected booking
     if (selected.endorsement_url) return resolveStorageUrl(selected.endorsement_url);
     if (selected.endorsement_letter) return resolveStorageUrl(selected.endorsement_letter);
     if (selected.endorsement_letter_url) return resolveStorageUrl(selected.endorsement_letter_url);
     if (selected.endorsement_file) return resolveStorageUrl(selected.endorsement_file);
 
-    // 2. Search documents relation (pick latest document)
     if (Array.isArray(selected.documents) && selected.documents.length > 0) {
       const docsReversed = [...selected.documents].reverse();
       const endorsementDoc = docsReversed.find(d => 
@@ -80,29 +78,11 @@ export default function VenueBookingInfo({
 
   const docUrl = getDocumentUrl();
   const isPdf = String(docUrl || "").toLowerCase().includes(".pdf") || String(docUrl || "").toLowerCase().includes("data:application/pdf");
-  const [imageLoadError, setImageLoadError] = useState(false);
 
+  // Opens directly in another browser tab using a Blob object or direct storage URL (no download)
   const handleOpenDocument = (url) => {
     if (!url) return;
-    if (url.startsWith("data:")) {
-      try {
-        const parts = url.split(',');
-        const mime = parts[0].match(/:(.*?);/)?.[1] || 'application/octet-stream';
-        const bstr = atob(parts[1]);
-        let n = bstr.length;
-        const u8arr = new Uint8Array(n);
-        while (n--) {
-          u8arr[n] = bstr.charCodeAt(n);
-        }
-        const blob = new Blob([u8arr], { type: mime });
-        const blobUrl = URL.createObjectURL(blob);
-        window.open(blobUrl, "_blank");
-      } catch {
-        window.open(url, "_blank");
-      }
-    } else {
-      window.open(url, "_blank");
-    }
+    openFileInNewTab(url);
   };
 
   return (
@@ -138,50 +118,47 @@ export default function VenueBookingInfo({
           <span className="text-slate-500">Date Range :</span>
           <span className="font-mono text-slate-900 font-bold">
             {selected.reservation_end_date && String(selected.reservation_end_date).substring(0, 10) !== String(selected.date_of_usage).substring(0, 10)
-              ? `${String(selected.date_of_usage).substring(0, 10)} to ${String(selected.reservation_end_date).substring(0, 10)}`
-              : (selected.date_of_usage ? String(selected.date_of_usage).substring(0, 10) : (formatDate ? formatDate(selected.created_at) : "2026-08-03"))
-            }
+              ? `${formatDate(selected.date_of_usage)} — ${formatDate(selected.reservation_end_date)}`
+              : formatDate(selected.date_of_usage || selected.start_datetime || selected.date)}
           </span>
         </div>
 
         <div className="flex justify-between items-baseline py-1 border-b border-slate-100">
-          <span className="text-slate-500">Start Time :</span>
-          <span className="font-mono font-bold text-slate-900">{formatRealTime(selected.time_start || "08:00:00")}</span>
-        </div>
-
-        <div className="flex justify-between items-baseline py-1 border-b border-slate-100">
-          <span className="text-slate-500">End Time :</span>
-          <span className="font-mono font-bold text-slate-900">{formatRealTime(selected.time_end || "17:00:00")}</span>
-        </div>
-
-        <div className="flex justify-between items-baseline py-1 border-b border-slate-100">
-          <span className="text-slate-500">Event Purpose :</span>
-          <span className="font-medium text-slate-800 italic">"{selected.purpose || selected.title_of_reservation || "Event"}"</span>
-        </div>
-
-        <div className="flex justify-between items-baseline py-1">
-          <span className="text-slate-500">Equipment Needed :</span>
-          <span className="font-mono font-bold text-slate-800">
-            {requestedCategories.length > 0
-              ? requestedCategories.map(c => `${c.category} [${c.quantity}]`).join(", ")
-              : "None specified"}
+          <span className="text-slate-500">Time Range :</span>
+          <span className="font-mono text-slate-900 font-bold">
+            {formatRealTime(selected.time_start || selected.start_datetime)} - {formatRealTime(selected.time_end || selected.end_datetime)}
           </span>
         </div>
 
-        {/* Walk-in Physical Hardcopy Status Card in Plain Text */}
-        {isHardcopy && (
-          <div className="mt-3 p-3 bg-white border border-slate-200 rounded-xl space-y-1 text-xs">
-            <div className="text-emerald-600 font-extrabold flex items-center gap-1.5">
-              ● Physical Hardcopy Verified &amp; Filed
+        <div className="flex justify-between items-baseline py-1 border-b border-slate-100">
+          <span className="text-slate-500">Purpose :</span>
+          <span className="font-mono text-slate-800">{selected.purpose || "Event / Meeting"}</span>
+        </div>
+
+        <div className="flex justify-between items-baseline py-1 border-b border-slate-100">
+          <span className="text-slate-500">Date &amp; Time Filed :</span>
+          <span className="font-mono text-slate-800">{formatDateTimeFiled(selected.created_at || selected.date_filed)}</span>
+        </div>
+
+        {/* Requested Equipment Categories Badges */}
+        {requestedCategories && requestedCategories.length > 0 && (
+          <div className="pt-2 border-t border-slate-100">
+            <span className="text-slate-500 block mb-1.5 font-bold">Requested Equipment Types :</span>
+            <div className="flex flex-wrap gap-1.5">
+              {requestedCategories.map((cat, idx) => (
+                <span
+                  key={idx}
+                  className="px-2.5 py-1 bg-slate-100 text-slate-800 border border-slate-200 rounded-lg text-xs font-bold font-mono"
+                >
+                  {cat.name || cat.category} {cat.quantity > 1 ? `(${cat.quantity} units)` : ""}
+                </span>
+              ))}
             </div>
-            <p className="text-[11px] text-slate-600 font-medium leading-tight">
-              {hardcopyNotes || "Paper endorsement letter physically received and filed in office binder."}
-            </p>
           </div>
         )}
       </div>
 
-      {/* Right Column (5/12): Endorsement letter preview with neutral outlined button */}
+      {/* Right Column (5/12): Endorsement document preview & direct open in new tab */}
       <div className="lg:col-span-5 p-4 bg-white rounded-2xl border border-slate-200 flex flex-col justify-between space-y-3">
         <div>
           <div className="flex items-center justify-between mb-2">
@@ -218,7 +195,8 @@ export default function VenueBookingInfo({
                     <img
                       src={docUrl}
                       alt="Endorsement Letter Preview"
-                      className="w-full h-full object-contain bg-slate-950 p-1"
+                      className="w-full h-full object-contain bg-slate-950 p-1 cursor-pointer"
+                      onClick={() => handleOpenDocument(docUrl)}
                       onError={() => setImageLoadError(true)}
                     />
                   ) : (
@@ -234,7 +212,7 @@ export default function VenueBookingInfo({
                     className="absolute inset-0 w-full h-full flex items-center justify-center bg-black/40 hover:bg-black/60 transition-colors cursor-pointer"
                   >
                     <span className="text-slate-900 text-xs font-bold flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white border border-slate-200 shadow-xs">
-                      <ExternalLink size={14} /> Open Document
+                      <ExternalLink size={14} /> Open in New Tab
                     </span>
                   </button>
                 </>
@@ -248,30 +226,20 @@ export default function VenueBookingInfo({
           </div>
         </div>
 
-        {/* Staff Upload Section */}
-        <div className="pt-2 border-t border-slate-100 space-y-2">
-          {saveSuccessMsg && (
-            <p className="text-[10.5px] font-mono text-emerald-600 font-bold">{saveSuccessMsg}</p>
-          )}
-
-          <div className="flex items-center justify-between">
-            <label className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 rounded-lg text-xs font-bold cursor-pointer transition-colors">
-              <Upload size={13} /> Upload Digital Copy
-              <input type="file" accept="image/*,.pdf" onChange={handleFileUpload} className="hidden" />
-            </label>
-
+        {/* Walk-in Hardcopy Fallback Option */}
+        <div className="pt-2 border-t border-slate-100 text-xs">
+          {!showUploadForm ? (
             <button
               type="button"
-              onClick={() => setShowUploadForm(!showUploadForm)}
-              className="text-[11px] font-bold text-slate-600 hover:text-slate-900 underline cursor-pointer"
+              onClick={() => setShowUploadForm(true)}
+              className="text-slate-600 hover:text-slate-900 font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
             >
-              {showUploadForm ? "Hide Options" : "Walk-in Options"}
+              <HardDrive size={13} />
+              <span>Physical Hardcopy / Document Management</span>
             </button>
-          </div>
-
-          {showUploadForm && (
-            <div className="p-3 bg-white border border-slate-200 rounded-xl space-y-2 text-xs">
-              <label className="flex items-center gap-2 cursor-pointer font-bold text-slate-800">
+          ) : (
+            <div className="space-y-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+              <label className="flex items-center gap-2 font-bold text-slate-800 text-xs cursor-pointer">
                 <input
                   type="checkbox"
                   checked={isHardcopy}

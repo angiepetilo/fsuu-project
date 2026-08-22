@@ -43,11 +43,16 @@
 
   <p style="font-size: 12px; color: #64748b;"><strong>Security Notice:</strong> Please sign in and set your new permanent password. Do not share your login credentials with unauthorized personnel.</p>
 
-  <p class="signoff">
+@php
+    $sysSettings = \App\Models\SystemSetting::getSettings();
+@endphp
+  <div class="signoff">
     Respectfully,<br>
-    <strong>System Administrator</strong><br>
-    Father Saturnino Urios University, Butuan City
-  </p>
+    <strong>{{ $sysSettings->system_name ?: 'System Administrator' }}</strong><br>
+    {{ $sysSettings->organization_name ?: 'Father Saturnino Urios University' }}<br>
+    @if(!empty($sysSettings->contact_phone)) Contact Phone: {{ $sysSettings->contact_phone }} &bull; @endif
+    @if(!empty($sysSettings->contact_email)) Email: <a href="mailto:{{ $sysSettings->contact_email }}" style="color: #2563eb;">{{ $sysSettings->contact_email }}</a> @endif
+  </div>
 </div>
 </body>
 </html>
