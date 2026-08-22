@@ -126,7 +126,7 @@ export default function EquipmentModal({
                     className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none disabled:opacity-50"
                   >
                     <option value="Available">Available</option>
-                    <option value="Release / In - Use">Release / In - Use</option>
+                    <option value="Released">Released</option>
                     <option value="unavailable">Unavailable</option>
                   </select>
                 </div>
@@ -287,7 +287,7 @@ export default function EquipmentModal({
                     className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none disabled:opacity-50"
                   >
                     <option value="Available">Available</option>
-                    <option value="Release / In - Use">Release / In - Use</option>
+                    <option value="Released">Released</option>
                     <option value="unavailable">Unavailable</option>
                   </select>
                 </div>

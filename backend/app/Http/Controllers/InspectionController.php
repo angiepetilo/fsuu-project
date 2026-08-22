@@ -26,6 +26,9 @@ class InspectionController extends Controller
                 if ($refType === 'avr_venue_booking' || $refType === 'venue_booking' || $refType === 'App\Models\VenueBooking') {
                     $q->whereIn('inspectable_type', ['avr_venue_booking', 'venue_booking', 'App\Models\VenueBooking'])
                       ->orWhereIn('reference_type', ['avr_venue_booking', 'venue_booking', 'App\Models\VenueBooking']);
+                } elseif ($refType === 'equipment_borrow' || $refType === 'App\Models\EquipmentBorrow') {
+                    $q->whereIn('inspectable_type', ['equipment_borrow', \App\Models\EquipmentBorrow::class])
+                      ->orWhereIn('reference_type', ['equipment_borrow', \App\Models\EquipmentBorrow::class]);
                 } else {
                     $q->where('inspectable_type', $refType)
                       ->orWhere('reference_type', $refType);
@@ -53,13 +56,22 @@ class InspectionController extends Controller
         $notes = $request->input('notes') ?? '';
         $violationType = $request->input('violation_type');
 
-        // Check if inspection record already exists for this booking/borrowing
+        // Check if inspection record already exists for this booking/borrowing and inspection_type.
+        // post_use and post_event are treated as the same inspection phase to avoid duplicates.
         $inspection = null;
+        $incomingType = $request->input('inspection_type') ?? 'post_event';
+        $lookupTypes = ($incomingType === 'post_use' || $incomingType === 'post_event')
+            ? ['post_use', 'post_event']
+            : [$incomingType];
+
         if ($refId) {
             $inspection = Inspection::where(function ($q) use ($refId) {
                 $q->where('inspectable_id', $refId)
                   ->orWhere('reference_id', $refId);
-            })->first();
+            })
+            ->whereIn('inspection_type', $lookupTypes)
+            ->latest('updated_at')
+            ->first();
         }
 
         $data = [
@@ -68,8 +80,10 @@ class InspectionController extends Controller
             'reference_type'   => $refType,
             'reference_id'     => $refId,
             'inspected_by'     => auth()->id() ?? 1,
-            'inspection_type'  => $request->input('inspection_type') ?? 'post_event',
+            'inspection_type'  => $incomingType,
             'condition'        => $condition,
+            'timeliness'       => $request->input('timeliness') ?? 'on_time',
+            'is_late'          => $request->input('timeliness') === 'late',
             'notes'            => $notes,
             'violation_type'   => $violationType,
             'evidence_photo'   => $photo,
@@ -82,6 +96,22 @@ class InspectionController extends Controller
             $inspection->fill($data)->save();
         } else {
             $inspection = Inspection::forceCreate($data);
+        }
+
+        // Synchronize physical units condition and availability status
+        if (is_array($unitConditions)) {
+            foreach ($unitConditions as $key => $condVal) {
+                $condStr = strtolower(trim((string)$condVal));
+                $uStatus = ($condStr === 'damaged' || $condStr === 'lost') ? 'unavailable' : 'available';
+                $uCond = $condStr === 'damaged' ? 'Damaged' : ($condStr === 'lost' ? 'Lost' : 'Good');
+                
+                \App\Models\EquipmentUnit::where(function($q) use ($key) {
+                    $q->where('unit_code', $key)
+                      ->orWhere('name', $key)
+                      ->orWhere('barcode', $key)
+                      ->orWhere('id', $key);
+                })->update(['status' => $uStatus, 'condition' => $uCond]);
+            }
         }
 
         // Broadcast live inventory update event

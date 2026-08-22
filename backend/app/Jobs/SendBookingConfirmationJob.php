@@ -48,7 +48,7 @@ class SendBookingConfirmationJob implements ShouldQueue
         if ($this->type === 'venue') {
             $this->booking->loadMissing(['venue', 'trackingNumber', 'documents']);
         } else {
-            $this->booking->loadMissing(['items', 'trackingNumber', 'office']);
+            $this->booking->loadMissing(['items', 'trackingNumber']);
         }
 
         try {

@@ -89,9 +89,14 @@ export default function EquipBorrowUnitAssignment({
           return (
             <div key={catIdx} className="p-3.5 bg-white rounded-2xl border border-slate-200/90 space-y-2.5 shadow-xs">
               <div className="flex items-center justify-between">
-                <span className="font-extrabold text-slate-900 text-xs">
-                  {reqCat.category}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="font-extrabold text-slate-900 text-xs">
+                    {reqCat.category}
+                  </span>
+                  <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">
+                    {availableUnits.length} in stock
+                  </span>
+                </div>
                 <span className="text-[11px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200">
                   Qty: {reqCat.quantity}
                 </span>
@@ -177,7 +182,9 @@ export default function EquipBorrowUnitAssignment({
                               }}
                               className="w-full p-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-50 cursor-pointer"
                             >
-                              <option value="">-- Assign Barcode (Unit {uIdx + 1}) --</option>
+                              <option value="">
+                                -- Assign Barcode (Unit {uIdx + 1} of {reqCat.quantity}) • {filteredAvailableUnits.length} in stock --
+                              </option>
                               {filteredAvailableUnits.length > 0 ? (
                                 filteredAvailableUnits.map((unit) => {
                                   const displayCode = unit.unit_code || unit.barcode || unit.serial_number || unit.code || `UNIT-${unit.id}`;
@@ -189,7 +196,7 @@ export default function EquipBorrowUnitAssignment({
                                 })
                               ) : (
                                 <option value="" disabled>
-                                  All units in this category are assigned to other slots
+                                  All {availableUnits.length} units in stock are assigned to other slots
                                 </option>
                               )}
                             </select>
@@ -240,7 +247,9 @@ export default function EquipBorrowUnitAssignment({
                             }}
                             className="w-full p-2 bg-amber-50/50 border border-amber-300 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-50 cursor-pointer"
                           >
-                            <option value="">-- Assign Barcode (Unit {uIdx + 1}) --</option>
+                            <option value="">
+                              -- Assign Barcode (Unit {uIdx + 1} of {reqCat.quantity}) • {filteredUnits.length} in stock --
+                            </option>
                             {filteredUnits.map((unit) => {
                               const displayCode = unit.unit_code || unit.barcode || unit.serial_number || unit.code || `UNIT-${unit.id}`;
                               return (
@@ -333,45 +342,6 @@ export default function EquipBorrowUnitAssignment({
             <span>Equipment dispatched. Awaiting return & post-use inspection.</span>
           </div>
         )}
-
-        {/* Resend Email Delivery Button */}
-        <div className="space-y-1.5">
-          {resendMsg && (
-            <p className="text-[10.5px] font-mono text-emerald-600 font-bold mb-1">
-              {resendMsg}
-            </p>
-          )}
-          <button
-            type="button"
-            onClick={handleResendEmail}
-            disabled={resendLoading}
-            className="w-full py-2 bg-white hover:bg-slate-50 text-slate-700 rounded-lg text-xs font-bold border border-slate-300 flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
-          >
-            {resendLoading ? <Loader2 size={14} className="animate-spin" /> : <Mail size={14} className="text-slate-600" />}
-            Resend Email Delivery
-          </button>
-
-          {/* Overdue SMS Alert Trigger (Available on Ongoing or Approved) */}
-          {(isOngoing || isApproved) && (
-            <div>
-              {smsMsg && (
-                <p className="text-[10.5px] font-mono text-amber-600 font-bold mb-1">
-                  {smsMsg}
-                </p>
-              )}
-              <button
-                type="button"
-                onClick={handleSendOverdueSms}
-                disabled={smsLoading}
-                className="w-full py-2 bg-amber-50 hover:bg-amber-100/80 text-amber-900 rounded-lg text-xs font-bold border border-amber-300/80 flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 transition-colors"
-                title="Send urgent SMS reminder to borrower's phone number via Semaphore"
-              >
-                {smsLoading ? <Loader2 size={14} className="animate-spin" /> : <Smartphone size={14} className="text-amber-700" />}
-                Send Overdue SMS Notice
-              </button>
-            </div>
-          )}
-        </div>
       </div>
     </div>
   );

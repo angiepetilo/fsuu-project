@@ -10,25 +10,27 @@ return new class extends Migration
     {
         Schema::create('inspections', function (Blueprint $table) {
             $table->id();
-            $table->string('inspectable_type'); // "venue_booking" or "equipment_unit"
+            $table->string('inspectable_type'); // 'equipment_borrow' or 'avr_venue_booking'
             $table->unsignedBigInteger('inspectable_id');
             $table->string('reference_type')->nullable();
             $table->unsignedBigInteger('reference_id')->nullable();
             $table->foreignId('inspected_by')->constrained('users')->cascadeOnDelete();
-            $table->string('inspection_type'); // pre_use, post_use, post_event
-            $table->string('condition'); // good, damaged, missing, lost
+            $table->string('inspection_type'); // pre_use, post_use
+            $table->string('condition');       // good, damaged, lost
             $table->boolean('is_late')->default(false);
-            $table->string('timeliness')->default('on_time');
+            $table->string('timeliness')->default('on_time'); // on_time, late
             $table->integer('minutes_late')->default(0);
             $table->string('violation_type')->nullable();
             $table->text('notes')->nullable();
             $table->longText('evidence_photo')->nullable();
-            $table->longText('assigned_units')->nullable();
-            $table->longText('unit_conditions')->nullable();
+            $table->json('assigned_units')->nullable();   // { "0-0": "EQ-001", "PROJECTOR-0": "EQ-001" }
+            $table->json('unit_conditions')->nullable();  // { "EQ-001": "Damaged", "0-0": "Damaged" }
             $table->timestamp('inspected_at')->nullable();
             $table->timestamps();
 
-            $table->index(['inspectable_type', 'inspectable_id']);
+            $table->index(['inspectable_type', 'inspectable_id'], 'insp_inspectable_idx');
+            $table->index(['reference_type', 'reference_id'],     'insp_reference_idx');
+            $table->index('inspection_type',                       'insp_type_idx');
         });
     }
 

@@ -17,6 +17,9 @@ return new class extends Migration
             $table->string('status')->default('available');
             $table->integer('total_quantity')->default(1);
             $table->integer('available_count')->default(1);
+            $table->integer('damaged_count')->default(0);
+            $table->integer('lost_count')->default(0);
+            $table->integer('released_count')->default(0);
             $table->date('date_purchased')->nullable();
             $table->integer('lifespan_years')->default(5);
             $table->text('description')->nullable();

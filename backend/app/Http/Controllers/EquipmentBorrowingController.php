@@ -303,6 +303,8 @@ class EquipmentBorrowingController extends Controller
         }
 
         if (\Illuminate\Support\Facades\Schema::hasTable('inspections')) {
+            // Find existing inspection record — accept both post_use (saved via Save button)
+            // and post_event (saved via previous complete actions) to avoid duplicates.
             $existingInsp = \Illuminate\Support\Facades\DB::table('inspections')
                 ->where(function($q) use ($equipmentBorrowing) {
                     $q->where('inspectable_id', $equipmentBorrowing->id)
@@ -313,6 +315,8 @@ class EquipmentBorrowingController extends Controller
                       ->orWhere('inspectable_type', 'equipment_borrow')
                       ->orWhere('reference_type', 'equipment_borrow');
                 })
+                ->whereIn('inspection_type', ['post_use', 'post_event'])
+                ->latest('updated_at')
                 ->first();
 
             $inspData = [
@@ -385,15 +389,20 @@ class EquipmentBorrowingController extends Controller
             return response()->json(['message' => 'Equipment borrowing record not found'], 404);
         }
 
+        $email = $borrow->email_address ?? $borrow->requestor_email ?? '';
+        if (!$email) {
+            return response()->json(['message' => 'No borrower email address found to send return notice.'], 422);
+        }
+
         try {
-            $res = \App\Services\SmsService::sendOverdueAlert($borrow);
-            $contact = $borrow->contact_number ?? $borrow->requestor_contact_number ?? 'Borrower';
+            // Dispatch email reminder for urgent return
+            \App\Jobs\SendBookingConfirmationJob::dispatch('equipment', $borrow);
+
             return response()->json([
-                'message' => "✅ Overdue SMS alert dispatched to {$contact}",
-                'result'  => $res,
+                'message' => "✅ Urgent return email reminder sent to {$email}",
             ]);
         } catch (\Throwable $e) {
-            return response()->json(['message' => 'Failed to send overdue SMS: ' . $e->getMessage()], 500);
+            return response()->json(['message' => 'Failed to send return email reminder: ' . $e->getMessage()], 500);
         }
     }
 

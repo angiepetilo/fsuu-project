@@ -128,7 +128,7 @@ export default function IncidentDetailModal({ incident, onClose }) {
             <img
               src={incident.evidence_photo}
               alt="Incident Evidence"
-              className="w-full max-h-48 object-cover rounded-xl border border-slate-200"
+              className="w-full max-h-48 object-contain bg-slate-50 rounded-xl border border-slate-200"
             />
           </div>
         )}

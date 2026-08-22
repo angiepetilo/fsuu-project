@@ -213,12 +213,12 @@ export default function UserManagementTab({ showMsg }) {
       </div>
 
       {/* User Accounts Table */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-xs">
         <table className="w-full text-xs">
           <thead>
             <tr className="bg-slate-50 border-b border-slate-200">
-              {["#", "Account Name", "Email", "Role", "Status", "Actions"].map((h) => (
-                <th key={h} className="px-4 py-3 text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+              {["#", "Account Name", "Email", "Role", "Status", "Actions"].map((h, i) => (
+                <th key={h} className={`px-4 py-3 text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wider ${i === 0 ? 'rounded-tl-2xl' : i === 5 ? 'rounded-tr-2xl' : ''}`}>
                   {h}
                 </th>
               ))}
@@ -246,9 +246,11 @@ export default function UserManagementTab({ showMsg }) {
                 const isDisabled = u.status === "disabled" || u.status === "inactive" || u.is_active === false || u.is_active === 0;
                 const roleName = (u.role?.name || u.role || "staff").toLowerCase();
                 const isAdmin = roleName.includes("admin");
+                const isNearBottom = index >= Math.max(1, filteredUsers.length - 2);
+                const isOpen = openActionId === u.id;
 
                 return (
-                  <tr key={u.id || index} className="hover:bg-slate-50/60 transition-colors">
+                  <tr key={u.id || index} className={`hover:bg-slate-50/60 transition-colors ${isOpen ? 'relative z-30' : ''}`}>
                     <td className="px-4 py-3.5 font-bold text-slate-400">{index + 1}</td>
                     <td className="px-4 py-3.5">
                       {isPending ? (
@@ -295,7 +297,7 @@ export default function UserManagementTab({ showMsg }) {
                             setOpenActionId(openActionId === u.id ? null : u.id);
                           }}
                           className={`p-1.5 rounded-xl border transition-all cursor-pointer shadow-2xs ${
-                            openActionId === u.id
+                            isOpen
                               ? "bg-blue-600 border-blue-600 text-white shadow-md"
                               : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900"
                           }`}
@@ -304,8 +306,8 @@ export default function UserManagementTab({ showMsg }) {
                           <MoreVertical size={14} />
                         </button>
 
-                        {openActionId === u.id && (
-                          <div className="absolute right-0 top-full mt-1.5 w-44 bg-white rounded-2xl shadow-2xl border border-slate-200 py-1.5 z-40 animate-in fade-in zoom-in-95 backdrop-blur-md">
+                        {isOpen && (
+                          <div className={`absolute right-0 ${isNearBottom ? 'bottom-full mb-1.5' : 'top-full mt-1.5'} w-44 bg-white rounded-2xl shadow-2xl border border-slate-200 py-1.5 z-50 animate-in fade-in zoom-in-95 backdrop-blur-md`}>
                             {isPending && (
                               <button
                                 type="button"

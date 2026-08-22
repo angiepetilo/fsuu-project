@@ -8,6 +8,8 @@ use Illuminate\Support\Facades\Log;
 
 class SmsService
 {
+    public static bool $smsEnabled = false;
+
     /**
      * Send an SMS via iPROG SMS API (or Semaphore fallback).
      *
@@ -17,6 +19,11 @@ class SmsService
      */
     public static function send(string $phoneNumber, string $message): ?array
     {
+        if (!self::$smsEnabled) {
+            Log::info("SmsService: SMS dispatch is currently disabled (using email notifications).");
+            return null;
+        }
+
         $iprogKey = config('services.iprogsms.api_key') ?: env('IPROG_SMS_API_KEY');
         $semaphoreKey = env('SEMAPHORE_API_KEY');
 

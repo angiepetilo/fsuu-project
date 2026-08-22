@@ -92,7 +92,7 @@ class VenueAvailabilityController extends Controller
      */
     public function venuesList(Request $request): JsonResponse
     {
-        $query = Venue::with('office')->orderBy('name');
+        $query = Venue::query()->orderBy('name');
 
         if ($request->has('office_id') && $request->office_id !== 'all') {
             $query->where('office_id', $request->office_id);

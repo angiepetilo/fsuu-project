@@ -94,7 +94,7 @@ class GoogleAuthController extends Controller
                             'avatar'    => $user->avatar,
                             'role'      => $user->role,
                             'office_id' => $user->office_id,
-                            'office'    => $user->load('office')->office?->only(['id', 'name', 'code', 'type']),
+                            'office'    => $user->location ?? 'FSUU Main Campus',
                         ],
                         'dev_notice' => 'Authenticated via local development fallback account.',
                     ]);

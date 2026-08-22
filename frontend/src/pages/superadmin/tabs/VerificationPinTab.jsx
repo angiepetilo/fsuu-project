@@ -348,26 +348,7 @@ export default function VerificationPinTab({
               />
             </label>
 
-            {/* Rule 2: Multi-Day Equipment */}
-            <label className="flex items-start justify-between p-3.5 bg-slate-50 rounded-2xl border border-slate-200/80 cursor-pointer hover:bg-slate-100/80 transition-all">
-              <div className="space-y-0.5 pr-4">
-                <div className="flex items-center gap-2">
-                  <PackageOpen size={15} className="text-slate-600" />
-                  <span className="font-bold text-slate-900 text-xs">Require PIN for Next-Day / Multi-Day Equipment Returns (More than 1 day)</span>
-                </div>
-                <p className="text-[11px] text-slate-500 font-medium">
-                  Enforces PIN verification for all users whenever borrowed items are scheduled to be kept overnight or returned on later days.
-                </p>
-              </div>
-              <input
-                type="checkbox"
-                checked={pinSettings.requirePinMultiDayEquipment !== false}
-                onChange={(e) => setPinSettings({ ...pinSettings, requirePinMultiDayEquipment: e.target.checked })}
-                className="w-5 h-5 text-blue-600 rounded-lg cursor-pointer mt-0.5"
-              />
-            </label>
-
-            {/* Rule 3: External Requisitions */}
+            {/* Rule 2: External Requisitions */}
             <label className="flex items-start justify-between p-3.5 bg-slate-50 rounded-2xl border border-slate-200/80 cursor-pointer hover:bg-slate-100/80 transition-all">
               <div className="space-y-0.5 pr-4">
                 <div className="flex items-center gap-2">

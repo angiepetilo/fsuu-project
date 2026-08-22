@@ -125,7 +125,24 @@ export default function TrackBooking() {
     { label: "Completed", desc: "Log closed" },
   ];
 
-  const activeSteps = isVenue ? venueSteps : equipmentSteps;
+  const getRequestedEquipmentList = () => {
+    if (!booking) return [];
+    if (Array.isArray(booking.items) && booking.items.length > 0) {
+      return booking.items.map(it => ({
+        name: it.equipment_type?.eq_name || it.equipment_type?.name || it.equipment_name || it.category || "Equipment Item",
+        qty: parseInt(it.quantity_requested || it.quantity || 1, 10),
+      }));
+    }
+    if (booking.equipment_name || booking.equipment) {
+      return [{
+        name: booking.equipment_name || booking.equipment,
+        qty: parseInt(booking.quantity || booking.qty || 1, 10),
+      }];
+    }
+    return [];
+  };
+
+  const equipmentItems = getRequestedEquipmentList();
 
   return (
     <div className="flex flex-col items-center w-full max-w-3xl mx-auto relative animate-in fade-in duration-500">
@@ -203,8 +220,29 @@ export default function TrackBooking() {
                 <span className="text-sm font-extrabold text-slate-900">{booking.filer_name || booking.requestor_name || "—"}</span>
               </div>
               <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/60">
-                <span className="text-slate-400 font-bold uppercase text-[10px] block">Item / Venue Name</span>
-                <span className="text-sm font-extrabold text-blue-700">{booking.venue_name || booking.equipment_name || booking.purpose || "—"}</span>
+                <span className="text-slate-400 font-bold uppercase text-[10px] block">
+                  {isVenue ? "Reserved Venue / Facility" : "Equipment Category & Qty"}
+                </span>
+                {isVenue ? (
+                  <span className="text-sm font-extrabold text-blue-700">
+                    {booking.venue?.name || booking.venue_name || "AVR / Campus Venue"}
+                  </span>
+                ) : equipmentItems.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5 mt-1.5">
+                    {equipmentItems.map((item, idx) => (
+                      <span key={idx} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-50 text-blue-700 border border-blue-200 text-xs font-extrabold">
+                        <span>{item.name}</span>
+                        <span className="bg-blue-600 text-white text-[10px] px-1.5 py-0.5 rounded-full font-black">
+                          Qty: {item.qty}
+                        </span>
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <span className="text-sm font-extrabold text-blue-700">
+                    {booking.equipment_name || "General Equipment"}
+                  </span>
+                )}
               </div>
               <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/60">
                 <span className="text-slate-400 font-bold uppercase text-[10px] block">Department / Program</span>
@@ -213,8 +251,12 @@ export default function TrackBooking() {
               <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/60">
                 <span className="text-slate-400 font-bold uppercase text-[10px] block">Date of Usage</span>
                 <span className="text-sm font-bold text-slate-800">
-                  {booking.date_of_usage ? new Date(booking.date_of_usage).toLocaleDateString() : "—"}
+                  {booking.date_of_usage ? new Date(booking.date_of_usage).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : (booking.start_datetime ? new Date(booking.start_datetime).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—")}
                 </span>
+              </div>
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/60 sm:col-span-2">
+                <span className="text-slate-400 font-bold uppercase text-[10px] block">Purpose / Activity</span>
+                <span className="text-sm font-semibold text-slate-800">{booking.purpose || "Official University Activity"}</span>
               </div>
             </div>
 

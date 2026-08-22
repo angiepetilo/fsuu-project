@@ -178,7 +178,7 @@ export default function VenuesTab({ showMsg }) {
                   <td className="px-4 py-3.5">
                     <div className="w-12 h-12 rounded-xl bg-slate-100 border border-slate-200 overflow-hidden flex items-center justify-center shadow-inner">
                       {v.avatar ? (
-                        <img src={v.avatar} alt={v.name} className="w-full h-full object-cover" />
+                        <img src={v.avatar} alt={v.name} className="w-full h-full object-contain p-0.5" />
                       ) : (
                         <Building size={20} className="text-slate-400" />
                       )}
@@ -253,7 +253,7 @@ export default function VenuesTab({ showMsg }) {
               <div className="flex items-center gap-4 bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
                 <div className="w-16 h-16 rounded-2xl bg-white border border-slate-200 overflow-hidden flex items-center justify-center shadow-inner shrink-0 relative">
                   {form.avatar ? (
-                    <img src={form.avatar} alt="Preview" className="w-full h-full object-cover" />
+                    <img src={form.avatar} alt="Preview" className="w-full h-full object-contain p-1" />
                   ) : (
                     <Building size={24} className="text-slate-400" />
                   )}

@@ -165,7 +165,7 @@ export default function EquipmentCatalogTab({ showMsg }) {
                   <td className="px-4 py-3.5">
                     <div className="w-12 h-12 rounded-xl bg-slate-100 border border-slate-200 overflow-hidden flex items-center justify-center shadow-inner">
                       {cat.avatar ? (
-                        <img src={cat.avatar} alt={cat.eq_name} className="w-full h-full object-cover" />
+                        <img src={cat.avatar} alt={cat.eq_name} className="w-full h-full object-contain p-0.5" />
                       ) : (
                         <Package size={20} className="text-slate-400" />
                       )}
@@ -237,7 +237,7 @@ export default function EquipmentCatalogTab({ showMsg }) {
                 <div className="flex items-center gap-3">
                   <div className="w-16 h-16 rounded-2xl bg-slate-100 border border-slate-200 overflow-hidden flex items-center justify-center shrink-0">
                     {form.avatar ? (
-                      <img src={form.avatar} alt="Preview" className="w-full h-full object-cover" />
+                      <img src={form.avatar} alt="Preview" className="w-full h-full object-contain p-1" />
                     ) : (
                       <ImageIcon size={24} className="text-slate-400" />
                     )}

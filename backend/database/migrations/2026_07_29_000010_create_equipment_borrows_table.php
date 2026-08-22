@@ -12,7 +12,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('tracking_number_id')->constrained('tracking_numbers')->cascadeOnDelete();
             $table->foreignId('submitted_by')->nullable()->constrained('users')->nullOnDelete();
-            $table->string('submission_channel'); // online_self, staff_entered
+            $table->string('submission_channel')->default('online_self'); // online_self, staff_entered
             $table->string('filer_name');
             $table->string('email_address');
             $table->string('program_office');

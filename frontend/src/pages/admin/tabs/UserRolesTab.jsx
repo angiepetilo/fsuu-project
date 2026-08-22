@@ -63,12 +63,12 @@ export default function UserRolesTab({
       </div>
 
       {/* User Accounts Table */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-xs">
         <table className="w-full text-xs">
           <thead>
             <tr className="bg-slate-50 border-b border-slate-200">
-              {["#", "Account Name", "Email", "Role", "Status", "Actions"].map((h) => (
-                <th key={h} className="px-4 py-3 text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+              {["#", "Account Name", "Email", "Role", "Status", "Actions"].map((h, i) => (
+                <th key={h} className={`px-4 py-3 text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wider ${i === 0 ? 'rounded-tl-2xl' : i === 5 ? 'rounded-tr-2xl' : ''}`}>
                   {h}
                 </th>
               ))}
@@ -95,38 +95,41 @@ export default function UserRolesTab({
                 const displayIndex = startIndex + idx + 1;
                 const isPending = u.status === "pending_activation" || !u.name || u.name === "Pending Activation";
                 const isDisabled = u.status === "disabled" || u.status === "inactive" || u.is_active === false || u.is_active === 0;
+                const isNearBottom = idx >= Math.max(1, paginatedUsers.length - 2);
+                const isOpen = openActionId === u.id;
 
                 return (
-                  <tr key={u.id} className="hover:bg-slate-50/60 transition-colors">
+                  <tr key={u.id} className={`hover:bg-slate-50/60 transition-colors ${isOpen ? 'relative z-30' : ''}`}>
                     <td className="px-4 py-3.5 font-bold text-slate-400">{displayIndex}</td>
                     <td className="px-4 py-3.5">
-                      {isPending ? (
-                        <span className="text-slate-400 font-normal italic">Pending Activation</span>
-                      ) : (
-                        <span className={`font-semibold ${isDisabled ? "text-slate-400 line-through" : "text-slate-900"}`}>
-                          {u.name}
-                        </span>
-                      )}
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-full bg-blue-50 text-blue-600 font-bold flex items-center justify-center text-xs shrink-0 border border-blue-200">
+                          {u.name ? u.name[0].toUpperCase() : "U"}
+                        </div>
+                        <div>
+                          <div className="font-bold text-slate-900">{u.name || "Pending User"}</div>
+                          <div className="text-[11px] text-slate-400">{u.personal_email || u.email}</div>
+                        </div>
+                      </div>
                     </td>
-                    <td className="px-4 py-3.5 font-mono text-slate-600">
-                      {u.personal_email || u.email}
-                    </td>
+                    <td className="px-4 py-3.5 text-slate-600 font-medium">{u.email}</td>
                     <td className="px-4 py-3.5">
-                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold border bg-slate-100 text-slate-700 border-slate-200">
-                        STAFF
+                      <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                        {u.role?.name || "Staff"}
                       </span>
                     </td>
                     <td className="px-4 py-3.5">
-                      {isDisabled ? (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border bg-rose-50 text-rose-700 border-rose-200">
+                      {isPending ? (
+                        <span className="px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-amber-50 text-amber-700 border border-amber-200 inline-flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                          INVITED
+                        </span>
+                      ) : isDisabled ? (
+                        <span className="px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-rose-50 text-rose-700 border border-rose-200 inline-flex items-center gap-1">
                           DISABLED
                         </span>
-                      ) : isPending ? (
-                        <span className="text-amber-600 font-semibold text-xs uppercase tracking-wide">
-                          PENDING
-                        </span>
                       ) : (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border bg-emerald-50 text-emerald-700 border-emerald-200">
+                        <span className="px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200 inline-flex items-center gap-1">
                           ACTIVE
                         </span>
                       )}
@@ -140,7 +143,7 @@ export default function UserRolesTab({
                             setOpenActionId(openActionId === u.id ? null : u.id);
                           }}
                           className={`p-1.5 rounded-xl border transition-all cursor-pointer shadow-2xs ${
-                            openActionId === u.id
+                            isOpen
                               ? "bg-blue-600 border-blue-600 text-white shadow-md"
                               : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900"
                           }`}
@@ -149,8 +152,8 @@ export default function UserRolesTab({
                           <MoreVertical size={14} />
                         </button>
 
-                        {openActionId === u.id && (
-                          <div className="absolute right-0 top-full mt-1.5 w-44 bg-white rounded-2xl shadow-2xl border border-slate-200 py-1.5 z-40 animate-in fade-in zoom-in-95 backdrop-blur-md">
+                        {isOpen && (
+                          <div className={`absolute right-0 ${isNearBottom ? 'bottom-full mb-1.5' : 'top-full mt-1.5'} w-44 bg-white rounded-2xl shadow-2xl border border-slate-200 py-1.5 z-50 animate-in fade-in zoom-in-95 backdrop-blur-md`}>
                             {isPending && (
                               <button
                                 type="button"
