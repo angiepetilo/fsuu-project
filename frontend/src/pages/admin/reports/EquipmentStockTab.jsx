@@ -228,8 +228,8 @@ export default function EquipmentStockTab({
                 <th className="py-3 px-4">CATEGORY</th>
                 <th className="py-3 px-4 text-center">QTY EXPECTED</th>
                 <th className="py-3 px-4 text-center">QTY PRESENT</th>
-                <th className="py-3 px-4 text-center">RESERVED</th>
                 <th className="py-3 px-4 text-center">RELEASED</th>
+                <th className="py-3 px-4 text-center">RESERVED (EVENTS)</th>
                 <th className="py-3 px-4 text-center">DAMAGED</th>
                 <th className="py-3 px-4 text-center">LOST</th>
                 <th className="py-3 px-4">NOTES</th>
@@ -260,9 +260,9 @@ export default function EquipmentStockTab({
 
                   const expectedQty = Math.max(0, realTotal);
                   const initialReleased = Math.max(0, typeof item.released_count === 'number' ? item.released_count : 0);
+                  const reservedCount = Math.max(0, typeof item.reserved_count === 'number' ? item.reserved_count : 0);
                   const totalDamaged = Math.max(0, typeof item.damaged_count === 'number' ? item.damaged_count : 0);
                   const totalLost = Math.max(0, typeof item.lost_count === 'number' ? item.lost_count : 0);
-                  const totalReserved = Math.max(0, typeof item.reserved_count === 'number' ? item.reserved_count : (typeof item.reserved === 'number' ? item.reserved : 0));
 
                   const draft = inventoryDrafts[key] || {};
                   const currentReleased = draft.qty_released ?? initialReleased;
@@ -290,15 +290,6 @@ export default function EquipmentStockTab({
                         {availablePresent}
                       </td>
 
-                      {/* RESERVED */}
-                      <td className="py-3.5 px-4 text-center">
-                        <span className={`inline-flex items-center justify-center min-w-[32px] px-2.5 py-0.5 rounded-full text-xs font-extrabold border ${
-                          totalReserved > 0
-                            ? "bg-indigo-50 text-indigo-700 border-indigo-200"
-                            : "bg-slate-50 text-slate-400 border-slate-200"
-                        }`}>{totalReserved}</span>
-                      </td>
-
                       {/* RELEASED — read-only by default, unlocked only in Override mode */}
                       <td className="py-3.5 px-4 text-center">
                         {overrideRows.has(key) ? (
@@ -314,6 +305,17 @@ export default function EquipmentStockTab({
                               : "bg-slate-50 text-slate-400 border-slate-200"
                           }`}>{currentDraft.qty_released}</span>
                         )}
+                      </td>
+
+                      {/* RESERVED (FOR VENUE EVENTS) */}
+                      <td className="py-3.5 px-4 text-center">
+                        <span className={`inline-flex items-center justify-center min-w-[32px] px-2.5 py-0.5 rounded-full text-xs font-extrabold border ${
+                          reservedCount > 0
+                            ? "bg-amber-50 text-amber-800 border-amber-200"
+                            : "bg-slate-50 text-slate-400 border-slate-200"
+                        }`}>
+                          {reservedCount}
+                        </span>
                       </td>
 
                       {/* DAMAGED — read-only by default, unlocked only in Override mode */}

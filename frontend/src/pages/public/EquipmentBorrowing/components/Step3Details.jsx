@@ -154,31 +154,20 @@ export default function Step3Details({
         <div className="sm:col-span-2 flex flex-col gap-1.5 p-4 bg-slate-50/80 border border-slate-200 rounded-xl">
           <label className="text-xs font-bold text-slate-900">Send Tracking Number via <span className="text-red-500">*</span></label>
           <div className="flex items-center gap-6 mt-1">
-            <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer">
+            <label className="flex items-center gap-2 text-xs font-semibold text-slate-700">
               <input
                 type="radio"
                 name="notificationChannel"
                 value="email"
-                checked={notificationChannel === 'email'}
-                onChange={() => setNotificationChannel && setNotificationChannel('email')}
+                checked={true}
+                readOnly
                 className="accent-blue-600"
               />
               <span>Email ({email || 'Registered Email'})</span>
             </label>
-            <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer">
-              <input
-                type="radio"
-                name="notificationChannel"
-                value="sms"
-                checked={notificationChannel === 'sms'}
-                onChange={() => setNotificationChannel && setNotificationChannel('sms')}
-                className="accent-blue-600"
-              />
-              <span>SMS ({contactNumber || 'Registered Phone'})</span>
-            </label>
           </div>
           <p className="text-[11px] text-slate-500 mt-1">
-            Your tracking number will be sent via {notificationChannel === 'sms' ? 'SMS to your phone number' : 'Email to your registered email'}.
+            Your tracking number, approval notice, and return reminders will be delivered to your registered email.
           </p>
         </div>
 

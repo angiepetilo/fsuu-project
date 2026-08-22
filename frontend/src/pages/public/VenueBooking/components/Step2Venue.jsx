@@ -341,7 +341,7 @@ export default function Step2Venue({
                     {/* Venue Image / Placeholder Box (Screenshot 1) */}
                     <div className="w-full h-[160px] bg-blue-50/70 border border-blue-100/80 rounded-3xl overflow-hidden flex flex-col items-center justify-center text-center relative">
                       {venueInfo.photo ? (
-                        <img src={venueInfo.photo} alt={v.name} className="w-full h-full object-cover" />
+                        <img src={venueInfo.photo} alt={v.name} className="w-full h-full object-contain p-2" />
                       ) : (
                         <div className="p-6 flex flex-col items-center justify-center h-full w-full">
                           <Building2 size={44} className="text-blue-600 mb-2.5 shrink-0" />

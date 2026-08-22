@@ -13,6 +13,7 @@ class VerificationPinSetting extends Model
 
     protected $fillable = [
         'master_pin',
+        'hashed_master_pin',
         'is_enabled',
         'require_outside_hours',
         'require_multi_day_venue',

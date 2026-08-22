@@ -90,7 +90,7 @@ export default function ManageEquipments() {
         if (['damaged', 'maintenance', 'under_maintenance', 'decommissioned', 'unavailable'].includes(dbStatusRaw)) {
           dbStatus = 'unavailable';
         } else if (dbStatusRaw === 'released' || dbStatusRaw === 'in-use' || dbStatusRaw === 'released / in-use' || dbStatusRaw === 'release / in - use') {
-          dbStatus = 'Release / In - Use';
+          dbStatus = 'Released';
         } else {
           dbStatus = 'Available';
         }
@@ -392,13 +392,13 @@ export default function ManageEquipments() {
       </div>
 
       {/* Physical Units Table */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
-        <div className="overflow-x-auto">
+      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs">
+        <div>
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-slate-50/80 border-b border-slate-100">
-                {["#", "Unit Barcode", "Equipment Unit Name", "Assigned Category", "Status", "Condition", "Date Purchased", "Lifespan vs Current", "Action"].map(h => (
-                  <th key={h} className="px-4 py-3.5 text-left text-[11px] font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap">
+                {["#", "Unit Barcode", "Equipment Unit Name", "Assigned Category", "Status", "Condition", "Date Purchased", "Lifespan vs Current", "Action"].map((h, i) => (
+                  <th key={h} className={`px-4 py-3.5 text-left text-[11px] font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap ${i === 0 ? 'rounded-tl-2xl' : i === 8 ? 'rounded-tr-2xl' : ''}`}>
                     {h}
                   </th>
                 ))}
@@ -426,9 +426,11 @@ export default function ManageEquipments() {
                   const currentYear = new Date().getFullYear();
                   const ageYears = Math.max(0.5, currentYear - purchaseYear + 0.2);
                   const displayIndex = startIndex + index + 1;
+                  const isNearBottom = index >= Math.max(1, paginatedUnits.length - 2);
+                  const isOpen = openActionId === item.id;
 
                   return (
-                    <tr key={item.id} className="hover:bg-slate-50/60 transition-colors">
+                    <tr key={item.id} className={`hover:bg-slate-50/60 transition-colors ${isOpen ? 'relative z-30' : ''}`}>
                       <td className="px-4 py-3.5 font-bold text-slate-400">{displayIndex}</td>
                       <td className="px-4 py-3.5 font-mono text-xs font-bold text-blue-600 whitespace-nowrap">
                         <div className="flex items-center gap-1.5">
@@ -481,7 +483,7 @@ export default function ManageEquipments() {
                               setOpenActionId(openActionId === item.id ? null : item.id);
                             }}
                             className={`p-1.5 rounded-xl border transition-all cursor-pointer shadow-2xs ${
-                              openActionId === item.id
+                              isOpen
                                 ? "bg-blue-600 border-blue-600 text-white shadow-md shadow-blue-600/20"
                                 : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900"
                             }`}
@@ -490,8 +492,8 @@ export default function ManageEquipments() {
                             <MoreVertical size={15} />
                           </button>
 
-                          {openActionId === item.id && (
-                            <div className="absolute right-0 top-full mt-1.5 w-44 bg-white rounded-2xl shadow-2xl border border-slate-200/90 py-1.5 z-40 animate-in fade-in zoom-in-95 backdrop-blur-md">
+                          {isOpen && (
+                            <div className={`absolute right-0 ${isNearBottom ? 'bottom-full mb-1.5' : 'top-full mt-1.5'} w-44 bg-white rounded-2xl shadow-2xl border border-slate-200/90 py-1.5 z-50 animate-in fade-in zoom-in-95 backdrop-blur-md`}>
                               <button
                                 type="button"
                                 onClick={() => {

@@ -157,6 +157,9 @@ class ListingController extends Controller
 
                     $totalCommitted = $borrowCommitted + $venueCommitted;
                     $avail = max(0, $operational - $totalCommitted);
+                } else {
+                    $borrowCommitted = 0;
+                    $venueCommitted = 0;
                 }
 
                 return [
@@ -170,6 +173,8 @@ class ListingController extends Controller
                     'total_quantity'  => $total,
                     'present_count'   => $operational,
                     'available_count' => $avail,
+                    'in_use_count'    => (int)$borrowCommitted,
+                    'reserved_count'  => (int)$venueCommitted,
                     'status'          => $avail > 0 ? 'available' : 'unavailable',
                     'dept'            => 'avr',
                     'category'        => $e->eq_type ?? 'AVR Equipment',

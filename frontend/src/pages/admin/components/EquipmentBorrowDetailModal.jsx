@@ -184,20 +184,50 @@ export default function EquipmentBorrowDetailModal({
         setUnitReturnedConditions(selected.unit_conditions);
       }
 
+      // Check local storage backup first
+      try {
+        const localPre = localStorage.getItem(`fsuu_inspection_pre_use_eb_${selected.id}`);
+        if (localPre) {
+          const p = JSON.parse(localPre);
+          if (p.notes) setPreViolationNotes(p.notes);
+          if (p.condition === "damaged" || p.condition === "violation") setPreInspectionStatus("violation");
+          else if (p.condition === "good" || p.condition === "clean") setPreInspectionStatus("clean");
+          if (p.unit_conditions) setPreUnitReturnedConditions(p.unit_conditions);
+        }
+        const localPost = localStorage.getItem(`fsuu_inspection_post_use_eb_${selected.id}`);
+        if (localPost) {
+          const p = JSON.parse(localPost);
+          if (p.notes) setViolationNotes(p.notes);
+          if (p.condition === "damaged" || p.condition === "violation") setInspectionStatus("violation");
+          else if (p.condition === "good" || p.condition === "clean") setInspectionStatus("clean");
+          if (p.unit_conditions) setUnitReturnedConditions(p.unit_conditions);
+        }
+      } catch {}
+
       // Check existing inspection from backend API
+      // Accept both 'post_use' (saved via Save button) and 'post_event' (saved via Complete action)
       api.get(`/inspections?inspectable_id=${selected.id}&inspectable_type=equipment_borrow`)
         .then((res) => {
           const list = Array.isArray(res.data) ? res.data : res.data?.data ?? [];
           
           const preUse = list.find(i => i.inspection_type === 'pre_use');
-          const postUse = list.find(i => i.inspection_type === 'post_use') || list.find(i => !i.inspection_type || i.inspection_type !== 'pre_use');
+          // Accept post_use OR post_event as the after-inspection record
+          const postUse = list.find(i => i.inspection_type === 'post_use')
+            || list.find(i => i.inspection_type === 'post_event')
+            || list.find(i => i.inspection_type && i.inspection_type !== 'pre_use');
 
           if (postUse) {
-            if (postUse.assigned_units && typeof postUse.assigned_units === "object") {
-              setAssignedUnitSelections((prev) => ({ ...prev, ...postUse.assigned_units }));
+            // Parse assigned_units (may be JSON string or object from DB)
+            let auData = postUse.assigned_units;
+            if (typeof auData === 'string') { try { auData = JSON.parse(auData); } catch { auData = {}; } }
+            if (auData && typeof auData === 'object') {
+              setAssignedUnitSelections((prev) => ({ ...prev, ...auData }));
             }
-            if (postUse.unit_conditions && typeof postUse.unit_conditions === "object") {
-              setUnitReturnedConditions((prev) => ({ ...prev, ...postUse.unit_conditions }));
+            // Parse unit_conditions (may be JSON string or object)
+            let ucData = postUse.unit_conditions;
+            if (typeof ucData === 'string') { try { ucData = JSON.parse(ucData); } catch { ucData = {}; } }
+            if (ucData && typeof ucData === 'object') {
+              setUnitReturnedConditions((prev) => ({ ...prev, ...ucData }));
             }
             if (postUse.condition === "damaged" || postUse.condition === "violation") {
               setInspectionStatus("violation");
@@ -216,8 +246,11 @@ export default function EquipmentBorrowDetailModal({
           }
 
           if (preUse) {
-            if (preUse.unit_conditions && typeof preUse.unit_conditions === "object") {
-              setPreUnitReturnedConditions((prev) => ({ ...prev, ...preUse.unit_conditions }));
+            // Parse unit_conditions for pre-use (may be JSON string)
+            let preUc = preUse.unit_conditions;
+            if (typeof preUc === 'string') { try { preUc = JSON.parse(preUc); } catch { preUc = {}; } }
+            if (preUc && typeof preUc === 'object') {
+              setPreUnitReturnedConditions((prev) => ({ ...prev, ...preUc }));
             }
             if (preUse.condition === "damaged" || preUse.condition === "violation") {
               setPreInspectionStatus("violation");
@@ -261,39 +294,36 @@ export default function EquipmentBorrowDetailModal({
     if (!catName || catName === "NONE") return physicalUnits;
     const cleanCat = String(catName).trim().toUpperCase();
 
-    const matched = physicalUnits.filter((u) => {
-      const uCatName = String(u.equipment_type?.name || u.equipment_type?.eq_name || u.category || "").toUpperCase();
-      const uUnitName = String(u.name || "").toUpperCase();
-      const reqName = cleanCat.toUpperCase();
-
-      if (!uCatName && !uUnitName) return false;
-
-      // Exact or direct substring match
-      if (uCatName === reqName || (uCatName && reqName.includes(uCatName)) || (uCatName && uCatName.includes(reqName))) {
-        return true;
-      }
-
-      // Keyword / Brand matching
-      if (reqName.includes("SCREEN") && (uCatName.includes("SCREEN") || uUnitName.includes("SCREEN") || uUnitName.includes("AKIA"))) {
-        return true;
-      }
-      if (reqName.includes("MICROPHONE") && (uCatName.includes("MICROPHONE") || uUnitName.includes("WIRELESS") || uUnitName.includes("SHURE") || uUnitName.includes("MIC"))) {
-        return true;
-      }
-      if (reqName.includes("PROJECTOR") && !reqName.includes("SCREEN") && (uCatName.includes("PROJECTOR") || uUnitName.includes("EPSON") || uUnitName.includes("PROJECTOR"))) {
-        return true;
-      }
-      if (reqName.includes("SPEAKER") && (uCatName.includes("SPEAKER") || uUnitName.includes("JBL") || uUnitName.includes("AUDIO"))) {
-        return true;
-      }
-      if (reqName.includes("CAMERA") && (uCatName.includes("CAMERA") || uUnitName.includes("CANON") || uUnitName.includes("SONY"))) {
-        return true;
-      }
-
-      return false;
+    // 1. Exact Category Match first (matching equipment_type.eq_name or u.category)
+    const exactCategoryMatches = physicalUnits.filter((u) => {
+      const uCatName = String(u.equipment_type?.eq_name || u.equipment_type?.name || u.category || "").toUpperCase().trim();
+      return uCatName === cleanCat;
     });
 
-    return matched.length > 0 ? matched : physicalUnits;
+    if (exactCategoryMatches.length > 0) return exactCategoryMatches;
+
+    // 2. Strict Unit Name matching if category column was blank
+    const unitNameMatches = physicalUnits.filter((u) => {
+      const uCatName = String(u.equipment_type?.eq_name || u.equipment_type?.name || u.category || "").toUpperCase().trim();
+      const uUnitName = String(u.name || "").toUpperCase().trim();
+      
+      // Strict discrimination
+      if (cleanCat === "PROJECTOR" && (uCatName.includes("SCREEN") || uUnitName.includes("SCREEN"))) {
+        return false;
+      }
+      if (cleanCat === "MICROPHONE" && (uCatName.includes("WIRELESS") || uUnitName.includes("WIRELESS") || uUnitName.includes("WMIC"))) {
+        return false;
+      }
+      if (cleanCat.includes("WIRELESS") && (!uCatName.includes("WIRELESS") && !uUnitName.includes("WIRELESS") && !uUnitName.includes("WMIC"))) {
+        return false;
+      }
+
+      return uCatName === cleanCat || uUnitName.startsWith(`${cleanCat} `) || uUnitName.startsWith(`${cleanCat}-`) || uUnitName === cleanCat;
+    });
+
+    if (unitNameMatches.length > 0) return unitNameMatches;
+
+    return [];
   };
 
   const categoriesToRender = isOverrideActive
@@ -348,19 +378,61 @@ export default function EquipmentBorrowDetailModal({
     
     const inspectionType = typeOverride || (isPostUseEligible ? "post_use" : "pre_use");
     const isPreUse = inspectionType === "pre_use";
+
+    // Normalize unit_conditions: ensure keys are actual barcodes/unit_codes, not positional indexes.
+    // This guarantees the data can be matched correctly when loading the record again.
+    const rawConditions = isPreUse ? preUnitReturnedConditions : unitReturnedConditions;
+    const normalizedConditions = {};
+    Object.entries(rawConditions || {}).forEach(([key, condVal]) => {
+      // If key is a positional index like "0-0" or "PROJECTOR-0", resolve to barcode
+      const barcode = assignedUnitSelections[key];
+      if (barcode) {
+        normalizedConditions[barcode] = condVal;
+      }
+      // Always keep the original key too (covers barcode keys already)
+      normalizedConditions[key] = condVal;
+    });
+
+    const payload = {
+      inspectable_type: "equipment_borrow",
+      inspectable_id: selected.id,
+      inspection_type: inspectionType,
+      condition: isPreUse ? (preInspectionStatus === "clean" ? "good" : "damaged") : (inspectionStatus === "clean" ? "good" : "damaged"),
+      timeliness: timeliness,
+      notes: isPreUse ? preViolationNotes : (violationNotes || (inspectionStatus === "clean" ? "Returned safely in good condition." : "Returned with damaged/lost equipment.")),
+      evidence_image: isPreUse ? null : evidencePhoto,
+      assigned_units: assignedUnitSelections,
+      unit_conditions: normalizedConditions,
+    };
+
+    try {
+      localStorage.setItem(`fsuu_inspection_${inspectionType}_eb_${selected.id}`, JSON.stringify(payload));
+    } catch {}
     
     try {
-      await api.post("/inspections", {
-        inspectable_type: "equipment_borrow",
-        inspectable_id: selected.id,
-        inspection_type: inspectionType,
-        condition: isPreUse ? (preInspectionStatus === "clean" ? "good" : "damaged") : (inspectionStatus === "clean" ? "good" : "damaged"),
-        timeliness: timeliness,
-        notes: isPreUse ? preViolationNotes : (violationNotes || (inspectionStatus === "clean" ? "Returned safely in good condition." : "Returned with damaged/lost equipment.")),
-        evidence_image: evidencePhoto,
-        assigned_units: assignedUnitSelections,
-        unit_conditions: isPreUse ? preUnitReturnedConditions : unitReturnedConditions,
-      });
+      await api.post("/inspections", payload);
+
+      // Instantly sync physical units in Manage Equipments & Inventory
+      if (!isPreUse) {
+        const condMap = unitReturnedConditions || {};
+        Object.entries(condMap).forEach(([key, condVal]) => {
+          const condStr = String(condVal).toLowerCase();
+          const isDamagedOrLost = condStr === "damaged" || condStr === "lost";
+          const newStatus = isDamagedOrLost ? "unavailable" : "available";
+          const newCondition = condStr === "damaged" ? "Damaged" : (condStr === "lost" ? "Lost" : "Good");
+
+          const matchedUnit = (physicalUnits || []).find(u => 
+            String(u.unit_code || u.barcode || u.id).trim().toUpperCase() === String(key).trim().toUpperCase()
+          );
+
+          if (matchedUnit?.id) {
+            api.put(`/admin/equipment-units/${matchedUnit.id}`, {
+              status: newStatus,
+              condition: newCondition,
+            }).catch(() => {});
+          }
+        });
+      }
 
       setInspectionSuccessMsg(isPreUse ? "Pre-release inspection stored." : "Post-use equipment inspection stored.");
       setTimeout(() => setInspectionSuccessMsg(null), 3000);
@@ -372,9 +444,20 @@ export default function EquipmentBorrowDetailModal({
     }
   };
 
+  const handleReleaseOngoing = async () => {
+    // Automatically save pre-release inspection before marking as ongoing
+    // This captures the current state of preViolationNotes and preUnitReturnedConditions
+    try {
+      await handleSaveInspection(null, "pre_use");
+    } catch {
+      // Non-blocking: proceed even if pre-inspection save fails
+    }
+    handleAction(selected.id, "ongoing");
+  };
+
   const handleDoneComplete = async () => {
     if (isPostUseEligible) {
-      await handleSaveInspection();
+      await handleSaveInspection(null, "post_use");
     }
 
     try {
@@ -477,7 +560,7 @@ export default function EquipmentBorrowDetailModal({
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-0 sm:p-6 overflow-hidden animate-in fade-in duration-200">
-      <div className="bg-white rounded-none sm:rounded-2xl border-0 sm:border border-slate-200 shadow-2xl w-full max-w-4xl h-full sm:h-auto sm:max-h-[88vh] flex flex-col overflow-hidden">
+      <div className="bg-white rounded-none sm:rounded-2xl border-0 sm:border border-slate-200 shadow-2xl w-full max-w-5xl h-full sm:h-auto sm:max-h-[90vh] flex flex-col overflow-hidden">
 
         <EquipBorrowHeader
           selected={selected}
@@ -485,117 +568,185 @@ export default function EquipmentBorrowDetailModal({
           setSelected={setSelected}
           setShowNotifyModal={setShowNotifyModal}
           formatDateTimeFiled={formatDateTimeFiled}
+          resendLoading={resendLoading}
+          resendMsg={resendMsg}
+          handleResendEmail={handleResendEmail}
+          smsLoading={smsLoading}
+          smsMsg={smsMsg}
+          handleSendOverdueSms={handleSendOverdueSms}
+          isOngoing={isOngoing}
+          isApproved={isApproved}
         />
 
-        {/* Modal Body: Two-Column Label-Value Layout with Hairline Dividers */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 divide-y lg:divide-y-0 lg:divide-x divide-slate-200 overflow-y-auto flex-1 text-xs">
+        {/* Modal Body: Organized in Top Details & Side Assignment, Bottom Side-by-Side Inspection */}
+        <div className="overflow-y-auto flex-1 p-6 text-xs space-y-6">
 
-          {/* Left Column (7/12) */}
-          <div className="lg:col-span-7 p-6 space-y-4">
+          {/* TOP ROW (Side-by-Side): Left = Borrowing Details & Equipment Items | Right = Equipment Unit Assignment */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            
+            {/* Left: Requestor Details & Equipment Categories with Qty Borrowed */}
+            <div className="lg:col-span-6 space-y-4">
+              
+              {/* Requestor & Schedule Information */}
+              <div className="bg-slate-50/80 border border-slate-200/90 rounded-2xl p-4 space-y-2.5 shadow-xs">
+                <div className="flex items-center justify-between border-b border-slate-200/70 pb-2">
+                  <span className="text-[11px] font-extrabold text-slate-800 uppercase tracking-wider">
+                    Borrowing Request Details
+                  </span>
+                  <span className="font-mono text-[10px] font-bold text-slate-500 bg-white px-2 py-0.5 rounded-full border border-slate-200">
+                    ID: #{selected.id}
+                  </span>
+                </div>
+                
+                <div className="grid grid-cols-3 py-1 text-xs">
+                  <span className="text-slate-500 font-bold">Requestor</span>
+                  <span className="col-span-2 font-extrabold text-slate-900">{selected.requestor_name || selected.filer_name || selected.requestor || "FSUU Filer"}</span>
+                </div>
+                <div className="grid grid-cols-3 py-1 border-t border-slate-200/60">
+                  <span className="text-slate-500 font-bold">Department</span>
+                  <span className="col-span-2 font-extrabold text-slate-900">{selected.requestor_program_office || selected.program_office || selected.department || "Academic Dept"}</span>
+                </div>
+                <div className="grid grid-cols-3 py-1 border-t border-slate-200/60">
+                  <span className="text-slate-500 font-bold">Contact</span>
+                  <span className="col-span-2 font-extrabold text-slate-900">{selected.requestor_contact_number || selected.contact_number || selected.contact_no || "—"}</span>
+                </div>
+                <div className="grid grid-cols-3 py-1 border-t border-slate-200/60">
+                  <span className="text-slate-500 font-bold">Email</span>
+                  <span className="col-span-2 font-bold text-slate-800 break-all">{selected.requestor_email || selected.email_address || selected.email || "—"}</span>
+                </div>
+                <div className="grid grid-cols-3 py-1 border-t border-slate-200/60">
+                  <span className="text-slate-500 font-bold">Usage Schedule</span>
+                  <span className="col-span-2 font-extrabold text-slate-900">
+                    {formatDate(selected.date_of_usage || selected.start_datetime || selected.date)} ({formatTimeRange12(selected.time_start || selected.start_datetime, selected.time_end || selected.end_datetime)})
+                  </span>
+                </div>
+                <div className="grid grid-cols-3 py-1 border-t border-slate-200/60">
+                  <span className="text-slate-500 font-bold">Place of Use</span>
+                  <span className="col-span-2 font-bold text-slate-800">{selected.place_of_use || "Main Campus"}</span>
+                </div>
+                <div className="grid grid-cols-3 py-1 border-t border-slate-200/60">
+                  <span className="text-slate-500 font-bold">Purpose</span>
+                  <span className="col-span-2 text-slate-800 font-bold">{selected.purpose || "Academic / Administrative loan"}</span>
+                </div>
+              </div>
 
-            {/* Requestor & Schedule Information */}
-            <div className="bg-slate-50/70 border border-slate-200/80 rounded-2xl p-4 space-y-2.5 shadow-xs">
-              <div className="grid grid-cols-3 py-1">
-                <span className="text-slate-500 font-bold">Requestor</span>
-                <span className="col-span-2 font-extrabold text-slate-900">{selected.requestor_name || selected.filer_name || selected.requestor || "FSUU Filer"}</span>
+              {/* Equipment Category with Quantity Borrowed Card */}
+              <div className="bg-white border border-slate-200/90 rounded-2xl p-4 space-y-2.5 shadow-xs">
+                <div className="flex items-center justify-between border-b border-slate-200/70 pb-2">
+                  <span className="text-[11px] font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                    <FileText size={14} className="text-blue-600" />
+                    Equipment Categories &amp; Qty Borrowed
+                  </span>
+                  <span className="text-[10.5px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">
+                    {categoriesToRender.reduce((sum, c) => sum + (parseInt(c.quantity, 10) || 1), 0)} Total Unit(s)
+                  </span>
+                </div>
+
+                <div className="divide-y divide-slate-100">
+                  {categoriesToRender.map((catItem, cIdx) => (
+                    <div key={cIdx} className="py-2.5 flex items-center justify-between">
+                      <div className="space-y-0.5">
+                        <span className="font-extrabold text-slate-900 text-xs block">
+                          {catItem.category}
+                        </span>
+                        <span className="text-[11px] text-slate-500 font-medium">
+                          Borrow request specification
+                        </span>
+                      </div>
+                      <span className="font-extrabold text-xs text-slate-800 bg-slate-100 px-3 py-1 rounded-xl border border-slate-200/80">
+                        Qty: {catItem.quantity}
+                      </span>
+                    </div>
+                  ))}
+                </div>
               </div>
-              <div className="grid grid-cols-3 py-1 border-t border-slate-200/60">
-                <span className="text-slate-500 font-bold">Department</span>
-                <span className="col-span-2 font-extrabold text-slate-900">{selected.requestor_program_office || selected.program_office || selected.department || "Academic Dept"}</span>
-              </div>
-              <div className="grid grid-cols-3 py-1 border-t border-slate-200/60">
-                <span className="text-slate-500 font-bold">Contact Phone</span>
-                <span className="col-span-2 font-extrabold text-slate-900">{selected.requestor_contact_number || selected.contact_number || selected.contact_no || "—"}</span>
-              </div>
-              <div className="grid grid-cols-3 py-1 border-t border-slate-200/60">
-                <span className="text-slate-500 font-bold">Email</span>
-                <span className="col-span-2 font-bold text-slate-800 break-all">{selected.requestor_email || selected.email_address || selected.email || "—"}</span>
-              </div>
-              <div className="grid grid-cols-3 py-1 border-t border-slate-200/60">
-                <span className="text-slate-500 font-bold">Usage Schedule</span>
-                <span className="col-span-2 font-extrabold text-slate-900">
-                  {formatDate(selected.date_of_usage || selected.start_datetime || selected.date)} ({formatTimeRange12(selected.time_start || selected.start_datetime, selected.time_end || selected.end_datetime)})
-                </span>
-              </div>
-              <div className="grid grid-cols-3 py-1 border-t border-slate-200/60">
-                <span className="text-slate-500 font-bold">Place of Use</span>
-                <span className="col-span-2 font-bold text-slate-800">{selected.place_of_use || "Main Campus"}</span>
-              </div>
-              <div className="grid grid-cols-3 py-1 border-t border-slate-200/60">
-                <span className="text-slate-500 font-bold">Purpose</span>
-                <span className="col-span-2 text-slate-800 font-bold">{selected.purpose || "Academic / Administrative loan"}</span>
-              </div>
+
             </div>
 
-            {/* Pre-Release Inspection Form (Visible if Approved or Later) */}
-            {(isApproved || isOngoing || isCompleted) && (
-              <EquipBorrowInspectionForm
-                isPreRelease={true}
-                inspectionStatus={preInspectionStatus}
-                setInspectionStatus={setPreInspectionStatus}
-                timeliness={timeliness}
-                setTimeliness={setTimeliness}
+            {/* Right: EQUIPMENT UNIT ASSIGNMENT */}
+            <div className="lg:col-span-6">
+              <EquipBorrowUnitAssignment
+                selected={selected}
                 categoriesToRender={categoriesToRender}
+                getAvailableUnitsForCategory={getAvailableUnitsForCategory}
                 assignedUnitSelections={assignedUnitSelections}
-                physicalUnits={physicalUnits}
-                unitReturnedConditions={preUnitReturnedConditions}
-                setUnitReturnedConditions={setPreUnitReturnedConditions}
-                violationNotes={preViolationNotes}
-                setViolationNotes={setPreViolationNotes}
-                savingInspection={savingInspection}
-                handleSaveInspection={(e) => handleSaveInspection(e, "pre_use")}
-                inspectionSuccessMsg={inspectionSuccessMsg}
-                readOnly={isCompleted || isOngoing}
-              />
-            )}
-
-            {/* Post-Event Inspection (Visible if Ongoing or Completed) */}
-            {(isOngoing || isCompleted) && (
-              <EquipBorrowInspectionForm
-                isPreRelease={false}
-                inspectionStatus={inspectionStatus}
-                setInspectionStatus={setInspectionStatus}
-                timeliness={timeliness}
-                setTimeliness={setTimeliness}
-                categoriesToRender={categoriesToRender}
-                assignedUnitSelections={assignedUnitSelections}
-                physicalUnits={physicalUnits}
+                setAssignedUnitSelections={setAssignedUnitSelections}
                 unitReturnedConditions={unitReturnedConditions}
-                setUnitReturnedConditions={setUnitReturnedConditions}
-                violationNotes={violationNotes}
-                setViolationNotes={setViolationNotes}
-                savingInspection={savingInspection}
-                handleSaveInspection={(e) => handleSaveInspection(e, "post_use")}
-                inspectionSuccessMsg={inspectionSuccessMsg}
-                readOnly={isCompleted}
+                inspectionStatus={inspectionStatus}
+                timeliness={timeliness}
+                isApproved={isApproved}
+                isPending={isPending}
+                isOngoing={isOngoing}
+                isCompleted={isCompleted}
+                handleAction={(id, action, customData) => action === "ongoing" ? handleReleaseOngoing() : handleAction(id, action, customData)}
+                actionLoading={actionLoading}
               />
-            )}
+            </div>
 
           </div>
 
-          {/* Right Column (5/12) */}
-          <EquipBorrowUnitAssignment
-            selected={selected}
-            categoriesToRender={categoriesToRender}
-            getAvailableUnitsForCategory={getAvailableUnitsForCategory}
-            assignedUnitSelections={assignedUnitSelections}
-            setAssignedUnitSelections={setAssignedUnitSelections}
-            unitReturnedConditions={unitReturnedConditions}
-            inspectionStatus={inspectionStatus}
-            timeliness={timeliness}
-            isApproved={isApproved}
-            isPending={isPending}
-            isOngoing={isOngoing}
-            isCompleted={isCompleted}
-            handleAction={handleAction}
-            actionLoading={actionLoading}
-            resendMsg={resendMsg}
-            resendLoading={resendLoading}
-            handleResendEmail={handleResendEmail}
-            smsMsg={smsMsg}
-            smsLoading={smsLoading}
-            handleSendOverdueSms={handleSendOverdueSms}
-          />
+          {/* BOTTOM ROW (Side-by-Side): Left = Equipment Inspection Record (Before) | Right = Equipment Inspection Record (After) */}
+          {(isApproved || isOngoing || isCompleted) && (
+            <div className="pt-2 border-t border-slate-200">
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                
+                {/* Left Side: Equipment Inspection Record (Before) */}
+                <div className="lg:col-span-6 space-y-3">
+                  <EquipBorrowInspectionForm
+                    isPreRelease={true}
+                    inspectionStatus={preInspectionStatus}
+                    setInspectionStatus={setPreInspectionStatus}
+                    timeliness={timeliness}
+                    setTimeliness={setTimeliness}
+                    categoriesToRender={categoriesToRender}
+                    assignedUnitSelections={assignedUnitSelections}
+                    physicalUnits={physicalUnits}
+                    unitReturnedConditions={preUnitReturnedConditions}
+                    setUnitReturnedConditions={setPreUnitReturnedConditions}
+                    violationNotes={preViolationNotes}
+                    setViolationNotes={setPreViolationNotes}
+                    savingInspection={savingInspection}
+                    handleSaveInspection={(e) => handleSaveInspection(e, "pre_use")}
+                    inspectionSuccessMsg={inspectionSuccessMsg}
+                    readOnly={isCompleted || isOngoing}
+                  />
+                </div>
+
+                {/* Right Side: Equipment Inspection Record (After) - Active once equipment is released */}
+                <div className="lg:col-span-6 space-y-3">
+                  {(isOngoing || isCompleted) ? (
+                    <EquipBorrowInspectionForm
+                      isPreRelease={false}
+                      inspectionStatus={inspectionStatus}
+                      setInspectionStatus={setInspectionStatus}
+                      timeliness={timeliness}
+                      setTimeliness={setTimeliness}
+                      categoriesToRender={categoriesToRender}
+                      assignedUnitSelections={assignedUnitSelections}
+                      physicalUnits={physicalUnits}
+                      unitReturnedConditions={unitReturnedConditions}
+                      setUnitReturnedConditions={setUnitReturnedConditions}
+                      violationNotes={violationNotes}
+                      setViolationNotes={setViolationNotes}
+                      savingInspection={savingInspection}
+                      handleSaveInspection={(e) => handleSaveInspection(e, "post_use")}
+                      inspectionSuccessMsg={inspectionSuccessMsg}
+                      readOnly={isCompleted}
+                    />
+                  ) : (
+                    <div className="p-8 bg-slate-50/60 border border-dashed border-slate-200 rounded-2xl text-center space-y-2 flex flex-col items-center justify-center min-h-[220px]">
+                      <FileCheck size={28} className="text-slate-400" />
+                      <h5 className="font-extrabold text-slate-700 text-xs">Equipment Inspection Record (After)</h5>
+                      <p className="text-[11px] text-slate-500 font-medium max-w-xs">
+                        This return inspection checklist and damage/lost triggers will activate once equipment is marked as released.
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+              </div>
+            </div>
+          )}
 
         </div>
 
@@ -631,7 +782,7 @@ export default function EquipmentBorrowDetailModal({
                   disabled={!!actionLoading || savingInspection}
                   className="px-5 py-2 bg-white hover:bg-slate-50 border border-slate-900 text-slate-900 rounded-lg text-xs font-extrabold flex items-center gap-1.5 cursor-pointer shadow-xs"
                 >
-                  <Check size={13} /> Save Inspection → Complete
+                  <Check size={13} /> Complete
                 </button>
               )}
               <button

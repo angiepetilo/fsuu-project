@@ -162,11 +162,11 @@ export default function EquipmentCategoriesTab({ showMsg }) {
       </div>
 
       {/* Main Table: [Avatar, Category Name, Total, Available, Reserved, Released, Damaged, Lost, Action] */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs">
         <table className="w-full text-left text-xs border-collapse">
           <thead>
             <tr className="bg-slate-50/80 border-b border-slate-200/80 text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">
-              <th className="px-4 py-3.5 w-16">Avatar</th>
+              <th className="px-4 py-3.5 w-16 rounded-tl-2xl">Avatar</th>
               <th className="px-4 py-3.5">Category Name</th>
               <th className="px-4 py-3.5">Total</th>
               <th className="px-4 py-3.5">Available</th>
@@ -174,7 +174,7 @@ export default function EquipmentCategoriesTab({ showMsg }) {
               <th className="px-4 py-3.5">Released</th>
               <th className="px-4 py-3.5">Damaged</th>
               <th className="px-4 py-3.5">Lost</th>
-              <th className="px-4 py-3.5 w-20 text-center">Action</th>
+              <th className="px-4 py-3.5 w-20 text-center rounded-tr-2xl">Action</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
@@ -194,20 +194,22 @@ export default function EquipmentCategoriesTab({ showMsg }) {
                 </td>
               </tr>
             ) : (
-              paginatedCategories.map((cat) => {
+              paginatedCategories.map((cat, idx) => {
                 const total = cat.total_quantity ?? cat.total_units ?? 0;
                 const available = cat.available_count ?? total;
                 const reserved = cat.reserved_count ?? 0;
                 const released = cat.released_count ?? 0;
                 const damaged = cat.damaged_count ?? 0;
                 const lost = cat.lost_count ?? 0;
+                const isNearBottom = idx >= Math.max(1, paginatedCategories.length - 2);
+                const isOpen = openActionId === cat.id;
 
                 return (
-                  <tr key={cat.id} className="hover:bg-slate-50/80 transition-colors">
+                  <tr key={cat.id} className={`hover:bg-slate-50/80 transition-colors ${isOpen ? "relative z-30" : ""}`}>
                     <td className="px-4 py-3">
                       <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 overflow-hidden flex items-center justify-center shadow-inner shrink-0">
                         {cat.avatar ? (
-                          <img src={cat.avatar} alt={cat.eq_name || cat.name} className="w-full h-full object-cover" />
+                          <img src={cat.avatar} alt={cat.eq_name || cat.name} className="w-full h-full object-contain p-0.5" />
                         ) : (
                           <Package size={18} className="text-slate-400" />
                         )}
@@ -266,7 +268,7 @@ export default function EquipmentCategoriesTab({ showMsg }) {
                             setOpenActionId(openActionId === cat.id ? null : cat.id);
                           }}
                           className={`p-1.5 rounded-xl border transition-all cursor-pointer shadow-2xs ${
-                            openActionId === cat.id
+                            isOpen
                               ? "bg-blue-600 border-blue-600 text-white shadow-md shadow-blue-600/20"
                               : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900"
                           }`}
@@ -275,8 +277,8 @@ export default function EquipmentCategoriesTab({ showMsg }) {
                           <MoreVertical size={15} />
                         </button>
 
-                        {openActionId === cat.id && (
-                          <div className="absolute right-0 top-full mt-1.5 w-44 bg-white rounded-2xl shadow-2xl border border-slate-200/90 py-1.5 z-40 animate-in fade-in zoom-in-95 backdrop-blur-md">
+                        {isOpen && (
+                          <div className={`absolute right-0 ${isNearBottom ? "bottom-full mb-1.5" : "top-full mt-1.5"} w-44 bg-white rounded-2xl shadow-2xl border border-slate-200/90 py-1.5 z-50 animate-in fade-in zoom-in-95 backdrop-blur-md`}>
                             <button
                               type="button"
                               onClick={() => {
@@ -374,7 +376,7 @@ export default function EquipmentCategoriesTab({ showMsg }) {
               <div className="flex items-center gap-4 bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
                 <div className="w-16 h-16 rounded-2xl bg-white border border-slate-200 overflow-hidden flex items-center justify-center shadow-inner shrink-0 relative">
                   {form.avatar ? (
-                    <img src={form.avatar} alt="Preview" className="w-full h-full object-cover" />
+                    <img src={form.avatar} alt="Preview" className="w-full h-full object-contain p-1" />
                   ) : (
                     <Package size={24} className="text-slate-400" />
                   )}

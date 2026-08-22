@@ -56,10 +56,13 @@ class EquipmentBorrowingService
 
             $insertData = [
                 'tracking_number_id' => $trackingId,
-                'purpose' => $data['purpose'],
-                'place_of_use' => $data['place_of_use'],
-                'submitted_by' => $data['submitted_by'] ?? null,
+                'purpose'            => $data['purpose'] ?? 'General Activity',
+                'place_of_use'       => $data['place_of_use'] ?? 'inside',
+                'submitted_by'       => $data['submitted_by'] ?? null,
             ];
+            if ($hasCol('submission_channel')) {
+                $insertData['submission_channel'] = $data['submission_channel'] ?? 'online_self';
+            }
             if ($hasCol('status')) $insertData['status'] = 'pending';
             if ($hasCol('academic_term_id')) {
                 $activeTermId = null;
@@ -100,6 +103,12 @@ class EquipmentBorrowingService
             if ($hasCol('used_inside_campus')) $insertData['used_inside_campus'] = $data['used_inside_campus'] ?? true;
             if ($hasCol('contact_preference')) $insertData['contact_preference'] = $data['contact_preference'] ?? 'email';
             if ($hasCol('reference_code')) $insertData['reference_code'] = $referenceCode;
+            if ($hasCol('school_id') && isset($data['school_id'])) {
+                $insertData['school_id'] = $data['school_id'];
+            }
+            if ($hasCol('assigned_units') && isset($data['assigned_units'])) {
+                $insertData['assigned_units'] = is_array($data['assigned_units']) ? json_encode($data['assigned_units']) : $data['assigned_units'];
+            }
             if (isset($data['avr_venue_booking_id']) && $hasCol('avr_venue_booking_id')) {
                 $insertData['avr_venue_booking_id'] = $data['avr_venue_booking_id'];
             }

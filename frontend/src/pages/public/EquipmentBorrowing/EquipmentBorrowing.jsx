@@ -210,17 +210,14 @@ export default function EquipmentBorrowing() {
       diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     }
     // More than 1 day (spans 2 or more days)
-    const isMultiDay = diffDays >= 1;
-
     // Evaluate trigger rules accurately based on checked/unchecked settings
     const isSystemPinActive = pinRules?.isEnabled === true || (pinRules?.isEnabled !== false && pinRules?.isEnabled !== "false");
     const outsideRequiresPin = (pinRules?.requirePinOutsideHours === true || (pinRules?.requirePinOutsideHours !== false && pinRules?.requirePinOutsideHours !== "false")) && isOutsideHours;
-    const multiDayRequiresPin = (pinRules?.requirePinMultiDayEquipment === true || (pinRules?.requirePinMultiDayEquipment !== false && pinRules?.requirePinMultiDayEquipment !== "false")) && isMultiDay;
     const externalRequiresPin = (pinRules?.enableExternalEquipment === true || (pinRules?.enableExternalEquipment !== false && pinRules?.enableExternalEquipment !== "false")) && identity === "external";
     const studentMandatory = pinRules?.requirePinForStudent === true || pinRules?.pinMode === "required";
 
     const requiresPin = isSystemPinActive && (
-      outsideRequiresPin || multiDayRequiresPin || externalRequiresPin || studentMandatory
+      outsideRequiresPin || externalRequiresPin || studentMandatory
     );
 
     if (requiresPin && !isPinVerified) {
@@ -229,21 +226,15 @@ export default function EquipmentBorrowing() {
           title: "Outside Office Hours PIN",
           description: `Selected borrowing/return time (${formatTime12(startTimeStr)} - ${formatTime12(endTimeStr)}) is outside official campus kiosk hours (${formatTime12(kioskOpen)} - ${formatTime12(kioskClose)}). AVR Head / Admin Verification PIN is required for authorization.`,
         });
-      } else if (multiDayRequiresPin) {
-        const spanText = diffDays > 1 ? `${diffDays + 1} days` : "2 days";
-        setPinModalMeta({
-          title: "Extended Borrowing PIN",
-          description: `This equipment borrowing spans ${spanText} (more than 1 day). AVR Head / Admin Verification PIN is required for all users to authorize extended borrowing.`,
-        });
       } else if (externalRequiresPin) {
         setPinModalMeta({
-          title: "External Client Verification",
-          description: "External client requisitions require AVR Head / Administrative clearance PIN.",
+          title: "External Requisition PIN",
+          description: "Requisitions filed under External Identity require AVR Head / Admin authorization PIN.",
         });
       } else {
         setPinModalMeta({
-          title: "Verification PIN Required",
-          description: "AVR Head / Administrative authorization PIN is required to complete this borrowing request.",
+          title: "Authorization PIN",
+          description: "This equipment requisition requires AVR Head / Admin Verification PIN for authorization.",
         });
       }
 

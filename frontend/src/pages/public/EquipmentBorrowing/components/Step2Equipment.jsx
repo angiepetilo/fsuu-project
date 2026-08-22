@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
-import { Sparkles, Check, PackageOpen, ChevronLeft, ChevronRight, XCircle, Clock, CalendarDays, AlertTriangle } from "lucide-react";
+import { Check, PackageOpen, ChevronLeft, ChevronRight, XCircle, Clock, CalendarDays, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import api from "@/lib/axios";
-import { getTodayISO, isPastDate, isPastTimeToday, isPastDateTime } from "@/lib/dateTimeUtils";
+import { getTodayISO, isPastTimeToday, isPastDateTime } from "@/lib/dateTimeUtils";
 
 export default function Step2Equipment({
   identity,
@@ -69,38 +69,27 @@ export default function Step2Equipment({
     return isoStr.split("T")[1].slice(0, 5);
   };
 
-  const getDatePart = (isoStr) => {
-    if (!isoStr) return getTodayISO();
-    return isoStr.split("T")[0];
-  };
-
-  const currentDate = getDatePart(startTime);
+  // Strictly lock borrowing to today
+  const currentDate = getTodayISO();
   const startTimeVal = getTimePart(startTime, "08:00");
   const endTimeVal = getTimePart(endTime, "17:00");
 
-  const today = new Date();
-  const [calYear, setCalYear] = useState(today.getFullYear());
-  const [calMonth, setCalMonth] = useState(today.getMonth());
+  useEffect(() => {
+    // Ensure start/end time always sync with today's date
+    if (!startTime || !startTime.startsWith(currentDate)) {
+      setStartTime && setStartTime(`${currentDate}T${startTimeVal}`);
+    }
+    if (!endTime || !endTime.startsWith(currentDate)) {
+      setEndTime && setEndTime(`${currentDate}T${endTimeVal}`);
+    }
+  }, [currentDate]);
 
-  const prevMonth = () => {
-    if (calMonth === 0) { setCalYear(y => y - 1); setCalMonth(11); }
-    else setCalMonth(m => m - 1);
-  };
-
-  const nextMonth = () => {
-    if (calMonth === 11) { setCalYear(y => y + 1); setCalMonth(0); }
-    else setCalMonth(m => m + 1);
-  };
-
-  const monthLabel = new Date(calYear, calMonth).toLocaleString("default", { month: "long", year: "numeric" });
-  const firstDayOfWeek = new Date(calYear, calMonth, 1).getDay();
-  const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
-  const pad = (n) => String(n).padStart(2, "0");
-
-  // Calculate Next Available Date for 0 stock / borrowed items
-  const getNextAvailableInfo = (item) => {
-    return "No Stock / Unavailable";
-  };
+  const todayFormatted = new Date().toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    year: "numeric"
+  });
 
   // Calculate live available stock count
   const getLiveStockCount = (item) => {
@@ -117,16 +106,13 @@ export default function Step2Equipment({
       {/* Section Header */}
       <div className="mb-6 pb-4 border-b border-slate-100">
         <h3 className="font-black text-slate-900 text-xl tracking-tight mb-1">1. Select Equipment</h3>
-        <p className="text-xs text-slate-500 font-medium">Choose from available university equipment</p>
+        <p className="text-xs text-slate-500 font-medium">Walk-in physical custody & equipment requisition</p>
       </div>
 
-      {/* Main Grid: Left 2x2 Catalog + Right Calendar & Time Controls */}
+      {/* Main Grid: Left 2x2 Catalog + Right Same-Day Time Controls */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8">
         {/* Left Column: Equipment Catalog (2x2 Grid) */}
         <div className="lg:col-span-7 sm:col-span-12 space-y-4">
-          
-
-
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             {currentGridItems.map((item) => {
               const isChecked = selectedItems.includes(item.id);
@@ -155,10 +141,10 @@ export default function Step2Equipment({
                   }`}
                 >
                   <div>
-                    {/* Top Image / Placeholder Box (Screenshot 1) */}
+                    {/* Top Image / Placeholder Box */}
                     <div className="w-full h-[160px] bg-blue-50/70 border border-blue-100/80 rounded-3xl overflow-hidden flex flex-col items-center justify-center text-center relative">
                       {item.avatar || item.photo || item.image || item.photo_url ? (
-                        <img src={item.avatar || item.photo || item.image || item.photo_url} alt={item.name} className="w-full h-full object-cover" />
+                        <img src={item.avatar || item.photo || item.image || item.photo_url} alt={item.name} className="w-full h-full object-contain p-2" />
                       ) : (
                         <div className="p-6 flex flex-col items-center justify-center h-full w-full">
                           <PackageOpen size={44} className="text-blue-600 mb-2.5 shrink-0" />
@@ -169,16 +155,28 @@ export default function Step2Equipment({
                       )}
                     </div>
 
-                    {/* Equipment Metadata (Screenshot 1) */}
+                    {/* Equipment Metadata */}
                     <div className="mt-4 space-y-1">
                       <h4 className="font-extrabold text-slate-900 text-sm leading-tight truncate" title={item.name}>{item.name}</h4>
                       <p className={`text-xs font-bold ${remainingAvailable === 0 ? "text-amber-600" : "text-emerald-600"}`}>
-                        {remainingAvailable} Available
+                        {remainingAvailable} Available Now
                       </p>
+                      {/* Transparent Allocation Breakdown */}
+                      <div className="text-[10.5px] text-slate-400 font-medium flex flex-wrap items-center gap-x-1.5 pt-0.5">
+                        <span>Total: {item.total_quantity || availableTotal}</span>
+                        {item.in_use_count > 0 && (
+                          <span>• {item.in_use_count} In-Use</span>
+                        )}
+                        {Boolean(item.reserved_count && item.reserved_count > 0) && (
+                          <span className="text-amber-600 font-bold bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200/60">
+                            • {item.reserved_count} Reserved (Event)
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
 
-                  {/* Bottom Action Pill Button (Screenshot 1) */}
+                  {/* Bottom Action Pill Button */}
                   <div className="mt-5">
                     {isMaintenance ? (
                       <button
@@ -270,84 +268,32 @@ export default function Step2Equipment({
           )}
         </div>
 
-        {/* Right Column: Calendar & Time Settings */}
+        {/* Right Column: Walk-In / Same-Day Schedule Controls */}
         <div className="lg:col-span-5 sm:col-span-12">
           <div className="bg-white/95 backdrop-blur-md p-5 rounded-[28px] border border-slate-200/90 shadow-md space-y-4 sticky top-4">
-            {/* Clean Header */}
+            {/* Header */}
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h4 className="font-extrabold text-slate-900 text-xs flex items-center gap-2 uppercase tracking-wider">
                 <Clock size={16} className="text-blue-600" />
-                Borrow Date & Time Settings
+                Borrow Schedule (Same-Day)
               </h4>
             </div>
 
-            {/* Interactive Calendar Card displaying Month */}
-            <div className="bg-slate-100/70 p-3.5 rounded-[22px] border border-slate-200/80 space-y-2.5 shadow-inner">
-              <div className="flex items-center justify-between px-1 mb-1">
-                <span className="text-xs font-black text-slate-900 tracking-tight flex items-center gap-1.5">
-                  <CalendarDays size={15} className="text-blue-600" />
-                  {monthLabel}
-                </span>
-                <div className="flex items-center gap-1">
-                  <button
-                    type="button"
-                    onClick={prevMonth}
-                    className="w-6 h-6 rounded-full bg-white border border-slate-200 hover:bg-slate-50 flex items-center justify-center shadow-2xs cursor-pointer"
-                  >
-                    <ChevronLeft size={12} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={nextMonth}
-                    className="w-6 h-6 rounded-full bg-white border border-slate-200 hover:bg-slate-50 flex items-center justify-center shadow-2xs cursor-pointer"
-                  >
-                    <ChevronRight size={12} />
-                  </button>
-                </div>
+            {/* Same-Day Lock Banner Card */}
+            <div className="p-4 rounded-2xl bg-blue-50/80 border border-blue-200/80 space-y-1.5 shadow-2xs">
+              <div className="flex items-center gap-2 text-blue-800 font-extrabold text-xs">
+                <CalendarDays size={16} className="text-blue-600 shrink-0" />
+                <span>Borrowing Date: <b className="text-blue-900">Today</b></span>
               </div>
-
-              <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-black text-slate-400 uppercase">
-                {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((d, idx) => <div key={idx}>{d}</div>)}
-              </div>
-
-              <div className="grid grid-cols-7 gap-1.5 text-center text-xs">
-                {Array.from({ length: firstDayOfWeek }).map((_, i) => (
-                  <div key={`empty-${i}`} />
-                ))}
-
-                {Array.from({ length: daysInMonth }).map((_, i) => {
-                  const dayNum = i + 1;
-                  const dateStr = `${calYear}-${pad(calMonth + 1)}-${pad(dayNum)}`;
-                  const isSelected = currentDate === dateStr;
-                  const disabled = isPastDate(dateStr);
-
-                  return (
-                    <button
-                      key={dayNum}
-                      type="button"
-                      disabled={disabled}
-                      onClick={() => {
-                        if (!disabled) {
-                          setStartTime && setStartTime(`${dateStr}T${startTimeVal}`);
-                          setEndTime && setEndTime(`${dateStr}T${endTimeVal}`);
-                        }
-                      }}
-                      className={`w-8 h-8 rounded-full font-bold text-xs flex items-center justify-center mx-auto transition-all ${
-                        disabled
-                          ? "bg-slate-50 border border-slate-100 text-slate-300 cursor-not-allowed"
-                          : isSelected
-                            ? "bg-blue-600 text-white font-black shadow-md scale-105 cursor-pointer"
-                            : "bg-white/90 hover:bg-blue-50 text-slate-700 border border-slate-200/80 shadow-2xs cursor-pointer"
-                      }`}
-                    >
-                      {dayNum}
-                    </button>
-                  );
-                })}
-              </div>
+              <p className="text-xs font-black text-slate-900 ml-6">
+                {todayFormatted}
+              </p>
+              <p className="text-[11px] text-slate-600 font-medium ml-6 leading-relaxed">
+                Physical units are audited and released at the counter for today's session.
+              </p>
             </div>
 
-            {/* Time Settings (Time Only Selectors, Date drive by Calendar) */}
+            {/* Time Settings */}
             <div className="space-y-3 pt-1">
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-extrabold text-slate-800 flex items-center gap-1.5">
@@ -439,94 +385,6 @@ export default function Step2Equipment({
               }
               return null;
             })()}
-
-            {/* Wish to Extend Return Borrowing Gate */}
-            {(() => {
-              let diffDays = 0;
-              const dateEnd = getDatePart(endTime);
-              if (dateEnd && currentDate && dateEnd > currentDate) {
-                const startD = new Date(currentDate);
-                const endD = new Date(dateEnd);
-                const diffTime = endD - startD;
-                diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-              }
-              const isMultiDay = diffDays >= 1;
-              const requiresPinForMultiDay = (pinRules?.requirePinMultiDayEquipment !== false) && isMultiDay;
-
-              return (
-                <div className="p-3.5 rounded-xl bg-white border border-slate-200 space-y-2.5">
-                  <label className="flex items-start gap-2.5 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={wishesToExtend || false}
-                      onChange={(e) => {
-                        const checked = e.target.checked;
-                        setWishesToExtend && setWishesToExtend(checked);
-                        if (!checked) {
-                          setEndTime && setEndTime(`${currentDate}T${endTimeVal}`);
-                          if (setIsPinVerified) setIsPinVerified(false);
-                        }
-                      }}
-                      className="mt-0.5 w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer"
-                    />
-                    <div>
-                      <span className="font-semibold text-slate-800 text-xs">Wish to Extend Return Borrowing</span>
-                      <p className="text-xs text-slate-500 font-normal leading-tight mt-0.5">
-                        Check if returning next-day or extending beyond standard cutoff.
-                      </p>
-                    </div>
-                  </label>
-
-                  {wishesToExtend && (
-                    <div className="pt-2 border-t border-slate-200 space-y-2 animate-in fade-in duration-150">
-                      <div className="flex flex-col gap-1">
-                        <label className="text-xs font-medium text-slate-700">Return End Date</label>
-                        <input
-                          type="date"
-                          min={currentDate || getTodayISO()}
-                          value={dateEnd || currentDate || ''}
-                          onChange={e => {
-                            const newDate = e.target.value;
-                            if (setEndTime) setEndTime(`${newDate}T${endTimeVal}`);
-                          }}
-                          className={`w-full px-3 py-1.5 bg-white border rounded-lg text-xs font-normal text-slate-800 focus:outline-none transition-colors ${dateEnd < currentDate ? 'border-rose-400 focus:border-rose-500' : 'border-slate-300 focus:border-blue-600'}`}
-                        />
-                      </div>
-
-                      {requiresPinForMultiDay && (
-                        !isPinVerified ? (
-                          <div className="space-y-1.5 pt-1">
-                            <p className="text-xs text-slate-600 font-normal">
-                              Multi-day borrowing requires AVR Head / Admin verification PIN.
-                            </p>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (setPinModalMeta) {
-                                  setPinModalMeta({
-                                    title: "Extended Borrowing PIN",
-                                    description: "Multi-day borrowing requires AVR Head / Admin Verification PIN for authorization.",
-                                  });
-                                }
-                                setShowPinModal && setShowPinModal(true);
-                              }}
-                              className="w-full py-2 px-3 rounded-lg border border-blue-600 bg-blue-50/70 hover:bg-blue-600 text-blue-700 hover:text-white active:bg-blue-700 active:scale-[0.99] font-semibold text-xs transition-all cursor-pointer text-center shadow-2xs"
-                            >
-                              Verify PIN
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="pt-1 text-xs font-semibold text-emerald-700">
-                            ✓ PIN verified for multi-day extension
-                          </div>
-                        )
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })()}
-
           </div>
         </div>
       </div>
@@ -537,10 +395,10 @@ export default function Step2Equipment({
           type="button"
           variant="outline"
           onClick={() => onBack && onBack()}
-          className="border-slate-200 text-slate-700 hover:bg-slate-50 px-5 py-5 rounded-xl font-bold text-xs flex items-center gap-2 cursor-pointer"
+          className="border-slate-300 hover:bg-slate-50 text-slate-700 font-bold text-xs py-5 px-5 rounded-xl cursor-pointer"
         >
           <ChevronLeft size={16} />
-          <span>Back to Requester Role</span>
+          <span>Back</span>
         </Button>
 
         {(() => {
@@ -549,18 +407,7 @@ export default function Step2Equipment({
           const isOutside = startTimeVal < kioskOpen || endTimeVal > kioskClose;
           const requiresPinForOutside = (pinRules?.requirePinOutsideHours !== false) && isOutside;
           
-          let diffDays = 0;
-          const dateEnd = getDatePart(endTime);
-          if (dateEnd && currentDate && dateEnd > currentDate) {
-            const startD = new Date(currentDate);
-            const endD = new Date(dateEnd);
-            const diffTime = endD - startD;
-            diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-          }
-          const isMultiDay = diffDays > 2;
-          const requiresPinForMultiDay = (pinRules?.requirePinMultiDayEquipment !== false) && isMultiDay;
-          
-          const requiresPin = requiresPinForMultiDay || requiresPinForOutside || (pinRules?.enableExternalEquipment !== false && identity === "external");
+          const requiresPin = requiresPinForOutside || (pinRules?.enableExternalEquipment !== false && identity === "external");
           const isBlocked = requiresPin && !isPinVerified;
 
           return (
@@ -571,7 +418,6 @@ export default function Step2Equipment({
                   !selectedItems ||
                   selectedItems.length === 0 ||
                   isPastDateTime(currentDate, startTimeVal) ||
-                  (getDatePart(endTime) < currentDate) ||
                   isBlocked
                 }
                 onClick={handleEquipmentSubmit}

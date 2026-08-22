@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Save, Printer, Mail, X, Send, Loader2, CheckCircle2, Building, DollarSign, FileText } from "lucide-react";
 import api from "@/lib/axios";
 
-export default function FeeMatrixTab({ showMsg }) {
+export default function FeeMatrixTab({ officeScope = "All Offices", showMsg }) {
   const [venues, setVenues] = useState([]);
   const [selectedVenueId, setSelectedVenueId] = useState("");
   const [feeForm, setFeeForm] = useState({

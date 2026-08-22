@@ -218,11 +218,16 @@ export default function Step3Details({
               <textarea rows="3" required value={purpose} onChange={e => setPurpose(e.target.value)} placeholder="State event title, nature of activity, and specific requirements..." className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600"></textarea>
             </div>
 
-            <div className="sm:col-span-2 flex flex-col gap-2 bg-slate-50 p-4 rounded-2xl border border-slate-200/60">
+            <div className="sm:col-span-2 flex flex-col gap-2.5 bg-slate-50 p-4 rounded-2xl border border-slate-200/60">
               <div className="flex items-center justify-between">
                 <label className="text-xs font-bold text-slate-900">
                   Equipment-Needed: <span className="text-slate-500 font-semibold text-[11px]">(Optional)</span>
                 </label>
+              </div>
+
+              {/* Informative Notice Banner for Venue Requisitions */}
+              <div className="p-2.5 rounded-xl bg-blue-50/80 border border-blue-200 text-[11px] text-blue-900 leading-relaxed">
+                ℹ️ <b>Event Setup Priority:</b> Requested equipment is secured upon booking approval and prepared inside the venue by AVR staff on your event date.
               </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 text-xs pt-1">
@@ -295,8 +300,8 @@ export default function Step3Details({
                           <div className="flex flex-col min-w-0">
                             <span className="truncate text-xs font-bold">{item.name}</span>
                             {!isOutOfStock && (
-                              <span className="text-[10px] text-slate-400 font-mono">
-                                {realStock} unit{realStock === 1 ? "" : "s"} available
+                              <span className="text-[10px] text-slate-500 font-mono">
+                                Max {realStock} unit{realStock === 1 ? "" : "s"} in facility
                               </span>
                             )}
                           </div>

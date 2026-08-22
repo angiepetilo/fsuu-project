@@ -45,6 +45,7 @@ export default function SysadSettings() {
     { id: "operating_hours", label: "Operating Hours", icon: Clock },
     { id: "academic_terms", label: "Academic Terms & Archiving", icon: GraduationCap },
     { id: "pin", label: "Verification PIN", icon: Key },
+    { id: "confirmation", label: "Confirmation", icon: ShieldCheck },
     { id: "profile", label: "Profile", icon: User },
   ];
 
@@ -88,6 +89,17 @@ export default function SysadSettings() {
           handleSavePinConfig={handleSavePinConfig}
           showMsg={showMsg}
         />
+      )}
+      {activeTab === "confirmation" && (
+        <div className="bg-white rounded-2xl border border-slate-200/80 p-10 shadow-xs text-center space-y-3">
+          <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto border border-blue-100">
+            <ShieldCheck size={24} />
+          </div>
+          <h3 className="text-sm font-extrabold text-slate-900">Confirmation</h3>
+          <p className="text-xs text-slate-500 max-w-md mx-auto">
+            Confirmation settings and template configurations will appear here.
+          </p>
+        </div>
       )}
       {activeTab === "profile" && <ProfileConfigTab showMsg={showMsg} />}
     </div>

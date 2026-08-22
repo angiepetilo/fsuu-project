@@ -319,6 +319,7 @@ export default function Settings() {
           { id: "roles", label: "Role & Permission", icon: ShieldCheck },
           { id: "inventory", label: "Equipment Catalog", icon: PackageOpen },
           { id: "venues", label: "Venue Catalog", icon: Calendar },
+          { id: "confirmation", label: "Confirmation", icon: CheckCircle },
           { id: "profile", label: "Profile", icon: User },
         ].map(tab => {
           const IconComp = tab.icon;
@@ -383,6 +384,18 @@ export default function Settings() {
 
       {activeTab === "fee_matrix" && (
         <FeeMatrixTab officeScope={adminOfficeScope} showMsg={showMsg} />
+      )}
+
+      {activeTab === "confirmation" && (
+        <div className="bg-white rounded-2xl border border-slate-200/80 p-10 shadow-xs text-center space-y-3">
+          <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto border border-blue-100">
+            <CheckCircle size={24} />
+          </div>
+          <h3 className="text-sm font-extrabold text-slate-900">Confirmation</h3>
+          <p className="text-xs text-slate-500 max-w-md mx-auto">
+            Confirmation settings and template configurations will appear here.
+          </p>
+        </div>
       )}
 
       {activeTab === "profile" && (

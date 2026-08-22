@@ -8,7 +8,6 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\GoogleAuthController;
 
 // ─── SuperAdmin Controllers ───────────────────────────────────────────────────
-use App\Http\Controllers\SuperAdmin\LocationController;
 use App\Http\Controllers\SuperAdmin\DepartmentController;
 use App\Http\Controllers\SuperAdmin\OperatingHoursController;
 use App\Http\Controllers\SuperAdmin\VerificationPinController;
@@ -25,7 +24,6 @@ use App\Http\Controllers\Admin\DepartmentAnalyticsController;
 use App\Http\Controllers\Admin\HistoryLogController;
 use App\Http\Controllers\Admin\NotificationController as AdminNotificationController;
 use App\Http\Controllers\Admin\DashboardStatsController;
-use App\Http\Controllers\Admin\CategoryRequestController;
 use App\Http\Controllers\Admin\VenueAvailabilityController;
 
 // ─── Bookings & Borrowings (Internal) ─────────────────────────────────────────
@@ -64,12 +62,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/admin/users/{id}/resend-invite', [UserController::class, 'resendInvite']);
     Route::apiResource('admin/users', UserController::class)->except(['show']);
 
-    // ── Admin: Locations ───────────────────────────────────────────────────────
-    Route::get('/admin/locations',         [LocationController::class, 'index']);
-    Route::post('/admin/locations',        [LocationController::class, 'store']);
-    Route::put('/admin/locations/{id}',    [LocationController::class, 'update']);
-    Route::delete('/admin/locations/{id}', [LocationController::class, 'destroy']);
-
     // ── Admin: Venues ──────────────────────────────────────────────────────────
     Route::get('/admin/venues',         [VenueController::class, 'index']);
     Route::post('/admin/venues',        [VenueController::class, 'store']);
@@ -87,11 +79,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/admin/equipment-types',        [EquipmentTypeController::class, 'store']);
     Route::put('/admin/equipment-types/{id}',    [EquipmentTypeController::class, 'update']);
     Route::delete('/admin/equipment-types/{id}', [EquipmentTypeController::class, 'destroy']);
-
-    Route::get('/admin/category-requests',                [CategoryRequestController::class, 'index']);
-    Route::post('/admin/category-requests',               [CategoryRequestController::class, 'store']);
-    Route::post('/admin/category-requests/{id}/approve',  [CategoryRequestController::class, 'approve']);
-    Route::post('/admin/category-requests/{id}/reject',   [CategoryRequestController::class, 'reject']);
 
     Route::get('/admin/equipment-units',         [EquipmentUnitController::class, 'index']);
     Route::post('/admin/equipment-units',        [EquipmentUnitController::class, 'store']);

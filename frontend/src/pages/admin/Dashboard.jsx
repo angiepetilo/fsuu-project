@@ -431,7 +431,7 @@ export default function Dashboard() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-            {isSuperAdmin ? "System Administrator Overview" : "Dashboard Overview"}
+            Dashboard
           </h1>
           <p className="text-xs text-slate-500 font-semibold mt-0.5">
             Real-time facility utilization, reservation analytics & inventory overview.

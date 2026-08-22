@@ -67,6 +67,8 @@ class VerificationPinController extends Controller
 
         if (isset($validated['masterPin']) && !empty($validated['masterPin'])) {
             $setting->master_pin = $validated['masterPin'];
+            // Always keep the hashed copy in sync
+            $setting->hashed_master_pin = \Illuminate\Support\Facades\Hash::make($validated['masterPin']);
         }
 
         if (isset($validated['isEnabled'])) {
@@ -145,7 +147,9 @@ class VerificationPinController extends Controller
     }
 
     /**
-     * Public endpoint to securely verify a submitted PIN
+     * Public endpoint to securely verify a submitted PIN.
+     * Uses bcrypt Hash::check() against hashed_master_pin column.
+     * Falls back to plain-text equality for rows not yet migrated.
      */
     public function verifyPin(Request $request): JsonResponse
     {
@@ -155,9 +159,19 @@ class VerificationPinController extends Controller
 
         $submittedPin = trim($request->input('pin'));
         $setting = VerificationPinSetting::first();
-        $targetPin = $setting ? trim($setting->master_pin) : '123456';
 
-        if ($submittedPin === $targetPin) {
+        if (!$setting) {
+            // No setting row exists yet — compare against the default PIN
+            $valid = $submittedPin === '123456';
+        } elseif (!empty($setting->hashed_master_pin)) {
+            // Preferred: constant-time hash comparison
+            $valid = \Illuminate\Support\Facades\Hash::check($submittedPin, $setting->hashed_master_pin);
+        } else {
+            // Fallback: plain-text comparison for un-migrated rows
+            $valid = $submittedPin === trim((string) $setting->master_pin);
+        }
+
+        if ($valid) {
             return response()->json([
                 'valid'   => true,
                 'message' => 'PIN verified successfully.',

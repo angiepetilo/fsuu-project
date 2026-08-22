@@ -14,6 +14,7 @@ return new class extends Migration
             $table->longText('avatar')->nullable();
             $table->string('location')->nullable();
             $table->integer('capacity')->default(100);
+            $table->json('allowed_equipment')->nullable();  // Array of allowed equipment type IDs
             $table->string('status')->default('available');
             $table->timestamps();
             $table->timestamp('archived_at')->nullable();

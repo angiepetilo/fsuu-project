@@ -45,7 +45,7 @@ class AuthController extends Controller
         }
 
         Auth::login($user);
-        $user->load(['office', 'role']);
+        $user->load(['role']);
 
         // Delete old tokens to keep things clean for SPA
         $user->tokens()->delete();
@@ -63,7 +63,7 @@ class AuthController extends Controller
      */
     public function getInviteDetails(string $token)
     {
-        $user = \App\Models\User::where('invite_token', $token)->with(['office', 'role'])->first();
+        $user = \App\Models\User::where('invite_token', $token)->with(['role'])->first();
 
         if (!$user) {
             return response()->json(['message' => 'Invalid or expired activation link.'], 404);
@@ -71,7 +71,7 @@ class AuthController extends Controller
 
         return response()->json([
             'email'       => $user->personal_email ?? $user->email,
-            'office'      => $user->office ? ($user->office->location ? $user->office->name . ' | ' . $user->office->location : $user->office->name) : 'FSUU Main Campus',
+            'office'      => $user->location ?? 'FSUU Main Campus',
             'role'        => $user->role ? ucfirst($user->role->name) : 'Staff',
             'permissions' => $user->permissions ?? [],
             'status'      => $user->status,
@@ -104,7 +104,7 @@ class AuthController extends Controller
 
         return response()->json([
             'message' => 'Account activated successfully! You may now sign in.',
-            'user'    => $user->load(['office', 'role']),
+            'user'    => $user->load(['role']),
         ]);
     }
 
@@ -160,7 +160,7 @@ class AuthController extends Controller
         }
 
         $user->save();
-        $user->load(['office', 'role']);
+        $user->load(['role']);
 
         return response()->json([
             'message' => 'Profile updated successfully!',
