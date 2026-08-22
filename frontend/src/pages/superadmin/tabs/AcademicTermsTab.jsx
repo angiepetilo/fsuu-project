@@ -83,47 +83,68 @@ export default function AcademicTermsTab({ showMsg }) {
   const handleSaveTerm = async (e) => {
     e.preventDefault();
     setFormLoading(true);
-    try {
-      if (editTerm) {
+    const label = `${termForm.semester} AY ${termForm.academic_year}`;
+
+    if (editTerm) {
+      // ── OPTIMISTIC EDIT ─────────────────────────────────────────────────
+      const prev = terms;
+      setTerms(t => t.map(x => x.id === editTerm.id ? { ...x, ...termForm, name: label, _optimistic: true } : x));
+      setShowAddModal(false); setEditTerm(null);
+      try {
         await api.put(`/admin/academic-terms/${editTerm.id}`, termForm);
-        notify(`✅ Academic term "${termForm.semester} AY ${termForm.academic_year}" updated successfully!`);
-      } else {
-        await api.post("/admin/academic-terms", termForm);
-        notify(`✅ Academic term "${termForm.semester} AY ${termForm.academic_year}" created successfully!`);
-      }
+        setTerms(t => t.map(x => x.id === editTerm.id ? { ...x, _optimistic: false } : x));
+        notify(`Academic term "${label}" updated!`);
+      } catch (err) {
+        setTerms(prev); setEditTerm(editTerm); setShowAddModal(true);
+        notify(err.response?.data?.message || `Failed to update — reverted.`);
+      } finally { setFormLoading(false); }
+    } else {
+      // ── OPTIMISTIC ADD ──────────────────────────────────────────────────
+      const tempId = `temp-${Date.now()}`;
+      const prev = terms;
+      setTerms(t => [...t, { ...termForm, id: tempId, name: label, _optimistic: true }]);
       setShowAddModal(false);
-      setEditTerm(null);
-      fetchTerms();
-    } catch (err) {
-      notify(err.response?.data?.message || "❌ Failed to save academic term.");
-    } finally {
-      setFormLoading(false);
+      try {
+        const res = await api.post("/admin/academic-terms", termForm);
+        const saved = res.data;
+        setTerms(t => t.map(x => x.id === tempId ? { ...saved, _optimistic: false } : x));
+        notify(`Academic term "${label}" created!`);
+      } catch (err) {
+        setTerms(prev); setShowAddModal(true);
+        notify(err.response?.data?.message || `Failed to create — reverted.`);
+      } finally { setFormLoading(false); }
     }
   };
 
   const handleActivateTerm = async (term) => {
-    if (!confirm(`Are you sure you want to set "${term.name}" as the active academic semester?`)) return;
+    if (!confirm(`Set "${term.name}" as the active academic semester?`)) return;
+    // ── OPTIMISTIC ACTIVATE ────────────────────────────────────────────────
+    const prev = terms;
+    const prevActive = activeTerm;
+    setTerms(t => t.map(x => ({ ...x, is_active: x.id === term.id })));
+    setActiveTerm(term);
     try {
       await api.post(`/admin/academic-terms/${term.id}/activate`);
-      notify(`✅ "${term.name}" is now set as the ACTIVE academic semester.`);
-      fetchTerms();
+      notify(`"${term.name}" is now the ACTIVE academic semester.`);
+      fetchTerms(); // refresh for accurate server data
     } catch (err) {
-      notify(err.response?.data?.message || "❌ Failed to activate academic term.");
+      setTerms(prev); setActiveTerm(prevActive);
+      notify(err.response?.data?.message || "Failed to activate — reverted.");
     }
   };
 
   const handleDeleteTerm = async (term) => {
-    if (term.is_active) {
-      notify("❌ Cannot delete the currently active semester.");
-      return;
-    }
-    if (!confirm(`Are you sure you want to delete "${term.name}"?`)) return;
+    if (term.is_active) { notify("Cannot delete the currently active semester."); return; }
+    if (!confirm(`Delete "${term.name}"?`)) return;
+    // ── OPTIMISTIC DELETE ────────────────────────────────────────────────
+    const prev = terms;
+    setTerms(t => t.filter(x => x.id !== term.id));
     try {
       await api.delete(`/admin/academic-terms/${term.id}`);
-      notify(`✅ Academic term "${term.name}" deleted successfully.`);
-      fetchTerms();
+      notify(`Academic term "${term.name}" deleted.`);
     } catch (err) {
-      notify(err.response?.data?.message || "❌ Failed to delete academic term.");
+      setTerms(prev);
+      notify(err.response?.data?.message || "Failed to delete — reverted.");
     }
   };
 

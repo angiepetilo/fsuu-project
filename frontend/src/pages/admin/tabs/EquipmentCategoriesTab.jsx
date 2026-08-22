@@ -102,7 +102,6 @@ export default function EquipmentCategoriesTab({ showMsg }) {
   const handleSave = async (e) => {
     e.preventDefault();
     setFormLoading(true);
-
     const payload = {
       ...form,
       eq_type: form.eq_type || "AV Equipment",
@@ -112,32 +111,49 @@ export default function EquipmentCategoriesTab({ showMsg }) {
       description: form.description || null,
     };
 
-    try {
-      if (editItem) {
+    if (editItem) {
+      // ── OPTIMISTIC EDIT ─────────────────────────────────────────────────
+      const prev = categories;
+      setCategories(c => c.map(x => x.id === editItem.id ? { ...x, ...payload, _optimistic: true } : x));
+      setShowModal(false); setEditItem(null);
+      try {
         await api.put(`/admin/equipment-types/${editItem.id}`, payload);
-        notify.success("Category Updated", `Equipment category "${form.eq_name}" updated successfully.`);
-      } else {
-        await api.post("/admin/equipment-types", payload);
-        notify.success("Category Created", `Equipment category "${form.eq_name}" created successfully.`);
-      }
+        setCategories(c => c.map(x => x.id === editItem.id ? { ...x, _optimistic: false } : x));
+        notify.success("Category Updated", `"${form.eq_name}" updated.`);
+      } catch (err) {
+        setCategories(prev); setEditItem(editItem); setShowModal(true);
+        notify.error("Update Failed", err.response?.data?.message || "Changes reverted.");
+      } finally { setFormLoading(false); }
+    } else {
+      // ── OPTIMISTIC ADD ──────────────────────────────────────────────────
+      const tempId = `temp-${Date.now()}`;
+      const prev = categories;
+      setCategories(c => [...c, { ...payload, id: tempId, _optimistic: true }]);
       setShowModal(false);
-      setEditItem(null);
-      fetchCategories();
-    } catch (err) {
-      notify.error("Action Failed", err.response?.data?.message || "Failed to save category.");
-    } finally {
-      setFormLoading(false);
+      try {
+        const res = await api.post("/admin/equipment-types", payload);
+        const saved = res.data;
+        setCategories(c => c.map(x => x.id === tempId ? { ...saved, _optimistic: false } : x));
+        notify.success("Category Created", `"${form.eq_name}" added.`);
+      } catch (err) {
+        setCategories(prev); setShowModal(true);
+        notify.error("Create Failed", err.response?.data?.message || "Changes reverted.");
+      } finally { setFormLoading(false); }
     }
   };
 
   const handleDelete = async (id, name) => {
-    if (!window.confirm(`Are you sure you want to archive category "${name}"?`)) return;
+    if (!window.confirm(`Archive category "${name}"?`)) return;
+    // ── OPTIMISTIC DELETE ────────────────────────────────────────────────
+    const prev = categories;
+    setCategories(c => c.filter(x => x.id !== id));
+    setOpenActionId(null);
     try {
       await api.delete(`/admin/equipment-types/${id}`);
-      notify.success("Category Archived", `Equipment category "${name}" archived successfully.`);
-      fetchCategories();
+      notify.info("Category Archived", `"${name}" archived.`);
     } catch (err) {
-      notify.error("Archive Failed", err.response?.data?.message || "Failed to archive category.");
+      setCategories(prev);
+      notify.error("Archive Failed", err.response?.data?.message || "Failed to archive — reverted.");
     }
   };
 

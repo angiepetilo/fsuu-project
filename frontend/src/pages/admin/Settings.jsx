@@ -155,15 +155,21 @@ export default function Settings() {
   };
 
   const handleCreateUser = async (formData) => {
+    // Note: formData is multipart — we can't build an optimistic row from it directly
+    // but we close the modal immediately and show an optimistic placeholder
     setFormLoading(true);
+    setShowCreate(false);
+    const tempId = `temp-${Date.now()}`;
+    const prev = users;
+    setUsers(u => [...u, { id: tempId, name: "Adding...", email: "", role: "staff", status: "pending", _optimistic: true }]);
     try {
-      const res = await api.post("/admin/users", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      const res = await api.post("/admin/users", formData, { headers: { "Content-Type": "multipart/form-data" } });
+      const saved = res.data?.user || res.data;
+      setUsers(u => u.map(x => x.id === tempId ? { ...saved, _optimistic: false } : x));
       showMsg("Invitation sent successfully!");
-      setShowCreate(false);
-      fetchUsers();
     } catch (err) {
+      setUsers(prev);
+      setShowCreate(true);
       showMsg(err.response?.data?.message ?? "Failed to send invitation.", true);
     } finally {
       setFormLoading(false);
@@ -173,14 +179,16 @@ export default function Settings() {
   const handleEditUserSubmit = async (formData) => {
     if (!editUser) return;
     setFormLoading(true);
+    // ── OPTIMISTIC EDIT (partial — multipart, can't read all fields back easily)
+    const prev = users;
+    setEditUser(null);
     try {
-      await api.post(`/admin/users/${editUser.id}`, formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      await api.post(`/admin/users/${editUser.id}`, formData, { headers: { "Content-Type": "multipart/form-data" } });
       showMsg("User updated successfully!");
-      setEditUser(null);
-      fetchUsers();
+      fetchUsers(); // refresh for real data after multipart
     } catch (err) {
+      setUsers(prev);
+      setEditUser(editUser);
       showMsg(err.response?.data?.message ?? "Failed to update user.", true);
     } finally {
       setFormLoading(false);
@@ -190,12 +198,17 @@ export default function Settings() {
   const handleDeleteUserSubmit = async () => {
     if (!deleteUser) return;
     setDeleteLoading(true);
+    // ── OPTIMISTIC DELETE ────────────────────────────────────────────────
+    const prev = users;
+    const target = deleteUser;
+    setUsers(u => u.filter(x => x.id !== target.id));
+    setDeleteUser(null);
     try {
-      await api.delete(`/admin/users/${deleteUser.id}`);
+      await api.delete(`/admin/users/${target.id}`);
       showMsg("User deleted successfully!");
-      setDeleteUser(null);
-      fetchUsers();
     } catch (err) {
+      setUsers(prev);
+      setDeleteUser(target);
       showMsg(err.response?.data?.message ?? "Failed to delete user.", true);
     } finally {
       setDeleteLoading(false);
@@ -222,18 +235,22 @@ export default function Settings() {
       avatar: venuePhotoPreview || null,
       location: venueForm.location || "Main Campus",
     };
+    // ── OPTIMISTIC ADD ──────────────────────────────────────────────────
+    const tempId = `temp-${Date.now()}`;
+    const prev = venues;
+    setVenues(v => [...v, { ...payload, id: tempId, photo: venuePhotoPreview, _optimistic: true }]);
+    setShowAddVenueModal(false);
+    setVenueForm({ name: "", capacity: 100, status: "Available", photo: null, location: "" });
+    setVenuePhotoPreview(null);
     try {
-      await api.post("/admin/venues", payload);
-      showMsg(`Venue "${venueForm.name}" created and synced to database!`);
-      fetchVenues();
+      const res = await api.post("/admin/venues", payload);
+      const saved = res.data;
+      setVenues(v => v.map(x => x.id === tempId ? { ...saved, _optimistic: false } : x));
+      showMsg(`Venue "${payload.name}" created!`);
     } catch {
-      const newVen = { id: Date.now(), ...payload, photo: venuePhotoPreview };
-      setVenues(prev => [newVen, ...prev]);
-      showMsg(`Venue "${venueForm.name}" added.`);
-    } finally {
-      setShowAddVenueModal(false);
-      setVenueForm({ name: "", capacity: 100, status: "Available", photo: null, location: "" });
-      setVenuePhotoPreview(null);
+      setVenues(prev);
+      setShowAddVenueModal(true);
+      showMsg(`Failed to create venue — changes reverted.`, true);
     }
   };
 
@@ -247,18 +264,20 @@ export default function Settings() {
       avatar: venuePhotoPreview || null,
       location: venueForm.location || "Main Campus",
     };
+    // ── OPTIMISTIC EDIT ──────────────────────────────────────────────────
+    const prev = venues;
+    setVenues(v => v.map(x => x.id === editVenue.id ? { ...x, ...payload, photo: venuePhotoPreview, _optimistic: true } : x));
+    setEditVenue(null);
+    setVenueForm({ name: "", capacity: 100, status: "Available", photo: null, location: "" });
+    setVenuePhotoPreview(null);
     try {
       await api.put(`/admin/venues/${editVenue.id}`, payload);
-      showMsg(`Venue "${venueForm.name}" updated successfully!`);
-      fetchVenues();
+      setVenues(v => v.map(x => x.id === editVenue.id ? { ...x, _optimistic: false } : x));
+      showMsg(`Venue "${payload.name}" updated!`);
     } catch {
-      await api.post(`/admin/venues/${editVenue.id}`, payload).catch(() => {});
-      setVenues(prev => prev.map(v => v.id === editVenue.id ? { ...v, ...payload, photo: venuePhotoPreview } : v));
-      showMsg(`Venue "${venueForm.name}" updated.`);
-    } finally {
-      setEditVenue(null);
-      setVenueForm({ name: "", capacity: 100, status: "Available", photo: null, location: "" });
-      setVenuePhotoPreview(null);
+      setVenues(prev);
+      setEditVenue(editVenue);
+      showMsg(`Failed to update venue — changes reverted.`, true);
     }
   };
 

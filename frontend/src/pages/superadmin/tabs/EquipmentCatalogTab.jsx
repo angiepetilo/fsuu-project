@@ -66,33 +66,60 @@ export default function EquipmentCatalogTab({ showMsg }) {
       description: form.description || null,
     };
 
-    try {
-      if (editItem) {
-        await api.put(`/admin/equipment-types/${editItem.id}`, payload);
-        showMsg(`✅ Equipment catalog item "${form.eq_name}" updated!`);
-      } else {
-        await api.post("/admin/equipment-types", payload);
-        showMsg(`✅ Equipment catalog item "${form.eq_name}" added to catalog!`);
-      }
+    if (editItem) {
+      // ── OPTIMISTIC EDIT ─────────────────────────────────────────────────
+      const prevCats = categories;
+      setCategories(prev => prev.map(c => c.id === editItem.id ? { ...c, ...payload, _optimistic: true } : c));
       setShowModal(false);
       setEditItem(null);
-      fetchCategories();
-    } catch (err) {
-      showMsg("❌ Failed to save equipment catalog item.");
-    } finally {
-      setFormLoading(false);
+      try {
+        await api.put(`/admin/equipment-types/${editItem.id}`, payload);
+        setCategories(prev => prev.map(c => c.id === editItem.id ? { ...c, _optimistic: false } : c));
+        showMsg(`Equipment category "${form.eq_name}" updated!`);
+      } catch (err) {
+        setCategories(prevCats);
+        setEditItem(editItem);
+        setShowModal(true);
+        showMsg("Failed to update — changes were reverted.");
+      } finally {
+        setFormLoading(false);
+      }
+    } else {
+      // ── OPTIMISTIC ADD ──────────────────────────────────────────────────
+      const tempId = `temp-${Date.now()}`;
+      const optimistic = { ...payload, id: tempId, _optimistic: true };
+      const prevCats = categories;
+      setCategories(prev => [...prev, optimistic]);
+      setShowModal(false);
+      try {
+        const res = await api.post("/admin/equipment-types", payload);
+        const saved = res.data;
+        setCategories(prev => prev.map(c => c.id === tempId ? { ...saved, _optimistic: false } : c));
+        showMsg(`Equipment catalog item "${form.eq_name}" added!`);
+      } catch (err) {
+        setCategories(prevCats);
+        setShowModal(true);
+        showMsg("Failed to add — changes were reverted.");
+      } finally {
+        setFormLoading(false);
+      }
     }
   };
 
   const handleDelete = async (id, name) => {
-    if (confirm(`Archive equipment category "${name}"? Soft-delete will apply.`)) {
-      try {
-        await api.delete(`/admin/equipment-types/${id}`);
-        showMsg(`✅ Equipment "${name}" archived (soft-deleted).`);
-        fetchCategories();
-      } catch {
-        showMsg("❌ Failed to archive equipment.");
-      }
+    if (!confirm(`Archive equipment category "${name}"? Soft-delete will apply.`)) return;
+
+    // ── OPTIMISTIC DELETE ─────────────────────────────────────────────────
+    const prevCats = categories;
+    setCategories(prev => prev.filter(c => c.id !== id));
+    // ─────────────────────────────────────────────────────────────────────────
+
+    try {
+      await api.delete(`/admin/equipment-types/${id}`);
+      showMsg(`Equipment "${name}" archived.`);
+    } catch {
+      setCategories(prevCats); // Rollback
+      showMsg(`Failed to archive "${name}" — changes were reverted.`);
     }
   };
 

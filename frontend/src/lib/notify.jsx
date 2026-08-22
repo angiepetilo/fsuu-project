@@ -1,83 +1,91 @@
-import { toast as sonnerToast } from "sonner";
+﻿import { toast as sonnerToast } from "sonner";
 import { CheckCircle2, AlertTriangle, XCircle, Info, X } from "lucide-react";
 
+const ACCENT = {
+  success: { bar: "bg-emerald-500", icon: "text-emerald-500" },
+  error:   { bar: "bg-rose-500",    icon: "text-rose-500"    },
+  warning: { bar: "bg-amber-500",   icon: "text-amber-500"   },
+  info:    { bar: "bg-blue-500",    icon: "text-blue-500"    },
+};
+
+const ICON = {
+  success: CheckCircle2,
+  error:   XCircle,
+  warning: AlertTriangle,
+  info:    Info,
+};
+
 /**
- * Plain Toast Component
- * Clean, solid white container, plain icon, no blur overlays or nested rings.
+ * PlainToast — slim, flat, no overlay.
+ * Auto-dismisses via sonner duration. No ESC needed.
+ * Dismiss X appears on hover only.
  */
-function PlainToast({ t, type, title, description }) {
-  const getIcon = () => {
-    switch (type) {
-      case "success":
-        return <CheckCircle2 size={18} className="text-emerald-600 shrink-0" />;
-      case "error":
-        return <XCircle size={18} className="text-rose-600 shrink-0" />;
-      case "warning":
-        return <AlertTriangle size={18} className="text-amber-600 shrink-0" />;
-      case "info":
-      default:
-        return <Info size={18} className="text-blue-600 shrink-0" />;
-    }
-  };
+function PlainToast({ t, type = "info", title, description }) {
+  const accent = ACCENT[type] ?? ACCENT.info;
+  const Icon   = ICON[type]   ?? ICON.info;
 
   return (
-    <div className="flex items-center gap-3 bg-white px-4 py-3 rounded-xl border border-slate-200 shadow-lg min-w-[300px] sm:min-w-[340px] max-w-md pointer-events-auto transition-all text-left">
-      {/* Icon */}
-      <div className="shrink-0 flex items-center justify-center">
-        {getIcon()}
-      </div>
+    <div className="group/toast relative flex items-start gap-3 bg-white rounded-lg shadow-md border border-slate-100 overflow-hidden min-w-[280px] max-w-[380px] pr-8 pl-3 py-2.5">
+      {/* Thin left accent bar */}
+      <div className={`absolute left-0 top-0 bottom-0 w-[3px] ${accent.bar}`} />
 
-      {/* Text block */}
-      <div className="flex-1 min-w-0 pr-1 text-left">
-        <h4 className="font-bold text-slate-900 text-xs tracking-tight leading-tight">
-          {title}
-        </h4>
+      {/* Icon */}
+      <Icon size={15} className={`${accent.icon} shrink-0 mt-0.5`} />
+
+      {/* Text */}
+      <div className="flex-1 min-w-0">
+        <p className="text-[12px] font-semibold text-slate-800 leading-snug">{title}</p>
         {description && (
-          <p className="text-[11.5px] text-slate-500 font-normal leading-tight mt-0.5">
-            {description}
-          </p>
+          <p className="text-[11px] text-slate-500 leading-snug mt-0.5">{description}</p>
         )}
       </div>
 
-      {/* Dismiss Button */}
+      {/* Dismiss — appears on hover */}
       <button
         type="button"
         onClick={() => sonnerToast.dismiss(t)}
-        className="p-1 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors shrink-0 cursor-pointer"
+        className="absolute top-2 right-2 p-0.5 rounded text-slate-300 opacity-0 group-hover/toast:opacity-100 hover:text-slate-600 hover:bg-slate-100 transition-all cursor-pointer"
         title="Dismiss"
       >
-        <X size={14} />
+        <X size={12} />
       </button>
     </div>
   );
 }
 
+const BASE_OPTS = { duration: 3500 };
+
 export const notify = {
-  success: (title, description) => {
-    return sonnerToast.custom((t) => (
+  success: (title, description) =>
+    sonnerToast.custom((t) => (
       <PlainToast t={t} type="success" title={title} description={description} />
-    ), { duration: 4000 });
-  },
+    ), BASE_OPTS),
 
-  error: (title, description) => {
-    return sonnerToast.custom((t) => (
+  error: (title, description) =>
+    sonnerToast.custom((t) => (
       <PlainToast t={t} type="error" title={title} description={description} />
-    ), { duration: 4500 });
-  },
+    ), { duration: 5000 }),
 
-  warning: (title, description) => {
-    return sonnerToast.custom((t) => (
+  warning: (title, description) =>
+    sonnerToast.custom((t) => (
       <PlainToast t={t} type="warning" title={title} description={description} />
-    ), { duration: 4500 });
-  },
+    ), { duration: 4500 }),
 
-  info: (title, description) => {
-    return sonnerToast.custom((t) => (
+  info: (title, description) =>
+    sonnerToast.custom((t) => (
       <PlainToast t={t} type="info" title={title} description={description} />
-    ), { duration: 4000 });
-  },
+    ), BASE_OPTS),
 
   dismiss: (id) => sonnerToast.dismiss(id),
+
+  /**
+   * Optimistic loading toast — stays until dismissed manually.
+   * Usage: const id = notify.loading("Saving..."); later: notify.dismiss(id);
+   */
+  loading: (title, description) =>
+    sonnerToast.custom((t) => (
+      <PlainToast t={t} type="info" title={title} description={description} />
+    ), { duration: Infinity }),
 };
 
 export default notify;

@@ -167,39 +167,55 @@ export default function VerificationPinTab({
   const handleSaveReq = async (e) => {
     e.preventDefault();
     setReqFormLoading(true);
-    try {
-      const payload = {
-        classification: reqForm.classification,
-        label: reqForm.label,
-        description: reqForm.description,
-        office_id: 1,
-      };
+    const payload = {
+      classification: reqForm.classification,
+      label: reqForm.label,
+      description: reqForm.description,
+      office_id: 1,
+    };
 
-      if (editReq) {
+    if (editReq) {
+      // ── OPTIMISTIC EDIT ─────────────────────────────────────────────────
+      const prev = requirements;
+      setRequirements(r => r.map(x => x.id === editReq.id ? { ...x, ...payload, _optimistic: true } : x));
+      setShowReqModal(false); setEditReq(null);
+      try {
         await api.put(`/admin/booking-requirements/${editReq.id}`, payload);
-      } else {
-        await api.post("/admin/booking-requirements", payload);
-      }
+        setRequirements(r => r.map(x => x.id === editReq.id ? { ...x, _optimistic: false } : x));
+        toast.success("Booking requirement updated!");
+      } catch {
+        setRequirements(prev); setEditReq(editReq); setShowReqModal(true);
+        toast.error("Failed to update — changes reverted.");
+      } finally { setReqFormLoading(false); }
+    } else {
+      // ── OPTIMISTIC ADD ──────────────────────────────────────────────────
+      const tempId = `temp-${Date.now()}`;
+      const prev = requirements;
+      setRequirements(r => [...r, { ...payload, id: tempId, _optimistic: true }]);
       setShowReqModal(false);
-      setEditReq(null);
-      fetchRequirements();
-      toast.success("Booking requirement saved successfully!");
-    } catch {
-      toast.error("Failed to save booking requirement.");
-    } finally {
-      setReqFormLoading(false);
+      try {
+        const res = await api.post("/admin/booking-requirements", payload);
+        const saved = res.data;
+        setRequirements(r => r.map(x => x.id === tempId ? { ...saved, _optimistic: false } : x));
+        toast.success("Booking requirement added!");
+      } catch {
+        setRequirements(prev); setShowReqModal(true);
+        toast.error("Failed to add — changes reverted.");
+      } finally { setReqFormLoading(false); }
     }
   };
 
   const handleDeleteReq = async (id) => {
-    if (confirm("Archive this booking requirement?")) {
-      try {
-        await api.delete(`/admin/booking-requirements/${id}`);
-        fetchRequirements();
-        toast.success("Requirement archived successfully.");
-      } catch {
-        toast.error("Failed to archive requirement.");
-      }
+    if (!confirm("Archive this booking requirement?")) return;
+    // ── OPTIMISTIC DELETE ────────────────────────────────────────────────
+    const prev = requirements;
+    setRequirements(r => r.filter(x => x.id !== id));
+    try {
+      await api.delete(`/admin/booking-requirements/${id}`);
+      toast.success("Requirement archived.");
+    } catch {
+      setRequirements(prev);
+      toast.error("Failed to archive — changes reverted.");
     }
   };
 
