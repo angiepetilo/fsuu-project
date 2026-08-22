@@ -16,7 +16,6 @@
 <div class="container">
 @php
     $adminName = $user->name ?? 'Staff';
-    $officeNameVal = is_object($user->office) ? ($user->office->name ?? 'FSUU Main') : ($user->office_name ?? ($user->office ?? 'FSUU Main'));
     $roleNameVal = is_object($user->role) ? ($user->role->name ?? 'Staff') : (string)($user->role ?? 'Staff');
     $baseUrl = rtrim(config('app.frontend_url') ?: env('FRONTEND_URL', 'https://fsuu-project.vercel.app'), '/');
     $activationUrl = !empty($user->invite_token) ? $baseUrl . '/activate/' . $user->invite_token : $baseUrl . '/login';
@@ -33,7 +32,6 @@
   <div class="credentials-block">
     <strong>Account Email:</strong> {{ $user->email ?? $user->personal_email }}<br>
     <strong>Temporary Password:</strong> <code style="background: #e2e8f0; padding: 2px 8px; border-radius: 4px; font-weight: bold; color: #1e40af;">{{ $password }}</code><br>
-    <strong>Assigned Branch / Office:</strong> {{ $officeNameVal }}<br>
     <strong>Role:</strong> {{ ucfirst(str_replace('_', ' ', $roleNameVal)) }}
   </div>
 

@@ -43,7 +43,7 @@ function PlainToast({ t, type = "info", title, description }) {
   );
 }
 
-const BASE_OPTS = { duration: 3500 };
+const BASE_OPTS = { duration: 2000 };
 
 export const notify = {
   success: (title, description) =>
@@ -54,12 +54,12 @@ export const notify = {
   error: (title, description) =>
     sonnerToast.custom((t) => (
       <PlainToast t={t} type="error" title={title} description={description} />
-    ), { duration: 5000 }),
+    ), BASE_OPTS),
 
   warning: (title, description) =>
     sonnerToast.custom((t) => (
       <PlainToast t={t} type="warning" title={title} description={description} />
-    ), { duration: 4500 }),
+    ), BASE_OPTS),
 
   info: (title, description) =>
     sonnerToast.custom((t) => (

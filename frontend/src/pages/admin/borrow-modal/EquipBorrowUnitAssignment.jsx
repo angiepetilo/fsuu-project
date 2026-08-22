@@ -66,7 +66,7 @@ export default function EquipBorrowUnitAssignment({
         </div>
 
         {categoriesToRender.map((reqCat, catIdx) => {
-          const rawAvailable = getAvailableUnitsForCategory(reqCat.category);
+          const rawAvailable = getAvailableUnitsForCategory(reqCat.category, reqCat.equipment_type_id);
           
           // Show only available & operational units
           const availableUnits = rawAvailable.filter((unit) => {

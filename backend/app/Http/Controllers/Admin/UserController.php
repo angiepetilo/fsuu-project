@@ -155,10 +155,10 @@ class UserController extends Controller
         }
 
         $validated = $request->validate([
-            'name'           => 'sometimes|string|max:255',
-            'email'          => ['sometimes', 'email', 'max:255', Rule::unique('users')->ignore($targetUser->id)],
+            'name'           => 'nullable|string|max:255',
+            'email'          => ['nullable', 'email', 'max:255', Rule::unique('users')->ignore($targetUser->id)],
             'personal_email' => ['nullable', 'email', 'max:255'],
-            'role'           => 'sometimes|string',
+            'role'           => 'nullable|string',
             'status'         => 'nullable|string',
             'is_active'      => 'nullable',
             'location'       => 'nullable|string|max:255',
@@ -166,9 +166,20 @@ class UserController extends Controller
             'permissions'    => 'nullable',
         ]);
 
-        if (isset($validated['name'])) $targetUser->name = $validated['name'];
-        if (isset($validated['email'])) $targetUser->email = $validated['email'];
-        if (isset($validated['personal_email'])) $targetUser->personal_email = $validated['personal_email'];
+        if (array_key_exists('name', $validated)) {
+            $nameVal = trim((string)$validated['name']);
+            $targetUser->name = ($nameVal !== '') ? $nameVal : ($targetUser->name ?: 'Pending Activation');
+        }
+        if (!empty($validated['email'])) {
+            $targetUser->email = trim($validated['email']);
+            $targetUser->personal_email = trim($validated['email']);
+        }
+        if (!empty($validated['personal_email'])) {
+            $targetUser->personal_email = trim($validated['personal_email']);
+            if (empty($targetUser->email)) {
+                $targetUser->email = trim($validated['personal_email']);
+            }
+        }
         if (isset($validated['status'])) $targetUser->status = $validated['status'];
         if (isset($validated['is_active'])) $targetUser->is_active = filter_var($validated['is_active'], FILTER_VALIDATE_BOOLEAN);
 

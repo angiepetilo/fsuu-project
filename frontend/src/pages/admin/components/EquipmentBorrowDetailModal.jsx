@@ -75,13 +75,14 @@ export default function EquipmentBorrowDetailModal({
 
     if (Array.isArray(selected.items) && selected.items.length > 0) {
       categories = selected.items.map((item) => {
-        const dbType = (dbEquipmentTypes || []).find(t => String(t.id) === String(item.equipment_type_id)) || item.equipment_type;
-        const name = dbType?.eq_name || dbType?.name || item.equipment_type?.eq_name || item.equipment_type?.name || item.equipment_name || item.name || "Equipment Item";
+        const dbType = (dbEquipmentTypes || []).find(t => String(t.id) === String(item.equipment_type_id)) || item.equipment_type || item.equipmentType;
+        const name = dbType?.eq_name || dbType?.name || item.equipment_type?.eq_name || item.equipment_type?.name || item.equipmentType?.eq_name || item.equipmentType?.name || item.equipment_name || item.name || "Equipment Item";
         const reqQty = parseInt(item.quantity_requested || item.quantity || 1, 10);
 
         return {
           category: name,
           quantity: Math.max(reqQty, 1),
+          equipment_type_id: item.equipment_type_id || dbType?.id || item.equipment_type?.id || item.equipmentType?.id,
         };
       });
     } else if (selected.equipment_name || selected.equipment) {
@@ -91,6 +92,7 @@ export default function EquipmentBorrowDetailModal({
       categories = [{
         category: name,
         quantity: Math.max(reqQty, 1),
+        equipment_type_id: selected.equipment_type_id,
       }];
     }
     return categories;
@@ -290,21 +292,31 @@ export default function EquipmentBorrowDetailModal({
 
   const requestedCategories = getRequestedCategories();
 
-  const getAvailableUnitsForCategory = (catName) => {
+  const getAvailableUnitsForCategory = (catName, eqTypeId) => {
     if (!catName || catName === "NONE") return physicalUnits;
+
+    // 1. First priority: match by equipment_type_id
+    if (eqTypeId) {
+      const idMatches = physicalUnits.filter((u) => {
+        const uTypeId = u.equipment_type_id || u.equipmentType?.id || u.equipment_type?.id;
+        return String(uTypeId) === String(eqTypeId);
+      });
+      if (idMatches.length > 0) return idMatches;
+    }
+
     const cleanCat = String(catName).trim().toUpperCase();
 
-    // 1. Exact Category Match first (matching equipment_type.eq_name or u.category)
+    // 2. Exact Category Match first (matching equipment_type.eq_name, name, or category)
     const exactCategoryMatches = physicalUnits.filter((u) => {
-      const uCatName = String(u.equipment_type?.eq_name || u.equipment_type?.name || u.category || "").toUpperCase().trim();
+      const uCatName = String(u.equipmentType?.eq_name || u.equipmentType?.name || u.equipment_type?.eq_name || u.equipment_type?.name || u.category || "").toUpperCase().trim();
       return uCatName === cleanCat;
     });
 
     if (exactCategoryMatches.length > 0) return exactCategoryMatches;
 
-    // 2. Strict Unit Name matching if category column was blank
+    // 3. Strict Discrimination & Unit Name matching
     const unitNameMatches = physicalUnits.filter((u) => {
-      const uCatName = String(u.equipment_type?.eq_name || u.equipment_type?.name || u.category || "").toUpperCase().trim();
+      const uCatName = String(u.equipmentType?.eq_name || u.equipmentType?.name || u.equipment_type?.eq_name || u.equipment_type?.name || u.category || "").toUpperCase().trim();
       const uUnitName = String(u.name || "").toUpperCase().trim();
       
       // Strict discrimination
@@ -318,7 +330,7 @@ export default function EquipmentBorrowDetailModal({
         return false;
       }
 
-      return uCatName === cleanCat || uUnitName.startsWith(`${cleanCat} `) || uUnitName.startsWith(`${cleanCat}-`) || uUnitName === cleanCat;
+      return uCatName === cleanCat || uCatName.includes(cleanCat) || cleanCat.includes(uCatName) || uUnitName.startsWith(`${cleanCat} `) || uUnitName.startsWith(`${cleanCat}-`) || uUnitName === cleanCat || uUnitName.includes(cleanCat);
     });
 
     if (unitNameMatches.length > 0) return unitNameMatches;
