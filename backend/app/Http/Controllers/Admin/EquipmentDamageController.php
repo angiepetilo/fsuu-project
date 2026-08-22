@@ -23,12 +23,6 @@ class EquipmentDamageController extends Controller
                   ->orWhereIn(DB::raw('LOWER(equipment_units.condition)'), ['damaged', 'lost']);
             });
 
-        if (!$isSuperAdmin && $officeId) {
-            $issuesQuery->whereHas('equipmentType', function ($q) use ($officeId) {
-                $q->where('office_id', $officeId);
-            });
-        }
-
         $allIssues = $issuesQuery->latest()->get();
 
         $damagedUnits = $allIssues->filter(function($u) {
@@ -53,10 +47,6 @@ class EquipmentDamageController extends Controller
                     ->join('tracking_numbers', 'equipment_borrows.tracking_number_id', '=', 'tracking_numbers.id')
                     ->whereNull('tracking_numbers.archived_at')
                     ->whereNotIn(DB::raw('LOWER(tracking_numbers.status)'), ['returned', 'completed', 'cancelled', 'rejected']);
-
-                if (!$isSuperAdmin && $officeId) {
-                    $activeBorrowQuery->where('equipment_borrows.office_id', $officeId);
-                }
 
                 $activeBorrowIds = $activeBorrowQuery->pluck('equipment_borrows.id');
 

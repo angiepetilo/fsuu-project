@@ -33,14 +33,4 @@ class EquipmentUnit extends Model
     {
         return $this->belongsTo(EquipmentType::class);
     }
-
-    public function scopeForOffice($query, ?int $officeId)
-    {
-        if ($officeId) {
-            return $query->whereHas('equipmentType', function ($q) use ($officeId) {
-                $q->where('office_id', $officeId);
-            });
-        }
-        return $query;
-    }
 }

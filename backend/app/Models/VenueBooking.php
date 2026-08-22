@@ -112,14 +112,4 @@ class VenueBooking extends Model
     {
         return $this->hasMany(Approval::class, 'reference_id')->where('reference_type', 'avr_venue_booking');
     }
-
-    public function scopeForOffice($query, ?int $officeId)
-    {
-        if ($officeId) {
-            return $query->whereHas('venue', function ($q) use ($officeId) {
-                $q->where('office_id', $officeId);
-            });
-        }
-        return $query;
-    }
 }
