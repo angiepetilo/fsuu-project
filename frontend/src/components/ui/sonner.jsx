@@ -3,19 +3,32 @@
 import { Toaster as Sonner } from "sonner";
 
 /**
- * Toaster — configured for plain custom toasts via notify.jsx.
- * - closeButton: false  → no sonner-native X button
- * - hotkey: []          → disables ESC dismiss
- * - unstyled: true      → PlainToast controls all styling
+ * Toaster — plain, sleek, high-visibility container.
+ * unstyled: true ensures no double-container or outer dark wrapper.
  */
 const Toaster = ({ ...props }) => (
   <Sonner
-    position="top-center"
+    position="top-right"
     closeButton={false}
     hotkey={[]}
     expand={false}
     richColors={false}
-    toastOptions={{ unstyled: true, classNames: { toast: "" } }}
+    icons={{
+      success: null,
+      error: null,
+      info: null,
+      warning: null,
+      loading: null,
+    }}
+    style={{
+      zIndex: 999999,
+    }}
+    toastOptions={{
+      unstyled: true,
+      classNames: {
+        toast: "!bg-transparent !p-0 !border-0 !shadow-none",
+      },
+    }}
     {...props}
   />
 );

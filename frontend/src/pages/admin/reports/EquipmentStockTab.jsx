@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { PackageOpen, Loader2, Save, CheckCircle2, Settings2, Lock, Unlock, ChevronLeft, ChevronRight, AlertTriangle } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 import api from "@/lib/axios";
 
 export default function EquipmentStockTab({
@@ -7,7 +8,11 @@ export default function EquipmentStockTab({
   setInventoryItems,
   loading = false,
   fetchReportsData,
+  isStaff = false,
 }) {
+  const { user } = useAuth();
+  const isUserStaff = isStaff || user?.role === "staff" || user?.role?.name === "staff";
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [feedback, setFeedback] = useState(null);
 
@@ -233,19 +238,19 @@ export default function EquipmentStockTab({
                 <th className="py-3 px-4 text-center">DAMAGED</th>
                 <th className="py-3 px-4 text-center">LOST</th>
                 <th className="py-3 px-4">NOTES</th>
-                <th className="py-3 px-4 text-center">OVERRIDE</th>
+                {!isUserStaff && <th className="py-3 px-4 text-center">OVERRIDE</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 font-semibold text-xs">
               {loading ? (
                 <tr>
-                  <td colSpan={10} className="text-center py-12 text-slate-400">
+                  <td colSpan={isUserStaff ? 9 : 10} className="text-center py-12 text-slate-400">
                     <Loader2 size={20} className="animate-spin inline mr-2" /> Loading inventory items...
                   </td>
                 </tr>
               ) : filteredInventory.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="text-center py-12 text-slate-400">
+                  <td colSpan={isUserStaff ? 9 : 10} className="text-center py-12 text-slate-400">
                     No inventory items registered yet.
                   </td>
                 </tr>
@@ -365,24 +370,26 @@ export default function EquipmentStockTab({
                       </td>
 
                       {/* OVERRIDE toggle — per row, unlocks steppers for reconciliation */}
-                      <td className="py-3.5 px-4 text-center">
-                        <button
-                          type="button"
-                          onClick={() => toggleOverride(key)}
-                          title={overrideRows.has(key) ? "Lock — return to auto-calculated view" : "Override — unlock for manual reconciliation / audit correction"}
-                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-extrabold border transition-all cursor-pointer ${
-                            overrideRows.has(key)
-                              ? "bg-amber-50 text-amber-700 border-amber-300 hover:bg-amber-100"
-                              : "bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100 hover:text-slate-700"
-                          }`}
-                        >
-                          {overrideRows.has(key) ? (
-                            <><Lock size={11} /> Lock</>  
-                          ) : (
-                            <><Unlock size={11} /> Override</>  
-                          )}
-                        </button>
-                      </td>
+                      {!isUserStaff && (
+                        <td className="py-3.5 px-4 text-center">
+                          <button
+                            type="button"
+                            onClick={() => toggleOverride(key)}
+                            title={overrideRows.has(key) ? "Lock — return to auto-calculated view" : "Override — unlock for manual reconciliation / audit correction"}
+                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-extrabold border transition-all cursor-pointer ${
+                              overrideRows.has(key)
+                                ? "bg-amber-50 text-amber-700 border-amber-300 hover:bg-amber-100"
+                                : "bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100 hover:text-slate-700"
+                            }`}
+                          >
+                            {overrideRows.has(key) ? (
+                              <><Lock size={11} /> Lock</>  
+                            ) : (
+                              <><Unlock size={11} /> Override</>  
+                            )}
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   );
                 })

@@ -103,31 +103,22 @@ export default function BookingBorrowingReportTab({
       record.inspection?.notes ||
       "";
     const condition = (record.inspection_condition || record.condition || "").toLowerCase();
-    const hasDamage = condition === "damaged" || record.has_damage || String(defaultStatus).toUpperCase() === "DAMAGED" || String(defaultStatus).toUpperCase() === "POLICY VIOLATION";
-    const isLost = condition === "lost" || record.is_lost || String(defaultStatus).toUpperCase() === "LOST";
-    const isLate = record.is_late || String(defaultStatus).toUpperCase() === "LATE RETURN" || String(defaultStatus).toUpperCase() === "RETURNED LATE";
-
-    let displayBadgeStatus = defaultStatus;
-    if (isLost) displayBadgeStatus = "LOST";
-    else if (hasDamage) displayBadgeStatus = "POLICY VIOLATION";
-    else if (isLate) displayBadgeStatus = "LATE RETURN";
 
     return (
-      <div className="flex flex-col items-center justify-center gap-1 max-w-[210px] mx-auto text-center py-1">
-        {getStatusBadge(displayBadgeStatus)}
+      <div className="flex flex-col items-center justify-center gap-1 max-w-[220px] mx-auto text-center py-1">
         {rawNote ? (
           <span
-            className="text-[10.5px] font-medium text-slate-700 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded-lg leading-tight break-words max-w-full text-center"
+            className="text-[11px] font-semibold text-slate-700 leading-snug break-words max-w-full text-center"
             title={rawNote}
           >
-            "{rawNote}"
+            {rawNote}
           </span>
         ) : condition ? (
-          <span className="text-[10px] font-medium text-slate-500 capitalize">
-            {condition === "good" || condition === "clean" ? "Clean condition verified" : condition}
+          <span className="text-[11px] font-semibold text-slate-600 capitalize">
+            {condition === "good" || condition === "clean" ? "*COMPLETE PHYSICAL UNIT*" : condition}
           </span>
         ) : (
-          <span className="text-[10px] text-slate-400 font-normal italic">
+          <span className="text-[10.5px] text-slate-400 font-normal italic">
             No inspection note
           </span>
         )}
@@ -160,7 +151,7 @@ export default function BookingBorrowingReportTab({
                 <th className="py-4 px-4">VENUE</th>
                 <th className="py-4 px-4">DATE</th>
                 <th className="py-4 px-4">TIME</th>
-                <th className="py-4 px-4 text-center">STATUS &amp; INSPECTION NOTE</th>
+                <th className="py-4 px-4 text-center">INSPECTION NOTE</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-xs font-semibold">
@@ -284,7 +275,7 @@ export default function BookingBorrowingReportTab({
                 <th className="py-4 px-4">EQUIPMENT</th>
                 <th className="py-4 px-4">DATE</th>
                 <th className="py-4 px-4">TIME</th>
-                <th className="py-4 px-4 text-center">STATUS &amp; INSPECTION NOTE</th>
+                <th className="py-4 px-4 text-center">INSPECTION NOTE</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-xs font-semibold">

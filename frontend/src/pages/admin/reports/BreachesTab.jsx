@@ -59,15 +59,18 @@ export default function BreachesTab({
     }));
 
   const completedEquipBreaches = equipmentBorrowings
-    .filter((eb) => Boolean(eb.has_damage) || (eb.status || "").toLowerCase() === "damaged" || (eb.status || "").toLowerCase() === "lost" || Boolean(eb.is_late) || Boolean(eb.violation) || Boolean(eb.violation_type))
-    .map((eb) => ({
-      department: eb.program_office || eb.department || "Academic Dept",
-      is_venue: false,
-      is_late: Boolean(eb.is_late) || String(eb.timeliness || "").toLowerCase().includes("late") || String(eb.violation_type || "").toLowerCase().includes("overdue"),
-      unit_conditions: eb.unit_conditions || null,
-      status: (eb.status || "").toLowerCase(),
-      violation_type: eb.violation || eb.violation_type || (eb.status === "lost" ? "Lost Equipment" : (eb.is_late ? "Late Equipment Return" : "Equipment Damage")),
-    }));
+    .filter((eb) => Boolean(eb.is_late) || String(eb.timeliness || "").toLowerCase().includes("late") || String(eb.status || "").toLowerCase().includes("late") || Boolean(eb.has_damage) || (eb.status || "").toLowerCase() === "damaged" || (eb.status || "").toLowerCase() === "lost" || Boolean(eb.violation) || Boolean(eb.violation_type))
+    .map((eb) => {
+      const isLate = Boolean(eb.is_late) || String(eb.timeliness || "").toLowerCase().includes("late") || String(eb.violation_type || "").toLowerCase().includes("overdue") || String(eb.status || "").toLowerCase().includes("late");
+      return {
+        department: eb.program_office || eb.department || "Academic Dept",
+        is_venue: false,
+        is_late: isLate,
+        unit_conditions: eb.unit_conditions || eb.inspection_unit_conditions || null,
+        status: (eb.status || "").toLowerCase(),
+        violation_type: eb.violation || eb.violation_type || (eb.status === "lost" ? "Lost Equipment" : (isLate ? "Late Equipment Return" : "Equipment Damage")),
+      };
+    });
 
   // Extract equipment damages that occurred DURING venue bookings (even if the venue itself was clean)
   const venueEquipmentBreaches = venueBookings

@@ -1,4 +1,4 @@
-﻿import { Loader2, Play, FileCheck, Check } from "lucide-react";
+import { Loader2, Play, FileCheck, Check } from "lucide-react";
 
 /**
  * VenueModalFooter — Action buttons at the bottom of the booking form modal.
@@ -64,11 +64,11 @@ export default function VenueModalFooter({
         <div className="flex items-center gap-2.5">
           <button
             type="button"
-            onClick={() => handleAction(selected.id, "post-inspection")}
-            disabled={!!actionLoading}
-            className="px-5 py-2 bg-white hover:bg-slate-50 border border-slate-900 text-slate-900 rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+            onClick={handleDoneComplete}
+            disabled={!!actionLoading || savingInspection}
+            className="px-5 py-2 bg-white hover:bg-slate-50 border border-slate-900 text-slate-900 rounded-lg text-xs font-extrabold flex items-center gap-1.5 cursor-pointer"
           >
-            <FileCheck size={13} /> Set Post-Event Inspection
+            <Check size={13} /> Complete Event
           </button>
           <button
             type="button"

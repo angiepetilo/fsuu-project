@@ -369,22 +369,8 @@ export default function Reports() {
 
   return (
     <div className="space-y-6">
-      {/* Header Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
-
-            Report
-          </h1>
-          <p className="text-xs text-slate-500 font-semibold mt-0.5">
-            {isStaff
-              ? "Verify physical equipment condition, stock levels, and audit reports."
-              : "Audit logs for venue bookings, equipment borrowing history, rule breaches, and equipment stock levels."}
-          </p>
-        </div>
-
-        {/* Global Export & Dispatch Action Buttons (Scoped to Active Tab) */}
-        <div className="flex items-center gap-2 flex-wrap">
+      {/* Action Toolbar */}
+      <div className="flex items-center justify-end gap-2 flex-wrap">
 
 
           <button
@@ -417,7 +403,6 @@ export default function Reports() {
             <span>Send via Email</span>
           </button>
         </div>
-      </div>
 
       {feedback && (
         <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-extrabold flex items-center gap-2 shadow-2xs animate-in fade-in duration-200">
@@ -494,6 +479,7 @@ export default function Reports() {
           setInventoryItems={setInventoryItems}
           loading={loading}
           fetchReportsData={fetchReportsData}
+          isStaff={isStaff}
         />
       )}
 

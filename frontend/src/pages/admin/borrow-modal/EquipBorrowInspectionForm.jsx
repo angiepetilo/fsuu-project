@@ -69,7 +69,7 @@ export default function EquipBorrowInspectionForm({
       </div>
 
       {/* Global Status Banner for After Inspection */}
-      {!isPreRelease && !readOnly && (
+      {!isPreRelease && (
         <div className="space-y-1.5">
           <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">
             Overall Return Outcome
@@ -77,28 +77,32 @@ export default function EquipBorrowInspectionForm({
           <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
+              disabled={readOnly}
               onClick={() => {
+                if (readOnly) return;
                 setTimeliness && setTimeliness("on_time");
               }}
-              className={`py-2 px-3 rounded-xl text-xs font-extrabold border transition-all cursor-pointer text-center ${
+              className={`py-2 px-3 rounded-xl text-xs font-extrabold border transition-all text-center ${
                 timeliness !== "late"
                   ? "border-slate-900 bg-white text-slate-900 ring-1 ring-slate-900"
-                  : "bg-white text-slate-500 border-slate-200 hover:border-slate-300 hover:text-slate-700"
-              }`}
+                  : "bg-white text-slate-400 border-slate-200"
+              } ${readOnly ? "cursor-default" : "cursor-pointer hover:border-slate-300"}`}
             >
               Good &amp; Complete
             </button>
 
             <button
               type="button"
+              disabled={readOnly}
               onClick={() => {
+                if (readOnly) return;
                 setTimeliness && setTimeliness(timeliness === "late" ? "on_time" : "late");
               }}
-              className={`py-2 px-3 rounded-xl text-xs font-extrabold border transition-all cursor-pointer text-center ${
+              className={`py-2 px-3 rounded-xl text-xs font-extrabold border transition-all text-center ${
                 timeliness === "late"
-                  ? "border-amber-600 bg-white text-amber-700 ring-1 ring-amber-600"
-                  : "bg-white text-slate-500 border-slate-200 hover:border-slate-300 hover:text-slate-700"
-              }`}
+                  ? "border-amber-600 bg-amber-50 text-amber-800 ring-1 ring-amber-600 font-black"
+                  : "bg-white text-slate-400 border-slate-200"
+              } ${readOnly ? "cursor-default" : "cursor-pointer hover:border-slate-300"}`}
             >
               Late Return
             </button>
@@ -162,21 +166,15 @@ export default function EquipBorrowInspectionForm({
                       unitReturnedConditions[catKey] ||
                       "Complete";
 
-                    const isMissingParts = String(currentCond).toLowerCase().includes("missing");
                     const isDamaged = String(currentCond).toLowerCase() === "damaged";
                     const isLost = String(currentCond).toLowerCase() === "lost";
-                    const isComplete = !isMissingParts && !isDamaged && !isLost;
-
-                    const missingText =
-                      (localMissingParts && (localMissingParts[resolvedCode] || localMissingParts[idxKey])) || "";
+                    const isComplete = !isDamaged && !isLost;
 
                     return (
                       <div
                         key={uIdx}
                         className={`p-2.5 bg-white rounded-xl border transition-all space-y-2 ${
-                          isMissingParts
-                            ? "border-amber-300 bg-amber-50/20"
-                            : isDamaged
+                          isDamaged
                             ? "border-rose-300 bg-rose-50/20"
                             : isLost
                             ? "border-slate-800 bg-slate-50"
@@ -190,7 +188,7 @@ export default function EquipBorrowInspectionForm({
                           </span>
 
                           {/* Quick Status Buttons */}
-                          <div className="flex items-center gap-1 shrink-0">
+                          <div className="flex items-center gap-1.5 shrink-0">
                             <button
                               type="button"
                               disabled={readOnly}
@@ -204,35 +202,13 @@ export default function EquipBorrowInspectionForm({
                                 if (resolvedCode) updated[resolvedCode] = "Complete";
                                 setUnitReturnedConditions(updated);
                               }}
-                              className={`px-2 py-0.5 rounded-lg text-[10px] font-black uppercase transition-all ${
+                              className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase transition-all ${
                                 isComplete
                                   ? "bg-emerald-600 text-white border border-emerald-700 shadow-2xs"
                                   : "bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200"
                               } ${readOnly ? "cursor-default" : "cursor-pointer"}`}
                             >
                               ✓ Complete
-                            </button>
-
-                            <button
-                              type="button"
-                              disabled={readOnly}
-                              onClick={() => {
-                                if (readOnly) return;
-                                const updated = {
-                                  ...unitReturnedConditions,
-                                  [idxKey]: "Missing Parts",
-                                  [catKey]: "Missing Parts",
-                                };
-                                if (resolvedCode) updated[resolvedCode] = "Missing Parts";
-                                setUnitReturnedConditions(updated);
-                              }}
-                              className={`px-2 py-0.5 rounded-lg text-[10px] font-black uppercase transition-all ${
-                                isMissingParts
-                                  ? "bg-amber-600 text-white border border-amber-700 shadow-2xs"
-                                  : "bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200"
-                              } ${readOnly ? "cursor-default" : "cursor-pointer"}`}
-                            >
-                              ⚠ Missing
                             </button>
 
                             {!isPreRelease && (
@@ -251,7 +227,7 @@ export default function EquipBorrowInspectionForm({
                                     setUnitReturnedConditions(updated);
                                     setInspectionStatus && setInspectionStatus("violation");
                                   }}
-                                  className={`px-2 py-0.5 rounded-lg text-[10px] font-black uppercase transition-all ${
+                                  className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase transition-all ${
                                     isDamaged
                                       ? "bg-rose-600 text-white border border-rose-700 shadow-2xs"
                                       : "bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200"
@@ -274,7 +250,7 @@ export default function EquipBorrowInspectionForm({
                                     setUnitReturnedConditions(updated);
                                     setInspectionStatus && setInspectionStatus("lost");
                                   }}
-                                  className={`px-2 py-0.5 rounded-lg text-[10px] font-black uppercase transition-all ${
+                                  className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase transition-all ${
                                     isLost
                                       ? "bg-slate-900 text-white border border-slate-950 shadow-2xs"
                                       : "bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200"
@@ -286,23 +262,6 @@ export default function EquipBorrowInspectionForm({
                             )}
                           </div>
                         </div>
-
-                        {/* Missing Parts Specification Input */}
-                        {isMissingParts && (
-                          <div className="pt-1 animate-in fade-in">
-                            <label className="block text-[10px] font-bold text-amber-900 uppercase mb-1">
-                              Specify What Is Missing:
-                            </label>
-                            <input
-                              type="text"
-                              disabled={readOnly}
-                              value={missingText}
-                              onChange={(e) => updateMissingParts(resolvedCode, e.target.value)}
-                              placeholder="e.g. HDMI Cable, Remote Control, Power Adapter missing..."
-                              className="w-full px-2.5 py-1.5 bg-white border border-amber-300 rounded-lg text-xs font-semibold text-amber-950 focus:outline-none focus:ring-2 focus:ring-amber-400/20"
-                            />
-                          </div>
-                        )}
                       </div>
                     );
                   })}

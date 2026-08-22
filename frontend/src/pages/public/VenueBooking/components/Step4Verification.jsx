@@ -2,6 +2,7 @@ import { UploadCloud, X, FileText, Image, CheckCircle2, ShieldCheck } from "luci
 import { Button } from "@/components/ui/button";
 import { useRef, useState, useEffect } from "react";
 import api from "@/lib/axios";
+import EndorsementLetterTemplateModal from "@/components/ui/EndorsementLetterTemplateModal";
 
 export default function Step4Verification({
   filerName,
@@ -22,6 +23,8 @@ export default function Step4Verification({
   onBack,
 }) {
   const fileInputRef = useRef(null);
+  const [showTemplateModal, setShowTemplateModal] = useState(false);
+  const [templateType, setTemplateType] = useState("organization");
 
   const handleFileChange = (e) => {
     const file = e.target.files?.[0];
@@ -118,9 +121,20 @@ export default function Step4Verification({
             )}
           </div>
 
-          <p className="text-xs text-slate-500 font-semibold leading-relaxed pt-1">
-            Attach your signed endorsement letter or supporting clearance document below:
-          </p>
+          <div className="flex items-center justify-between pt-1">
+            <p className="text-xs text-slate-500 font-semibold leading-relaxed">
+              Attach your signed endorsement letter below:
+            </p>
+            <button
+              type="button"
+              onClick={() => setShowTemplateModal(true)}
+              className="flex items-center gap-1.5 text-[11px] font-extrabold text-blue-700 bg-blue-50 hover:bg-blue-100/80 border border-blue-200 px-2.5 py-1 rounded-lg transition-colors cursor-pointer shadow-2xs shrink-0"
+              title="View and copy approved endorsement letter format"
+            >
+              <FileText size={12} />
+              <span>View Letter Format</span>
+            </button>
+          </div>
 
           <input
             ref={fileInputRef}
@@ -180,35 +194,43 @@ export default function Step4Verification({
               <span className="font-bold text-slate-900">{filerName || "—"}</span>
             </div>
             <div className="flex justify-between border-b border-slate-100 pb-2">
-              <span className="text-slate-400 font-bold">Email / Contact</span>
-              <span className="font-semibold text-slate-800">{email} | {contactNumber}</span>
+              <span className="text-slate-400 font-bold">Account Email</span>
+              <span className="font-bold text-slate-900">{email || "—"}</span>
             </div>
             <div className="flex justify-between border-b border-slate-100 pb-2">
-              <span className="text-slate-400 font-bold">Venue</span>
-              <span className="font-bold text-blue-600">{selectedVenue?.name || "—"}</span>
+              <span className="text-slate-400 font-bold">Contact No.</span>
+              <span className="font-bold text-slate-900">{contactNumber || "—"}</span>
+            </div>
+            <div className="flex justify-between border-b border-slate-100 pb-2">
+              <span className="text-slate-400 font-bold">Venue Reserved</span>
+              <span className="font-bold text-blue-700 font-mono">{selectedVenue?.name || "Facility"}</span>
             </div>
             <div className="flex justify-between border-b border-slate-100 pb-2">
               <span className="text-slate-400 font-bold">Schedule</span>
-              <span className="font-semibold text-slate-800">
-                {selectedDate}{selectedEndDate && selectedEndDate !== selectedDate ? ` to ${selectedEndDate}` : ""} ({formatTime12(timeStart)} - {formatTime12(timeEnd)})
+              <span className="font-bold text-slate-900">
+                {selectedDate ? new Date(selectedDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—"}
+                {selectedEndDate && String(selectedEndDate).substring(0,10) !== String(selectedDate).substring(0,10) && (
+                  ` - ${new Date(selectedEndDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`
+                )}
+                {" "}({formatTime12(timeStart)} - {formatTime12(timeEnd)})
               </span>
             </div>
             <div className="flex justify-between">
               <span className="text-slate-400 font-bold">Purpose</span>
-              <span className="font-semibold text-slate-800 truncate max-w-[180px]">{purpose || "—"}</span>
+              <span className="font-bold text-slate-900 max-w-[200px] text-right truncate">{purpose || "—"}</span>
             </div>
           </div>
 
-          {/* Policy Agreement Checkbox */}
-          <label className="flex items-start gap-3 p-3 bg-white border border-slate-200 rounded-xl cursor-pointer">
+          {/* Terms Agreement Checkbox */}
+          <label className="flex items-start gap-3 p-3.5 bg-white rounded-xl border border-slate-200/80 cursor-pointer hover:bg-slate-50 transition-colors">
             <input
               type="checkbox"
               checked={agreedToPolicy}
-              onChange={e => setAgreedToPolicy(e.target.checked)}
-              className="mt-0.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+              onChange={(e) => setAgreedToPolicy(e.target.checked)}
+              className="mt-0.5 w-4 h-4 rounded text-blue-600 focus:ring-0 cursor-pointer"
             />
-            <span className="text-xs text-slate-600 font-medium leading-relaxed">
-              I agree to abide by the Father Saturnino Urios University venue reservation policies, facility usage rules, and safety guidelines.
+            <span className="text-[11px] text-slate-600 font-medium leading-relaxed">
+              I agree to the university facility policies and certify that all provided details and attached endorsements are authentic.
             </span>
           </label>
 
@@ -233,6 +255,13 @@ export default function Step4Verification({
         </div>
 
       </div>
+
+      {/* Official Endorsement Letter Template Preview Modal */}
+      <EndorsementLetterTemplateModal
+        isOpen={showTemplateModal}
+        onClose={() => setShowTemplateModal(false)}
+        initialType={templateType}
+      />
     </div>
   );
 }

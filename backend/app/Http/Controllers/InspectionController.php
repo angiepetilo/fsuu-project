@@ -113,7 +113,6 @@ class InspectionController extends Controller
                 \App\Models\EquipmentUnit::where(function($q) use ($key) {
                     $q->where('unit_code', $key)
                       ->orWhere('name', $key)
-                      ->orWhere('barcode', $key)
                       ->orWhere('id', $key);
                 })->update(['status' => $uStatus, 'condition' => $uCond]);
             }

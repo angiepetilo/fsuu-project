@@ -645,9 +645,22 @@ export default function VenueBookingDetailModal({
                 requestedCategories={requestedCategories}
                 setFullImageModal={setFullImageModal}
               />
-              <div className="py-2 border-t border-b border-slate-200 text-xs font-medium text-slate-500 flex items-center justify-between">
-                <span>Reservation Status : <strong className="text-emerald-600 font-mono font-bold uppercase">Approved</strong></span>
-                <span className="text-[11px] text-slate-400">Click Set On-Going when event starts to view Equipment Catalog checklist.</span>
+              <div className="space-y-2">
+                <VenueEquipmentChecklist
+                  categoriesToRender={categoriesToRender}
+                  assignedUnitSelections={assignedUnitSelections}
+                  setAssignedUnitSelections={updateAssignedUnitSelections}
+                  getAvailableUnitsForCategory={getAvailableUnitsForCategory}
+                  isHistoryView={false}
+                  isSideBySide={false}
+                  isOverrideActive={isOverrideActive}
+                  setIsOverrideActive={setIsOverrideActive}
+                  overrideCategory={overrideCategory}
+                  setOverrideCategory={setOverrideCategory}
+                  overrideQuantity={overrideQuantity}
+                  setOverrideQuantity={setOverrideQuantity}
+                  dbEquipmentTypes={dbEquipmentTypes}
+                />
               </div>
             </div>
           ) : isOngoing ? (
@@ -709,6 +722,7 @@ export default function VenueBookingDetailModal({
                     savingInspection={savingInspection}
                     inspectionSuccessMsg={inspectionSuccessMsg}
                     handleSavePostInspection={(e) => handleSavePostInspection(e, "pre_event")}
+                    onSetPostInspection={() => handleAction(selected.id, "post-inspection")}
                     isHistoryView={isHistoryView}
                     isAdminOrSuperAdmin={isAdminOrSuperAdmin}
                     user={user}

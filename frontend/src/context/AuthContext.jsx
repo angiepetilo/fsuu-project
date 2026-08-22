@@ -43,6 +43,7 @@ export function AuthProvider({ children }) {
   const clearAdminCaches = () => {
     const keysToClean = [
       "fsuu_admin_profile",
+      "fsuu_sysad_profile",
       "fsuu_venue_availability",
       "fsuu_cache_admin_venue_bookings",
       "fsuu_cache_admin_equipment_borrowings",

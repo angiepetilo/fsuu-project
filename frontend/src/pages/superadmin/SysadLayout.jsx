@@ -47,32 +47,8 @@ export default function SysadLayout() {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [selectedIncident, setSelectedIncident] = useState(null);
 
-  // Dynamic Profile Sync from System Settings
-  const [profileState, setProfileState] = useState(() => {
-    try {
-      const saved = localStorage.getItem("fsuu_sysad_profile");
-      return saved ? JSON.parse(saved) : null;
-    } catch { return null; }
-  });
-
-  useEffect(() => {
-    const handleProfileUpdate = () => {
-      try {
-        const saved = localStorage.getItem("fsuu_sysad_profile");
-        if (saved) setProfileState(JSON.parse(saved));
-      } catch { }
-    };
-
-    window.addEventListener("sysad_profile_updated", handleProfileUpdate);
-    window.addEventListener("storage", handleProfileUpdate);
-    return () => {
-      window.removeEventListener("sysad_profile_updated", handleProfileUpdate);
-      window.removeEventListener("storage", handleProfileUpdate);
-    };
-  }, []);
-
-  const adminName = profileState?.name || user?.name || "Super Administrator";
-  const adminAvatar = profileState?.avatar || user?.avatar || null;
+  const adminName = user?.name || "Super Administrator";
+  const adminAvatar = user?.avatar || null;
 
   useEffect(() => {
     if (!user) {
@@ -159,6 +135,63 @@ export default function SysadLayout() {
   const filteredNotifications = sysadNotifications;
 
   if (!user) return null;
+
+  const getFeatureDetails = (path) => {
+    if (path.includes("/dashboard")) {
+      return {
+        title: "Dashboard",
+        subtitle: "Global facility utilization, reservation analytics & inventory overview."
+      };
+    }
+    if (path.includes("/venue-booking")) {
+      return {
+        title: "Venue Booking",
+        subtitle: "Review, approve, and manage campus venue reservation schedules."
+      };
+    }
+    if (path.includes("/equipment-borrowing")) {
+      return {
+        title: "Equipment Borrowing",
+        subtitle: "Walk-in & advance equipment requisitions, custodial dispatch, and return tracking."
+      };
+    }
+    if (path.includes("/manage-equipment")) {
+      return {
+        title: "Manage Equipment",
+        subtitle: "Physical unit inventory, barcode registry, and equipment categories."
+      };
+    }
+    if (path.includes("/manage-venue")) {
+      return {
+        title: "Manage Venue",
+        subtitle: "Campus facility catalog, capacity configurations, and operating availability."
+      };
+    }
+    if (path.includes("/report")) {
+      return {
+        title: "Reports & Analytics",
+        subtitle: "Utilization metrics, statistical summaries, and official export logs."
+      };
+    }
+    if (path.includes("/history-log")) {
+      return {
+        title: "History Log",
+        subtitle: "Comprehensive audit trail and transaction history records."
+      };
+    }
+    if (path.includes("/settings")) {
+      return {
+        title: "System Settings",
+        subtitle: "Global user accounts, system configuration, verification PIN & audit controls."
+      };
+    }
+    return {
+      title: "Super Admin Portal",
+      subtitle: "Global system administration, user accounts, and system configuration."
+    };
+  };
+
+  const currentFeature = getFeatureDetails(location.pathname);
 
   return (
     <div className="min-h-screen bg-[#f8fafc] flex font-sans antialiased text-slate-900 relative">
@@ -310,15 +343,15 @@ export default function SysadLayout() {
 
               <div className="flex flex-col justify-center">
                 <div className="flex items-center gap-2.5">
-                  <h1 className="font-bold text-slate-900 text-base sm:text-lg tracking-tight">
-                    Super Admin System Portal
+                  <h1 className="font-extrabold text-slate-900 text-base sm:text-lg tracking-tight">
+                    {currentFeature.title}
                   </h1>
                   <span className="text-[11px] font-semibold bg-slate-100 text-slate-700 border border-slate-200 px-2.5 py-0.5 rounded-md">
                     Super Admin
                   </span>
                 </div>
                 <p className="text-xs text-slate-500 font-normal mt-0.5 hidden sm:block">
-                  Global system administration, user accounts, system configuration &amp; audit controls
+                  {currentFeature.subtitle}
                 </p>
               </div>
             </div>

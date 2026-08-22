@@ -125,6 +125,8 @@ export default function TrackBooking() {
     { label: "Completed", desc: "Log closed" },
   ];
 
+  const activeSteps = isVenue ? venueSteps : equipmentSteps;
+
   const getRequestedEquipmentList = () => {
     if (!booking) return [];
     if (Array.isArray(booking.items) && booking.items.length > 0) {

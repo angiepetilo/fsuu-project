@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Save, ShieldCheck, Plus, Edit2, Trash2, X, FileText, Loader2, KeyRound, Clock, Calendar, PackageOpen, Users, CheckCircle2 } from "lucide-react";
 import api from "@/lib/axios";
 import { toast } from "sonner";
+import EndorsementLetterTemplateModal from "@/components/ui/EndorsementLetterTemplateModal";
 
 export default function VerificationPinTab({
   pinConfig: externalPinConfig,
@@ -24,6 +25,8 @@ export default function VerificationPinTab({
 
   const [pinLoading, setPinLoading] = useState(true);
   const [saveLoading, setSaveLoading] = useState(false);
+  const [showTemplateModal, setShowTemplateModal] = useState(false);
+  const [selectedTemplateType, setSelectedTemplateType] = useState("organization");
   const [feedbackMsg, setFeedbackMsg] = useState(null);
 
   // Requirements state
@@ -244,13 +247,6 @@ export default function VerificationPinTab({
           </label>
         </div>
 
-        {(feedbackMsg || pinSavedFeedback) && (
-          <div className="bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-bold px-4 py-2.5 rounded-xl flex items-center gap-2 animate-in fade-in">
-            <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
-            <span>{feedbackMsg || pinSavedFeedback}</span>
-          </div>
-        )}
-
         {/* Section 1: Security PIN Configuration */}
         <div className="space-y-3 pt-3 border-t border-slate-100">
           <h4 className="font-extrabold text-[11px] text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
@@ -415,12 +411,13 @@ export default function VerificationPinTab({
             </p>
           </div>
           <button
+            type="button"
             onClick={() => {
               setEditReq(null);
               setReqForm({ classification: "all", label: "", description: "" });
               setShowReqModal(true);
             }}
-            className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-extrabold cursor-pointer"
+            className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-extrabold cursor-pointer transition-colors shadow-2xs"
           >
             <Plus size={15} /> Add Requirement
           </button>
@@ -435,7 +432,7 @@ export default function VerificationPinTab({
                 <th className="p-3">Requirement Title</th>
                 <th className="p-3">Classification Scope</th>
                 <th className="p-3">Description / Instructions</th>
-                <th className="p-3">Actions</th>
+                <th className="p-3 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 font-semibold">
@@ -452,40 +449,60 @@ export default function VerificationPinTab({
                   </td>
                 </tr>
               ) : (
-                requirements.map((req, idx) => (
-                  <tr key={req.id || idx} className="hover:bg-white transition-colors">
-                    <td className="p-3 font-bold text-slate-400">{idx + 1}</td>
-                    <td className="p-3 font-extrabold text-slate-900">{req.label}</td>
-                    <td className="p-3">
-                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-blue-100 text-blue-800 uppercase">
-                        {req.classification || "ALL"}
-                      </span>
-                    </td>
-                    <td className="p-3 text-slate-600 font-medium">{req.description || "Required for booking clearance"}</td>
-                    <td className="p-3 flex items-center gap-2">
-                      <button
-                        onClick={() => {
-                          setEditReq(req);
-                          setReqForm({
-                            classification: req.classification || "all",
-                            label: req.label || "",
-                            description: req.description || "",
-                          });
-                          setShowReqModal(true);
-                        }}
-                        className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 cursor-pointer"
-                      >
-                        <Edit2 size={13} />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteReq(req.id)}
-                        className="p-1.5 rounded-lg border border-rose-200 text-rose-600 hover:bg-rose-50 cursor-pointer"
-                      >
-                        <Trash2 size={13} />
-                      </button>
-                    </td>
-                  </tr>
-                ))
+                requirements.map((req, idx) => {
+                  const isAcad = String(req.classification || "").toLowerCase().includes("acad");
+                  return (
+                    <tr key={req.id || idx} className="hover:bg-white transition-colors">
+                      <td className="p-3 font-bold text-slate-400">{idx + 1}</td>
+                      <td className="p-3 font-extrabold text-slate-900">{req.label}</td>
+                      <td className="p-3">
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-blue-100 text-blue-800 uppercase">
+                          {req.classification || "ALL"}
+                        </span>
+                      </td>
+                      <td className="p-3 text-slate-600 font-medium">{req.description || "Required for booking clearance"}</td>
+                      <td className="p-3">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedTemplateType(isAcad ? "academic" : "organization");
+                              setShowTemplateModal(true);
+                            }}
+                            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-blue-200 text-blue-700 bg-blue-50/50 hover:bg-blue-100 text-xs font-bold cursor-pointer transition-colors shadow-2xs"
+                            title="Preview Official Letter Format with Signatories"
+                          >
+                            <FileText size={12} />
+                            <span>Format</span>
+                          </button>
+
+                          <button
+                            onClick={() => {
+                              setEditReq(req);
+                              setReqForm({
+                                classification: req.classification || "all",
+                                label: req.label || "",
+                                description: req.description || "",
+                              });
+                              setShowReqModal(true);
+                            }}
+                            className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 cursor-pointer"
+                            title="Edit Requirement"
+                          >
+                            <Edit2 size={13} />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteReq(req.id)}
+                            className="p-1.5 rounded-lg border border-rose-200 text-rose-600 hover:bg-rose-50 cursor-pointer"
+                            title="Delete Requirement"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -564,6 +581,13 @@ export default function VerificationPinTab({
           </div>
         </div>
       )}
+
+      {/* Official Endorsement Letter Template Preview Modal */}
+      <EndorsementLetterTemplateModal
+        isOpen={showTemplateModal}
+        onClose={() => setShowTemplateModal(false)}
+        initialType={selectedTemplateType}
+      />
     </div>
   );
 }

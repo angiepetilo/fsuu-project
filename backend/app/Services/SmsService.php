@@ -131,7 +131,20 @@ class SmsService
 
         $message = "FSUU Equipment Borrowing: Good day, {$requestorName}! Your request has been received. Reference Code: {$refCode}. Pickup Notice: Please present your School ID at the AVR Center office before scheduled time.";
 
-        return self::send($contactNumber, $message);
+        $res = self::send($contactNumber, $message);
+
+        \App\Models\CommunicationLog::record([
+            'channel'         => 'sms',
+            'category'        => 'equipment_confirmation',
+            'recipient_name'  => $requestorName,
+            'recipient_phone' => $contactNumber,
+            'reference_code'  => $refCode,
+            'subject'         => "SMS: Equipment Borrowing Received",
+            'message_preview' => $message,
+            'status'          => $res ? 'sent' : 'queued',
+        ]);
+
+        return $res;
     }
 
     /**
@@ -161,7 +174,20 @@ class SmsService
 
         $message = "URGENT FSUU NOTICE: Good day, {$requestorName}. Your borrowed equipment [{$refCode}] is now OVERDUE for return{$lateNote}. Please return all physical units immediately to the AVR Center to avoid violation records.";
 
-        return self::send($contactNumber, $message);
+        $res = self::send($contactNumber, $message);
+
+        \App\Models\CommunicationLog::record([
+            'channel'         => 'sms',
+            'category'        => 'overdue_reminder',
+            'recipient_name'  => $requestorName,
+            'recipient_phone' => $contactNumber,
+            'reference_code'  => $refCode,
+            'subject'         => "SMS: Urgent Overdue Reminder",
+            'message_preview' => $message,
+            'status'          => $res ? 'sent' : 'queued',
+        ]);
+
+        return $res;
     }
 
     /**
@@ -191,6 +217,19 @@ class SmsService
 
         $message = "FSUU AVR Reminder: Good day, {$requestorName}. Your borrowed equipment [{$refCode}] is due for return in {$minutesRemaining} mins ({$endTime}). Please return it promptly to avoid late return penalties.";
 
-        return self::send($contactNumber, $message);
+        $res = self::send($contactNumber, $message);
+
+        \App\Models\CommunicationLog::record([
+            'channel'         => 'sms',
+            'category'        => 'urgent_reminder',
+            'recipient_name'  => $requestorName,
+            'recipient_phone' => $contactNumber,
+            'reference_code'  => $refCode,
+            'subject'         => "SMS: Due Time Advance Reminder",
+            'message_preview' => $message,
+            'status'          => $res ? 'sent' : 'queued',
+        ]);
+
+        return $res;
     }
 }

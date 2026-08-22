@@ -139,11 +139,16 @@
   </p>
 @endif
 
-  <p class="signoff">
+@php
+    $sysSettings = \App\Models\SystemSetting::getSettings();
+@endphp
+  <div class="signoff" style="margin-top: 24px; border-top: 1px solid #f1f5f9; padding-top: 14px; font-size: 12px; color: #64748b;">
     Respectfully,<br>
-    <strong>System Administrator</strong><br>
-    Father Saturnino Urios University, Butuan City
-  </p>
+    <strong>{{ $sysSettings->system_name ?: 'System Administrator' }}</strong><br>
+    {{ $sysSettings->organization_name ?: 'Father Saturnino Urios University' }}<br>
+    @if(!empty($sysSettings->contact_phone)) Contact Phone: {{ $sysSettings->contact_phone }} &bull; @endif
+    @if(!empty($sysSettings->contact_email)) Email: <a href="mailto:{{ $sysSettings->contact_email }}" style="color: #2563eb;">{{ $sysSettings->contact_email }}</a> @endif
+  </div>
 </div>
 </body>
 </html>

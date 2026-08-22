@@ -32,20 +32,45 @@ class SendNewUserCredentialsJob implements ShouldQueue
             return;
         }
 
+        // Dynamically apply database-configured SMTP settings
+        \App\Models\SystemSetting::configureMailer();
+
+        $recipientName = $this->user->name ?? 'System User';
+        $subject = 'Your Official FSUU Facilities & Equipment Booking Account Credentials';
+        $mailSent = false;
+        $mailError = null;
+
         try {
             Log::info("[MAIL] Sending credentials email to: {$recipient}");
             Mail::to($recipient)->send(new NewUserCredentialsMail($this->user, $this->password));
             Log::info("[MAIL] SUCCESS: Credentials email delivered to: {$recipient}");
+            $mailSent = true;
         } catch (\Throwable $e) {
             Log::warning("[MAIL] Default mailer failed for {$recipient} ({$e->getMessage()}). Retrying via Gmail SMTP...");
             try {
                 // Immediate failover to Gmail SMTP transport
                 Mail::mailer('smtp')->to($recipient)->send(new NewUserCredentialsMail($this->user, $this->password));
                 Log::info("[MAIL] SUCCESS: Credentials email delivered via SMTP fallback to: {$recipient}");
+                $mailSent = true;
             } catch (\Throwable $smtpErr) {
+                $mailError = $smtpErr->getMessage();
                 Log::error("[MAIL] FAILED: Both default and SMTP mailers failed for {$recipient}: " . $smtpErr->getMessage());
             }
         }
+
+        // Record in communication logs
+        \App\Models\CommunicationLog::record([
+            'channel'         => 'email',
+            'category'        => 'user_credentials',
+            'recipient_name'  => $recipientName,
+            'recipient_email' => $recipient,
+            'recipient_phone' => $this->user->phone ?? $this->user->contact_number ?? null,
+            'reference_code'  => "USER-{$this->user->id}",
+            'subject'         => $subject,
+            'message_preview' => "Account credentials generated for {$recipientName} ({$recipient})",
+            'status'          => $mailSent ? 'sent' : 'failed',
+            'error_message'   => $mailError,
+        ]);
     }
 
     /**

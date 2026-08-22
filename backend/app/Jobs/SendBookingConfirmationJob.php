@@ -51,16 +51,48 @@ class SendBookingConfirmationJob implements ShouldQueue
             $this->booking->loadMissing(['items', 'trackingNumber']);
         }
 
+        // Dynamically apply database-configured SMTP settings
+        \App\Models\SystemSetting::configureMailer();
+
+        $refCode = $this->booking->reference_code 
+            ?? $this->booking->trackingNumber?->reference_code 
+            ?? ($this->type === 'venue' ? "TRK-AVR-{$this->booking->id}" : "EQ-{$this->booking->id}");
+        $recipientName = $this->booking->filer_name ?? $this->booking->requestor_name ?? 'FSUU Filer';
+        $category = $this->type === 'venue' ? 'venue_confirmation' : 'equipment_confirmation';
+        $subject = $this->type === 'venue' 
+            ? "Venue Reservation Confirmation — {$refCode}" 
+            : "Equipment Borrowing Confirmation — {$refCode}";
+
+        $mailSent = false;
+        $mailError = null;
+
         try {
             Mail::to($email)->send(new BookingConfirmationMail($this->type, $this->booking));
+            $mailSent = true;
         } catch (\Throwable $e) {
             Log::warning("SendBookingConfirmationJob default mailer failed: {$e->getMessage()}. Retrying via SMTP...");
             try {
                 Mail::mailer('smtp')->to($email)->send(new BookingConfirmationMail($this->type, $this->booking));
+                $mailSent = true;
             } catch (\Throwable $err) {
+                $mailError = $err->getMessage();
                 Log::error("SendBookingConfirmationJob failed on both mailers: " . $err->getMessage());
             }
         }
+
+        // Record in communication logs
+        \App\Models\CommunicationLog::record([
+            'channel'         => 'email',
+            'category'        => $category,
+            'recipient_name'  => $recipientName,
+            'recipient_email' => $email,
+            'recipient_phone' => $this->booking->contact_number ?? $this->booking->phone_number ?? null,
+            'reference_code'  => $refCode,
+            'subject'         => $subject,
+            'message_preview' => "Booking confirmation dispatch for {$refCode} to {$email}",
+            'status'          => $mailSent ? 'sent' : 'failed',
+            'error_message'   => $mailError,
+        ]);
 
         // Send SMS confirmation for equipment borrowing requests
         if ($this->type === 'equipment') {

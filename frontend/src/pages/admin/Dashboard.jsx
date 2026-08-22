@@ -55,6 +55,7 @@ export default function Dashboard() {
   // Active Venue Bookings across ALL Venues for Calendar & Staff Tasks
   const [calendarBookings, setCalendarBookings] = useState([]);
   const [staffTasks, setStaffTasks] = useState([]);
+  const [staffTaskFilter, setStaffTaskFilter] = useState("all"); // "all" | "venue" | "equipment"
 
   // Side Calendar State
   const today = new Date();
@@ -95,9 +96,9 @@ export default function Dashboard() {
 
       const matchesOffice = (item) => {
         if (!selectedOfficeId || selectedOfficeId === "all") {
-          if (!isSuperAdmin && officeScope !== "All Offices") {
+          if (!isSuperAdmin && officeScope && officeScope !== "All Offices" && officeScope !== "Admin" && officeScope !== "Staff" && officeScope !== "AVR Operations") {
             const name = item.office_name || item.office?.name || item.office || "";
-            return name.toLowerCase().includes(officeScope.toLowerCase());
+            if (name) return name.toLowerCase().includes(officeScope.toLowerCase());
           }
           return true;
         }
@@ -157,9 +158,11 @@ export default function Dashboard() {
       setTotalDamaged(damagedCount);
       setTotalLost(lostCount);
 
-      // 5. Staff Tasks
+      // 5. Staff Tasks (Include both Venue Bookings & Equipment Borrowings)
       const tasks = [];
-      activeVB.slice(0, 5).forEach((b, idx) => {
+
+      // Venue Tasks
+      activeVB.forEach((b, idx) => {
         const s = (b.status || b.tracking_number?.status || "").toLowerCase();
         const ref = b.reference_code || b.tracking_number?.reference_code || `TRK-AVR${b.id}`;
         const filer = b.filer_name || b.requestor || "FSUU Filer";
@@ -169,27 +172,74 @@ export default function Dashboard() {
         if (s === "pending") {
           tasks.push({
             id: `vb-task-${b.id || idx}`,
+            type: "venue",
             tracking_no: ref,
             borrower: filer,
             equipment: vName,
             time: tRange,
-            task: "Verify Reservation Request",
+            task: "Verify Venue Request",
             action_label: "Review",
             link: isSysadRoute ? "/sysad/venue-bookings" : "/admin/venue-bookings",
           });
-        } else if (s === "ongoing" || s === "on-going") {
+        } else if (s === "ongoing" || s === "on-going" || s === "approved") {
           tasks.push({
             id: `vb-task-${b.id || idx}`,
+            type: "venue",
             tracking_no: ref,
             borrower: filer,
             equipment: vName,
             time: tRange,
-            task: "Inspect Returned Venue",
+            task: s === "approved" ? "Pre-Event Inspection" : "Inspect Returned Venue",
             action_label: "Inspect",
             link: isSysadRoute ? "/sysad/venue-bookings" : "/admin/venue-bookings",
           });
         }
       });
+
+      // Equipment Tasks
+      activeEB.forEach((eb, idx) => {
+        const s = (eb.status || eb.tracking_number?.status || "").toLowerCase();
+        const ref = eb.reference_code || eb.tracking_number?.reference_code || `EQUIP-REQ-${eb.id}`;
+        const filer = eb.filer_name || eb.requestor || "Borrower";
+        
+        let equipNames = "Equipment Units";
+        if (Array.isArray(eb.items) && eb.items.length > 0) {
+          equipNames = eb.items.map(it => it.equipment_type?.name || it.equipmentType?.name || it.name || "Item").join(", ");
+        } else if (eb.equipment_type?.name) {
+          equipNames = eb.equipment_type.name;
+        } else if (eb.equipment_name) {
+          equipNames = eb.equipment_name;
+        }
+
+        const tRange = `${eb.time_borrowed || eb.start_time || "08:00"} - ${eb.time_returned || eb.end_time || "17:00"}`;
+
+        if (s === "pending") {
+          tasks.push({
+            id: `eb-task-${eb.id || idx}`,
+            type: "equipment",
+            tracking_no: ref,
+            borrower: filer,
+            equipment: equipNames,
+            time: tRange,
+            task: "Verify & Dispatch Equipment",
+            action_label: "Release",
+            link: isSysadRoute ? "/sysad/equipment-borrowing" : "/admin/equipment-borrowing",
+          });
+        } else if (s === "ongoing" || s === "on-going" || s === "borrowed" || s === "approved") {
+          tasks.push({
+            id: `eb-task-${eb.id || idx}`,
+            type: "equipment",
+            tracking_no: ref,
+            borrower: filer,
+            equipment: equipNames,
+            time: tRange,
+            task: "Inspect & Return Clearance",
+            action_label: "Inspect",
+            link: isSysadRoute ? "/sysad/equipment-borrowing" : "/admin/equipment-borrowing",
+          });
+        }
+      });
+
       setStaffTasks(tasks);
 
       // 6. Department Bookings Distribution
@@ -243,13 +293,14 @@ export default function Dashboard() {
     fetchData();
   }, [officeScope, context?.selectedOfficeId, context?.selectedOffice]);
 
-  // Calendar Day Details helper — all booking statuses mark calendar days
+  // Calendar Day Details helper — all booking statuses mark calendar days, supporting multi-day spans
   const getDayDetails = (day) => {
     const dateStr = `${calYear}-${pad(calMonth + 1)}-${pad(day)}`;
     const bookedOnDate = calendarBookings.filter(b => {
-      const d = b.date_of_usage || b.date_of_use || b.date || "";
-      // Include ALL statuses so completed/cancelled/rejected still mark calendar days
-      return d.startsWith(dateStr);
+      const startD = (b.date_of_usage || b.date_of_use || b.date || "").substring(0, 10);
+      const endD = (b.reservation_end_date || b.date_of_usage_end || b.end_date || startD).substring(0, 10);
+      if (!startD) return false;
+      return dateStr >= startD && dateStr <= endD;
     });
 
     if (bookedOnDate.length === 0) {
@@ -296,19 +347,18 @@ export default function Dashboard() {
 
   // Staff Specific Dashboard View
   if (isStaff) {
+    const filteredStaffTasks = staffTasks.filter((t) => {
+      if (staffTaskFilter === "all") return true;
+      return t.type === staffTaskFilter;
+    });
+
+    const venueCount = staffTasks.filter((t) => t.type === "venue").length;
+    const equipCount = staffTasks.filter((t) => t.type === "equipment").length;
+
     return (
       <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-              AVR Staff Dashboard
-            </h1>
-            <p className="text-xs text-slate-500 font-semibold mt-0.5">
-              Assigned operational tasks and schedule status.
-            </p>
-          </div>
-
+        {/* Action Toolbar */}
+        <div className="flex items-center justify-end gap-3">
           <button
             type="button"
             onClick={fetchData}
@@ -320,87 +370,148 @@ export default function Dashboard() {
           </button>
         </div>
 
-        {/* Quick Shift Actions */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-5 space-y-3 shadow-xs">
+        {/* Quick Shift Actions - Sleek Medium Length Cards */}
+        <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 space-y-3 shadow-xs">
           <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
             <h3 className="font-extrabold text-slate-900 text-xs sm:text-sm">Quick Shift Actions</h3>
-            <span className="text-[10px] font-mono font-bold text-slate-400">4 Operational Tasks</span>
+            <span className="text-[10px] font-mono font-bold text-slate-400">4 Operational Modules</span>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <Link
               to="/admin/venue-bookings"
-              className="bg-white hover:bg-slate-50 transition-all p-4 rounded-xl border border-slate-200 flex flex-col items-center justify-center gap-2 group cursor-pointer text-center"
+              className="bg-white hover:bg-slate-50 transition-all p-3.5 rounded-xl border border-slate-200 flex items-center gap-3 group cursor-pointer shadow-2xs hover:border-blue-400"
             >
-              <div className="w-8 h-8 rounded-lg border border-slate-200 flex items-center justify-center text-slate-700">
-                <Building2 size={16} />
+              <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 border border-blue-100 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                <Building2 size={17} />
               </div>
-              <span className="font-bold text-slate-900 text-xs">Venue Verification</span>
+              <div className="min-w-0">
+                <span className="block font-extrabold text-slate-900 text-xs tracking-tight group-hover:text-blue-600">Venue Verification</span>
+                <span className="block text-[11px] text-slate-500 font-medium truncate">Inspect &amp; approve rooms</span>
+              </div>
             </Link>
 
             <Link
-              to="/admin/equipment-borrowings"
-              className="bg-white hover:bg-slate-50 transition-all p-4 rounded-xl border border-slate-200 flex flex-col items-center justify-center gap-2 group cursor-pointer text-center"
+              to="/admin/equipment-borrowing"
+              className="bg-white hover:bg-slate-50 transition-all p-3.5 rounded-xl border border-slate-200 flex items-center gap-3 group cursor-pointer shadow-2xs hover:border-emerald-400"
             >
-              <div className="w-8 h-8 rounded-lg border border-slate-200 flex items-center justify-center text-slate-700">
-                <Box size={16} />
+              <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                <Box size={17} />
               </div>
-              <span className="font-bold text-slate-900 text-xs">Equipment Release</span>
+              <div className="min-w-0">
+                <span className="block font-extrabold text-slate-900 text-xs tracking-tight group-hover:text-emerald-600">Equipment Release</span>
+                <span className="block text-[11px] text-slate-500 font-medium truncate">Handout units &amp; cables</span>
+              </div>
             </Link>
 
             <Link
-              to="/admin/equipment-borrowings"
-              className="bg-white hover:bg-slate-50 transition-all p-4 rounded-xl border border-slate-200 flex flex-col items-center justify-center gap-2 group cursor-pointer text-center"
+              to="/admin/equipment-borrowing"
+              className="bg-white hover:bg-slate-50 transition-all p-3.5 rounded-xl border border-slate-200 flex items-center gap-3 group cursor-pointer shadow-2xs hover:border-amber-400"
             >
-              <div className="w-8 h-8 rounded-lg border border-slate-200 flex items-center justify-center text-slate-700">
-                <Award size={16} />
+              <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 border border-amber-100 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                <Award size={17} />
               </div>
-              <span className="font-bold text-slate-900 text-xs">Post Inspect</span>
+              <div className="min-w-0">
+                <span className="block font-extrabold text-slate-900 text-xs tracking-tight group-hover:text-amber-600">Post Inspect</span>
+                <span className="block text-[11px] text-slate-500 font-medium truncate">Return testing &amp; clearance</span>
+              </div>
             </Link>
 
             <Link
               to="/admin/reports"
-              className="bg-white hover:bg-slate-50 transition-all p-4 rounded-xl border border-slate-200 flex flex-col items-center justify-center gap-2 group cursor-pointer text-center"
+              className="bg-white hover:bg-slate-50 transition-all p-3.5 rounded-xl border border-slate-200 flex items-center gap-3 group cursor-pointer shadow-2xs hover:border-purple-400"
             >
-              <div className="w-8 h-8 rounded-lg border border-slate-200 flex items-center justify-center text-slate-700">
-                <PackageOpen size={16} />
+              <div className="w-9 h-9 rounded-xl bg-purple-50 text-purple-600 border border-purple-100 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                <PackageOpen size={17} />
               </div>
-              <span className="font-bold text-slate-900 text-xs">Inventory Check</span>
+              <div className="min-w-0">
+                <span className="block font-extrabold text-slate-900 text-xs tracking-tight group-hover:text-purple-600">Inventory Check</span>
+                <span className="block text-[11px] text-slate-500 font-medium truncate">Physical unit registry</span>
+              </div>
             </Link>
           </div>
         </div>
 
         {/* Today's Pending Tasks Table */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-5 space-y-3 shadow-xs">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
-            <h3 className="font-extrabold text-slate-900 text-xs sm:text-sm">Today's Pending Tasks</h3>
-            <span className="text-[10px] font-mono font-bold text-slate-500">
-              {staffTasks.length} Live Tasks
-            </span>
+        <div className="bg-white rounded-2xl border border-slate-200 p-5 space-y-3.5 shadow-xs">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+            <div>
+              <h3 className="font-extrabold text-slate-900 text-xs sm:text-sm">Today's Pending Tasks</h3>
+              <p className="text-[11px] text-slate-500 font-medium mt-0.5">
+                Active requisitions requiring staff review, equipment dispatch, or inspection clearance.
+              </p>
+            </div>
+
+            {/* Filter Toggle Buttons */}
+            <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200/80">
+              <button
+                type="button"
+                onClick={() => setStaffTaskFilter("all")}
+                className={`px-3 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                  staffTaskFilter === "all"
+                    ? "bg-white text-blue-600 shadow-2xs"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                All ({staffTasks.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setStaffTaskFilter("venue")}
+                className={`px-3 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                  staffTaskFilter === "venue"
+                    ? "bg-white text-blue-600 shadow-2xs"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                Venue ({venueCount})
+              </button>
+              <button
+                type="button"
+                onClick={() => setStaffTaskFilter("equipment")}
+                className={`px-3 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                  staffTaskFilter === "equipment"
+                    ? "bg-white text-blue-600 shadow-2xs"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                Equipment ({equipCount})
+              </button>
+            </div>
           </div>
 
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
               <thead>
                 <tr className="border-b border-slate-100 text-left text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider">
+                  <th className="pb-2.5 px-3">TYPE</th>
                   <th className="pb-2.5 px-3">TRACKING NO.</th>
-                  <th className="pb-2.5 px-3">BORROWER</th>
+                  <th className="pb-2.5 px-3">REQUESTOR</th>
                   <th className="pb-2.5 px-3">EQUIPMENT / VENUE</th>
-                  <th className="pb-2.5 px-3">TIME</th>
-                  <th className="pb-2.5 px-3">TASK</th>
+                  <th className="pb-2.5 px-3">SCHEDULE TIME</th>
+                  <th className="pb-2.5 px-3">REQUIRED ACTION</th>
                   <th className="pb-2.5 px-3 text-right">ACTION</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 font-semibold">
-                {staffTasks.length === 0 ? (
+                {filteredStaffTasks.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="text-center py-8 text-slate-400 font-medium">
-                      No pending tasks assigned for today's shift.
+                    <td colSpan={7} className="text-center py-8 text-slate-400 font-medium">
+                      No pending {staffTaskFilter === "all" ? "" : `${staffTaskFilter} `}tasks assigned for today's shift.
                     </td>
                   </tr>
                 ) : (
-                  staffTasks.map((t) => (
+                  filteredStaffTasks.map((t) => (
                     <tr key={t.id} className="hover:bg-slate-50/60 transition-colors">
+                      <td className="py-3 px-3">
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider ${
+                          t.type === "venue"
+                            ? "bg-blue-100 text-blue-700 border border-blue-200"
+                            : "bg-emerald-100 text-emerald-700 border border-emerald-200"
+                        }`}>
+                          {t.type}
+                        </span>
+                      </td>
                       <td className="py-3 px-3 font-mono font-bold text-slate-900">{t.tracking_no}</td>
                       <td className="py-3 px-3 font-bold text-slate-900">{t.borrower}</td>
                       <td className="py-3 px-3 text-slate-800 font-mono">{t.equipment}</td>
@@ -409,7 +520,7 @@ export default function Dashboard() {
                       <td className="py-3 px-3 text-right">
                         <Link
                           to={t.link}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold text-xs border border-slate-900 bg-white text-slate-900 hover:bg-slate-50 transition-colors shadow-2xs"
+                          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg font-bold text-xs border border-slate-900 bg-white text-slate-900 hover:bg-slate-900 hover:text-white transition-colors shadow-2xs cursor-pointer"
                         >
                           {t.action_label}
                         </Link>
@@ -427,28 +538,17 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-            Dashboard
-          </h1>
-          <p className="text-xs text-slate-500 font-semibold mt-0.5">
-            Real-time facility utilization, reservation analytics & inventory overview.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={fetchData}
-            disabled={loading}
-            className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 rounded-lg text-slate-700 font-bold text-xs shadow-2xs hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-50"
-          >
-            <RefreshCw size={13} className={loading ? "animate-spin" : ""} />
-            <span>Refresh</span>
-          </button>
-        </div>
+      {/* Action Toolbar */}
+      <div className="flex items-center justify-end gap-3">
+        <button
+          type="button"
+          onClick={fetchData}
+          disabled={loading}
+          className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 rounded-lg text-slate-700 font-bold text-xs shadow-2xs hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-50"
+        >
+          <RefreshCw size={13} className={loading ? "animate-spin" : ""} />
+          <span>Refresh</span>
+        </button>
       </div>
 
       {error && (

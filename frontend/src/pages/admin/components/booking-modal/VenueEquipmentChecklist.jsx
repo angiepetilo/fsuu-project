@@ -242,7 +242,7 @@ export default function VenueEquipmentChecklist({
                                 className="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs font-mono font-bold text-slate-800 focus:outline-none focus:border-slate-400 cursor-pointer"
                               >
                                 <option value="">
-                                  -- Assign Physical Barcode (Unit {i + 1} of {item.quantity || 1}) • {filteredUnits.length} in stock --
+                                  -- Assign Physical Barcode (Unit {uIdx + 1} of {item.quantity || 1}) • {filteredUnits.length} in stock --
                                 </option>
                                 {filteredUnits.length > 0 ? (
                                   filteredUnits.map((u, i) => {

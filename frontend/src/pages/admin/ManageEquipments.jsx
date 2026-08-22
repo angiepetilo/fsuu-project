@@ -364,35 +364,24 @@ export default function ManageEquipments() {
 
   return (
     <div className="space-y-6">
-      {/* Header Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-            Manage Equipment
-          </h1>
-          <p className="text-xs text-slate-500 font-semibold mt-0.5">
-            Add physical equipment units and assign them to created equipment categories to update stock counts.
-          </p>
-        </div>
+      {/* Action Toolbar */}
+      <div className="flex items-center justify-end gap-3">
+        <button
+          onClick={fetchEquipments}
+          disabled={loading}
+          className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-50 shadow-xs cursor-pointer"
+        >
+          <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
+          Refresh
+        </button>
 
-        <div className="flex items-center gap-3">
-          <button
-            onClick={fetchEquipments}
-            disabled={loading}
-            className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-50 shadow-xs cursor-pointer"
-          >
-            <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
-            Refresh
-          </button>
-
-          <button
-            onClick={handleOpenAddModal}
-            className="flex items-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-extrabold shadow-md transition-all cursor-pointer"
-          >
-            <Plus size={16} />
-            <span>Add Equipment</span>
-          </button>
-        </div>
+        <button
+          onClick={handleOpenAddModal}
+          className="flex items-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-extrabold shadow-md transition-all cursor-pointer"
+        >
+          <Plus size={16} />
+          <span>Add Equipment</span>
+        </button>
       </div>
 
       {/* Warning Banner if No Category Exists */}
