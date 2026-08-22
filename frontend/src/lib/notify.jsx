@@ -1,42 +1,32 @@
-﻿import { toast as sonnerToast } from "sonner";
+import { toast as sonnerToast } from "sonner";
 import { CheckCircle2, AlertTriangle, XCircle, Info, X } from "lucide-react";
 
+// Accent color map per type (subtle left indicator)
 const ACCENT = {
-  success: { bar: "bg-emerald-500", icon: "text-emerald-500" },
-  error:   { bar: "bg-rose-500",    icon: "text-rose-500"    },
-  warning: { bar: "bg-amber-500",   icon: "text-amber-500"   },
-  info:    { bar: "bg-blue-500",    icon: "text-blue-500"    },
-};
-
-const ICON = {
-  success: CheckCircle2,
-  error:   XCircle,
-  warning: AlertTriangle,
-  info:    Info,
+  success: { bar: "bg-emerald-500" },
+  error:   { bar: "bg-rose-500"    },
+  warning: { bar: "bg-amber-500"   },
+  info:    { bar: "bg-blue-500"    },
 };
 
 /**
- * PlainToast — slim, flat, no overlay.
+ * PlainToast — minimal, clean plain toast without icons.
  * Auto-dismisses via sonner duration. No ESC needed.
  * Dismiss X appears on hover only.
  */
 function PlainToast({ t, type = "info", title, description }) {
   const accent = ACCENT[type] ?? ACCENT.info;
-  const Icon   = ICON[type]   ?? ICON.info;
 
   return (
-    <div className="group/toast relative flex items-start gap-3 bg-white rounded-lg shadow-md border border-slate-100 overflow-hidden min-w-[280px] max-w-[380px] pr-8 pl-3 py-2.5">
+    <div className="group/toast relative flex items-start gap-2.5 bg-white rounded-xl shadow-md border border-slate-200/80 overflow-hidden min-w-[260px] max-w-[360px] pr-7 pl-4 py-3">
       {/* Thin left accent bar */}
-      <div className={`absolute left-0 top-0 bottom-0 w-[3px] ${accent.bar}`} />
-
-      {/* Icon */}
-      <Icon size={15} className={`${accent.icon} shrink-0 mt-0.5`} />
+      <div className={`absolute left-0 top-0 bottom-0 w-[3.5px] ${accent.bar}`} />
 
       {/* Text */}
       <div className="flex-1 min-w-0">
-        <p className="text-[12px] font-semibold text-slate-800 leading-snug">{title}</p>
+        <p className="text-[12px] font-bold text-slate-900 leading-snug">{title}</p>
         {description && (
-          <p className="text-[11px] text-slate-500 leading-snug mt-0.5">{description}</p>
+          <p className="text-[11px] text-slate-500 font-normal leading-snug mt-0.5">{description}</p>
         )}
       </div>
 

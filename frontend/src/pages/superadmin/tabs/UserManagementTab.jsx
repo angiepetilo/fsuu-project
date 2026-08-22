@@ -320,20 +320,18 @@ export default function UserManagementTab({ showMsg }) {
 
                         {isOpen && (
                           <div className={`absolute right-0 ${isNearBottom ? 'bottom-full mb-1.5' : 'top-full mt-1.5'} w-44 bg-white rounded-2xl shadow-2xl border border-slate-200 py-1.5 z-50 animate-in fade-in zoom-in-95 backdrop-blur-md`}>
-                            {isPending && (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setOpenActionId(null);
-                                  handleResendInvite(u);
-                                }}
-                                disabled={resendingId === u.id}
-                                className="w-full px-3.5 py-2 text-left text-xs font-semibold text-slate-700 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-2 transition-colors cursor-pointer"
-                              >
-                                <Mail size={13} className="text-blue-500" />
-                                <span>{resendingId === u.id ? "Sending..." : "Resend Invite"}</span>
-                              </button>
-                            )}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setOpenActionId(null);
+                                handleResendInvite(u);
+                              }}
+                              disabled={resendingId === u.id}
+                              className="w-full px-3.5 py-2 text-left text-xs font-semibold text-slate-700 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-2 transition-colors cursor-pointer"
+                            >
+                              <Mail size={13} className="text-blue-500" />
+                              <span>{resendingId === u.id ? "Sending..." : "Resend Invite"}</span>
+                            </button>
 
                             <button
                               type="button"
@@ -350,8 +348,8 @@ export default function UserManagementTab({ showMsg }) {
                                 setEditUser(u);
                                 setUserForm({
                                   name: u.name === "Pending Activation" ? "" : (u.name || ""),
-                                  email: u.email || u.personal_email,
-                                  personal_email: u.personal_email || u.email,
+                                  email: u.email || u.personal_email || "",
+                                  personal_email: u.personal_email || u.email || "",
                                   role: isAdmin ? "admin" : "staff",
                                   isDisabled: userDisabled,
                                   permissions: perms,
@@ -411,10 +409,10 @@ export default function UserManagementTab({ showMsg }) {
                     type="button"
                     onClick={() => setUserForm({ ...userForm, role: "admin", permissions: ALL_PERMISSIONS.map(p => p.key) })}
                     className={`py-2 px-3 rounded-lg border text-xs font-semibold transition-all text-center flex items-center justify-center gap-1.5 cursor-pointer ${
-                      userForm.role === "admin"
-                        ? "bg-blue-600 border-blue-600 text-white shadow-2xs"
-                        : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
-                    }`}
+                    userForm.role === "admin"
+                      ? "bg-blue-600 border-blue-600 text-white shadow-2xs"
+                      : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
+                  }`}
                   >
                     <Shield size={14} />
                     <span>Admin</span>
@@ -423,10 +421,10 @@ export default function UserManagementTab({ showMsg }) {
                     type="button"
                     onClick={() => setUserForm({ ...userForm, role: "staff" })}
                     className={`py-2 px-3 rounded-lg border text-xs font-semibold transition-all text-center flex items-center justify-center gap-1.5 cursor-pointer ${
-                      userForm.role === "staff"
-                        ? "bg-blue-600 border-blue-600 text-white shadow-2xs"
-                        : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
-                    }`}
+                    userForm.role === "staff"
+                      ? "bg-blue-600 border-blue-600 text-white shadow-2xs"
+                      : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
+                  }`}
                   >
                     <Users size={14} />
                     <span>Staff</span>
@@ -439,43 +437,54 @@ export default function UserManagementTab({ showMsg }) {
                 </p>
               </div>
 
-              {editUser ? (
-                <>
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-800 mb-1">Full Name</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Maria Santos"
-                      value={userForm.name}
-                      onChange={(e) => setUserForm({ ...userForm, name: e.target.value })}
-                      className="w-full p-2.5 bg-white border border-slate-200 rounded-lg font-medium text-slate-900 focus:outline-none focus:border-blue-600"
-                    />
-                  </div>
+              {/* Full Name (Always Editable) */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-800 mb-1">Full Name</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Maria Santos"
+                  value={userForm.name}
+                  onChange={(e) => setUserForm({ ...userForm, name: e.target.value })}
+                  className="w-full p-2.5 bg-white border border-slate-200 rounded-lg font-medium text-slate-900 focus:outline-none focus:border-blue-600"
+                />
+              </div>
 
+              {/* Email Address (Always Editable) */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-800 mb-1">Email Address *</label>
+                <input
+                  type="email"
+                  required
+                  placeholder="e.g. maria.santos@gmail.com"
+                  value={userForm.email || userForm.personal_email}
+                  onChange={(e) => setUserForm({ ...userForm, email: e.target.value, personal_email: e.target.value })}
+                  className="w-full p-2.5 bg-white border border-slate-200 rounded-lg font-mono font-medium text-slate-900 focus:outline-none focus:border-blue-600"
+                />
+                {!editUser && (
+                  <p className="text-[11px] text-slate-500 mt-1 font-normal">An invitation and credentials email will be automatically sent to this address.</p>
+                )}
+              </div>
+
+              {/* Resend Email action inside Edit Modal */}
+              {editUser && (
+                <div className="flex items-center justify-between p-3 rounded-xl bg-blue-50/60 border border-blue-100">
                   <div>
-                    <label className="block text-xs font-semibold text-slate-800 mb-1">Email Address *</label>
-                    <input
-                      type="email"
-                      required
-                      placeholder="e.g. maria.santos@gmail.com"
-                      value={userForm.email || userForm.personal_email}
-                      onChange={(e) => setUserForm({ ...userForm, email: e.target.value, personal_email: e.target.value })}
-                      className="w-full p-2.5 bg-white border border-slate-200 rounded-lg font-mono font-medium text-slate-900 focus:outline-none focus:border-blue-600"
-                    />
+                    <span className="text-xs font-bold text-blue-900 block">Resend Credentials Email</span>
+                    <span className="text-[10.5px] text-blue-600 font-normal block">Send fresh activation link & credentials to this user.</span>
                   </div>
-                </>
-              ) : (
-                <div>
-                  <label className="block text-xs font-semibold text-slate-800 mb-1">Email Address *</label>
-                  <input
-                    type="email"
-                    required
-                    placeholder="e.g. maria.santos@gmail.com"
-                    value={userForm.email || userForm.personal_email}
-                    onChange={(e) => setUserForm({ ...userForm, email: e.target.value, personal_email: e.target.value })}
-                    className="w-full p-2.5 bg-white border border-slate-200 rounded-lg font-mono font-medium text-slate-900 focus:outline-none focus:border-blue-600"
-                  />
-                  <p className="text-[11px] text-slate-500 mt-1 font-normal">An invitation and credentials link will be sent to this email address.</p>
+                  <button
+                    type="button"
+                    disabled={resendingId === editUser.id}
+                    onClick={() => handleResendInvite(editUser)}
+                    className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold text-xs flex items-center gap-1.5 shadow-2xs cursor-pointer transition-all disabled:opacity-50 shrink-0"
+                  >
+                    {resendingId === editUser.id ? (
+                      <Loader2 size={12} className="animate-spin" />
+                    ) : (
+                      <Mail size={12} />
+                    )}
+                    <span>{resendingId === editUser.id ? "Sending..." : "Resend Email"}</span>
+                  </button>
                 </div>
               )}
 

@@ -45,8 +45,9 @@ export default function UserForm({ initial, onSubmit, loading, onClose, isSuperA
       fd.append("_method", "PUT");
       if (newPassword) fd.append("new_password", newPassword);
     } else {
+      if (name) fd.append("name", name);
       fd.append("personal_email", personalEmail);
-      fd.append("role", "staff");
+      fd.append("role", role || "staff");
       fd.append("status", isDisabled ? "disabled" : "active");
       fd.append("is_active", isDisabled ? "0" : "1");
       fd.append("permissions", JSON.stringify(permissions));
@@ -111,15 +112,26 @@ export default function UserForm({ initial, onSubmit, loading, onClose, isSuperA
           </div>
         </>
       ) : (
-        <div>
-          <label className="text-xs font-bold text-slate-900 mb-1 block">Personal Email <span className="text-rose-600">*</span></label>
-          <input
-            required type="email" value={personalEmail} onChange={e => setPersonalEmail(e.target.value)}
-            placeholder="e.g. juan@gmail.com"
-            className="w-full px-3.5 py-2 border border-slate-300 rounded-xl text-xs font-mono font-bold text-slate-900 focus:outline-none focus:border-slate-900 transition-all bg-white"
-          />
-          <p className="text-[10px] text-slate-400 mt-1 font-medium">An activation link will be sent to this email.</p>
-        </div>
+        <>
+          <div>
+            <label className="text-xs font-bold text-slate-900 mb-1 block">Full Name</label>
+            <input
+              type="text" value={name} onChange={e => setName(e.target.value)}
+              placeholder="e.g. Juan Dela Cruz"
+              className="w-full px-3.5 py-2 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:border-slate-900 transition-all bg-white"
+            />
+          </div>
+
+          <div>
+            <label className="text-xs font-bold text-slate-900 mb-1 block">Personal Email <span className="text-rose-600">*</span></label>
+            <input
+              required type="email" value={personalEmail} onChange={e => setPersonalEmail(e.target.value)}
+              placeholder="e.g. juan@gmail.com"
+              className="w-full px-3.5 py-2 border border-slate-300 rounded-xl text-xs font-mono font-bold text-slate-900 focus:outline-none focus:border-slate-900 transition-all bg-white"
+            />
+            <p className="text-[10px] text-slate-400 mt-1 font-medium">An activation link and credentials will be sent to this email.</p>
+          </div>
+        </>
       )}
 
       {/* Staff Feature Access Permissions */}
