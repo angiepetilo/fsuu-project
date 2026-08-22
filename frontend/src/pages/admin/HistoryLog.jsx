@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+﻿import { useState, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { useOutletContext, useLocation } from "react-router-dom";
 import api from "@/lib/axios";
@@ -195,20 +195,29 @@ export default function HistoryLog() {
   };
 
   const handleDeleteHistory = async (id, refCode, type) => {
-    if (confirm(`Archive history record "${refCode}"? Soft-delete will apply.`)) {
-      try {
-        if (type === "venue") {
-          await api.delete(`/admin/history-log/venue/${id}`);
-          setVenueHistory((prev) => prev.filter((v) => v.id !== id));
-        } else {
-          await api.delete(`/admin/history-log/equipment/${id}`);
-          setEquipmentHistory((prev) => prev.filter((e) => e.id !== id));
-        }
-        setFeedback(`Record "${refCode}" archived.`);
-        setTimeout(() => setFeedback(null), 3000);
-      } catch {
-        alert("Failed to soft-delete history record.");
+    if (!confirm(`Archive history record "${refCode}"? Soft-delete will apply.`)) return;
+    // ── OPTIMISTIC DELETE ─────────────────────────────────────────────────
+    const prevVenue = venueHistory;
+    const prevEquip = equipmentHistory;
+    if (type === "venue") {
+      setVenueHistory(prev => prev.filter(v => v.id !== id));
+    } else {
+      setEquipmentHistory(prev => prev.filter(e => e.id !== id));
+    }
+    try {
+      if (type === "venue") {
+        await api.delete(`/admin/history-log/venue/${id}`);
+      } else {
+        await api.delete(`/admin/history-log/equipment/${id}`);
       }
+      setFeedback(`Record "${refCode}" archived.`);
+      setTimeout(() => setFeedback(null), 3000);
+    } catch {
+      // Rollback
+      setVenueHistory(prevVenue);
+      setEquipmentHistory(prevEquip);
+      setFeedback(`Failed to archive "${refCode}" — changes reverted.`);
+      setTimeout(() => setFeedback(null), 3000);
     }
   };
 
@@ -463,3 +472,4 @@ export default function HistoryLog() {
     </div>
   );
 }
+

@@ -186,37 +186,61 @@ export default function ManageEquipments() {
     }
 
     setIsSubmitting(true);
-    try {
-      const matchedCat = categories.find(c =>
-        (c.eq_name || c.name || c.eq_type || "").toLowerCase() === (formData.category || "").toLowerCase()
-      ) || categories[0];
 
+    const matchedCat = categories.find(c =>
+      (c.eq_name || c.name || c.eq_type || "").toLowerCase() === (formData.category || "").toLowerCase()
+    ) || categories[0];
+
+    // ── OPTIMISTIC: add a placeholder row immediately ─────────────────────────
+    const tempId = `temp-${Date.now()}`;
+    const optimisticUnit = {
+      id: tempId,
+      equipment_type_id: matchedCat.id,
+      barcode: formData.barcode || `BC-${Date.now().toString().slice(-6)}`,
+      name: formData.name,
+      category: matchedCat.eq_name || matchedCat.name || matchedCat.eq_type || "AV Equipment",
+      status: "Available",
+      condition: "Good",
+      available_count: 1,
+      total_count: 1,
+      date_purchased: formData.date_purchased,
+      lifespan_years: parseInt(formData.lifespan_years, 10) || 5,
+      description: formData.description || "",
+      _optimistic: true,
+    };
+    const prevUnits = units;
+    setUnits(prev => [...prev, optimisticUnit]);
+    setShowAddModal(false);
+    // ─────────────────────────────────────────────────────────────────────────
+
+    try {
       const payload = {
         equipment_type_id: matchedCat.id,
         name: formData.name,
-        unit_code: formData.barcode || `BC-${Date.now().toString().slice(-6)}`,
+        unit_code: formData.barcode || optimisticUnit.barcode,
         purchased_at: formData.date_purchased || undefined,
         eq_lifespan: parseInt(formData.lifespan_years, 10) || 5,
         status: formData.status || "available",
         description: formData.description || undefined,
       };
 
-      await api.post("/admin/equipment-units", payload);
+      const res = await api.post("/admin/equipment-units", payload);
+      const saved = res.data;
 
-      notify.success("Equipment Unit Added", `Physical unit "${formData.name}" registered successfully under ${matchedCat.eq_name || matchedCat.name || matchedCat.eq_type}.`);
-      setFormData({
-        name: "",
-        barcode: "",
-        category: matchedCat.eq_name || matchedCat.name || matchedCat.eq_type || "",
-        status: "available",
-        date_purchased: new Date().toISOString().split("T")[0],
-        lifespan_years: 5,
-        description: "",
-      });
-      setShowAddModal(false);
-      fetchEquipments();
+      // Replace temp row with real data from server
+      setUnits(prev => prev.map(u =>
+        u.id === tempId
+          ? { ...optimisticUnit, id: saved.id, barcode: saved.unit_code || saved.barcode || optimisticUnit.barcode, _optimistic: false }
+          : u
+      ));
+
+      notify.success("Equipment Unit Added", `"${formData.name}" registered under ${matchedCat.eq_name || matchedCat.name}.`);
+      setFormData({ name: "", barcode: "", category: matchedCat.eq_name || matchedCat.name || "", status: "available", date_purchased: new Date().toISOString().split("T")[0], lifespan_years: 5, description: "" });
     } catch (err) {
-      notify.error("Failed to Save Unit", err.response?.data?.message ?? "An error occurred while saving the equipment unit.");
+      // Rollback
+      setUnits(prevUnits);
+      setShowAddModal(true);
+      notify.error("Failed to Save Unit", err.response?.data?.message ?? "An error occurred. Changes were reverted.");
     } finally {
       setIsSubmitting(false);
     }
@@ -226,11 +250,29 @@ export default function ManageEquipments() {
     e.preventDefault();
     if (!editingItem) return;
     setIsSubmitting(true);
-    try {
-      const matchedCat = categories.find(c =>
-        (c.eq_name || c.name || c.eq_type || "").toLowerCase() === (editFormData.category || "").toLowerCase()
-      ) || categories[0];
 
+    const matchedCat = categories.find(c =>
+      (c.eq_name || c.name || c.eq_type || "").toLowerCase() === (editFormData.category || "").toLowerCase()
+    ) || categories[0];
+
+    // ── OPTIMISTIC: update row immediately ────────────────────────────────────
+    const prevUnits = units;
+    const optimisticChanges = {
+      name: editFormData.name,
+      barcode: editFormData.barcode,
+      category: matchedCat.eq_name || matchedCat.name || matchedCat.eq_type || editingItem.category,
+      status: editFormData.status === "available" ? "Available" : "Unavailable",
+      condition: editFormData.condition || "Good",
+      date_purchased: editFormData.date_purchased,
+      lifespan_years: parseInt(editFormData.lifespan_years, 10) || 5,
+      description: editFormData.description,
+      _optimistic: true,
+    };
+    setUnits(prev => prev.map(u => u.id === editingItem.id ? { ...u, ...optimisticChanges } : u));
+    setEditingItem(null);
+    // ─────────────────────────────────────────────────────────────────────────
+
+    try {
       const payload = {
         equipment_type_id: matchedCat.id,
         name: editFormData.name,
@@ -241,27 +283,35 @@ export default function ManageEquipments() {
         condition: editFormData.condition || "Good",
         description: editFormData.description,
       };
-
       await api.put(`/admin/equipment-units/${editingItem.id}`, payload);
-      notify.success("Equipment Unit Updated", `Unit "${editFormData.name}" changes have been saved successfully.`);
-      setEditingItem(null);
-      fetchEquipments();
+      // Confirm: remove optimistic flag
+      setUnits(prev => prev.map(u => u.id === editingItem.id ? { ...u, _optimistic: false } : u));
+      notify.success("Equipment Updated", `"${editFormData.name}" saved successfully.`);
     } catch (err) {
-      notify.error("Failed to Update Unit", err.response?.data?.message ?? "An error occurred while updating the equipment unit.");
+      // Rollback
+      setUnits(prevUnits);
+      setEditingItem(editingItem);
+      notify.error("Update Failed", err.response?.data?.message ?? "Changes were reverted.");
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const handleDeleteEquipment = async (id, name) => {
-    if (confirm(`Archive physical unit "${name}"? Soft-delete will apply.`)) {
-      try {
-        await api.delete(`/admin/equipment-units/${id}`);
-        notify.error("Equipment Unit Archived", `Unit "${name}" has been removed from active inventory.`);
-        fetchEquipments();
-      } catch {
-        notify.error("Archive Failed", "Failed to archive the equipment unit.");
-      }
+    if (!confirm(`Archive physical unit "${name}"? Soft-delete will apply.`)) return;
+
+    // ── OPTIMISTIC: remove row immediately ────────────────────────────────────
+    const prevUnits = units;
+    setUnits(prev => prev.filter(u => u.id !== id));
+    setOpenActionId(null);
+    // ─────────────────────────────────────────────────────────────────────────
+
+    try {
+      await api.delete(`/admin/equipment-units/${id}`);
+      notify.info("Unit Archived", `"${name}" has been removed from active inventory.`);
+    } catch {
+      setUnits(prevUnits); // Rollback
+      notify.error("Archive Failed", "Failed to archive the equipment unit.");
     }
   };
 

@@ -69,49 +69,61 @@ export default function UserManagementTab({ showMsg }) {
   const handleSaveUser = async (e) => {
     e.preventDefault();
     setFormLoading(true);
-    try {
-      const emailValue = (userForm.email || userForm.personal_email || "").trim();
-      const statusValue = userForm.isDisabled ? "disabled" : "active";
-      const isActiveValue = !userForm.isDisabled;
-      const targetRole = userForm.role || "staff";
 
-      const payload = {
-        name: userForm.name,
-        email: emailValue,
-        personal_email: emailValue,
-        role: targetRole,
-        status: statusValue,
-        is_active: isActiveValue,
-        permissions: targetRole === "admin" ? ALL_PERMISSIONS.map(p => p.key) : userForm.permissions,
-      };
+    const emailValue = (userForm.email || userForm.personal_email || "").trim();
+    const statusValue = userForm.isDisabled ? "disabled" : "active";
+    const isActiveValue = !userForm.isDisabled;
+    const targetRole = userForm.role || "staff";
+    const payload = {
+      name: userForm.name, email: emailValue, personal_email: emailValue,
+      role: targetRole, status: statusValue, is_active: isActiveValue,
+      permissions: targetRole === "admin" ? ALL_PERMISSIONS.map(p => p.key) : userForm.permissions,
+    };
 
-      if (editUser) {
+    if (editUser) {
+      // ── OPTIMISTIC EDIT ─────────────────────────────────────────────────
+      const prev = users;
+      setUsers(u => u.map(x => x.id === editUser.id ? { ...x, ...payload, _optimistic: true } : x));
+      setShowAddUserModal(false); setEditUser(null);
+      try {
         await api.put(`/admin/users/${editUser.id}`, payload);
-        notify.success("Account Updated", `${targetRole === "admin" ? "Admin" : "Staff"} account "${userForm.name || emailValue}" updated successfully.`);
-      } else {
-        await api.post("/admin/users", payload);
-        notify.success("Account Created", `${targetRole === "admin" ? "Admin" : "Staff"} invitation and credentials sent to ${emailValue}.`);
-      }
+        setUsers(u => u.map(x => x.id === editUser.id ? { ...x, _optimistic: false } : x));
+        notify.success("Account Updated", `"${userForm.name || emailValue}" updated.`);
+      } catch (err) {
+        setUsers(prev); setEditUser(editUser); setShowAddUserModal(true);
+        notify.error("Update Failed", err.response?.data?.message || "Changes reverted.");
+      } finally { setFormLoading(false); }
+    } else {
+      // ── OPTIMISTIC ADD ──────────────────────────────────────────────────
+      const tempId = `temp-${Date.now()}`;
+      const prev = users;
+      setUsers(u => [...u, { ...payload, id: tempId, status: statusValue, _optimistic: true }]);
       setShowAddUserModal(false);
-      setEditUser(null);
-      fetchData();
-    } catch (err) {
-      notify.error("Save Failed", err.response?.data?.message || "Failed to save user account.");
-    } finally {
-      setFormLoading(false);
+      try {
+        const res = await api.post("/admin/users", payload);
+        const saved = res.data?.user || res.data;
+        setUsers(u => u.map(x => x.id === tempId ? { ...saved, _optimistic: false } : x));
+        notify.success("Account Created", `Invitation sent to ${emailValue}.`);
+      } catch (err) {
+        setUsers(prev); setShowAddUserModal(true);
+        notify.error("Create Failed", err.response?.data?.message || "Changes reverted.");
+      } finally { setFormLoading(false); }
     }
   };
 
   const handleDeleteUser = async (id, name, role) => {
     const roleLabel = role === "admin" ? "Admin" : "Staff";
-    if (confirm(`Archive ${roleLabel} account "${name || 'User'}"?`)) {
-      try {
-        await api.delete(`/admin/users/${id}`);
-        notify.error("Account Archived", `${roleLabel} account "${name || 'User'}" archived.`);
-        fetchData();
-      } catch {
-        notify.error("Archive Failed", `Failed to delete ${roleLabel} user.`);
-      }
+    if (!confirm(`Archive ${roleLabel} account "${name || 'User'}"?`)) return;
+    // ── OPTIMISTIC DELETE ────────────────────────────────────────────────
+    const prev = users;
+    setUsers(u => u.filter(x => x.id !== id));
+    setOpenActionId(null);
+    try {
+      await api.delete(`/admin/users/${id}`);
+      notify.info("Account Archived", `${roleLabel} "${name || 'User'}" archived.`);
+    } catch {
+      setUsers(prev);
+      notify.error("Archive Failed", `Failed to archive ${roleLabel} account.`);
     }
   };
 

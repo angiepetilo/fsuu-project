@@ -63,52 +63,61 @@ export default function VenuesTab({ showMsg }) {
       allowed_equipment: form.allowed_equipment || [],
     };
 
-    try {
-      let savedVenue;
-      if (editItem) {
-        const res = await api.put(`/admin/venues/${editItem.id}`, payload);
-        savedVenue = res.data;
-        showMsg(`✅ Venue "${form.name}" updated!`);
-      } else {
-        const res = await api.post("/admin/venues", payload);
-        savedVenue = res.data;
-        showMsg(`✅ Venue "${form.name}" created and added to catalog!`);
-      }
-
-      // Sync venue avatar and status to local storage
-      try {
-        const existingStr = localStorage.getItem("fsuu_venue_availability");
-        let list = existingStr ? JSON.parse(existingStr) : [];
-        const venueObj = savedVenue || payload;
-        if (venueObj) {
-          const idx = list.findIndex(item => item.id === venueObj.id || item.name === form.name);
-          if (idx >= 0) {
-            list[idx] = { ...list[idx], ...venueObj };
-          } else {
-            list.push(venueObj);
-          }
-          localStorage.setItem("fsuu_venue_availability", JSON.stringify(list));
-        }
-      } catch {}
-
+    if (editItem) {
+      // ── OPTIMISTIC EDIT ─────────────────────────────────────────────────
+      const prevVenues = venues;
+      setVenues(prev => prev.map(v => v.id === editItem.id ? { ...v, ...payload, _optimistic: true } : v));
       setShowModal(false);
       setEditItem(null);
-      fetchData();
-    } catch (err) {
-      showMsg(err.response?.data?.message || "❌ Failed to save venue.");
-    } finally {
-      setFormLoading(false);
+      try {
+        const res = await api.put(`/admin/venues/${editItem.id}`, payload);
+        const saved = res.data || payload;
+        setVenues(prev => prev.map(v => v.id === editItem.id ? { ...v, ...saved, _optimistic: false } : v));
+        showMsg(`Venue "${form.name}" updated!`);
+      } catch (err) {
+        setVenues(prevVenues);
+        setEditItem(editItem);
+        setShowModal(true);
+        showMsg(err.response?.data?.message || `Failed to update "${form.name}" — changes reverted.`);
+      } finally {
+        setFormLoading(false);
+      }
+    } else {
+      // ── OPTIMISTIC ADD ──────────────────────────────────────────────────
+      const tempId = `temp-${Date.now()}`;
+      const optimistic = { ...payload, id: tempId, _optimistic: true };
+      const prevVenues = venues;
+      setVenues(prev => [...prev, optimistic]);
+      setShowModal(false);
+      try {
+        const res = await api.post("/admin/venues", payload);
+        const saved = res.data;
+        setVenues(prev => prev.map(v => v.id === tempId ? { ...saved, _optimistic: false } : v));
+        showMsg(`Venue "${form.name}" created!`);
+      } catch (err) {
+        setVenues(prevVenues);
+        setShowModal(true);
+        showMsg(err.response?.data?.message || `Failed to create venue — changes reverted.`);
+      } finally {
+        setFormLoading(false);
+      }
     }
   };
 
   const handleDelete = async (id, name) => {
     if (!window.confirm(`Are you sure you want to archive venue "${name}"?`)) return;
+
+    // ── OPTIMISTIC DELETE ────────────────────────────────────────────────
+    const prevVenues = venues;
+    setVenues(prev => prev.filter(v => v.id !== id));
+    // ─────────────────────────────────────────────────────────────────────────
+
     try {
       await api.delete(`/admin/venues/${id}`);
-      showMsg(`✅ Venue "${name}" archived.`);
-      fetchData();
+      showMsg(`Venue "${name}" archived.`);
     } catch (err) {
-      showMsg(err.response?.data?.message || "❌ Failed to delete venue.");
+      setVenues(prevVenues); // Rollback
+      showMsg(err.response?.data?.message || `Failed to archive "${name}" — changes reverted.`);
     }
   };
 

@@ -36,38 +36,52 @@ export default function DepartmentsTab({ showMsg }) {
   const handleSaveDept = async (e) => {
     e.preventDefault();
     setFormLoading(true);
-    try {
-      const payload = {
-        code: deptForm.code,
-        name: deptForm.name,
-      };
+    const payload = { code: deptForm.code, name: deptForm.name };
 
-      if (editDept) {
+    if (editDept) {
+      // ── OPTIMISTIC EDIT ─────────────────────────────────────────────────
+      const prev = departments;
+      setDepartments(d => d.map(x => x.id === editDept.id ? { ...x, ...payload, _optimistic: true } : x));
+      setShowAddDeptModal(false); setEditDept(null);
+      try {
         await api.put(`/admin/departments/${editDept.id}`, payload);
-        showMsg(`✅ Department "${deptForm.code}" updated successfully!`);
-      } else {
-        await api.post("/admin/departments", payload);
-        showMsg(`✅ Department "${deptForm.code}" created successfully!`);
-      }
+        setDepartments(d => d.map(x => x.id === editDept.id ? { ...x, _optimistic: false } : x));
+        showMsg(`Department "${payload.code}" updated!`);
+      } catch (err) {
+        setDepartments(prev); setEditDept(editDept); setShowAddDeptModal(true);
+        showMsg(err.response?.data?.message || "Failed to update — changes reverted.");
+      } finally { setFormLoading(false); }
+    } else {
+      // ── OPTIMISTIC ADD ──────────────────────────────────────────────────
+      const tempId = `temp-${Date.now()}`;
+      const prev = departments;
+      setDepartments(d => [...d, { ...payload, id: tempId, _optimistic: true }]);
       setShowAddDeptModal(false);
-      setEditDept(null);
-      fetchData();
-    } catch (err) {
-      showMsg(err.response?.data?.message || "❌ Failed to save department.");
-    } finally {
-      setFormLoading(false);
+      try {
+        const res = await api.post("/admin/departments", payload);
+        const saved = res.data;
+        setDepartments(d => d.map(x => x.id === tempId ? { ...saved, _optimistic: false } : x));
+        showMsg(`Department "${payload.code}" created!`);
+        localStorage.setItem("fsuu_departments", JSON.stringify(departments));
+        window.dispatchEvent(new Event("departments_updated"));
+      } catch (err) {
+        setDepartments(prev); setShowAddDeptModal(true);
+        showMsg(err.response?.data?.message || "Failed to add — changes reverted.");
+      } finally { setFormLoading(false); }
     }
   };
 
   const handleDeleteDept = async (id, code) => {
-    if (confirm(`Delete department "${code}"? It will be soft-deleted.`)) {
-      try {
-        await api.delete(`/admin/departments/${id}`);
-        showMsg(`✅ Department "${code}" archived (soft-deleted).`);
-        fetchData();
-      } catch {
-        showMsg("❌ Failed to delete department.");
-      }
+    if (!confirm(`Delete department "${code}"? It will be soft-deleted.`)) return;
+    // ── OPTIMISTIC DELETE ─────────────────────────────────────────────────
+    const prev = departments;
+    setDepartments(d => d.filter(x => x.id !== id));
+    try {
+      await api.delete(`/admin/departments/${id}`);
+      showMsg(`Department "${code}" archived.`);
+    } catch {
+      setDepartments(prev);
+      showMsg(`Failed to delete "${code}" — changes reverted.`);
     }
   };
 
