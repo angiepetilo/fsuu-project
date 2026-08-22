@@ -94,6 +94,47 @@ export default function BookingBorrowingReportTab({
     );
   };
 
+  const renderStatusAndInspectionNote = (record, defaultStatus) => {
+    const rawNote =
+      record.inspection_notes ||
+      record.notes ||
+      record.violation ||
+      record.violation_type ||
+      record.inspection?.notes ||
+      "";
+    const condition = (record.inspection_condition || record.condition || "").toLowerCase();
+    const hasDamage = condition === "damaged" || record.has_damage || String(defaultStatus).toUpperCase() === "DAMAGED" || String(defaultStatus).toUpperCase() === "POLICY VIOLATION";
+    const isLost = condition === "lost" || record.is_lost || String(defaultStatus).toUpperCase() === "LOST";
+    const isLate = record.is_late || String(defaultStatus).toUpperCase() === "LATE RETURN" || String(defaultStatus).toUpperCase() === "RETURNED LATE";
+
+    let displayBadgeStatus = defaultStatus;
+    if (isLost) displayBadgeStatus = "LOST";
+    else if (hasDamage) displayBadgeStatus = "POLICY VIOLATION";
+    else if (isLate) displayBadgeStatus = "LATE RETURN";
+
+    return (
+      <div className="flex flex-col items-center justify-center gap-1 max-w-[210px] mx-auto text-center py-1">
+        {getStatusBadge(displayBadgeStatus)}
+        {rawNote ? (
+          <span
+            className="text-[10.5px] font-medium text-slate-700 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded-lg leading-tight break-words max-w-full text-center"
+            title={rawNote}
+          >
+            "{rawNote}"
+          </span>
+        ) : condition ? (
+          <span className="text-[10px] font-medium text-slate-500 capitalize">
+            {condition === "good" || condition === "clean" ? "Clean condition verified" : condition}
+          </span>
+        ) : (
+          <span className="text-[10px] text-slate-400 font-normal italic">
+            No inspection note
+          </span>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-8">
       {/* ── 1. VENUE BOOKING REPORTS TABLE ── */}
@@ -119,7 +160,7 @@ export default function BookingBorrowingReportTab({
                 <th className="py-4 px-4">VENUE</th>
                 <th className="py-4 px-4">DATE</th>
                 <th className="py-4 px-4">TIME</th>
-                <th className="py-4 px-4 text-center">STATUS</th>
+                <th className="py-4 px-4 text-center">STATUS &amp; INSPECTION NOTE</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-xs font-semibold">
@@ -159,7 +200,7 @@ export default function BookingBorrowingReportTab({
                       <td className="py-4 px-4 font-bold text-blue-700">{b.venue_name || b.venue?.name || b.venue || "Audio Visual Room"}</td>
                       <td className="py-4 px-4 text-slate-600 whitespace-nowrap font-medium">{formatDate(b.date_of_usage || b.date)}</td>
                       <td className="py-4 px-4 text-slate-600 whitespace-nowrap font-medium">{timeFormatted || "08:00 AM – 04:00 PM"}</td>
-                      <td className="py-4 px-4 text-center">{getStatusBadge(status)}</td>
+                      <td className="py-4 px-4 text-center">{renderStatusAndInspectionNote(b, status)}</td>
                     </tr>
                   );
                 })
@@ -243,7 +284,7 @@ export default function BookingBorrowingReportTab({
                 <th className="py-4 px-4">EQUIPMENT</th>
                 <th className="py-4 px-4">DATE</th>
                 <th className="py-4 px-4">TIME</th>
-                <th className="py-4 px-4 text-center">STATUS</th>
+                <th className="py-4 px-4 text-center">STATUS &amp; INSPECTION NOTE</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-xs font-semibold">
@@ -298,7 +339,7 @@ export default function BookingBorrowingReportTab({
                       <td className="py-4 px-4 font-bold text-blue-700">{equipLabel}</td>
                       <td className="py-4 px-4 text-slate-600 whitespace-nowrap font-medium">{formatDate(eb.date_of_usage || eb.date)}</td>
                       <td className="py-4 px-4 text-slate-600 whitespace-nowrap font-medium">{timeFormatted || "08:00 AM – 04:00 PM"}</td>
-                      <td className="py-4 px-4 text-center">{getStatusBadge(status)}</td>
+                      <td className="py-4 px-4 text-center">{renderStatusAndInspectionNote(eb, status)}</td>
                     </tr>
                   );
                 })

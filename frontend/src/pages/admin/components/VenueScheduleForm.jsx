@@ -1,5 +1,19 @@
 import React from "react";
-import { Loader2, Calendar } from "lucide-react";
+import { Loader2, Calendar, Clock } from "lucide-react";
+
+function formatTime12h(timeStr) {
+  if (!timeStr) return "";
+  const str = String(timeStr).trim();
+  if (str.includes("AM") || str.includes("PM")) return str;
+  const parts = str.split(":");
+  if (parts.length < 2) return str;
+  let h = parseInt(parts[0], 10);
+  if (isNaN(h)) return str;
+  const m = parts[1].substring(0, 2);
+  const suffix = h >= 12 ? "PM" : "AM";
+  const displayH = h % 12 === 0 ? 12 : h % 12;
+  return `${displayH}:${m} ${suffix}`;
+}
 
 export default function VenueScheduleForm({
   VENUES = [],
@@ -9,12 +23,27 @@ export default function VenueScheduleForm({
   setSetupForm,
   handleSaveStatus,
   saveLoading = false,
+  venueOpen = "07:30",
+  venueClose = "17:00",
 }) {
+  const handleStartTimeChange = (val) => {
+    let bounded = val;
+    if (venueOpen && bounded < venueOpen) bounded = venueOpen;
+    if (venueClose && bounded > venueClose) bounded = venueClose;
+    setSetupForm((prev) => ({ ...prev, startTime: bounded }));
+  };
+
+  const handleEndTimeChange = (val) => {
+    let bounded = val;
+    if (venueClose && bounded > venueClose) bounded = venueClose;
+    if (venueOpen && bounded < venueOpen) bounded = venueOpen;
+    setSetupForm((prev) => ({ ...prev, endTime: bounded }));
+  };
+
   return (
     <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-4">
       <div>
         <h3 className="font-extrabold text-slate-900 text-sm sm:text-base tracking-tight flex items-center gap-2">
-
           Venue Selection &amp; Availability Control
         </h3>
         <p className="text-xs text-slate-500 font-medium mt-0.5">
@@ -61,27 +90,40 @@ export default function VenueScheduleForm({
           />
         </div>
 
-        {/* Time Slot Range */}
-        <div className="grid grid-cols-2 gap-2">
-          <div>
-            <label className="block text-xs font-bold text-slate-900 mb-1">Start Time *</label>
-            <input
-              type="time"
-              required
-              value={setupForm.startTime}
-              onChange={e => setSetupForm({ ...setupForm, startTime: e.target.value })}
-              className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:outline-none focus:border-blue-600 text-xs"
-            />
+        {/* Time Slot Range (Strictly bounded by Venue Operating Hours) */}
+        <div>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="block text-xs font-bold text-slate-900 mb-1">Start Time *</label>
+              <input
+                type="time"
+                required
+                min={venueOpen}
+                max={venueClose}
+                value={setupForm.startTime}
+                onChange={e => handleStartTimeChange(e.target.value)}
+                className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:outline-none focus:border-blue-600 text-xs"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-900 mb-1">End Time *</label>
+              <input
+                type="time"
+                required
+                min={venueOpen}
+                max={venueClose}
+                value={setupForm.endTime}
+                onChange={e => handleEndTimeChange(e.target.value)}
+                className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:outline-none focus:border-blue-600 text-xs"
+              />
+            </div>
           </div>
-          <div>
-            <label className="block text-xs font-bold text-slate-900 mb-1">End Time *</label>
-            <input
-              type="time"
-              required
-              value={setupForm.endTime}
-              onChange={e => setSetupForm({ ...setupForm, endTime: e.target.value })}
-              className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:outline-none focus:border-blue-600 text-xs"
-            />
+
+          <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-500 bg-slate-50 border border-slate-200 px-2.5 py-1.5 rounded-xl mt-2">
+            <Clock size={13} className="text-blue-600 shrink-0" />
+            <span>
+              Venue Reservation Operating Window: <strong className="text-slate-800">{formatTime12h(venueOpen)} – {formatTime12h(venueClose)}</strong>
+            </span>
           </div>
         </div>
 
