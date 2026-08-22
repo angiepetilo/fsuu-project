@@ -18,7 +18,13 @@ class HistoryLogService
             ->leftJoin('venues', 'venue_bookings.venue_id', '=', 'venues.id')
             ->leftJoin('inspections', function ($join) {
                 $join->on('venue_bookings.id', '=', 'inspections.inspectable_id')
-                     ->where('inspections.inspectable_type', 'App\\Models\\VenueBooking');
+                     ->where(function ($q) {
+                         $q->where('inspections.inspectable_type', 'like', '%VenueBooking%')
+                           ->orWhere('inspections.inspectable_type', 'avr_venue_booking')
+                           ->orWhere('inspections.inspectable_type', 'venue_booking')
+                           ->orWhere('inspections.reference_type', 'avr_venue_booking')
+                           ->orWhere('inspections.reference_type', 'venue_booking');
+                     });
             })
             ->leftJoin('documents', function ($join) {
                 $join->on('venue_bookings.id', '=', 'documents.venue_booking_id');
@@ -97,7 +103,11 @@ class HistoryLogService
             ->join('tracking_numbers', 'equipment_borrows.tracking_number_id', '=', 'tracking_numbers.id')
             ->leftJoin('inspections', function ($join) {
                 $join->on('equipment_borrows.id', '=', 'inspections.inspectable_id')
-                     ->where('inspections.inspectable_type', 'App\\Models\\EquipmentBorrow');
+                     ->where(function ($q) {
+                         $q->where('inspections.inspectable_type', 'like', '%EquipmentBorrow%')
+                           ->orWhere('inspections.inspectable_type', 'equipment_borrow')
+                           ->orWhere('inspections.reference_type', 'equipment_borrow');
+                     });
             })
             ->whereNull('equipment_borrows.archived_at')
             ->where(function ($query) {

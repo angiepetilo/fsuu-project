@@ -25,10 +25,15 @@ export default function ManageVenues() {
   const [setupForm, setSetupForm] = useState({
     venueId: 1,
     startDate: new Date().toISOString().substring(0, 10),
-    startTime: "08:00",
+    startTime: "07:30",
     endTime: "17:00",
     status: "Maintenance", // "Available" | "Maintenance" | "Closed"
     reason: "",
+  });
+
+  const [operatingHours, setOperatingHours] = useState({
+    venue_open: "07:30",
+    venue_close: "17:00",
   });
 
   const [feedback, setFeedback] = useState(null);
@@ -83,6 +88,26 @@ export default function ManageVenues() {
         setSelectedVenue((prev) => (prev ? data.find((d) => d.id === prev.id) || data[0] : data[0]));
         setSetupForm((p) => ({ ...p, venueId: data[0].id }));
       }
+
+      // Fetch operating hours to enforce strict reservation start/end window
+      try {
+        const opRes = await api.get("/admin/operating-hours").catch(() => api.get("/public/operating-hours"));
+        if (opRes.data) {
+          const vOpen = opRes.data.venue_open ? opRes.data.venue_open.substring(0, 5) : "07:30";
+          const vClose = opRes.data.venue_close ? opRes.data.venue_close.substring(0, 5) : "17:00";
+          setOperatingHours({
+            venue_open: vOpen,
+            venue_close: vClose,
+          });
+          setSetupForm((prev) => {
+            let nextStart = prev.startTime;
+            let nextEnd = prev.endTime;
+            if (nextStart < vOpen || nextStart > vClose) nextStart = vOpen;
+            if (nextEnd > vClose || nextEnd < vOpen) nextEnd = vClose;
+            return { ...prev, startTime: nextStart, endTime: nextEnd };
+          });
+        }
+      } catch {}
 
       // Fetch bookings for dynamic calendar density
       try {
@@ -314,6 +339,24 @@ export default function ManageVenues() {
     return list;
   }, [setupForm.startDate, setupForm.startTime, setupForm.endTime, bookings, overrides, venues]);
 
+  const { startHour, endHour } = useMemo(() => {
+    const parseHour = (str, fallback) => {
+      if (!str) return fallback;
+      const parts = str.split(":").map(Number);
+      return isNaN(parts[0]) ? fallback : parts[0];
+    };
+    const sH = parseHour(operatingHours.venue_open, 7);
+    let eH = parseHour(operatingHours.venue_close, 17);
+    const closeParts = (operatingHours.venue_close || "").split(":").map(Number);
+    if (closeParts[1] && closeParts[1] > 0) {
+      eH += 1;
+    }
+    return {
+      startHour: Math.min(sH, 23),
+      endHour: Math.max(eH, sH + 1),
+    };
+  }, [operatingHours]);
+
   if (loading) return <PageLoader message="Loading Manage Venues..." />;
 
   return (
@@ -369,13 +412,15 @@ export default function ManageVenues() {
               setSetupForm={setSetupForm}
               handleSaveStatus={handleSaveStatus}
               saveLoading={saveLoading}
+              venueOpen={operatingHours.venue_open}
+              venueClose={operatingHours.venue_close}
             />
           </div>
         </div>
 
       </div>
 
-      {/* Hourly Timeline Matrix Grid (Based on Selected Date - Screenshot 2) */}
+      {/* Hourly Timeline Matrix Grid (Strictly bounded to Venue Reservation Operating Hours) */}
       <TimeSlotMatrix
         selectedDate={setupForm.startDate}
         items={filteredVenues.map((v) => ({
@@ -385,8 +430,8 @@ export default function ManageVenues() {
           code: `CAP: ${v.capacity || 100}`,
         }))}
         schedules={venueSchedules}
-        startHour={7}
-        endHour={19}
+        startHour={startHour}
+        endHour={endHour}
         title="Venue Daily Time-Slot Schedule"
         emptyLabel="No venues found"
       />
