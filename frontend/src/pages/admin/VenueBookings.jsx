@@ -62,6 +62,15 @@ export default function VenueBookings() {
 
   useEffect(() => {
     fetchBookings();
+
+    const handleLiveSync = () => {
+      fetchBookings();
+    };
+
+    window.addEventListener("equipment_inventory_updated", handleLiveSync);
+    return () => {
+      window.removeEventListener("equipment_inventory_updated", handleLiveSync);
+    };
   }, [fetchBookings]);
 
   // Deep-link from notification navigation

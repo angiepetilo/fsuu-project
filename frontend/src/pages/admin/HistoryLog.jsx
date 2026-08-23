@@ -146,6 +146,15 @@ export default function HistoryLog() {
 
   useEffect(() => {
     fetchHistory();
+
+    const handleLiveSync = () => {
+      fetchHistory();
+    };
+
+    window.addEventListener("equipment_inventory_updated", handleLiveSync);
+    return () => {
+      window.removeEventListener("equipment_inventory_updated", handleLiveSync);
+    };
   }, [fetchHistory]);
 
   // Deep-link from notification navigation

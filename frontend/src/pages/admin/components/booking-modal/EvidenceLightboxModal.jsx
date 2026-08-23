@@ -1,6 +1,6 @@
 import React from "react";
 import { Camera, FileText, ExternalLink, X } from "lucide-react";
-import { resolveStorageUrl } from "@/lib/utils";
+import { resolveStorageUrl, openFileInNewTab } from "@/lib/utils";
 
 export default function EvidenceLightboxModal({
   fullImageModal,
@@ -35,28 +35,10 @@ export default function EvidenceLightboxModal({
   const resolvedUrl = resolvePhotoUrl ? resolvePhotoUrl(imageUrl) : imageUrl;
   const [imgError, setImgError] = React.useState(false);
 
-  // Helper to open Data URLs without triggering browser about:blank#blocked
+  // Helper to open documents safely with PNG fallback support
   const handleOpenExternal = () => {
     if (!resolvedUrl) return;
-    if (resolvedUrl.startsWith("data:")) {
-      try {
-        const parts = resolvedUrl.split(',');
-        const mime = parts[0].match(/:(.*?);/)?.[1] || 'application/octet-stream';
-        const bstr = atob(parts[1]);
-        let n = bstr.length;
-        const u8arr = new Uint8Array(n);
-        while (n--) {
-          u8arr[n] = bstr.charCodeAt(n);
-        }
-        const blob = new Blob([u8arr], { type: mime });
-        const blobUrl = URL.createObjectURL(blob);
-        window.open(blobUrl, "_blank");
-      } catch {
-        window.open(resolvedUrl, "_blank");
-      }
-    } else {
-      window.open(resolvedUrl, "_blank");
-    }
+    openFileInNewTab(resolvedUrl);
   };
 
   return (

@@ -43,13 +43,76 @@ class InspectionController extends Controller
     {
         $refId = $request->input('reference_id') ?? $request->input('inspectable_id');
         $refType = $request->input('reference_type') ?? $request->input('inspectable_type') ?? 'avr_venue_booking';
-        $photo = $request->input('evidence_photo') ?? $request->input('evidence_image');
+        
+        // Process Multiple Photos or Single Photo
+        $photos = [];
+
+        // 1. Multipart Form Files: evidence_photos[]
+        if ($request->hasFile('evidence_photos')) {
+            $files = $request->file('evidence_photos');
+            if (is_array($files)) {
+                foreach ($files as $f) {
+                    if ($f) {
+                        $uploaded = app(\App\Services\MediaUploadService::class)->upload($f, 'inspections');
+                        if ($uploaded) $photos[] = $uploaded;
+                    }
+                }
+            } else {
+                $uploaded = app(\App\Services\MediaUploadService::class)->upload($files, 'inspections');
+                if ($uploaded) $photos[] = $uploaded;
+            }
+        }
+
+        // 2. Multipart Form Single File: evidence_photo
         if ($request->hasFile('evidence_photo')) {
-            $photo = $request->file('evidence_photo');
+            $uploaded = app(\App\Services\MediaUploadService::class)->upload($request->file('evidence_photo'), 'inspections');
+            if ($uploaded && !in_array($uploaded, $photos)) {
+                $photos[] = $uploaded;
+            }
         }
-        if ($photo) {
-            $photo = app(\App\Services\MediaUploadService::class)->upload($photo, 'inspections');
+
+        // 3. Array of Base64 or URLs: evidence_photos
+        if ($request->has('evidence_photos') && empty($photos)) {
+            $inputPhotos = $request->input('evidence_photos');
+            if (is_string($inputPhotos)) {
+                $decoded = json_decode($inputPhotos, true);
+                $inputPhotos = is_array($decoded) ? $decoded : [$inputPhotos];
+            }
+            if (is_array($inputPhotos)) {
+                foreach ($inputPhotos as $item) {
+                    if (!empty($item)) {
+                        $uploaded = app(\App\Services\MediaUploadService::class)->upload($item, 'inspections');
+                        if ($uploaded) $photos[] = $uploaded;
+                    }
+                }
+            }
         }
+
+        // 4. Single String / Base64: evidence_photo or evidence_image
+        if (empty($photos)) {
+            $single = $request->input('evidence_photo') ?? $request->input('evidence_image');
+            if (!empty($single)) {
+                if (is_string($single) && (str_starts_with(trim($single), '[') || str_starts_with(trim($single), '{'))) {
+                    $decoded = json_decode($single, true);
+                    if (is_array($decoded)) {
+                        foreach ($decoded as $item) {
+                            $uploaded = app(\App\Services\MediaUploadService::class)->upload($item, 'inspections');
+                            if ($uploaded) $photos[] = $uploaded;
+                        }
+                    }
+                } else {
+                    $uploaded = app(\App\Services\MediaUploadService::class)->upload($single, 'inspections');
+                    if ($uploaded) $photos[] = $uploaded;
+                }
+            }
+        }
+
+        // Format into JSON string for column storage
+        $photoPayload = null;
+        if (!empty($photos)) {
+            $photoPayload = json_encode(array_values(array_unique($photos)));
+        }
+
         $assignedUnits = $request->input('assigned_units');
         $unitConditions = $request->input('unit_conditions');
         $condition = $request->input('condition') ?? 'good';
@@ -86,11 +149,14 @@ class InspectionController extends Controller
             'is_late'          => $request->input('timeliness') === 'late',
             'notes'            => $notes,
             'violation_type'   => $violationType,
-            'evidence_photo'   => $photo,
             'assigned_units'   => $assignedUnits,
             'unit_conditions'  => $unitConditions,
             'inspected_at'     => now(),
         ];
+
+        if ($photoPayload !== null || $request->has('evidence_photos') || $request->has('evidence_photo')) {
+            $data['evidence_photo'] = $photoPayload;
+        }
 
         if ($inspection) {
             $inspection->fill($data)->save();

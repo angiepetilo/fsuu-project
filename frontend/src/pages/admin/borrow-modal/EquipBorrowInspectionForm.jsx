@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { FileCheck, Loader2, CheckCircle2, AlertTriangle, HelpCircle, Camera, Clock, XCircle, CheckSquare, Square } from "lucide-react";
+import InspectionPhotoUploader from "@/components/ui/InspectionPhotoUploader";
 
 /**
  * EquipBorrowInspectionForm — Physical unit inspection checklist with missing parts spec & condition triggers.
@@ -19,6 +20,9 @@ export default function EquipBorrowInspectionForm({
   setMissingPartsDetails,
   violationNotes = "",
   setViolationNotes,
+  evidencePhoto = [],
+  setEvidencePhoto,
+  onPreviewPhoto,
   savingInspection = false,
   handleSaveInspection,
   inspectionSuccessMsg,
@@ -290,6 +294,14 @@ export default function EquipBorrowInspectionForm({
           className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-800 focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-50 transition-all shadow-inner disabled:bg-slate-50"
         />
       </div>
+
+      {/* Multi-Photo Evidence & Inspection Images */}
+      <InspectionPhotoUploader
+        photos={evidencePhoto}
+        setPhotos={setEvidencePhoto}
+        isReadOnly={readOnly}
+        onPreview={onPreviewPhoto}
+      />
 
       {/* Save Button */}
       {!readOnly && (

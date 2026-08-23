@@ -42,7 +42,7 @@ export default function VenueBookingDetailModal({
   const [preInspectionStatus, setPreInspectionStatus] = useState("clean");
   const [preViolationNotes, setPreViolationNotes] = useState("");
   const [preSelectedViolationType, setPreSelectedViolationType] = useState("Physical Facility / Furniture Damage");
-  const [preEvidencePhoto, setPreEvidencePhoto] = useState(null);
+  const [preEvidencePhoto, setPreEvidencePhoto] = useState([]);
 
   // Dynamic equipment notes fetched if missing on passed object
   const [fetchedEquipmentNotes, setFetchedEquipmentNotes] = useState("");
@@ -221,8 +221,22 @@ export default function VenueBookingDetailModal({
             
             setViolationNotes(existingNotes);
 
-            const photo = postUse.evidence_photo || postUse.evidence_image || selected.evidence_photo || selected.evidence_image;
-            setEvidencePhoto(photo || null);
+            // Hydrate multi-photo evidence
+            const rawPhoto = postUse.evidence_photos || postUse.evidence_photo || postUse.evidence_image || selected.evidence_photos || selected.evidence_photo || selected.evidence_image;
+            let photoList = [];
+            if (Array.isArray(rawPhoto)) {
+              photoList = rawPhoto.filter(Boolean);
+            } else if (typeof rawPhoto === 'string' && (rawPhoto.startsWith('[') || rawPhoto.startsWith('{'))) {
+              try {
+                const parsed = JSON.parse(rawPhoto);
+                photoList = Array.isArray(parsed) ? parsed.filter(Boolean) : [rawPhoto];
+              } catch {
+                photoList = [rawPhoto];
+              }
+            } else if (rawPhoto) {
+              photoList = [rawPhoto];
+            }
+            if (setEvidencePhoto) setEvidencePhoto(photoList);
 
             // Hydrate DB unit assignments and per-unit outcomes if persisted
             if (postUse.assigned_units && typeof postUse.assigned_units === 'object') {
@@ -251,7 +265,23 @@ export default function VenueBookingDetailModal({
               setPreSelectedViolationType(preUse.violation_type);
             }
             setPreViolationNotes(existingNotes);
-            setPreEvidencePhoto(preUse.evidence_photo || preUse.evidence_image || null);
+
+            // Hydrate pre-inspection multi-photo evidence
+            const rawPrePhoto = preUse.evidence_photos || preUse.evidence_photo || preUse.evidence_image;
+            let prePhotoList = [];
+            if (Array.isArray(rawPrePhoto)) {
+              prePhotoList = rawPrePhoto.filter(Boolean);
+            } else if (typeof rawPrePhoto === 'string' && (rawPrePhoto.startsWith('[') || rawPrePhoto.startsWith('{'))) {
+              try {
+                const parsed = JSON.parse(rawPrePhoto);
+                prePhotoList = Array.isArray(parsed) ? parsed.filter(Boolean) : [rawPrePhoto];
+              } catch {
+                prePhotoList = [rawPrePhoto];
+              }
+            } else if (rawPrePhoto) {
+              prePhotoList = [rawPrePhoto];
+            }
+            setPreEvidencePhoto(prePhotoList);
           }
         })
         .catch(() => {
@@ -768,6 +798,7 @@ export default function VenueBookingDetailModal({
         condition: isPre ? (preInspectionStatus === "clean" ? "good" : "damaged") : (inspectionStatus === "clean" ? "good" : "damaged"),
         violation_type: isPre ? (preInspectionStatus === "violation" ? preSelectedViolationType : null) : (inspectionStatus === "violation" ? selectedViolationType : null),
         notes: isPre ? (preViolationNotes || (preInspectionStatus === "clean" ? "Satisfactory Condition (Clean Room)" : `[${preSelectedViolationType}] Pre-event inspection breach.`)) : (violationNotes || (inspectionStatus === "clean" ? "Satisfactory Condition (Clean Room)" : `[${selectedViolationType}] Post-event inspection breach.`)),
+        evidence_photos: isPre ? preEvidencePhoto : evidencePhoto,
         evidence_photo: isPre ? preEvidencePhoto : evidencePhoto,
         evidence_image: isPre ? preEvidencePhoto : evidencePhoto,
         assigned_units: assignedUnitSelections,
@@ -799,6 +830,7 @@ export default function VenueBookingDetailModal({
         condition: inspectionStatus === "clean" ? "good" : "damaged",
         violation_type: inspectionStatus === "violation" ? selectedViolationType : null,
         notes: violationNotes || (inspectionStatus === "clean" ? "Satisfactory Condition (Clean Room)" : `[${selectedViolationType}] Post-event inspection breach.`),
+        evidence_photos: evidencePhoto,
         evidence_photo: evidencePhoto,
         evidence_image: evidencePhoto,
         assigned_units: assignedUnitSelections,
@@ -812,6 +844,7 @@ export default function VenueBookingDetailModal({
       condition: inspectionStatus === "violation" ? "damaged" : "good",
       has_damage: inspectionStatus === "violation" ? 1 : 0,
       violation_type: inspectionStatus === "violation" ? selectedViolationType : null,
+      evidence_photos: evidencePhoto,
       evidence_photo: evidencePhoto,
       notes: violationNotes || (inspectionStatus === "clean" ? "Satisfactory Condition (Clean Room)" : `[${selectedViolationType}] Post-event inspection breach.`),
       assigned_units: assignedUnitSelections,

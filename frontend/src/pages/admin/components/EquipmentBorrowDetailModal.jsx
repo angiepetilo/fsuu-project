@@ -9,6 +9,7 @@ import { resolveStorageUrl } from "@/lib/utils";
 import EquipBorrowHeader from "../borrow-modal/EquipBorrowHeader";
 import EquipBorrowInspectionForm from "../borrow-modal/EquipBorrowInspectionForm";
 import EquipBorrowUnitAssignment from "../borrow-modal/EquipBorrowUnitAssignment";
+import EvidenceLightboxModal from "./booking-modal/EvidenceLightboxModal";
 
 export default function EquipmentBorrowDetailModal({
   selected,
@@ -26,13 +27,14 @@ export default function EquipmentBorrowDetailModal({
   const [dbEquipmentTypes, setDbEquipmentTypes] = useState([]);
   const [physicalUnits, setPhysicalUnits] = useState([]);
   const [eqLoading, setEqLoading] = useState(false);
+  const [fullImageModal, setFullImageModal] = useState(null);
 
   // Post-Use Inspection State
   const [inspectionStatus, setInspectionStatus] = useState("clean");
   const [unitReturnedConditions, setUnitReturnedConditions] = useState({});
   const [timeliness, setTimeliness] = useState("on_time");
   const [violationNotes, setViolationNotes] = useState("");
-  const [evidencePhoto, setEvidencePhoto] = useState(null);
+  const [evidencePhoto, setEvidencePhoto] = useState([]);
   const [savingInspection, setSavingInspection] = useState(false);
   const [inspectionSuccessMsg, setInspectionSuccessMsg] = useState(null);
 
@@ -40,6 +42,7 @@ export default function EquipmentBorrowDetailModal({
   const [preInspectionStatus, setPreInspectionStatus] = useState("clean");
   const [preUnitReturnedConditions, setPreUnitReturnedConditions] = useState({});
   const [preViolationNotes, setPreViolationNotes] = useState("");
+  const [preEvidencePhoto, setPreEvidencePhoto] = useState([]);
 
   // Post-Use Inspection Ready Trigger State
   const [isReadyForPostInspection, setIsReadyForPostInspection] = useState(false);
@@ -259,9 +262,23 @@ export default function EquipmentBorrowDetailModal({
             if (postUse.notes) {
               setViolationNotes(postUse.notes);
             }
-            if (postUse.evidence_image || postUse.evidence_photo) {
-              setEvidencePhoto(postUse.evidence_image || postUse.evidence_photo || null);
+            
+            // Hydrate multi-photo evidence
+            const rawPhoto = postUse.evidence_photos || postUse.evidence_photo || postUse.evidence_image || selected.evidence_photos || selected.evidence_photo || selected.evidence_image;
+            let photoList = [];
+            if (Array.isArray(rawPhoto)) {
+              photoList = rawPhoto.filter(Boolean);
+            } else if (typeof rawPhoto === 'string' && (rawPhoto.startsWith('[') || rawPhoto.startsWith('{'))) {
+              try {
+                const parsed = JSON.parse(rawPhoto);
+                photoList = Array.isArray(parsed) ? parsed.filter(Boolean) : [rawPhoto];
+              } catch {
+                photoList = [rawPhoto];
+              }
+            } else if (rawPhoto) {
+              photoList = [rawPhoto];
             }
+            setEvidencePhoto(photoList);
           }
 
           if (preUse) {
@@ -279,6 +296,23 @@ export default function EquipmentBorrowDetailModal({
             if (preUse.notes) {
               setPreViolationNotes(preUse.notes);
             }
+
+            // Hydrate pre-inspection multi-photo evidence
+            const rawPrePhoto = preUse.evidence_photos || preUse.evidence_photo || preUse.evidence_image;
+            let prePhotoList = [];
+            if (Array.isArray(rawPrePhoto)) {
+              prePhotoList = rawPrePhoto.filter(Boolean);
+            } else if (typeof rawPrePhoto === 'string' && (rawPrePhoto.startsWith('[') || rawPrePhoto.startsWith('{'))) {
+              try {
+                const parsed = JSON.parse(rawPrePhoto);
+                prePhotoList = Array.isArray(parsed) ? parsed.filter(Boolean) : [rawPrePhoto];
+              } catch {
+                prePhotoList = [rawPrePhoto];
+              }
+            } else if (rawPrePhoto) {
+              prePhotoList = [rawPrePhoto];
+            }
+            setPreEvidencePhoto(prePhotoList);
           }
         })
         .catch(() => {});
@@ -569,7 +603,9 @@ export default function EquipmentBorrowDetailModal({
       condition: isPreUse ? (preInspectionStatus === "clean" ? "good" : "damaged") : (inspectionStatus === "clean" ? "good" : "damaged"),
       timeliness: timeliness,
       notes: isPreUse ? preViolationNotes : (violationNotes || (inspectionStatus === "clean" ? "Returned safely in good condition." : "Returned with damaged/lost equipment.")),
-      evidence_image: isPreUse ? null : evidencePhoto,
+      evidence_photos: isPreUse ? preEvidencePhoto : evidencePhoto,
+      evidence_photo: isPreUse ? preEvidencePhoto : evidencePhoto,
+      evidence_image: isPreUse ? preEvidencePhoto : evidencePhoto,
       assigned_units: assignedUnitSelections,
       unit_conditions: normalizedConditions,
     };
@@ -634,6 +670,8 @@ export default function EquipmentBorrowDetailModal({
         condition: inspectionStatus === "clean" ? "good" : "damaged",
         timeliness: timeliness,
         notes: violationNotes || (inspectionStatus === "clean" ? "Returned safely in good condition." : "Returned with damaged/lost equipment."),
+        evidence_photos: evidencePhoto,
+        evidence_photo: evidencePhoto,
         evidence_image: evidencePhoto,
         assigned_units: assignedUnitSelections,
         unit_conditions: unitReturnedConditions,
@@ -885,6 +923,9 @@ export default function EquipmentBorrowDetailModal({
                     setUnitReturnedConditions={setPreUnitReturnedConditions}
                     violationNotes={preViolationNotes}
                     setViolationNotes={setPreViolationNotes}
+                    evidencePhoto={preEvidencePhoto}
+                    setEvidencePhoto={setPreEvidencePhoto}
+                    onPreviewPhoto={(url) => setFullImageModal(url)}
                     savingInspection={savingInspection}
                     handleSaveInspection={(e) => handleSaveInspection(e, "pre_use")}
                     inspectionSuccessMsg={inspectionSuccessMsg}
@@ -908,6 +949,9 @@ export default function EquipmentBorrowDetailModal({
                       setUnitReturnedConditions={setUnitReturnedConditions}
                       violationNotes={violationNotes}
                       setViolationNotes={setViolationNotes}
+                      evidencePhoto={evidencePhoto}
+                      setEvidencePhoto={setEvidencePhoto}
+                      onPreviewPhoto={(url) => setFullImageModal(url)}
                       savingInspection={savingInspection}
                       handleSaveInspection={(e) => handleSaveInspection(e, "post_use")}
                       inspectionSuccessMsg={inspectionSuccessMsg}
@@ -995,6 +1039,14 @@ export default function EquipmentBorrowDetailModal({
         </div>
 
       </div>
+
+      {/* Lightbox Modal for Inspection Photos & Attachments */}
+      {fullImageModal && (
+        <EvidenceLightboxModal
+          fullImageModal={fullImageModal}
+          setFullImageModal={setFullImageModal}
+        />
+      )}
     </div>
   );
 }

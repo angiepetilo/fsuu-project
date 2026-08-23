@@ -121,15 +121,30 @@ export default function IncidentDetailModal({ incident, onClose }) {
           </div>
         </div>
 
-        {/* Evidence Photo (if available) */}
-        {incident.evidence_photo && (
-          <div className="space-y-1 text-xs">
-            <span className="text-[11px] font-bold text-slate-700 block">Evidence Photo</span>
-            <img
-              src={incident.evidence_photo}
-              alt="Incident Evidence"
-              className="w-full max-h-48 object-contain bg-slate-50 rounded-xl border border-slate-200"
-            />
+        {/* Evidence Photos (if available) */}
+        {(incident.evidence_photos?.length > 0 || incident.evidence_photo) && (
+          <div className="space-y-1.5 text-xs">
+            <span className="text-[11px] font-bold text-slate-700 block">Evidence Photos</span>
+            {Array.isArray(incident.evidence_photos) && incident.evidence_photos.length > 1 ? (
+              <div className="grid grid-cols-3 gap-2 max-h-48 overflow-y-auto p-1 bg-slate-50 rounded-xl border border-slate-200">
+                {incident.evidence_photos.map((ph, idx) => (
+                  <img
+                    key={idx}
+                    src={ph}
+                    alt={`Evidence ${idx + 1}`}
+                    onClick={() => window.open(ph, "_blank")}
+                    className="w-full aspect-square object-cover rounded-lg border border-slate-200 cursor-pointer hover:opacity-90"
+                  />
+                ))}
+              </div>
+            ) : (
+              <img
+                src={Array.isArray(incident.evidence_photos) ? incident.evidence_photos[0] : incident.evidence_photo}
+                alt="Incident Evidence"
+                onClick={() => window.open(Array.isArray(incident.evidence_photos) ? incident.evidence_photos[0] : incident.evidence_photo, "_blank")}
+                className="w-full max-h-48 object-contain bg-slate-50 rounded-xl border border-slate-200 cursor-pointer hover:opacity-90"
+              />
+            )}
           </div>
         )}
 

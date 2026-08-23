@@ -38,6 +38,29 @@ class Inspection extends Model
         'unit_conditions' => 'array',
     ];
 
+    protected $appends = ['evidence_photos'];
+
+    /**
+     * Get all evidence photos as an array of URLs.
+     */
+    public function getEvidencePhotosAttribute(): array
+    {
+        $raw = $this->attributes['evidence_photo'] ?? null;
+        if (empty($raw)) {
+            return [];
+        }
+        if (is_array($raw)) {
+            return array_values(array_filter($raw));
+        }
+        if (is_string($raw) && (str_starts_with(trim($raw), '[') || str_starts_with(trim($raw), '{'))) {
+            $decoded = json_decode($raw, true);
+            if (is_array($decoded)) {
+                return array_values(array_filter($decoded));
+            }
+        }
+        return [$raw];
+    }
+
     public function inspectable(): MorphTo
     {
         return $this->morphTo();
