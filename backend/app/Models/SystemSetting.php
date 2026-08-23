@@ -15,6 +15,7 @@ class SystemSetting extends Model
     protected $fillable = [
         'system_name',
         'organization_name',
+        'header_brand_text',
         'contact_email',
         'contact_phone',
         'timezone',
@@ -47,6 +48,7 @@ class SystemSetting extends Model
             $settings = self::create([
                 'system_name'                    => 'FSUU Facilities & Equipment Booking System',
                 'organization_name'              => 'Father Saturnino Urios University',
+                'header_brand_text'              => 'Urios',
                 'contact_email'                  => 'support.booking@fsuu.edu.ph',
                 'contact_phone'                  => '(085) 342-1830',
                 'timezone'                       => 'Asia/Manila (UTC+8)',

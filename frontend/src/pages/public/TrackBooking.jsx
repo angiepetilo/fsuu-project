@@ -171,7 +171,7 @@ export default function TrackBooking() {
                 onChange={e => setTrackCode(e.target.value)}
                 placeholder="e.g. TRK-AVR8921 or EQUIP-REQ-101"
                 required
-                className="w-full pl-11 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-slate-900 text-sm font-semibold transition-all focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10"
+                className="w-full pl-11 pr-4 py-3 bg-white border-2 border-slate-200 hover:border-blue-400 focus:border-blue-600 focus:ring-4 focus:ring-blue-600/15 rounded-xl text-slate-900 text-sm font-semibold transition-all outline-none"
               />
             </div>
           </div>
