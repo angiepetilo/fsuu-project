@@ -787,9 +787,22 @@ export default function VenueBookingDetailModal({
     // 1. Trigger final reconciliation (Good -> Released -1, Available +1; Damaged -> Released -1, Damaged +1; Lost -> Released -1, Lost +1)
     syncInspectedUnitsToInventory(true);
 
-    // 2. Persist the final inspection outcome
+    // 2. Persist the final inspection outcome silently in background
     if (isPostInspection) {
-      await handleSavePostInspection();
+      api.post("/inspections", {
+        reference_type: "avr_venue_booking",
+        reference_id: selected.id,
+        inspectable_type: "avr_venue_booking",
+        inspectable_id: selected.id,
+        inspection_type: "post_event",
+        condition: inspectionStatus === "clean" ? "good" : "damaged",
+        violation_type: inspectionStatus === "violation" ? selectedViolationType : null,
+        notes: violationNotes || (inspectionStatus === "clean" ? "Satisfactory Condition (Clean Room)" : `[${selectedViolationType}] Post-event inspection breach.`),
+        evidence_photo: evidencePhoto,
+        evidence_image: evidencePhoto,
+        assigned_units: assignedUnitSelections,
+        unit_conditions: unitReturnedConditions,
+      }).catch(() => {});
     }
 
     // 3. Mark completed and update status
