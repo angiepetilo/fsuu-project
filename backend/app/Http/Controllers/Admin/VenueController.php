@@ -15,6 +15,12 @@ class VenueController extends Controller
         return response()->json($query->latest()->get());
     }
 
+    public function show(int $id): JsonResponse
+    {
+        $venue = Venue::findOrFail($id);
+        return response()->json($venue);
+    }
+
     public function store(Request $request): JsonResponse
     {
         $data = $request->validate([
@@ -24,7 +30,7 @@ class VenueController extends Controller
             'capacity'          => 'nullable|integer|min:1',
             'status'            => 'nullable|string',
             'allowed_equipment' => 'nullable|array',
-            'allowed_equipment.*' => 'integer|exists:equipment_types,id',
+            'allowed_equipment.*' => 'nullable',
         ]);
 
         if (empty($data['capacity'])) {
@@ -51,7 +57,7 @@ class VenueController extends Controller
             'capacity'          => 'sometimes|integer|min:1',
             'status'            => 'sometimes|string',
             'allowed_equipment' => 'nullable|array',
-            'allowed_equipment.*' => 'integer|exists:equipment_types,id',
+            'allowed_equipment.*' => 'nullable',
         ]);
 
         if (array_key_exists('avatar', $data) && !empty($data['avatar'])) {

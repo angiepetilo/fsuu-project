@@ -58,8 +58,12 @@ COPY docker/nginx.conf /etc/nginx/sites-available/default
 ENV APP_ENV=production \
     APP_DEBUG=true \
     LOG_CHANNEL=stderr \
-    DB_CONNECTION=sqlite \
-    DB_DATABASE=/var/www/database/database.sqlite \
+    DB_CONNECTION=mysql \
+    DB_HOST=127.0.0.1 \
+    DB_PORT=3306 \
+    DB_DATABASE=fsuu_booking \
+    DB_USERNAME=root \
+    DB_PASSWORD="" \
     SESSION_DRIVER=file \
     QUEUE_CONNECTION=sync \
     FRONTEND_URL=https://fsuu-project.vercel.app \
@@ -78,4 +82,4 @@ ENV APP_ENV=production \
 # Expose port
 EXPOSE 80
 
-CMD ["sh", "-c", "sed -i 's/PORT_PLACEHOLDER/'\"${PORT:-80}\"'/g' /etc/nginx/sites-available/default && touch /var/www/database/database.sqlite && chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache /var/www/database /var/www/.env && chmod -R 777 /var/www/storage /var/www/bootstrap/cache /var/www/database /var/www/.env && composer dump-autoload -o && php artisan config:clear && php artisan route:clear && php artisan storage:link || true && php-fpm -D && php artisan migrate:fresh --force --seed && nginx -g 'daemon off;'"]
+CMD ["sh", "-c", "sed -i 's/PORT_PLACEHOLDER/'\"${PORT:-80}\"'/g' /etc/nginx/sites-available/default && touch /var/www/database/database.sqlite && chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache /var/www/database /var/www/.env && chmod -R 777 /var/www/storage /var/www/bootstrap/cache /var/www/database /var/www/.env && composer dump-autoload -o && php artisan config:clear && php artisan route:clear && php artisan storage:link || true && php-fpm -D && php artisan migrate --force && nginx -g 'daemon off;'"]

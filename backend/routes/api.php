@@ -65,6 +65,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // ── Admin: Venues ──────────────────────────────────────────────────────────
     Route::get('/admin/venues',         [VenueController::class, 'index']);
+    Route::get('/admin/venues/{id}',    [VenueController::class, 'show']);
     Route::post('/admin/venues',        [VenueController::class, 'store']);
     Route::put('/admin/venues/{id}',    [VenueController::class, 'update']);
     Route::delete('/admin/venues/{id}', [VenueController::class, 'destroy']);
