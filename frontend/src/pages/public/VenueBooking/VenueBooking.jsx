@@ -159,8 +159,24 @@ export default function VenueBooking() {
     : venues.filter(v => v.type === venueCategory);
 
   const handleIdentitySelect = (id) => {
-    setIdentity(id);
-    setIsPinVerified(false);
+    const norm = (id || "").toLowerCase();
+    setIdentity(norm);
+
+    const isSystemPinActive = pinRules?.isEnabled === true || (pinRules?.isEnabled !== false && pinRules?.isEnabled !== "false");
+    const externalRequiresPin = isSystemPinActive && (pinRules?.enableExternalVenue === true || (pinRules?.enableExternalVenue !== false && pinRules?.enableExternalVenue !== "false")) && norm === "external";
+
+    if (externalRequiresPin && !isPinVerified) {
+      setPinModalMeta({
+        title: "External Client Verification",
+        description: "External client reservations require AVR Head / Administrative clearance PIN to proceed.",
+      });
+      setShowPinModal(true);
+      return;
+    }
+
+    if (norm !== "external") {
+      setIsPinVerified(false);
+    }
     if (!completedSteps.includes(1)) setCompletedSteps([...completedSteps, 1]);
     setActiveStep(2);
   };
@@ -405,6 +421,7 @@ export default function VenueBooking() {
           <Step1Identity
             selectedIdentity={identity}
             onSelectIdentity={handleIdentitySelect}
+            onNext={() => handleIdentitySelect(identity)}
           />
         )}
 
@@ -485,8 +502,13 @@ export default function VenueBooking() {
         onVerify={() => {
           setIsPinVerified(true);
           setShowPinModal(false);
-          if (!completedSteps.includes(2)) setCompletedSteps([...completedSteps, 2]);
-          setActiveStep(3);
+          if (activeStep === 1) {
+            if (!completedSteps.includes(1)) setCompletedSteps((prev) => [...prev, 1]);
+            setActiveStep(2);
+          } else if (activeStep === 2) {
+            if (!completedSteps.includes(2)) setCompletedSteps((prev) => [...prev, 2]);
+            setActiveStep(3);
+          }
         }}
         title={pinModalMeta.title}
         description={pinModalMeta.description}
