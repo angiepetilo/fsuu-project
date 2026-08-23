@@ -61,15 +61,42 @@ function AppContent() {
   });
 
   useEffect(() => {
-    fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000/api'}/public/system-settings`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (data) {
-          setPublicSettings((prev) => ({ ...prev, ...data }));
-          localStorage.setItem("fsuu_system_settings", JSON.stringify(data));
+    const loadSettings = () => {
+      fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000/api'}/public/system-settings`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data) {
+            setPublicSettings((prev) => ({ ...prev, ...data }));
+            localStorage.setItem("fsuu_system_settings", JSON.stringify(data));
+          }
+        })
+        .catch(() => {
+          try {
+            const saved = localStorage.getItem("fsuu_system_settings");
+            if (saved) setPublicSettings(JSON.parse(saved));
+          } catch {}
+        });
+    };
+
+    loadSettings();
+
+    const handleSettingsUpdated = () => {
+      try {
+        const saved = localStorage.getItem("fsuu_system_settings");
+        if (saved) {
+          setPublicSettings(JSON.parse(saved));
         }
-      })
-      .catch(() => {});
+      } catch {}
+      loadSettings();
+    };
+
+    window.addEventListener("fsuu_system_settings_updated", handleSettingsUpdated);
+    window.addEventListener("storage", handleSettingsUpdated);
+
+    return () => {
+      window.removeEventListener("fsuu_system_settings_updated", handleSettingsUpdated);
+      window.removeEventListener("storage", handleSettingsUpdated);
+    };
   }, []);
 
   return (
