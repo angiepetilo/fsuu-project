@@ -194,3 +194,25 @@ code {
     @apply font-sans;
   }
 }
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #printable-fee-matrix,
+  #printable-fee-matrix * {
+    visibility: visible;
+  }
+  #printable-fee-matrix {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 24px !important;
+    border: none !important;
+    box-shadow: none !important;
+    background: white !important;
+  }
+}

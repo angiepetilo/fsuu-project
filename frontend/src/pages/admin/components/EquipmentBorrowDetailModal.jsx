@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   X, CheckCircle, Clock, Play, Check, Loader2,
   FileText, Mail, FileCheck
@@ -41,6 +41,9 @@ export default function EquipmentBorrowDetailModal({
   const [preUnitReturnedConditions, setPreUnitReturnedConditions] = useState({});
   const [preViolationNotes, setPreViolationNotes] = useState("");
 
+  // Post-Use Inspection Ready Trigger State
+  const [isReadyForPostInspection, setIsReadyForPostInspection] = useState(false);
+
   // Email resend state
   const [resendLoading, setResendLoading] = useState(false);
   const [resendMsg, setResendMsg] = useState(null);
@@ -54,21 +57,31 @@ export default function EquipmentBorrowDetailModal({
   const [overrideCategory, setOverrideCategory] = useState("PROJECTOR");
   const [overrideQuantity, setOverrideQuantity] = useState(2);
 
+  // Active bookings list for schedule overlap checking
+  const [allVenueBookings, setAllVenueBookings] = useState([]);
+  const [allEquipmentBorrows, setAllEquipmentBorrows] = useState([]);
+
   // Fetch real equipment units and types from DB
   useEffect(() => {
     setEqLoading(true);
     Promise.all([
       api.get("/admin/equipment-units").catch(() => ({ data: [] })),
       api.get("/admin/equipment-types").catch(() => ({ data: [] })),
+      api.get("/avr-venue-bookings").catch(() => ({ data: [] })),
+      api.get("/avr-equipment-borrowings").catch(() => ({ data: [] })),
     ])
-      .then(([unitsRes, typesRes]) => {
+      .then(([unitsRes, typesRes, vbRes, ebRes]) => {
         const uData = Array.isArray(unitsRes.data) ? unitsRes.data : unitsRes.data?.data ?? [];
         const tData = Array.isArray(typesRes.data) ? typesRes.data : typesRes.data?.data ?? [];
+        const vbData = Array.isArray(vbRes.data) ? vbRes.data : (vbRes.data?.data ?? []);
+        const ebData = Array.isArray(ebRes.data) ? ebRes.data : (ebRes.data?.data ?? []);
         setPhysicalUnits(uData);
         setDbEquipmentTypes(tData);
+        setAllVenueBookings(vbData);
+        setAllEquipmentBorrows(ebData);
       })
       .finally(() => setEqLoading(false));
-  }, []);
+  }, [selected?.id]);
 
   const getRequestedCategories = () => {
     let categories = [];
@@ -293,52 +306,192 @@ export default function EquipmentBorrowDetailModal({
     return String(dateStr);
   };
 
-  const requestedCategories = getRequestedCategories();
+  // Helper: Normalize time string to 24-hour HH:MM:SS
+  const normalizeTimeTo24h = (tStr) => {
+    if (!tStr) return "00:00:00";
+    const clean = String(tStr).trim();
+    if (clean.includes("AM") || clean.includes("PM")) {
+      try {
+        const d = new Date(`1970-01-01 ${clean}`);
+        if (!isNaN(d.getTime())) return d.toTimeString().slice(0, 8);
+      } catch {}
+    }
+    const parts = clean.split(":");
+    return `${(parts[0] || "00").padStart(2, "0")}:${(parts[1] || "00").padStart(2, "0")}:${(parts[2] || "00").padStart(2, "0")}`;
+  };
+
+  const getBookingRange = (b) => {
+    if (!b) return null;
+    const startD = b.date_of_usage || (b.start_datetime ? b.start_datetime.slice(0, 10) : null) || b.date;
+    const endD = b.reservation_end_date || b.end_date || (b.end_datetime ? b.end_datetime.slice(0, 10) : null) || startD;
+    const startT = normalizeTimeTo24h(b.time_start || (b.start_datetime ? b.start_datetime.slice(11, 19) : null) || "08:00:00");
+    const endT = normalizeTimeTo24h(b.time_end || (b.end_datetime ? b.end_datetime.slice(11, 19) : null) || "17:00:00");
+    if (!startD) return null;
+    return {
+      startMs: new Date(`${startD}T${startT}`).getTime(),
+      endMs: new Date(`${endD}T${endT}`).getTime(),
+    };
+  };
+
+  const isScheduleConflicting = (rangeA, rangeB) => {
+    if (!rangeA || !rangeB) return false;
+    if (isNaN(rangeA.startMs) || isNaN(rangeA.endMs) || isNaN(rangeB.startMs) || isNaN(rangeB.endMs)) return false;
+    return rangeA.startMs < rangeB.endMs && rangeA.endMs > rangeB.startMs;
+  };
+
+  // Barcodes already assigned in other ACTIVE bookings that overlap with this borrowing's schedule
+  const overlappingReservedBarcodes = useMemo(() => {
+    if (!selected) return new Set();
+    const selectedRange = getBookingRange(selected);
+    if (!selectedRange) return new Set();
+
+    const reserved = new Set();
+    const inactiveStatuses = ["completed", "done", "returned", "rejected", "cancelled", "cancelled_by_user", "damaged", "lost", "solved"];
+
+    allVenueBookings.forEach((vb) => {
+      const st = String(vb.status || vb.tracking_number?.status || "").toLowerCase();
+      if (inactiveStatuses.includes(st)) return;
+      const vbRange = getBookingRange(vb);
+      if (isScheduleConflicting(selectedRange, vbRange)) {
+        let au = vb.assigned_units;
+        if (typeof au === "string") { try { au = JSON.parse(au); } catch { au = {}; } }
+        if (au && typeof au === "object") {
+          Object.values(au).forEach((bCode) => { if (bCode) reserved.add(String(bCode).trim().toUpperCase()); });
+        }
+      }
+    });
+
+    allEquipmentBorrows.forEach((eb) => {
+      if (String(eb.id) === String(selected.id)) return;
+      const st = String(eb.status || eb.tracking_number?.status || "").toLowerCase();
+      if (inactiveStatuses.includes(st)) return;
+      const ebRange = getBookingRange(eb);
+      if (isScheduleConflicting(selectedRange, ebRange)) {
+        let au = eb.assigned_units;
+        if (typeof au === "string") { try { au = JSON.parse(au); } catch { au = {}; } }
+        if (au && typeof au === "object") {
+          Object.values(au).forEach((bCode) => { if (bCode) reserved.add(String(bCode).trim().toUpperCase()); });
+        }
+      }
+    });
+
+    return reserved;
+  }, [selected, allVenueBookings, allEquipmentBorrows]);
+
+  // Map of equipment_type_id -> total qty "soft-reserved" by OTHER overlapping active bookings
+  // (i.e., bookings that requested units of a category but may not have been assigned a barcode yet)
+  const overlappingCategoryQtyMap = useMemo(() => {
+    if (!selected) return {};
+    const selectedRange = getBookingRange(selected);
+    if (!selectedRange) return {};
+
+    const qtyMap = {}; // { equipment_type_id: totalRequestedQty }
+    const inactiveStatuses = ["completed", "done", "returned", "rejected", "cancelled", "cancelled_by_user", "damaged", "lost", "solved"];
+
+    const addItemQty = (items) => {
+      if (!Array.isArray(items)) return;
+      items.forEach((item) => {
+        const typeId = String(item.equipment_type_id || item.equipment_type?.id || item.equipmentType?.id || "").trim();
+        const qty = parseInt(item.quantity_requested || item.quantity || 1, 10) || 1;
+        if (typeId) qtyMap[typeId] = (qtyMap[typeId] || 0) + qty;
+      });
+    };
+
+    // 1. Venue Bookings
+    allVenueBookings.forEach((vb) => {
+      const st = String(vb.status || vb.tracking_number?.status || "").toLowerCase();
+      if (inactiveStatuses.includes(st)) return;
+      const vbRange = getBookingRange(vb);
+      if (!isScheduleConflicting(selectedRange, vbRange)) return;
+      addItemQty(vb.equipment_items || vb.items || vb.venue_booking_equipment || []);
+    });
+
+    // 2. Other Equipment Borrowings
+    allEquipmentBorrows.forEach((eb) => {
+      if (String(eb.id) === String(selected.id)) return;
+      const st = String(eb.status || eb.tracking_number?.status || "").toLowerCase();
+      if (inactiveStatuses.includes(st)) return;
+      const ebRange = getBookingRange(eb);
+      if (!isScheduleConflicting(selectedRange, ebRange)) return;
+      addItemQty(eb.items || eb.equipment_items || []);
+    });
+
+    return qtyMap;
+  }, [selected, allVenueBookings, allEquipmentBorrows]);
 
   const getAvailableUnitsForCategory = (catName, eqTypeId) => {
     if (!catName || catName === "NONE") return physicalUnits;
 
     // 1. First priority: match by equipment_type_id
+    let matched = [];
     if (eqTypeId) {
-      const idMatches = physicalUnits.filter((u) => {
+      matched = physicalUnits.filter((u) => {
         const uTypeId = u.equipment_type_id || u.equipmentType?.id || u.equipment_type?.id;
         return String(uTypeId) === String(eqTypeId);
       });
-      if (idMatches.length > 0) return idMatches;
     }
 
     const cleanCat = String(catName).trim().toUpperCase();
 
-    // 2. Exact Category Match first (matching equipment_type.eq_name, name, or category)
-    const exactCategoryMatches = physicalUnits.filter((u) => {
-      const uCatName = String(u.equipmentType?.eq_name || u.equipmentType?.name || u.equipment_type?.eq_name || u.equipment_type?.name || u.category || "").toUpperCase().trim();
-      return uCatName === cleanCat;
-    });
-
-    if (exactCategoryMatches.length > 0) return exactCategoryMatches;
+    // 2. Exact Category Match
+    if (matched.length === 0) {
+      matched = physicalUnits.filter((u) => {
+        const uCatName = String(u.equipmentType?.eq_name || u.equipmentType?.name || u.equipment_type?.eq_name || u.equipment_type?.name || u.category || "").toUpperCase().trim();
+        return uCatName === cleanCat;
+      });
+    }
 
     // 3. Strict Discrimination & Unit Name matching
-    const unitNameMatches = physicalUnits.filter((u) => {
-      const uCatName = String(u.equipmentType?.eq_name || u.equipmentType?.name || u.equipment_type?.eq_name || u.equipment_type?.name || u.category || "").toUpperCase().trim();
-      const uUnitName = String(u.name || "").toUpperCase().trim();
-      
-      // Strict discrimination
-      if (cleanCat === "PROJECTOR" && (uCatName.includes("SCREEN") || uUnitName.includes("SCREEN"))) {
-        return false;
-      }
-      if (cleanCat === "MICROPHONE" && (uCatName.includes("WIRELESS") || uUnitName.includes("WIRELESS") || uUnitName.includes("WMIC"))) {
-        return false;
-      }
-      if (cleanCat.includes("WIRELESS") && (!uCatName.includes("WIRELESS") && !uUnitName.includes("WIRELESS") && !uUnitName.includes("WMIC"))) {
-        return false;
+    if (matched.length === 0) {
+      matched = physicalUnits.filter((u) => {
+        const uCatName = String(u.equipmentType?.eq_name || u.equipmentType?.name || u.equipment_type?.eq_name || u.equipment_type?.name || u.category || "").toUpperCase().trim();
+        const uUnitName = String(u.name || "").toUpperCase().trim();
+
+        // Strict discrimination
+        if (cleanCat === "PROJECTOR" && (uCatName.includes("SCREEN") || uUnitName.includes("SCREEN"))) return false;
+        if (cleanCat === "MICROPHONE" && (uCatName.includes("WIRELESS") || uUnitName.includes("WIRELESS") || uUnitName.includes("WMIC"))) return false;
+        if (cleanCat.includes("WIRELESS") && (!uCatName.includes("WIRELESS") && !uUnitName.includes("WIRELESS") && !uUnitName.includes("WMIC"))) return false;
+
+        return uCatName === cleanCat || uUnitName.startsWith(`${cleanCat} `) || uUnitName.startsWith(`${cleanCat}-`) || uUnitName === cleanCat;
+      });
+    }
+
+    // 4. Schedule overlap & condition filtering
+    const available = matched.filter((unit) => {
+      const uCond = String(unit.condition || "good").toLowerCase();
+      if (uCond === "damaged" || uCond === "lost" || uCond === "under repair") return false;
+
+      const uStat = String(unit.status || "available").toLowerCase();
+      if (uStat === "damaged" || uStat === "lost" || uStat === "decommissioned" || uStat === "under_maintenance") return false;
+
+      const bCode = String(unit.unit_code || unit.barcode || unit.serial_number || unit.code || unit.id || "").trim().toUpperCase();
+      if (bCode && overlappingReservedBarcodes.has(bCode)) {
+        // Allow if it's already assigned to a slot in this modal
+        const isCurrentSlotAssignment = Object.values(assignedUnitSelections || {}).some(
+          (v) => String(v).trim().toUpperCase() === bCode
+        );
+        if (!isCurrentSlotAssignment) return false;
       }
 
-      return uCatName === cleanCat || uCatName.includes(cleanCat) || cleanCat.includes(uCatName) || uUnitName.startsWith(`${cleanCat} `) || uUnitName.startsWith(`${cleanCat}-`) || uUnitName === cleanCat || uUnitName.includes(cleanCat);
+      return true;
     });
 
-    if (unitNameMatches.length > 0) return unitNameMatches;
+    // 5. Soft-Reservation by Quantity
+    if (eqTypeId) {
+      const totalOverlappingQty = overlappingCategoryQtyMap[String(eqTypeId)] || 0;
+      if (totalOverlappingQty > 0) {
+        const alreadyExcludedByBarcode = matched.filter((u) => {
+          const bCode = String(u.unit_code || u.barcode || u.serial_number || u.code || u.id || "").trim().toUpperCase();
+          return bCode && overlappingReservedBarcodes.has(bCode);
+        }).length;
+        const additionalSoftReserved = Math.max(0, totalOverlappingQty - alreadyExcludedByBarcode);
+        if (additionalSoftReserved > 0) {
+          return available.slice(0, Math.max(0, available.length - additionalSoftReserved));
+        }
+      }
+    }
 
-    return [];
+    return available;
   };
 
   const categoriesToRender = isOverrideActive
@@ -727,9 +880,9 @@ export default function EquipmentBorrowDetailModal({
                   />
                 </div>
 
-                {/* Right Side: Equipment Inspection Record (After) - Active once equipment is released */}
+                {/* Right Side: Equipment Inspection Record (After) - Activated once staff clicks Ready for Inspection */}
                 <div className="lg:col-span-6 space-y-3">
-                  {(isOngoing || isCompleted) ? (
+                  {(isCompleted || (isOngoing && isReadyForPostInspection)) ? (
                     <EquipBorrowInspectionForm
                       isPreRelease={false}
                       inspectionStatus={inspectionStatus}
@@ -748,6 +901,24 @@ export default function EquipmentBorrowDetailModal({
                       inspectionSuccessMsg={inspectionSuccessMsg}
                       readOnly={isCompleted}
                     />
+                  ) : isOngoing ? (
+                    <div className="p-8 bg-slate-50/60 border border-dashed border-slate-200 rounded-2xl text-center space-y-3 flex flex-col items-center justify-center min-h-[220px]">
+                      <FileCheck size={28} className="text-slate-400" />
+                      <div className="space-y-1">
+                        <h5 className="font-extrabold text-slate-700 text-xs">Equipment Inspection Record (After)</h5>
+                        <p className="text-[11px] text-slate-500 font-medium max-w-xs">
+                          Equipment is currently in use. When items are returned, click below to trigger the return inspection.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setIsReadyForPostInspection(true)}
+                        className="px-4 py-2 bg-white hover:bg-slate-50 border border-slate-900 text-slate-900 rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
+                      >
+                        <FileCheck size={13} />
+                        <span>Ready for Inspection (After)</span>
+                      </button>
+                    </div>
                   ) : (
                     <div className="p-8 bg-slate-50/60 border border-dashed border-slate-200 rounded-2xl text-center space-y-2 flex flex-col items-center justify-center min-h-[220px]">
                       <FileCheck size={28} className="text-slate-400" />
@@ -790,7 +961,16 @@ export default function EquipmentBorrowDetailModal({
             </>
           ) : (
             <div className="flex items-center gap-2.5">
-              {isOngoing && (
+              {isOngoing && !isReadyForPostInspection && (
+                <button
+                  type="button"
+                  onClick={() => setIsReadyForPostInspection(true)}
+                  className="px-5 py-2 bg-white hover:bg-slate-50 border border-slate-900 text-slate-900 rounded-lg text-xs font-extrabold flex items-center gap-1.5 cursor-pointer shadow-xs"
+                >
+                  <FileCheck size={13} /> Ready for Inspection (After)
+                </button>
+              )}
+              {isOngoing && isReadyForPostInspection && (
                 <button
                   type="button"
                   onClick={handleDoneComplete}

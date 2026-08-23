@@ -106,19 +106,29 @@ export default function VenueBookingDetailModal({
   const [damagedEqQty, setDamagedEqQty] = useState(1);
   const [damagedUnitBarcodes, setDamagedUnitBarcodes] = useState({});
 
-  // Fetch real equipment stock & physical units from backend DB
+  // Active bookings list for schedule overlap checking
+  const [allVenueBookings, setAllVenueBookings] = useState([]);
+  const [allEquipmentBorrows, setAllEquipmentBorrows] = useState([]);
+
+  // Fetch real equipment stock, physical units, and active bookings from backend DB
   useEffect(() => {
     setEqLoading(true);
     Promise.all([
       api.get("/admin/equipment-units").catch(() => ({ data: [] })),
-      api.get("/admin/equipment-types").catch(() => ({ data: [] }))
-    ]).then(([unitsRes, typesRes]) => {
+      api.get("/admin/equipment-types").catch(() => ({ data: [] })),
+      api.get("/avr-venue-bookings").catch(() => ({ data: [] })),
+      api.get("/avr-equipment-borrowings").catch(() => ({ data: [] })),
+    ]).then(([unitsRes, typesRes, vbRes, ebRes]) => {
       const uData = Array.isArray(unitsRes.data) ? unitsRes.data : (unitsRes.data?.data ?? []);
       const tData = Array.isArray(typesRes.data) ? typesRes.data : (typesRes.data?.data ?? []);
+      const vbData = Array.isArray(vbRes.data) ? vbRes.data : (vbRes.data?.data ?? []);
+      const ebData = Array.isArray(ebRes.data) ? ebRes.data : (ebRes.data?.data ?? []);
       setPhysicalUnits(uData);
       setDbEquipmentTypes(tData);
+      setAllVenueBookings(vbData);
+      setAllEquipmentBorrows(ebData);
     }).finally(() => setEqLoading(false));
-  }, []);
+  }, [selected?.id]);
 
   // Fetch existing persisted inspection record, full booking details, & unit selections when modal opens
   useEffect(() => {
@@ -286,7 +296,140 @@ export default function VenueBookingDetailModal({
     return clean;
   };
 
-  // Parse Requested Categories from all potential data structures
+  // Helper: Normalize time string to 24-hour HH:MM:SS
+  const normalizeTimeTo24h = (tStr) => {
+    if (!tStr) return "00:00:00";
+    const clean = String(tStr).trim();
+    if (clean.includes("AM") || clean.includes("PM")) {
+      try {
+        const d = new Date(`1970-01-01 ${clean}`);
+        if (!isNaN(d.getTime())) {
+          return d.toTimeString().slice(0, 8);
+        }
+      } catch {}
+    }
+    const parts = clean.split(":");
+    const h = parts[0]?.padStart(2, "0") || "00";
+    const m = parts[1]?.padStart(2, "0") || "00";
+    const s = parts[2]?.padStart(2, "0") || "00";
+    return `${h}:${m}:${s}`;
+  };
+
+  // Helper: Extract comparable start & end date-time timestamps for any booking object
+  const getBookingRange = (b) => {
+    if (!b) return null;
+    const startD = b.date_of_usage || (b.start_datetime ? b.start_datetime.slice(0, 10) : null) || b.date;
+    const endD = b.reservation_end_date || b.end_date || (b.end_datetime ? b.end_datetime.slice(0, 10) : null) || startD;
+    const startT = normalizeTimeTo24h(b.time_start || (b.start_datetime ? b.start_datetime.slice(11, 19) : null) || "08:00:00");
+    const endT = normalizeTimeTo24h(b.time_end || (b.end_datetime ? b.end_datetime.slice(11, 19) : null) || "17:00:00");
+
+    if (!startD) return null;
+    const startMs = new Date(`${startD}T${startT}`).getTime();
+    const endMs = new Date(`${endD}T${endT}`).getTime();
+    return { startMs, endMs, startD, endD, startT, endT };
+  };
+
+  // Helper: Check if two booking schedules overlap
+  const isScheduleConflicting = (rangeA, rangeB) => {
+    if (!rangeA || !rangeB) return false;
+    if (isNaN(rangeA.startMs) || isNaN(rangeA.endMs) || isNaN(rangeB.startMs) || isNaN(rangeB.endMs)) return false;
+    // Strict overlap formula: startA < endB && endA > startB
+    return rangeA.startMs < rangeB.endMs && rangeA.endMs > rangeB.startMs;
+  };
+
+  // Set of barcodes reserved in OTHER active bookings during the selected booking's time slot
+  const overlappingReservedBarcodes = useMemo(() => {
+    if (!selected) return new Set();
+    const selectedRange = getBookingRange(selected);
+    if (!selectedRange) return new Set();
+
+    const reserved = new Set();
+    const inactiveStatuses = ["completed", "done", "returned", "rejected", "cancelled", "cancelled_by_user", "damaged", "lost", "solved"];
+
+    // 1. Check other Venue Bookings
+    allVenueBookings.forEach((vb) => {
+      if (String(vb.id) === String(selected.id)) return;
+      const st = String(vb.status || vb.tracking_number?.status || "").toLowerCase();
+      if (inactiveStatuses.includes(st)) return;
+
+      const vbRange = getBookingRange(vb);
+      if (isScheduleConflicting(selectedRange, vbRange)) {
+        let au = vb.assigned_units;
+        if (typeof au === "string") {
+          try { au = JSON.parse(au); } catch { au = {}; }
+        }
+        if (au && typeof au === "object") {
+          Object.values(au).forEach((bCode) => {
+            if (bCode) reserved.add(String(bCode).trim().toUpperCase());
+          });
+        }
+      }
+    });
+
+    // 2. Check other Equipment Borrowings
+    allEquipmentBorrows.forEach((eb) => {
+      const st = String(eb.status || eb.tracking_number?.status || "").toLowerCase();
+      if (inactiveStatuses.includes(st)) return;
+
+      const ebRange = getBookingRange(eb);
+      if (isScheduleConflicting(selectedRange, ebRange)) {
+        let au = eb.assigned_units;
+        if (typeof au === "string") {
+          try { au = JSON.parse(au); } catch { au = {}; }
+        }
+        if (au && typeof au === "object") {
+          Object.values(au).forEach((bCode) => {
+            if (bCode) reserved.add(String(bCode).trim().toUpperCase());
+          });
+        }
+      }
+    });
+
+    return reserved;
+  }, [selected, allVenueBookings, allEquipmentBorrows]);
+
+  // Map of equipment_type_id -> total qty "soft-reserved" by OTHER overlapping active bookings
+  // (i.e., bookings that requested units of a category but may not have been assigned a barcode yet)
+  const overlappingCategoryQtyMap = useMemo(() => {
+    if (!selected) return {};
+    const selectedRange = getBookingRange(selected);
+    if (!selectedRange) return {};
+
+    const qtyMap = {}; // { equipment_type_id: totalRequestedQty }
+    const inactiveStatuses = ["completed", "done", "returned", "rejected", "cancelled", "cancelled_by_user", "damaged", "lost", "solved"];
+
+    const addItemQty = (items) => {
+      if (!Array.isArray(items)) return;
+      items.forEach((item) => {
+        const typeId = String(item.equipment_type_id || item.equipment_type?.id || item.equipmentType?.id || "").trim();
+        const qty = parseInt(item.quantity_requested || item.quantity || 1, 10) || 1;
+        if (typeId) qtyMap[typeId] = (qtyMap[typeId] || 0) + qty;
+      });
+    };
+
+    // 1. Other Venue Bookings
+    allVenueBookings.forEach((vb) => {
+      if (String(vb.id) === String(selected.id)) return;
+      const st = String(vb.status || vb.tracking_number?.status || "").toLowerCase();
+      if (inactiveStatuses.includes(st)) return;
+      const vbRange = getBookingRange(vb);
+      if (!isScheduleConflicting(selectedRange, vbRange)) return;
+      addItemQty(vb.equipment_items || vb.items || vb.venue_booking_equipment || []);
+    });
+
+    // 2. Equipment Borrowings
+    allEquipmentBorrows.forEach((eb) => {
+      const st = String(eb.status || eb.tracking_number?.status || "").toLowerCase();
+      if (inactiveStatuses.includes(st)) return;
+      const ebRange = getBookingRange(eb);
+      if (!isScheduleConflicting(selectedRange, ebRange)) return;
+      addItemQty(eb.items || eb.equipment_items || []);
+    });
+
+    return qtyMap;
+  }, [selected, allVenueBookings, allEquipmentBorrows]);
+
+  // Parse Requested Categories from all potential data structures with equipment_type_id
   const getRequestedCategories = () => {
     if (!selected) return [];
     let categories = [];
@@ -300,19 +443,29 @@ export default function VenueBookingDetailModal({
     if (structList) {
       categories = structList.map(item => {
         const nameVal = item.equipment_type?.name || item.equipment_type?.eq_name || item.equipment_name || item.name || item.equipment_type_id || item.others_specify;
+        const typeIdVal = item.equipment_type_id || item.equipment_type?.id || item.equipmentType?.id || null;
         return {
           category: resolveEquipmentName(nameVal),
-          quantity: item.quantity_requested || item.quantity || 1
+          quantity: item.quantity_requested || item.quantity || 1,
+          equipment_type_id: typeIdVal
         };
       });
     } else if (notesStr) {
       categories = notesStr.split(',').map(s => {
         const cleanStr = s.trim();
         const match = cleanStr.match(/^(.*?)\s*\(Qty:\s*(\d+)\)/i);
-        if (match) {
-          return { category: resolveEquipmentName(match[1]), quantity: parseInt(match[2], 10) || 1 };
-        }
-        return { category: resolveEquipmentName(cleanStr), quantity: 1 };
+        const rawName = match ? match[1] : cleanStr;
+        const qty = match ? (parseInt(match[2], 10) || 1) : 1;
+        const cleanLower = rawName.toLowerCase();
+        const matchedType = (dbEquipmentTypes || []).find(t => 
+          String(t.id) === rawName ||
+          String(t.eq_name || t.name || t.category || "").toLowerCase() === cleanLower
+        );
+        return { 
+          category: resolveEquipmentName(rawName), 
+          quantity: qty,
+          equipment_type_id: matchedType?.id || null
+        };
       }).filter(c => c.category && c.category !== "None");
     }
     return categories;
@@ -358,28 +511,102 @@ export default function VenueBookingDetailModal({
     return String(dateStr);
   };
 
-  const getAvailableUnitsForCategory = (catName) => {
+  const getAvailableUnitsForCategory = (catName, eqTypeId) => {
     if (!catName || catName === "NONE") return physicalUnits;
-    const cleanCat = String(catName).trim().toLowerCase();
 
-    const matched = physicalUnits.filter((u) => {
-      const uTypeName = String(u.equipment_type?.name || u.equipment_type?.eq_name || "").trim().toLowerCase();
-      const uCategoryName = String(u.category || u.category_name || u.eq_type || "").trim().toLowerCase();
-      const uTypeId = String(u.equipment_type_id || u.equipment_type?.id || "").trim().toLowerCase();
+    // Filter candidate units from physicalUnits
+    const cleanCat = String(catName).trim().toUpperCase();
 
-      if (uTypeName && (uTypeName === cleanCat || cleanCat.includes(uTypeName) || uTypeName.includes(cleanCat))) {
-        return true;
+    // 1. First priority: match strictly by equipment_type_id
+    let matched = [];
+    if (eqTypeId) {
+      matched = physicalUnits.filter((u) => {
+        const uTypeId = u.equipment_type_id || u.equipmentType?.id || u.equipment_type?.id;
+        return String(uTypeId) === String(eqTypeId);
+      });
+    }
+
+    // 2. Exact Category / Name Match (matching equipment_type.eq_name, name, or category)
+    if (matched.length === 0) {
+      matched = physicalUnits.filter((u) => {
+        const uCatName = String(u.equipmentType?.eq_name || u.equipmentType?.name || u.equipment_type?.eq_name || u.equipment_type?.name || u.category || "").toUpperCase().trim();
+        return uCatName === cleanCat;
+      });
+    }
+
+    // 3. Strict Discrimination & Unit Name Matching (No substring cross-type leaks)
+    if (matched.length === 0) {
+      matched = physicalUnits.filter((u) => {
+        const uCatName = String(u.equipmentType?.eq_name || u.equipmentType?.name || u.equipment_type?.eq_name || u.equipment_type?.name || u.category || "").toUpperCase().trim();
+        const uUnitName = String(u.name || "").toUpperCase().trim();
+
+        // Strict negative discrimination
+        if (cleanCat === "PROJECTOR" && (uCatName.includes("SCREEN") || uUnitName.includes("SCREEN"))) {
+          return false;
+        }
+        if (cleanCat === "MICROPHONE" && (uCatName.includes("WIRELESS") || uUnitName.includes("WIRELESS") || uUnitName.includes("WMIC") || uUnitName.startsWith("WM-"))) {
+          return false;
+        }
+        if (cleanCat.includes("WIRELESS") && (!uCatName.includes("WIRELESS") && !uUnitName.includes("WIRELESS") && !uUnitName.includes("WMIC") && !uUnitName.startsWith("WM-"))) {
+          return false;
+        }
+
+        return (
+          uCatName === cleanCat ||
+          uUnitName === cleanCat ||
+          uUnitName.startsWith(`${cleanCat} `) ||
+          uUnitName.startsWith(`${cleanCat}-`)
+        );
+      });
+    }
+
+    // 4. Operational & Schedule Availability Filtering:
+    // Exclude units that are damaged/lost/under-repair, OR already assigned in an overlapping active booking
+    const available = matched.filter((unit) => {
+      const uCond = String(unit.condition || "good").toLowerCase();
+      if (uCond === "damaged" || uCond === "lost" || uCond === "under repair") {
+        return false;
       }
-      if (uCategoryName && (uCategoryName === cleanCat || cleanCat.includes(uCategoryName) || uCategoryName.includes(cleanCat))) {
-        return true;
+
+      const uStat = String(unit.status || "available").toLowerCase();
+      if (uStat === "damaged" || uStat === "lost" || uStat === "decommissioned" || uStat === "under_maintenance") {
+        return false;
       }
-      if (uTypeId && uTypeId === cleanCat) {
-        return true;
+
+      const bCode = String(unit.unit_code || unit.barcode || unit.serial_number || unit.code || unit.id || "").trim().toUpperCase();
+
+      // If this unit's barcode is explicitly assigned in another overlapping booking, exclude it
+      if (bCode && overlappingReservedBarcodes.has(bCode)) {
+        // Allow it only if it is currently assigned to a slot in THIS modal
+        const isCurrentSlotAssignment = Object.values(assignedUnitSelections || {}).some(
+          v => String(v).trim().toUpperCase() === bCode
+        );
+        if (!isCurrentSlotAssignment) return false;
       }
-      return false;
+
+      return true;
     });
 
-    return matched;
+    // 5. Soft-Reservation by Quantity:
+    // Even if no barcode is assigned yet by another booking, subtract their requested qty.
+    // This prevents User B from seeing 3 units when User A (approved, unassigned) already "holds" 1.
+    if (eqTypeId) {
+      const totalOverlappingQty = overlappingCategoryQtyMap[String(eqTypeId)] || 0;
+      if (totalOverlappingQty > 0) {
+        // Count how many units were already excluded via the barcode check (to avoid double-subtracting)
+        const alreadyExcludedByBarcode = matched.filter((u) => {
+          const bCode = String(u.unit_code || u.barcode || u.serial_number || u.code || u.id || "").trim().toUpperCase();
+          return bCode && overlappingReservedBarcodes.has(bCode);
+        }).length;
+        const additionalSoftReserved = Math.max(0, totalOverlappingQty - alreadyExcludedByBarcode);
+        if (additionalSoftReserved > 0) {
+          // Slice off the soft-reserved units from the tail of the available list
+          return available.slice(0, Math.max(0, available.length - additionalSoftReserved));
+        }
+      }
+    }
+
+    return available;
   };
 
   // Step 2 Workflow: Selecting a unit and confirming releases it immediately: Inventory Released +1, Available -1

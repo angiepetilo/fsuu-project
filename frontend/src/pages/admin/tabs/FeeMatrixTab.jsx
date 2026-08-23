@@ -21,8 +21,30 @@ export default function FeeMatrixTab({ officeScope = "All Offices", showMsg }) {
   const [sendingEmail, setSendingEmail] = useState(false);
   const [emailFeedback, setEmailFeedback] = useState(null);
 
-  // PDF Preview / Print Modal
+  // PDF Preview / Print Modal & Visibility Configuration
   const [showPdfModal, setShowPdfModal] = useState(false);
+  const [printConfig, setPrintConfig] = useState({
+    title: "Facility Rental Fee Schedule & Reservation Policy",
+    orgName: "Father Saturnino Urios University",
+    signatoryTitle: "AVR Center Administrator",
+    signatoryName: "",
+    showInternalRate: true,
+    showExternalHourly: true,
+    showExternalDaily: true,
+    showCleaningFee: true,
+    showSoundFee: true,
+    showPolicy: true,
+    showSignatures: true,
+    customMemo: "",
+  });
+
+  const togglePrintOption = (key) => {
+    setPrintConfig((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const handlePrint = () => {
+    window.print();
+  };
 
   useEffect(() => {
     const fetchVenues = async () => {
@@ -384,27 +406,29 @@ export default function FeeMatrixTab({ officeScope = "All Offices", showMsg }) {
         </div>
       )}
 
-      {/* ── PRINT TO PDF MODAL ── */}
+      {/* ── PRINT TO PDF / CUSTOMIZE MODAL ── */}
       {showPdfModal && (
-        <div className="fixed inset-0 z-[2000] bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
-            <div className="flex items-center justify-between p-5 border-b border-slate-100 shrink-0 bg-slate-50/80">
-              <div className="flex items-center gap-2">
-                <Printer size={18} className="text-blue-600" />
+        <div className="fixed inset-0 z-[2000] bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl w-full max-w-5xl max-h-[92vh] flex flex-col overflow-hidden">
+            
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 shrink-0 bg-slate-50/90">
+              <div className="flex items-center gap-2.5">
+                <Printer size={20} className="text-blue-600" />
                 <div>
-                  <h3 className="font-black text-sm text-slate-900">
-                    Print Fee Matrix &amp; Policy
+                  <h3 className="font-extrabold text-sm text-slate-900">
+                    Customize &amp; Print Fee Matrix
                   </h3>
-                  <p className="text-[11px] text-slate-500 font-semibold">
-                    {currentVenue?.name || "Selected Facility"}
+                  <p className="text-[11px] text-slate-500 font-medium">
+                    Select visible line items and edit header details before printing or exporting to PDF.
                   </p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2.5">
                 <button
                   type="button"
-                  onClick={() => window.print()}
+                  onClick={handlePrint}
                   className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-extrabold shadow-sm cursor-pointer transition-all"
                 >
                   <Printer size={14} />
@@ -413,86 +437,275 @@ export default function FeeMatrixTab({ officeScope = "All Offices", showMsg }) {
                 <button
                   type="button"
                   onClick={() => setShowPdfModal(false)}
-                  className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg cursor-pointer"
+                  className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 rounded-xl cursor-pointer transition-colors"
                 >
                   <X size={18} />
                 </button>
               </div>
             </div>
 
-            <div className="p-8 overflow-y-auto space-y-6 text-xs print:p-0">
-              {/* Document Header */}
-              <div className="text-center border-b-2 border-slate-900 pb-4 space-y-1">
-                <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                  Father Saturnino Urios University
-                </p>
-                <h2 className="text-base font-black text-slate-900 tracking-tight uppercase">
-                  Facility Rental Fee Schedule &amp; Reservation Policy
-                </h2>
-                <p className="text-xs font-extrabold text-blue-800">
-                  Venue: {currentVenue?.name || "All Venues"} ({officeScope})
-                </p>
-                <p className="text-[10px] text-slate-400">
-                  Date: {new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
-                </p>
-              </div>
+            {/* Modal Body: Left Controls | Right Live Print Sheet */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 overflow-y-auto flex-1 divide-y lg:divide-y-0 lg:divide-x divide-slate-200">
+              
+              {/* Left Column: Visibility & Content Customizer */}
+              <div className="lg:col-span-5 p-5 space-y-4 bg-slate-50/50 overflow-y-auto max-h-[78vh] text-xs">
+                
+                {/* 1. Line Items Visibility */}
+                <div className="bg-white p-4 rounded-2xl border border-slate-200/90 shadow-2xs space-y-2.5">
+                  <span className="font-extrabold text-slate-800 uppercase tracking-wider text-[10.5px] block border-b border-slate-100 pb-1.5">
+                    1. Rate Items Visibility
+                  </span>
+                  
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2.5 cursor-pointer select-none text-slate-800 font-semibold hover:text-blue-600">
+                      <input
+                        type="checkbox"
+                        checked={printConfig.showInternalRate}
+                        onChange={() => togglePrintOption("showInternalRate")}
+                        className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                      />
+                      <span>Internal Academic/Dept Rate (₱{feeForm.internal_hourly}/hr)</span>
+                    </label>
 
-              {/* Rate Matrix Table */}
-              <table className="w-full text-xs border border-slate-300">
-                <thead className="bg-slate-100">
-                  <tr>
-                    <th className="border border-slate-300 p-2.5 text-left font-bold">Charge Description</th>
-                    <th className="border border-slate-300 p-2.5 text-right font-bold">Applicable Rate (₱)</th>
-                  </tr>
-                </thead>
-                <tbody className="font-mono">
-                  <tr>
-                    <td className="border border-slate-300 p-2.5 font-sans">Internal Rate (FSUU Academic/Dept)</td>
-                    <td className="border border-slate-300 p-2.5 text-right font-bold text-emerald-700">₱{feeForm.internal_hourly} / hr</td>
-                  </tr>
-                  <tr>
-                    <td className="border border-slate-300 p-2.5 font-sans">External Hourly Rate</td>
-                    <td className="border border-slate-300 p-2.5 text-right font-bold">₱{feeForm.external_hourly} / hr</td>
-                  </tr>
-                  <tr>
-                    <td className="border border-slate-300 p-2.5 font-sans">External Daily Rate (Full Day Rental)</td>
-                    <td className="border border-slate-300 p-2.5 text-right font-bold">₱{feeForm.external_daily} / day</td>
-                  </tr>
-                  <tr>
-                    <td className="border border-slate-300 p-2.5 font-sans">Facility Cleaning Fee</td>
-                    <td className="border border-slate-300 p-2.5 text-right font-bold">₱{feeForm.cleaning_fee}</td>
-                  </tr>
-                  <tr>
-                    <td className="border border-slate-300 p-2.5 font-sans">Sound System Setup Fee</td>
-                    <td className="border border-slate-300 p-2.5 text-right font-bold">₱{feeForm.sound_system_fee}</td>
-                  </tr>
-                </tbody>
-              </table>
+                    <label className="flex items-center gap-2.5 cursor-pointer select-none text-slate-800 font-semibold hover:text-blue-600">
+                      <input
+                        type="checkbox"
+                        checked={printConfig.showExternalHourly}
+                        onChange={() => togglePrintOption("showExternalHourly")}
+                        className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                      />
+                      <span>External Hourly Rate (₱{feeForm.external_hourly}/hr)</span>
+                    </label>
 
-              {/* Policy Section */}
-              <div className="space-y-2 bg-slate-50 p-4 rounded-xl border border-slate-200">
-                <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wider">
-                  Venue Policy &amp; Terms:
-                </h4>
-                <p className="text-slate-700 leading-relaxed font-sans">
-                  {feeForm.policy || "Standard institutional terms apply."}
-                </p>
-              </div>
+                    <label className="flex items-center gap-2.5 cursor-pointer select-none text-slate-800 font-semibold hover:text-blue-600">
+                      <input
+                        type="checkbox"
+                        checked={printConfig.showExternalDaily}
+                        onChange={() => togglePrintOption("showExternalDaily")}
+                        className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                      />
+                      <span>External Daily Rate (₱{feeForm.external_daily}/day)</span>
+                    </label>
 
-              {/* Signature section */}
-              <div className="pt-6 flex justify-between items-end border-t border-slate-200 text-[11px]">
-                <div>
-                  <p className="text-slate-400 font-medium">Approved Official Copy</p>
-                  <p className="font-extrabold text-slate-800">Father Saturnino Urios University</p>
-                </div>
-                <div className="text-right space-y-6">
-                  <p className="font-medium text-slate-500">Authorized Office Representative:</p>
-                  <div className="border-t border-slate-900 pt-1 font-bold text-slate-900">
-                    AVR Center Administrator
+                    <label className="flex items-center gap-2.5 cursor-pointer select-none text-slate-800 font-semibold hover:text-blue-600">
+                      <input
+                        type="checkbox"
+                        checked={printConfig.showCleaningFee}
+                        onChange={() => togglePrintOption("showCleaningFee")}
+                        className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                      />
+                      <span>Facility Cleaning Fee (₱{feeForm.cleaning_fee})</span>
+                    </label>
+
+                    <label className="flex items-center gap-2.5 cursor-pointer select-none text-slate-800 font-semibold hover:text-blue-600">
+                      <input
+                        type="checkbox"
+                        checked={printConfig.showSoundFee}
+                        onChange={() => togglePrintOption("showSoundFee")}
+                        className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                      />
+                      <span>Sound System Setup Fee (₱{feeForm.sound_system_fee})</span>
+                    </label>
                   </div>
                 </div>
+
+                {/* 2. Section Visibility */}
+                <div className="bg-white p-4 rounded-2xl border border-slate-200/90 shadow-2xs space-y-2.5">
+                  <span className="font-extrabold text-slate-800 uppercase tracking-wider text-[10.5px] block border-b border-slate-100 pb-1.5">
+                    2. Section Toggles
+                  </span>
+
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2.5 cursor-pointer select-none text-slate-800 font-semibold hover:text-blue-600">
+                      <input
+                        type="checkbox"
+                        checked={printConfig.showPolicy}
+                        onChange={() => togglePrintOption("showPolicy")}
+                        className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                      />
+                      <span>Venue Policy &amp; Terms Box</span>
+                    </label>
+
+                    <label className="flex items-center gap-2.5 cursor-pointer select-none text-slate-800 font-semibold hover:text-blue-600">
+                      <input
+                        type="checkbox"
+                        checked={printConfig.showSignatures}
+                        onChange={() => togglePrintOption("showSignatures")}
+                        className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                      />
+                      <span>Authorized Representative Signature Block</span>
+                    </label>
+                  </div>
+                </div>
+
+                {/* 3. Editable Headers & Signatures */}
+                <div className="bg-white p-4 rounded-2xl border border-slate-200/90 shadow-2xs space-y-3">
+                  <span className="font-extrabold text-slate-800 uppercase tracking-wider text-[10.5px] block border-b border-slate-100 pb-1.5">
+                    3. Header &amp; Signatory Customization
+                  </span>
+
+                  <div className="space-y-1">
+                    <label className="block text-[11px] font-bold text-slate-700">Document Title</label>
+                    <input
+                      type="text"
+                      value={printConfig.title}
+                      onChange={(e) => setPrintConfig({ ...printConfig, title: e.target.value })}
+                      className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg font-semibold text-slate-800 focus:outline-none focus:border-blue-600 focus:bg-white"
+                      placeholder="e.g., Facility Rental Fee Schedule"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="block text-[11px] font-bold text-slate-700">Signatory Title / Office Role</label>
+                    <input
+                      type="text"
+                      value={printConfig.signatoryTitle}
+                      onChange={(e) => setPrintConfig({ ...printConfig, signatoryTitle: e.target.value })}
+                      className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg font-semibold text-slate-800 focus:outline-none focus:border-blue-600 focus:bg-white"
+                      placeholder="e.g., AVR Center Administrator"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="block text-[11px] font-bold text-slate-700">Signatory Name (Optional)</label>
+                    <input
+                      type="text"
+                      value={printConfig.signatoryName}
+                      onChange={(e) => setPrintConfig({ ...printConfig, signatoryName: e.target.value })}
+                      className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg font-semibold text-slate-800 focus:outline-none focus:border-blue-600 focus:bg-white"
+                      placeholder="e.g., John Doe"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="block text-[11px] font-bold text-slate-700">Additional Custom Memo / Note (Optional)</label>
+                    <textarea
+                      rows={2}
+                      value={printConfig.customMemo}
+                      onChange={(e) => setPrintConfig({ ...printConfig, customMemo: e.target.value })}
+                      className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg font-medium text-slate-800 focus:outline-none focus:border-blue-600 focus:bg-white"
+                      placeholder="Add any specific instructions, payment deadlines, or remarks..."
+                    />
+                  </div>
+                </div>
+
               </div>
+
+              {/* Right Column: Live Paper Document Sheet Preview */}
+              <div className="lg:col-span-7 p-6 bg-slate-100/70 overflow-y-auto flex items-start justify-center max-h-[78vh]">
+                <div id="printable-fee-matrix" className="w-full max-w-xl bg-white rounded-xl border border-slate-300/80 shadow-md p-7 space-y-5 text-xs text-slate-900">
+                  
+                  {/* Document Header */}
+                  <div className="text-center border-b-2 border-slate-900 pb-4 space-y-1">
+                    <p className="text-[11px] font-extrabold text-slate-600 uppercase tracking-wider">
+                      {printConfig.orgName}
+                    </p>
+                    <h2 className="text-base font-black text-slate-900 tracking-tight uppercase">
+                      {printConfig.title || "Facility Rental Fee Schedule & Reservation Policy"}
+                    </h2>
+                    <p className="text-xs font-extrabold text-blue-900">
+                      Venue: {currentVenue?.name || "All Venues"} {officeScope && officeScope !== "All Offices" ? `(${officeScope})` : ""}
+                    </p>
+                    <p className="text-[10px] text-slate-500 font-mono">
+                      Date Generated: {new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
+                    </p>
+                  </div>
+
+                  {/* Rate Matrix Table */}
+                  <table className="w-full text-xs border border-slate-300">
+                    <thead className="bg-slate-100">
+                      <tr>
+                        <th className="border border-slate-300 p-2.5 text-left font-bold text-slate-900">Charge Description</th>
+                        <th className="border border-slate-300 p-2.5 text-right font-bold text-slate-900">Applicable Rate (₱)</th>
+                      </tr>
+                    </thead>
+                    <tbody className="font-mono">
+                      {printConfig.showInternalRate && (
+                        <tr>
+                          <td className="border border-slate-300 p-2.5 font-sans">Internal Rate (Academic / Student Dept)</td>
+                          <td className="border border-slate-300 p-2.5 text-right font-bold text-emerald-700">₱{feeForm.internal_hourly} / hr</td>
+                        </tr>
+                      )}
+                      {printConfig.showExternalHourly && (
+                        <tr>
+                          <td className="border border-slate-300 p-2.5 font-sans">External Hourly Rental Rate</td>
+                          <td className="border border-slate-300 p-2.5 text-right font-bold text-slate-900">₱{feeForm.external_hourly} / hr</td>
+                        </tr>
+                      )}
+                      {printConfig.showExternalDaily && (
+                        <tr>
+                          <td className="border border-slate-300 p-2.5 font-sans">External Full Day Rate</td>
+                          <td className="border border-slate-300 p-2.5 text-right font-bold text-slate-900">₱{feeForm.external_daily} / day</td>
+                        </tr>
+                      )}
+                      {printConfig.showCleaningFee && (
+                        <tr>
+                          <td className="border border-slate-300 p-2.5 font-sans">Facility Cleaning Fee</td>
+                          <td className="border border-slate-300 p-2.5 text-right font-bold text-slate-900">₱{feeForm.cleaning_fee}</td>
+                        </tr>
+                      )}
+                      {printConfig.showSoundFee && (
+                        <tr>
+                          <td className="border border-slate-300 p-2.5 font-sans">Sound System &amp; Tech Setup Fee</td>
+                          <td className="border border-slate-300 p-2.5 text-right font-bold text-slate-900">₱{feeForm.sound_system_fee}</td>
+                        </tr>
+                      )}
+                      {!printConfig.showInternalRate && !printConfig.showExternalHourly && !printConfig.showExternalDaily && !printConfig.showCleaningFee && !printConfig.showSoundFee && (
+                        <tr>
+                          <td colSpan={2} className="border border-slate-300 p-3 text-center text-slate-400 italic font-sans">
+                            No charge items selected for print view.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+
+                  {/* Policy Section */}
+                  {printConfig.showPolicy && (
+                    <div className="space-y-1.5 bg-slate-50/80 p-4 rounded-xl border border-slate-200">
+                      <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wider">
+                        Venue Policy &amp; Terms:
+                      </h4>
+                      <p className="text-slate-700 leading-relaxed font-sans text-[11.5px]">
+                        {feeForm.policy || "Standard institutional terms apply."}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Custom Memo Section if specified */}
+                  {printConfig.customMemo && (
+                    <div className="space-y-1.5 bg-blue-50/60 p-3.5 rounded-xl border border-blue-200">
+                      <h4 className="font-bold text-blue-900 text-xs uppercase tracking-wider">
+                        Special Instructions / Memo:
+                      </h4>
+                      <p className="text-blue-950 leading-relaxed font-sans text-[11.5px] whitespace-pre-line">
+                        {printConfig.customMemo}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Signature Section */}
+                  {printConfig.showSignatures && (
+                    <div className="pt-6 flex justify-between items-end border-t border-slate-200 text-[11px]">
+                      <div>
+                        <p className="text-slate-400 font-medium">Approved Official Copy</p>
+                        <p className="font-extrabold text-slate-800">{printConfig.orgName}</p>
+                      </div>
+                      <div className="text-right space-y-4">
+                        <p className="font-medium text-slate-500">Authorized Office Representative:</p>
+                        <div className="border-t border-slate-900 pt-1 font-bold text-slate-900">
+                          {printConfig.signatoryName && <div className="text-xs uppercase">{printConfig.signatoryName}</div>}
+                          <div>{printConfig.signatoryTitle || "AVR Center Administrator"}</div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                </div>
+              </div>
+
             </div>
+
           </div>
         </div>
       )}

@@ -243,6 +243,79 @@ class VenueBookingController extends Controller
             }
         }
 
+        // Schedule overlap conflict validation
+        if (!empty($barcodes)) {
+            $dateOfUsage = $avrVenueBooking->date_of_usage ?? ($avrVenueBooking->start_datetime ? substr($avrVenueBooking->start_datetime, 0, 10) : date('Y-m-d'));
+            $reservationEndDate = $avrVenueBooking->reservation_end_date ?? $dateOfUsage;
+            $timeStart = $avrVenueBooking->time_start ?? ($avrVenueBooking->start_datetime ? substr($avrVenueBooking->start_datetime, 11, 8) : '08:00:00');
+            $timeEnd = $avrVenueBooking->time_end ?? ($avrVenueBooking->end_datetime ? substr($avrVenueBooking->end_datetime, 11, 8) : '17:00:00');
+
+            $inactiveStatuses = ['completed', 'done', 'returned', 'rejected', 'cancelled', 'cancelled_by_user', 'damaged', 'lost', 'solved'];
+
+            // 1. Check overlapping active venue bookings
+            $otherVenueBookings = DB::table('venue_bookings')
+                ->join('tracking_numbers', 'venue_bookings.tracking_number_id', '=', 'tracking_numbers.id')
+                ->where('venue_bookings.id', '!=', $avrVenueBooking->id)
+                ->whereNotIn('tracking_numbers.status', $inactiveStatuses)
+                ->whereNotNull('venue_bookings.assigned_units')
+                ->where(function ($q) use ($dateOfUsage, $reservationEndDate, $timeStart, $timeEnd) {
+                    $q->where('venue_bookings.date_of_usage', '<=', $reservationEndDate)
+                      ->whereRaw('COALESCE(venue_bookings.reservation_end_date, venue_bookings.date_of_usage) >= ?', [$dateOfUsage])
+                      ->where('venue_bookings.time_start', '<', $timeEnd)
+                      ->where('venue_bookings.time_end', '>', $timeStart);
+                })
+                ->select('venue_bookings.id', 'venue_bookings.assigned_units', 'tracking_numbers.reference_code')
+                ->get();
+
+            foreach ($otherVenueBookings as $otherVb) {
+                $otherUnits = $otherVb->assigned_units;
+                if (is_string($otherUnits)) {
+                    try { $otherUnits = json_decode($otherUnits, true); } catch (\Throwable $t) { $otherUnits = []; }
+                }
+                if (is_array($otherUnits)) {
+                    foreach ($otherUnits as $oVal) {
+                        $oCode = trim((string)$oVal);
+                        if ($oCode && in_array($oCode, $barcodes, true)) {
+                            return response()->json([
+                                'message' => "Physical unit '{$oCode}' is already reserved for booking '{$otherVb->reference_code}' during this time slot."
+                            ], 422);
+                        }
+                    }
+                }
+            }
+
+            // 2. Check overlapping active equipment borrowings
+            $otherEquipBorrows = DB::table('equipment_borrows')
+                ->join('tracking_numbers', 'equipment_borrows.tracking_number_id', '=', 'tracking_numbers.id')
+                ->whereNotIn('tracking_numbers.status', $inactiveStatuses)
+                ->whereNotNull('equipment_borrows.assigned_units')
+                ->where(function ($q) use ($dateOfUsage, $reservationEndDate, $timeStart, $timeEnd) {
+                    $q->where('equipment_borrows.date_of_usage', '<=', $reservationEndDate)
+                      ->whereRaw('COALESCE(equipment_borrows.reservation_end_date, equipment_borrows.date_of_usage) >= ?', [$dateOfUsage])
+                      ->where('equipment_borrows.time_start', '<', $timeEnd)
+                      ->where('equipment_borrows.time_end', '>', $timeStart);
+                })
+                ->select('equipment_borrows.id', 'equipment_borrows.assigned_units', 'tracking_numbers.reference_code')
+                ->get();
+
+            foreach ($otherEquipBorrows as $otherEb) {
+                $otherUnits = $otherEb->assigned_units;
+                if (is_string($otherUnits)) {
+                    try { $otherUnits = json_decode($otherUnits, true); } catch (\Throwable $t) { $otherUnits = []; }
+                }
+                if (is_array($otherUnits)) {
+                    foreach ($otherUnits as $oVal) {
+                        $oCode = trim((string)$oVal);
+                        if ($oCode && in_array($oCode, $barcodes, true)) {
+                            return response()->json([
+                                'message' => "Physical unit '{$oCode}' is already reserved for borrowing '{$otherEb->reference_code}' during this time slot."
+                            ], 422);
+                        }
+                    }
+                }
+            }
+        }
+
         $avrVenueBooking->update([
             'assigned_units' => $assignedData,
         ]);

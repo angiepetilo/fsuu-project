@@ -48,6 +48,9 @@ export default function Step3Details({
         const venueOfficeId = selectedVenue?.office_id || selectedVenue?.office?.id || "";
         const params = new URLSearchParams();
         if (venueOfficeId) params.append("office_id", venueOfficeId);
+        if (selectedDate) params.append("date", selectedDate);
+        if (startTime) params.append("time_start", startTime);
+        if (endTime) params.append("time_end", endTime);
         const res = await api.get(`/public/equipment-types?${params.toString()}`).catch(() => api.get("/admin/equipment-types"));
         let data = Array.isArray(res.data) ? res.data : [];
         setEquipmentCatalog(data);
@@ -65,7 +68,7 @@ export default function Step3Details({
       window.removeEventListener("departments_updated", fetchDepts);
       window.removeEventListener("equipment_inventory_updated", fetchEquipment);
     };
-  }, [selectedVenue]);
+  }, [selectedVenue, selectedDate, startTime, endTime]);
 
   return (
     <div className="p-6 sm:p-8 animate-in slide-in-from-top-2 duration-300 space-y-6">
