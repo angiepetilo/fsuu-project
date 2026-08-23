@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useOutletContext } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import api from "@/lib/axios";
+import { fetchWithCache } from "@/lib/apiCache";
 import BookingBorrowingReportTab from "./reports/BookingBorrowingReportTab";
 import BreachesTab from "./reports/BreachesTab";
 import EquipmentStockTab from "./reports/EquipmentStockTab";
@@ -35,15 +36,15 @@ export default function Reports() {
   const [selectedTermId, setSelectedTermId] = useState("");
   const [loading, setLoading] = useState(true);
 
-  // Load academic terms list once
+  // Load academic terms list once with cache
   useEffect(() => {
     const loadTerms = async () => {
       try {
-        const res = await api.get("/admin/academic-terms");
-        if (res.data?.terms) {
-          setAcademicTerms(res.data.terms);
-          if (res.data.active_term?.id && !selectedTermId) {
-            setSelectedTermId(String(res.data.active_term.id));
+        const termsData = await fetchWithCache("academic_terms_list", () => api.get("/admin/academic-terms").then(r => r.data));
+        if (termsData?.terms) {
+          setAcademicTerms(termsData.terms);
+          if (termsData.active_term?.id && !selectedTermId) {
+            setSelectedTermId(String(termsData.active_term.id));
           }
         }
       } catch (err) {
@@ -57,10 +58,10 @@ export default function Reports() {
     setLoading(true);
     try {
       const termParam = selectedTermId ? `?academic_term_id=${selectedTermId}` : "";
-      const [histRes, daRes, eqRes] = await Promise.all([
+      const [histRes, daRes, eqData] = await Promise.all([
         api.get(`/admin/history-log${termParam}`).catch(() => ({ data: { venue_bookings: [], equipment_borrowings: [] } })),
         api.get(`/admin/department-analytics${termParam}`).catch(() => ({ data: { rule_violations: [], late_returns: [] } })),
-        api.get("/admin/equipment-types").catch(() => ({ data: [] })),
+        fetchWithCache("equipment_types_list", () => api.get("/admin/equipment-types").then(r => r.data).catch(() => [])),
       ]);
 
       // 1. History log venue bookings & equipment borrowings
@@ -73,11 +74,11 @@ export default function Reports() {
       const violations = daRes.data?.rule_violations || [];
       setRuleViolations(violations);
 
-      // 3. Equipment inventory stock — always prioritize fresh DB catalog from eqRes.data
-      const eqData = Array.isArray(eqRes.data) ? eqRes.data : (eqRes.data?.data || []);
-      setInventoryItems(eqData);
-      if (eqData.length > 0) {
-        localStorage.setItem("fsuu_equipment_types", JSON.stringify(eqData));
+      // 3. Equipment inventory stock
+      const eqItems = Array.isArray(eqData) ? eqData : (eqData?.data || []);
+      setInventoryItems(eqItems);
+      if (eqItems.length > 0) {
+        localStorage.setItem("fsuu_equipment_types", JSON.stringify(eqItems));
       }
     } catch {
       // Fallback

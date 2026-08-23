@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useOutletContext, useLocation, Link } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import api from "@/lib/axios";
+import { fetchWithCache } from "@/lib/apiCache";
 import MetricsOverview from "./dashboard/MetricsOverview";
 import BookingCalendar from "./dashboard/BookingCalendar";
 import {
@@ -34,8 +35,8 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (isSuperAdmin) {
-      api.get("/admin/offices")
-        .then(res => setOffices(Array.isArray(res.data) ? res.data : (res.data?.data || [])))
+      fetchWithCache("admin_offices", () => api.get("/admin/offices").then(r => r.data).catch(() => []))
+        .then(data => setOffices(Array.isArray(data) ? data : (data?.data || [])))
         .catch(() => setOffices([]));
     }
   }, [isSuperAdmin]);
@@ -82,13 +83,13 @@ export default function Dashboard() {
     setLoading(true);
     setError(null);
     try {
-      const [histRes, vbRes, eqRes, ebRes, dmgRes, overridesRes] = await Promise.all([
-        api.get("/admin/history-log").catch(() => ({ data: { venue_bookings: [], equipment_borrowings: [] } })),
+      const [histData, vbRes, eqData, ebRes, dmgData, overridesData] = await Promise.all([
+        api.get("/admin/history-log").then(r => r.data).catch(() => ({ venue_bookings: [], equipment_borrowings: [] })),
         api.get("/avr-venue-bookings").catch(() => ({ data: { data: [] } })),
-        api.get("/admin/equipment-types").catch(() => ({ data: [] })),
+        fetchWithCache("equipment_types_list", () => api.get("/admin/equipment-types").then(r => r.data).catch(() => [])),
         api.get("/avr-equipment-borrowings").catch(() => ({ data: { data: [] } })),
-        api.get("/admin/equipment-damages").catch(() => ({ data: { total_damaged_count: 0, total_lost_count: 0 } })),
-        api.get("/public/venue-overrides").catch(() => ({ data: [] })),
+        fetchWithCache("equipment_damages_summary", () => api.get("/admin/equipment-damages").then(r => r.data).catch(() => ({ total_damaged_count: 0, total_lost_count: 0 }))),
+        fetchWithCache("venue_overrides_list", () => api.get("/public/venue-overrides").then(r => r.data).catch(() => [])),
       ]);
 
       const selectedOfficeId = context?.selectedOfficeId;
@@ -112,8 +113,8 @@ export default function Dashboard() {
       };
 
       // 1. History Log Data
-      let histVB = (histRes.data?.venue_bookings || []).filter(matchesOffice);
-      let histEB = (histRes.data?.equipment_borrowings || []).filter(matchesOffice);
+      let histVB = (histData?.venue_bookings || []).filter(matchesOffice);
+      let histEB = (histData?.equipment_borrowings || []).filter(matchesOffice);
       setTotalVenueBookings(histVB.length);
       setTotalEquipBorrows(histEB.length);
 
@@ -121,7 +122,7 @@ export default function Dashboard() {
       const rawVb = vbRes.data?.data || vbRes.data || [];
       let activeVB = (Array.isArray(rawVb) ? rawVb : []).filter(matchesOffice);
       
-      const rawOverrides = overridesRes.data || [];
+      const rawOverrides = overridesData || [];
       const formattedOverrides = (Array.isArray(rawOverrides) ? rawOverrides : []).map(o => ({
         date_of_usage: o.override_date ? o.override_date.split("T")[0] : "",
         status: o.status || "maintenance",
@@ -147,13 +148,13 @@ export default function Dashboard() {
       setPendingApproval(pendingVBCount + pendingEBCount);
 
       // 4. Equipment Stock
-      const eqCatalog = (Array.isArray(eqRes.data) ? eqRes.data : []).filter(matchesOffice);
-      const dmgData = dmgRes.data || {};
-      const damagedCount = typeof dmgData.total_damaged_count === 'number' && dmgData.total_damaged_count > 0 && (!selectedOfficeId || selectedOfficeId === "all")
-        ? dmgData.total_damaged_count
+      const eqCatalog = (Array.isArray(eqData) ? eqData : (eqData?.data || [])).filter(matchesOffice);
+      const dmgSummary = dmgData || {};
+      const damagedCount = typeof dmgSummary.total_damaged_count === 'number' && dmgSummary.total_damaged_count > 0 && (!selectedOfficeId || selectedOfficeId === "all")
+        ? dmgSummary.total_damaged_count
         : eqCatalog.reduce((sum, e) => sum + (e.damaged_count || 0), 0);
-      const lostCount = typeof dmgData.total_lost_count === 'number' && dmgData.total_lost_count > 0 && (!selectedOfficeId || selectedOfficeId === "all")
-        ? dmgData.total_lost_count
+      const lostCount = typeof dmgSummary.total_lost_count === 'number' && dmgSummary.total_lost_count > 0 && (!selectedOfficeId || selectedOfficeId === "all")
+        ? dmgSummary.total_lost_count
         : eqCatalog.reduce((sum, e) => sum + (e.lost_count || 0), 0);
       setTotalDamaged(damagedCount);
       setTotalLost(lostCount);

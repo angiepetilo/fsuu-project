@@ -64,10 +64,21 @@ export async function openFileInNewTab(url) {
   let resolvedUrl = resolveStorageUrl(url);
 
   // If Cloudinary raw upload, try to fetch as blob with true content type to prevent auto-download
+  let newTab = null;
   try {
-    const newTab = window.open("about:blank", "_blank");
+    newTab = window.open("about:blank", "_blank");
 
     const response = await fetch(resolvedUrl, { mode: "cors" });
+    if (!response.ok) {
+      // If server returned 401/403/404, navigate newTab directly to the URL or show warning
+      if (newTab) {
+        newTab.location.href = resolvedUrl;
+      } else {
+        window.open(resolvedUrl, "_blank", "noopener,noreferrer");
+      }
+      return;
+    }
+
     const arrayBuffer = await response.arrayBuffer();
     const uint8 = new Uint8Array(arrayBuffer);
 
@@ -96,7 +107,11 @@ export async function openFileInNewTab(url) {
       window.open(blobUrl, "_blank", "noopener,noreferrer");
     }
   } catch {
-    // If CORS prevents fetch, open directly
-    window.open(resolvedUrl, "_blank", "noopener,noreferrer");
+    // If CORS or network error prevents fetch, fallback to direct URL
+    if (newTab) {
+      newTab.location.href = resolvedUrl;
+    } else {
+      window.open(resolvedUrl, "_blank", "noopener,noreferrer");
+    }
   }
 }
