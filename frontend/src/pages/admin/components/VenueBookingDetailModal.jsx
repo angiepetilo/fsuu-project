@@ -863,35 +863,7 @@ export default function VenueBookingDetailModal({
               </div>
             </div>
           ) : isApproved ? (
-            <div className="space-y-4">
-              <VenueBookingInfo
-                selected={selected}
-                formatRealTime={formatRealTime}
-                formatDateTimeFiled={formatDateTimeFiled}
-                formatDate={formatDate}
-                requestedCategories={requestedCategories}
-                setFullImageModal={setFullImageModal}
-              />
-              <div className="space-y-2">
-                <VenueEquipmentChecklist
-                  categoriesToRender={categoriesToRender}
-                  assignedUnitSelections={assignedUnitSelections}
-                  setAssignedUnitSelections={updateAssignedUnitSelections}
-                  getAvailableUnitsForCategory={getAvailableUnitsForCategory}
-                  isHistoryView={false}
-                  isSideBySide={false}
-                  isOverrideActive={isOverrideActive}
-                  setIsOverrideActive={setIsOverrideActive}
-                  overrideCategory={overrideCategory}
-                  setOverrideCategory={setOverrideCategory}
-                  overrideQuantity={overrideQuantity}
-                  setOverrideQuantity={setOverrideQuantity}
-                  dbEquipmentTypes={dbEquipmentTypes}
-                />
-              </div>
-            </div>
-          ) : isOngoing ? (
-            /* ON-GOING STATUS: Equipment Catalog Checklist & Live Release */
+            /* APPROVED STATUS: Equipment Unit Assignment (Left) & Pre-Event Inspection Form (Right) */
             <div className="space-y-4">
               <VenueBookingInfo
                 selected={selected}
@@ -908,7 +880,7 @@ export default function VenueBookingDetailModal({
                     assignedUnitSelections={assignedUnitSelections}
                     setAssignedUnitSelections={updateAssignedUnitSelections}
                     getAvailableUnitsForCategory={getAvailableUnitsForCategory}
-                    isHistoryView={isHistoryView}
+                    isHistoryView={false}
                     isSideBySide={true}
                     isOverrideActive={isOverrideActive}
                     setIsOverrideActive={setIsOverrideActive}
@@ -949,12 +921,62 @@ export default function VenueBookingDetailModal({
                     savingInspection={savingInspection}
                     inspectionSuccessMsg={inspectionSuccessMsg}
                     handleSavePostInspection={(e) => handleSavePostInspection(e, "pre_event")}
-                    onSetPostInspection={() => handleAction(selected.id, "post-inspection")}
+                    onSetPostInspection={() => handleAction(selected.id, "ongoing")}
                     isHistoryView={isHistoryView}
                     isAdminOrSuperAdmin={isAdminOrSuperAdmin}
                     user={user}
-                    isOngoing={true}
+                    isOngoing={false}
                   />
+                </div>
+              </div>
+            </div>
+          ) : isOngoing ? (
+            /* ON-GOING STATUS: Equipment Checklist (Left) & Ready for Inspection Trigger (Right) */
+            <div className="space-y-4">
+              <VenueBookingInfo
+                selected={selected}
+                formatRealTime={formatRealTime}
+                formatDateTimeFiled={formatDateTimeFiled}
+                formatDate={formatDate}
+                requestedCategories={requestedCategories}
+                setFullImageModal={setFullImageModal}
+              />
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+                <div className="lg:col-span-6">
+                  <VenueEquipmentChecklist
+                    categoriesToRender={categoriesToRender}
+                    assignedUnitSelections={assignedUnitSelections}
+                    setAssignedUnitSelections={updateAssignedUnitSelections}
+                    getAvailableUnitsForCategory={getAvailableUnitsForCategory}
+                    isHistoryView={isHistoryView}
+                    isSideBySide={true}
+                    isOverrideActive={isOverrideActive}
+                    setIsOverrideActive={setIsOverrideActive}
+                    overrideCategory={overrideCategory}
+                    setOverrideCategory={setOverrideCategory}
+                    overrideQuantity={overrideQuantity}
+                    setOverrideQuantity={setOverrideQuantity}
+                    dbEquipmentTypes={dbEquipmentTypes}
+                  />
+                </div>
+                <div className="lg:col-span-6">
+                  <div className="p-8 bg-white border border-slate-200/90 rounded-2xl text-center space-y-3 flex flex-col items-center justify-center min-h-[260px] shadow-xs">
+                    <FileCheck size={32} className="text-blue-600" />
+                    <div className="space-y-1">
+                      <h5 className="font-extrabold text-slate-900 text-sm">Event Currently On-Going</h5>
+                      <p className="text-xs text-slate-500 font-medium max-w-sm">
+                        Facility is currently in use. Once the event finishes, click below to initiate post-event facility and equipment inspection.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleAction(selected.id, "post-inspection")}
+                      className="px-5 py-2.5 bg-white hover:bg-slate-50 border border-slate-900 text-slate-900 rounded-xl text-xs font-extrabold flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
+                    >
+                      <FileCheck size={14} />
+                      <span>Ready for Inspection (After)</span>
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

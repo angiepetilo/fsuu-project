@@ -317,30 +317,42 @@ export default function Step2Equipment({
             </div>
 
             {/* Date Selection Mode (Today vs Tomorrow) */}
-            <div className="flex items-center bg-slate-100 p-1 rounded-xl gap-1">
-              <button
-                type="button"
-                onClick={() => setBorrowDateMode("today")}
-                disabled={isPastClosingToday}
-                className={`flex-1 py-1.5 rounded-lg text-xs font-extrabold transition-all cursor-pointer ${borrowDateMode === "today"
-                  ? "bg-white text-blue-600 shadow-2xs"
-                  : isPastClosingToday
-                    ? "text-slate-400 cursor-not-allowed opacity-60"
-                    : "text-slate-600 hover:text-slate-900"
-                  }`}
-              >
-                Today
-              </button>
-              <button
-                type="button"
-                onClick={() => setBorrowDateMode("tomorrow")}
-                className={`flex-1 py-1.5 rounded-lg text-xs font-extrabold transition-all cursor-pointer ${borrowDateMode === "tomorrow"
-                  ? "bg-white text-blue-600 shadow-2xs"
-                  : "text-slate-600 hover:text-slate-900"
-                  }`}
-              >
-                Tomorrow {isPastClosingToday && ""}
-              </button>
+            <div className="space-y-1.5">
+              <div className="flex items-center bg-slate-100 p-1 rounded-xl gap-1">
+                <button
+                  type="button"
+                  onClick={() => setBorrowDateMode("today")}
+                  disabled={isPastClosingToday}
+                  className={`flex-1 py-1.5 rounded-lg text-xs font-extrabold transition-all ${borrowDateMode === "today"
+                    ? "bg-white text-blue-600 shadow-2xs"
+                    : isPastClosingToday
+                      ? "text-slate-400 cursor-not-allowed opacity-60"
+                      : "text-slate-600 hover:text-slate-900 cursor-pointer"
+                    }`}
+                >
+                  Today
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setBorrowDateMode("tomorrow")}
+                  disabled={!isPastClosingToday}
+                  className={`flex-1 py-1.5 rounded-lg text-xs font-extrabold transition-all ${borrowDateMode === "tomorrow"
+                    ? "bg-white text-blue-600 shadow-2xs"
+                    : !isPastClosingToday
+                      ? "text-slate-400 cursor-not-allowed opacity-60"
+                      : "text-slate-600 hover:text-slate-900 cursor-pointer"
+                    }`}
+                  title={!isPastClosingToday ? `Advance booking for tomorrow unlocks after operating hours end at ${formatTime12(kioskClose)}.` : "Next-Day Borrowing"}
+                >
+                  Tomorrow
+                </button>
+              </div>
+
+              {!isPastClosingToday && (
+                <p className="text-[10px] text-slate-400 font-medium text-center">
+                  Tomorrow's schedule opens after today's operating hours end ({formatTime12(kioskClose)}).
+                </p>
+              )}
             </div>
 
             {/* Borrowing Date Card Banner */}

@@ -220,7 +220,7 @@ export default function SysadLayout() {
           <img src="/fsuu_logo.png" alt="FSUU" className="h-9 w-9 flex-shrink-0 object-contain" />
           <div className="flex flex-col min-w-0 overflow-hidden">
             <span className="font-bold text-sm text-white tracking-tight leading-tight truncate">
-              FSUU Super Admin
+              FSUU
             </span>
             <span className="text-[11px] text-slate-400 font-medium tracking-wide mt-0.5 truncate">
               PMO Office
