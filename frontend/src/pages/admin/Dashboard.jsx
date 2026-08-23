@@ -377,57 +377,53 @@ export default function Dashboard() {
             <span className="text-[10px] font-mono font-bold text-slate-400">4 Operational Modules</span>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
             <Link
               to="/admin/venue-bookings"
-              className="bg-white hover:bg-slate-50 transition-all p-3.5 rounded-xl border border-slate-200 flex items-center gap-3 group cursor-pointer shadow-2xs hover:border-blue-400"
+              className="bg-white hover:bg-blue-50/80 border border-slate-200 hover:border-blue-300 transition-all p-5 min-h-[96px] rounded-xl flex flex-col justify-center group cursor-pointer shadow-2xs hover:shadow-xs"
             >
-              <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 border border-blue-100 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                <Building2 size={17} />
-              </div>
-              <div className="min-w-0">
-                <span className="block font-extrabold text-slate-900 text-xs tracking-tight group-hover:text-blue-600">Venue Verification</span>
-                <span className="block text-[11px] text-slate-500 font-medium truncate">Inspect &amp; approve rooms</span>
-              </div>
+              <span className="block font-bold text-slate-900 text-sm tracking-tight group-hover:text-blue-700 transition-colors">
+                Venue Verification
+              </span>
+              <span className="block text-xs text-slate-500 font-medium mt-1 group-hover:text-blue-600/80 transition-colors">
+                Inspect &amp; approve rooms
+              </span>
             </Link>
 
             <Link
               to="/admin/equipment-borrowing"
-              className="bg-white hover:bg-slate-50 transition-all p-3.5 rounded-xl border border-slate-200 flex items-center gap-3 group cursor-pointer shadow-2xs hover:border-emerald-400"
+              className="bg-white hover:bg-emerald-50/80 border border-slate-200 hover:border-emerald-300 transition-all p-5 min-h-[96px] rounded-xl flex flex-col justify-center group cursor-pointer shadow-2xs hover:shadow-xs"
             >
-              <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                <Box size={17} />
-              </div>
-              <div className="min-w-0">
-                <span className="block font-extrabold text-slate-900 text-xs tracking-tight group-hover:text-emerald-600">Equipment Release</span>
-                <span className="block text-[11px] text-slate-500 font-medium truncate">Handout units &amp; cables</span>
-              </div>
+              <span className="block font-bold text-slate-900 text-sm tracking-tight group-hover:text-emerald-700 transition-colors">
+                Equipment Release
+              </span>
+              <span className="block text-xs text-slate-500 font-medium mt-1 group-hover:text-emerald-600/80 transition-colors">
+                Handout units &amp; cables
+              </span>
             </Link>
 
             <Link
               to="/admin/equipment-borrowing"
-              className="bg-white hover:bg-slate-50 transition-all p-3.5 rounded-xl border border-slate-200 flex items-center gap-3 group cursor-pointer shadow-2xs hover:border-amber-400"
+              className="bg-white hover:bg-amber-50/80 border border-slate-200 hover:border-amber-300 transition-all p-5 min-h-[96px] rounded-xl flex flex-col justify-center group cursor-pointer shadow-2xs hover:shadow-xs"
             >
-              <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 border border-amber-100 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                <Award size={17} />
-              </div>
-              <div className="min-w-0">
-                <span className="block font-extrabold text-slate-900 text-xs tracking-tight group-hover:text-amber-600">Post Inspect</span>
-                <span className="block text-[11px] text-slate-500 font-medium truncate">Return testing &amp; clearance</span>
-              </div>
+              <span className="block font-bold text-slate-900 text-sm tracking-tight group-hover:text-amber-700 transition-colors">
+                Post Inspect
+              </span>
+              <span className="block text-xs text-slate-500 font-medium mt-1 group-hover:text-amber-600/80 transition-colors">
+                Return testing &amp; clearance
+              </span>
             </Link>
 
             <Link
               to="/admin/reports"
-              className="bg-white hover:bg-slate-50 transition-all p-3.5 rounded-xl border border-slate-200 flex items-center gap-3 group cursor-pointer shadow-2xs hover:border-purple-400"
+              className="bg-white hover:bg-purple-50/80 border border-slate-200 hover:border-purple-300 transition-all p-5 min-h-[96px] rounded-xl flex flex-col justify-center group cursor-pointer shadow-2xs hover:shadow-xs"
             >
-              <div className="w-9 h-9 rounded-xl bg-purple-50 text-purple-600 border border-purple-100 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                <PackageOpen size={17} />
-              </div>
-              <div className="min-w-0">
-                <span className="block font-extrabold text-slate-900 text-xs tracking-tight group-hover:text-purple-600">Inventory Check</span>
-                <span className="block text-[11px] text-slate-500 font-medium truncate">Physical unit registry</span>
-              </div>
+              <span className="block font-bold text-slate-900 text-sm tracking-tight group-hover:text-purple-700 transition-colors">
+                Inventory Check
+              </span>
+              <span className="block text-xs text-slate-500 font-medium mt-1 group-hover:text-purple-600/80 transition-colors">
+                Physical unit registry
+              </span>
             </Link>
           </div>
         </div>

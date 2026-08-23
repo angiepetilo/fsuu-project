@@ -262,27 +262,35 @@ export default function VenueBooking() {
     const isMultiDay = diffDays >= 1;
 
     // Evaluate trigger rules accurately based on checked/unchecked settings
-    const isSystemPinActive = pinRules?.isEnabled === true || (pinRules?.isEnabled !== false && pinRules?.isEnabled !== "false");
-    const outsideRequiresPin = (pinRules?.requirePinOutsideHours === true || (pinRules?.requirePinOutsideHours !== false && pinRules?.requirePinOutsideHours !== "false")) && isOutsideHours;
-    const multiDayRequiresPin = (pinRules?.requirePinMultiDayVenue === true || (pinRules?.requirePinMultiDayVenue !== false && pinRules?.requirePinMultiDayVenue !== "false")) && isMultiDay;
-    const externalRequiresPin = (pinRules?.enableExternalVenue === true || (pinRules?.enableExternalVenue !== false && pinRules?.enableExternalVenue !== "false")) && identity === "external";
-    const studentMandatory = pinRules?.requirePinForStudent === true || pinRules?.pinMode === "required";
+    const isSystemPinActive = pinRules?.isEnabled !== false && pinRules?.isEnabled !== "false";
+    const outsideRequiresPin = (pinRules?.requirePinOutsideHours !== false && pinRules?.requirePinOutsideHours !== "false") && isOutsideHours;
+    const multiDayRequiresPin = (pinRules?.requirePinMultiDayVenue !== false && pinRules?.requirePinMultiDayVenue !== "false") && isMultiDay;
+    const externalRequiresPin = (pinRules?.enableExternalVenue !== false && pinRules?.enableExternalVenue !== "false") && identity === "external";
 
+    // Rule 1: External users always require PIN for venue booking
+    // Rule 2: Faculty & Students require PIN ONLY if multi-day venue booking (or outside hours)
     const requiresPin = isSystemPinActive && (
-      outsideRequiresPin || multiDayRequiresPin || externalRequiresPin || studentMandatory
+      externalRequiresPin ||
+      ((identity === "student" || identity === "faculty") && multiDayRequiresPin) ||
+      outsideRequiresPin
     );
 
     if (requiresPin && !isPinVerified) {
-      if (outsideRequiresPin) {
+      if (externalRequiresPin) {
         setPinModalMeta({
-          title: "Outside Office Hours PIN",
-          description: `Selected booking time (${formatTime12(startTime)} - ${formatTime12(endTime)}) is outside official campus hours (${formatTime12(venueOpen)} - ${formatTime12(venueClose)}). AVR Head / Admin Verification PIN is required for authorization.`,
+          title: "External Client Verification",
+          description: "External client reservations require AVR Head / Administrative clearance PIN to proceed.",
         });
       } else if (multiDayRequiresPin) {
         const spanText = diffDays > 1 ? `${diffDays + 1} days` : "2 days";
         setPinModalMeta({
-          title: "Extended Reservation PIN",
-          description: `This reservation spans ${spanText} (more than 1 day). AVR Head / Admin Verification PIN is required for all users to authorize extended multi-day venue occupancy.`,
+          title: "Multi-Day Venue Reservation PIN",
+          description: `This venue reservation spans ${spanText} (multi-day booking). AVR Head / Admin Verification PIN is required for faculty and student multi-day reservations.`,
+        });
+      } else if (outsideRequiresPin) {
+        setPinModalMeta({
+          title: "Outside Office Hours PIN",
+          description: `Selected booking time (${formatTime12(startTime)} - ${formatTime12(endTime)}) is outside official campus hours (${formatTime12(venueOpen)} - ${formatTime12(venueClose)}). AVR Head / Admin Verification PIN is required for authorization.`,
         });
       } else if (externalRequiresPin) {
         setPinModalMeta({

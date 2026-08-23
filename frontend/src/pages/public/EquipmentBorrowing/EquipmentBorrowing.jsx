@@ -226,30 +226,25 @@ export default function EquipmentBorrowing() {
     }
     // More than 1 day (spans 2 or more days)
     // Evaluate trigger rules accurately based on checked/unchecked settings
-    const isSystemPinActive = pinRules?.isEnabled === true || (pinRules?.isEnabled !== false && pinRules?.isEnabled !== "false");
-    const outsideRequiresPin = (pinRules?.requirePinOutsideHours === true || (pinRules?.requirePinOutsideHours !== false && pinRules?.requirePinOutsideHours !== "false")) && isOutsideHours;
-    const externalRequiresPin = (pinRules?.enableExternalEquipment === true || (pinRules?.enableExternalEquipment !== false && pinRules?.enableExternalEquipment !== "false")) && identity === "external";
-    const studentMandatory = pinRules?.requirePinForStudent === true || pinRules?.pinMode === "required";
+    const isSystemPinActive = pinRules?.isEnabled !== false && pinRules?.isEnabled !== "false";
+    const outsideRequiresPin = (pinRules?.requirePinOutsideHours !== false && pinRules?.requirePinOutsideHours !== "false") && isOutsideHours;
+    const externalRequiresPin = (pinRules?.enableExternalEquipment !== false && pinRules?.enableExternalEquipment !== "false") && identity === "external";
 
+    // Equipment borrowing: PIN ONLY applies if external user (or outside hours)
     const requiresPin = isSystemPinActive && (
-      outsideRequiresPin || externalRequiresPin || studentMandatory
+      externalRequiresPin || outsideRequiresPin
     );
 
     if (requiresPin && !isPinVerified) {
-      if (outsideRequiresPin) {
-        setPinModalMeta({
-          title: "Outside Office Hours PIN",
-          description: `Selected borrowing/return time (${formatTime12(startTimeStr)} - ${formatTime12(endTimeStr)}) is outside official campus kiosk hours (${formatTime12(kioskOpen)} - ${formatTime12(kioskClose)}). AVR Head / Admin Verification PIN is required for authorization.`,
-        });
-      } else if (externalRequiresPin) {
+      if (externalRequiresPin) {
         setPinModalMeta({
           title: "External Requisition PIN",
           description: "Requisitions filed under External Identity require AVR Head / Admin authorization PIN.",
         });
-      } else {
+      } else if (outsideRequiresPin) {
         setPinModalMeta({
-          title: "Authorization PIN",
-          description: "This equipment requisition requires AVR Head / Admin Verification PIN for authorization.",
+          title: "Outside Office Hours PIN",
+          description: `Selected borrowing/return time (${formatTime12(startTimeStr)} - ${formatTime12(endTimeStr)}) is outside official campus kiosk hours (${formatTime12(kioskOpen)} - ${formatTime12(kioskClose)}). AVR Head / Admin Verification PIN is required for authorization.`,
         });
       }
 
