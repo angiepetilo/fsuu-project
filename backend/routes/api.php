@@ -39,6 +39,15 @@ use App\Http\Controllers\Public\EquipmentBorrowingController as PublicEquipmentB
 use App\Http\Controllers\Public\TrackingController;
 use App\Http\Controllers\Public\OtpController;
 
+// ─── Lightweight Health Check / Keep-Alive for Render Uptime ──────────────────
+Route::get('/health', function () {
+    return response()->json([
+        'status'    => 'ok',
+        'timestamp' => now()->toIso8601String(),
+        'app'       => config('app.name', 'FSUU Booking System')
+    ]);
+});
+
 // ─── Public Operating Hours, Overrides & System Settings ────────────────────
 Route::get('/public/operating-hours', [OperatingHoursController::class, 'publicShow']);
 Route::get('/public/venue-overrides', [VenueAvailabilityController::class, 'publicOverrides']);

@@ -46,12 +46,14 @@ export default function VenuePostInspectionForm({
         <div>
           <h4 className="text-xs font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
             <ShieldCheck size={16} className="text-slate-600" />
-            Post-Event Inspection Form {isOngoing ? "(Before)" : "(After)"}
+            {isOngoing ? "Pre-Event Inspection Form (Before)" : "Post-Event Inspection Form (After)"}
           </h4>
           <p className="text-[11px] font-medium text-slate-500 mt-0.5">
             {isHistoryView 
               ? "(Read Only History Log)"
-              : "Record facility status and log any policy breaches or room damages."}
+              : isOngoing
+                ? "Record initial facility condition and log setup state before event starts."
+                : "Record facility turnover status, verify returned equipment condition, or log damages."}
           </p>
         </div>
 
@@ -168,19 +170,9 @@ export default function VenuePostInspectionForm({
         )}
       </div>
 
-      {/* Save Action & Workflow Transition Buttons */}
+      {/* Save Action Buttons */}
       {!isHistoryView && (
         <div className="flex flex-wrap items-center justify-end gap-2 pt-2 border-t border-slate-200">
-          {isOngoing && onSetPostInspection && (
-            <button
-              type="button"
-              onClick={onSetPostInspection}
-              className="px-4 py-2 bg-white hover:bg-slate-50 border border-slate-900 text-slate-900 rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
-            >
-              <FileCheck size={13} />
-              <span>Set Post-Event Inspection</span>
-            </button>
-          )}
           {handleSavePostInspection && (
             <button
               type="button"

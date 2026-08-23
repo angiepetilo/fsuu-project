@@ -1,5 +1,201 @@
-import React from "react";
-import { PackageOpen, Wrench, Check } from "lucide-react";
+import React, { useState, useRef, useEffect } from "react";
+import { PackageOpen, Wrench, Check, Search, ChevronDown, X, CheckCircle2 } from "lucide-react";
+
+/**
+ * Typeable & Selectable Combobox for Physical Barcode Slot
+ */
+function SlotBarcodeSelector({
+  unitKey,
+  uIdx,
+  reqQty,
+  categoryName,
+  currentBarcode,
+  availableUnits,
+  assignedUnitSelections,
+  onSelectBarcode,
+  hasStock,
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState(currentBarcode || "");
+  const containerRef = useRef(null);
+
+  // Sync internal search input with external value changes
+  useEffect(() => {
+    setSearchTerm(currentBarcode || "");
+  }, [currentBarcode]);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handleOutsideClick = (e) => {
+      if (containerRef.current && !containerRef.current.contains(e.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, []);
+
+  // Exclude barcodes already chosen in OTHER slots of this modal
+  const otherSelectedBarcodes = Object.entries(assignedUnitSelections || {})
+    .filter(([k, v]) => k !== unitKey && Boolean(v))
+    .map(([_, v]) => String(v).trim().toUpperCase());
+
+  // Filter available units based on slot uniqueness
+  const slotEligibleUnits = availableUnits.filter((u) => {
+    const bCode = String(u.unit_code || u.barcode || u.serial_number || u.code || `UNIT-${u.id}`).trim().toUpperCase();
+    const isCurrent = bCode === String(currentBarcode).trim().toUpperCase();
+    return isCurrent || !otherSelectedBarcodes.includes(bCode);
+  });
+
+  // Search filtered options
+  const searchFiltered = slotEligibleUnits.filter((u) => {
+    const bCode = String(u.unit_code || u.barcode || u.serial_number || u.code || `UNIT-${u.id}`).toLowerCase();
+    const uName = String(u.name || categoryName || "").toLowerCase();
+    const q = searchTerm.toLowerCase().trim();
+    if (!q) return true;
+    return bCode.includes(q) || uName.includes(q);
+  });
+
+  const handleChoose = (bCode) => {
+    onSelectBarcode(bCode);
+    setSearchTerm(bCode);
+    setIsOpen(false);
+  };
+
+  const handleClear = (e) => {
+    e.stopPropagation();
+    onSelectBarcode("");
+    setSearchTerm("");
+    setIsOpen(false);
+  };
+
+  const handleInputChange = (e) => {
+    const val = e.target.value;
+    setSearchTerm(val);
+    setIsOpen(true);
+
+    // Auto-match if exact barcode typed
+    const exactMatch = slotEligibleUnits.find((u) => {
+      const bCode = String(u.unit_code || u.barcode || u.serial_number || u.code || `UNIT-${u.id}`).trim().toUpperCase();
+      return bCode === val.trim().toUpperCase();
+    });
+
+    if (exactMatch) {
+      const exactCode = exactMatch.unit_code || exactMatch.barcode || exactMatch.serial_number || exactMatch.code || `UNIT-${exactMatch.id}`;
+      onSelectBarcode(exactCode);
+    } else if (!val) {
+      onSelectBarcode("");
+    }
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (searchFiltered.length > 0) {
+        const top = searchFiltered[0];
+        const topCode = top.unit_code || top.barcode || top.serial_number || top.code || `UNIT-${top.id}`;
+        handleChoose(topCode);
+      }
+    } else if (e.key === "Escape") {
+      setIsOpen(false);
+    }
+  };
+
+  return (
+    <div ref={containerRef} className="relative w-full">
+      {/* Typeable Input + Dropdown Toggle Bar */}
+      <div className="relative flex items-center">
+        <input
+          type="text"
+          placeholder={`Type barcode or choose from ${slotEligibleUnits.length} units...`}
+          value={searchTerm}
+          onChange={handleInputChange}
+          onFocus={() => setIsOpen(true)}
+          onKeyDown={handleKeyDown}
+          className={`w-full py-2 pl-3 pr-16 bg-white border rounded-lg text-xs font-mono font-bold text-slate-800 focus:outline-none transition-all ${
+            currentBarcode
+              ? "border-emerald-300 ring-1 ring-emerald-200 bg-emerald-50/20"
+              : "border-slate-200 focus:border-slate-400 focus:ring-1 focus:ring-slate-300"
+          }`}
+        />
+
+        <div className="absolute right-1.5 flex items-center gap-1">
+          {currentBarcode && (
+            <button
+              type="button"
+              onClick={handleClear}
+              className="p-1 rounded text-slate-400 hover:text-rose-600 hover:bg-slate-100 transition-colors"
+              title="Clear / Unassign slot"
+            >
+              <X size={13} />
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={() => setIsOpen(!isOpen)}
+            className="p-1 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+            title="Toggle unit dropdown"
+          >
+            <ChevronDown size={14} className={`transform transition-transform ${isOpen ? "rotate-180" : ""}`} />
+          </button>
+        </div>
+      </div>
+
+      {/* Dropdown Options Menu */}
+      {isOpen && (
+        <div className="absolute z-50 left-0 right-0 mt-1 max-h-56 overflow-y-auto bg-white border border-slate-200 rounded-xl shadow-xl py-1 text-xs animate-in fade-in zoom-in-95">
+          <div className="px-3 py-1.5 border-b border-slate-100 flex items-center justify-between text-[10.5px] font-bold text-slate-500 bg-slate-50">
+            <span>AVAILABLE BARCODES FOR {categoryName.toUpperCase()}</span>
+            <span className="font-mono text-emerald-700">{slotEligibleUnits.length} in stock</span>
+          </div>
+
+          {searchFiltered.length === 0 ? (
+            <div className="p-3 text-center text-slate-400 font-medium">
+              {slotEligibleUnits.length === 0
+                ? (hasStock
+                    ? "All available units in this category are assigned to other slots."
+                    : `No registered stock available for ${categoryName}.`)
+                : `No barcode matching "${searchTerm}".`}
+            </div>
+          ) : (
+            searchFiltered.map((unit, idx) => {
+              const bCode = unit.unit_code || unit.barcode || unit.serial_number || unit.code || `UNIT-${unit.id}`;
+              const uName = unit.name || categoryName;
+              const isSelected = bCode === currentBarcode;
+
+              return (
+                <button
+                  key={`slot-opt-${unit.id || idx}`}
+                  type="button"
+                  onClick={() => handleChoose(bCode)}
+                  className={`w-full px-3 py-2 text-left flex items-center justify-between transition-colors cursor-pointer ${
+                    isSelected
+                      ? "bg-emerald-50 text-emerald-800 font-bold"
+                      : "hover:bg-slate-50 text-slate-800 font-semibold"
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                      {bCode}
+                    </span>
+                    <span className="text-slate-700 truncate max-w-[200px]">{uName}</span>
+                  </div>
+
+                  {isSelected && (
+                    <span className="flex items-center gap-1 text-[11px] font-bold text-emerald-600">
+                      <CheckCircle2 size={13} /> Selected
+                    </span>
+                  )}
+                </button>
+              );
+            })
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function VenueEquipmentChecklist({
   categoriesToRender = [],
@@ -109,13 +305,18 @@ export default function VenueEquipmentChecklist({
         <div className="space-y-3">
           {categoriesToRender.map((item, catIdx) => {
             const reqQty = Math.max(1, item.quantity || 1);
-            const availableUnits = getAvailableUnitsForCategory ? getAvailableUnitsForCategory(item.category) : [];
+            const availableUnits = getAvailableUnitsForCategory ? getAvailableUnitsForCategory(item.category, item.equipment_type_id) : [];
             const hasStock = availableUnits.length > 0;
 
             return (
               <div key={`cat-card-${catIdx}`} className="p-3 bg-white border border-slate-200 rounded-xl space-y-2.5">
                 <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                  <span className="text-xs font-extrabold text-slate-900 block leading-tight font-mono">{item.category}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-extrabold text-slate-900 block leading-tight font-mono">{item.category}</span>
+                    <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200 font-mono">
+                      {availableUnits.length} in stock
+                    </span>
+                  </div>
                   <span className="text-xs font-mono font-bold text-slate-600">
                     Qty: {reqQty}
                   </span>
@@ -148,7 +349,6 @@ export default function VenueEquipmentChecklist({
                                 {cond}
                               </span>
                             ) : (
-                              /* Plain text status buttons with only text color for status */
                               <div className="flex items-center gap-1.5">
                                 <button
                                   type="button"
@@ -198,14 +398,14 @@ export default function VenueEquipmentChecklist({
                       const currentSelectedBarcode = assignedUnitSelections[unitKey] || "";
 
                       return (
-                        <div key={`unit-${catIdx}-${uIdx}`} className="py-2 border-b border-slate-100 last:border-b-0 space-y-1 text-xs">
+                        <div key={`unit-${catIdx}-${uIdx}`} className="py-2 border-b border-slate-100 last:border-b-0 space-y-1.5 text-xs">
                           <div className="flex items-center justify-between">
                             <span className="text-[11px] font-bold text-slate-700">
                               Unit Slot #{uIdx + 1}
                             </span>
                             {currentSelectedBarcode ? (
-                              <span className="text-xs font-mono font-bold text-emerald-600">
-                                Assigned
+                              <span className="text-xs font-mono font-bold text-emerald-600 flex items-center gap-1">
+                                <Check size={12} className="stroke-[3]" /> Assigned [{currentSelectedBarcode}]
                               </span>
                             ) : (
                               <span className="text-xs font-mono font-bold text-slate-400">
@@ -218,50 +418,24 @@ export default function VenueEquipmentChecklist({
                             <div className="font-mono text-xs text-slate-800 py-1">
                               {currentSelectedBarcode ? `Barcode: ${currentSelectedBarcode}` : "No specific barcode logged"}
                             </div>
-                          ) : (() => {
-                            const otherSelectedBarcodes = Object.entries(assignedUnitSelections || {})
-                              .filter(([k, v]) => k !== unitKey && Boolean(v))
-                              .map(([_, v]) => String(v).trim().toUpperCase());
-
-                            const filteredUnits = availableUnits.filter((u) => {
-                              const bCode = String(u.unit_code || u.barcode || u.serial_number || u.code || `UNIT-${u.id}`).trim().toUpperCase();
-                              const isCurrent = bCode === String(currentSelectedBarcode).trim().toUpperCase();
-                              return isCurrent || !otherSelectedBarcodes.includes(bCode);
-                            });
-
-                            return (
-                              <select
-                                value={currentSelectedBarcode}
-                                onChange={(e) => {
-                                  const val = e.target.value;
-                                  setAssignedUnitSelections(prev => ({
-                                    ...prev,
-                                    [unitKey]: val
-                                  }));
-                                }}
-                                className="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs font-mono font-bold text-slate-800 focus:outline-none focus:border-slate-400 cursor-pointer"
-                              >
-                                <option value="">
-                                  -- Assign Physical Barcode (Unit {uIdx + 1} of {item.quantity || 1}) • {filteredUnits.length} in stock --
-                                </option>
-                                {filteredUnits.length > 0 ? (
-                                  filteredUnits.map((u, i) => {
-                                    const bCode = u.unit_code || u.barcode || u.serial_number || u.code || `UNIT-${u.id}`;
-                                    const uName = u.name || item.category;
-                                    return (
-                                      <option key={`unit-opt-${u.id || i}`} value={bCode}>
-                                        {bCode} - {uName}
-                                      </option>
-                                    );
-                                  })
-                                ) : (
-                                  <option value="" disabled>
-                                    {hasStock ? "All available units in this category are assigned to other slots" : `No available physical stock for ${item.category}`}
-                                  </option>
-                                )}
-                              </select>
-                            );
-                          })()}
+                          ) : (
+                            <SlotBarcodeSelector
+                              unitKey={unitKey}
+                              uIdx={uIdx}
+                              reqQty={reqQty}
+                              categoryName={item.category}
+                              currentBarcode={currentSelectedBarcode}
+                              availableUnits={availableUnits}
+                              assignedUnitSelections={assignedUnitSelections}
+                              onSelectBarcode={(newBarcode) => {
+                                setAssignedUnitSelections(prev => ({
+                                  ...prev,
+                                  [unitKey]: newBarcode
+                                }));
+                              }}
+                              hasStock={hasStock}
+                            />
+                          )}
                         </div>
                       );
                     })}

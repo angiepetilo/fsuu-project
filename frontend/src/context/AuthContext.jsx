@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
-import api from "@/lib/axios";
+import api, { clearApiCache } from "@/lib/axios";
+import echoInstance from "@/lib/echo";
 
 const AuthContext = createContext(null);
 
@@ -25,6 +26,19 @@ export function AuthProvider({ children }) {
     else localStorage.removeItem("staff_user");
   }, [user]);
 
+  // Cross-tab sync: if another tab logs out, sync immediately
+  useEffect(() => {
+    const handleStorageChange = (e) => {
+      if (e.key === "staff_token" && !e.newValue) {
+        setUser(null);
+        setToken(null);
+        clearApiCache();
+      }
+    };
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
+  }, []);
+
   useEffect(() => {
     if (token) {
       api.get("/user").then(res => {
@@ -33,6 +47,7 @@ export function AuthProvider({ children }) {
         }
       }).catch(err => {
         if (err.response?.status === 401) {
+          clearAdminCaches();
           setUser(null);
           setToken(null);
         }
@@ -41,7 +56,19 @@ export function AuthProvider({ children }) {
   }, [token]);
 
   const clearAdminCaches = () => {
+    // Flush in-memory axios cache
+    clearApiCache();
+
+    // Leave any active Echo WebSocket channels
+    try {
+      echoInstance?.leave("admin-notifications");
+      echoInstance?.leave("equipment-inventory");
+    } catch {}
+
+    // Flush all localStorage cache keys
     const keysToClean = [
+      "staff_user",
+      "staff_token",
       "fsuu_admin_profile",
       "fsuu_sysad_profile",
       "fsuu_venue_availability",
@@ -52,11 +79,17 @@ export function AuthProvider({ children }) {
       "fsuu_cache_sysad_offices",
       "fsuu_equipment_types",
       "fsuu_venue_overrides",
-      "fsuu_venue_maintenance"
+      "fsuu_venue_maintenance",
+      "fsuu_read_notification_ids",
+      "fsuu_read_sysad_notification_ids",
     ];
     keysToClean.forEach(k => {
       try { localStorage.removeItem(k); } catch {}
     });
+
+    try {
+      sessionStorage.clear();
+    } catch {}
   };
 
   const login = useCallback((userData, tokenValue) => {

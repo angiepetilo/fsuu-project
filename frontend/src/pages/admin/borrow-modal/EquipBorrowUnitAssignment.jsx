@@ -1,5 +1,183 @@
-import { Loader2, Play, Mail, CheckCircle2, PackageCheck, AlertCircle, Smartphone } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { Loader2, Play, Mail, CheckCircle2, PackageCheck, AlertCircle, Smartphone, ChevronDown, X, Check } from "lucide-react";
 import api from "@/lib/axios";
+
+/**
+ * Typeable & Selectable Combobox for Borrow Unit Slot
+ */
+function BorrowSlotBarcodeSelector({
+  unitKey,
+  catKey,
+  uIdx,
+  categoryName,
+  currentBarcode,
+  availableUnits,
+  assignedUnitSelections,
+  onSelectBarcode,
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState(currentBarcode || "");
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    setSearchTerm(currentBarcode || "");
+  }, [currentBarcode]);
+
+  useEffect(() => {
+    const handleOutsideClick = (e) => {
+      if (containerRef.current && !containerRef.current.contains(e.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, []);
+
+  const otherSelectedBarcodes = Object.entries(assignedUnitSelections || {})
+    .filter(([k, v]) => k !== unitKey && k !== catKey && Boolean(v))
+    .map(([_, v]) => String(v).trim().toUpperCase());
+
+  const slotEligibleUnits = availableUnits.filter((u) => {
+    const bCode = String(u.unit_code || u.barcode || u.serial_number || u.code || `UNIT-${u.id}`).trim().toUpperCase();
+    const isCurrent = bCode === String(currentBarcode).trim().toUpperCase();
+    return isCurrent || !otherSelectedBarcodes.includes(bCode);
+  });
+
+  const searchFiltered = slotEligibleUnits.filter((u) => {
+    const bCode = String(u.unit_code || u.barcode || u.serial_number || u.code || `UNIT-${u.id}`).toLowerCase();
+    const uName = String(u.name || categoryName || "").toLowerCase();
+    const q = searchTerm.toLowerCase().trim();
+    if (!q) return true;
+    return bCode.includes(q) || uName.includes(q);
+  });
+
+  const handleChoose = (bCode) => {
+    onSelectBarcode(bCode);
+    setSearchTerm(bCode);
+    setIsOpen(false);
+  };
+
+  const handleClear = (e) => {
+    e.stopPropagation();
+    onSelectBarcode("");
+    setSearchTerm("");
+    setIsOpen(false);
+  };
+
+  const handleInputChange = (e) => {
+    const val = e.target.value;
+    setSearchTerm(val);
+    setIsOpen(true);
+    const exactMatch = slotEligibleUnits.find((u) => {
+      const bCode = String(u.unit_code || u.barcode || u.serial_number || u.code || `UNIT-${u.id}`).trim().toUpperCase();
+      return bCode === val.trim().toUpperCase();
+    });
+    if (exactMatch) {
+      const exactCode = exactMatch.unit_code || exactMatch.barcode || exactMatch.serial_number || exactMatch.code || `UNIT-${exactMatch.id}`;
+      onSelectBarcode(exactCode);
+    } else if (!val) {
+      onSelectBarcode("");
+    }
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (searchFiltered.length > 0) {
+        const top = searchFiltered[0];
+        const topCode = top.unit_code || top.barcode || top.serial_number || top.code || `UNIT-${top.id}`;
+        handleChoose(topCode);
+      }
+    } else if (e.key === "Escape") {
+      setIsOpen(false);
+    }
+  };
+
+  return (
+    <div ref={containerRef} className="relative w-full">
+      <div className="relative flex items-center">
+        <input
+          type="text"
+          placeholder={`Type barcode or choose from ${slotEligibleUnits.length} units...`}
+          value={searchTerm}
+          onChange={handleInputChange}
+          onFocus={() => setIsOpen(true)}
+          onKeyDown={handleKeyDown}
+          className={`w-full py-2 pl-3 pr-16 bg-white border rounded-xl text-xs font-mono font-semibold text-slate-800 focus:outline-none transition-all ${
+            currentBarcode
+              ? "border-emerald-300 ring-1 ring-emerald-200 bg-emerald-50/20"
+              : "border-slate-200 focus:border-blue-400 focus:ring-1 focus:ring-blue-100"
+          }`}
+        />
+        <div className="absolute right-1.5 flex items-center gap-1">
+          {currentBarcode && (
+            <button
+              type="button"
+              onClick={handleClear}
+              className="p-1 rounded text-slate-400 hover:text-rose-600 hover:bg-slate-100 transition-colors"
+              title="Clear slot"
+            >
+              <X size={13} />
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => setIsOpen(!isOpen)}
+            className="p-1 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+          >
+            <ChevronDown size={14} className={`transform transition-transform ${isOpen ? "rotate-180" : ""}`} />
+          </button>
+        </div>
+      </div>
+
+      {isOpen && (
+        <div className="absolute z-50 left-0 right-0 mt-1 max-h-56 overflow-y-auto bg-white border border-slate-200 rounded-xl shadow-xl py-1 text-xs animate-in fade-in">
+          <div className="px-3 py-1.5 border-b border-slate-100 flex items-center justify-between text-[10.5px] font-bold text-slate-500 bg-slate-50">
+            <span>BARCODES FOR {String(categoryName).toUpperCase()}</span>
+            <span className="font-mono text-emerald-700">{slotEligibleUnits.length} in stock</span>
+          </div>
+
+          {searchFiltered.length === 0 ? (
+            <div className="p-3 text-center text-slate-400 font-medium">
+              {slotEligibleUnits.length === 0
+                ? `No available stock for ${categoryName}.`
+                : `No barcode matching "${searchTerm}".`}
+            </div>
+          ) : (
+            searchFiltered.map((unit, idx) => {
+              const bCode = unit.unit_code || unit.barcode || unit.serial_number || unit.code || `UNIT-${unit.id}`;
+              const uName = unit.name || categoryName;
+              const isSelected = bCode === currentBarcode;
+
+              return (
+                <button
+                  key={`borrow-opt-${unit.id || idx}`}
+                  type="button"
+                  onClick={() => handleChoose(bCode)}
+                  className={`w-full px-3 py-2 text-left flex items-center justify-between transition-colors cursor-pointer ${
+                    isSelected ? "bg-emerald-50 text-emerald-800 font-bold" : "hover:bg-slate-50 text-slate-800 font-semibold"
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                      {bCode}
+                    </span>
+                    <span className="text-slate-700 truncate max-w-[180px]">{uName}</span>
+                  </div>
+                  {isSelected && (
+                    <span className="flex items-center gap-1 text-[11px] font-bold text-emerald-600">
+                      <Check size={12} className="stroke-[3]" /> Selected
+                    </span>
+                  )}
+                </button>
+              );
+            })
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 /**
  * EquipBorrowUnitAssignment — Right column component for assigning unit barcodes and workflow actions.
@@ -66,16 +244,7 @@ export default function EquipBorrowUnitAssignment({
         </div>
 
         {categoriesToRender.map((reqCat, catIdx) => {
-          const rawAvailable = getAvailableUnitsForCategory(reqCat.category, reqCat.equipment_type_id);
-          
-          // Show only available & operational units
-          const availableUnits = rawAvailable.filter((unit) => {
-            const uCond = String(unit.condition || "good").toLowerCase();
-            if (uCond === "damaged" || uCond === "lost" || uCond === "under repair") {
-              return false;
-            }
-            return true;
-          });
+          const availableUnits = getAvailableUnitsForCategory(reqCat.category, reqCat.equipment_type_id);
 
           // Count assigned for this category
           const reqQty = parseInt(reqCat.quantity, 10) || 1;
@@ -110,7 +279,7 @@ export default function EquipBorrowUnitAssignment({
                 </div>
               )}
 
-              {/* State 2: Approved (Unit picker with running count) */}
+              {/* State 2: Approved (Typeable barcode combobox) */}
               {isApproved && (
                 <>
                   <div className="flex items-center justify-between text-[11px] font-semibold text-slate-600">
@@ -132,74 +301,38 @@ export default function EquipBorrowUnitAssignment({
                         const val =
                           assignedUnitSelections[idxKey] ||
                           assignedUnitSelections[catKey] ||
-                          assignedUnitSelections[uIdx] ||
-                          (Array.isArray(assignedUnitSelections) ? assignedUnitSelections[uIdx] : "") ||
                           "";
 
-                        const otherSelectedBarcodes = Object.entries(assignedUnitSelections || {})
-                          .filter(([k, v]) => k !== idxKey && k !== catKey && k !== String(uIdx) && Boolean(v))
-                          .map(([_, v]) => String(v).trim().toUpperCase());
-
-                        const filteredAvailableUnits = availableUnits.filter((unit) => {
-                          const bCode = String(unit.unit_code || unit.barcode || unit.serial_number || unit.code || unit.id || "").trim().toUpperCase();
-                          const uName = String(unit.name || "").trim().toUpperCase();
-
-                          const isCurrent = (bCode && bCode === String(val).trim().toUpperCase()) || 
-                                            (uName && uName === String(val).trim().toUpperCase());
-
-                          if (!isCurrent && (otherSelectedBarcodes.includes(bCode) || (uName && otherSelectedBarcodes.includes(uName)))) {
-                            return false;
-                          }
-
-                          const uStat = String(unit.status || "available").toLowerCase();
-                          return uStat === "available" || isCurrent;
-                        });
-
-                        const matchedUnit = filteredAvailableUnits.find((u) => {
-                          const code = String(u.unit_code || u.barcode || u.serial_number || u.code || "").trim().toUpperCase();
-                          const name = String(u.name || "").trim().toUpperCase();
-                          const id = String(u.id || "").trim().toUpperCase();
-                          const target = String(val).trim().toUpperCase();
-                          return (code && code === target) || (name && name === target) || (id && id === target);
-                        });
-
-                        const selectVal = matchedUnit ? (matchedUnit.unit_code || matchedUnit.barcode || matchedUnit.name) : val;
-
                         return (
-                          <div key={uIdx} className="relative">
-                            <select
-                              value={selectVal}
-                              onChange={(e) => {
-                                const updated = { ...assignedUnitSelections, [idxKey]: e.target.value };
-                                if (catKey !== idxKey && catKey in updated) {
-                                  delete updated[catKey];
-                                }
+                          <div key={uIdx} className="relative space-y-1">
+                            <div className="flex items-center justify-between text-[10.5px] font-bold text-slate-500">
+                              <span>Unit Slot #{uIdx + 1}</span>
+                              {val ? (
+                                <span className="text-emerald-600 flex items-center gap-1">
+                                  <Check size={11} className="stroke-[3]" /> Assigned [{val}]
+                                </span>
+                              ) : (
+                                <span className="text-slate-400">Unassigned</span>
+                              )}
+                            </div>
+                            <BorrowSlotBarcodeSelector
+                              unitKey={idxKey}
+                              catKey={catKey}
+                              uIdx={uIdx}
+                              categoryName={reqCat.category}
+                              currentBarcode={val}
+                              availableUnits={availableUnits}
+                              assignedUnitSelections={assignedUnitSelections}
+                              onSelectBarcode={(newBarcode) => {
+                                const updated = { ...assignedUnitSelections, [idxKey]: newBarcode };
+                                if (catKey !== idxKey && catKey in updated) delete updated[catKey];
                                 setAssignedUnitSelections(updated);
                                 if (selected && selected.id) {
                                   localStorage.setItem(`fsuu_assigned_units_eb_${selected.id}`, JSON.stringify(updated));
                                   api.put(`/avr-equipment-borrowings/${selected.id}/assign-units`, { assigned_units: updated }).catch(() => {});
                                 }
                               }}
-                              className="w-full p-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-50 cursor-pointer"
-                            >
-                              <option value="">
-                                -- Assign Barcode (Unit {uIdx + 1} of {reqCat.quantity}) • {filteredAvailableUnits.length} in stock --
-                              </option>
-                              {filteredAvailableUnits.length > 0 ? (
-                                filteredAvailableUnits.map((unit) => {
-                                  const displayCode = unit.unit_code || unit.barcode || unit.serial_number || unit.code || `UNIT-${unit.id}`;
-                                  return (
-                                    <option key={unit.id} value={displayCode}>
-                                      {displayCode} — {unit.name || reqCat.category}
-                                    </option>
-                                  );
-                                })
-                              ) : (
-                                <option value="" disabled>
-                                  All {availableUnits.length} units in stock are assigned to other slots
-                                </option>
-                              )}
-                            </select>
+                            />
                           </div>
                         );
                       })}
