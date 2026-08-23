@@ -22,6 +22,7 @@ class SystemSettingController extends Controller
         return response()->json([
             'system_name'                    => $settings->system_name,
             'organization_name'              => $settings->organization_name,
+            'header_brand_text'              => $settings->header_brand_text ?? 'Urios',
             'contact_email'                  => $settings->contact_email,
             'contact_phone'                  => $settings->contact_phone,
             'timezone'                       => $settings->timezone,
@@ -50,6 +51,7 @@ class SystemSettingController extends Controller
         $validated = $request->validate([
             'system_name'                    => 'nullable|string|max:255',
             'organization_name'              => 'nullable|string|max:255',
+            'header_brand_text'              => 'nullable|string|max:255',
             'contact_email'                  => 'nullable|email|max:255',
             'contact_phone'                  => 'nullable|string|max:100',
             'timezone'                       => 'nullable|string|max:100',

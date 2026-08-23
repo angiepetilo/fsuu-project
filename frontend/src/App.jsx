@@ -82,7 +82,9 @@ function AppContent() {
             <Link to="/" className="flex items-center gap-3.5 text-slate-900 group">
               <img src="/fsuu_logo.png" alt="FSUU Seal" className="h-11 w-auto transition-transform duration-300 group-hover:scale-105" />
               <div className="flex flex-col">
-                <span className="font-extrabold text-xl tracking-tight text-slate-900 leading-tight">Urios</span>
+                <span className="font-extrabold text-xl tracking-tight text-slate-900 leading-tight">
+                  {publicSettings.header_brand_text || publicSettings.header_branding_text || "Urios"}
+                </span>
                 <span className="text-xs text-slate-500 font-semibold">{publicSettings.system_name || "Reserve and Booking System"}</span>
               </div>
             </Link>

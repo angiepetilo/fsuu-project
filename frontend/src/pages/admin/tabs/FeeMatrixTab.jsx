@@ -450,62 +450,171 @@ export default function FeeMatrixTab({ officeScope = "All Offices", showMsg }) {
               {/* Left Column: Visibility & Content Customizer */}
               <div className="lg:col-span-5 p-5 space-y-4 bg-slate-50/50 overflow-y-auto max-h-[78vh] text-xs">
                 
-                {/* 1. Line Items Visibility */}
-                <div className="bg-white p-4 rounded-2xl border border-slate-200/90 shadow-2xs space-y-2.5">
-                  <span className="font-extrabold text-slate-800 uppercase tracking-wider text-[10.5px] block border-b border-slate-100 pb-1.5">
-                    1. Rate Items Visibility
-                  </span>
+                {/* 1. Rate Items Visibility & Text Editing */}
+                <div className="bg-white p-4 rounded-2xl border border-slate-200/90 shadow-2xs space-y-3">
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-1.5">
+                    <span className="font-extrabold text-slate-800 uppercase tracking-wider text-[10.5px]">
+                      1. Rate Items (Check / Edit Text)
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-medium">Toggle or rename</span>
+                  </div>
                   
-                  <div className="space-y-2">
-                    <label className="flex items-center gap-2.5 cursor-pointer select-none text-slate-800 font-semibold hover:text-blue-600">
-                      <input
-                        type="checkbox"
-                        checked={printConfig.showInternalRate}
-                        onChange={() => togglePrintOption("showInternalRate")}
-                        className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
-                      />
-                      <span>Internal Academic/Dept Rate (₱{feeForm.internal_hourly}/hr)</span>
-                    </label>
+                  <div className="space-y-3">
+                    {/* Internal Rate */}
+                    <div className="p-2.5 rounded-xl border border-slate-100 bg-slate-50/50 space-y-2">
+                      <label className="flex items-center gap-2.5 cursor-pointer select-none text-slate-800 font-bold hover:text-blue-600">
+                        <input
+                          type="checkbox"
+                          checked={printConfig.showInternalRate}
+                          onChange={() => togglePrintOption("showInternalRate")}
+                          className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                        />
+                        <span>Internal Academic/Dept Rate</span>
+                      </label>
+                      {printConfig.showInternalRate && (
+                        <div className="grid grid-cols-2 gap-2 pl-6">
+                          <input
+                            type="text"
+                            value={printConfig.internalRateLabel !== undefined ? printConfig.internalRateLabel : "Internal Rate (Academic / Student Dept)"}
+                            onChange={(e) => setPrintConfig({ ...printConfig, internalRateLabel: e.target.value })}
+                            placeholder="Description Label"
+                            className="p-1.5 bg-white border border-slate-200 rounded-lg text-[11px] font-medium text-slate-800 focus:outline-none focus:border-blue-600"
+                          />
+                          <input
+                            type="text"
+                            value={printConfig.internalRateValue !== undefined ? printConfig.internalRateValue : `₱${feeForm.internal_hourly} / hr`}
+                            onChange={(e) => setPrintConfig({ ...printConfig, internalRateValue: e.target.value })}
+                            placeholder="Rate Text (e.g. ₱0 / hr)"
+                            className="p-1.5 bg-white border border-slate-200 rounded-lg text-[11px] font-bold text-emerald-700 focus:outline-none focus:border-blue-600"
+                          />
+                        </div>
+                      )}
+                    </div>
 
-                    <label className="flex items-center gap-2.5 cursor-pointer select-none text-slate-800 font-semibold hover:text-blue-600">
-                      <input
-                        type="checkbox"
-                        checked={printConfig.showExternalHourly}
-                        onChange={() => togglePrintOption("showExternalHourly")}
-                        className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
-                      />
-                      <span>External Hourly Rate (₱{feeForm.external_hourly}/hr)</span>
-                    </label>
+                    {/* External Hourly Rate */}
+                    <div className="p-2.5 rounded-xl border border-slate-100 bg-slate-50/50 space-y-2">
+                      <label className="flex items-center gap-2.5 cursor-pointer select-none text-slate-800 font-bold hover:text-blue-600">
+                        <input
+                          type="checkbox"
+                          checked={printConfig.showExternalHourly}
+                          onChange={() => togglePrintOption("showExternalHourly")}
+                          className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                        />
+                        <span>External Hourly Rate</span>
+                      </label>
+                      {printConfig.showExternalHourly && (
+                        <div className="grid grid-cols-2 gap-2 pl-6">
+                          <input
+                            type="text"
+                            value={printConfig.externalHourlyLabel !== undefined ? printConfig.externalHourlyLabel : "External Hourly Rental Rate"}
+                            onChange={(e) => setPrintConfig({ ...printConfig, externalHourlyLabel: e.target.value })}
+                            placeholder="Description Label"
+                            className="p-1.5 bg-white border border-slate-200 rounded-lg text-[11px] font-medium text-slate-800 focus:outline-none focus:border-blue-600"
+                          />
+                          <input
+                            type="text"
+                            value={printConfig.externalHourlyValue !== undefined ? printConfig.externalHourlyValue : `₱${feeForm.external_hourly} / hr`}
+                            onChange={(e) => setPrintConfig({ ...printConfig, externalHourlyValue: e.target.value })}
+                            placeholder="Rate Text"
+                            className="p-1.5 bg-white border border-slate-200 rounded-lg text-[11px] font-bold text-slate-900 focus:outline-none focus:border-blue-600"
+                          />
+                        </div>
+                      )}
+                    </div>
 
-                    <label className="flex items-center gap-2.5 cursor-pointer select-none text-slate-800 font-semibold hover:text-blue-600">
-                      <input
-                        type="checkbox"
-                        checked={printConfig.showExternalDaily}
-                        onChange={() => togglePrintOption("showExternalDaily")}
-                        className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
-                      />
-                      <span>External Daily Rate (₱{feeForm.external_daily}/day)</span>
-                    </label>
+                    {/* External Daily Rate */}
+                    <div className="p-2.5 rounded-xl border border-slate-100 bg-slate-50/50 space-y-2">
+                      <label className="flex items-center gap-2.5 cursor-pointer select-none text-slate-800 font-bold hover:text-blue-600">
+                        <input
+                          type="checkbox"
+                          checked={printConfig.showExternalDaily}
+                          onChange={() => togglePrintOption("showExternalDaily")}
+                          className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                        />
+                        <span>External Daily Rate</span>
+                      </label>
+                      {printConfig.showExternalDaily && (
+                        <div className="grid grid-cols-2 gap-2 pl-6">
+                          <input
+                            type="text"
+                            value={printConfig.externalDailyLabel !== undefined ? printConfig.externalDailyLabel : "External Full Day Rate"}
+                            onChange={(e) => setPrintConfig({ ...printConfig, externalDailyLabel: e.target.value })}
+                            placeholder="Description Label"
+                            className="p-1.5 bg-white border border-slate-200 rounded-lg text-[11px] font-medium text-slate-800 focus:outline-none focus:border-blue-600"
+                          />
+                          <input
+                            type="text"
+                            value={printConfig.externalDailyValue !== undefined ? printConfig.externalDailyValue : `₱${feeForm.external_daily} / day`}
+                            onChange={(e) => setPrintConfig({ ...printConfig, externalDailyValue: e.target.value })}
+                            placeholder="Rate Text"
+                            className="p-1.5 bg-white border border-slate-200 rounded-lg text-[11px] font-bold text-slate-900 focus:outline-none focus:border-blue-600"
+                          />
+                        </div>
+                      )}
+                    </div>
 
-                    <label className="flex items-center gap-2.5 cursor-pointer select-none text-slate-800 font-semibold hover:text-blue-600">
-                      <input
-                        type="checkbox"
-                        checked={printConfig.showCleaningFee}
-                        onChange={() => togglePrintOption("showCleaningFee")}
-                        className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
-                      />
-                      <span>Facility Cleaning Fee (₱{feeForm.cleaning_fee})</span>
-                    </label>
+                    {/* Cleaning Fee */}
+                    <div className="p-2.5 rounded-xl border border-slate-100 bg-slate-50/50 space-y-2">
+                      <label className="flex items-center gap-2.5 cursor-pointer select-none text-slate-800 font-bold hover:text-blue-600">
+                        <input
+                          type="checkbox"
+                          checked={printConfig.showCleaningFee}
+                          onChange={() => togglePrintOption("showCleaningFee")}
+                          className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                        />
+                        <span>Facility Cleaning Fee</span>
+                      </label>
+                      {printConfig.showCleaningFee && (
+                        <div className="grid grid-cols-2 gap-2 pl-6">
+                          <input
+                            type="text"
+                            value={printConfig.cleaningFeeLabel !== undefined ? printConfig.cleaningFeeLabel : "Facility Cleaning Fee"}
+                            onChange={(e) => setPrintConfig({ ...printConfig, cleaningFeeLabel: e.target.value })}
+                            placeholder="Description Label"
+                            className="p-1.5 bg-white border border-slate-200 rounded-lg text-[11px] font-medium text-slate-800 focus:outline-none focus:border-blue-600"
+                          />
+                          <input
+                            type="text"
+                            value={printConfig.cleaningFeeValue !== undefined ? printConfig.cleaningFeeValue : `₱${feeForm.cleaning_fee}`}
+                            onChange={(e) => setPrintConfig({ ...printConfig, cleaningFeeValue: e.target.value })}
+                            placeholder="Rate Text"
+                            className="p-1.5 bg-white border border-slate-200 rounded-lg text-[11px] font-bold text-slate-900 focus:outline-none focus:border-blue-600"
+                          />
+                        </div>
+                      )}
+                    </div>
 
-                    <label className="flex items-center gap-2.5 cursor-pointer select-none text-slate-800 font-semibold hover:text-blue-600">
-                      <input
-                        type="checkbox"
-                        checked={printConfig.showSoundFee}
-                        onChange={() => togglePrintOption("showSoundFee")}
-                        className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
-                      />
-                      <span>Sound System Setup Fee (₱{feeForm.sound_system_fee})</span>
-                    </label>
+                    {/* Sound System Setup Fee */}
+                    <div className="p-2.5 rounded-xl border border-slate-100 bg-slate-50/50 space-y-2">
+                      <label className="flex items-center gap-2.5 cursor-pointer select-none text-slate-800 font-bold hover:text-blue-600">
+                        <input
+                          type="checkbox"
+                          checked={printConfig.showSoundFee}
+                          onChange={() => togglePrintOption("showSoundFee")}
+                          className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                        />
+                        <span>Sound System Setup Fee</span>
+                      </label>
+                      {printConfig.showSoundFee && (
+                        <div className="grid grid-cols-2 gap-2 pl-6">
+                          <input
+                            type="text"
+                            value={printConfig.soundFeeLabel !== undefined ? printConfig.soundFeeLabel : "Sound System & Tech Setup Fee"}
+                            onChange={(e) => setPrintConfig({ ...printConfig, soundFeeLabel: e.target.value })}
+                            placeholder="Description Label"
+                            className="p-1.5 bg-white border border-slate-200 rounded-lg text-[11px] font-medium text-slate-800 focus:outline-none focus:border-blue-600"
+                          />
+                          <input
+                            type="text"
+                            value={printConfig.soundFeeValue !== undefined ? printConfig.soundFeeValue : `₱${feeForm.sound_system_fee}`}
+                            onChange={(e) => setPrintConfig({ ...printConfig, soundFeeValue: e.target.value })}
+                            placeholder="Rate Text"
+                            className="p-1.5 bg-white border border-slate-200 rounded-lg text-[11px] font-bold text-slate-900 focus:outline-none focus:border-blue-600"
+                          />
+                        </div>
+                      )}
+                    </div>
+
                   </div>
                 </div>
 
@@ -622,32 +731,52 @@ export default function FeeMatrixTab({ officeScope = "All Offices", showMsg }) {
                     <tbody className="font-mono">
                       {printConfig.showInternalRate && (
                         <tr>
-                          <td className="border border-slate-300 p-2.5 font-sans">Internal Rate (Academic / Student Dept)</td>
-                          <td className="border border-slate-300 p-2.5 text-right font-bold text-emerald-700">₱{feeForm.internal_hourly} / hr</td>
+                          <td className="border border-slate-300 p-2.5 font-sans">
+                            {printConfig.internalRateLabel || "Internal Rate (Academic / Student Dept)"}
+                          </td>
+                          <td className="border border-slate-300 p-2.5 text-right font-bold text-emerald-700">
+                            {printConfig.internalRateValue || `₱${feeForm.internal_hourly} / hr`}
+                          </td>
                         </tr>
                       )}
                       {printConfig.showExternalHourly && (
                         <tr>
-                          <td className="border border-slate-300 p-2.5 font-sans">External Hourly Rental Rate</td>
-                          <td className="border border-slate-300 p-2.5 text-right font-bold text-slate-900">₱{feeForm.external_hourly} / hr</td>
+                          <td className="border border-slate-300 p-2.5 font-sans">
+                            {printConfig.externalHourlyLabel || "External Hourly Rental Rate"}
+                          </td>
+                          <td className="border border-slate-300 p-2.5 text-right font-bold text-slate-900">
+                            {printConfig.externalHourlyValue || `₱${feeForm.external_hourly} / hr`}
+                          </td>
                         </tr>
                       )}
                       {printConfig.showExternalDaily && (
                         <tr>
-                          <td className="border border-slate-300 p-2.5 font-sans">External Full Day Rate</td>
-                          <td className="border border-slate-300 p-2.5 text-right font-bold text-slate-900">₱{feeForm.external_daily} / day</td>
+                          <td className="border border-slate-300 p-2.5 font-sans">
+                            {printConfig.externalDailyLabel || "External Full Day Rate"}
+                          </td>
+                          <td className="border border-slate-300 p-2.5 text-right font-bold text-slate-900">
+                            {printConfig.externalDailyValue || `₱${feeForm.external_daily} / day`}
+                          </td>
                         </tr>
                       )}
                       {printConfig.showCleaningFee && (
                         <tr>
-                          <td className="border border-slate-300 p-2.5 font-sans">Facility Cleaning Fee</td>
-                          <td className="border border-slate-300 p-2.5 text-right font-bold text-slate-900">₱{feeForm.cleaning_fee}</td>
+                          <td className="border border-slate-300 p-2.5 font-sans">
+                            {printConfig.cleaningFeeLabel || "Facility Cleaning Fee"}
+                          </td>
+                          <td className="border border-slate-300 p-2.5 text-right font-bold text-slate-900">
+                            {printConfig.cleaningFeeValue || `₱${feeForm.cleaning_fee}`}
+                          </td>
                         </tr>
                       )}
                       {printConfig.showSoundFee && (
                         <tr>
-                          <td className="border border-slate-300 p-2.5 font-sans">Sound System &amp; Tech Setup Fee</td>
-                          <td className="border border-slate-300 p-2.5 text-right font-bold text-slate-900">₱{feeForm.sound_system_fee}</td>
+                          <td className="border border-slate-300 p-2.5 font-sans">
+                            {printConfig.soundFeeLabel || "Sound System & Tech Setup Fee"}
+                          </td>
+                          <td className="border border-slate-300 p-2.5 text-right font-bold text-slate-900">
+                            {printConfig.soundFeeValue || `₱${feeForm.sound_system_fee}`}
+                          </td>
                         </tr>
                       )}
                       {!printConfig.showInternalRate && !printConfig.showExternalHourly && !printConfig.showExternalDaily && !printConfig.showCleaningFee && !printConfig.showSoundFee && (

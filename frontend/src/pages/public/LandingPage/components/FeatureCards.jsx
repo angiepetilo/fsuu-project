@@ -98,7 +98,7 @@ export default function FeatureCards() {
       <div className="flex justify-center my-6">
         <Link
           to="/track"
-          className="inline-flex items-center justify-center px-12 sm:px-16 py-3 sm:py-3.5 bg-white border-[2.5px] border-[#0091ff] rounded-2xl text-sm sm:text-base font-bold text-slate-900 shadow-sm hover:shadow-md hover:bg-blue-50/30 transition-all duration-200 hover:-translate-y-0.5"
+          className="inline-flex items-center justify-center px-12 sm:px-16 py-3.5 bg-white border-[2.5px] border-[#0091ff] hover:border-blue-600 active:border-blue-700 rounded-2xl text-sm sm:text-base font-extrabold text-slate-900 hover:text-blue-600 active:text-blue-700 shadow-sm hover:shadow-lg hover:shadow-blue-500/15 hover:bg-blue-50/50 active:bg-blue-100/70 active:scale-[0.98] focus:outline-none focus:ring-4 focus:ring-blue-500/20 transition-all duration-200 hover:-translate-y-0.5 cursor-pointer"
         >
           Track Booking
         </Link>

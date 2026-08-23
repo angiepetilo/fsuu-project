@@ -7,6 +7,7 @@ export default function SystemSettingsTab({ showMsg }) {
   const [settings, setSettings] = useState({
     system_name: "FSUU Facilities & Equipment Booking System",
     organization_name: "Father Saturnino Urios University",
+    header_brand_text: "Urios",
     contact_email: "support.booking@fsuu.edu.ph",
     contact_phone: "(085) 342-1830",
     timezone: "Asia/Manila (UTC+8)",
@@ -181,6 +182,18 @@ export default function SystemSettingsTab({ showMsg }) {
             </div>
 
             <div className="space-y-3.5">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Header Branding Text</label>
+                <input
+                  type="text"
+                  value={settings.header_brand_text || ""}
+                  onChange={(e) => setSettings({ ...settings, header_brand_text: e.target.value })}
+                  placeholder="e.g., Urios or FSUU"
+                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:bg-white focus:border-blue-600 focus:outline-none"
+                />
+                <p className="text-[10.5px] text-slate-400 mt-1 font-medium">Controls the top navigation logo brand title across public pages.</p>
+              </div>
+
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">System Display Title</label>
                 <input
