@@ -78,7 +78,11 @@ export default function VenuesTab({ showMsg }) {
         setVenues(prevVenues);
         setEditItem(editItem);
         setShowModal(true);
-        showMsg(err.response?.data?.message || `Failed to update "${form.name}" — changes reverted.`);
+        const errorMsg =
+          err.response?.data?.message ||
+          (err.response?.data?.errors ? Object.values(err.response.data.errors).flat().join(", ") : null) ||
+          `Failed to update "${form.name}" — changes reverted.`;
+        showMsg(errorMsg);
       } finally {
         setFormLoading(false);
       }
@@ -97,7 +101,11 @@ export default function VenuesTab({ showMsg }) {
       } catch (err) {
         setVenues(prevVenues);
         setShowModal(true);
-        showMsg(err.response?.data?.message || `Failed to create venue — changes reverted.`);
+        const errorMsg =
+          err.response?.data?.message ||
+          (err.response?.data?.errors ? Object.values(err.response.data.errors).flat().join(", ") : null) ||
+          `Failed to create venue — changes reverted.`;
+        showMsg(errorMsg);
       } finally {
         setFormLoading(false);
       }
@@ -216,7 +224,13 @@ export default function VenuesTab({ showMsg }) {
                           status: v.status || "available",
                           location: v.location || "",
                           capacity: v.capacity || 100,
-                          allowed_equipment: v.allowed_equipment || [],
+                          allowed_equipment: Array.isArray(v.allowed_equipment)
+                            ? v.allowed_equipment
+                            : typeof v.allowed_equipment === "string"
+                            ? (() => {
+                                try { return JSON.parse(v.allowed_equipment); } catch { return []; }
+                              })()
+                            : [],
                         });
                         setShowModal(true);
                       }}
