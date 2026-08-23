@@ -110,8 +110,9 @@ export default function VenueBookingDetailModal({
   const [allVenueBookings, setAllVenueBookings] = useState([]);
   const [allEquipmentBorrows, setAllEquipmentBorrows] = useState([]);
 
-  // Fetch real equipment stock, physical units, and active bookings from backend DB
+  // Fetch real equipment stock, physical units, and active bookings from backend DB ONLY when modal is open
   useEffect(() => {
+    if (!selected || !selected.id) return;
     setEqLoading(true);
     Promise.all([
       api.get("/admin/equipment-units").catch(() => ({ data: [] })),

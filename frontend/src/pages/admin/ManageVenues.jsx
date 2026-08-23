@@ -7,6 +7,7 @@ import VenueScheduleCalendar from "./components/VenueScheduleCalendar";
 import VenueScheduleForm from "./components/VenueScheduleForm";
 import TimeSlotMatrix from "./components/TimeSlotMatrix";
 import api from "@/lib/axios";
+import { fetchWithCache, invalidateCache } from "@/lib/apiCache";
 import { PageLoader } from "@/components/ui/page-loader";
 
 export default function ManageVenues() {
@@ -89,12 +90,12 @@ export default function ManageVenues() {
         setSetupForm((p) => ({ ...p, venueId: data[0].id }));
       }
 
-      // Fetch operating hours to enforce strict reservation start/end window
+      // Fetch operating hours with cache
       try {
-        const opRes = await api.get("/admin/operating-hours").catch(() => api.get("/public/operating-hours"));
-        if (opRes.data) {
-          const vOpen = opRes.data.venue_open ? opRes.data.venue_open.substring(0, 5) : "07:30";
-          const vClose = opRes.data.venue_close ? opRes.data.venue_close.substring(0, 5) : "17:00";
+        const opData = await fetchWithCache("operating_hours_settings", () => api.get("/admin/operating-hours").then(r => r.data).catch(() => api.get("/public/operating-hours").then(r => r.data)));
+        if (opData) {
+          const vOpen = opData.venue_open ? opData.venue_open.substring(0, 5) : "07:30";
+          const vClose = opData.venue_close ? opData.venue_close.substring(0, 5) : "17:00";
           setOperatingHours({
             venue_open: vOpen,
             venue_close: vClose,

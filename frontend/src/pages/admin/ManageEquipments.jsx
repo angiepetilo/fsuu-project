@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { useOutletContext } from "react-router-dom";
 import api from "@/lib/axios";
 import notify from "@/lib/notify";
+import { fetchWithCache, invalidateCache } from "@/lib/apiCache";
 import {
   PackageOpen, Plus, Search, Filter, Edit3, Trash2, CheckCircle2,
   AlertTriangle, RefreshCw, Barcode, Eye, Copy, Check,
@@ -73,15 +74,15 @@ export default function ManageEquipments() {
   const fetchEquipments = useCallback(async () => {
     setLoading(true);
     try {
-      const [catRes, unitRes] = await Promise.all([
-        api.get('/admin/equipment-types'),
+      const [catData, unitRes] = await Promise.all([
+        fetchWithCache("equipment_types_list", () => api.get('/admin/equipment-types').then(r => r.data).catch(() => [])),
         api.get('/admin/equipment-units').catch(() => ({ data: [] })),
       ]);
 
-      const catData = Array.isArray(catRes.data) ? catRes.data : [];
+      const catList = Array.isArray(catData) ? catData : [];
       const unitData = Array.isArray(unitRes.data) ? unitRes.data : [];
 
-      setCategories(catData);
+      setCategories(catList);
 
       setUnits(unitData.map((u, idx) => {
         const bCode = String(u.unit_code || u.barcode || `BC-EQP-2026-00${idx + 1}`).trim();
