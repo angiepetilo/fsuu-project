@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { CheckCircle2, AlertTriangle, Plus, ShieldCheck, FileCheck, Loader2 } from "lucide-react";
+import InspectionPhotoUploader from "@/components/ui/InspectionPhotoUploader";
 
 export default function VenuePostInspectionForm({
   inspectionStatus,
@@ -16,6 +17,9 @@ export default function VenuePostInspectionForm({
   setViolationTypesList,
   violationNotes,
   setViolationNotes,
+  evidencePhoto = [],
+  setEvidencePhoto,
+  setFullImageModal,
   isHistoryView = false,
   handleSavePostInspection,
   savingInspection = false,
@@ -169,6 +173,14 @@ export default function VenuePostInspectionForm({
           />
         )}
       </div>
+
+      {/* Multi-Photo Evidence & Inspection Images */}
+      <InspectionPhotoUploader
+        photos={evidencePhoto}
+        setPhotos={setEvidencePhoto}
+        isReadOnly={isHistoryView}
+        onPreview={(photoUrl) => setFullImageModal && setFullImageModal(photoUrl)}
+      />
 
       {/* Save Action Buttons */}
       {!isHistoryView && (

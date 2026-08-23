@@ -27,9 +27,15 @@ export default function Dashboard() {
   const isStaff = userRole === "staff";
 
   // SysAd Dashboard aggregates data across ALL offices by default
-  const officeScope = isSuperAdmin ? (context?.selectedOffice || "All Offices") : (context?.adminOffice || context?.selectedOffice || "All Offices");
+  const [cachedData] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("fsuu_cache_admin_dashboard") || "null");
+    } catch {
+      return null;
+    }
+  });
 
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!cachedData);
   const [error, setError] = useState(null);
   const [offices, setOffices] = useState([]);
 
@@ -41,17 +47,17 @@ export default function Dashboard() {
     }
   }, [isSuperAdmin]);
 
-  const [totalVenueBookings, setTotalVenueBookings] = useState(0);
-  const [pendingApproval, setPendingApproval] = useState(0);
-  const [pendingEquipBorrowings, setPendingEquipBorrowings] = useState(0);
-  const [totalEquipBorrows, setTotalEquipBorrows] = useState(0);
-  const [totalDamaged, setTotalDamaged] = useState(0);
-  const [totalLost, setTotalLost] = useState(0);
+  const [totalVenueBookings, setTotalVenueBookings] = useState(cachedData?.totalVenueBookings || 0);
+  const [pendingApproval, setPendingApproval] = useState(cachedData?.pendingApproval || 0);
+  const [pendingEquipBorrowings, setPendingEquipBorrowings] = useState(cachedData?.pendingEquipBorrowings || 0);
+  const [totalEquipBorrows, setTotalEquipBorrows] = useState(cachedData?.totalEquipBorrows || 0);
+  const [totalDamaged, setTotalDamaged] = useState(cachedData?.totalDamaged || 0);
+  const [totalLost, setTotalLost] = useState(cachedData?.totalLost || 0);
 
   // Dynamic Real Analytics Calculations
-  const [topBookedDepartments, setTopBookedDepartments] = useState([]);
+  const [topBookedDepartments, setTopBookedDepartments] = useState(cachedData?.topBookedDepartments || []);
   const [mostUsedEquipment, setMostUsedEquipment] = useState([]);
-  const [topViolatingDepartments, setTopViolatingDepartments] = useState([]);
+  const [topViolatingDepartments, setTopViolatingDepartments] = useState(cachedData?.topViolatingDepartments || []);
 
   // Active Venue Bookings across ALL Venues for Calendar & Staff Tasks
   const [calendarBookings, setCalendarBookings] = useState([]);
@@ -79,8 +85,8 @@ export default function Dashboard() {
   const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
   const pad = (n) => String(n).padStart(2, "0");
 
-  const fetchData = async () => {
-    setLoading(true);
+  const fetchData = async (showLoading = true) => {
+    if (showLoading && !cachedData) setLoading(true);
     setError(null);
     try {
       const [histData, vbRes, eqData, ebRes, dmgData, overridesData] = await Promise.all([
@@ -290,8 +296,22 @@ export default function Dashboard() {
     }
   };
 
+  const officeScope = isSuperAdmin ? (context?.selectedOffice || "All Offices") : (context?.adminOffice || context?.selectedOffice || "All Offices");
+
   useEffect(() => {
     fetchData();
+
+    const handleRealtimeSync = () => {
+      fetchData(false);
+    };
+
+    window.addEventListener("equipment_inventory_updated", handleRealtimeSync);
+    const interval = setInterval(() => fetchData(false), 25000);
+
+    return () => {
+      window.removeEventListener("equipment_inventory_updated", handleRealtimeSync);
+      clearInterval(interval);
+    };
   }, [officeScope, context?.selectedOfficeId, context?.selectedOffice]);
 
   // Calendar Day Details helper — all booking statuses mark calendar days, supporting multi-day spans

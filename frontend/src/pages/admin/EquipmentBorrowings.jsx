@@ -58,6 +58,15 @@ export default function EquipmentBorrowings() {
 
   useEffect(() => {
     fetchBorrowings();
+
+    const handleLiveSync = () => {
+      fetchBorrowings();
+    };
+
+    window.addEventListener("equipment_inventory_updated", handleLiveSync);
+    return () => {
+      window.removeEventListener("equipment_inventory_updated", handleLiveSync);
+    };
   }, [fetchBorrowings]);
 
   // Deep-link from notification navigation

@@ -63,14 +63,34 @@ export async function openFileInNewTab(url) {
   // 2. Resolve remote URL
   let resolvedUrl = resolveStorageUrl(url);
 
-  // If Cloudinary raw upload, try to fetch as blob with true content type to prevent auto-download
+  // If Cloudinary raw upload or image PDF, try to fetch as blob with true content type to prevent auto-download
   let newTab = null;
   try {
     newTab = window.open("about:blank", "_blank");
 
-    const response = await fetch(resolvedUrl, { mode: "cors" });
-    if (!response.ok) {
-      // If server returned 401/403/404, navigate newTab directly to the URL or show warning
+    let response = await fetch(resolvedUrl, { mode: "cors" }).catch(() => null);
+
+    // If Cloudinary returned 401/404 on direct PDF delivery, auto fallback to Cloudinary PNG preview
+    if ((!response || !response.ok) && resolvedUrl.includes("res.cloudinary.com") && resolvedUrl.includes("/image/upload/") && resolvedUrl.toLowerCase().includes(".pdf")) {
+      const pngUrl = resolvedUrl.replace(/\.pdf(\?.*)?$/i, ".png$1");
+      response = await fetch(pngUrl, { mode: "cors" }).catch(() => null);
+      if (response && response.ok) {
+        resolvedUrl = pngUrl;
+      } else if (newTab) {
+        newTab.location.href = pngUrl;
+        return;
+      }
+    }
+
+    if (!response || !response.ok) {
+      // If server returned 401/403/404, check if it's Cloudinary PDF and use PNG
+      if (resolvedUrl.includes("res.cloudinary.com") && resolvedUrl.includes("/image/upload/") && resolvedUrl.toLowerCase().includes(".pdf")) {
+        const fallbackPng = resolvedUrl.replace(/\.pdf(\?.*)?$/i, ".png$1");
+        if (newTab) newTab.location.href = fallbackPng;
+        else window.open(fallbackPng, "_blank", "noopener,noreferrer");
+        return;
+      }
+
       if (newTab) {
         newTab.location.href = resolvedUrl;
       } else {
@@ -107,7 +127,11 @@ export async function openFileInNewTab(url) {
       window.open(blobUrl, "_blank", "noopener,noreferrer");
     }
   } catch {
-    // If CORS or network error prevents fetch, fallback to direct URL
+    // If CORS or network error prevents fetch, check Cloudinary PDF fallback
+    if (resolvedUrl.includes("res.cloudinary.com") && resolvedUrl.includes("/image/upload/") && resolvedUrl.toLowerCase().includes(".pdf")) {
+      resolvedUrl = resolvedUrl.replace(/\.pdf(\?.*)?$/i, ".png$1");
+    }
+
     if (newTab) {
       newTab.location.href = resolvedUrl;
     } else {

@@ -78,6 +78,15 @@ class HistoryLogService
                 $assignedUnits = $b->assigned_units ? (is_string($b->assigned_units) ? json_decode($b->assigned_units, true) : $b->assigned_units) : null;
                 $unitConditions = $b->unit_conditions ? (is_string($b->unit_conditions) ? json_decode($b->unit_conditions, true) : $b->unit_conditions) : null;
 
+                $rawPhoto = $b->evidence_photo ?? null;
+                $photoList = [];
+                if (is_string($rawPhoto) && (str_starts_with(trim($rawPhoto), '[') || str_starts_with(trim($rawPhoto), '{'))) {
+                    $decoded = json_decode($rawPhoto, true);
+                    $photoList = is_array($decoded) ? array_values(array_filter($decoded)) : [$rawPhoto];
+                } elseif (!empty($rawPhoto)) {
+                    $photoList = [$rawPhoto];
+                }
+
                 return array_merge($item, [
                     'record_type'        => 'venue',
                     'equipment_notes'    => $b->equipment_notes ?? '',
@@ -85,7 +94,8 @@ class HistoryLogService
                     'has_violation'      => !empty($violationText),
                     'violation'          => $violationText,
                     'violation_type'     => $b->violation_type ?? ($hasDamage ? 'Policy Breach Identified' : null),
-                    'evidence_photo'     => $b->evidence_photo ?? null,
+                    'evidence_photo'     => $photoList[0] ?? null,
+                    'evidence_photos'    => $photoList,
                     'endorsement_letter' => $b->endorsement_letter ?? null,
                     'assigned_units'     => $assignedUnits,
                     'unit_conditions'    => $unitConditions,
@@ -104,9 +114,9 @@ class HistoryLogService
             ->leftJoin('inspections', function ($join) {
                 $join->on('equipment_borrows.id', '=', 'inspections.inspectable_id')
                      ->where(function ($q) {
-                         $q->where('inspections.inspectable_type', 'like', '%EquipmentBorrow%')
-                           ->orWhere('inspections.inspectable_type', 'equipment_borrow')
-                           ->orWhere('inspections.reference_type', 'equipment_borrow');
+                          $q->where('inspections.inspectable_type', 'like', '%EquipmentBorrow%')
+                            ->orWhere('inspections.inspectable_type', 'equipment_borrow')
+                            ->orWhere('inspections.reference_type', 'equipment_borrow');
                      });
             })
             ->whereNull('equipment_borrows.archived_at')
@@ -135,6 +145,7 @@ class HistoryLogService
                 'tracking_numbers.status',
                 'inspections.condition as inspection_condition',
                 'inspections.notes as inspection_notes',
+                'inspections.evidence_photo as evidence_photo',
                 'inspections.is_late as is_late',
                 'inspections.timeliness as timeliness',
                 'inspections.minutes_late as minutes_late',
@@ -191,6 +202,15 @@ class HistoryLogService
                 $unitCondRaw = $b->inspection_unit_conditions ?? null;
                 $unitConditions = $unitCondRaw ? (is_string($unitCondRaw) ? json_decode($unitCondRaw, true) : $unitCondRaw) : null;
 
+                $rawEbPhoto = $b->evidence_photo ?? null;
+                $ebPhotoList = [];
+                if (is_string($rawEbPhoto) && (str_starts_with(trim($rawEbPhoto), '[') || str_starts_with(trim($rawEbPhoto), '{'))) {
+                    $decoded = json_decode($rawEbPhoto, true);
+                    $ebPhotoList = is_array($decoded) ? array_values(array_filter($decoded)) : [$rawEbPhoto];
+                } elseif (!empty($rawEbPhoto)) {
+                    $ebPhotoList = [$rawEbPhoto];
+                }
+
                 return array_merge($item, [
                     'record_type'     => 'equipment',
                     'items'           => $items,
@@ -202,6 +222,8 @@ class HistoryLogService
                     'has_violation'   => $hasViolation,
                     'violation'       => $violationText,
                     'violation_type'  => $b->violation_type ?? ($isDamaged ? 'Physical Damage' : ($isLost ? 'Lost Property' : ($isLate ? 'Late Return' : null))),
+                    'evidence_photo'  => $ebPhotoList[0] ?? null,
+                    'evidence_photos' => $ebPhotoList,
                     'assigned_units'  => $assignedUnits,
                     'unit_conditions' => $unitConditions,
                     'violations'      => $hasViolation ? 1 : 0,
