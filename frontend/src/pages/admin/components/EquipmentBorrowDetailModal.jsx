@@ -625,7 +625,18 @@ export default function EquipmentBorrowDetailModal({
 
   const handleDoneComplete = async () => {
     if (isPostUseEligible) {
-      await handleSaveInspection(null, "post_use");
+      // Persist inspection silently in background
+      api.post("/inspections", {
+        inspectable_type: "equipment_borrow",
+        inspectable_id: selected.id,
+        inspection_type: "post_use",
+        condition: inspectionStatus === "clean" ? "good" : "damaged",
+        timeliness: timeliness,
+        notes: violationNotes || (inspectionStatus === "clean" ? "Returned safely in good condition." : "Returned with damaged/lost equipment."),
+        evidence_image: evidencePhoto,
+        assigned_units: assignedUnitSelections,
+        unit_conditions: unitReturnedConditions,
+      }).catch(() => {});
     }
 
     try {
@@ -961,20 +972,11 @@ export default function EquipmentBorrowDetailModal({
             </>
           ) : (
             <div className="flex items-center gap-2.5">
-              {isOngoing && !isReadyForPostInspection && (
-                <button
-                  type="button"
-                  onClick={() => setIsReadyForPostInspection(true)}
-                  className="px-5 py-2 bg-white hover:bg-slate-50 border border-slate-900 text-slate-900 rounded-lg text-xs font-extrabold flex items-center gap-1.5 cursor-pointer shadow-xs"
-                >
-                  <FileCheck size={13} /> Ready for Inspection (After)
-                </button>
-              )}
               {isOngoing && isReadyForPostInspection && (
                 <button
                   type="button"
                   onClick={handleDoneComplete}
-                  disabled={!!actionLoading || savingInspection}
+                  disabled={!!actionLoading}
                   className="px-5 py-2 bg-white hover:bg-slate-50 border border-slate-900 text-slate-900 rounded-lg text-xs font-extrabold flex items-center gap-1.5 cursor-pointer shadow-xs"
                 >
                   <Check size={13} /> Complete

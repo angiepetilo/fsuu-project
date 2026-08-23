@@ -64,14 +64,6 @@ export default function VenueModalFooter({
         <div className="flex items-center gap-2.5">
           <button
             type="button"
-            onClick={() => handleAction(selected.id, "post-inspection")}
-            disabled={!!actionLoading || savingInspection}
-            className="px-5 py-2 bg-white hover:bg-slate-50 border border-slate-900 text-slate-900 rounded-lg text-xs font-extrabold flex items-center gap-1.5 cursor-pointer shadow-xs"
-          >
-            <FileCheck size={13} /> Ready for Inspection (After)
-          </button>
-          <button
-            type="button"
             onClick={() => { setSelected(null); setShowRejectForm(false); }}
             className="px-5 py-2 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 rounded-lg text-xs font-bold cursor-pointer"
           >
