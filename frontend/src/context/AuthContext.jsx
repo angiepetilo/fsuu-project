@@ -40,7 +40,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   useEffect(() => {
-    if (token) {
+    if (token && !user) {
       api.get("/user").then(res => {
         if (res.data) {
           setUser(res.data);
@@ -53,7 +53,7 @@ export function AuthProvider({ children }) {
         }
       });
     }
-  }, [token]);
+  }, [token, user]);
 
   const clearAdminCaches = () => {
     // Flush in-memory axios cache

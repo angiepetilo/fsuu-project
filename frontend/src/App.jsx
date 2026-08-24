@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useState } from "react";
 import { BrowserRouter, Routes, Route, Link, useLocation, Navigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
+import api from "@/lib/axios";
 import { cleanupLocalStorage } from "@/lib/cleanupLocalStorage";
 import { PageLoader } from "@/components/ui/page-loader";
 
@@ -62,12 +63,11 @@ function AppContent() {
 
   useEffect(() => {
     const loadSettings = () => {
-      fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000/api'}/public/system-settings`)
-        .then((res) => res.json())
-        .then((data) => {
-          if (data) {
-            setPublicSettings((prev) => ({ ...prev, ...data }));
-            localStorage.setItem("fsuu_system_settings", JSON.stringify(data));
+      api.get("/public/system-settings")
+        .then((res) => {
+          if (res.data) {
+            setPublicSettings((prev) => ({ ...prev, ...res.data }));
+            localStorage.setItem("fsuu_system_settings", JSON.stringify(res.data));
           }
         })
         .catch(() => {

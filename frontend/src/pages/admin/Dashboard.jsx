@@ -90,10 +90,10 @@ export default function Dashboard() {
     setError(null);
     try {
       const [histData, vbRes, eqData, ebRes, dmgData, overridesData] = await Promise.all([
-        api.get("/admin/history-log").then(r => r.data).catch(() => ({ venue_bookings: [], equipment_borrowings: [] })),
-        api.get("/avr-venue-bookings").catch(() => ({ data: { data: [] } })),
+        fetchWithCache("dashboard_history_log", () => api.get("/admin/history-log").then(r => r.data).catch(() => ({ venue_bookings: [], equipment_borrowings: [] }))),
+        fetchWithCache("dashboard_venue_bookings", () => api.get("/avr-venue-bookings").catch(() => ({ data: { data: [] } }))),
         fetchWithCache("equipment_types_list", () => api.get("/admin/equipment-types").then(r => r.data).catch(() => [])),
-        api.get("/avr-equipment-borrowings").catch(() => ({ data: { data: [] } })),
+        fetchWithCache("dashboard_equipment_borrowings", () => api.get("/avr-equipment-borrowings").catch(() => ({ data: { data: [] } }))),
         fetchWithCache("equipment_damages_summary", () => api.get("/admin/equipment-damages").then(r => r.data).catch(() => ({ total_damaged_count: 0, total_lost_count: 0 }))),
         fetchWithCache("venue_overrides_list", () => api.get("/public/venue-overrides").then(r => r.data).catch(() => [])),
       ]);

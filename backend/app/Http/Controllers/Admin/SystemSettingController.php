@@ -69,6 +69,7 @@ class SystemSettingController extends Controller
 
         $settings = SystemSetting::getSettings();
         $settings->update($validated);
+        \Illuminate\Support\Facades\Cache::forget('system_settings_singleton');
 
         return response()->json([
             'message'  => 'System settings updated successfully',
