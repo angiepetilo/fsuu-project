@@ -11,7 +11,6 @@ return new class extends Migration
         Schema::create('equipment_borrows', function (Blueprint $table) {
             $table->id();
             $table->foreignId('tracking_number_id')->constrained('tracking_numbers')->cascadeOnDelete();
-            $table->foreignId('submitted_by')->nullable()->constrained('users')->nullOnDelete();
             $table->string('submission_channel')->default('online_self'); // online_self, staff_entered
             $table->string('filer_name');
             $table->string('email_address');
@@ -23,7 +22,6 @@ return new class extends Migration
             $table->date('date_of_usage');
             $table->time('time_start');
             $table->time('time_end');
-            $table->string('school_id')->nullable();
             $table->longText('assigned_units')->nullable();
             $table->timestamps();
             $table->timestamp('archived_at')->nullable();

@@ -12,7 +12,6 @@ return new class extends Migration
             $table->id();
             $table->string('code', 20);
             $table->string('name');
-            $table->string('campus_location')->nullable();
             $table->timestamps();
             $table->timestamp('archived_at')->nullable();
         });

@@ -17,7 +17,6 @@ class EquipmentBorrow extends Model
 
     protected $fillable = [
         'tracking_number_id',
-        'submitted_by',
         'submission_channel',
         'filer_name',
         'email_address',
@@ -29,7 +28,6 @@ class EquipmentBorrow extends Model
         'date_of_usage',
         'time_start',
         'time_end',
-        'school_id',
         'assigned_units',
     ];
 

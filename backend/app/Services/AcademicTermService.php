@@ -61,18 +61,24 @@ class AcademicTermService
                 ->whereBetween('inspected_at', [$term->start_date . ' 00:00:00', $endDateStr])
                 ->count();
 
+            $damagedUnitsCount = \App\Models\EquipmentUnit::where('condition', 'Damaged')
+                ->orWhere('status', 'damaged')
+                ->count();
+
             return [
-                'venue_bookings_count'       => $venueCount,
-                'equipment_borrowings_count' => $equipmentCount,
-                'breaches_count'             => $breachCount,
-                'total_transactions'         => $venueCount + $equipmentCount,
+                'venue_bookings_count'          => $venueCount,
+                'equipment_borrowings_count'    => $equipmentCount,
+                'breaches_count'                => $breachCount,
+                'damaged_equipment_units_count' => $damagedUnitsCount,
+                'total_transactions'            => $venueCount + $equipmentCount,
             ];
         } catch (\Throwable $e) {
             return [
-                'venue_bookings_count'       => 0,
-                'equipment_borrowings_count' => 0,
-                'breaches_count'             => 0,
-                'total_transactions'         => 0,
+                'venue_bookings_count'          => 0,
+                'equipment_borrowings_count'    => 0,
+                'breaches_count'                => 0,
+                'damaged_equipment_units_count' => 0,
+                'total_transactions'            => 0,
             ];
         }
     }

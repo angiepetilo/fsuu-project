@@ -14,8 +14,6 @@ class Inspection extends Model
     protected $fillable = [
         'inspectable_type',
         'inspectable_id',
-        'reference_type',
-        'reference_id',
         'inspected_by',
         'inspection_type',
         'condition',

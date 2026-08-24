@@ -348,7 +348,7 @@ export default function Step3Details({
           </Button>
 
           <Button type="submit" className="px-8 py-5 rounded-xl font-extrabold text-white text-xs shadow-lg transition-all bg-blue-600 hover:bg-blue-700 shadow-blue-600/20">
-            Next: Verification →
+            Next: Review →
           </Button>
         </div>
       </form>

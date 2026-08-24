@@ -17,6 +17,7 @@ class EquipmentBorrowItem extends Model
     protected $fillable = [
         'equipment_borrow_id',
         'equipment_type_id',
+        'equipment_unit_id',
         'quantity_requested',
         'picked_up_at',
         'returned_at',

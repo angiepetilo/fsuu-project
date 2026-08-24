@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { FileText, ExternalLink, Upload, CheckCircle, HardDrive } from "lucide-react";
 import { resolveStorageUrl, openFileInNewTab } from "@/lib/utils";
+import api from "@/lib/axios";
 
 export default function VenueBookingInfo({
   selected,
@@ -18,14 +19,11 @@ export default function VenueBookingInfo({
   const [hardcopyNotes, setHardcopyNotes] = useState("");
   const [staffUploadUrl, setStaffUploadUrl] = useState(null);
   const [saveSuccessMsg, setSaveSuccessMsg] = useState(null);
-  const [showUploadForm, setShowUploadForm] = useState(false);
-  const [imageLoadError, setImageLoadError] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
     setStaffUploadUrl(null);
-    setImageLoadError(false);
     try {
-      localStorage.removeItem(`fsuu_staff_upload_${selected.id}`);
       const savedHc = localStorage.getItem(storageKeyHardcopy);
       const savedNotes = localStorage.getItem(storageKeyNotes);
       if (savedHc === "true" || selected.physical_hardcopy_received) setIsHardcopy(true);
@@ -33,17 +31,35 @@ export default function VenueBookingInfo({
     } catch {}
   }, [selected.id]);
 
-  const handleFileUpload = (e) => {
+  const handleFileUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    // Show local preview immediately
     const reader = new FileReader();
     reader.onload = (evt) => {
-      const result = evt.target.result;
-      setStaffUploadUrl(result);
-      setSaveSuccessMsg("Endorsement letter file attached.");
-      setTimeout(() => setSaveSuccessMsg(null), 3000);
+      setStaffUploadUrl(evt.target.result);
     };
     reader.readAsDataURL(file);
+
+    // Upload to backend if booking exists
+    if (selected.id) {
+      setIsUploading(true);
+      try {
+        const formData = new FormData();
+        formData.append("document", file);
+        const res = await api.post(`/avr-venue-bookings/${selected.id}/upload-document`, formData);
+        if (res.data?.url) {
+          setStaffUploadUrl(res.data.url);
+        }
+        setSaveSuccessMsg("Endorsement letter attached and uploaded.");
+      } catch {
+        setSaveSuccessMsg("Document attached locally.");
+      } finally {
+        setIsUploading(false);
+        setTimeout(() => setSaveSuccessMsg(null), 3000);
+      }
+    }
   };
 
   const handleSaveHardcopy = () => {
@@ -56,6 +72,7 @@ export default function VenueBookingInfo({
   };
 
   const getDocumentUrl = () => {
+    if (staffUploadUrl) return resolveStorageUrl(staffUploadUrl);
     if (selected.endorsement_url) return resolveStorageUrl(selected.endorsement_url);
     if (selected.endorsement_letter) return resolveStorageUrl(selected.endorsement_letter);
     if (selected.endorsement_letter_url) return resolveStorageUrl(selected.endorsement_letter_url);
@@ -72,14 +89,12 @@ export default function VenueBookingInfo({
 
     if (selected.file_path) return resolveStorageUrl(selected.file_path);
     if (selected.attachment) return resolveStorageUrl(selected.attachment);
-    if (staffUploadUrl) return resolveStorageUrl(staffUploadUrl);
     return null;
   };
 
   const docUrl = getDocumentUrl();
   const isPdf = String(docUrl || "").toLowerCase().includes(".pdf") || String(docUrl || "").toLowerCase().includes("data:application/pdf");
 
-  // Opens directly in another browser tab using a Blob object or direct storage URL (no download)
   const handleOpenDocument = (url) => {
     if (!url) return;
     openFileInNewTab(url);
@@ -87,11 +102,18 @@ export default function VenueBookingInfo({
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-      {/* Left Column (7/12): Requestor & Reservation Details in Clean Label-Value Table Layout */}
+      {/* Left Column (7/12): Requestor & Reservation Details */}
       <div className="lg:col-span-7 space-y-2 text-xs text-slate-700 font-semibold bg-white p-4 rounded-2xl border border-slate-200">
         <div className="flex justify-between items-baseline py-1 border-b border-slate-100">
           <span className="text-slate-500">Requestor :</span>
           <span className="font-bold text-slate-900 font-mono">{selected.filer_name || selected.requestor_name || "—"}</span>
+        </div>
+
+        <div className="flex justify-between items-baseline py-1 border-b border-slate-100">
+          <span className="text-slate-500">Identity / Role :</span>
+          <span className="font-extrabold capitalize text-slate-900">
+            {selected.requestor_identity_type || selected.identity_type || selected.identity || "Student"}
+          </span>
         </div>
 
         <div className="flex justify-between items-baseline py-1 border-b border-slate-100">
@@ -158,25 +180,27 @@ export default function VenueBookingInfo({
         )}
       </div>
 
-      {/* Right Column (5/12): Endorsement document preview & direct open in new tab */}
-      <div className="lg:col-span-5 p-4 bg-white rounded-2xl border border-slate-200 flex flex-col justify-between space-y-3">
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-bold text-slate-700">
+      {/* Right Column (5/12): Endorsement Document & Walk-in Hardcopy Management */}
+      <div className="lg:col-span-5 bg-white p-4 rounded-2xl border border-slate-200 flex flex-col justify-between space-y-3">
+        <div className="space-y-2">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+            <span className="font-extrabold text-slate-900 text-xs flex items-center gap-1.5">
+              <FileText size={14} className="text-blue-600" />
               Endorsement Document :
             </span>
-            <span className="text-[10.5px] font-mono font-bold text-slate-500">
-              {docUrl ? (isPdf ? "PDF Attached" : "Image Attached") : isHardcopy ? "Hardcopy Filed" : "Pending File"}
+            <span className="text-[10px] font-bold text-slate-400 font-mono">
+              {docUrl ? (isPdf ? 'PDF Document' : 'Image File') : (isHardcopy ? 'Hardcopy Filed' : 'Pending File')}
             </span>
           </div>
 
-          <div className="relative rounded-xl overflow-hidden border border-slate-200 bg-slate-900 h-52 flex items-center justify-center">
+          {/* Document Preview Viewport */}
+          <div className="w-full h-[180px] bg-slate-950 rounded-xl overflow-hidden flex items-center justify-center relative group border border-slate-200">
             {docUrl ? (
               isPdf ? (
-                <div className="w-full h-full p-5 bg-slate-900 flex flex-col items-center justify-center text-center space-y-2.5">
-                  <FileText size={28} className="text-slate-300" />
+                <div className="w-full h-full p-4 bg-slate-900 flex flex-col items-center justify-center text-center space-y-2">
+                  <FileText size={32} className="text-blue-400" />
                   <div>
-                    <h5 className="text-xs font-extrabold text-white">Signed Endorsement Clearance</h5>
+                    <p className="text-xs font-bold text-white">Official Endorsement PDF</p>
                     <p className="text-[10px] font-mono text-slate-400 mt-0.5 truncate max-w-[180px]">
                       {docUrl.startsWith('data:') ? 'Official Attached PDF' : docUrl.split('/').pop()}
                     </p>
@@ -191,25 +215,16 @@ export default function VenueBookingInfo({
                 </div>
               ) : (
                 <>
-                  {!imageLoadError ? (
-                    <img
-                      src={docUrl}
-                      alt="Endorsement Letter Preview"
-                      className="w-full h-full object-contain bg-slate-950 p-1 cursor-pointer"
-                      onClick={() => handleOpenDocument(docUrl)}
-                      onError={() => setImageLoadError(true)}
-                    />
-                  ) : (
-                    <div className="w-full h-full p-4 bg-slate-900 flex flex-col items-center justify-center text-center space-y-2">
-                      <FileText size={28} className="text-blue-400" />
-                      <p className="text-xs font-bold text-white">Endorsement Image Attached</p>
-                      <p className="text-[10px] font-mono text-slate-400 truncate max-w-[180px]">{docUrl.split('/').pop()}</p>
-                    </div>
-                  )}
+                  <img
+                    src={docUrl}
+                    alt="Endorsement Letter Preview"
+                    className="w-full h-full object-contain bg-slate-950 p-1 cursor-pointer"
+                    onClick={() => handleOpenDocument(docUrl)}
+                  />
                   <button
                     type="button"
                     onClick={() => handleOpenDocument(docUrl)}
-                    className="absolute inset-0 w-full h-full flex items-center justify-center bg-black/40 hover:bg-black/60 transition-colors cursor-pointer"
+                    className="absolute inset-0 w-full h-full flex items-center justify-center bg-black/40 hover:bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
                   >
                     <span className="text-slate-900 text-xs font-bold flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white border border-slate-200 shadow-xs">
                       <ExternalLink size={14} /> Open in New Tab
@@ -226,19 +241,16 @@ export default function VenueBookingInfo({
           </div>
         </div>
 
-        {/* Walk-in Hardcopy Fallback Option */}
-        <div className="pt-2 border-t border-slate-100 text-xs">
-          {!showUploadForm ? (
-            <button
-              type="button"
-              onClick={() => setShowUploadForm(true)}
-              className="text-slate-600 hover:text-slate-900 font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
-            >
-              <HardDrive size={13} />
-              <span>Physical Hardcopy / Document Management</span>
-            </button>
-          ) : (
-            <div className="space-y-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+        {/* Walk-in Hardcopy & Scanned File Attachment */}
+        <div className="pt-2 border-t border-slate-100 text-xs space-y-2">
+          {saveSuccessMsg && (
+            <div className="p-2 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-lg text-xs font-bold flex items-center gap-1.5 animate-in fade-in">
+              <CheckCircle size={13} /> {saveSuccessMsg}
+            </div>
+          )}
+
+          <div className="space-y-2.5 bg-slate-50 p-3 rounded-xl border border-slate-200">
+            <div className="flex items-center justify-between gap-2">
               <label className="flex items-center gap-2 font-bold text-slate-800 text-xs cursor-pointer">
                 <input
                   type="checkbox"
@@ -248,24 +260,45 @@ export default function VenueBookingInfo({
                 />
                 Mark as Walk-in Physical Hardcopy Filed
               </label>
-              {isHardcopy && (
+
+              <div>
                 <input
-                  type="text"
-                  placeholder="e.g. Binder 2026-A, Page 4"
-                  value={hardcopyNotes}
-                  onChange={(e) => setHardcopyNotes(e.target.value)}
-                  className="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 focus:outline-none focus:border-slate-400"
+                  type="file"
+                  accept="image/*,.pdf"
+                  onChange={handleFileUpload}
+                  disabled={isUploading}
+                  className="hidden"
+                  id={`walkin-upload-${selected.id}`}
                 />
-              )}
-              <button
-                type="button"
-                onClick={handleSaveHardcopy}
-                className="px-3 py-1 bg-white hover:bg-slate-50 border border-slate-900 text-slate-900 rounded-lg text-xs font-bold cursor-pointer transition-colors"
-              >
-                Save Walk-in Status
-              </button>
+                <label
+                  htmlFor={`walkin-upload-${selected.id}`}
+                  className="px-2.5 py-1 bg-white hover:bg-blue-50 text-blue-600 hover:text-blue-700 border border-blue-200 rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
+                  title="Attach or upload scanned endorsement letter"
+                >
+                  <Upload size={12} />
+                  <span>{isUploading ? "Uploading..." : "Attach Document"}</span>
+                </label>
+              </div>
             </div>
-          )}
+
+            {isHardcopy && (
+              <input
+                type="text"
+                placeholder="e.g. Binder 2026-A, Page 4"
+                value={hardcopyNotes}
+                onChange={(e) => setHardcopyNotes(e.target.value)}
+                className="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 focus:outline-none focus:border-slate-400"
+              />
+            )}
+
+            <button
+              type="button"
+              onClick={handleSaveHardcopy}
+              className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-lg text-xs font-extrabold cursor-pointer transition-colors shadow-2xs"
+            >
+              Save Walk-in Status
+            </button>
+          </div>
         </div>
       </div>
     </div>

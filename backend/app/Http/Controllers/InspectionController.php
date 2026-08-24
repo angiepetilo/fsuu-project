@@ -137,11 +137,10 @@ class InspectionController extends Controller
             ->first();
         }
 
+        $hasCol = fn ($c) => \Illuminate\Support\Facades\Schema::hasColumn('inspections', $c);
         $data = [
             'inspectable_type' => $refType === 'equipment_borrow' ? \App\Models\EquipmentBorrow::class : \App\Models\VenueBooking::class,
             'inspectable_id'   => $refId,
-            'reference_type'   => $refType,
-            'reference_id'     => $refId,
             'inspected_by'     => auth()->id() ?? 1,
             'inspection_type'  => $incomingType,
             'condition'        => $condition,
@@ -153,6 +152,9 @@ class InspectionController extends Controller
             'unit_conditions'  => $unitConditions,
             'inspected_at'     => now(),
         ];
+
+        if ($hasCol('reference_type')) $data['reference_type'] = $refType;
+        if ($hasCol('reference_id')) $data['reference_id'] = $refId;
 
         if ($photoPayload !== null || $request->has('evidence_photos') || $request->has('evidence_photo')) {
             $data['evidence_photo'] = $photoPayload;

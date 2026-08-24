@@ -423,9 +423,14 @@ export default function VenueEquipmentChecklist({
                             )}
                           </div>
 
-                          {isHistoryView ? (
-                            <div className="font-mono text-xs text-slate-800 py-1">
-                              {currentSelectedBarcode ? `Barcode: ${currentSelectedBarcode}` : "No specific barcode logged"}
+                          {isHistoryView || (isSideBySide && isPreEvent) ? (
+                            <div className="font-mono text-xs text-slate-800 py-1 flex items-center justify-between">
+                              <span className="font-semibold text-slate-800">
+                                {currentSelectedBarcode ? `Barcode: [${currentSelectedBarcode}]` : "Physical Unit Pre-Assigned"}
+                              </span>
+                              <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                                Pre-Inspected (Good)
+                              </span>
                             </div>
                           ) : (
                             <SlotBarcodeSelector
@@ -447,7 +452,7 @@ export default function VenueEquipmentChecklist({
                           )}
 
                           {/* Pre-event physical unit condition inspection */}
-                          {setUnitReturnedConditions && !isHistoryView && (
+                          {setUnitReturnedConditions && !isHistoryView && !isSideBySide && (
                             <div className="flex items-center justify-between pt-1">
                               <span className="text-[10.5px] font-bold text-slate-500">Unit Condition:</span>
                               <div className="flex items-center gap-1.5">
@@ -503,9 +508,11 @@ export default function VenueEquipmentChecklist({
         <label className="block text-[11px] font-bold text-slate-600 uppercase">
           Inspection Notes &amp; Observations
         </label>
-        {isHistoryView ? (
+        {isHistoryView || (isSideBySide && isPreEvent) ? (
           <div className="p-3 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-800 min-h-[50px]">
-            {equipmentInspectionNotes || "All physical units inspected in satisfactory condition."}
+            {isPreEvent
+              ? "All physical units inspected and released in satisfactory condition before event."
+              : (equipmentInspectionNotes || "All physical units inspected in satisfactory condition.")}
           </div>
         ) : (
           <textarea

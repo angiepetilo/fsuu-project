@@ -169,6 +169,10 @@ class EquipmentBorrowingController extends Controller
             })->update(['status' => 'released']);
         }
 
+        \App\Models\EquipmentBorrowItem::where('equipment_borrow_id', $equipmentBorrowing->id)
+            ->whereNull('picked_up_at')
+            ->update(['picked_up_at' => now()]);
+
         return response()->json($equipmentBorrowing->fresh(['items.equipmentType', 'trackingNumber']));
     }
 
@@ -345,6 +349,10 @@ class EquipmentBorrowingController extends Controller
                 \Illuminate\Support\Facades\DB::table('inspections')->insert($inspData);
             }
         }
+
+        \App\Models\EquipmentBorrowItem::where('equipment_borrow_id', $equipmentBorrowing->id)
+            ->whereNull('returned_at')
+            ->update(['returned_at' => now()]);
 
         return response()->json($equipmentBorrowing->fresh(['items.equipmentType', 'trackingNumber']));
     }

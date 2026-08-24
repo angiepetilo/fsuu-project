@@ -178,7 +178,7 @@ export default function Step3Details({
             ? 'bg-purple-600 hover:bg-purple-700 shadow-purple-600/20'
             : 'bg-blue-600 hover:bg-blue-700 shadow-blue-600/20'
             }`}>
-            Next: Verification →
+            Next: Review →
           </Button>
         </div>
       </form>

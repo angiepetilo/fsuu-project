@@ -996,7 +996,7 @@ export default function VenueBookingDetailModal({
               </div>
             </div>
           ) : isOngoing ? (
-            /* ON-GOING STATUS: Equipment Checklist (Left) & Ready for Inspection Trigger (Right) */
+            /* ON-GOING STATUS: Before Inspection Row (Top) Above After Inspection Row (Bottom) */
             <div className="space-y-4">
               <VenueBookingInfo
                 selected={selected}
@@ -1006,6 +1006,8 @@ export default function VenueBookingDetailModal({
                 requestedCategories={requestedCategories}
                 setFullImageModal={setFullImageModal}
               />
+
+              {/* 1. BEFORE ROW: Equipment Checklist (Before) + Pre-Event Inspection Form (Before) */}
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
                 <div className="lg:col-span-6">
                   <VenueEquipmentChecklist
@@ -1019,13 +1021,50 @@ export default function VenueBookingDetailModal({
                     setEquipmentInspectionNotes={setEquipmentInspectionNotes}
                     isHistoryView={isHistoryView}
                     isSideBySide={true}
-                    isOverrideActive={isOverrideActive}
-                    setIsOverrideActive={setIsOverrideActive}
-                    overrideCategory={overrideCategory}
-                    setOverrideCategory={setOverrideCategory}
-                    overrideQuantity={overrideQuantity}
-                    setOverrideQuantity={setOverrideQuantity}
-                    dbEquipmentTypes={dbEquipmentTypes}
+                    isApproved={false}
+                    isPreEvent={true}
+                  />
+                </div>
+                <div className="lg:col-span-6">
+                  <VenuePostInspectionForm
+                    inspectionStatus={preInspectionStatus}
+                    setInspectionStatus={setPreInspectionStatus}
+                    selectedViolationType={preSelectedViolationType}
+                    setSelectedViolationType={setPreSelectedViolationType}
+                    violationOptions={violationOptions}
+                    evidencePhoto={preEvidencePhoto}
+                    setEvidencePhoto={setPreEvidencePhoto}
+                    resolvePhotoUrl={resolvePhotoUrl}
+                    setFullImageModal={setFullImageModal}
+                    violationNotes={preViolationNotes}
+                    setViolationNotes={setPreViolationNotes}
+                    savingInspection={savingInspection}
+                    inspectionSuccessMsg={inspectionSuccessMsg}
+                    isHistoryView={true}
+                    isAdminOrSuperAdmin={isAdminOrSuperAdmin}
+                    user={user}
+                    isOngoing={true}
+                    isPreEvent={true}
+                  />
+                </div>
+              </div>
+
+              {/* 2. AFTER ROW: Equipment Checklist (After) + On-Going Event Trigger */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+                <div className="lg:col-span-6">
+                  <VenueEquipmentChecklist
+                    categoriesToRender={categoriesToRender}
+                    assignedUnitSelections={assignedUnitSelections}
+                    setAssignedUnitSelections={updateAssignedUnitSelections}
+                    getAvailableUnitsForCategory={getAvailableUnitsForCategory}
+                    unitReturnedConditions={unitReturnedConditions}
+                    setUnitReturnedConditions={updateUnitReturnedConditions}
+                    equipmentInspectionNotes={equipmentInspectionNotes}
+                    setEquipmentInspectionNotes={setEquipmentInspectionNotes}
+                    isHistoryView={isHistoryView}
+                    isSideBySide={true}
+                    isApproved={false}
+                    isPreEvent={false}
                   />
                 </div>
                 <div className="lg:col-span-6">
@@ -1040,7 +1079,7 @@ export default function VenueBookingDetailModal({
                     <button
                       type="button"
                       onClick={() => handleAction(selected.id, "post-inspection")}
-                      className="px-5 py-2.5 bg-white hover:bg-slate-50 border border-slate-900 text-slate-900 rounded-xl text-xs font-extrabold flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
+                      className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-extrabold flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
                     >
                       <FileCheck size={14} />
                       <span>Ready for Inspection (After)</span>
@@ -1060,6 +1099,7 @@ export default function VenueBookingDetailModal({
                 requestedCategories={requestedCategories}
                 setFullImageModal={setFullImageModal}
               />
+              {/* 1. BEFORE ROW: Equipment Checklist (Before) + Pre-Event Inspection Form (Before) */}
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
                 <div className="lg:col-span-6">
                   <VenueEquipmentChecklist
@@ -1073,46 +1113,54 @@ export default function VenueBookingDetailModal({
                     setEquipmentInspectionNotes={setEquipmentInspectionNotes}
                     isHistoryView={isHistoryView}
                     isSideBySide={true}
+                    isApproved={false}
+                    isPreEvent={true}
                   />
                 </div>
-                <div className="lg:col-span-6 space-y-4">
-                  {isHistoryView && (
-                    <VenuePostInspectionForm
-                      inspectionStatus={preInspectionStatus}
-                      setInspectionStatus={setPreInspectionStatus}
-                      selectedViolationType={preSelectedViolationType}
-                      setSelectedViolationType={setPreSelectedViolationType}
-                      violationOptions={violationOptions}
-                      showManageViolations={showManageViolations}
-                      setShowManageViolations={setShowManageViolations}
-                      newViolationTypeInput={newViolationTypeInput}
-                      setNewViolationTypeInput={setNewViolationTypeInput}
-                      handleAddViolationOption={handleAddViolationOption}
-                      handleDeleteViolationOption={handleDeleteViolationOption}
-                      damagedEqType={damagedEqType}
-                      setDamagedEqType={setDamagedEqType}
-                      damagedEqQty={damagedEqQty}
-                      setDamagedEqQty={setDamagedEqQty}
-                      damagedUnitBarcodes={damagedUnitBarcodes}
-                      setDamagedUnitBarcodes={setDamagedUnitBarcodes}
-                      dbEquipmentTypes={dbEquipmentTypes}
-                      getAvailableUnitsForCategory={getAvailableUnitsForCategory}
-                      evidencePhoto={preEvidencePhoto}
-                      setEvidencePhoto={setPreEvidencePhoto}
-                      resolvePhotoUrl={resolvePhotoUrl}
-                      setFullImageModal={setFullImageModal}
-                      violationNotes={preViolationNotes}
-                      setViolationNotes={setPreViolationNotes}
-                      savingInspection={savingInspection}
-                      inspectionSuccessMsg={inspectionSuccessMsg}
-                      handleSavePostInspection={(e) => handleSavePostInspection(e, "pre_event")}
-                      isHistoryView={isHistoryView}
-                      isAdminOrSuperAdmin={isAdminOrSuperAdmin}
-                      user={user}
-                      isOngoing={true}
-                      isPreEvent={true}
-                    />
-                  )}
+                <div className="lg:col-span-6">
+                  <VenuePostInspectionForm
+                    inspectionStatus={preInspectionStatus}
+                    setInspectionStatus={setPreInspectionStatus}
+                    selectedViolationType={preSelectedViolationType}
+                    setSelectedViolationType={setPreSelectedViolationType}
+                    violationOptions={violationOptions}
+                    evidencePhoto={preEvidencePhoto}
+                    setEvidencePhoto={setPreEvidencePhoto}
+                    resolvePhotoUrl={resolvePhotoUrl}
+                    setFullImageModal={setFullImageModal}
+                    violationNotes={preViolationNotes}
+                    setViolationNotes={setPreViolationNotes}
+                    savingInspection={savingInspection}
+                    inspectionSuccessMsg={inspectionSuccessMsg}
+                    handleSavePostInspection={(e) => handleSavePostInspection(e, "pre_event")}
+                    isHistoryView={true}
+                    isAdminOrSuperAdmin={isAdminOrSuperAdmin}
+                    user={user}
+                    isOngoing={true}
+                    isPreEvent={true}
+                  />
+                </div>
+              </div>
+
+              {/* 2. AFTER ROW: Equipment Checklist (After) + Post-Event Inspection Form (After) */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+                <div className="lg:col-span-6">
+                  <VenueEquipmentChecklist
+                    categoriesToRender={categoriesToRender}
+                    assignedUnitSelections={assignedUnitSelections}
+                    setAssignedUnitSelections={updateAssignedUnitSelections}
+                    getAvailableUnitsForCategory={getAvailableUnitsForCategory}
+                    unitReturnedConditions={unitReturnedConditions}
+                    setUnitReturnedConditions={updateUnitReturnedConditions}
+                    equipmentInspectionNotes={equipmentInspectionNotes}
+                    setEquipmentInspectionNotes={setEquipmentInspectionNotes}
+                    isHistoryView={isHistoryView}
+                    isSideBySide={true}
+                    isApproved={false}
+                    isPreEvent={false}
+                  />
+                </div>
+                <div className="lg:col-span-6">
                   <VenuePostInspectionForm
                     inspectionStatus={inspectionStatus}
                     setInspectionStatus={setInspectionStatus}

@@ -187,7 +187,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/avr-venue-bookings/{avrVenueBooking}/complete',          [VenueBookingController::class, 'complete']);
     Route::post('/avr-venue-bookings/{avrVenueBooking}/undo',      [VenueBookingController::class, 'undo']);
     Route::post('/avr-venue-bookings/{avrVenueBooking}/cancel',    [VenueBookingController::class, 'cancel']);
-    Route::post('/avr-venue-bookings/{id}/resend-email',           [VenueBookingController::class, 'resendEmail']);
+    Route::post('/avr-venue-bookings/{avrVenueBooking}/upload-document', [VenueBookingController::class, 'uploadDocument']);
     Route::put('/avr-venue-bookings/{avrVenueBooking}/assign-units', [VenueBookingController::class, 'assignUnits']);
     Route::put('/avr-venue-bookings/{avrVenueBooking}/override',     [VenueBookingController::class, 'override']);
 

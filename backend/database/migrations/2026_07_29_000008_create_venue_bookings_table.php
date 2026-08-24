@@ -12,7 +12,6 @@ return new class extends Migration
             $table->id();
             $table->foreignId('tracking_number_id')->constrained('tracking_numbers')->cascadeOnDelete();
             $table->foreignId('venue_id')->constrained('venues')->cascadeOnDelete();
-            $table->foreignId('submitted_by')->nullable()->constrained('users')->nullOnDelete();
             $table->string('submission_channel')->default('online_self'); // online_self, staff_entered
             $table->string('filer_name');
             $table->string('email_address');
@@ -27,7 +26,6 @@ return new class extends Migration
             $table->date('reservation_end_date')->nullable();
             $table->time('time_start');
             $table->time('time_end');
-            $table->string('school_id')->nullable();
             $table->boolean('agreed_to_policy')->default(false);
             $table->longText('assigned_units')->nullable();
             $table->timestamps();

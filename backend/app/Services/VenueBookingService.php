@@ -96,7 +96,6 @@ class VenueBookingService
             $insertData = [
                 'tracking_number_id'   => $trackingId,
                 'venue_id'             => $venue->id,
-                'submitted_by'         => $data['submitted_by'] ?? null,
                 'submission_channel'   => 'online_self',
                 'filer_name'           => $filerName,
                 'email_address'        => $email,
@@ -111,7 +110,6 @@ class VenueBookingService
                 'time_start'           => $timeStart,
                 'time_end'             => $timeEnd,
                 'equipment_notes'      => $data['equipment_notes'] ?? null,
-                'school_id'            => $data['school_id'] ?? null,
                 'agreed_to_policy'     => true,
                 'created_at'           => now(),
                 'updated_at'           => now(),

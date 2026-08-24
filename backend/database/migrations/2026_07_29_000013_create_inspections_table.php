@@ -12,10 +12,8 @@ return new class extends Migration
             $table->id();
             $table->string('inspectable_type'); // 'equipment_borrow' or 'avr_venue_booking'
             $table->unsignedBigInteger('inspectable_id');
-            $table->string('reference_type')->nullable();
-            $table->unsignedBigInteger('reference_id')->nullable();
             $table->foreignId('inspected_by')->constrained('users')->cascadeOnDelete();
-            $table->string('inspection_type'); // pre_use, post_use
+            $table->string('inspection_type'); // pre_use / pre_event, post_use / post_event
             $table->string('condition');       // good, damaged, lost
             $table->boolean('is_late')->default(false);
             $table->string('timeliness')->default('on_time'); // on_time, late
@@ -29,8 +27,7 @@ return new class extends Migration
             $table->timestamps();
 
             $table->index(['inspectable_type', 'inspectable_id'], 'insp_inspectable_idx');
-            $table->index(['reference_type', 'reference_id'],     'insp_reference_idx');
-            $table->index('inspection_type',                       'insp_type_idx');
+            $table->index('inspection_type', 'insp_type_idx');
         });
     }
 
