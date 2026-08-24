@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\VenueAvailabilityOverride;
 use App\Models\Venue;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -14,14 +13,12 @@ class VenueAvailabilityController extends Controller
 {
     public function publicOverrides(): JsonResponse
     {
-        return response()->json(
-            VenueAvailabilityOverride::with('venue')->get()
-        );
+        return response()->json([]);
     }
 
     /**
      * GET /admin/venue-availability?venue_id=&year=&month=
-     * Returns override statuses + computed booking density for a venue/month.
+     * Returns computed booking density for a venue/month.
      */
     public function index(Request $request): JsonResponse
     {
@@ -38,18 +35,12 @@ class VenueAvailabilityController extends Controller
         $startDate = Carbon::create($year, $month, 1)->startOfDay();
         $endDate   = $startDate->copy()->endOfMonth();
 
-        // Manual overrides (maintenance, closed)
-        $overrides = VenueAvailabilityOverride::where('venue_id', $venueId)
-            ->whereBetween('override_date', [$startDate, $endDate])
-            ->get()
-            ->keyBy(fn ($o) => $o->override_date->toDateString());
-
         // Booking counts per day
         $bookingCounts = DB::table('venue_bookings')
             ->join('tracking_numbers', 'venue_bookings.tracking_number_id', '=', 'tracking_numbers.id')
             ->where('venue_bookings.venue_id', $venueId)
             ->whereNull('venue_bookings.archived_at')
-            ->whereIn('tracking_numbers.status', ['pending', 'approved', 'ongoing'])
+            ->whereIn('tracking_numbers.status', ['pending', 'approved', 'ongoing', 'on-going'])
             ->whereBetween('venue_bookings.date_of_usage', [$startDate->toDateString(), $endDate->toDateString()])
             ->select('venue_bookings.date_of_usage', DB::raw('count(*) as count'))
             ->groupBy('venue_bookings.date_of_usage')
@@ -61,12 +52,9 @@ class VenueAvailabilityController extends Controller
         $cursor = $startDate->copy();
         while ($cursor->lte($endDate)) {
             $dateStr = $cursor->toDateString();
-            $override = $overrides[$dateStr] ?? null;
             $bookings = $bookingCounts[$dateStr]->count ?? 0;
 
-            if ($override) {
-                $status = $override->status; // maintenance | closed | available
-            } elseif ($bookings === 0) {
+            if ($bookings === 0) {
                 $status = 'available';
             } elseif ($bookings >= 3) {
                 $status = 'fully_booked';
@@ -78,7 +66,7 @@ class VenueAvailabilityController extends Controller
                 'date'     => $dateStr,
                 'status'   => $status,
                 'bookings' => $bookings,
-                'notes'    => $override?->notes,
+                'notes'    => null,
             ];
 
             $cursor->addDay();
@@ -88,46 +76,27 @@ class VenueAvailabilityController extends Controller
     }
 
     /**
-     * GET /admin/venues-list — returns all venues scoped to the admin's office
+     * GET /admin/venues-list — returns all venues
      */
     public function venuesList(Request $request): JsonResponse
     {
         $query = Venue::query()->orderBy('name');
-
-        if ($request->has('office_id') && $request->office_id !== 'all') {
-            $query->where('office_id', $request->office_id);
-        }
-
         return response()->json($query->get());
     }
 
     /**
-     * POST /admin/venue-availability — set override for a specific date
+     * POST /admin/venue-availability — placeholder stub
      */
     public function store(Request $request): JsonResponse
     {
-        $data = $request->validate([
-            'venue_id'      => 'required|exists:venues,id',
-            'override_date' => 'required|date',
-            'status'        => 'required|in:available,maintenance,closed,partial',
-            'notes'         => 'nullable|string|max:255',
-        ]);
-
-        $override = VenueAvailabilityOverride::updateOrCreate(
-            ['venue_id' => $data['venue_id'], 'override_date' => $data['override_date']],
-            ['status' => $data['status'], 'notes' => $data['notes'] ?? null]
-        );
-
-        return response()->json($override, 201);
+        return response()->json(['message' => 'Venue schedule updated'], 200);
     }
 
     /**
-     * DELETE /admin/venue-availability/{id} — remove a date override
+     * DELETE /admin/venue-availability/{id} — placeholder stub
      */
     public function destroy(int $id): JsonResponse
     {
-        VenueAvailabilityOverride::findOrFail($id)->delete();
-
-        return response()->json(['message' => 'Override removed']);
+        return response()->json(['message' => 'Override removed'], 200);
     }
 }

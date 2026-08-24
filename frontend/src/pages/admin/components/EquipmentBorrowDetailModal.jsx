@@ -822,6 +822,10 @@ export default function EquipmentBorrowDetailModal({
                   <span className="text-slate-500 font-bold">Requestor</span>
                   <span className="col-span-2 font-extrabold text-slate-900">{selected.requestor_name || selected.filer_name || selected.requestor || "FSUU Filer"}</span>
                 </div>
+                <div className="grid grid-cols-3 py-1 border-t border-slate-200/60 text-xs">
+                  <span className="text-slate-500 font-bold">Identity</span>
+                  <span className="col-span-2 font-extrabold capitalize text-slate-900">{selected.requestor_identity_type || selected.identity_type || selected.identity || "Student"}</span>
+                </div>
                 <div className="grid grid-cols-3 py-1 border-t border-slate-200/60">
                   <span className="text-slate-500 font-bold">Department</span>
                   <span className="col-span-2 font-extrabold text-slate-900">{selected.requestor_program_office || selected.program_office || selected.department || "Academic Dept"}</span>
@@ -1024,9 +1028,16 @@ export default function EquipmentBorrowDetailModal({
                   type="button"
                   onClick={handleDoneComplete}
                   disabled={!!actionLoading}
-                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white rounded-lg text-xs font-extrabold flex items-center gap-1.5 shadow-2xs transition-all duration-150 cursor-pointer"
+                  className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 disabled:opacity-60 text-white rounded-xl text-xs font-extrabold flex items-center gap-1.5 shadow-xs transition-all duration-150 cursor-pointer"
                 >
-                  <Check size={13} /> Complete
+                  {actionLoading === `${selected.id}-complete` || actionLoading === "complete" ? (
+                    <>
+                      <Loader2 size={13} className="animate-spin" />
+                      <span>Completing...</span>
+                    </>
+                  ) : (
+                    <span>Complete</span>
+                  )}
                 </button>
               )}
               <button

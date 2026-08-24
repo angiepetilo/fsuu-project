@@ -193,7 +193,7 @@ export default function VenuePostInspectionForm({
               type="button"
               disabled={savingInspection}
               onClick={handleSavePostInspection}
-              className="px-4 py-2 bg-white hover:bg-slate-50 border border-slate-900 text-slate-900 rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer disabled:opacity-50 transition-colors"
+              className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-xl text-xs font-extrabold flex items-center gap-1.5 cursor-pointer disabled:opacity-50 transition-all shadow-xs"
             >
               {savingInspection ? <Loader2 size={13} className="animate-spin" /> : <FileCheck size={13} />}
               <span>Save Inspection Record</span>

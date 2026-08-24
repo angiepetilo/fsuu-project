@@ -1,3 +1,4 @@
+import React, { useState } from "react";
 import { ShieldCheck, PackageOpen, User, Calendar, MapPin, Mail, Phone, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -18,6 +19,7 @@ export default function Step4Verification({
   handleVerifySubmit,
   onBack,
 }) {
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
   // Find selected equipment item details
   const selectedDetails = selectedItems.map(id => {
     const found = catalog.find(c => c.id === id);
@@ -129,9 +131,15 @@ export default function Step4Verification({
             </div>
           </div>
 
-          <div className="p-3 bg-blue-50/80 border border-blue-200 rounded-xl text-[11px] font-semibold text-blue-900 leading-snug">
-            By submitting this requisition, you agree to inspect physical units at the AVR counter upon release and return them in good condition on time.
-          </div>
+          <label className="flex items-start gap-3 p-3.5 bg-blue-50/80 hover:bg-blue-100/50 border border-blue-200 rounded-xl text-[11px] font-semibold text-blue-900 leading-snug cursor-pointer transition-colors shadow-2xs">
+            <input
+              type="checkbox"
+              checked={agreedToTerms}
+              onChange={(e) => setAgreedToTerms(e.target.checked)}
+              className="mt-0.5 w-4 h-4 rounded border-blue-300 text-blue-600 focus:ring-0 cursor-pointer shrink-0"
+            />
+            <span>By submitting this requisition, you agree to inspect physical units at the AVR counter upon release and return them in good condition on time.</span>
+          </label>
         </div>
 
       </div>
@@ -149,8 +157,8 @@ export default function Step4Verification({
 
         <Button
           onClick={handleVerifySubmit}
-          disabled={isSubmitting}
-          className="bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-5 rounded-xl font-extrabold text-xs shadow-xl shadow-emerald-600/20 transition-all hover:scale-105 disabled:opacity-70 disabled:hover:scale-100 flex items-center gap-2 cursor-pointer"
+          disabled={isSubmitting || !agreedToTerms}
+          className="bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-5 rounded-xl font-extrabold text-xs shadow-xl shadow-emerald-600/20 transition-all hover:scale-105 disabled:opacity-50 disabled:hover:scale-100 flex items-center gap-2 cursor-pointer"
         >
           <ShieldCheck size={18} />
           <span>{isSubmitting ? "Submitting Request…" : "Submit Equipment Request"}</span>

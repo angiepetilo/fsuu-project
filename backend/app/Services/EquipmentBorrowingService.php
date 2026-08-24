@@ -57,7 +57,6 @@ class EquipmentBorrowingService
                 'tracking_number_id' => $trackingId,
                 'purpose'            => $data['purpose'] ?? 'General Activity',
                 'place_of_use'       => $data['place_of_use'] ?? 'inside',
-                'submitted_by'       => $data['submitted_by'] ?? null,
             ];
             if ($hasCol('submission_channel')) {
                 $insertData['submission_channel'] = $data['submission_channel'] ?? 'online_self';

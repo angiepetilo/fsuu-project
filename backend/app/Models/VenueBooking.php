@@ -18,7 +18,6 @@ class VenueBooking extends Model
     protected $fillable = [
         'tracking_number_id',
         'venue_id',
-        'submitted_by',
         'submission_channel',
         'filer_name',
         'email_address',
@@ -34,7 +33,6 @@ class VenueBooking extends Model
         'reservation_end_date',
         'time_start',
         'time_end',
-        'school_id',
         'agreed_to_policy',
         'assigned_units',
         'endorsement_url',

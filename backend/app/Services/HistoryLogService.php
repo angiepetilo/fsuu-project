@@ -31,7 +31,7 @@ class HistoryLogService
             })
             ->whereNull('venue_bookings.archived_at')
             ->where(function ($query) {
-                $activeStatuses = ['pending', 'approved', 'ongoing', 'reserved'];
+                $activeStatuses = ['pending', 'approved', 'ongoing', 'on-going', 'post-inspection', 'reserved'];
                 $query->whereNotNull('tracking_numbers.status')
                       ->whereNotIn(DB::raw('LOWER(tracking_numbers.status)'), $activeStatuses);
             });
@@ -121,7 +121,7 @@ class HistoryLogService
             })
             ->whereNull('equipment_borrows.archived_at')
             ->where(function ($query) {
-                $activeStatuses = ['pending', 'approved', 'ongoing', 'reserved'];
+                $activeStatuses = ['pending', 'approved', 'ongoing', 'on-going', 'post-inspection', 'reserved'];
                 $query->whereNotNull('tracking_numbers.status')
                       ->whereNotIn(DB::raw('LOWER(tracking_numbers.status)'), $activeStatuses);
             })

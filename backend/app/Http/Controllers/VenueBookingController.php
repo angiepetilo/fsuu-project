@@ -333,6 +333,31 @@ class VenueBookingController extends Controller
         return response()->json($avrVenueBooking->fresh(['venue', 'trackingNumber']));
     }
 
+    public function uploadDocument(Request $request, VenueBooking $avrVenueBooking): JsonResponse
+    {
+        $this->authorize('update', $avrVenueBooking);
+        $request->validate([
+            'document' => 'required|file|mimes:jpeg,png,jpg,webp,pdf|max:10240',
+        ]);
+
+        $url = app(\App\Services\MediaUploadService::class)->upload($request->file('document'), 'endorsements');
+
+        \App\Models\Document::create([
+            'venue_booking_id' => $avrVenueBooking->id,
+            'file_path'        => $url,
+            'document_type'    => 'endorsement_letter',
+            'file_name'        => $request->file('document')->getClientOriginalName(),
+        ]);
+
+        $avrVenueBooking->update(['endorsement_url' => $url]);
+
+        return response()->json([
+            'message' => 'Endorsement document uploaded successfully',
+            'url'     => $url,
+            'booking' => $avrVenueBooking->fresh(['documents', 'venue', 'trackingNumber'])
+        ]);
+    }
+
     public function override(Request $request, VenueBooking $avrVenueBooking): JsonResponse
     {
         $this->authorize('approve', $avrVenueBooking);

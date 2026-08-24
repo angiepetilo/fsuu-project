@@ -48,14 +48,21 @@ export default function VenueModalFooter({
             type="button"
             onClick={() => handleAction(selected.id, "ongoing")}
             disabled={!!actionLoading}
-            className="px-5 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-2xs transition-all duration-150 cursor-pointer"
+            className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:opacity-60 text-white rounded-xl text-xs font-extrabold flex items-center gap-1.5 shadow-xs transition-all duration-150 cursor-pointer"
           >
-            <Play size={13} /> Set On-Going
+            {actionLoading === `${selected.id}-ongoing` || actionLoading === "ongoing" ? (
+              <>
+                <Loader2 size={13} className="animate-spin" />
+                <span>Setting On-Going...</span>
+              </>
+            ) : (
+              <span>Set On-Going</span>
+            )}
           </button>
           <button
             type="button"
             onClick={() => { setSelected(null); setShowRejectForm(false); }}
-            className="px-5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 border border-slate-300 rounded-lg text-xs font-bold transition-all duration-150 cursor-pointer"
+            className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 border border-slate-300 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer"
           >
             Close
           </button>
@@ -65,7 +72,7 @@ export default function VenueModalFooter({
           <button
             type="button"
             onClick={() => { setSelected(null); setShowRejectForm(false); }}
-            className="px-5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 border border-slate-300 rounded-lg text-xs font-bold transition-all duration-150 cursor-pointer"
+            className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 border border-slate-300 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer"
           >
             Close
           </button>
@@ -76,14 +83,21 @@ export default function VenueModalFooter({
             type="button"
             onClick={handleDoneComplete}
             disabled={!!actionLoading || savingInspection}
-            className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white rounded-lg text-xs font-extrabold flex items-center gap-1.5 shadow-2xs transition-all duration-150 cursor-pointer"
+            className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 disabled:opacity-60 text-white rounded-xl text-xs font-extrabold flex items-center gap-1.5 shadow-xs transition-all duration-150 cursor-pointer"
           >
-            <Check size={13} /> Complete Event
+            {actionLoading === `${selected.id}-complete` || actionLoading === "complete" || savingInspection ? (
+              <>
+                <Loader2 size={13} className="animate-spin" />
+                <span>Completing Event...</span>
+              </>
+            ) : (
+              <span>Complete Event</span>
+            )}
           </button>
           <button
             type="button"
             onClick={() => { setSelected(null); setShowRejectForm(false); }}
-            className="px-5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 border border-slate-300 rounded-lg text-xs font-bold transition-all duration-150 cursor-pointer"
+            className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 border border-slate-300 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer"
           >
             Close
           </button>

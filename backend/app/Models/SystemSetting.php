@@ -36,6 +36,7 @@ class SystemSetting extends Model
         'allow_advance_equipment_booking' => 'boolean',
         'max_items_per_borrow'            => 'integer',
         'smtp_port'                       => 'integer',
+        'smtp_password'                   => 'encrypted',
     ];
 
     /**

@@ -284,7 +284,7 @@ export default function HistoryLog() {
 
   const selectedOfficeId = context?.selectedOfficeId;
 
-  const activeStatuses = ["pending", "approved", "ongoing", "on-going", "reserved"];
+  const activeStatuses = ["pending", "approved", "ongoing", "on-going", "post-inspection", "reserved"];
 
   // Search filtering — show all historical records (completed, late return, solved, damaged, lost, etc.)
   const filteredVenues = venueHistory.filter((b) => {
