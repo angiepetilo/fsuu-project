@@ -172,8 +172,8 @@ class GoogleAuthController extends Controller
                 'email'     => $user->email,
                 'avatar'    => $user->avatar,
                 'role'      => $user->role,
-                'office_id' => $user->office_id,
-                'office'    => $user->load('office')->office?->only(['id', 'name', 'code', 'type']),
+                'office_id' => $user->office_id ?? null,
+                'office'    => $user->location ?? 'FSUU Main Campus',
             ],
         ]);
     }

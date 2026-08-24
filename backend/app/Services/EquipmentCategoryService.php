@@ -19,7 +19,6 @@ class EquipmentCategoryService
         $damagedCount = 0;
         $lostCount = 0;
         $reservedCount = 0;
-        $availableUnitsCount = 0;
 
         if ($hasUnitsTable) {
             try {
@@ -56,13 +55,6 @@ class EquipmentCategoryService
                         $q->whereIn(DB::raw('LOWER(status)'), ['decommissioned', 'lost'])
                           ->orWhereIn(DB::raw('LOWER(`condition`)'), ['lost']);
                     })
-                    ->count();
-
-                $availableUnitsCount = DB::table('equipment_units')
-                    ->where('equipment_type_id', $e->id)
-                    ->whereNull('archived_at')
-                    ->where(DB::raw('LOWER(status)'), 'available')
-                    ->whereNotIn(DB::raw('LOWER(`condition`)'), ['damaged', 'lost', 'under repair', 'worn'])
                     ->count();
             } catch (\Throwable $th) {}
         }
@@ -113,30 +105,7 @@ class EquipmentCategoryService
                     ->select('venue_bookings.id', 'venue_bookings.equipment_notes')
                     ->get();
 
-                $venueCount = $activeVbs->sum(function ($vb) use ($e) {
-                    if (Schema::hasTable('venue_booking_equipment')) {
-                        $structItems = DB::table('venue_booking_equipment')
-                            ->where('venue_booking_id', $vb->id)
-                            ->get();
-
-                        if ($structItems->count() > 0) {
-                            return (int) $structItems->whereIn('equipment_type_id', [$e->id, $e->eq_name, $e->name])->sum('quantity_requested');
-                        }
-                    }
-
-                    $eqText = strtoupper($vb->equipment_notes ?? '');
-                    $typeName = strtoupper($e->eq_name ?? $e->name ?? '');
-                    $typeId = (string) $e->id;
-
-                    if (preg_match('/(?:^|,\s*)' . preg_quote($typeId, '/') . '\s*\(Qty:\s*(\d+)\)/i', $eqText, $m)) {
-                        return (int)$m[1];
-                    }
-                    if ($typeName && str_contains($eqText, $typeName)) {
-                        preg_match('/' . preg_quote($typeName, '/') . '[^\d]*(\d+)/i', $eqText, $m);
-                        return isset($m[1]) ? (int)$m[1] : 1;
-                    }
-                    return 0;
-                });
+                $venueCount = $activeVbs->sum(fn($vb) => $this->calculateVenueEquipmentCount($vb, $e));
 
                 $approvedVbs = DB::table('venue_bookings')
                     ->leftJoin('tracking_numbers', 'venue_bookings.tracking_number_id', '=', 'tracking_numbers.id')
@@ -147,30 +116,7 @@ class EquipmentCategoryService
                     ->select('venue_bookings.id', 'venue_bookings.equipment_notes')
                     ->get();
 
-                $approvedVenueCount = $approvedVbs->sum(function ($vb) use ($e) {
-                    if (Schema::hasTable('venue_booking_equipment')) {
-                        $structItems = DB::table('venue_booking_equipment')
-                            ->where('venue_booking_id', $vb->id)
-                            ->get();
-
-                        if ($structItems->count() > 0) {
-                            return (int) $structItems->whereIn('equipment_type_id', [$e->id, $e->eq_name, $e->name])->sum('quantity_requested');
-                        }
-                    }
-
-                    $eqText = strtoupper($vb->equipment_notes ?? '');
-                    $typeName = strtoupper($e->eq_name ?? $e->name ?? '');
-                    $typeId = (string) $e->id;
-
-                    if (preg_match('/(?:^|,\s*)' . preg_quote($typeId, '/') . '\s*\(Qty:\s*(\d+)\)/i', $eqText, $m)) {
-                        return (int)$m[1];
-                    }
-                    if ($typeName && str_contains($eqText, $typeName)) {
-                        preg_match('/' . preg_quote($typeName, '/') . '[^\d]*(\d+)/i', $eqText, $m);
-                        return isset($m[1]) ? (int)$m[1] : 1;
-                    }
-                    return 0;
-                });
+                $approvedVenueCount = $approvedVbs->sum(fn($vb) => $this->calculateVenueEquipmentCount($vb, $e));
             }
         } catch (\Throwable $th) {
             $venueCount = 0;
@@ -219,6 +165,35 @@ class EquipmentCategoryService
             'description'     => $e->description,
             'created_at'      => $e->created_at,
         ];
+    }
+
+    /**
+     * Helper to compute requested equipment quantity for a specific venue booking.
+     */
+    private function calculateVenueEquipmentCount(object $vb, EquipmentType $e): int
+    {
+        if (Schema::hasTable('venue_booking_equipment')) {
+            $structItems = DB::table('venue_booking_equipment')
+                ->where('venue_booking_id', $vb->id)
+                ->get();
+
+            if ($structItems->count() > 0) {
+                return (int) $structItems->whereIn('equipment_type_id', [$e->id, $e->eq_name, $e->name])->sum('quantity_requested');
+            }
+        }
+
+        $eqText = strtoupper($vb->equipment_notes ?? '');
+        $typeName = strtoupper($e->eq_name ?? $e->name ?? '');
+        $typeId = (string) $e->id;
+
+        if (preg_match('/(?:^|,\s*)' . preg_quote($typeId, '/') . '\s*\(Qty:\s*(\d+)\)/i', $eqText, $m)) {
+            return (int)$m[1];
+        }
+        if ($typeName && str_contains($eqText, $typeName)) {
+            preg_match('/' . preg_quote($typeName, '/') . '[^\d]*(\d+)/i', $eqText, $m);
+            return isset($m[1]) ? (int)$m[1] : 1;
+        }
+        return 0;
     }
 
     /**

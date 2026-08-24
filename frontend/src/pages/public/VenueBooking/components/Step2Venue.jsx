@@ -78,6 +78,8 @@ export default function Step2Venue({
     return `${h12}:${String(m || 0).padStart(2, '0')} ${ampm}`;
   };
 
+  const pad = (n) => String(n).padStart(2, "0");
+
   const dynamicSchedule = selectedVenue?.schedule || (
     opHours?.venue_open && opHours?.venue_close
       ? `Mon - Sat (${formatTime12(opHours.venue_open)} - ${formatTime12(opHours.venue_close)})`
@@ -87,6 +89,7 @@ export default function Step2Venue({
   // Minimum advance booking requirement (3 days)
   const minDate = new Date(today);
   minDate.setDate(minDate.getDate() + 3);
+  const minDateStr = `${minDate.getFullYear()}-${pad(minDate.getMonth() + 1)}-${pad(minDate.getDate())}`;
 
   // 4-card venue pagination state
   const [venuePage, setVenuePage] = useState(0);
@@ -112,11 +115,10 @@ export default function Step2Venue({
   const firstDayOfWeek = new Date(calYear, calMonth, 1).getDay();
   const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
 
-  const pad = (n) => String(n).padStart(2, "0");
-
   const isDayDisabled = (day) => {
     const dateStr = `${calYear}-${pad(calMonth + 1)}-${pad(day)}`;
     if (isPastDate(dateStr)) return true;
+    if (dateStr < minDateStr) return true;
     const info = getDayInfo(day);
     if (info.status === "maintenance" || info.status === "closed") return true;
     return false;
@@ -154,6 +156,21 @@ export default function Step2Venue({
           badgeClass: "bg-slate-700 text-white",
           time: defaultTimeRange,
           details: "Select a venue to check available slots.",
+        },
+        bookings: [],
+      };
+    }
+
+    // Check 3-day advance booking requirement
+    if (!isPastDate(dateStr) && dateStr < minDateStr) {
+      return {
+        status: "too_soon",
+        tooltip: `${monthLabel} ${day}: 3-Day Advance Notice Required. Venue reservations must be made at least 3 days ahead.`,
+        box: {
+          status: "3-Day Notice Required",
+          badgeClass: "bg-slate-600 text-white",
+          time: defaultTimeRange,
+          details: "Venue reservations must be booked at least 3 days in advance.",
         },
         bookings: [],
       };

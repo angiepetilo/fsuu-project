@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Exceptions\BookingActionNotAllowedException;
 use App\Exceptions\EquipmentUnavailableException;
 use App\Exceptions\ExternalRequiresVenueBookingException;
-use App\Enums\UnitStatus;
 use App\Jobs\SendBookingConfirmationJob;
 use App\Jobs\SendBookingStatusUpdateJob;
 use App\Models\Approval;
