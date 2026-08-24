@@ -15,6 +15,8 @@ class EquipmentUnit extends Model
 
     protected $fillable = [
         'equipment_type_id',
+        'brand',
+        'model',
         'name',
         'unit_code',
         'purchased_at',

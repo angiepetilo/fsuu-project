@@ -29,6 +29,8 @@ class EquipmentUnitController extends Controller
     {
         $validated = $request->validate([
             'equipment_type_id' => 'required|exists:equipment_types,id',
+            'brand'             => 'nullable|string|max:255',
+            'model'             => 'nullable|string|max:255',
             'name'              => 'required|string|max:255',
             'unit_code'         => 'required|string|max:255|unique:equipment_units,unit_code',
             'purchased_at'      => 'nullable|date',
@@ -49,6 +51,8 @@ class EquipmentUnitController extends Controller
 
         $unit = EquipmentUnit::create([
             'equipment_type_id' => $validated['equipment_type_id'],
+            'brand'             => $validated['brand'] ?? null,
+            'model'             => $validated['model'] ?? null,
             'name'              => $validated['name'],
             'unit_code'         => $validated['unit_code'],
             'purchased_at'      => $validated['purchased_at'] ?? now()->toDateString(),
@@ -73,6 +77,8 @@ class EquipmentUnitController extends Controller
 
         $validated = $request->validate([
             'equipment_type_id' => 'sometimes|exists:equipment_types,id',
+            'brand'             => 'nullable|string|max:255',
+            'model'             => 'nullable|string|max:255',
             'name'              => 'sometimes|string|max:255',
             'unit_code'         => ['sometimes', 'string', 'max:255', Rule::unique('equipment_units', 'unit_code')->ignore($unit->id)],
             'purchased_at'      => 'nullable|date',

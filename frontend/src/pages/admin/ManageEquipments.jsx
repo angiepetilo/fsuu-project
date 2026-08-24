@@ -114,11 +114,13 @@ export default function ManageEquipments() {
         return {
           id: u.id || idx + 1,
           equipment_type_id: u.equipment_type_id,
+          brand: u.brand || '',
+          model: u.model || '',
           barcode: bCode,
-          name: u.name || u.equipmentType?.eq_name || u.equipmentType?.name || u.equipment_type?.eq_name || 'Equipment Unit',
-          category: u.equipmentType?.eq_name || u.equipmentType?.name || u.equipment_type?.eq_name || u.equipment_type?.name || u.equipment_type?.eq_type || 'AV Equipment',
-          office_id: u.equipmentType?.office_id || u.equipment_type?.office_id || u.equipmentType?.office?.id || u.equipment_type?.office?.id || u.office_id || null,
-          office_name: u.equipmentType?.office?.name || u.equipmentType?.office?.office_name || u.equipment_type?.office?.office_name || u.equipment_type?.office?.name || 'AVR Office I',
+          name: u.name || u.equipmentType?.eq_name || u.equipmentType?.name || 'Equipment Unit',
+          category: u.equipmentType?.eq_name || u.equipmentType?.name || 'AV Equipment',
+          office_id: u.equipmentType?.office_id || u.equipment_type?.office_id || u.office_id || null,
+          office_name: u.equipmentType?.office?.name || u.equipment_type?.office?.name || 'AVR Office I',
           status: dbStatus,
           condition: conditionLabel,
           available_count: dbStatus === 'Available' ? 1 : 0,
@@ -130,7 +132,7 @@ export default function ManageEquipments() {
       }));
 
       if (catData.length > 0 && !formData.category) {
-        setFormData(prev => ({ ...prev, category: catData[0].eq_name || catData[0].name || catData[0].eq_type }));
+        setFormData(prev => ({ ...prev, category: catData[0].eq_name || catData[0].name }));
       }
     } catch {
       setUnits([]);
@@ -165,12 +167,15 @@ export default function ManageEquipments() {
       return;
     }
 
-    const defaultCatName = activeCats[0]?.eq_name || activeCats[0]?.name || activeCats[0]?.eq_type || "";
+    const defaultCatName = activeCats[0]?.eq_name || activeCats[0]?.name || "";
     setFormData({
       name: "",
+      brand: "",
+      model: "",
       barcode: "",
       category: defaultCatName,
       status: "available",
+      condition: "Good",
       date_purchased: new Date().toISOString().split("T")[0],
       lifespan_years: 5,
       description: "",
@@ -190,19 +195,23 @@ export default function ManageEquipments() {
     setIsSubmitting(true);
 
     const matchedCat = categories.find(c =>
-      (c.eq_name || c.name || c.eq_type || "").toLowerCase() === (formData.category || "").toLowerCase()
+      (c.eq_name || c.name || "").toLowerCase() === (formData.category || "").toLowerCase()
     ) || categories[0];
+
+    const unitDisplayName = formData.name || `${formData.brand ? formData.brand + ' ' : ''}${formData.model || matchedCat.eq_name || 'Unit'}`;
 
     // ── OPTIMISTIC: add a placeholder row immediately ─────────────────────────
     const tempId = `temp-${Date.now()}`;
     const optimisticUnit = {
       id: tempId,
       equipment_type_id: matchedCat.id,
+      brand: formData.brand || "",
+      model: formData.model || "",
       barcode: formData.barcode || `BC-${Date.now().toString().slice(-6)}`,
-      name: formData.name,
-      category: matchedCat.eq_name || matchedCat.name || matchedCat.eq_type || "AV Equipment",
+      name: unitDisplayName,
+      category: matchedCat.eq_name || matchedCat.name || "AV Equipment",
       status: "Available",
-      condition: "Good",
+      condition: formData.condition || "Good",
       available_count: 1,
       total_count: 1,
       date_purchased: formData.date_purchased,
@@ -218,11 +227,14 @@ export default function ManageEquipments() {
     try {
       const payload = {
         equipment_type_id: matchedCat.id,
-        name: formData.name,
+        brand: formData.brand || undefined,
+        model: formData.model || undefined,
+        name: unitDisplayName,
         unit_code: formData.barcode || optimisticUnit.barcode,
         purchased_at: formData.date_purchased || undefined,
         eq_lifespan: parseInt(formData.lifespan_years, 10) || 5,
         status: formData.status || "available",
+        condition: formData.condition || "Good",
         description: formData.description || undefined,
       };
 
@@ -236,8 +248,8 @@ export default function ManageEquipments() {
           : u
       ));
 
-      notify.success("Equipment Unit Added", `"${formData.name}" registered under ${matchedCat.eq_name || matchedCat.name}.`);
-      setFormData({ name: "", barcode: "", category: matchedCat.eq_name || matchedCat.name || "", status: "available", date_purchased: new Date().toISOString().split("T")[0], lifespan_years: 5, description: "" });
+      notify.success("Equipment Unit Added", `"${unitDisplayName}" registered under ${matchedCat.eq_name || matchedCat.name}.`);
+      setFormData({ name: "", brand: "", model: "", barcode: "", category: matchedCat.eq_name || matchedCat.name || "", status: "available", condition: "Good", date_purchased: new Date().toISOString().split("T")[0], lifespan_years: 5, description: "" });
     } catch (err) {
       // Rollback
       setUnits(prevUnits);
@@ -254,15 +266,19 @@ export default function ManageEquipments() {
     setIsSubmitting(true);
 
     const matchedCat = categories.find(c =>
-      (c.eq_name || c.name || c.eq_type || "").toLowerCase() === (editFormData.category || "").toLowerCase()
+      (c.eq_name || c.name || "").toLowerCase() === (editFormData.category || "").toLowerCase()
     ) || categories[0];
+
+    const unitDisplayName = editFormData.name || `${editFormData.brand ? editFormData.brand + ' ' : ''}${editFormData.model || matchedCat.eq_name || 'Unit'}`;
 
     // ── OPTIMISTIC: update row immediately ────────────────────────────────────
     const prevUnits = units;
     const optimisticChanges = {
-      name: editFormData.name,
+      name: unitDisplayName,
+      brand: editFormData.brand || "",
+      model: editFormData.model || "",
       barcode: editFormData.barcode,
-      category: matchedCat.eq_name || matchedCat.name || matchedCat.eq_type || editingItem.category,
+      category: matchedCat.eq_name || matchedCat.name || editingItem.category,
       status: editFormData.status === "available" ? "Available" : "Unavailable",
       condition: editFormData.condition || "Good",
       date_purchased: editFormData.date_purchased,
@@ -277,7 +293,9 @@ export default function ManageEquipments() {
     try {
       const payload = {
         equipment_type_id: matchedCat.id,
-        name: editFormData.name,
+        brand: editFormData.brand || undefined,
+        model: editFormData.model || undefined,
+        name: unitDisplayName,
         unit_code: editFormData.barcode,
         purchased_at: editFormData.date_purchased,
         eq_lifespan: parseInt(editFormData.lifespan_years, 10) || 5,
@@ -288,7 +306,7 @@ export default function ManageEquipments() {
       await api.put(`/admin/equipment-units/${editingItem.id}`, payload);
       // Confirm: remove optimistic flag
       setUnits(prev => prev.map(u => u.id === editingItem.id ? { ...u, _optimistic: false } : u));
-      notify.success("Equipment Updated", `"${editFormData.name}" saved successfully.`);
+      notify.success("Equipment Updated", `"${unitDisplayName}" saved successfully.`);
     } catch (err) {
       // Rollback
       setUnits(prevUnits);
@@ -553,11 +571,13 @@ export default function ManageEquipments() {
                                   setOpenActionId(null);
                                   setEditingItem(item);
                                   setEditFormData({
-                                    name: item.name,
-                                    barcode: item.barcode,
-                                    category: item.category,
-                                    date_purchased: item.date_purchased,
-                                    lifespan_years: String(item.lifespan_years),
+                                    name: item.name || "",
+                                    brand: item.brand || "",
+                                    model: item.model || "",
+                                    barcode: item.barcode || "",
+                                    category: item.category || "",
+                                    date_purchased: item.date_purchased || "",
+                                    lifespan_years: String(item.lifespan_years || 5),
                                     total_units: "1",
                                     status: item.status || "available",
                                     condition: item.condition || "Good",
