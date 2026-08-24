@@ -11,6 +11,8 @@ return new class extends Migration
         Schema::create('equipment_units', function (Blueprint $table) {
             $table->id();
             $table->foreignId('equipment_type_id')->constrained('equipment_types')->cascadeOnDelete();
+            $table->string('brand')->nullable();
+            $table->string('model')->nullable();
             $table->string('name')->nullable();
             $table->string('unit_code')->unique();
             $table->date('purchased_at')->nullable();

@@ -200,15 +200,8 @@ export default function EquipmentCatalogTab({ showMsg }) {
                     </div>
                   </td>
                   <td className="px-4 py-3.5">
-                    <div className="flex items-center gap-2">
-                      <span className="font-extrabold text-slate-900 text-sm block">{cat.eq_name || cat.name}</span>
-                      {cat.brand && (
-                        <span className="px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 font-bold text-[10px] border border-blue-100">
-                          {cat.brand}
-                        </span>
-                      )}
-                    </div>
-                    <span className="text-[11px] text-slate-500 font-medium">{cat.eq_type || "AV Equipment"}</span>
+                    <span className="font-extrabold text-slate-900 text-sm block">{cat.eq_name || cat.name}</span>
+                    <span className="text-[11px] text-slate-500 font-medium">Equipment Category</span>
                   </td>
                   <td className="px-4 py-3.5">
                     <span className="px-3 py-1 rounded-xl bg-slate-100 font-black text-slate-900 text-xs">
@@ -221,8 +214,6 @@ export default function EquipmentCatalogTab({ showMsg }) {
                         setEditItem(cat);
                         setForm({
                           eq_name: cat.eq_name || cat.name || "",
-                          eq_type: cat.eq_type || "AV Equipment",
-                          brand: cat.brand || "",
                           avatar: cat.avatar || "",
                           total_quantity: cat.total_quantity ?? cat.stock ?? 0,
                           available_count: cat.available_count ?? cat.stock ?? 0,
@@ -233,14 +224,14 @@ export default function EquipmentCatalogTab({ showMsg }) {
                         setShowModal(true);
                       }}
                       className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 cursor-pointer"
-                      title="Edit Catalog Item"
+                      title="Edit Category"
                     >
                       <Edit2 size={14} />
                     </button>
                     <button
                       onClick={() => handleDelete(cat.id, cat.eq_name || cat.name)}
                       className="p-1.5 rounded-lg border border-rose-200 text-rose-600 hover:bg-rose-50 cursor-pointer"
-                      title="Archive Catalog Item"
+                      title="Archive Category"
                     >
                       <Trash2 size={14} />
                     </button>
@@ -259,9 +250,9 @@ export default function EquipmentCatalogTab({ showMsg }) {
             <div className="flex justify-between items-center pb-3 border-b border-slate-100">
               <h3 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
                 <Package size={18} className="text-blue-600" />
-                {editItem ? "Edit Equipment Catalog Item" : "Add Equipment Catalog Item"}
+                {editItem ? "Edit Equipment Category" : "Add Equipment Category"}
               </h3>
-              <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-slate-600 p-1 rounded-lg">
+              <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-slate-600 p-1 rounded-lg cursor-pointer">
                 <X size={18} />
               </button>
             </div>
@@ -269,7 +260,7 @@ export default function EquipmentCatalogTab({ showMsg }) {
             <form onSubmit={handleSave} className="space-y-4 text-xs">
               {/* Avatar Upload */}
               <div>
-                <label className="block text-xs font-bold text-slate-900 mb-1">Equipment Catalog Avatar *</label>
+                <label className="block text-xs font-bold text-slate-900 mb-1">Category Photo Avatar</label>
                 <div className="flex items-center gap-3">
                   <div className="w-16 h-16 rounded-2xl bg-slate-100 border border-slate-200 overflow-hidden flex items-center justify-center shrink-0">
                     {form.avatar ? (
@@ -281,39 +272,37 @@ export default function EquipmentCatalogTab({ showMsg }) {
                   <div>
                     <label className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold rounded-xl text-xs flex items-center gap-1.5 cursor-pointer">
                       <Camera size={14} />
-                      <span>{form.avatar ? "Change Avatar" : "Upload Equipment Photo Avatar"}</span>
+                      <span>{form.avatar ? "Change Avatar" : "Upload Photo Avatar"}</span>
                       <input type="file" accept="image/*" onChange={handleAvatarUpload} className="hidden" />
                     </label>
                     <p className="text-[10px] text-slate-400 font-medium mt-1">
-                      This photo avatar will display directly in public equipment borrowing when users choose items.
+                      Displayed on public booking forms when borrowers choose items.
                     </p>
                   </div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-900 mb-1">Equipment Item Name *</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Projector, Camera, Microphone"
-                    value={form.eq_name}
-                    onChange={(e) => setForm({ ...form, eq_name: e.target.value, eq_type: e.target.value })}
-                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:outline-none focus:border-blue-600"
-                  />
-                </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-900 mb-1">Category Name *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Projector, Camera, Microphone, HDMI Cable"
+                  value={form.eq_name}
+                  onChange={(e) => setForm({ ...form, eq_name: e.target.value })}
+                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:outline-none focus:border-blue-600"
+                />
+              </div>
 
-                <div>
-                  <label className="block text-xs font-bold text-slate-900 mb-1">Brand / Manufacturer (Optional)</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Epson, Sony, Shure"
-                    value={form.brand}
-                    onChange={(e) => setForm({ ...form, brand: e.target.value })}
-                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:outline-none focus:border-blue-600"
-                  />
-                </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-900 mb-1">Description / Notes (Optional)</label>
+                <textarea
+                  rows={2}
+                  placeholder="General category notes or usage guidelines..."
+                  value={form.description}
+                  onChange={(e) => setForm({ ...form, description: e.target.value })}
+                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-900 focus:outline-none"
+                />
               </div>
 
               <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
