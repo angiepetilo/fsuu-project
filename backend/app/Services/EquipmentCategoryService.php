@@ -150,6 +150,7 @@ class EquipmentCategoryService
             'id'              => $e->id,
             'eq_name'         => $e->eq_name ?? $e->name,
             'eq_type'         => $e->eq_type ?? $e->category,
+            'brand'           => $e->brand,
             'barcode'         => $e->barcode,
             'avatar'          => $e->avatar,
             'total_quantity'  => $totalQty,

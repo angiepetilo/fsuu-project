@@ -16,7 +16,7 @@ import { X } from "lucide-react";
  */
 function PlainToast({ title, description }) {
   return (
-    <div className="relative flex items-start gap-3 bg-white text-slate-900 rounded-xl shadow-lg border border-slate-200 min-w-[260px] max-w-[360px] px-4 py-3 font-sans transition-all animate-in fade-in zoom-in-95 duration-150">
+    <div className="pointer-events-auto relative flex items-start gap-3 bg-white text-slate-900 rounded-xl shadow-lg border border-slate-200 min-w-[260px] max-w-[360px] px-4 py-3 font-sans transition-all animate-in fade-in zoom-in-95 duration-150">
       <div className="flex-1 min-w-0">
         <p className="text-[13px] font-bold text-slate-900 leading-snug">
           {title}

@@ -209,7 +209,7 @@ function AppContent() {
         </footer>
       )}
 
-      <Toaster position="top-center" />
+      <Toaster position="top-right" expand={false} />
     </>
   );
 }

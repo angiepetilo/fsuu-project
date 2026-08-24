@@ -40,6 +40,7 @@ class EquipmentTypeController extends Controller
         $validated = $request->validate([
             'eq_name'          => 'required|string|max:255',
             'eq_type'          => 'required|string|max:255',
+            'brand'            => 'nullable|string|max:255',
             'barcode'          => 'nullable|string|max:255',
             'avatar'           => 'nullable|string',
             'total_quantity'   => 'nullable|integer|min:0',

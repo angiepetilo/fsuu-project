@@ -13,6 +13,7 @@ export default function EquipmentCatalogTab({ showMsg }) {
   const [form, setForm] = useState({
     eq_name: "",
     eq_type: "",
+    brand: "",
     avatar: "",
     total_quantity: 0,
     available_count: 0,
@@ -199,8 +200,15 @@ export default function EquipmentCatalogTab({ showMsg }) {
                     </div>
                   </td>
                   <td className="px-4 py-3.5">
-                    <span className="font-extrabold text-slate-900 text-sm block">{cat.eq_name || cat.name}</span>
-                    <span className="text-[11px] text-blue-600 font-semibold">{cat.eq_type || "AV Equipment"}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-extrabold text-slate-900 text-sm block">{cat.eq_name || cat.name}</span>
+                      {cat.brand && (
+                        <span className="px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 font-bold text-[10px] border border-blue-100">
+                          {cat.brand}
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-[11px] text-slate-500 font-medium">{cat.eq_type || "AV Equipment"}</span>
                   </td>
                   <td className="px-4 py-3.5">
                     <span className="px-3 py-1 rounded-xl bg-slate-100 font-black text-slate-900 text-xs">
@@ -214,6 +222,7 @@ export default function EquipmentCatalogTab({ showMsg }) {
                         setForm({
                           eq_name: cat.eq_name || cat.name || "",
                           eq_type: cat.eq_type || "AV Equipment",
+                          brand: cat.brand || "",
                           avatar: cat.avatar || "",
                           total_quantity: cat.total_quantity ?? cat.stock ?? 0,
                           available_count: cat.available_count ?? cat.stock ?? 0,
@@ -282,16 +291,29 @@ export default function EquipmentCatalogTab({ showMsg }) {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-900 mb-1">Equipment Catalog Name *</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Epson Digital Projector HD, Sony 4K Camera"
-                  value={form.eq_name}
-                  onChange={(e) => setForm({ ...form, eq_name: e.target.value, eq_type: e.target.value })}
-                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:outline-none focus:border-blue-600"
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-900 mb-1">Equipment Item Name *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Projector, Camera, Microphone"
+                    value={form.eq_name}
+                    onChange={(e) => setForm({ ...form, eq_name: e.target.value, eq_type: e.target.value })}
+                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:outline-none focus:border-blue-600"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-900 mb-1">Brand / Manufacturer (Optional)</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Epson, Sony, Shure"
+                    value={form.brand}
+                    onChange={(e) => setForm({ ...form, brand: e.target.value })}
+                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:outline-none focus:border-blue-600"
+                  />
+                </div>
               </div>
 
               <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
