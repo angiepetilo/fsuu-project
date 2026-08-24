@@ -32,13 +32,11 @@ export default function FeatureCards() {
               </svg>
             </div>
 
-            {/* Warning Pill Badge with Tooltip */}
-            <Tooltip text="All venue reservations must be submitted at least 72 hours prior to the event start date.">
-              <div className="inline-flex items-center justify-center gap-1.5 text-[0.75rem] font-[700] text-[#b91c1c] uppercase tracking-[0.05em] mb-[1.5rem] px-[1rem] py-[0.35rem] rounded-full bg-[#fef2f2] border border-[#fecaca] cursor-help">
-                <AlertTriangle size={14} className="text-[#b91c1c] shrink-0" />
-                <span>Strictly 3 Days Booking. No Excuses!</span>
-              </div>
-            </Tooltip>
+            {/* Warning Pill Badge */}
+            <div className="inline-flex items-center justify-center gap-1.5 text-[0.75rem] font-[700] text-[#b91c1c] uppercase tracking-[0.05em] mb-[1.5rem] px-[1rem] py-[0.35rem] rounded-full bg-[#fef2f2] border border-[#fecaca]">
+              <AlertTriangle size={14} className="text-[#b91c1c] shrink-0" />
+              <span>Strictly 3 Days Booking. No Excuses!</span>
+            </div>
 
             <h2 className="text-[1.875rem] font-[800] mb-[0.75rem] leading-snug text-[#0f172a] text-center w-full group-hover:text-[#2563eb] transition-colors duration-200">
               <span className="text-[#2563eb]">Venue</span> Booking
@@ -74,13 +72,11 @@ export default function FeatureCards() {
               </svg>
             </div>
 
-            {/* Notice Pill Badge with Tooltip */}
-            <Tooltip text="A physical FSUU Student or Faculty ID must be presented upon equipment collection.">
-              <div className="inline-flex items-center justify-center gap-1.5 text-[0.75rem] font-[700] text-[#92400e] tracking-[0.03em] mb-[1.5rem] px-[1rem] py-[0.35rem] rounded-full bg-[#fef3c7] border border-[#fde68a] cursor-help">
-                <Info size={14} className="text-[#92400e] shrink-0" />
-                <span>School ID required for pickup.</span>
-              </div>
-            </Tooltip>
+            {/* Notice Pill Badge */}
+            <div className="inline-flex items-center justify-center gap-1.5 text-[0.75rem] font-[700] text-[#92400e] tracking-[0.03em] mb-[1.5rem] px-[1rem] py-[0.35rem] rounded-full bg-[#fef3c7] border border-[#fde68a]">
+              <Info size={14} className="text-[#92400e] shrink-0" />
+              <span>School ID required for pickup.</span>
+            </div>
 
             <h2 className="text-[1.875rem] font-[800] mb-[0.75rem] leading-snug text-[#0f172a] text-center w-full group-hover:text-[#d97706] transition-colors duration-200">
               <span className="text-[#d97706]">Equipment</span> Borrowing

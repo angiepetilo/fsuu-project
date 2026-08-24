@@ -425,7 +425,7 @@ export default function Step2Venue({
                 className="px-4 py-1.5 rounded-full bg-white border border-slate-200 text-xs font-extrabold text-slate-700 hover:bg-slate-50 disabled:opacity-40 flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
               >
                 <ChevronLeft size={14} />
-                <span>Prev 4</span>
+                <span>Prev</span>
               </button>
 
               <span className="text-xs font-black text-slate-700 px-2">
@@ -438,14 +438,14 @@ export default function Step2Venue({
                 disabled={venuePage >= totalPages - 1}
                 className="px-4 py-1.5 rounded-full bg-white border border-slate-200 text-xs font-extrabold text-slate-700 hover:bg-slate-50 disabled:opacity-40 flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
               >
-                <span>Next 4</span>
+                <span>Next</span>
                 <ChevronRight size={14} />
               </button>
             </div>
           )}
         </div>
 
-        {/* Right Column: Sticky Apple iOS Backdrop Blur Calendar & Time Panel */}
+        {/* Right Column: Preline Single-Calendar Preset Ranges & Time Panel */}
         <div className="lg:col-span-5 sm:col-span-12">
           <div className="bg-white/95 backdrop-blur-md p-5 rounded-[28px] border border-slate-200/90 shadow-md space-y-4 sticky top-4">
 
@@ -467,82 +467,130 @@ export default function Step2Venue({
               </p>
             </div>
 
+            {/* Interactive Preline Style Calendar Container */}
+            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs space-y-3">
+              {/* Header: < Month / Year > */}
+              <div className="flex items-center justify-between px-1">
+                <button
+                  type="button"
+                  onClick={prevMonth}
+                  className="w-8 h-8 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-700 flex items-center justify-center transition-colors cursor-pointer"
+                  title="Previous Month"
+                >
+                  <ChevronLeft size={16} />
+                </button>
 
-
-            {/* Status Legend */}
-            <div className="flex items-center flex-wrap gap-2 text-[11px] font-bold text-slate-600 px-1">
-              <span className="text-emerald-700 font-black">● Available</span>
-              <span className="text-slate-300">|</span>
-              <span className="text-amber-700 font-black">● Partial</span>
-              <span className="text-slate-300">|</span>
-              <span className="text-rose-700 font-black">● Fully Booked</span>
-              <span className="text-slate-300">|</span>
-              <span className="text-purple-700 font-black">● Maintenance</span>
-            </div>
-
-            {/* Interactive iOS Calendar Container */}
-            <div className="bg-slate-100/70 p-3.5 rounded-[22px] border border-slate-200/80 space-y-2.5 shadow-inner">
-              <div className="flex items-center justify-between px-1 mb-1">
-                <span className="text-xs font-black text-slate-900 tracking-tight flex items-center gap-1.5">
-                  <CalendarIcon size={15} className="text-blue-600" />
-                  {monthLabel}
+                <span className="text-sm font-extrabold text-slate-900 tracking-tight">
+                  {new Date(calYear, calMonth).toLocaleString("default", { month: "long" })} / {calYear}
                 </span>
-                <div className="flex gap-1">
-                  <button
-                    type="button"
-                    onClick={prevMonth}
-                    className="w-7 h-7 rounded-full bg-white border border-slate-200 hover:bg-slate-50 flex items-center justify-center shadow-2xs cursor-pointer"
-                  >
-                    <ChevronLeft size={13} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={nextMonth}
-                    className="w-7 h-7 rounded-full bg-white border border-slate-200 hover:bg-slate-50 flex items-center justify-center shadow-2xs cursor-pointer"
-                  >
-                    <ChevronRight size={13} />
-                  </button>
-                </div>
+
+                <button
+                  type="button"
+                  onClick={nextMonth}
+                  className="w-8 h-8 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-700 flex items-center justify-center transition-colors cursor-pointer"
+                  title="Next Month"
+                >
+                  <ChevronRight size={16} />
+                </button>
               </div>
 
-              <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-black text-slate-400 uppercase">
-                {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map(d => (
-                  <div key={d}>{d}</div>
+              {/* Day of Week Headers (Mon - Sun) */}
+              <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-semibold text-slate-500">
+                {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map(d => (
+                  <div key={d} className="py-1">{d}</div>
                 ))}
               </div>
 
-              <div className="grid grid-cols-7 gap-1.5 text-center text-xs">
-                {Array.from({ length: firstDayOfWeek }).map((_, i) => (
-                  <div key={`empty-${i}`} />
+              {/* Calendar Grid with Multi-Day Range Highlights */}
+              <div className="grid grid-cols-7 gap-y-1 text-center text-xs">
+                {/* Adjust starting empty slots for Monday-first week */}
+                {Array.from({ length: (firstDayOfWeek + 6) % 7 }).map((_, i) => (
+                  <div key={`empty-${i}`} className="h-9" />
                 ))}
 
                 {Array.from({ length: daysInMonth }).map((_, i) => {
                   const day = i + 1;
                   const dateStr = `${calYear}-${pad(calMonth + 1)}-${pad(day)}`;
-                  const disabled = isDayDisabled(day);
+                  const isPast = isPastDate(dateStr);
+                  const isShortNotice = !isPast && dateStr < minDateStr;
+                  const todayStr = getTodayISO();
+                  const isToday = dateStr === todayStr;
                   const info = getDayInfo(day);
-                  const isSelected = selectedDate === dateStr;
 
-                  let colorStyle = "bg-emerald-50 border-emerald-200 text-emerald-800 hover:bg-emerald-100";
-                  if (info.status === "partial") colorStyle = "bg-amber-50 border-amber-200 text-amber-800 hover:bg-amber-100";
-                  if (info.status === "fully") colorStyle = "bg-rose-50 border-rose-200 text-rose-800 cursor-not-allowed opacity-60";
-                  if (info.status === "maintenance" || info.status === "closed") colorStyle = "bg-purple-100 border-purple-300 text-purple-800 cursor-not-allowed font-extrabold";
-                  else if (disabled) colorStyle = "bg-slate-50 border-slate-100 text-slate-300 cursor-not-allowed";
+                  const isStart = selectedDate === dateStr;
+                  const isEnd = (selectedEndDate || selectedDate) === dateStr;
+                  const hasRange = Boolean(selectedEndDate && selectedEndDate > selectedDate);
+                  const isInBetween = hasRange && dateStr > selectedDate && dateStr < selectedEndDate;
+
+                  // Disabled state for past dates or maintenance
+                  const isDisabled = isPast || info.status === "maintenance" || info.status === "closed" || info.status === "fully";
 
                   return (
-                    <Tooltip key={day} box={info.box} text={info.tooltip}>
+                    <div
+                      key={day}
+                      className={`relative h-9 flex items-center justify-center ${
+                        hasRange && isInBetween
+                          ? "bg-blue-50"
+                          : hasRange && isStart
+                            ? "bg-gradient-to-r from-transparent 50% to-blue-50 50%"
+                            : hasRange && isEnd
+                              ? "bg-gradient-to-l from-transparent 50% to-blue-50 50%"
+                              : ""
+                      }`}
+                    >
                       <button
                         type="button"
-                        disabled={disabled || info.status === "fully"}
-                        onClick={() => handleDateSelect(dateStr)}
-                        className={`w-8 h-8 rounded-full text-xs font-bold flex items-center justify-center mx-auto transition-all cursor-pointer ${isSelected
-                          ? "bg-blue-600 text-white font-black shadow-md scale-105"
-                          : colorStyle
-                          }`}
+                        disabled={isDisabled}
+                        onClick={() => {
+                          if (isDisabled) return;
+                          
+                          // Multi-day Range Picker via Calendar Clicks
+                          if (!selectedDate || (selectedDate && selectedEndDate && selectedEndDate !== selectedDate)) {
+                            // Reset/start new range
+                            handleDateSelect(dateStr);
+                            if (setSelectedEndDate) setSelectedEndDate(dateStr);
+                          } else if (selectedDate && (!selectedEndDate || selectedEndDate === selectedDate)) {
+                            if (dateStr < selectedDate) {
+                              handleDateSelect(dateStr);
+                              if (setSelectedEndDate) setSelectedEndDate(dateStr);
+                            } else {
+                              if (setSelectedEndDate) setSelectedEndDate(dateStr);
+                            }
+                          }
+
+                          // Trigger verification pin modal prompt for short notice (within 3 days)
+                          if (isShortNotice && !isPinVerified) {
+                            setPinModalMeta && setPinModalMeta({
+                              title: "Short-Notice Booking Verification PIN",
+                              description: `Selected date (${dateStr}) is within the 3-day booking window. AVR Head / Administrative clearance PIN is required to authorize this slot.`,
+                            });
+                            setShowPinModal && setShowPinModal(true);
+                          }
+                        }}
+                        className={`w-8 h-8 rounded-full text-xs font-extrabold flex items-center justify-center mx-auto transition-all relative z-10 ${
+                          isStart || isEnd
+                            ? "bg-blue-600 text-white font-black shadow-sm scale-105 cursor-pointer"
+                            : isPast
+                              ? "text-slate-300 cursor-not-allowed pointer-events-none select-none"
+                              : isDisabled
+                                ? "text-slate-300 bg-slate-100/60 cursor-not-allowed"
+                                : isToday
+                                  ? "text-blue-600 border border-blue-500 font-black hover:bg-blue-50 cursor-pointer"
+                                  : isShortNotice
+                                    ? "text-amber-700 bg-amber-50/60 hover:bg-amber-100 cursor-pointer"
+                                    : "text-slate-700 hover:bg-slate-100 cursor-pointer"
+                        }`}
+                        title={
+                          isPast
+                            ? "Date already passed"
+                            : isShortNotice
+                              ? `${dateStr} (Short-Notice: PIN Authorization Required)`
+                              : `${dateStr} (Available)`
+                        }
                       >
                         {day}
                       </button>
-                    </Tooltip>
+                    </div>
                   );
                 })}
               </div>
@@ -571,17 +619,6 @@ export default function Step2Venue({
                     className="w-full px-3 py-2 bg-slate-100/80 border border-slate-200 rounded-2xl text-xs font-extrabold text-slate-900 focus:bg-white focus:border-blue-600 focus:outline-none transition-all shadow-inner"
                   />
                 </div>
-              </div>
-
-              <div>
-                <label className="text-xs font-extrabold text-slate-800 block mb-1">Reservation End Date (Multi-Day)</label>
-                <input
-                  type="date"
-                  min={selectedDate || getTodayISO()}
-                  value={selectedEndDate || selectedDate || ''}
-                  onChange={e => setSelectedEndDate && setSelectedEndDate(e.target.value)}
-                  className={`w-full px-3.5 py-2 bg-slate-100/80 border rounded-2xl text-xs font-extrabold text-slate-900 focus:bg-white focus:outline-none transition-all shadow-inner ${isInvalidEndDate ? 'border-rose-500 bg-rose-50/50' : 'border-slate-200 focus:border-blue-600'}`}
-                />
               </div>
 
               {selectedDate && timeStart && timeEnd && (
@@ -629,14 +666,7 @@ export default function Step2Venue({
                         You cannot proceed to fill details for an overlapping schedule. Please choose a different date, time, or venue.
                       </p>
                     </div>
-                  ) : (
-                    <div className="p-2.5 bg-blue-50 border border-blue-200/60 rounded-2xl text-[11px] font-bold text-blue-900 flex items-center gap-1.5">
-                      <CheckCircle2 size={15} className="text-blue-600 shrink-0" />
-                      <span>
-                        Selected: <strong>{selectedDate}</strong> {selectedEndDate && selectedEndDate !== selectedDate ? `to ${selectedEndDate}` : ''} ({formatTime12(timeStart)} - {formatTime12(timeEnd)}). Available!
-                      </span>
-                    </div>
-                  )}
+                  ) : null}
 
                   {(() => {
                     const venueOpen = opHours?.venue_open?.substring(0, 5) || "07:30";
@@ -651,11 +681,6 @@ export default function Step2Venue({
                             <span className="font-semibold text-slate-800">
                               Outside Office Hours ({formatTime12(venueOpen)} – {formatTime12(venueClose)})
                             </span>
-                            {requiresPinForOutside && (
-                              <span className="px-2 py-0.5 rounded-md text-[10px] font-medium bg-slate-200 text-slate-700">
-                                PIN Required
-                              </span>
-                            )}
                           </div>
                           <p className="text-xs text-slate-600 font-normal leading-relaxed">
                             Selected booking time ({formatTime12(timeStart)} – {formatTime12(timeEnd)}) is outside campus hours.

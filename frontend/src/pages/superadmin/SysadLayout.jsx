@@ -281,40 +281,46 @@ export default function SysadLayout() {
 
         {/* User Card */}
         <div className="border-t border-slate-800 p-2.5 bg-slate-900 overflow-hidden whitespace-nowrap">
-          <div
-            onClick={() => {
-              if (sidebarOpen) {
-                setUserMenuOpen(v => !v);
-              } else {
-                handleLogout();
-              }
-            }}
-            title={!sidebarOpen ? "Sign Out" : undefined}
-            className="flex items-center gap-2.5 p-1.5 rounded-lg hover:bg-slate-800 transition-colors cursor-pointer overflow-hidden w-full"
-          >
-            <div className="w-8 h-8 rounded-full bg-slate-800 text-slate-200 border border-slate-700 flex items-center justify-center text-xs font-semibold flex-shrink-0 overflow-hidden">
-              {adminAvatar ? (
-                <img src={adminAvatar} alt={adminName} className="w-full h-full object-cover" />
-              ) : (
-                adminName?.charAt(0)?.toUpperCase() ?? "S"
-              )}
-            </div>
-            <div className="flex-1 min-w-0 overflow-hidden">
-              <p className="text-xs font-medium text-slate-200 truncate">{adminName}</p>
-            </div>
-            {sidebarOpen && (
-              <ChevronDown size={13} className={`text-slate-400 flex-shrink-0 transition-transform ${userMenuOpen ? "rotate-180" : ""}`} />
-            )}
-          </div>
+          {sidebarOpen ? (
+            <>
+              <div
+                onClick={() => setUserMenuOpen(v => !v)}
+                className="flex items-center gap-2.5 p-1.5 rounded-lg hover:bg-slate-800 transition-colors cursor-pointer overflow-hidden w-full"
+              >
+                <div className="w-8 h-8 rounded-full bg-slate-800 text-slate-200 border border-slate-700 flex items-center justify-center text-xs font-semibold flex-shrink-0 overflow-hidden">
+                  {adminAvatar ? (
+                    <img src={adminAvatar} alt={adminName} className="w-full h-full object-cover" />
+                  ) : (
+                    adminName?.charAt(0)?.toUpperCase() ?? "S"
+                  )}
+                </div>
+                <div className="flex-1 min-w-0 overflow-hidden">
+                  <p className="text-xs font-medium text-slate-200 truncate">{adminName}</p>
+                </div>
+                <ChevronDown size={13} className={`text-slate-400 flex-shrink-0 transition-transform ${userMenuOpen ? "rotate-180" : ""}`} />
+              </div>
 
-          {sidebarOpen && userMenuOpen && (
-            <div className="pt-1.5 border-t border-slate-800 mt-1">
+              {userMenuOpen && (
+                <div className="pt-1.5 border-t border-slate-800 mt-1">
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="w-full flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors cursor-pointer"
+                  >
+                    <LogOut size={13} /> Sign Out
+                  </button>
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="flex flex-col items-center gap-2 py-0.5">
               <button
                 type="button"
                 onClick={handleLogout}
-                className="w-full flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors cursor-pointer"
+                title={`Sign Out (${adminName})`}
+                className="w-9 h-9 rounded-xl bg-slate-800/80 hover:bg-rose-500/20 text-slate-300 hover:text-rose-400 border border-slate-700 hover:border-rose-500/40 flex items-center justify-center transition-all cursor-pointer shadow-xs"
               >
-                <LogOut size={13} /> Sign Out
+                <LogOut size={16} />
               </button>
             </div>
           )}

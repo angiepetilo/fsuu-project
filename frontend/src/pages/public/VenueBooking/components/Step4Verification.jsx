@@ -116,7 +116,7 @@ export default function Step4Verification({
             ) : (
               <div className="p-3 bg-white rounded-xl border border-slate-200/80 text-xs font-semibold text-slate-600 flex items-center gap-2">
                 <CheckCircle2 size={15} className="text-emerald-500 shrink-0" />
-                <span>Signed Endorsement Letter (Director of OISAA or OVPASA Clearance)</span>
+                <span>Standard Endorsement Document Clearance</span>
               </div>
             )}
           </div>
@@ -183,8 +183,7 @@ export default function Step4Verification({
 
         {/* ── Right Column: Verification Summary & Policy Agreement ── */}
         <div className="bg-slate-50/70 p-6 rounded-2xl border border-slate-200/80 space-y-5">
-          <h3 className="text-sm font-extrabold text-slate-900 uppercase tracking-wide flex items-center gap-2">
-            <ShieldCheck size={16} className="text-emerald-600" />
+          <h3 className="text-sm font-extrabold text-slate-900 uppercase tracking-wide">
             2. Reservation Verification
           </h3>
 

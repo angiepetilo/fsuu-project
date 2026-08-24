@@ -226,7 +226,7 @@ export default function VenueEquipmentChecklist({
         <div>
           <h4 className="text-xs font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
             <PackageOpen size={15} className="text-slate-600" />
-            {isAssignmentMode ? "Equipment Catalog Checklist" : (isSideBySide ? "Equipment Catalog Checklist" : "AVR Built-in Equipment & Catalog Checklist")}
+            {isAssignmentMode ? "Equipment Catalog Checklist (Before)" : "Equipment Catalog Checklist (After)"}
           </h4>
           <p className="text-[11px] text-slate-500 font-medium mt-0.5">
             {isAssignmentMode 

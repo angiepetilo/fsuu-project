@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
-import { Search, Hash, CheckCircle2, Loader2, AlertCircle, Building2, PackageOpen, AlertTriangle } from "lucide-react";
+import { Link, useSearchParams } from "react-router-dom";
+import { Search, Hash, CheckCircle2, Loader2, AlertCircle, Building2, PackageOpen, AlertTriangle, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import api from "@/lib/axios";
 import echoInstance from "@/lib/echo";
@@ -148,6 +148,17 @@ export default function TrackBooking() {
 
   return (
     <div className="flex flex-col items-center w-full max-w-3xl mx-auto relative animate-in fade-in duration-500">
+
+      {/* Back to Homepage navigation */}
+      <div className="w-full flex items-center justify-start mb-4">
+        <Link
+          to="/"
+          className="inline-flex items-center gap-2 text-xs font-extrabold text-slate-600 hover:text-blue-600 bg-white hover:bg-slate-50 border border-slate-200 px-4 py-2 rounded-xl transition-all shadow-2xs group"
+        >
+          <ArrowLeft size={14} className="group-hover:-translate-x-0.5 transition-transform" />
+          <span>Back to Homepage</span>
+        </Link>
+      </div>
 
       <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-10 w-full shadow-xs">
         <h2 className="text-2xl font-extrabold text-slate-900 text-center mb-2">
