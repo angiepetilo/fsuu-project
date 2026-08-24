@@ -37,11 +37,18 @@ class EquipmentTypeController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        $name = $request->input('eq_name', $request->input('name'));
+        if (!$name) {
+            return response()->json([
+                'message' => 'The equipment name or category field is required.',
+                'errors'  => ['eq_name' => ['The equipment name field is required.']]
+            ], 422);
+        }
+
         $validated = $request->validate([
-            'eq_name'          => 'required|string|max:255',
-            'eq_type'          => 'required|string|max:255',
+            'eq_name'          => 'nullable|string|max:255',
+            'name'             => 'nullable|string|max:255',
             'brand'            => 'nullable|string|max:255',
-            'barcode'          => 'nullable|string|max:255',
             'avatar'           => 'nullable|string',
             'total_quantity'   => 'nullable|integer|min:0',
             'available_count'  => 'nullable|integer|min:0',
@@ -53,6 +60,8 @@ class EquipmentTypeController extends Controller
             'status'           => 'nullable|string',
             'description'      => 'nullable|string',
         ]);
+        $validated['eq_name'] = $name;
+        unset($validated['name']);
 
         // Duplicate name check
         if ($this->categoryService->hasDuplicateName($validated['eq_name'])) {

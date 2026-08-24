@@ -148,8 +148,9 @@ class EquipmentCategoryService
 
         return [
             'id'              => $e->id,
-            'eq_name'         => $e->eq_name ?? $e->name,
-            'eq_type'         => $e->eq_type ?? $e->category,
+            'name'            => $e->eq_name,
+            'category'        => $e->eq_name,
+            'eq_name'         => $e->eq_name,
             'brand'           => $e->brand,
             'barcode'         => $e->barcode,
             'avatar'          => $e->avatar,
