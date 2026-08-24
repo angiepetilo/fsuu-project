@@ -67,15 +67,27 @@ export default function StaffLogin() {
   };
 
   return (
-    <div className="min-h-screen w-full flex bg-[#1A2B6B] font-sans justify-center items-center relative overflow-hidden">
-      {/* Background Aura */}
-      <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-blue-500/20 rounded-full blur-[100px] pointer-events-none" />
+    <div
+      className="min-h-screen w-full flex font-sans justify-center items-center relative overflow-hidden bg-cover bg-center bg-no-repeat"
+      style={{
+        backgroundImage: `linear-gradient(rgba(15, 23, 42, 0.75), rgba(15, 23, 42, 0.85)), url('/fsuu_bg.png')`,
+      }}
+    >
+      {/* Top Back Navigation */}
+      <div className="absolute top-6 left-6 z-20">
+        <Link
+          to="/"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white/90 hover:bg-white text-slate-800 font-extrabold text-xs shadow-lg backdrop-blur-md transition-all hover:-translate-x-0.5"
+        >
+          <span>← Back to Landing Page</span>
+        </Link>
+      </div>
 
       {/* Login Panel */}
-      <div className="w-full max-w-[420px] bg-white rounded-3xl p-8 sm:p-10 border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.06)] animate-in fade-in slide-in-from-bottom-5 duration-500 relative z-10 m-6">
+      <div className="w-full max-w-[420px] bg-white/95 backdrop-blur-md rounded-3xl p-8 sm:p-10 border border-white/20 shadow-[0_20px_50px_rgba(0,0,0,0.3)] animate-in fade-in slide-in-from-bottom-5 duration-500 relative z-10 m-6">
 
         <div className="text-center mb-8 flex flex-col items-center">
-          <img src="/fsuu_logo.png" alt="FSUU Seal" className="h-16 w-auto mb-3 object-contain" />
+          <img src="/fsuu_logo.png" alt="FSUU Seal" className="h-16 w-auto mb-3 object-contain drop-shadow-xs" />
           <h2 className="text-2xl font-[800] text-slate-900 leading-tight">Staff Portal</h2>
           <p className="text-xs text-slate-500 font-semibold mt-1">Father Saturnino Urios University</p>
         </div>
@@ -91,7 +103,7 @@ export default function StaffLogin() {
           id="google-login-btn"
           onClick={handleGoogleLogin}
           disabled={googleLoading || passLoading}
-          className="w-full flex items-center justify-center gap-3 py-3.5 px-4 border border-slate-200 rounded-xl text-slate-800 font-semibold text-sm hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm disabled:opacity-60 disabled:cursor-not-allowed mb-6 cursor-pointer"
+          className="w-full flex items-center justify-center gap-3 py-3.5 px-4 border border-slate-200 rounded-xl text-slate-800 font-semibold text-sm hover:bg-slate-50 hover:border-slate-300 transition-all shadow-xs disabled:opacity-60 disabled:cursor-not-allowed mb-6 cursor-pointer"
         >
           {googleLoading ? (
             <>
@@ -144,7 +156,7 @@ export default function StaffLogin() {
             <button
               type="button"
               onClick={() => setShowPassword(v => !v)}
-              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs font-semibold"
+              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs font-semibold cursor-pointer"
             >
               {showPassword ? "Hide" : "Show"}
             </button>
@@ -152,7 +164,7 @@ export default function StaffLogin() {
           <button
             type="submit"
             disabled={passLoading || googleLoading}
-            className="w-full py-3 rounded-xl bg-slate-800 hover:bg-slate-900 text-white text-sm font-bold transition-all disabled:opacity-60 flex items-center justify-center gap-2 cursor-pointer shadow-sm"
+            className="w-full py-3 rounded-xl bg-slate-800 hover:bg-slate-900 text-white text-sm font-bold transition-all disabled:opacity-60 flex items-center justify-center gap-2 cursor-pointer shadow-md"
           >
             {passLoading ? (
               <>
@@ -168,9 +180,6 @@ export default function StaffLogin() {
         <p className="text-center mt-6 text-[11px] text-red-600 font-semibold">
           Authorized Personnel Access Only
         </p>
-        <Link to="/" className="block text-center mt-3 text-xs text-slate-500 hover:text-slate-800 transition-colors">
-          ← Back to Public Booking Page
-        </Link>
       </div>
     </div>
   );

@@ -198,18 +198,6 @@ export default function Step2Equipment({
                       <p className={`text-xs font-bold ${remainingAvailable === 0 ? "text-amber-600" : "text-emerald-600"}`}>
                         {remainingAvailable} Available Now
                       </p>
-                      {/* Transparent Allocation Breakdown */}
-                      <div className="text-[10.5px] text-slate-400 font-medium flex flex-wrap items-center gap-x-1.5 pt-0.5">
-                        <span>Total: {item.total_quantity || availableTotal}</span>
-                        {item.in_use_count > 0 && (
-                          <span>• {item.in_use_count} In-Use</span>
-                        )}
-                        {Boolean(item.reserved_count && item.reserved_count > 0) && (
-                          <span className="text-amber-600 font-bold bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200/60">
-                            • {item.reserved_count} Reserved (Event)
-                          </span>
-                        )}
-                      </div>
                     </div>
                   </div>
 
@@ -285,7 +273,7 @@ export default function Step2Equipment({
                 className="px-4 py-1.5 rounded-full bg-white border border-slate-200 text-xs font-extrabold text-slate-700 hover:bg-slate-50 disabled:opacity-40 flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
               >
                 <ChevronLeft size={14} />
-                <span>Prev 4</span>
+                <span>Prev</span>
               </button>
 
               <span className="text-xs font-black text-slate-700 px-2">
@@ -298,7 +286,7 @@ export default function Step2Equipment({
                 disabled={currentPage === totalPages}
                 className="px-4 py-1.5 rounded-full bg-white border border-slate-200 text-xs font-extrabold text-slate-700 hover:bg-slate-50 disabled:opacity-40 flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
               >
-                <span>Next 4</span>
+                <span>Next</span>
                 <ChevronRight size={14} />
               </button>
             </div>
@@ -310,8 +298,7 @@ export default function Step2Equipment({
           <div className="bg-white/95 backdrop-blur-md p-5 rounded-[28px] border border-slate-200/90 shadow-md space-y-4 sticky top-4">
             {/* Header */}
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h4 className="font-extrabold text-slate-900 text-xs flex items-center gap-2 uppercase tracking-wider">
-                <Clock size={16} className="text-blue-600" />
+              <h4 className="font-extrabold text-slate-900 text-xs uppercase tracking-wider">
                 Borrow Schedule ({borrowDateMode === "tomorrow" ? "Next-Day" : "Same-Day"})
               </h4>
             </div>
@@ -394,7 +381,21 @@ export default function Step2Equipment({
                   type="time"
                   required
                   value={startTimeVal}
-                  onChange={(e) => setStartTime && setStartTime(`${activeBorrowDate}T${e.target.value}`)}
+                  onChange={(e) => {
+                    const newStartTime = e.target.value;
+                    setStartTime && setStartTime(`${activeBorrowDate}T${newStartTime}`);
+                    // Ensure end time is at least 1 hour after start time
+                    const [sh, sm] = (newStartTime || "08:00").split(":").map(Number);
+                    const [eh, em] = (endTimeVal || "17:00").split(":").map(Number);
+                    const startMins = (sh || 0) * 60 + (sm || 0);
+                    const endMins = (eh || 0) * 60 + (em || 0);
+                    if (endMins <= startMins) {
+                      const newEndMins = Math.min(1439, startMins + 60);
+                      const newEndH = String(Math.floor(newEndMins / 60)).padStart(2, "0");
+                      const newEndM = String(newEndMins % 60).padStart(2, "0");
+                      setEndTime && setEndTime(`${activeBorrowDate}T${newEndH}:${newEndM}`);
+                    }
+                  }}
                   className="w-full px-3.5 py-2.5 bg-slate-100/80 border border-slate-200 rounded-2xl text-xs font-extrabold text-slate-900 focus:bg-white focus:border-blue-600 focus:ring-4 focus:ring-blue-50 focus:outline-none transition-all shadow-inner"
                 />
               </div>
@@ -412,6 +413,13 @@ export default function Step2Equipment({
                   className="w-full px-3.5 py-2.5 bg-slate-100/80 border border-slate-200 rounded-2xl text-xs font-extrabold text-slate-900 focus:bg-white focus:border-blue-600 focus:ring-4 focus:ring-blue-50 focus:outline-none transition-all shadow-inner"
                 />
               </div>
+
+              {endTimeVal <= startTimeVal && (
+                <div className="p-3 bg-rose-50 border border-rose-200 rounded-2xl text-xs font-bold text-rose-800 flex items-center gap-2">
+                  <AlertTriangle size={15} className="text-rose-600 shrink-0" />
+                  <span>Expected return time ({formatTime12(endTimeVal)}) cannot be earlier than or equal to start time ({formatTime12(startTimeVal)}).</span>
+                </div>
+              )}
 
               {borrowDateMode === "today" && isPastTimeToday(todayISO, startTimeVal) && (
                 <div className="p-3 bg-rose-50 border border-rose-200 rounded-2xl text-xs font-bold text-rose-800 flex items-center gap-2">
@@ -433,11 +441,6 @@ export default function Step2Equipment({
                       <span className="font-semibold text-slate-800">
                         Outside Office Hours ({formatTime12(kioskOpen)} – {formatTime12(kioskClose)})
                       </span>
-                      {requiresPinForOutside && (
-                        <span className="px-2 py-0.5 rounded-md text-[10px] font-medium bg-slate-200 text-slate-700">
-                          PIN Required
-                        </span>
-                      )}
                     </div>
                     <p className="text-xs text-slate-600 font-normal leading-relaxed">
                       Selected borrowing/return time ({formatTime12(startTimeVal)} – {formatTime12(endTimeVal)}) is outside campus hours.

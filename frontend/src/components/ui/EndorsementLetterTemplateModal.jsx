@@ -124,6 +124,8 @@ export default function EndorsementLetterTemplateModal({
   isOpen,
   onClose,
   initialType = "organization",
+  allowEdit = false,
+  showTypeTabs = false,
 }) {
   const [activeType, setActiveType] = useState(initialType || "organization");
   const [isEditing, setIsEditing] = useState(false);
@@ -197,58 +199,60 @@ export default function EndorsementLetterTemplateModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[3000] bg-black/60 flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
-      <div className="bg-white rounded-xl shadow-xl border border-slate-300 w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden my-auto text-slate-900 font-sans">
+    <div className="fixed inset-0 z-[3000] bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
+      <div className="bg-white rounded-2xl shadow-2xl border border-slate-300 w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden my-auto text-slate-900 font-sans animate-in zoom-in-95 duration-200">
         
         {/* Clean Header */}
         <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between gap-4 shrink-0 bg-white">
           <div>
-            <h3 className="font-bold text-base text-slate-900 tracking-tight">
-              Endorsement Letter Format
+            <h3 className="font-extrabold text-base text-slate-900 tracking-tight">
+              {isOrg ? "Organization Endorsement Letter Format" : "Academic Endorsement Letter Format"}
             </h3>
             <p className="text-xs text-slate-500 mt-0.5">
-              Official template structure for venue reservation requests.
+              Official university format structure for venue reservation requests.
             </p>
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Plain Type Switcher Tabs */}
-            <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200">
-              <button
-                type="button"
-                onClick={() => {
-                  if (isEditing) handleCancelEdit();
-                  setActiveType("organization");
-                }}
-                className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors cursor-pointer ${
-                  isOrg
-                    ? "bg-white text-slate-900 shadow-xs border border-slate-200/80"
-                    : "text-slate-600 hover:text-slate-900"
-                }`}
-              >
-                Organization
-              </button>
+            {/* Show Switcher Tabs ONLY if explicitly requested */}
+            {showTypeTabs && (
+              <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (isEditing) handleCancelEdit();
+                    setActiveType("organization");
+                  }}
+                  className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors cursor-pointer ${
+                    isOrg
+                      ? "bg-white text-slate-900 shadow-xs border border-slate-200/80"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  Organization
+                </button>
 
-              <button
-                type="button"
-                onClick={() => {
-                  if (isEditing) handleCancelEdit();
-                  setActiveType("academic");
-                }}
-                className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors cursor-pointer ${
-                  !isOrg
-                    ? "bg-white text-slate-900 shadow-xs border border-slate-200/80"
-                    : "text-slate-600 hover:text-slate-900"
-                }`}
-              >
-                Academic
-              </button>
-            </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (isEditing) handleCancelEdit();
+                    setActiveType("academic");
+                  }}
+                  className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors cursor-pointer ${
+                    !isOrg
+                      ? "bg-white text-slate-900 shadow-xs border border-slate-200/80"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  Academic
+                </button>
+              </div>
+            )}
 
             <button
               type="button"
               onClick={onClose}
-              className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-md transition-colors cursor-pointer"
+              className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
               title="Close"
             >
               <X size={18} />
@@ -258,31 +262,31 @@ export default function EndorsementLetterTemplateModal({
 
         {/* Action Toolbar */}
         <div className="px-6 py-2.5 border-b border-slate-200 flex items-center justify-between text-xs bg-slate-50 shrink-0">
-          <span className="font-semibold text-slate-700">
-            {isOrg ? "Organization Purpose Template" : "Academic Purpose Template"}
+          <span className="font-bold text-slate-700">
+            {isOrg ? "Student Organization Endorsement Template" : "Academic / Curricular Endorsement Template"}
           </span>
 
           <div className="flex items-center gap-2">
-            {!isEditing ? (
-              <>
-                <button
-                  type="button"
-                  onClick={handleStartEdit}
-                  className="flex items-center gap-1 px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-100 text-slate-800 rounded-md font-medium transition-colors cursor-pointer"
-                >
-                  <Edit3 size={13} />
-                  <span>Edit</span>
-                </button>
+            {allowEdit && !isEditing ? (
+              <button
+                type="button"
+                onClick={handleStartEdit}
+                className="flex items-center gap-1 px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-100 text-slate-800 rounded-md font-medium transition-colors cursor-pointer"
+              >
+                <Edit3 size={13} />
+                <span>Edit</span>
+              </button>
+            ) : null}
 
-                <button
-                  type="button"
-                  onClick={handleCopy}
-                  className="flex items-center gap-1 px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-100 text-slate-800 rounded-md font-medium transition-colors cursor-pointer"
-                >
-                  {copied ? <Check size={13} className="text-emerald-600" /> : <Copy size={13} />}
-                  <span>{copied ? "Copied" : "Copy"}</span>
-                </button>
-              </>
+            {!isEditing ? (
+              <button
+                type="button"
+                onClick={handleCopy}
+                className="flex items-center gap-1 px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold transition-all shadow-xs cursor-pointer"
+              >
+                {copied ? <Check size={13} className="text-white" /> : <Copy size={13} />}
+                <span>{copied ? "Copied to Clipboard" : "Copy Format"}</span>
+              </button>
             ) : (
               <>
                 <button
@@ -327,7 +331,7 @@ export default function EndorsementLetterTemplateModal({
               placeholder="Enter endorsement letter format here..."
             />
           ) : (
-            <div className="border border-slate-200 rounded-lg p-6 font-mono text-xs text-slate-900 leading-relaxed whitespace-pre-wrap select-text bg-white">
+            <div className="border border-slate-200 rounded-xl p-6 font-mono text-xs text-slate-900 leading-relaxed whitespace-pre-wrap select-text bg-slate-50/50">
               {currentTemplate}
             </div>
           )}
@@ -335,13 +339,13 @@ export default function EndorsementLetterTemplateModal({
 
         {/* Footer */}
         <div className="px-6 py-3 border-t border-slate-200 flex items-center justify-between text-xs bg-slate-50 shrink-0">
-          <span className="text-slate-500">
-            {isEditing ? "Editing letter structure in plain text." : "Format ready for copying into Word or Google Docs."}
+          <span className="text-slate-500 font-medium">
+            Format ready for copying into Word or Google Docs.
           </span>
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-1.5 bg-slate-800 hover:bg-slate-900 text-white rounded-md font-semibold transition-colors cursor-pointer"
+            className="px-5 py-1.5 bg-slate-800 hover:bg-slate-900 text-white rounded-lg font-bold transition-colors cursor-pointer"
           >
             Close
           </button>

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Sparkles, KeyRound, Lock, X, AlertCircle, ShieldCheck, Download } from "lucide-react";
+import { Sparkles, KeyRound, Lock, X, AlertCircle, ShieldCheck, Download, Copy, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { KioskTimeline } from "@/components/ui/kiosk-timeline";
 import { PinModal } from "@/components/ui/pin-modal";
@@ -413,6 +413,15 @@ export default function VenueBooking() {
     }
   };
 
+  const [copiedTrack, setCopiedTrack] = useState(false);
+
+  const handleCopyTrack = () => {
+    if (!referenceCode) return;
+    navigator.clipboard.writeText(referenceCode);
+    setCopiedTrack(true);
+    setTimeout(() => setCopiedTrack(false), 2000);
+  };
+
   return (
     <div className="w-full flex flex-col items-center">
       {/* 4-Step Timeline Component */}
@@ -421,6 +430,11 @@ export default function VenueBooking() {
           steps={VENUE_STEPS}
           currentStep={activeStep}
           completedSteps={completedSteps}
+          onStepClick={(s) => {
+            if (s <= activeStep || completedSteps.includes(s - 1)) {
+              setActiveStep(s);
+            }
+          }}
         />
       </div>
 
@@ -464,8 +478,10 @@ export default function VenueBooking() {
 
         {activeStep === 3 && (
           <Step3Details
+            identity={identity}
             selectedVenue={selectedVenue}
             selectedDate={selectedDate}
+            selectedEndDate={selectedEndDate}
             handleDetailsSubmit={handleDetailsSubmit}
             fullName={fullName} setFullName={setFullName}
             email={email} setEmail={setEmail}
@@ -489,6 +505,7 @@ export default function VenueBooking() {
             contactNumber={contactNumber}
             selectedVenue={selectedVenue}
             selectedDate={selectedDate}
+            selectedEndDate={selectedEndDate}
             timeStart={startTime}
             timeEnd={endTime}
             purpose={purpose}
@@ -522,28 +539,66 @@ export default function VenueBooking() {
         description={pinModalMeta.description}
       />
 
-      {/* Confirmation Success Modal */}
+      {/* Enhanced Confirmation Success Modal */}
       {showSuccess && (
         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[2000] flex items-center justify-center p-4 animate-in fade-in duration-300">
-          <div className="bg-white rounded-3xl p-8 sm:p-10 max-w-md w-full text-center shadow-2xl animate-in zoom-in-95 duration-300 relative border border-slate-100 space-y-4">
-            <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto border-4 border-emerald-500/20 shadow-inner">
-              <ShieldCheck size={42} />
+          <div className="bg-white rounded-3xl p-8 sm:p-10 max-w-lg w-full text-center shadow-2xl animate-in zoom-in-95 duration-300 relative border border-slate-100 space-y-5">
+            <div className="w-18 h-18 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto border-4 border-emerald-500/20 shadow-inner">
+              <ShieldCheck size={38} />
             </div>
-            <h2 className="text-2xl font-black text-slate-900">Reservation Submitted!</h2>
-
-            <div className="p-4 bg-slate-50 border border-slate-200/80 rounded-2xl space-y-1.5 text-center">
-              <p className="text-xs font-bold text-slate-800">
-                Your venue reservation request has been received.
-              </p>
-              <p className="text-xs text-slate-600 font-medium leading-relaxed">
-                Your tracking details and updates have been sent to {email ? <strong>{email}</strong> : 'your email'}.
+            
+            <div>
+              <h2 className="text-2xl font-black text-slate-900 tracking-tight">Venue Reservation Submitted!</h2>
+              <p className="text-xs text-slate-500 font-semibold mt-1">
+                Your reservation request for <strong>{selectedVenue?.name}</strong> has been logged in the university system.
               </p>
             </div>
 
-            <div className="pt-2 flex flex-col gap-2">
+            {/* Prominent Tracking Code Box */}
+            <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
+              <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 block">
+                Official Tracking Number
+              </span>
+              <div className="flex items-center justify-center gap-2">
+                <span className="font-mono text-xl font-black text-blue-700 tracking-wider">
+                  {referenceCode || "TRK-AVR-PENDING"}
+                </span>
+                <button
+                  type="button"
+                  onClick={handleCopyTrack}
+                  className="p-1.5 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 transition-all cursor-pointer shadow-2xs"
+                  title="Copy Tracking Number"
+                >
+                  {copiedTrack ? <Check size={14} className="text-emerald-600" /> : <Copy size={14} />}
+                </button>
+              </div>
+              {copiedTrack && (
+                <span className="text-[10.5px] font-bold text-emerald-600 block">Copied to clipboard!</span>
+              )}
+            </div>
+
+            {/* Instruction Notice for Verification & Dual-Dispatch */}
+            <div className="p-3.5 bg-blue-50/80 border border-blue-200/80 rounded-2xl text-left space-y-1.5 text-xs text-blue-950">
+              <p className="font-bold flex items-center gap-1.5">
+                <span>📌 Important Next Steps:</span>
+              </p>
+              <ul className="list-disc pl-4 space-y-1 font-medium text-[11.5px] text-blue-900 leading-relaxed">
+                <li>Keep this <strong>Tracking Number</strong> for reservation verification and clearance tracking.</li>
+                <li>Confirmation details and live status updates have been sent to both your <strong>Email</strong> ({email || 'registered email'}) and <strong>SMS</strong> ({contactNumber || 'registered phone'}).</li>
+              </ul>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="pt-2 flex flex-col sm:flex-row gap-2.5">
+              <Link
+                to={`/track?ref=${encodeURIComponent(referenceCode)}`}
+                className="flex-1 py-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-xs font-extrabold shadow-md transition-all text-center"
+              >
+                Track Reservation Status
+              </Link>
               <Link
                 to="/"
-                className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-xs font-extrabold shadow-lg transition-all text-center"
+                className="flex-1 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-2xl text-xs font-extrabold transition-all text-center"
               >
                 Return to Homepage
               </Link>

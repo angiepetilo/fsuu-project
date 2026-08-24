@@ -225,23 +225,6 @@ export default function AcademicTermsTab({ showMsg }) {
         </div>
       </div>
 
-      {/* Active Semester Summary Bar */}
-      {activeTerm && (
-        <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-300">
-                ACTIVE
-              </span>
-              <span className="font-bold text-slate-900 text-sm">{activeTerm.name}</span>
-            </div>
-            <p className="text-slate-500 mt-1">
-              Dates: <span className="font-semibold text-slate-700">{activeTerm.start_date}</span> to <span className="font-semibold text-slate-700">{activeTerm.end_date}</span>
-            </p>
-          </div>
-        </div>
-      )}
-
       {/* Terms Table */}
       {loading ? (
         <div className="flex flex-col items-center justify-center py-12 text-slate-400 gap-2">
@@ -273,16 +256,16 @@ export default function AcademicTermsTab({ showMsg }) {
                   <td className="py-3 px-4 font-bold text-slate-900">{term.name}</td>
                   <td className="py-3 px-4 font-medium text-slate-700">{term.academic_year}</td>
                   <td className="py-3 px-4 font-medium text-slate-700">{term.semester}</td>
-                  <td className="py-3 px-4 text-slate-600">
+                  <td className="py-3 px-4 text-slate-600 font-medium">
                     {term.start_date} → {term.end_date}
                   </td>
                   <td className="py-3 px-4 text-center">
                     {term.is_active ? (
-                      <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                      <span className="font-extrabold text-emerald-700 text-xs">
                         Active
                       </span>
                     ) : (
-                      <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-600 border border-slate-200">
+                      <span className="font-medium text-slate-500 text-xs">
                         Archived (TiDB)
                       </span>
                     )}

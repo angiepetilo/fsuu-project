@@ -68,8 +68,15 @@ export function Step1Identity({
 
       </div>
 
-      {/* Next Button */}
-      <div className="flex justify-end pt-4 border-t border-slate-100">
+      {/* Navigation Buttons */}
+      <div className="flex items-center justify-between pt-4 border-t border-slate-100">
+        <a
+          href="/"
+          className="px-6 py-3 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-extrabold text-xs flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer no-underline"
+        >
+          <span>← Back to Homepage</span>
+        </a>
+
         <Button
           disabled={!currentIdentity}
           onClick={() => currentIdentity && onNext && onNext()}

@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import api from "@/lib/axios";
 
 export default function Step3Details({
+  identity,
   primaryDept,
   selectedItems,
   handleDetailsSubmit,
@@ -40,56 +41,40 @@ export default function Step3Details({
     };
   }, []);
 
+  const formatScheduleDisplay = (startStr, endStr) => {
+    if (!startStr) return "Scheduled Slot";
+    const [dStart, tStart] = (startStr || "").replace("T", " ").split(" ");
+    const [dEnd, tEnd] = (endStr || "").replace("T", " ").split(" ");
+
+    const formatT = (t, fallback = "08:00") => {
+      const timeVal = t || fallback;
+      const [h, m] = timeVal.split(":").map(Number);
+      const ampm = h >= 12 ? "PM" : "AM";
+      const h12 = (h % 12) || 12;
+      return `${h12}:${String(m || 0).padStart(2, '0')} ${ampm}`;
+    };
+
+    const timeStartFmt = formatT(tStart, "08:00");
+    const timeEndFmt = formatT(tEnd, "17:00");
+
+    if (dStart === dEnd || !dEnd) {
+      return `${dStart} (${timeStartFmt} - ${timeEndFmt})`;
+    }
+    return `${dStart} (${timeStartFmt}) to ${dEnd} (${timeEndFmt})`;
+  };
+
+  const isExternal = (identity || "").toLowerCase() === "external";
+
   return (
     <div className="p-6 sm:p-8 animate-in slide-in-from-top-2 duration-300">
-      {/* Context Banner */}
-      <div className={`p-4 sm:p-5 rounded-2xl mb-6 border ${primaryDept === "sco"
-        ? 'bg-purple-50/80 border-purple-100 text-purple-900'
-        : 'bg-blue-50/80 border-blue-100 text-blue-900'
-        }`}>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div>
-              <h4 className="font-extrabold text-sm">Borrowing Form</h4>
-              <p className="text-xs opacity-80">
-                Total Selected Items: <span className="font-bold">{selectedItems.length}</span>
-              </p>
-            </div>
-          </div>
+      {/* Context Banner matching Venue Booking header */}
+      <div className="p-4 sm:p-5 rounded-2xl mb-6 border flex items-center justify-between bg-blue-50/90 border-blue-200 text-blue-950 shadow-2xs">
+        <div>
+          <h4 className="font-black text-sm tracking-tight text-slate-900">Borrowing Form</h4>
+          <p className="text-xs text-blue-900 font-semibold mt-0.5">
+            Total Selected: <span className="font-extrabold text-blue-700">{selectedItems.length} Equipment Unit{selectedItems.length > 1 ? 's' : ''}</span> | Schedule: <span className="font-extrabold text-blue-700">{formatScheduleDisplay(startTime, endTime)}</span>
+          </p>
         </div>
-
-        {/* Automatic Display of Selected Borrow Date, Time Start, Time End & Extension */}
-        {(() => {
-          const formatDateTimeDisplay = (dtStr, fallbackTime = "08:00") => {
-            if (!dtStr) return "Scheduled Slot";
-            const cleaned = dtStr.replace("T", " ");
-            const parts = cleaned.split(" ");
-            let datePart = parts[0];
-            let timePart = parts[1];
-            if (!timePart && datePart.length > 10) {
-              timePart = datePart.substring(10);
-              datePart = datePart.substring(0, 10);
-            }
-            if (!timePart) timePart = fallbackTime;
-            const [h, m] = timePart.split(":").map(Number);
-            const ampm = (h >= 12 && h < 24) ? "PM" : "AM";
-            const h12 = (h % 12) || 12;
-            return `${datePart} • ${h12}:${String(m || 0).padStart(2, '0')} ${ampm}`;
-          };
-
-          return (
-            <div className="mt-4 pt-3 border-t border-slate-200/60 flex flex-wrap items-center gap-3 text-xs font-bold text-slate-800">
-              <div className="flex items-center gap-1.5 bg-white px-3 py-2 rounded-xl border border-slate-200/80 shadow-2xs">
-                <span className="text-slate-500 font-semibold">Start Time:</span>
-                <span className="text-blue-700">{formatDateTimeDisplay(startTime, "08:00")}</span>
-              </div>
-              <div className="flex items-center gap-1.5 bg-white px-3 py-2 rounded-xl border border-slate-200/80 shadow-2xs">
-                <span className="text-slate-500 font-semibold">Expected Return:</span>
-                <span className="text-blue-700">{formatDateTimeDisplay(endTime, "17:00")}</span>
-              </div>
-            </div>
-          );
-        })()}
       </div>
 
       <form onSubmit={handleDetailsSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-5">
@@ -118,57 +103,53 @@ export default function Step3Details({
         </div>
 
         <div className="flex flex-col gap-1.5">
-
-          <label className="text-xs font-bold text-slate-900">Program / Department / Office <span className="text-red-500">*</span></label>
-          <select required value={department} onChange={e => setDepartment(e.target.value)} className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all font-semibold">
-            <option value="">Select Program / Department / Office...</option>
-            {(() => {
-              const defaultDepts = [
-                { code: "CITE", name: "College of Information Tech Education (CITE)" },
-                { code: "CAS",  name: "College of Arts & Sciences (CAS)" },
-                { code: "CBA",  name: "College of Business Admin (CBA)" },
-                { code: "CED",  name: "College of Education (CED)" },
-                { code: "SHS",  name: "Senior High School (SHS)" },
-              ];
-              const listToRender = departmentsList.length > 0 ? departmentsList : defaultDepts;
-              return listToRender.map((dept, idx) => {
-                const code = dept.code || dept.name;
-                const label = dept.name ? (dept.code && !dept.name.includes(dept.code) ? `${dept.code} - ${dept.name}` : dept.name) : code;
-                return (
-                  <option key={dept.id || idx} value={code}>
-                    {label}
-                  </option>
-                );
-              });
-            })()}
-            <option value="External">External Organization</option>
-          </select>
+          <label className="text-xs font-bold text-slate-900">
+            {isExternal ? "Office / Organization" : "Department"} <span className="text-red-500">*</span>
+          </label>
+          {isExternal ? (
+            <input
+              type="text"
+              required
+              value={department}
+              onChange={e => setDepartment(e.target.value)}
+              placeholder="e.g. DepEd / LGU Butuan / Partner Company"
+              className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all font-semibold"
+            />
+          ) : (
+            <select required value={department} onChange={e => setDepartment(e.target.value)} className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all font-semibold">
+              <option value="">Select Department...</option>
+              {(() => {
+                const defaultDepts = [
+                  { code: "CITE", name: "College of Information Tech Education (CITE)" },
+                  { code: "CAS",  name: "College of Arts & Sciences (CAS)" },
+                  { code: "CBA",  name: "College of Business Admin (CBA)" },
+                  { code: "CED",  name: "College of Education (CED)" },
+                  { code: "CON",  name: "College of Nursing (CON)" },
+                  { code: "CEA",  name: "College of Engineering & Architecture (CEA)" },
+                  { code: "SHS",  name: "Senior High School (SHS)" },
+                  { code: "JHS",  name: "Junior High School (JHS)" },
+                  { code: "ADMIN", name: "University Administration" },
+                ];
+                const listToRender = departmentsList.length > 0
+                  ? departmentsList.filter(d => (d.code || d.name || "").toLowerCase() !== "external")
+                  : defaultDepts;
+                return listToRender.map((dept, idx) => {
+                  const code = dept.code || dept.name;
+                  const label = dept.name ? (dept.code && !dept.name.includes(dept.code) ? `${dept.code} - ${dept.name}` : dept.name) : code;
+                  return (
+                    <option key={`dept-${dept.id || code}-${idx}`} value={code}>
+                      {label}
+                    </option>
+                  );
+                });
+              })()}
+            </select>
+          )}
         </div>
 
-
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-1.5 sm:col-span-2">
           <label className="text-xs font-bold text-slate-900">Location / Venue of Equipment Use <span className="text-red-500">*</span></label>
           <input type="text" required value={placeOfUse} onChange={e => setPlaceOfUse(e.target.value)} placeholder="e.g. Main Gymnasium / AVR 1" className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600" />
-        </div>
-
-        <div className="sm:col-span-2 flex flex-col gap-1.5 p-4 bg-slate-50/80 border border-slate-200 rounded-xl">
-          <label className="text-xs font-bold text-slate-900">Send Tracking Number via <span className="text-red-500">*</span></label>
-          <div className="flex items-center gap-6 mt-1">
-            <label className="flex items-center gap-2 text-xs font-semibold text-slate-700">
-              <input
-                type="radio"
-                name="notificationChannel"
-                value="email"
-                checked={true}
-                readOnly
-                className="accent-blue-600"
-              />
-              <span>Email ({email || 'Registered Email'})</span>
-            </label>
-          </div>
-          <p className="text-[11px] text-slate-500 mt-1">
-            Your tracking number, approval notice, and return reminders will be delivered to your registered email.
-          </p>
         </div>
 
         {primaryDept === "sco" && (

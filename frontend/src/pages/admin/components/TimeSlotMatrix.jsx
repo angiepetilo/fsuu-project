@@ -85,30 +85,11 @@ export default function TimeSlotMatrix({
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-      {/* Top Header & Legend Bar */}
+      {/* Top Header */}
       <div className="p-4 bg-slate-50/80 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h3 className="font-extrabold text-slate-900 text-sm">{title}</h3>
           <p className="text-xs text-slate-500 font-semibold">{formattedDateTitle}</p>
-        </div>
-
-        {/* Legend Badges (Screenshot 2) */}
-        <div className="flex items-center flex-wrap gap-2 text-[11px] font-bold">
-          <span className="px-2.5 py-1 rounded-lg border bg-white border-slate-200 text-slate-700 shadow-2xs">
-            Open / Available
-          </span>
-          <span className="px-2.5 py-1 rounded-lg border bg-blue-600 text-white shadow-2xs">
-            ● On-Going
-          </span>
-          <span className="px-2.5 py-1 rounded-lg border bg-indigo-600 text-white shadow-2xs">
-            ● Reserved
-          </span>
-          <span className="px-2.5 py-1 rounded-lg border bg-amber-500 text-white shadow-2xs">
-            ● Pending
-          </span>
-          <span className="px-2.5 py-1 rounded-lg border bg-slate-700 text-white shadow-2xs">
-            ● Maintenance
-          </span>
         </div>
       </div>
 

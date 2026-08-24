@@ -6,6 +6,7 @@ import api from "@/lib/axios";
 export default function Step3Details({
   selectedVenue,
   selectedDate,
+  selectedEndDate,
   handleDetailsSubmit,
   fullName, setFullName,
   email, setEmail,
@@ -28,9 +29,7 @@ export default function Step3Details({
     api.get("/public/booking-requirements")
       .then(res => setRequirements(Array.isArray(res.data) ? res.data : []))
       .catch(() => {
-        api.get("/admin/booking-requirements")
-          .then(res => setRequirements(Array.isArray(res.data) ? res.data : []))
-          .catch(() => setRequirements([]));
+        setRequirements([]);
       });
 
     const fetchDepts = async () => {
@@ -45,14 +44,8 @@ export default function Step3Details({
 
     const fetchEquipment = async () => {
       try {
-        const venueOfficeId = selectedVenue?.office_id || selectedVenue?.office?.id || "";
-        const params = new URLSearchParams();
-        if (venueOfficeId) params.append("office_id", venueOfficeId);
-        if (selectedDate) params.append("date", selectedDate);
-        if (startTime) params.append("time_start", startTime);
-        if (endTime) params.append("time_end", endTime);
-        const res = await api.get(`/public/equipment-types?${params.toString()}`).catch(() => api.get("/admin/equipment-types"));
-        let data = Array.isArray(res.data) ? res.data : [];
+        const res = await api.get("/public/equipment-types").catch(() => api.get("/admin/equipment-types"));
+        let data = Array.isArray(res.data) ? res.data : (res.data?.data || []);
         setEquipmentCatalog(data);
       } catch {
         setEquipmentCatalog([]);
@@ -61,7 +54,6 @@ export default function Step3Details({
 
     fetchDepts();
     fetchEquipment();
-
     window.addEventListener("departments_updated", fetchDepts);
     window.addEventListener("equipment_inventory_updated", fetchEquipment);
     return () => {
@@ -70,18 +62,25 @@ export default function Step3Details({
     };
   }, [selectedVenue, selectedDate, startTime, endTime]);
 
+  const formatTime12 = (tStr) => {
+    if (!tStr) return "";
+    const [h, m] = tStr.split(":").map(Number);
+    const ampm = h >= 12 ? "PM" : "AM";
+    const h12 = h % 12 || 12;
+    return `${h12}:${String(m || 0).padStart(2, '0')} ${ampm}`;
+  };
+
+  const isExternal = (identity || "").toLowerCase() === "external";
+
   return (
     <div className="p-6 sm:p-8 animate-in slide-in-from-top-2 duration-300 space-y-6">
       {/* Context Banner indicating which form is active */}
-      <div className="p-4 rounded-2xl border flex items-center justify-between bg-blue-50/80 border-blue-100 text-blue-900">
-        <div className="flex items-center gap-3">
-
-          <div>
-            <h4 className="font-extrabold text-sm">Booking Form</h4>
-            <p className="text-xs opacity-80">
-              Target Venue: <span className="font-bold">{selectedVenue?.name}</span> | Date: <span className="font-bold">{selectedDate}</span>
-            </p>
-          </div>
+      <div className="p-4 sm:p-5 rounded-2xl border flex items-center justify-between bg-blue-50/90 border-blue-200 text-blue-950 shadow-2xs">
+        <div>
+          <h4 className="font-black text-sm tracking-tight text-slate-900">Booking Form</h4>
+          <p className="text-xs text-blue-900 font-semibold mt-0.5">
+            Target Venue: <span className="font-extrabold text-blue-700">{selectedVenue?.name}</span> | Date: <span className="font-extrabold text-blue-700">{selectedDate}{selectedEndDate && selectedEndDate !== selectedDate ? ` to ${selectedEndDate}` : ''}</span> ({formatTime12(startTime)} - {formatTime12(endTime)})
+          </p>
         </div>
       </div>
 
@@ -114,30 +113,48 @@ export default function Step3Details({
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-bold text-slate-900">Program / Department / Office <span className="text-red-500">*</span></label>
-          <select required value={department} onChange={e => setDepartment(e.target.value)} className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all font-semibold">
-            <option value="">Select Program / Department / Office...</option>
-            {(() => {
-              const defaultDepts = [
-                { code: "CITE", name: "College of Information Tech Education (CITE)" },
-                { code: "CAS",  name: "College of Arts & Sciences (CAS)" },
-                { code: "CBA",  name: "College of Business Admin (CBA)" },
-                { code: "CED",  name: "College of Education (CED)" },
-                { code: "SHS",  name: "Senior High School (SHS)" },
-              ];
-              const listToRender = departmentsList.length > 0 ? departmentsList : defaultDepts;
-              return listToRender.map((dept, idx) => {
-                const code = dept.code || dept.name;
-                const label = dept.name ? (dept.code && !dept.name.includes(dept.code) ? `${dept.code} - ${dept.name}` : dept.name) : code;
-                return (
-                  <option key={`dept-${dept.id || code}-${idx}`} value={code}>
-                    {label}
-                  </option>
-                );
-              });
-            })()}
-            <option value="External">External Organization</option>
-          </select>
+          <label className="text-xs font-bold text-slate-900">
+            {isExternal ? "Office / Organization" : "Department"} <span className="text-red-500">*</span>
+          </label>
+          {isExternal ? (
+            <input
+              type="text"
+              required
+              value={department}
+              onChange={e => setDepartment(e.target.value)}
+              placeholder="e.g. DepEd / LGU Butuan / Partner Company"
+              className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all font-semibold"
+            />
+          ) : (
+            <select required value={department} onChange={e => setDepartment(e.target.value)} className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all font-semibold">
+              <option value="">Select Department...</option>
+              {(() => {
+                const defaultDepts = [
+                  { code: "CITE", name: "College of Information Tech Education (CITE)" },
+                  { code: "CAS",  name: "College of Arts & Sciences (CAS)" },
+                  { code: "CBA",  name: "College of Business Admin (CBA)" },
+                  { code: "CED",  name: "College of Education (CED)" },
+                  { code: "CON",  name: "College of Nursing (CON)" },
+                  { code: "CEA",  name: "College of Engineering & Architecture (CEA)" },
+                  { code: "SHS",  name: "Senior High School (SHS)" },
+                  { code: "JHS",  name: "Junior High School (JHS)" },
+                  { code: "ADMIN", name: "University Administration" },
+                ];
+                const listToRender = departmentsList.length > 0
+                  ? departmentsList.filter(d => (d.code || d.name || "").toLowerCase() !== "external")
+                  : defaultDepts;
+                return listToRender.map((dept, idx) => {
+                  const code = dept.code || dept.name;
+                  const label = dept.name ? (dept.code && !dept.name.includes(dept.code) ? `${dept.code} - ${dept.name}` : dept.name) : code;
+                  return (
+                    <option key={`dept-${dept.id || code}-${idx}`} value={code}>
+                      {label}
+                    </option>
+                  );
+                });
+              })()}
+            </select>
+          )}
         </div>
 
         {/* FORM SPECIFIC FIELDS: AVR FORM (FORM A) */}
@@ -168,7 +185,7 @@ export default function Step3Details({
               )}
             </div>
 
-            <div className="flex flex-col gap-1.5">
+            <div className="flex flex-col gap-1.5 sm:col-span-2">
               <label className="text-xs font-bold text-slate-900">
                 Expected Person Count <span className="text-red-500">*</span>
                 {selectedVenue?.capacity && (
@@ -191,28 +208,6 @@ export default function Step3Details({
                 }} 
                 placeholder={`e.g. ${Math.min(75, selectedVenue?.capacity || 75)}`} 
                 className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all" 
-              />
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-bold text-slate-900">Start Time <span className="text-red-500">*</span></label>
-              <input 
-                type="time" 
-                readOnly
-                disabled
-                value={startTime}
-                className="w-full p-3 bg-slate-100/90 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 cursor-not-allowed select-none" 
-              />
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-bold text-slate-900">End Time <span className="text-red-500">*</span></label>
-              <input 
-                type="time" 
-                readOnly
-                disabled
-                value={endTime}
-                className="w-full p-3 bg-slate-100/90 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 cursor-not-allowed select-none" 
               />
             </div>
 

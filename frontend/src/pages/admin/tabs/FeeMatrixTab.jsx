@@ -218,18 +218,16 @@ export default function FeeMatrixTab({ officeScope = "All Offices", showMsg }) {
           </div>
 
           {/* 1. Rate Items Configuration & Text Overrides */}
-          <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-xs space-y-3">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-              <div>
-                <h4 className="font-extrabold text-slate-900 text-xs">1. Rate Items (Check / Edit Text)</h4>
-                <p className="text-[11px] text-slate-500 font-medium mt-0.5">Toggle visibility and rename labels or rate strings.</p>
-              </div>
+          <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-xs space-y-4">
+            <div className="border-b border-slate-100 pb-2">
+              <h4 className="font-extrabold text-slate-900 text-xs">1. Rate Items (Check / Edit Text)</h4>
+              <p className="text-[11px] text-slate-500 font-medium mt-0.5">Toggle visibility and rename labels or rate strings.</p>
             </div>
 
-            <div className="space-y-3">
+            <div className="space-y-4">
               {/* Internal Rate */}
-              <div className="p-3 rounded-xl border border-slate-100 bg-slate-50/50 space-y-2">
-                <label className="flex items-center gap-2.5 cursor-pointer select-none text-slate-800 font-bold hover:text-blue-600">
+              <div className="space-y-2 border-b border-slate-100 pb-3">
+                <label className="flex items-center gap-2 cursor-pointer select-none text-slate-800 text-xs font-bold hover:text-blue-600">
                   <input
                     type="checkbox"
                     checked={printConfig.showInternalRate}
@@ -245,22 +243,22 @@ export default function FeeMatrixTab({ officeScope = "All Offices", showMsg }) {
                       value={printConfig.internalRateLabel !== undefined ? printConfig.internalRateLabel : "Internal Rate (Academic / Student Dept)"}
                       onChange={(e) => setPrintConfig({ ...printConfig, internalRateLabel: e.target.value })}
                       placeholder="Description Label"
-                      className="p-2 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-800 focus:outline-none focus:border-blue-600"
+                      className="p-2 bg-transparent border border-slate-200 rounded-lg text-xs font-medium text-slate-800 focus:outline-none focus:border-blue-600 focus:bg-white transition-all"
                     />
                     <input
                       type="text"
                       value={printConfig.internalRateValue !== undefined ? printConfig.internalRateValue : `₱${feeForm.internal_hourly} / hr`}
                       onChange={(e) => setPrintConfig({ ...printConfig, internalRateValue: e.target.value })}
                       placeholder="Rate Text"
-                      className="p-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-emerald-700 focus:outline-none focus:border-blue-600"
+                      className="p-2 bg-transparent border border-slate-200 rounded-lg text-xs font-bold text-emerald-700 focus:outline-none focus:border-blue-600 focus:bg-white transition-all"
                     />
                   </div>
                 )}
               </div>
 
               {/* External Hourly Rate */}
-              <div className="p-3 rounded-xl border border-slate-100 bg-slate-50/50 space-y-2">
-                <label className="flex items-center gap-2.5 cursor-pointer select-none text-slate-800 font-bold hover:text-blue-600">
+              <div className="space-y-2 border-b border-slate-100 pb-3">
+                <label className="flex items-center gap-2 cursor-pointer select-none text-slate-800 text-xs font-bold hover:text-blue-600">
                   <input
                     type="checkbox"
                     checked={printConfig.showExternalHourly}
@@ -276,22 +274,22 @@ export default function FeeMatrixTab({ officeScope = "All Offices", showMsg }) {
                       value={printConfig.externalHourlyLabel !== undefined ? printConfig.externalHourlyLabel : "External Hourly Rental Rate"}
                       onChange={(e) => setPrintConfig({ ...printConfig, externalHourlyLabel: e.target.value })}
                       placeholder="Description Label"
-                      className="p-2 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-800 focus:outline-none focus:border-blue-600"
+                      className="p-2 bg-transparent border border-slate-200 rounded-lg text-xs font-medium text-slate-800 focus:outline-none focus:border-blue-600 focus:bg-white transition-all"
                     />
                     <input
                       type="text"
                       value={printConfig.externalHourlyValue !== undefined ? printConfig.externalHourlyValue : `₱${feeForm.external_hourly} / hr`}
                       onChange={(e) => setPrintConfig({ ...printConfig, externalHourlyValue: e.target.value })}
                       placeholder="Rate Text"
-                      className="p-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-900 focus:outline-none focus:border-blue-600"
+                      className="p-2 bg-transparent border border-slate-200 rounded-lg text-xs font-bold text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white transition-all"
                     />
                   </div>
                 )}
               </div>
 
               {/* External Daily Rate */}
-              <div className="p-3 rounded-xl border border-slate-100 bg-slate-50/50 space-y-2">
-                <label className="flex items-center gap-2.5 cursor-pointer select-none text-slate-800 font-bold hover:text-blue-600">
+              <div className="space-y-2 border-b border-slate-100 pb-3">
+                <label className="flex items-center gap-2 cursor-pointer select-none text-slate-800 text-xs font-bold hover:text-blue-600">
                   <input
                     type="checkbox"
                     checked={printConfig.showExternalDaily}
@@ -307,22 +305,22 @@ export default function FeeMatrixTab({ officeScope = "All Offices", showMsg }) {
                       value={printConfig.externalDailyLabel !== undefined ? printConfig.externalDailyLabel : "External Full Day Rate"}
                       onChange={(e) => setPrintConfig({ ...printConfig, externalDailyLabel: e.target.value })}
                       placeholder="Description Label"
-                      className="p-2 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-800 focus:outline-none focus:border-blue-600"
+                      className="p-2 bg-transparent border border-slate-200 rounded-lg text-xs font-medium text-slate-800 focus:outline-none focus:border-blue-600 focus:bg-white transition-all"
                     />
                     <input
                       type="text"
                       value={printConfig.externalDailyValue !== undefined ? printConfig.externalDailyValue : `₱${feeForm.external_daily} / day`}
                       onChange={(e) => setPrintConfig({ ...printConfig, externalDailyValue: e.target.value })}
                       placeholder="Rate Text"
-                      className="p-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-900 focus:outline-none focus:border-blue-600"
+                      className="p-2 bg-transparent border border-slate-200 rounded-lg text-xs font-bold text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white transition-all"
                     />
                   </div>
                 )}
               </div>
 
               {/* Cleaning Fee */}
-              <div className="p-3 rounded-xl border border-slate-100 bg-slate-50/50 space-y-2">
-                <label className="flex items-center gap-2.5 cursor-pointer select-none text-slate-800 font-bold hover:text-blue-600">
+              <div className="space-y-2 border-b border-slate-100 pb-3">
+                <label className="flex items-center gap-2 cursor-pointer select-none text-slate-800 text-xs font-bold hover:text-blue-600">
                   <input
                     type="checkbox"
                     checked={printConfig.showCleaningFee}
@@ -338,22 +336,22 @@ export default function FeeMatrixTab({ officeScope = "All Offices", showMsg }) {
                       value={printConfig.cleaningFeeLabel !== undefined ? printConfig.cleaningFeeLabel : "Facility Cleaning Fee"}
                       onChange={(e) => setPrintConfig({ ...printConfig, cleaningFeeLabel: e.target.value })}
                       placeholder="Description Label"
-                      className="p-2 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-800 focus:outline-none focus:border-blue-600"
+                      className="p-2 bg-transparent border border-slate-200 rounded-lg text-xs font-medium text-slate-800 focus:outline-none focus:border-blue-600 focus:bg-white transition-all"
                     />
                     <input
                       type="text"
                       value={printConfig.cleaningFeeValue !== undefined ? printConfig.cleaningFeeValue : `₱${feeForm.cleaning_fee}`}
                       onChange={(e) => setPrintConfig({ ...printConfig, cleaningFeeValue: e.target.value })}
                       placeholder="Rate Text"
-                      className="p-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-900 focus:outline-none focus:border-blue-600"
+                      className="p-2 bg-transparent border border-slate-200 rounded-lg text-xs font-bold text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white transition-all"
                     />
                   </div>
                 )}
               </div>
 
               {/* Sound System Setup Fee */}
-              <div className="p-3 rounded-xl border border-slate-100 bg-slate-50/50 space-y-2">
-                <label className="flex items-center gap-2.5 cursor-pointer select-none text-slate-800 font-bold hover:text-blue-600">
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 cursor-pointer select-none text-slate-800 text-xs font-bold hover:text-blue-600">
                   <input
                     type="checkbox"
                     checked={printConfig.showSoundFee}
@@ -369,14 +367,14 @@ export default function FeeMatrixTab({ officeScope = "All Offices", showMsg }) {
                       value={printConfig.soundFeeLabel !== undefined ? printConfig.soundFeeLabel : "Sound System & Tech Setup Fee"}
                       onChange={(e) => setPrintConfig({ ...printConfig, soundFeeLabel: e.target.value })}
                       placeholder="Description Label"
-                      className="p-2 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-800 focus:outline-none focus:border-blue-600"
+                      className="p-2 bg-transparent border border-slate-200 rounded-lg text-xs font-medium text-slate-800 focus:outline-none focus:border-blue-600 focus:bg-white transition-all"
                     />
                     <input
                       type="text"
                       value={printConfig.soundFeeValue !== undefined ? printConfig.soundFeeValue : `₱${feeForm.sound_system_fee}`}
                       onChange={(e) => setPrintConfig({ ...printConfig, soundFeeValue: e.target.value })}
                       placeholder="Rate Text"
-                      className="p-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-900 focus:outline-none focus:border-blue-600"
+                      className="p-2 bg-transparent border border-slate-200 rounded-lg text-xs font-bold text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white transition-all"
                     />
                   </div>
                 )}
@@ -390,8 +388,8 @@ export default function FeeMatrixTab({ officeScope = "All Offices", showMsg }) {
               2. Section &amp; Header Customization
             </h4>
 
-            <div className="space-y-2">
-              <label className="flex items-center gap-2.5 cursor-pointer select-none text-slate-800 font-semibold hover:text-blue-600">
+            <div className="space-y-2.5">
+              <label className="flex items-center gap-2 cursor-pointer select-none text-slate-800 text-xs font-semibold hover:text-blue-600">
                 <input
                   type="checkbox"
                   checked={printConfig.showPolicy}
@@ -401,7 +399,7 @@ export default function FeeMatrixTab({ officeScope = "All Offices", showMsg }) {
                 <span>Include Venue Policy &amp; Terms Box</span>
               </label>
 
-              <label className="flex items-center gap-2.5 cursor-pointer select-none text-slate-800 font-semibold hover:text-blue-600">
+              <label className="flex items-center gap-2 cursor-pointer select-none text-slate-800 text-xs font-semibold hover:text-blue-600">
                 <input
                   type="checkbox"
                   checked={printConfig.showSignatures}
@@ -412,14 +410,14 @@ export default function FeeMatrixTab({ officeScope = "All Offices", showMsg }) {
               </label>
             </div>
 
-            <div className="space-y-3 pt-2 border-t border-slate-100">
+            <div className="space-y-3 pt-3 border-t border-slate-100">
               <div className="space-y-1">
                 <label className="block text-[11px] font-bold text-slate-700">Document Title</label>
                 <input
                   type="text"
                   value={printConfig.title}
                   onChange={(e) => setPrintConfig({ ...printConfig, title: e.target.value })}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-slate-800 focus:outline-none focus:border-blue-600 focus:bg-white"
+                  className="w-full p-2 bg-transparent border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 focus:outline-none focus:border-blue-600 focus:bg-white transition-all"
                   placeholder="e.g., Facility Rental Fee Schedule"
                 />
               </div>
@@ -430,7 +428,7 @@ export default function FeeMatrixTab({ officeScope = "All Offices", showMsg }) {
                   type="text"
                   value={printConfig.signatoryTitle}
                   onChange={(e) => setPrintConfig({ ...printConfig, signatoryTitle: e.target.value })}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-slate-800 focus:outline-none focus:border-blue-600 focus:bg-white"
+                  className="w-full p-2 bg-transparent border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 focus:outline-none focus:border-blue-600 focus:bg-white transition-all"
                   placeholder="e.g., AVR Center Administrator"
                 />
               </div>
@@ -441,7 +439,7 @@ export default function FeeMatrixTab({ officeScope = "All Offices", showMsg }) {
                   type="text"
                   value={printConfig.signatoryName}
                   onChange={(e) => setPrintConfig({ ...printConfig, signatoryName: e.target.value })}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-slate-800 focus:outline-none focus:border-blue-600 focus:bg-white"
+                  className="w-full p-2 bg-transparent border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 focus:outline-none focus:border-blue-600 focus:bg-white transition-all"
                   placeholder="e.g., John Doe"
                 />
               </div>
@@ -452,7 +450,7 @@ export default function FeeMatrixTab({ officeScope = "All Offices", showMsg }) {
                   rows={3}
                   value={feeForm.policy}
                   onChange={(e) => setFeeForm({ ...feeForm, policy: e.target.value })}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-800 focus:outline-none focus:border-blue-600 focus:bg-white"
+                  className="w-full p-2 bg-transparent border border-slate-200 rounded-lg text-xs font-medium text-slate-800 focus:outline-none focus:border-blue-600 focus:bg-white transition-all"
                   placeholder="Specify reservation and downpayment policies..."
                 />
               </div>
@@ -463,7 +461,7 @@ export default function FeeMatrixTab({ officeScope = "All Offices", showMsg }) {
                   rows={2}
                   value={printConfig.customMemo}
                   onChange={(e) => setPrintConfig({ ...printConfig, customMemo: e.target.value })}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-800 focus:outline-none focus:border-blue-600 focus:bg-white"
+                  className="w-full p-2 bg-transparent border border-slate-200 rounded-lg text-xs font-medium text-slate-800 focus:outline-none focus:border-blue-600 focus:bg-white transition-all"
                   placeholder="Add any specific instructions, payment deadlines, or remarks..."
                 />
               </div>
