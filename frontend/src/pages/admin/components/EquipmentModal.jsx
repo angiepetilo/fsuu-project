@@ -45,7 +45,7 @@ export default function EquipmentModal({
 
             <form onSubmit={handleEditEquipmentSubmit} className="p-6 space-y-4 text-xs">
               <div>
-                <label className="block text-xs font-bold text-slate-900 mb-1">Equipment Model Name *</label>
+                <label className="block text-xs font-bold text-slate-900 mb-1">Unit Name / Identifier *</label>
                 <input
                   type="text"
                   required
@@ -59,7 +59,7 @@ export default function EquipmentModal({
                 {/* Barcode - USB Scanner or Manual Entry */}
                 <div>
                   <label className="block text-xs font-bold text-slate-900 mb-1 flex items-center justify-between">
-                    <span>Model Barcode *</span>
+                    <span>Unit Barcode / Serial *</span>
                     <span className="text-[10px] text-blue-600 font-semibold">(Scan/Type)</span>
                   </label>
                   <input
@@ -74,7 +74,7 @@ export default function EquipmentModal({
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-900 mb-1">Equipment Category *</label>
+                  <label className="block text-xs font-bold text-slate-900 mb-1">Equipment Catalog Item *</label>
                   <select
                     value={editFormData.category}
                     onChange={e => setEditFormData({ ...editFormData, category: e.target.value })}
@@ -83,7 +83,8 @@ export default function EquipmentModal({
                     {categories && categories.length > 0 ? (
                       categories.map((cat, idx) => {
                         const nameStr = typeof cat === "string" ? cat : (cat.eq_name || cat.name || cat.eq_type);
-                        return <option key={cat.id || idx} value={nameStr}>{nameStr}</option>;
+                        const brandStr = typeof cat === "object" && cat.brand ? `[${cat.brand}] ` : "";
+                        return <option key={cat.id || idx} value={nameStr}>{brandStr}{nameStr}</option>;
                       })
                     ) : (
                       <option value="">No categories created</option>
@@ -185,14 +186,14 @@ export default function EquipmentModal({
         </div>
       )}
 
-      {/* ── Add Equipment Modal (Clean White Header - Item 35) ── */}
+      {/* ── Add Equipment Unit Modal (Clean White Header) ── */}
       {showAddModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 sm:p-6 overflow-y-auto animate-in fade-in duration-200">
           <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl w-full max-w-lg overflow-hidden">
-            {/* Clean White Header - Item 35 */}
+            {/* Clean White Header */}
             <div className="px-6 py-4 bg-white border-b border-slate-100 flex items-center justify-between">
               <h3 className="text-sm font-extrabold text-slate-900">
-                Add New Equipment Model
+                Add New Equipment Unit
               </h3>
               <button
                 onClick={() => setShowAddModal(false)}
@@ -204,11 +205,11 @@ export default function EquipmentModal({
 
             <form onSubmit={handleAddEquipment} className="p-6 space-y-4 text-xs">
               <div>
-                <label className="block text-xs font-bold text-slate-900 mb-1">Equipment Model Name *</label>
+                <label className="block text-xs font-bold text-slate-900 mb-1">Unit Name / Identifier *</label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Sony Alpha A7 IV 4K Camera"
+                  placeholder="e.g. Epson Projector #1, Sony Camera Unit A"
                   value={formData.name}
                   onChange={e => setFormData({ ...formData, name: e.target.value })}
                   className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:border-blue-600"
@@ -219,7 +220,7 @@ export default function EquipmentModal({
                 {/* Barcode - USB Scanner or Manual Entry */}
                 <div>
                   <label className="block text-xs font-bold text-slate-900 mb-1 flex items-center justify-between">
-                    <span>Model Barcode *</span>
+                    <span>Unit Barcode / Serial *</span>
                     <span className="text-[10px] text-blue-600 font-semibold">(Scan/Type)</span>
                   </label>
                   <input
@@ -234,7 +235,7 @@ export default function EquipmentModal({
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-900 mb-1">Equipment Category *</label>
+                  <label className="block text-xs font-bold text-slate-900 mb-1">Equipment Catalog Item *</label>
                   <select
                     required
                     value={formData.category}
@@ -244,7 +245,8 @@ export default function EquipmentModal({
                     {categories && categories.length > 0 ? (
                       categories.map((cat, idx) => {
                         const nameStr = typeof cat === "string" ? cat : (cat.eq_name || cat.name || cat.eq_type);
-                        return <option key={cat.id || idx} value={nameStr}>{nameStr}</option>;
+                        const brandStr = typeof cat === "object" && cat.brand ? `[${cat.brand}] ` : "";
+                        return <option key={cat.id || idx} value={nameStr}>{brandStr}{nameStr}</option>;
                       })
                     ) : (
                       <option value="">⚠️ Create Category in Settings First</option>

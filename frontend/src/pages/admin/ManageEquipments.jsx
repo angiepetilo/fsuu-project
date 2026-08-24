@@ -176,6 +176,7 @@ export default function ManageEquipments() {
       description: "",
     });
 
+    setIsSubmitting(false);
     setShowAddModal(true);
   };
 

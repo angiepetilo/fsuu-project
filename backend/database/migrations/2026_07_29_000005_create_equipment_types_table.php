@@ -12,6 +12,7 @@ return new class extends Migration
             $table->id();
             $table->string('eq_name');
             $table->string('eq_type');
+            $table->string('brand')->nullable();
             $table->longText('avatar')->nullable();
             $table->string('status')->default('available');
             $table->integer('total_quantity')->default(1);
