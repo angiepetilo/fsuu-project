@@ -11,7 +11,6 @@ return new class extends Migration
         Schema::create('equipment_types', function (Blueprint $table) {
             $table->id();
             $table->string('eq_name');
-            $table->string('eq_type');
             $table->string('brand')->nullable();
             $table->longText('avatar')->nullable();
             $table->string('status')->default('available');

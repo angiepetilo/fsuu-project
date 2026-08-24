@@ -15,7 +15,6 @@ class EquipmentType extends Model
 
     protected $fillable = [
         'eq_name',
-        'eq_type',
         'brand',
         'avatar',
         'total_quantity',
@@ -34,5 +33,15 @@ class EquipmentType extends Model
     public function units(): HasMany
     {
         return $this->hasMany(EquipmentUnit::class);
+    }
+
+    public function getNameAttribute(): ?string
+    {
+        return $this->attributes['eq_name'] ?? null;
+    }
+
+    public function getCategoryAttribute(): ?string
+    {
+        return $this->attributes['eq_name'] ?? null;
     }
 }

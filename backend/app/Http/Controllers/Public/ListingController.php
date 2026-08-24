@@ -192,23 +192,22 @@ class ListingController extends Controller
             }
 
             return [
-                    'id'              => $e->id,
-                    'name'            => $e->eq_name ?? $e->name ?? 'Equipment',
-                    'eq_name'         => $e->eq_name ?? $e->name ?? 'Equipment',
-                    'description'     => $e->description ?? $e->eq_type ?? 'Standard AV Gear',
-                    'eq_type'         => $e->eq_type,
-                    'barcode'         => $e->barcode,
-                    'avatar'          => $e->avatar,
-                    'total_quantity'  => $total,
-                    'present_count'   => $operational,
-                    'available_count' => $avail,
-                    'in_use_count'    => (int)$borrowCommitted,
-                    'reserved_count'  => (int)$venueCommitted,
-                    'status'          => $avail > 0 ? 'available' : 'unavailable',
-                    'dept'            => 'avr',
-                    'category'        => $e->eq_type ?? 'AVR Equipment',
-                ];
-            });
+                'id'              => $e->id,
+                'name'            => $e->eq_name ?? 'Equipment',
+                'category'        => $e->eq_name ?? 'Equipment',
+                'eq_name'         => $e->eq_name ?? 'Equipment',
+                'brand'           => $e->brand,
+                'description'     => $e->description ?? 'Standard AV Gear',
+                'avatar'          => $e->avatar,
+                'total_quantity'  => $total,
+                'present_count'   => $operational,
+                'available_count' => $avail,
+                'in_use_count'    => (int)$borrowCommitted,
+                'reserved_count'  => (int)$venueCommitted,
+                'status'          => $avail > 0 ? 'available' : 'unavailable',
+                'dept'            => 'avr',
+            ];
+        });
 
         return response()->json($equipmentTypes);
     }
