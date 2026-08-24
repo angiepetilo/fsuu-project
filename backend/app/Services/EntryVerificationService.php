@@ -19,9 +19,18 @@ class EntryVerificationService
         string $rawPin
     ): EntryVerification {
         $setting = VerificationPinSetting::first();
-        $masterPin = $setting ? $setting->master_pin : '123456';
+        $masterPin = $setting ? ($setting->master_pin ?? '123456') : '123456';
+        $hashedPin = $setting ? $setting->hashed_master_pin : null;
 
-        if ($rawPin !== $masterPin) {
+        $isValid = false;
+        if (!empty($hashedPin)) {
+            $isValid = \Illuminate\Support\Facades\Hash::check($rawPin, $hashedPin);
+        }
+        if (!$isValid) {
+            $isValid = ($rawPin === $masterPin);
+        }
+
+        if (!$isValid) {
             throw new AuthorizationException('Invalid PIN.');
         }
 

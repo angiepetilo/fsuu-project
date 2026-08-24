@@ -41,7 +41,7 @@ class VenueBookingController extends Controller
                     ->orWhereNull('tracking_number_id');
                 });
                 
-                if (\Illuminate\Support\Facades\Schema::hasColumn('avr_venue_bookings', 'status')) {
+                if (\Illuminate\Support\Facades\Schema::hasColumn('venue_bookings', 'status')) {
                     $q->whereNotIn('status', $completedStatuses);
                 }
             })

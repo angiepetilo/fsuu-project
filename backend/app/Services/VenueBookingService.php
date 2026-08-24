@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Exceptions\BookingActionNotAllowedException;
 use App\Exceptions\VenueOverlapException;
+use App\Exceptions\VenueReservationTooSoonException;
 use App\Jobs\SendBookingConfirmationJob;
 use App\Jobs\SendBookingStatusUpdateJob;
 use App\Models\Approval;
@@ -15,7 +16,6 @@ use Illuminate\Support\Facades\DB;
 class VenueBookingService
 {
     public function __construct(
-        private ReferenceCodeService $referenceCodeService,
         private AuditLogService $auditLog,
         private NotificationService $notification
     ) {}
@@ -35,6 +35,14 @@ class VenueBookingService
 
             if (strtotime($endDt) <= strtotime($startDt)) {
                 throw new \InvalidArgumentException('Reservation end datetime must be strictly ahead of start datetime.');
+            }
+
+            // Enforce at least 3 days advance notice for public / student / external reservations
+            if (empty($data['submitted_by'])) {
+                $earliestAllowed = now()->addDays(3)->startOfDay();
+                if (strtotime($dateOfUsage) < $earliestAllowed->timestamp) {
+                    throw new VenueReservationTooSoonException('Venue bookings must be made at least 3 days in advance.');
+                }
             }
 
             $venue = Venue::where('id', $data['venue_id'])
@@ -84,8 +92,6 @@ class VenueBookingService
             $purpose   = $data['purpose'] ?? 'Academic Activity';
             $persons   = $data['number_of_persons'] ?? $data['no_of_person'] ?? 50;
 
-            $reservationEndDate = $data['reservation_end_date'] ?? $data['end_date'] ?? date('Y-m-d', strtotime($data['end_datetime'] ?? $dateOfUsage));
-
             // Create venue_booking entry
             $insertData = [
                 'tracking_number_id'   => $trackingId,
@@ -129,13 +135,6 @@ class VenueBookingService
                 if (\Illuminate\Support\Facades\Schema::hasColumn('venue_bookings', 'endorsement_letter')) {
                     $insertData['endorsement_letter'] = $data['endorsement_url'];
                 }
-            }
-
-            if (\Illuminate\Support\Facades\Schema::hasColumn('venue_bookings', 'province')) {
-                $insertData['province'] = 'Agusan del Norte';
-                $insertData['city'] = 'Butuan City';
-                $insertData['barangay'] = 'FSUU Main Campus';
-                $insertData['street'] = 'San Jose St.';
             }
 
             if (\Illuminate\Support\Facades\Schema::hasColumn('venue_bookings', 'reference_code')) {
@@ -443,20 +442,7 @@ class VenueBookingService
                 try { $unitConditions = json_decode($unitConditions, true); } catch (\Throwable $t) { $unitConditions = []; }
             }
 
-            $hasDamageOrLoss = false;
-            if (is_array($unitConditions) && !empty($unitConditions)) {
-                foreach ($unitConditions as $cVal) {
-                    $cNorm = strtolower(trim((string)$cVal));
-                    if ($cNorm === 'damaged' || $cNorm === 'lost') {
-                        $hasDamageOrLoss = true;
-                        break;
-                    }
-                }
-            }
-
-            // Note: We no longer force $newStatus to 'damaged' just because $hasDamageOrLoss is true.
-            // This allows the venue's overall Inspection Outcome to remain 'Satisfactory' (completed) 
-            // even if a borrowed equipment unit is damaged, as per user request.
+            // Determine overall room booking outcome (damaged if violation reported, else completed)
             $newStatus = (!empty($data['has_damage']) || ($data['status'] ?? '') === 'damaged' || ($data['inspection_status'] ?? '') === 'violation' || ($data['condition'] ?? '') === 'damaged')
                 ? 'damaged'
                 : 'completed';
@@ -474,24 +460,11 @@ class VenueBookingService
                 ->update(['status' => $newStatus]);
 
             // Automatic late completion detection
-            $rawDate = $booking->reservation_end_date ?? $booking->date_of_usage ?? $booking->start_datetime;
-            if ($rawDate instanceof \Carbon\CarbonInterface) {
-                $scheduledEndDate = $rawDate->toDateString();
-            } else if (is_string($rawDate)) {
-                $scheduledEndDate = substr($rawDate, 0, 10);
-            } else {
-                $scheduledEndDate = \Carbon\Carbon::today()->toDateString();
-            }
-
-            $rawTime = $booking->time_end ?? $booking->end_datetime ?? '17:00:00';
-            if ($rawTime instanceof \Carbon\CarbonInterface) {
-                $scheduledEndTime = $rawTime->toTimeString();
-            } else if (is_string($rawTime) && strlen($rawTime) > 8 && str_contains($rawTime, ' ')) {
-                $scheduledEndTime = substr($rawTime, 11, 8);
-            } else {
-                $scheduledEndTime = is_string($rawTime) ? substr($rawTime, 0, 8) : '17:00:00';
-            }
-            $scheduledEndStr = $scheduledEndDate . ' ' . $scheduledEndTime;
+            $rawDate = $booking->reservation_end_date ?? $booking->date_of_usage ?? date('Y-m-d');
+            $scheduledEndDate = is_string($rawDate) ? substr($rawDate, 0, 10) : date('Y-m-d');
+            $rawTime = $booking->time_end ?? '17:00:00';
+            $scheduledEndTime = is_string($rawTime) ? (strlen($rawTime) > 8 ? substr($rawTime, 0, 8) : $rawTime) : '17:00:00';
+            $scheduledEndStr = "{$scheduledEndDate} {$scheduledEndTime}";
 
             $now = \Carbon\Carbon::now();
             $isLateCalculated = false;
@@ -692,15 +665,6 @@ class VenueBookingService
             throw new BookingActionNotAllowedException(
                 'Staff can no longer cancel this booking within 24 hours of the event. Only Head or Admin can proceed.'
             );
-        }
-    }
-
-    private function assertAtLeastThreeDaysAhead(string $startDatetime): void
-    {
-        $hoursUntilStart = now()->diffInHours($startDatetime, false);
-
-        if ($hoursUntilStart < 72) {
-            throw new \App\Exceptions\VenueReservationTooSoonException();
         }
     }
 }

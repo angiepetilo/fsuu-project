@@ -12,10 +12,6 @@ class EquipmentDamageController extends Controller
 {
     public function index(): JsonResponse
     {
-        $user = auth()->user();
-        $isSuperAdmin = $user ? $user->isSuperAdmin() : false;
-        $officeId = $user ? $user->office_id : null;
-
         // Physical equipment units currently marked as damaged / lost / under maintenance
         $issuesQuery = EquipmentUnit::with('equipmentType')
             ->where(function($q) {

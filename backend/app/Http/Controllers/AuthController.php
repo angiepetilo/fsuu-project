@@ -167,41 +167,4 @@ class AuthController extends Controller
             'user'    => $user,
         ]);
     }
-
-    private function saveBase64Image(?string $base64Data, string $folder = 'avatars'): ?string
-    {
-        if (!$base64Data) {
-            return null;
-        }
-
-        if (str_starts_with($base64Data, '/storage/')) {
-            return url($base64Data);
-        }
-
-        if (!str_contains($base64Data, ';base64,')) {
-            return $base64Data;
-        }
-
-        try {
-            @list($type, $fileData) = explode(';', $base64Data);
-            @list(, $fileData)      = explode(',', $fileData);
-
-            $mimeType = str_replace('data:', '', $type);
-            $extension = match ($mimeType) {
-                'image/png'  => 'png',
-                'image/gif'  => 'gif',
-                'image/webp' => 'webp',
-                default      => 'jpg',
-            };
-
-            $fileName = $folder . '_' . time() . '_' . Str::random(8) . '.' . $extension;
-            $filePath = $folder . '/' . $fileName;
-
-            Storage::disk('public')->put($filePath, base64_decode($fileData));
-
-            return url(Storage::url($filePath));
-        } catch (\Throwable $e) {
-            return $base64Data;
-        }
-    }
 }

@@ -23,7 +23,7 @@ class ReferenceCodeService
                     ->first();
 
                 if (!$counter) {
-                    $id = DB::table('reference_counters')->insertGetId([
+                    DB::table('reference_counters')->insert([
                         'prefix' => $prefix,
                         'year_month' => $yearMonth,
                         'last_number' => 1,
