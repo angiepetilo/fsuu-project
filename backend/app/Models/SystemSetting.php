@@ -43,28 +43,30 @@ class SystemSetting extends Model
      */
     public static function getSettings(): self
     {
-        $settings = self::first();
-        if (!$settings) {
-            $settings = self::create([
-                'system_name'                    => 'FSUU Facilities & Equipment Booking System',
-                'organization_name'              => 'Father Saturnino Urios University',
-                'header_brand_text'              => 'Urios',
-                'contact_email'                  => 'support.booking@fsuu.edu.ph',
-                'contact_phone'                  => '(085) 342-1830',
-                'timezone'                       => 'Asia/Manila (UTC+8)',
-                'auto_shift_tomorrow_after_hours'=> true,
-                'allow_advance_equipment_booking'=> true,
-                'max_items_per_borrow'           => 5,
-                'smtp_host'                      => env('MAIL_HOST', 'smtp.gmail.com'),
-                'smtp_port'                      => (int) env('MAIL_PORT', 587),
-                'smtp_username'                  => env('MAIL_USERNAME', ''),
-                'smtp_password'                  => env('MAIL_PASSWORD', ''),
-                'smtp_encryption'                => env('MAIL_ENCRYPTION', 'tls'),
-                'mail_from_address'              => env('MAIL_FROM_ADDRESS', 'support.booking@fsuu.edu.ph'),
-                'mail_from_name'                 => env('MAIL_FROM_NAME', 'FSUU Facilities & Equipment Booking'),
-            ]);
-        }
-        return $settings;
+        return \Illuminate\Support\Facades\Cache::remember('system_settings_singleton', 86400, function () {
+            $settings = self::first();
+            if (!$settings) {
+                $settings = self::create([
+                    'system_name'                    => 'FSUU Facilities & Equipment Booking System',
+                    'organization_name'              => 'Father Saturnino Urios University',
+                    'header_brand_text'              => 'Urios',
+                    'contact_email'                  => 'support.booking@fsuu.edu.ph',
+                    'contact_phone'                  => '(085) 342-1830',
+                    'timezone'                       => 'Asia/Manila (UTC+8)',
+                    'auto_shift_tomorrow_after_hours'=> true,
+                    'allow_advance_equipment_booking'=> true,
+                    'max_items_per_borrow'           => 5,
+                    'smtp_host'                      => env('MAIL_HOST', 'smtp.gmail.com'),
+                    'smtp_port'                      => (int) env('MAIL_PORT', 587),
+                    'smtp_username'                  => env('MAIL_USERNAME', ''),
+                    'smtp_password'                  => env('MAIL_PASSWORD', ''),
+                    'smtp_encryption'                => env('MAIL_ENCRYPTION', 'tls'),
+                    'mail_from_address'              => env('MAIL_FROM_ADDRESS', 'support.booking@fsuu.edu.ph'),
+                    'mail_from_name'                 => env('MAIL_FROM_NAME', 'FSUU Facilities & Equipment Booking'),
+                ]);
+            }
+            return $settings;
+        });
     }
 
     /**
