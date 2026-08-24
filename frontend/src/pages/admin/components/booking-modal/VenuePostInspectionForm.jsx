@@ -25,10 +25,13 @@ export default function VenuePostInspectionForm({
   savingInspection = false,
   inspectionSuccessMsg = null,
   isOngoing = false,
+  isPreEvent = false,
   onSetPostInspection = null,
 }) {
   const [showCustomModal, setShowCustomModal] = useState(false);
   const [customViolationInput, setCustomViolationInput] = useState("");
+
+  const isBeforeInspection = isPreEvent || (isOngoing && !onSetPostInspection);
 
   const handleAddCustomViolation = (e) => {
     e.preventDefault();
@@ -50,12 +53,12 @@ export default function VenuePostInspectionForm({
         <div>
           <h4 className="text-xs font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
             <ShieldCheck size={16} className="text-slate-600" />
-            {isOngoing ? "Pre-Event Inspection Form (Before)" : "Post-Event Inspection Form (After)"}
+            {isBeforeInspection ? "Pre-Event Inspection Form (Before)" : "Post-Event Inspection Form (After)"}
           </h4>
           <p className="text-[11px] font-medium text-slate-500 mt-0.5">
             {isHistoryView 
               ? "(Read Only History Log)"
-              : isOngoing
+              : isBeforeInspection
                 ? "Record initial facility condition and log setup state before event starts."
                 : "Record facility turnover status, verify returned equipment condition, or log damages."}
           </p>

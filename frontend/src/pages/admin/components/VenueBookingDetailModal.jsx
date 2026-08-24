@@ -43,6 +43,8 @@ export default function VenueBookingDetailModal({
   const [preViolationNotes, setPreViolationNotes] = useState("");
   const [preSelectedViolationType, setPreSelectedViolationType] = useState("Physical Facility / Furniture Damage");
   const [preEvidencePhoto, setPreEvidencePhoto] = useState([]);
+  const [preEquipmentInspectionNotes, setPreEquipmentInspectionNotes] = useState("");
+  const [equipmentInspectionNotes, setEquipmentInspectionNotes] = useState("");
 
   // Dynamic equipment notes fetched if missing on passed object
   const [fetchedEquipmentNotes, setFetchedEquipmentNotes] = useState("");
@@ -247,6 +249,9 @@ export default function VenueBookingDetailModal({
             if (postUse.unit_conditions && typeof postUse.unit_conditions === 'object') {
               setUnitReturnedConditions(postUse.unit_conditions);
             }
+            if (postUse.equipment_notes) {
+              setEquipmentInspectionNotes(postUse.equipment_notes);
+            }
           }
 
           if (preUse) {
@@ -265,6 +270,9 @@ export default function VenueBookingDetailModal({
               setPreSelectedViolationType(preUse.violation_type);
             }
             setPreViolationNotes(existingNotes);
+            if (preUse.equipment_notes) {
+              setPreEquipmentInspectionNotes(preUse.equipment_notes);
+            }
 
             // Hydrate pre-inspection multi-photo evidence
             const rawPrePhoto = preUse.evidence_photos || preUse.evidence_photo || preUse.evidence_image;
@@ -798,6 +806,7 @@ export default function VenueBookingDetailModal({
         condition: isPre ? (preInspectionStatus === "clean" ? "good" : "damaged") : (inspectionStatus === "clean" ? "good" : "damaged"),
         violation_type: isPre ? (preInspectionStatus === "violation" ? preSelectedViolationType : null) : (inspectionStatus === "violation" ? selectedViolationType : null),
         notes: isPre ? (preViolationNotes || (preInspectionStatus === "clean" ? "Satisfactory Condition (Clean Room)" : `[${preSelectedViolationType}] Pre-event inspection breach.`)) : (violationNotes || (inspectionStatus === "clean" ? "Satisfactory Condition (Clean Room)" : `[${selectedViolationType}] Post-event inspection breach.`)),
+        equipment_notes: isPre ? preEquipmentInspectionNotes : equipmentInspectionNotes,
         evidence_photos: isPre ? preEvidencePhoto : evidencePhoto,
         evidence_photo: isPre ? preEvidencePhoto : evidencePhoto,
         evidence_image: isPre ? preEvidencePhoto : evidencePhoto,
@@ -830,6 +839,7 @@ export default function VenueBookingDetailModal({
         condition: inspectionStatus === "clean" ? "good" : "damaged",
         violation_type: inspectionStatus === "violation" ? selectedViolationType : null,
         notes: violationNotes || (inspectionStatus === "clean" ? "Satisfactory Condition (Clean Room)" : `[${selectedViolationType}] Post-event inspection breach.`),
+        equipment_notes: equipmentInspectionNotes,
         evidence_photos: evidencePhoto,
         evidence_photo: evidencePhoto,
         evidence_image: evidencePhoto,
@@ -847,6 +857,7 @@ export default function VenueBookingDetailModal({
       evidence_photos: evidencePhoto,
       evidence_photo: evidencePhoto,
       notes: violationNotes || (inspectionStatus === "clean" ? "Satisfactory Condition (Clean Room)" : `[${selectedViolationType}] Post-event inspection breach.`),
+      equipment_notes: equipmentInspectionNotes,
       assigned_units: assignedUnitSelections,
       unit_conditions: unitReturnedConditions
     });
@@ -927,8 +938,14 @@ export default function VenueBookingDetailModal({
                     assignedUnitSelections={assignedUnitSelections}
                     setAssignedUnitSelections={updateAssignedUnitSelections}
                     getAvailableUnitsForCategory={getAvailableUnitsForCategory}
+                    unitReturnedConditions={unitReturnedConditions}
+                    setUnitReturnedConditions={updateUnitReturnedConditions}
+                    equipmentInspectionNotes={preEquipmentInspectionNotes}
+                    setEquipmentInspectionNotes={setPreEquipmentInspectionNotes}
+                    isApproved={true}
+                    isPreEvent={true}
                     isHistoryView={false}
-                    isSideBySide={true}
+                    isSideBySide={false}
                     isOverrideActive={isOverrideActive}
                     setIsOverrideActive={setIsOverrideActive}
                     overrideCategory={overrideCategory}
@@ -972,7 +989,8 @@ export default function VenueBookingDetailModal({
                     isHistoryView={isHistoryView}
                     isAdminOrSuperAdmin={isAdminOrSuperAdmin}
                     user={user}
-                    isOngoing={false}
+                    isOngoing={true}
+                    isPreEvent={true}
                   />
                 </div>
               </div>
@@ -995,6 +1013,10 @@ export default function VenueBookingDetailModal({
                     assignedUnitSelections={assignedUnitSelections}
                     setAssignedUnitSelections={updateAssignedUnitSelections}
                     getAvailableUnitsForCategory={getAvailableUnitsForCategory}
+                    unitReturnedConditions={unitReturnedConditions}
+                    setUnitReturnedConditions={updateUnitReturnedConditions}
+                    equipmentInspectionNotes={equipmentInspectionNotes}
+                    setEquipmentInspectionNotes={setEquipmentInspectionNotes}
                     isHistoryView={isHistoryView}
                     isSideBySide={true}
                     isOverrideActive={isOverrideActive}
@@ -1047,6 +1069,8 @@ export default function VenueBookingDetailModal({
                     getAvailableUnitsForCategory={getAvailableUnitsForCategory}
                     unitReturnedConditions={unitReturnedConditions}
                     setUnitReturnedConditions={updateUnitReturnedConditions}
+                    equipmentInspectionNotes={equipmentInspectionNotes}
+                    setEquipmentInspectionNotes={setEquipmentInspectionNotes}
                     isHistoryView={isHistoryView}
                     isSideBySide={true}
                   />
@@ -1086,6 +1110,7 @@ export default function VenueBookingDetailModal({
                       isAdminOrSuperAdmin={isAdminOrSuperAdmin}
                       user={user}
                       isOngoing={true}
+                      isPreEvent={true}
                     />
                   )}
                   <VenuePostInspectionForm
