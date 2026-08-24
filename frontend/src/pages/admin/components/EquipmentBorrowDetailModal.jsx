@@ -88,6 +88,7 @@ export default function EquipmentBorrowDetailModal({
   }, [selected?.id]);
 
   const getRequestedCategories = () => {
+    if (!selected) return [];
     let categories = [];
 
     if (Array.isArray(selected.items) && selected.items.length > 0) {
@@ -319,9 +320,9 @@ export default function EquipmentBorrowDetailModal({
     }
   }, [selected?.id]);
 
-  if (!selected) return null;
+  const requestedCategories = getRequestedCategories();
 
-  const currentStatus = (selected.status || selected.tracking_number?.status || "").toLowerCase();
+  const currentStatus = (selected?.status || selected?.tracking_number?.status || "").toLowerCase();
   const isPending = currentStatus === "pending";
   const isApproved = currentStatus === "approved";
   const isOngoing = currentStatus === "ongoing" || currentStatus === "on-going";
@@ -534,6 +535,7 @@ export default function EquipmentBorrowDetailModal({
     : requestedCategories;
 
   const getDocumentUrl = () => {
+    if (!selected) return null;
     const docPath =
       selected.endorsement_url ||
       selected.endorsement_letter_url ||
@@ -774,7 +776,7 @@ export default function EquipmentBorrowDetailModal({
     });
   };
 
-
+  if (!selected) return null;
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-0 sm:p-6 overflow-hidden animate-in fade-in duration-200">

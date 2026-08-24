@@ -204,8 +204,12 @@ export default function VenueEquipmentChecklist({
   getAvailableUnitsForCategory,
   unitReturnedConditions = {},
   setUnitReturnedConditions,
+  equipmentInspectionNotes = "",
+  setEquipmentInspectionNotes,
   isHistoryView = false,
   isSideBySide = false,
+  isApproved = false,
+  isPreEvent = false,
   isOverrideActive = false,
   setIsOverrideActive,
   overrideCategory = "PROJECTOR",
@@ -214,16 +218,20 @@ export default function VenueEquipmentChecklist({
   setOverrideQuantity,
   dbEquipmentTypes = [],
 }) {
+  const isAssignmentMode = isApproved || isPreEvent || !isSideBySide;
+
   return (
     <div className="bg-white rounded-2xl border border-slate-200 p-4 space-y-4 shadow-xs">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-200 pb-2.5 gap-2">
         <div>
           <h4 className="text-xs font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
             <PackageOpen size={15} className="text-slate-600" />
-            {isSideBySide ? "Equipment Catalog Checklist" : "AVR Built-in Equipment & Catalog Checklist"}
+            {isAssignmentMode ? "Equipment Catalog Checklist" : (isSideBySide ? "Equipment Catalog Checklist" : "AVR Built-in Equipment & Catalog Checklist")}
           </h4>
           <p className="text-[11px] text-slate-500 font-medium mt-0.5">
-            {isSideBySide ? "Verify returned equipment unit condition." : "Check and assign physical unit barcodes for this event."}
+            {isAssignmentMode 
+              ? "Assign physical unit barcodes and inspect unit condition before event." 
+              : "Verify returned equipment unit condition."}
           </p>
         </div>
 
@@ -322,8 +330,8 @@ export default function VenueEquipmentChecklist({
                   </span>
                 </div>
 
-                {isSideBySide ? (
-                  /* RETURNED UNIT CONDITION CHECKLIST (Side-by-side mode) */
+                {!isAssignmentMode ? (
+                  /* RETURNED UNIT CONDITION CHECKLIST (Post-event / side-by-side mode) */
                   <div className="space-y-2 pt-1">
                     {Array.from({ length: reqQty }).map((_, uIdx) => {
                       const unitKey = `${catIdx}-${uIdx}`;
@@ -352,7 +360,7 @@ export default function VenueEquipmentChecklist({
                               <div className="flex items-center gap-1.5">
                                 <button
                                   type="button"
-                                  onClick={() => setUnitReturnedConditions && setUnitReturnedConditions(prev => ({ ...prev, [unitKey]: "Good" }))}
+                                  onClick={() => setUnitReturnedConditions && setUnitReturnedConditions(prev => ({ ...prev, [unitKey]: "Good", ...(assignedBarcode ? { [assignedBarcode]: "Good" } : {}) }))}
                                   className={`px-2.5 py-1 rounded-lg border text-xs font-bold transition-all cursor-pointer ${
                                     cond === "Good"
                                       ? "border-slate-900 bg-white text-emerald-600 ring-1 ring-slate-900"
@@ -363,7 +371,7 @@ export default function VenueEquipmentChecklist({
                                 </button>
                                 <button
                                   type="button"
-                                  onClick={() => setUnitReturnedConditions && setUnitReturnedConditions(prev => ({ ...prev, [unitKey]: "Damaged" }))}
+                                  onClick={() => setUnitReturnedConditions && setUnitReturnedConditions(prev => ({ ...prev, [unitKey]: "Damaged", ...(assignedBarcode ? { [assignedBarcode]: "Damaged" } : {}) }))}
                                   className={`px-2.5 py-1 rounded-lg border text-xs font-bold transition-all cursor-pointer ${
                                     cond === "Damaged"
                                       ? "border-slate-900 bg-white text-rose-600 ring-1 ring-slate-900"
@@ -374,7 +382,7 @@ export default function VenueEquipmentChecklist({
                                 </button>
                                 <button
                                   type="button"
-                                  onClick={() => setUnitReturnedConditions && setUnitReturnedConditions(prev => ({ ...prev, [unitKey]: "Lost" }))}
+                                  onClick={() => setUnitReturnedConditions && setUnitReturnedConditions(prev => ({ ...prev, [unitKey]: "Lost", ...(assignedBarcode ? { [assignedBarcode]: "Lost" } : {}) }))}
                                   className={`px-2.5 py-1 rounded-lg border text-xs font-bold transition-all cursor-pointer ${
                                     cond === "Lost"
                                       ? "border-slate-900 bg-white text-amber-600 ring-1 ring-slate-900"
@@ -391,14 +399,15 @@ export default function VenueEquipmentChecklist({
                     })}
                   </div>
                 ) : (
-                  /* UNIT ASSIGNMENT / CHECKLIST (Full view) */
-                  <div className="space-y-2 pt-1">
+                  /* UNIT ASSIGNMENT & PRE-EVENT INSPECTION */
+                  <div className="space-y-3 pt-1">
                     {Array.from({ length: reqQty }).map((_, uIdx) => {
                       const unitKey = `${catIdx}-${uIdx}`;
                       const currentSelectedBarcode = assignedUnitSelections[unitKey] || "";
+                      const cond = unitReturnedConditions[unitKey] || (currentSelectedBarcode ? unitReturnedConditions[currentSelectedBarcode] : "Good") || "Good";
 
                       return (
-                        <div key={`unit-${catIdx}-${uIdx}`} className="py-2 border-b border-slate-100 last:border-b-0 space-y-1.5 text-xs">
+                        <div key={`unit-${catIdx}-${uIdx}`} className="py-2.5 border-b border-slate-100 last:border-b-0 space-y-2 text-xs">
                           <div className="flex items-center justify-between">
                             <span className="text-[11px] font-bold text-slate-700">
                               Unit Slot #{uIdx + 1}
@@ -436,6 +445,48 @@ export default function VenueEquipmentChecklist({
                               hasStock={hasStock}
                             />
                           )}
+
+                          {/* Pre-event physical unit condition inspection */}
+                          {setUnitReturnedConditions && !isHistoryView && (
+                            <div className="flex items-center justify-between pt-1">
+                              <span className="text-[10.5px] font-bold text-slate-500">Unit Condition:</span>
+                              <div className="flex items-center gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => setUnitReturnedConditions(prev => ({ ...prev, [unitKey]: "Good", ...(currentSelectedBarcode ? { [currentSelectedBarcode]: "Good" } : {}) }))}
+                                  className={`px-2 py-0.5 rounded-lg border text-[11px] font-bold transition-all cursor-pointer ${
+                                    cond === "Good"
+                                      ? "border-slate-900 bg-white text-emerald-600 ring-1 ring-slate-900"
+                                      : "border-slate-200 bg-white text-slate-400 hover:text-slate-700"
+                                  }`}
+                                >
+                                  Good
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setUnitReturnedConditions(prev => ({ ...prev, [unitKey]: "Damaged", ...(currentSelectedBarcode ? { [currentSelectedBarcode]: "Damaged" } : {}) }))}
+                                  className={`px-2 py-0.5 rounded-lg border text-[11px] font-bold transition-all cursor-pointer ${
+                                    cond === "Damaged"
+                                      ? "border-slate-900 bg-white text-rose-600 ring-1 ring-slate-900"
+                                      : "border-slate-200 bg-white text-slate-400 hover:text-slate-700"
+                                  }`}
+                                >
+                                  Damaged
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setUnitReturnedConditions(prev => ({ ...prev, [unitKey]: "Lost", ...(currentSelectedBarcode ? { [currentSelectedBarcode]: "Lost" } : {}) }))}
+                                  className={`px-2 py-0.5 rounded-lg border text-[11px] font-bold transition-all cursor-pointer ${
+                                    cond === "Lost"
+                                      ? "border-slate-900 bg-white text-amber-600 ring-1 ring-slate-900"
+                                      : "border-slate-200 bg-white text-slate-400 hover:text-slate-700"
+                                  }`}
+                                >
+                                  Lost
+                                </button>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       );
                     })}
@@ -446,6 +497,26 @@ export default function VenueEquipmentChecklist({
           })}
         </div>
       )}
+
+      {/* Physical Unit Inspection Notes & Observations */}
+      <div className="space-y-1.5 pt-2 border-t border-slate-200">
+        <label className="block text-[11px] font-bold text-slate-600 uppercase">
+          Inspection Notes &amp; Observations
+        </label>
+        {isHistoryView ? (
+          <div className="p-3 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-800 min-h-[50px]">
+            {equipmentInspectionNotes || "All physical units inspected in satisfactory condition."}
+          </div>
+        ) : (
+          <textarea
+            rows={2}
+            placeholder="Provide additional details regarding unit condition, serial/barcode observations, or defects..."
+            value={equipmentInspectionNotes || ""}
+            onChange={(e) => setEquipmentInspectionNotes && setEquipmentInspectionNotes(e.target.value)}
+            className="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-800 focus:outline-none focus:border-slate-400 transition-all"
+          />
+        )}
+      </div>
     </div>
   );
 }
