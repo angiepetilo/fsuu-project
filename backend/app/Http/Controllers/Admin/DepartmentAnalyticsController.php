@@ -22,7 +22,7 @@ class DepartmentAnalyticsController extends Controller
             ->where(function($q) {
                 $q->where('inspections.inspectable_type', \App\Models\VenueBooking::class)
                   ->orWhere('inspections.inspectable_type', 'venue_booking')
-                  ->orWhere('inspections.reference_type', 'venue_booking');
+                  ->orWhere('inspections.inspectable_type', 'avr_venue_booking');
             })
             ->where(function($q) {
                 $q->where(DB::raw('LOWER(inspections.`condition`)'), 'damaged')
@@ -46,7 +46,7 @@ class DepartmentAnalyticsController extends Controller
             ->where(function($q) {
                 $q->where('inspections.inspectable_type', \App\Models\EquipmentBorrow::class)
                   ->orWhere('inspections.inspectable_type', 'equipment_borrow')
-                  ->orWhere('inspections.reference_type', 'equipment_borrow');
+                  ->orWhere('inspections.inspectable_type', 'avr_equipment_borrowing');
             })
             ->where(function($q) {
                 $q->whereIn(DB::raw('LOWER(inspections.`condition`)'), ['damaged', 'lost'])
@@ -69,7 +69,8 @@ class DepartmentAnalyticsController extends Controller
                 $j->on('inspections.inspectable_id', '=', 'venue_bookings.id')
                   ->where(function($q) {
                       $q->where('inspections.inspectable_type', \App\Models\VenueBooking::class)
-                        ->orWhere('inspections.inspectable_type', 'venue_booking');
+                        ->orWhere('inspections.inspectable_type', 'venue_booking')
+                        ->orWhere('inspections.inspectable_type', 'avr_venue_booking');
                   });
             })
             ->leftJoin('venues', 'venue_bookings.venue_id', '=', 'venues.id')
@@ -77,7 +78,8 @@ class DepartmentAnalyticsController extends Controller
                 $j->on('inspections.inspectable_id', '=', 'equipment_borrows.id')
                   ->where(function($q) {
                       $q->where('inspections.inspectable_type', \App\Models\EquipmentBorrow::class)
-                        ->orWhere('inspections.inspectable_type', 'equipment_borrow');
+                        ->orWhere('inspections.inspectable_type', 'equipment_borrow')
+                        ->orWhere('inspections.inspectable_type', 'avr_equipment_borrowing');
                   });
             })
             ->where(function($q) {

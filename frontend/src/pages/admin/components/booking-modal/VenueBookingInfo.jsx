@@ -261,24 +261,26 @@ export default function VenueBookingInfo({
                 Mark as Walk-in Physical Hardcopy Filed
               </label>
 
-              <div>
-                <input
-                  type="file"
-                  accept="image/*,.pdf"
-                  onChange={handleFileUpload}
-                  disabled={isUploading}
-                  className="hidden"
-                  id={`walkin-upload-${selected.id}`}
-                />
-                <label
-                  htmlFor={`walkin-upload-${selected.id}`}
-                  className="px-2.5 py-1 bg-white hover:bg-blue-50 text-blue-600 hover:text-blue-700 border border-blue-200 rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
-                  title="Attach or upload scanned endorsement letter"
-                >
-                  <Upload size={12} />
-                  <span>{isUploading ? "Uploading..." : "Attach Document"}</span>
-                </label>
-              </div>
+              {isHardcopy && (
+                <div>
+                  <input
+                    type="file"
+                    accept="image/*,.pdf"
+                    onChange={handleFileUpload}
+                    disabled={isUploading}
+                    className="hidden"
+                    id={`walkin-upload-${selected.id}`}
+                  />
+                  <label
+                    htmlFor={`walkin-upload-${selected.id}`}
+                    className="px-2.5 py-1 bg-white hover:bg-blue-50 text-blue-600 hover:text-blue-700 border border-blue-200 rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
+                    title="Attach or upload scanned endorsement letter"
+                  >
+                    <Upload size={12} />
+                    <span>{isUploading ? "Uploading..." : "Attach Document"}</span>
+                  </label>
+                </div>
+              )}
             </div>
 
             {isHardcopy && (
@@ -291,13 +293,15 @@ export default function VenueBookingInfo({
               />
             )}
 
-            <button
-              type="button"
-              onClick={handleSaveHardcopy}
-              className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-lg text-xs font-extrabold cursor-pointer transition-colors shadow-2xs"
-            >
-              Save Walk-in Status
-            </button>
+            {isHardcopy && (
+              <button
+                type="button"
+                onClick={handleSaveHardcopy}
+                className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-lg text-xs font-extrabold cursor-pointer transition-colors shadow-2xs"
+              >
+                Save Walk-in Status
+              </button>
+            )}
           </div>
         </div>
       </div>

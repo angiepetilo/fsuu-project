@@ -14,26 +14,18 @@ class InspectionController extends Controller
         $query = Inspection::latest();
 
         if ($refId) {
-            $query->where(function ($q) use ($refId) {
-                $q->where('inspectable_id', $refId)
-                  ->orWhere('reference_id', $refId);
-            });
+            $query->where('inspectable_id', $refId);
         }
 
         $refType = $request->query('reference_type') ?? $request->query('inspectable_type');
         if ($refType) {
-            $query->where(function ($q) use ($refType) {
-                if ($refType === 'avr_venue_booking' || $refType === 'venue_booking' || $refType === 'App\Models\VenueBooking') {
-                    $q->whereIn('inspectable_type', ['avr_venue_booking', 'venue_booking', 'App\Models\VenueBooking'])
-                      ->orWhereIn('reference_type', ['avr_venue_booking', 'venue_booking', 'App\Models\VenueBooking']);
-                } elseif ($refType === 'equipment_borrow' || $refType === 'App\Models\EquipmentBorrow') {
-                    $q->whereIn('inspectable_type', ['equipment_borrow', \App\Models\EquipmentBorrow::class])
-                      ->orWhereIn('reference_type', ['equipment_borrow', \App\Models\EquipmentBorrow::class]);
-                } else {
-                    $q->where('inspectable_type', $refType)
-                      ->orWhere('reference_type', $refType);
-                }
-            });
+            if ($refType === 'avr_venue_booking' || $refType === 'venue_booking' || $refType === 'App\Models\VenueBooking' || $refType === \App\Models\VenueBooking::class) {
+                $query->whereIn('inspectable_type', ['avr_venue_booking', 'venue_booking', \App\Models\VenueBooking::class]);
+            } elseif ($refType === 'equipment_borrow' || $refType === 'App\Models\EquipmentBorrow' || $refType === \App\Models\EquipmentBorrow::class) {
+                $query->whereIn('inspectable_type', ['equipment_borrow', \App\Models\EquipmentBorrow::class]);
+            } else {
+                $query->where('inspectable_type', $refType);
+            }
         }
 
         return response()->json($query->get());
@@ -128,10 +120,7 @@ class InspectionController extends Controller
             : [$incomingType];
 
         if ($refId) {
-            $inspection = Inspection::where(function ($q) use ($refId) {
-                $q->where('inspectable_id', $refId)
-                  ->orWhere('reference_id', $refId);
-            })
+            $inspection = Inspection::where('inspectable_id', $refId)
             ->whereIn('inspection_type', $lookupTypes)
             ->latest('updated_at')
             ->first();

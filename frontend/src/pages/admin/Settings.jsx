@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useOutletContext } from "react-router-dom";
+import { useOutletContext, useSearchParams } from "react-router-dom";
 import api from "@/lib/axios";
 import notify from "@/lib/notify";
 import {
@@ -20,12 +20,58 @@ import CommunicationLogsTab from "../superadmin/tabs/CommunicationLogsTab";
 import ProfileConfigTab from "../superadmin/tabs/ProfileConfigTab";
 import Modal from "./settings/Modal";
 import UserForm from "./settings/UserForm";
+import ConfirmModal from "@/components/ui/ConfirmModal";
+
+const ADMIN_TABS = [
+  { id: "roles", label: "Roles & Permissions", icon: ShieldCheck },
+  { id: "equipment", label: "Equipment Categories", icon: Package },
+  { id: "venues", label: "Venue Catalog", icon: Building },
+  { id: "fee_matrix", label: "Fee Matrix", icon: DollarSign },
+  { id: "departments", label: "Departments", icon: BookOpen },
+  { id: "operating_hours", label: "Operating Hours", icon: Clock },
+  { id: "academic_terms", label: "Academic Terms & Archiving", icon: GraduationCap },
+  { id: "pin", label: "Verification PIN", icon: Key },
+  { id: "communication_logs", label: "Communications Log", icon: Building },
+  { id: "system_settings", label: "System Settings", icon: Sliders },
+  { id: "profile", label: "Profile", icon: User },
+];
 
 export default function Settings() {
   const context = useOutletContext();
   const selectedOffice = context?.selectedOffice ?? "All Offices";
 
-  const [activeTab, setActiveTab] = useState("roles");
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Determine initial tab from URL param -> localStorage -> default "roles"
+  const getInitialTab = () => {
+    const urlTab = searchParams.get("tab");
+    if (urlTab && ADMIN_TABS.some((t) => t.id === urlTab)) {
+      return urlTab;
+    }
+    try {
+      const savedTab = localStorage.getItem("fsuu_admin_settings_active_tab");
+      if (savedTab && ADMIN_TABS.some((t) => t.id === savedTab)) {
+        return savedTab;
+      }
+    } catch {}
+    return "roles";
+  };
+
+  const [activeTab, setActiveTab] = useState(getInitialTab);
+  const [mountedTabs, setMountedTabs] = useState(() => new Set([getInitialTab()]));
+
+  const switchTab = (tabId) => {
+    setActiveTab(tabId);
+    setMountedTabs((prev) => new Set([...prev, tabId]));
+    try {
+      localStorage.setItem("fsuu_admin_settings_active_tab", tabId);
+    } catch {}
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set("tab", tabId);
+      return next;
+    }, { replace: true });
+  };
 
   // User Management / Roles & Permissions State
   const [users, setUsers] = useState([]);
@@ -130,21 +176,6 @@ export default function Settings() {
     showMsg("Verification PIN saved successfully!");
   };
 
-  // Complete Admin tabs including Roles & Permissions
-  const ADMIN_TABS = [
-    { id: "roles", label: "Roles & Permissions", icon: ShieldCheck },
-    { id: "equipment", label: "Equipment Categories", icon: Package },
-    { id: "venues", label: "Venue Catalog", icon: Building },
-    { id: "fee_matrix", label: "Fee Matrix", icon: DollarSign },
-    { id: "departments", label: "Departments", icon: BookOpen },
-    { id: "operating_hours", label: "Operating Hours", icon: Clock },
-    { id: "academic_terms", label: "Academic Terms & Archiving", icon: GraduationCap },
-    { id: "pin", label: "Verification PIN", icon: Key },
-    { id: "communication_logs", label: "Communications Log", icon: Building },
-    { id: "system_settings", label: "System Settings", icon: Sliders },
-    { id: "profile", label: "Profile", icon: User },
-  ];
-
   return (
     <div className="space-y-6">
       {/* Direct Navigation Tabs */}
@@ -155,7 +186,8 @@ export default function Settings() {
           return (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
+              type="button"
+              onClick={() => switchTab(tab.id)}
               className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-extrabold transition-all cursor-pointer border ${
                 active
                   ? "border-blue-600 bg-blue-600 text-white shadow-xs"
@@ -169,35 +201,75 @@ export default function Settings() {
         })}
       </div>
 
-      {/* Active Tab Content Render */}
-      {activeTab === "roles" && (
-        <UserRolesTab
-          loading={loadingUsers}
-          visibleUsers={visibleUsers}
-          setShowCreate={setShowCreate}
-          setEditUser={setEditUser}
-          setDeleteUser={setDeleteUser}
-          onResendInvite={handleResendInvite}
-        />
+      {/* Active Tab Content Render — persistent tab states to prevent reload/unmount */}
+      {mountedTabs.has("roles") && (
+        <div className={activeTab === "roles" ? "block" : "hidden"}>
+          <UserRolesTab
+            loading={loadingUsers}
+            visibleUsers={visibleUsers}
+            setShowCreate={setShowCreate}
+            setEditUser={setEditUser}
+            setDeleteUser={setDeleteUser}
+            onResendInvite={handleResendInvite}
+          />
+        </div>
       )}
-      {activeTab === "equipment" && <EquipmentCategoriesTab showMsg={showMsg} />}
-      {activeTab === "venues" && <VenuesTab showMsg={showMsg} />}
-      {activeTab === "fee_matrix" && <FeeMatrixTab officeScope={selectedOffice} showMsg={showMsg} />}
-      {activeTab === "departments" && <DepartmentsTab showMsg={showMsg} />}
-      {activeTab === "operating_hours" && <OperatingHoursTab showMsg={showMsg} />}
-      {activeTab === "academic_terms" && <AcademicTermsTab showMsg={showMsg} />}
-      {activeTab === "pin" && (
-        <VerificationPinTab
-          pinConfig={pinConfig}
-          setPinConfig={setPinConfig}
-          pinSavedFeedback={pinSavedFeedback}
-          handleSavePinConfig={handleSavePinConfig}
-          showMsg={showMsg}
-        />
+      {mountedTabs.has("equipment") && (
+        <div className={activeTab === "equipment" ? "block" : "hidden"}>
+          <EquipmentCategoriesTab showMsg={showMsg} />
+        </div>
       )}
-      {activeTab === "communication_logs" && <CommunicationLogsTab />}
-      {activeTab === "system_settings" && <SystemSettingsTab showMsg={showMsg} />}
-      {activeTab === "profile" && <ProfileConfigTab showMsg={showMsg} />}
+      {mountedTabs.has("venues") && (
+        <div className={activeTab === "venues" ? "block" : "hidden"}>
+          <VenuesTab showMsg={showMsg} />
+        </div>
+      )}
+      {mountedTabs.has("fee_matrix") && (
+        <div className={activeTab === "fee_matrix" ? "block" : "hidden"}>
+          <FeeMatrixTab officeScope={selectedOffice} showMsg={showMsg} />
+        </div>
+      )}
+      {mountedTabs.has("departments") && (
+        <div className={activeTab === "departments" ? "block" : "hidden"}>
+          <DepartmentsTab showMsg={showMsg} />
+        </div>
+      )}
+      {mountedTabs.has("operating_hours") && (
+        <div className={activeTab === "operating_hours" ? "block" : "hidden"}>
+          <OperatingHoursTab showMsg={showMsg} />
+        </div>
+      )}
+      {mountedTabs.has("academic_terms") && (
+        <div className={activeTab === "academic_terms" ? "block" : "hidden"}>
+          <AcademicTermsTab showMsg={showMsg} />
+        </div>
+      )}
+      {mountedTabs.has("pin") && (
+        <div className={activeTab === "pin" ? "block" : "hidden"}>
+          <VerificationPinTab
+            pinConfig={pinConfig}
+            setPinConfig={setPinConfig}
+            pinSavedFeedback={pinSavedFeedback}
+            handleSavePinConfig={handleSavePinConfig}
+            showMsg={showMsg}
+          />
+        </div>
+      )}
+      {mountedTabs.has("communication_logs") && (
+        <div className={activeTab === "communication_logs" ? "block" : "hidden"}>
+          <CommunicationLogsTab />
+        </div>
+      )}
+      {mountedTabs.has("system_settings") && (
+        <div className={activeTab === "system_settings" ? "block" : "hidden"}>
+          <SystemSettingsTab showMsg={showMsg} />
+        </div>
+      )}
+      {mountedTabs.has("profile") && (
+        <div className={activeTab === "profile" ? "block" : "hidden"}>
+          <ProfileConfigTab showMsg={showMsg} />
+        </div>
+      )}
 
       {/* Create User Modal */}
       {showCreate && (
@@ -225,33 +297,16 @@ export default function Settings() {
       )}
 
       {/* Delete User Confirmation */}
-      {deleteUser && (
-        <Modal title="Archive Staff Account" onClose={() => setDeleteUser(null)}>
-          <div className="space-y-4 text-xs">
-            <p className="text-slate-600 font-medium leading-relaxed">
-              Are you sure you want to archive <span className="font-bold text-slate-900">{deleteUser.name}</span> (<span className="text-slate-500">{deleteUser.email}</span>)?
-            </p>
-            <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
-              <button
-                type="button"
-                onClick={() => setDeleteUser(null)}
-                className="px-4 py-2 border border-slate-200 rounded-xl font-bold text-slate-700 hover:bg-slate-50 cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleDeleteUser}
-                disabled={deleteLoading}
-                className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-bold flex items-center gap-1.5 shadow-2xs cursor-pointer disabled:opacity-60"
-              >
-                {deleteLoading && <Loader2 size={13} className="animate-spin" />}
-                <span>Archive Account</span>
-              </button>
-            </div>
-          </div>
-        </Modal>
-      )}
+      <ConfirmModal
+        open={!!deleteUser}
+        onClose={() => setDeleteUser(null)}
+        onConfirm={handleDeleteUser}
+        variant="archive"
+        title="Archive Staff Account?"
+        message={`Are you sure you want to archive "${deleteUser?.name}" (${deleteUser?.email})?`}
+        confirmLabel="Archive Account"
+        loading={deleteLoading}
+      />
     </div>
   );
 }

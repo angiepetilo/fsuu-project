@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, Pencil, X } from "lucide-react";
 import api from "@/lib/axios";
 import notify from "@/lib/notify";
 
@@ -25,6 +25,8 @@ export default function SystemSettingsTab({ showMsg }) {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [savedSnapshot, setSavedSnapshot] = useState(null); // for cancel
 
   // SMTP Test state
   const [testEmail, setTestEmail] = useState("");
@@ -41,6 +43,7 @@ export default function SystemSettingsTab({ showMsg }) {
           ...prev,
           ...res.data,
         }));
+        setSavedSnapshot(res.data);
         localStorage.setItem("fsuu_system_settings", JSON.stringify(res.data));
       }
     } catch (err) {
@@ -65,18 +68,31 @@ export default function SystemSettingsTab({ showMsg }) {
       const res = await api.put("/admin/system-settings", settings);
       if (res.data?.settings) {
         setSettings((prev) => ({ ...prev, ...res.data.settings }));
+        setSavedSnapshot(res.data.settings);
         localStorage.setItem("fsuu_system_settings", JSON.stringify(res.data.settings));
       } else {
+        setSavedSnapshot(settings);
         localStorage.setItem("fsuu_system_settings", JSON.stringify(settings));
       }
       window.dispatchEvent(new Event("fsuu_system_settings_updated"));
       notify.success("System Settings Saved", "Global application and SMTP configuration updated successfully.");
+      setIsEditing(false);
     } catch (err) {
       console.error("Save system settings failed:", err);
       notify.error("Error", err.response?.data?.message || "Failed to save system settings to server.");
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleEdit = () => {
+    setSavedSnapshot({ ...settings });
+    setIsEditing(true);
+  };
+
+  const handleCancelEdit = () => {
+    if (savedSnapshot) setSettings(savedSnapshot);
+    setIsEditing(false);
   };
 
   const handleReset = () => {
@@ -98,7 +114,7 @@ export default function SystemSettingsTab({ showMsg }) {
       mail_from_name: "FSUU Facilities & Equipment Booking",
     };
     setSettings(defaultSettings);
-    notify.info("Reset Complete", "Default system settings populated. Click Save to apply.");
+    notify.info("Reset Complete", "Default system settings populated. Click Save Changes to apply.");
   };
 
   const handleTestSmtp = async (e) => {
@@ -151,22 +167,54 @@ export default function SystemSettingsTab({ showMsg }) {
             <p className="text-xs text-slate-500 font-medium mt-0.5">
               Global application parameters, operational reservation policies, and dynamic SMTP mail configuration.
             </p>
+            {!isEditing && (
+              <span className="inline-block mt-1.5 text-[11px] text-amber-600 font-semibold bg-amber-50 border border-amber-200 rounded-lg px-2 py-0.5">
+                View-only mode — click Edit to make changes
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={handleReset}
-              className="px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-bold rounded-xl transition-colors cursor-pointer"
-            >
-              Reset Defaults
-            </button>
-            <button
-              type="submit"
-              disabled={saving}
-              className="px-5 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-extrabold rounded-xl transition-colors cursor-pointer shadow-xs disabled:opacity-50"
-            >
-              {saving ? "Saving..." : "Save Changes"}
-            </button>
+            {isEditing ? (
+              <>
+                <button
+                  type="button"
+                  onClick={handleCancelEdit}
+                  disabled={saving}
+                  className="flex items-center gap-1.5 px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-600 text-xs font-bold rounded-xl transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  <X size={13} />
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleReset}
+                  disabled={saving}
+                  className="px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-bold rounded-xl transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  Reset Defaults
+                </button>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="flex items-center gap-1.5 px-5 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-extrabold rounded-xl transition-colors cursor-pointer shadow-xs disabled:opacity-50"
+                >
+                  {saving ? (
+                    <><Loader2 size={13} className="animate-spin" /> Saving...</>
+                  ) : (
+                    "Save Changes"
+                  )}
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                onClick={handleEdit}
+                className="flex items-center gap-1.5 px-5 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-extrabold rounded-xl transition-colors cursor-pointer shadow-xs"
+              >
+                <Pencil size={13} />
+                Edit
+              </button>
+            )}
           </div>
         </div>
 
@@ -189,7 +237,8 @@ export default function SystemSettingsTab({ showMsg }) {
                   value={settings.header_brand_text || ""}
                   onChange={(e) => setSettings({ ...settings, header_brand_text: e.target.value })}
                   placeholder="e.g., Urios or FSUU"
-                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:bg-white focus:border-blue-600 focus:outline-none"
+                  disabled={!isEditing}
+                  className={`w-full px-3.5 py-2 border rounded-xl text-xs font-medium text-slate-900 focus:outline-none transition-colors ${isEditing ? "bg-slate-50 border-slate-200 focus:bg-white focus:border-blue-600" : "bg-slate-100 border-slate-200 text-slate-600 cursor-default"}`}
                 />
                 <p className="text-[10.5px] text-slate-400 mt-1 font-medium">Controls the top navigation logo brand title across public pages.</p>
               </div>
@@ -200,7 +249,8 @@ export default function SystemSettingsTab({ showMsg }) {
                   type="text"
                   value={settings.system_name || ""}
                   onChange={(e) => setSettings({ ...settings, system_name: e.target.value })}
-                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:bg-white focus:border-blue-600 focus:outline-none"
+                  disabled={!isEditing}
+                  className={`w-full px-3.5 py-2 border rounded-xl text-xs font-medium text-slate-900 focus:outline-none transition-colors ${isEditing ? "bg-slate-50 border-slate-200 focus:bg-white focus:border-blue-600" : "bg-slate-100 border-slate-200 text-slate-600 cursor-default"}`}
                 />
               </div>
 
@@ -210,7 +260,8 @@ export default function SystemSettingsTab({ showMsg }) {
                   type="text"
                   value={settings.organization_name || ""}
                   onChange={(e) => setSettings({ ...settings, organization_name: e.target.value })}
-                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:bg-white focus:border-blue-600 focus:outline-none"
+                  disabled={!isEditing}
+                  className={`w-full px-3.5 py-2 border rounded-xl text-xs font-medium text-slate-900 focus:outline-none transition-colors ${isEditing ? "bg-slate-50 border-slate-200 focus:bg-white focus:border-blue-600" : "bg-slate-100 border-slate-200 text-slate-600 cursor-default"}`}
                 />
               </div>
 
@@ -221,7 +272,8 @@ export default function SystemSettingsTab({ showMsg }) {
                     type="email"
                     value={settings.contact_email || ""}
                     onChange={(e) => setSettings({ ...settings, contact_email: e.target.value })}
-                    className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:bg-white focus:border-blue-600 focus:outline-none"
+                    disabled={!isEditing}
+                    className={`w-full px-3.5 py-2 border rounded-xl text-xs font-medium text-slate-900 focus:outline-none transition-colors ${isEditing ? "bg-slate-50 border-slate-200 focus:bg-white focus:border-blue-600" : "bg-slate-100 border-slate-200 text-slate-600 cursor-default"}`}
                   />
                 </div>
                 <div>
@@ -230,20 +282,13 @@ export default function SystemSettingsTab({ showMsg }) {
                     type="text"
                     value={settings.contact_phone || ""}
                     onChange={(e) => setSettings({ ...settings, contact_phone: e.target.value })}
-                    className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:bg-white focus:border-blue-600 focus:outline-none"
+                    disabled={!isEditing}
+                    className={`w-full px-3.5 py-2 border rounded-xl text-xs font-medium text-slate-900 focus:outline-none transition-colors ${isEditing ? "bg-slate-50 border-slate-200 focus:bg-white focus:border-blue-600" : "bg-slate-100 border-slate-200 text-slate-600 cursor-default"}`}
                   />
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">System Timezone</label>
-                <input
-                  type="text"
-                  disabled
-                  value={settings.timezone || "Asia/Manila (UTC+8)"}
-                  className="w-full px-3.5 py-2 bg-slate-100 border border-slate-200 rounded-xl text-xs font-medium text-slate-500 cursor-not-allowed"
-                />
-              </div>
+
             </div>
           </div>
 
@@ -257,12 +302,13 @@ export default function SystemSettingsTab({ showMsg }) {
             </div>
 
             <div className="space-y-3.5 pt-1">
-              <label className="flex items-start gap-3 p-3 rounded-xl border border-slate-200 bg-slate-50/50 hover:bg-slate-50 cursor-pointer transition-colors">
+              <label className={`flex items-start gap-3 p-3 rounded-xl border border-slate-200 bg-slate-50/50 transition-colors ${isEditing ? "hover:bg-slate-50 cursor-pointer" : "cursor-default"}`}>
                 <input
                   type="checkbox"
                   checked={Boolean(settings.auto_shift_tomorrow_after_hours)}
-                  onChange={(e) => setSettings({ ...settings, auto_shift_tomorrow_after_hours: e.target.checked })}
-                  className="mt-0.5 w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
+                  onChange={(e) => isEditing && setSettings({ ...settings, auto_shift_tomorrow_after_hours: e.target.checked })}
+                  disabled={!isEditing}
+                  className="mt-0.5 w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500 disabled:opacity-60"
                 />
                 <div className="text-xs">
                   <span className="font-extrabold text-slate-900 block">
@@ -274,12 +320,13 @@ export default function SystemSettingsTab({ showMsg }) {
                 </div>
               </label>
 
-              <label className="flex items-start gap-3 p-3 rounded-xl border border-slate-200 bg-slate-50/50 hover:bg-slate-50 cursor-pointer transition-colors">
+              <label className={`flex items-start gap-3 p-3 rounded-xl border border-slate-200 bg-slate-50/50 transition-colors ${isEditing ? "hover:bg-slate-50 cursor-pointer" : "cursor-default"}`}>
                 <input
                   type="checkbox"
                   checked={Boolean(settings.allow_advance_equipment_booking)}
-                  onChange={(e) => setSettings({ ...settings, allow_advance_equipment_booking: e.target.checked })}
-                  className="mt-0.5 w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
+                  onChange={(e) => isEditing && setSettings({ ...settings, allow_advance_equipment_booking: e.target.checked })}
+                  disabled={!isEditing}
+                  className="mt-0.5 w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500 disabled:opacity-60"
                 />
                 <div className="text-xs">
                   <span className="font-extrabold text-slate-900 block">
@@ -299,7 +346,8 @@ export default function SystemSettingsTab({ showMsg }) {
                   max="20"
                   value={settings.max_items_per_borrow || 5}
                   onChange={(e) => setSettings({ ...settings, max_items_per_borrow: parseInt(e.target.value, 10) || 5 })}
-                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:bg-white focus:border-blue-600 focus:outline-none"
+                  disabled={!isEditing}
+                  className={`w-full px-3.5 py-2 border rounded-xl text-xs font-medium text-slate-900 focus:outline-none transition-colors ${isEditing ? "bg-slate-50 border-slate-200 focus:bg-white focus:border-blue-600" : "bg-slate-100 border-slate-200 text-slate-600 cursor-default"}`}
                 />
               </div>
             </div>
@@ -327,7 +375,8 @@ export default function SystemSettingsTab({ showMsg }) {
                   placeholder="smtp.gmail.com"
                   value={settings.smtp_host || ""}
                   onChange={(e) => setSettings({ ...settings, smtp_host: e.target.value })}
-                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:bg-white focus:border-blue-600 focus:outline-none font-mono"
+                  disabled={!isEditing}
+                  className={`w-full px-3.5 py-2 border rounded-xl text-xs font-medium text-slate-900 focus:outline-none transition-colors font-mono ${isEditing ? "bg-slate-50 border-slate-200 focus:bg-white focus:border-blue-600" : "bg-slate-100 border-slate-200 text-slate-600 cursor-default"}`}
                 />
               </div>
 
@@ -338,7 +387,8 @@ export default function SystemSettingsTab({ showMsg }) {
                   placeholder="587"
                   value={settings.smtp_port || 587}
                   onChange={(e) => setSettings({ ...settings, smtp_port: parseInt(e.target.value, 10) || 587 })}
-                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:bg-white focus:border-blue-600 focus:outline-none font-mono"
+                  disabled={!isEditing}
+                  className={`w-full px-3.5 py-2 border rounded-xl text-xs font-medium text-slate-900 focus:outline-none transition-colors font-mono ${isEditing ? "bg-slate-50 border-slate-200 focus:bg-white focus:border-blue-600" : "bg-slate-100 border-slate-200 text-slate-600 cursor-default"}`}
                 />
               </div>
 
@@ -347,7 +397,8 @@ export default function SystemSettingsTab({ showMsg }) {
                 <select
                   value={settings.smtp_encryption || "tls"}
                   onChange={(e) => setSettings({ ...settings, smtp_encryption: e.target.value })}
-                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:bg-white focus:border-blue-600 focus:outline-none"
+                  disabled={!isEditing}
+                  className={`w-full px-3.5 py-2 border rounded-xl text-xs font-medium text-slate-900 focus:outline-none transition-colors ${isEditing ? "bg-slate-50 border-slate-200 focus:bg-white focus:border-blue-600" : "bg-slate-100 border-slate-200 text-slate-600 cursor-default"}`}
                 >
                   <option value="tls">TLS (Port 587)</option>
                   <option value="ssl">SSL (Port 465)</option>
@@ -362,7 +413,8 @@ export default function SystemSettingsTab({ showMsg }) {
                   placeholder="your-email@gmail.com"
                   value={settings.smtp_username || ""}
                   onChange={(e) => setSettings({ ...settings, smtp_username: e.target.value })}
-                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:bg-white focus:border-blue-600 focus:outline-none font-mono"
+                  disabled={!isEditing}
+                  className={`w-full px-3.5 py-2 border rounded-xl text-xs font-medium text-slate-900 focus:outline-none transition-colors font-mono ${isEditing ? "bg-slate-50 border-slate-200 focus:bg-white focus:border-blue-600" : "bg-slate-100 border-slate-200 text-slate-600 cursor-default"}`}
                 />
               </div>
 
@@ -373,7 +425,8 @@ export default function SystemSettingsTab({ showMsg }) {
                   placeholder="••••••••••••••••"
                   value={settings.smtp_password || ""}
                   onChange={(e) => setSettings({ ...settings, smtp_password: e.target.value })}
-                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:bg-white focus:border-blue-600 focus:outline-none font-mono"
+                  disabled={!isEditing}
+                  className={`w-full px-3.5 py-2 border rounded-xl text-xs font-medium text-slate-900 focus:outline-none transition-colors font-mono ${isEditing ? "bg-slate-50 border-slate-200 focus:bg-white focus:border-blue-600" : "bg-slate-100 border-slate-200 text-slate-600 cursor-default"}`}
                 />
               </div>
 
@@ -384,7 +437,8 @@ export default function SystemSettingsTab({ showMsg }) {
                   placeholder="FSUU Facilities & Equipment Booking"
                   value={settings.mail_from_name || ""}
                   onChange={(e) => setSettings({ ...settings, mail_from_name: e.target.value })}
-                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:bg-white focus:border-blue-600 focus:outline-none"
+                  disabled={!isEditing}
+                  className={`w-full px-3.5 py-2 border rounded-xl text-xs font-medium text-slate-900 focus:outline-none transition-colors ${isEditing ? "bg-slate-50 border-slate-200 focus:bg-white focus:border-blue-600" : "bg-slate-100 border-slate-200 text-slate-600 cursor-default"}`}
                 />
               </div>
 
@@ -395,7 +449,8 @@ export default function SystemSettingsTab({ showMsg }) {
                   placeholder="support.booking@fsuu.edu.ph"
                   value={settings.mail_from_address || ""}
                   onChange={(e) => setSettings({ ...settings, mail_from_address: e.target.value })}
-                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:bg-white focus:border-blue-600 focus:outline-none font-mono"
+                  disabled={!isEditing}
+                  className={`w-full px-3.5 py-2 border rounded-xl text-xs font-medium text-slate-900 focus:outline-none transition-colors font-mono ${isEditing ? "bg-slate-50 border-slate-200 focus:bg-white focus:border-blue-600" : "bg-slate-100 border-slate-200 text-slate-600 cursor-default"}`}
                 />
               </div>
             </div>

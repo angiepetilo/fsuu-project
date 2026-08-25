@@ -169,8 +169,9 @@ class AcademicTermController extends Controller
 
             if (\Illuminate\Support\Facades\Schema::hasTable('verification_pin_settings')) {
                 $pinSetting = \App\Models\VerificationPinSetting::first();
-                if ($pinSetting && !empty($pinSetting->pin_hash)) {
-                    $pinMatches = password_verify($securityInput, $pinSetting->pin_hash);
+                $storedHash = $pinSetting->hashed_master_pin ?? $pinSetting->master_pin ?? null;
+                if ($storedHash) {
+                    $pinMatches = \Illuminate\Support\Facades\Hash::check($securityInput, $storedHash);
                 }
             }
 

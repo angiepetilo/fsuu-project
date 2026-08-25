@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Edit2, Trash2, X, Loader2, CheckCircle2, Archive, RefreshCw } from "lucide-react";
+import { Plus, Edit2, Trash2, X, Loader2, CheckCircle2, Archive, RefreshCw, Lock, Eye, EyeOff, ShieldAlert } from "lucide-react";
 import api from "@/lib/axios";
 
 export default function AcademicTermsTab({ showMsg }) {
@@ -29,6 +29,13 @@ export default function AcademicTermsTab({ showMsg }) {
     end_date: "2027-05-30",
     pin: "",
   });
+
+  // Password confirmation modal state
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [passwordInput, setPasswordInput] = useState("");
+  const [showPw, setShowPw] = useState(false);
+  const [pwError, setPwError] = useState("");
+  const [pwLoading, setPwLoading] = useState(false);
 
   const notify = (msg) => {
     if (typeof showMsg === "function") {
@@ -175,19 +182,47 @@ export default function AcademicTermsTab({ showMsg }) {
     setShowCloseModal(true);
   };
 
-  const handleCloseTermSubmit = async (e) => {
+  const handleCloseTermSubmit = (e) => {
     e.preventDefault();
-    setFormLoading(true);
+    if (!closeForm.start_date || !closeForm.end_date) {
+      notify("Please specify both start and end dates for the next term.");
+      return;
+    }
+    if (closeForm.end_date <= closeForm.start_date) {
+      notify("End date must be after start date.");
+      return;
+    }
+    setPasswordInput("");
+    setPwError("");
+    setShowPw(false);
+    setShowPasswordModal(true);
+  };
+
+  const handleConfirmArchiveWithPassword = async (e) => {
+    e.preventDefault();
+    if (!passwordInput.trim()) {
+      setPwError("Please enter your Super Admin password.");
+      return;
+    }
+    setPwLoading(true);
+    setPwError("");
     try {
-      const res = await api.post("/admin/academic-terms/close-term", closeForm);
+      const payload = {
+        ...closeForm,
+        pin: passwordInput,
+        password: passwordInput,
+      };
+      const res = await api.post("/admin/academic-terms/close-term", payload);
       notify(res.data.message || "✅ Semester archived into TiDB successfully!");
+      setShowPasswordModal(false);
       setShowCloseModal(false);
+      setPasswordInput("");
       fetchTerms();
     } catch (err) {
-      const msg = err.response?.data?.message || err.response?.data?.errors?.pin?.[0] || "❌ Failed to close semester.";
-      notify(msg);
+      const msg = err.response?.data?.message || err.response?.data?.errors?.pin?.[0] || "Incorrect password. Authorization failed.";
+      setPwError(msg);
     } finally {
-      setFormLoading(false);
+      setPwLoading(false);
     }
   };
 
@@ -499,18 +534,110 @@ export default function AcademicTermsTab({ showMsg }) {
                 <button
                   type="button"
                   onClick={() => setShowCloseModal(false)}
-                  disabled={formLoading}
                   className="px-3.5 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-lg"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  disabled={formLoading}
-                  className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+                  className="px-4 py-2 bg-amber-600 hover:bg-amber-700 active:bg-amber-800 text-white rounded-lg text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
                 >
-                  {formLoading && <Loader2 size={14} className="animate-spin" />}
                   <span>Archive & Start Next Term</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── Security Password Confirmation Modal ── */}
+      {showPasswordModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-sm p-6 space-y-4 animate-in zoom-in-95">
+            {/* Close */}
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600">
+                  <ShieldAlert size={18} />
+                </div>
+                <div>
+                  <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider">
+                    Password Verification
+                  </h3>
+                  <p className="text-[11px] text-slate-500 font-medium">Super Admin Authorization</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowPasswordModal(false)}
+                className="text-slate-400 hover:text-slate-600 p-1"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="text-xs text-slate-600 bg-amber-50/80 border border-amber-200/80 p-3 rounded-xl leading-relaxed">
+              You are about to archive <strong>{activeTerm?.name}</strong> to TiDB cloud storage and launch <strong>{closeForm.semester} AY {closeForm.academic_year}</strong>.
+            </div>
+
+            <form onSubmit={handleConfirmArchiveWithPassword} className="space-y-3.5">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  Super Admin Password
+                </label>
+                <div className="relative">
+                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                    <Lock size={14} />
+                  </div>
+                  <input
+                    type={showPw ? "text" : "password"}
+                    autoFocus
+                    required
+                    placeholder="Enter your password..."
+                    value={passwordInput}
+                    onChange={(e) => { setPasswordInput(e.target.value); setPwError(""); }}
+                    className={`w-full pl-9 pr-10 py-2.5 bg-slate-50 border rounded-xl text-xs font-medium text-slate-900 focus:bg-white focus:outline-none transition-colors ${
+                      pwError ? "border-red-400 focus:border-red-500" : "border-slate-300 focus:border-blue-500"
+                    }`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPw((v) => !v)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                    tabIndex={-1}
+                  >
+                    {showPw ? <EyeOff size={14} /> : <Eye size={14} />}
+                  </button>
+                </div>
+                {pwError && (
+                  <p className="text-[11px] text-red-500 font-semibold mt-1.5 flex items-center gap-1">
+                    <span>⚠</span> {pwError}
+                  </p>
+                )}
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowPasswordModal(false)}
+                  disabled={pwLoading}
+                  className="flex-1 py-2.5 border border-slate-200 text-slate-600 text-xs font-bold rounded-xl hover:bg-slate-50 transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={pwLoading}
+                  className="flex-1 py-2.5 bg-amber-600 hover:bg-amber-700 active:bg-amber-800 text-white text-xs font-extrabold rounded-xl transition-colors cursor-pointer shadow-xs disabled:opacity-60 flex items-center justify-center gap-1.5"
+                >
+                  {pwLoading ? (
+                    <>
+                      <Loader2 size={13} className="animate-spin" />
+                      Archiving…
+                    </>
+                  ) : (
+                    "Confirm Archive"
+                  )}
                 </button>
               </div>
             </form>

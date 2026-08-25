@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { useOutletContext } from "react-router-dom";
+import { useOutletContext, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import api from "@/lib/axios";
 import { fetchWithCache } from "@/lib/apiCache";
@@ -19,7 +19,34 @@ export default function Reports() {
   const context = useOutletContext();
   const officeScope = context?.adminOffice || context?.selectedOffice || "All Offices";
 
-  const [activeTab, setActiveTab] = useState(isStaff ? "inventory" : "booking_borrowing");
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const getInitialTab = () => {
+    const validTabs = isStaff ? ["inventory"] : ["booking_borrowing", "breaches", "inventory"];
+    const urlTab = searchParams.get("tab");
+    if (urlTab && validTabs.includes(urlTab)) return urlTab;
+    try {
+      const savedTab = localStorage.getItem("fsuu_reports_active_tab");
+      if (savedTab && validTabs.includes(savedTab)) return savedTab;
+    } catch {}
+    return isStaff ? "inventory" : "booking_borrowing";
+  };
+
+  const [activeTab, setActiveTab] = useState(getInitialTab);
+  const [mountedTabs, setMountedTabs] = useState(() => new Set([getInitialTab()]));
+
+  const switchTab = (tabId) => {
+    setActiveTab(tabId);
+    setMountedTabs((prev) => new Set([...prev, tabId]));
+    try {
+      localStorage.setItem("fsuu_reports_active_tab", tabId);
+    } catch {}
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set("tab", tabId);
+      return next;
+    }, { replace: true });
+  };
   const [feedback, setFeedback] = useState(null);
   const [showPdfModal, setShowPdfModal] = useState(false);
   const [showEmailModal, setShowEmailModal] = useState(false);
@@ -425,7 +452,8 @@ export default function Reports() {
             return (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
+                type="button"
+                onClick={() => switchTab(tab.id)}
                 className={`px-4 py-2.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
                   active
                     ? "bg-blue-700 text-white shadow-xs"
@@ -456,32 +484,38 @@ export default function Reports() {
           </select>
         </div>
       )}
-      {activeTab === "booking_borrowing" && (
-        <BookingBorrowingReportTab
-          venueBookings={filteredVenueBookings}
-          equipmentBorrowings={filteredEquipmentBorrowings}
-          setShowPdfModal={setShowPdfModal}
-          loading={loading}
-        />
+      {mountedTabs.has("booking_borrowing") && (
+        <div className={activeTab === "booking_borrowing" ? "block" : "hidden"}>
+          <BookingBorrowingReportTab
+            venueBookings={filteredVenueBookings}
+            equipmentBorrowings={filteredEquipmentBorrowings}
+            setShowPdfModal={setShowPdfModal}
+            loading={loading}
+          />
+        </div>
       )}
 
-      {activeTab === "breaches" && (
-        <BreachesTab
-          ruleViolations={filteredRuleViolations}
-          venueBookings={filteredVenueBookings}
-          equipmentBorrowings={filteredEquipmentBorrowings}
-          officeScope={selectedOfficeName}
-        />
+      {mountedTabs.has("breaches") && (
+        <div className={activeTab === "breaches" ? "block" : "hidden"}>
+          <BreachesTab
+            ruleViolations={filteredRuleViolations}
+            venueBookings={filteredVenueBookings}
+            equipmentBorrowings={filteredEquipmentBorrowings}
+            officeScope={selectedOfficeName}
+          />
+        </div>
       )}
 
-      {activeTab === "inventory" && (
-        <EquipmentStockTab
-          filteredInventory={filteredInventoryItems}
-          setInventoryItems={setInventoryItems}
-          loading={loading}
-          fetchReportsData={fetchReportsData}
-          isStaff={isStaff}
-        />
+      {mountedTabs.has("inventory") && (
+        <div className={activeTab === "inventory" ? "block" : "hidden"}>
+          <EquipmentStockTab
+            filteredInventory={filteredInventoryItems}
+            setInventoryItems={setInventoryItems}
+            loading={loading}
+            fetchReportsData={fetchReportsData}
+            isStaff={isStaff}
+          />
+        </div>
       )}
 
       {/* ── EMAIL DISPATCH MODAL (Interactive Recipient Input) ── */}

@@ -15,6 +15,7 @@ return new class extends Migration
             // General Information
             $table->string('system_name')->default('FSUU Facilities & Equipment Booking System');
             $table->string('organization_name')->default('Father Saturnino Urios University');
+            $table->string('header_brand_text')->default('Urios');
             $table->string('contact_email')->default('support.booking@fsuu.edu.ph');
             $table->string('contact_phone')->default('(085) 342-1830');
             $table->string('timezone')->default('Asia/Manila (UTC+8)');
@@ -40,6 +41,7 @@ return new class extends Migration
         DB::table('system_settings')->insert([
             'system_name'                    => 'FSUU Facilities & Equipment Booking System',
             'organization_name'              => 'Father Saturnino Urios University',
+            'header_brand_text'              => 'Urios',
             'contact_email'                  => 'support.booking@fsuu.edu.ph',
             'contact_phone'                  => '(085) 342-1830',
             'timezone'                       => 'Asia/Manila (UTC+8)',

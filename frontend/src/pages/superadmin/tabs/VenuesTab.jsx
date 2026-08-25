@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Plus, Edit2, Trash2, X, Building, CheckCircle2, Loader2, Image as ImageIcon, Camera } from "lucide-react";
 import api from "@/lib/axios";
+import ConfirmModal from "@/components/ui/ConfirmModal";
 
 export default function VenuesTab({ showMsg }) {
   const [venues, setVenues] = useState([]);
@@ -9,6 +10,7 @@ export default function VenuesTab({ showMsg }) {
   const [showModal, setShowModal] = useState(false);
   const [editItem, setEditItem] = useState(null);
   const [formLoading, setFormLoading] = useState(false);
+  const [archiveTarget, setArchiveTarget] = useState(null); // { id, name }
 
   const [form, setForm] = useState({
     name: "",
@@ -112,19 +114,21 @@ export default function VenuesTab({ showMsg }) {
     }
   };
 
-  const handleDelete = async (id, name) => {
-    if (!window.confirm(`Are you sure you want to archive venue "${name}"?`)) return;
+  const handleDelete = (id, name) => {
+    setArchiveTarget({ id, name });
+  };
 
-    // ── OPTIMISTIC DELETE ────────────────────────────────────────────────
+  const confirmArchive = async () => {
+    if (!archiveTarget) return;
+    const { id, name } = archiveTarget;
     const prevVenues = venues;
     setVenues(prev => prev.filter(v => v.id !== id));
-    // ─────────────────────────────────────────────────────────────────────────
-
+    setArchiveTarget(null);
     try {
       await api.delete(`/admin/venues/${id}`);
       showMsg(`Venue "${name}" archived.`);
     } catch (err) {
-      setVenues(prevVenues); // Rollback
+      setVenues(prevVenues);
       showMsg(err.response?.data?.message || `Failed to archive "${name}" — changes reverted.`);
     }
   };
@@ -283,11 +287,23 @@ export default function VenuesTab({ showMsg }) {
                 </div>
                 <div className="flex-1 min-w-0">
                   <label className="block font-bold text-slate-900 text-xs mb-1">Venue Photo Avatar</label>
-                  <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs cursor-pointer shadow-2xs transition-all">
-                    <Camera size={13} />
-                    <span>{form.avatar ? "Change Photo" : "Upload Photo"}</span>
-                    <input type="file" accept="image/*" onChange={handleAvatarUpload} className="hidden" />
-                  </label>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs cursor-pointer shadow-2xs transition-all">
+                      <Camera size={13} />
+                      <span>{form.avatar ? "Change Photo" : "Upload Photo"}</span>
+                      <input type="file" accept="image/*" onChange={handleAvatarUpload} className="hidden" />
+                    </label>
+                    {form.avatar && (
+                      <button
+                        type="button"
+                        onClick={() => setForm({ ...form, avatar: "" })}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border border-red-200 bg-white hover:bg-red-50 text-red-600 font-bold text-xs cursor-pointer shadow-2xs transition-all"
+                      >
+                        <Trash2 size={12} />
+                        Delete Photo
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -377,6 +393,16 @@ export default function VenuesTab({ showMsg }) {
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        open={!!archiveTarget}
+        onClose={() => setArchiveTarget(null)}
+        onConfirm={confirmArchive}
+        variant="archive"
+        title="Archive Venue?"
+        message={`Are you sure you want to archive "${archiveTarget?.name}"? It will be removed from the public venue list.`}
+        confirmLabel="Archive"
+      />
     </div>
   );
 }

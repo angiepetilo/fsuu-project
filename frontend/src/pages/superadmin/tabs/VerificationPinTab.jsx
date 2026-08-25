@@ -119,12 +119,12 @@ export default function VerificationPinTab({
     try {
       const payload = {
         masterPin: pinSettings.masterPin || "123456",
-        isEnabled: pinSettings.isEnabled !== false,
-        requirePinOutsideHours: pinSettings.requirePinOutsideHours !== false,
-        requirePinMultiDayVenue: pinSettings.requirePinMultiDayVenue !== false,
+        isEnabled: !!pinSettings.isEnabled,
+        requirePinOutsideHours: !!pinSettings.requirePinOutsideHours,
+        requirePinMultiDayVenue: !!pinSettings.requirePinMultiDayVenue,
         requirePinMultiDayEquipment: false,
-        enableExternalVenue: pinSettings.enableExternalVenue !== false,
-        enableExternalEquipment: pinSettings.enableExternalEquipment !== false,
+        enableExternalVenue: !!pinSettings.enableExternalVenue,
+        enableExternalEquipment: !!pinSettings.enableExternalEquipment,
         requirePinForStudent: false,
         pinMode: "optional",
       };
@@ -255,8 +255,16 @@ export default function VerificationPinTab({
           </label>
         </div>
 
+        {/* Disabled banner */}
+        {!pinSettings.isEnabled && (
+          <div className="flex items-center gap-2 px-3.5 py-2.5 bg-amber-50 border border-amber-200 rounded-lg text-xs font-semibold text-amber-700">
+            <span>⚠</span>
+            PIN Protection is currently <strong>disabled</strong>. All PIN trigger rules are inactive.
+          </div>
+        )}
+
         {/* Section 1: Master PIN Input */}
-        <div className="space-y-2">
+        <div className={`space-y-2 transition-opacity ${!pinSettings.isEnabled ? "opacity-40 pointer-events-none select-none" : ""}`}>
           <label className="block text-xs font-semibold text-slate-900">
             Master Security PIN (6-Digit Code)
           </label>
@@ -265,17 +273,19 @@ export default function VerificationPinTab({
               type={showPin ? "text" : "password"}
               maxLength={6}
               value={pinSettings.masterPin || ""}
+              disabled={!pinSettings.isEnabled}
               onChange={(e) => {
                 const val = e.target.value.replace(/\D/g, "").slice(0, 6);
                 setPinSettings({ ...pinSettings, masterPin: val });
               }}
               placeholder="123456"
-              className="w-48 p-2 text-sm font-mono tracking-widest bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-slate-500"
+              className="w-48 p-2 text-sm font-mono tracking-widest bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-slate-500 disabled:bg-slate-100 disabled:cursor-not-allowed"
             />
             <button
               type="button"
+              disabled={!pinSettings.isEnabled}
               onClick={() => setShowPin(!showPin)}
-              className="px-3 py-2 text-xs text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50"
+              className="px-3 py-2 text-xs text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50 disabled:cursor-not-allowed"
             >
               {showPin ? "Hide PIN" : "Show PIN"}
             </button>
@@ -286,7 +296,7 @@ export default function VerificationPinTab({
         </div>
 
         {/* Section 2: Trigger Rules Checklist */}
-        <div className="space-y-3 pt-3 border-t border-slate-100">
+        <div className={`space-y-3 pt-3 border-t border-slate-100 transition-opacity ${!pinSettings.isEnabled ? "opacity-40 pointer-events-none select-none" : ""}`}>
           <div>
             <h4 className="text-xs font-semibold text-slate-900">
               Trigger Rules Checklist

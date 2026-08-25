@@ -50,12 +50,9 @@ class EquipmentDamageController extends Controller
                     ->where(function($q) {
                         $q->where('inspectable_type', 'like', '%EquipmentBorrow%')
                           ->orWhere('inspectable_type', 'equipment_borrow')
-                          ->orWhere('reference_type', 'equipment_borrow');
+                          ->orWhere('inspectable_type', 'avr_equipment_borrowing');
                     })
-                    ->where(function($q) use ($activeBorrowIds) {
-                        $q->whereIn('inspectable_id', $activeBorrowIds)
-                          ->orWhereIn('reference_id', $activeBorrowIds);
-                    })
+                    ->whereIn('inspectable_id', $activeBorrowIds)
                     ->whereIn(DB::raw('LOWER(`condition`)'), ['damaged', 'lost'])
                     ->latest()
                     ->get();

@@ -309,7 +309,7 @@ export default function EquipBorrowInspectionForm({
           <button
             type="submit"
             disabled={savingInspection}
-            className="px-4 py-2 bg-white hover:bg-slate-50 text-slate-900 border border-slate-900 rounded-xl text-xs font-extrabold flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors disabled:opacity-50"
+            className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 active:scale-[0.98] text-white rounded-xl text-xs font-extrabold flex items-center gap-1.5 cursor-pointer disabled:opacity-50 transition-all shadow-xs hover:shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500/40"
           >
             {savingInspection ? <Loader2 size={13} className="animate-spin" /> : <FileCheck size={13} />}
             <span>Save Inspection Record</span>

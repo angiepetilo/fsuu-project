@@ -94,7 +94,7 @@ export default function ManageVenues() {
       try {
         const opData = await fetchWithCache("operating_hours_settings", () => api.get("/admin/operating-hours").then(r => r.data).catch(() => api.get("/public/operating-hours").then(r => r.data)));
         if (opData) {
-          const vOpen = opData.venue_open ? opData.venue_open.substring(0, 5) : "07:30";
+          const vOpen = opData.venue_open ? opData.venue_open.substring(0, 5) : "07:00";
           const vClose = opData.venue_close ? opData.venue_close.substring(0, 5) : "17:00";
           setOperatingHours({
             venue_open: vOpen,
@@ -358,13 +358,11 @@ export default function ManageVenues() {
     };
     const sH = parseHour(operatingHours.venue_open, 7);
     let eH = parseHour(operatingHours.venue_close, 17);
-    const closeParts = (operatingHours.venue_close || "").split(":").map(Number);
-    if (closeParts[1] && closeParts[1] > 0) {
-      eH += 1;
-    }
+    // TimeSlotMatrix iterates `h < endHour`. To include the 5:00 PM (17:00) slot, endHour must be at least eH + 1 (18).
+    const effectiveEnd = Math.max(eH + 1, sH + 1);
     return {
       startHour: Math.min(sH, 23),
-      endHour: Math.max(eH, sH + 1),
+      endHour: Math.min(effectiveEnd, 24),
     };
   }, [operatingHours]);
 

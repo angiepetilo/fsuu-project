@@ -491,16 +491,11 @@ class VenueBookingService
             // Always ensure inspection record exists on completion
             if (\Illuminate\Support\Facades\Schema::hasTable('inspections')) {
                 $existingInsp = DB::table('inspections')
-                    ->where(function($q) use ($booking) {
-                        $q->where('inspectable_id', $booking->id);
-                        if (\Illuminate\Support\Facades\Schema::hasColumn('inspections', 'reference_id')) {
-                            $q->orWhere('reference_id', $booking->id);
-                        }
-                    })
+                    ->where('inspectable_id', $booking->id)
                     ->where(function($q) {
                         $q->where('inspectable_type', \App\Models\VenueBooking::class)
                           ->orWhere('inspectable_type', 'venue_booking')
-                          ->orWhere('reference_type', 'venue_booking');
+                          ->orWhere('inspectable_type', 'avr_venue_booking');
                     })
                     ->first();
 
@@ -512,8 +507,6 @@ class VenueBookingService
                 $inspData = [
                     'inspectable_type' => \App\Models\VenueBooking::class,
                     'inspectable_id'   => $booking->id,
-                    'reference_type'   => 'venue_booking',
-                    'reference_id'     => $booking->id,
                     'inspected_by'     => $actor->id ?? 1,
                     'inspection_type'  => 'post_event',
                     'condition'        => $condition,

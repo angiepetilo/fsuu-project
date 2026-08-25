@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Plus, Pencil, Trash2, X, Package, Loader2, Image as ImageIcon, ChevronLeft, ChevronRight, Camera, MoreVertical } from "lucide-react";
 import api from "@/lib/axios";
 import notify from "@/lib/notify";
+import ConfirmModal from "@/components/ui/ConfirmModal";
 
 export default function EquipmentCategoriesTab({ showMsg }) {
   const [categories, setCategories] = useState([]);
@@ -10,6 +11,7 @@ export default function EquipmentCategoriesTab({ showMsg }) {
   const [editItem, setEditItem] = useState(null);
   const [openActionId, setOpenActionId] = useState(null);
   const [formLoading, setFormLoading] = useState(false);
+  const [archiveTarget, setArchiveTarget] = useState(null);
 
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 10;
@@ -142,12 +144,17 @@ export default function EquipmentCategoriesTab({ showMsg }) {
     }
   };
 
-  const handleDelete = async (id, name) => {
-    if (!window.confirm(`Archive category "${name}"?`)) return;
-    // ── OPTIMISTIC DELETE ────────────────────────────────────────────────
+  const handleDelete = (id, name) => {
+    setOpenActionId(null);
+    setArchiveTarget({ id, name });
+  };
+
+  const confirmArchive = async () => {
+    if (!archiveTarget) return;
+    const { id, name } = archiveTarget;
     const prev = categories;
     setCategories(c => c.filter(x => x.id !== id));
-    setOpenActionId(null);
+    setArchiveTarget(null);
     try {
       await api.delete(`/admin/equipment-types/${id}`);
       notify.info("Category Archived", `"${name}" archived.`);
@@ -399,11 +406,23 @@ export default function EquipmentCategoriesTab({ showMsg }) {
                 </div>
                 <div className="flex-1 min-w-0">
                   <label className="block font-bold text-slate-900 text-xs mb-1">Category Photo Avatar</label>
-                  <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs cursor-pointer shadow-2xs transition-all">
-                    <Camera size={13} />
-                    <span>{form.avatar ? "Change Photo" : "Upload Photo"}</span>
-                    <input type="file" accept="image/*" onChange={handleAvatarUpload} className="hidden" />
-                  </label>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs cursor-pointer shadow-2xs transition-all">
+                      <Camera size={13} />
+                      <span>{form.avatar ? "Change Photo" : "Upload Photo"}</span>
+                      <input type="file" accept="image/*" onChange={handleAvatarUpload} className="hidden" />
+                    </label>
+                    {form.avatar && (
+                      <button
+                        type="button"
+                        onClick={() => setForm({ ...form, avatar: "" })}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border border-red-200 bg-white hover:bg-red-50 text-red-600 font-bold text-xs cursor-pointer shadow-2xs transition-all"
+                      >
+                        <Trash2 size={12} />
+                        Delete Photo
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -451,6 +470,16 @@ export default function EquipmentCategoriesTab({ showMsg }) {
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        open={!!archiveTarget}
+        onClose={() => setArchiveTarget(null)}
+        onConfirm={confirmArchive}
+        variant="archive"
+        title="Archive Equipment Category?"
+        message={`Archive "${archiveTarget?.name}"? This will remove it from the active catalog.`}
+        confirmLabel="Archive"
+      />
     </div>
   );
 }

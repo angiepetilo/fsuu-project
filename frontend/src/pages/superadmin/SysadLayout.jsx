@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import NotificationDropdown from "@/components/notifications/NotificationDropdown";
 import IncidentDetailModal from "@/components/notifications/IncidentDetailModal";
+import ConfirmModal from "@/components/ui/ConfirmModal";
 
 const SYSAD_NAV_GROUPS = [
   {
@@ -44,7 +45,6 @@ export default function SysadLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [selectedIncident, setSelectedIncident] = useState(null);
 
   const adminName = user?.name || "Super Administrator";
@@ -56,7 +56,11 @@ export default function SysadLayout() {
     }
   }, [user, navigate]);
 
-  const handleLogout = async () => {
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+
+  const doLogout = async () => {
+    setShowLogoutConfirm(false);
     setIsLoggingOut(true);
     try {
       await logout();
@@ -124,6 +128,7 @@ export default function SysadLayout() {
   const markAllAsRead = async () => {
     const allIds = new Set(sysadNotifications.map(n => n.id));
     setReadNotifIds(allIds);
+    setSysadNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
     try {
       localStorage.setItem("fsuu_read_sysad_notification_ids", JSON.stringify(Array.from(allIds)));
     } catch {}
@@ -195,6 +200,18 @@ export default function SysadLayout() {
 
   return (
     <div className="min-h-screen bg-[#f8fafc] flex font-sans antialiased text-slate-900 relative">
+
+      {/* ── Logout Confirm Modal ── */}
+      <ConfirmModal
+        open={showLogoutConfirm}
+        onClose={() => setShowLogoutConfirm(false)}
+        onConfirm={doLogout}
+        variant="logout"
+        title="Sign Out?"
+        message="You will be logged out of your Super Admin session. Any unsaved changes will be lost."
+        confirmLabel="Sign Out"
+        loading={isLoggingOut}
+      />
 
       {/* ── Logout Loading Overlay ── */}
       {isLoggingOut && (
@@ -304,7 +321,7 @@ export default function SysadLayout() {
                 <div className="pt-1.5 border-t border-slate-800 mt-1">
                   <button
                     type="button"
-                    onClick={handleLogout}
+                    onClick={() => setShowLogoutConfirm(true)}
                     className="w-full flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors cursor-pointer"
                   >
                     <LogOut size={13} /> Sign Out
@@ -316,7 +333,7 @@ export default function SysadLayout() {
             <div className="flex flex-col items-center gap-2 py-0.5">
               <button
                 type="button"
-                onClick={handleLogout}
+                onClick={() => setShowLogoutConfirm(true)}
                 title={`Sign Out (${adminName})`}
                 className="w-9 h-9 rounded-xl bg-slate-800/80 hover:bg-rose-500/20 text-slate-300 hover:text-rose-400 border border-slate-700 hover:border-rose-500/40 flex items-center justify-center transition-all cursor-pointer shadow-xs"
               >
@@ -396,9 +413,8 @@ export default function SysadLayout() {
         )}
 
         {/* Footer */}
-        <footer className="text-center py-4 text-xs text-slate-400 font-semibold border-t border-slate-200/80 bg-white flex items-center justify-center gap-2">
-          <ShieldCheck size={14} className="text-amber-500" />
-          <span>© {new Date().getFullYear()} Father Saturnino Urios University — Super Administrator System Portal</span>
+        <footer className="text-center py-4 text-xs text-slate-400 font-semibold border-t border-slate-200/80 bg-white">
+          © {new Date().getFullYear()} Father Saturnino Urios University — Super Administrator System Portal
         </footer>
       </div>
     </div>

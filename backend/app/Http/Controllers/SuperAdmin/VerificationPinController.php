@@ -66,9 +66,9 @@ class VerificationPinController extends Controller
         }
 
         if (isset($validated['masterPin']) && !empty($validated['masterPin'])) {
-            $setting->master_pin = $validated['masterPin'];
-            // Always keep the hashed copy in sync
-            $setting->hashed_master_pin = \Illuminate\Support\Facades\Hash::make($validated['masterPin']);
+            $hashed = \Illuminate\Support\Facades\Hash::make($validated['masterPin']);
+            $setting->master_pin = $hashed;
+            $setting->hashed_master_pin = $hashed;
         }
 
         if (isset($validated['isEnabled'])) {

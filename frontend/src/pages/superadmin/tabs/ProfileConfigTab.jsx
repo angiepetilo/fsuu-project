@@ -3,6 +3,7 @@ import { Save, Camera, KeyRound, Lock, Eye, EyeOff, Loader2, X, Trash2 } from "l
 import { useAuth } from "@/context/AuthContext";
 import api from "@/lib/axios";
 import notify from "@/lib/notify";
+import ConfirmModal from "@/components/ui/ConfirmModal";
 
 export default function ProfileConfigTab({ showMsg }) {
   const { user, updateAuthUser } = useAuth();
@@ -20,6 +21,9 @@ export default function ProfileConfigTab({ showMsg }) {
   const [passLoading, setPassLoading] = useState(false);
   const [passFeedback, setPassFeedback] = useState(null);
   const [passError, setPassError] = useState(null);
+  const [showSaveConfirm, setShowSaveConfirm] = useState(false);
+  const [showPassConfirm, setShowPassConfirm] = useState(false);
+  const [pendingPassSubmit, setPendingPassSubmit] = useState(null);
 
   const [profileData, setProfileData] = useState(() => ({
     name: user?.name || "Super Administrator",
@@ -53,15 +57,14 @@ export default function ProfileConfigTab({ showMsg }) {
     }
   };
 
-  const handleSaveProfile = async (e) => {
-    e.preventDefault();
+  const handleSaveProfile = async () => {
     const payload = {
       name: profileData.name,
       email: profileData.email,
       personal_email: profileData.personal_email,
       avatar: avatarPreview || profileData.avatar,
     };
-
+    setShowSaveConfirm(false);
     try {
       const res = await api.post("/user/profile", payload);
       if (res.data?.user && updateAuthUser) {
@@ -74,12 +77,17 @@ export default function ProfileConfigTab({ showMsg }) {
     }
   };
 
-  const handleChangePassword = async (e) => {
+  const handleProfileFormSubmit = (e) => {
     e.preventDefault();
+    setShowSaveConfirm(true);
+  };
+
+  const handleChangePassword = async () => {
     if (passForm.new_password !== passForm.new_password_confirmation) {
       setPassError("New passwords do not match.");
       return;
     }
+    setShowPassConfirm(false);
     setPassLoading(true);
     setPassError(null);
     setPassFeedback(null);
@@ -99,6 +107,15 @@ export default function ProfileConfigTab({ showMsg }) {
     } finally {
       setPassLoading(false);
     }
+  };
+
+  const handlePassFormSubmit = (e) => {
+    e.preventDefault();
+    if (passForm.new_password !== passForm.new_password_confirmation) {
+      setPassError("New passwords do not match.");
+      return;
+    }
+    setShowPassConfirm(true);
   };
 
   return (
@@ -155,7 +172,7 @@ export default function ProfileConfigTab({ showMsg }) {
         {/* Right Column: Information Form */}
         <div className="flex-1 min-w-0 space-y-4 w-full">
           <form
-            onSubmit={handleSaveProfile}
+            onSubmit={handleProfileFormSubmit}
             className="bg-white rounded-2xl border border-slate-200 shadow-xs p-5 space-y-4"
           >
             <div className="flex items-start justify-between gap-3">
@@ -308,7 +325,7 @@ export default function ProfileConfigTab({ showMsg }) {
               </button>
             </div>
 
-            <form onSubmit={handleChangePassword} className="p-5 space-y-3.5 text-xs font-medium">
+            <form onSubmit={handlePassFormSubmit} className="p-5 space-y-3.5 text-xs font-medium">
               {passFeedback && (
                 <div className="p-2.5 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl font-semibold text-xs">
                   {passFeedback}
@@ -395,6 +412,26 @@ export default function ProfileConfigTab({ showMsg }) {
           </div>
         </div>
       )}
+      <ConfirmModal
+        open={showSaveConfirm}
+        onClose={() => setShowSaveConfirm(false)}
+        onConfirm={handleSaveProfile}
+        variant="save"
+        title="Save Profile Changes?"
+        message="Your personal information and profile photo will be updated."
+        confirmLabel="Save Changes"
+      />
+
+      <ConfirmModal
+        open={showPassConfirm}
+        onClose={() => setShowPassConfirm(false)}
+        onConfirm={handleChangePassword}
+        variant="warning"
+        title="Change Password?"
+        message="Your account password will be permanently changed. Make sure you remember the new password."
+        confirmLabel="Yes, Change Password"
+        loading={passLoading}
+      />
     </>
   );
 }
