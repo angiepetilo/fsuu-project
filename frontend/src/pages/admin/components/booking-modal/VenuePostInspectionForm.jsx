@@ -1,6 +1,7 @@
-import React, { useState } from "react";
-import { CheckCircle2, AlertTriangle, Plus, ShieldCheck, FileCheck, Loader2 } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { CheckCircle2, AlertTriangle, Plus, ShieldCheck, FileCheck, Loader2, Clock } from "lucide-react";
 import InspectionPhotoUploader from "@/components/ui/InspectionPhotoUploader";
+import { getOverdueMinutes, formatOverdueDuration } from "@/lib/dateTimeUtils";
 
 export default function VenuePostInspectionForm({
   inspectionStatus,
@@ -27,11 +28,21 @@ export default function VenuePostInspectionForm({
   isOngoing = false,
   isPreEvent = false,
   onSetPostInspection = null,
+  scheduledDate,
+  scheduledTime,
+  minutesLate = 0,
 }) {
   const [showCustomModal, setShowCustomModal] = useState(false);
   const [customViolationInput, setCustomViolationInput] = useState("");
 
   const isBeforeInspection = isPreEvent || (isOngoing && !onSetPostInspection);
+  const delayMins = minutesLate > 0 ? minutesLate : getOverdueMinutes(scheduledDate, scheduledTime);
+
+  useEffect(() => {
+    if (!isBeforeInspection && delayMins > 0 && setSelectedViolationType && !selectedViolationType && !isHistoryView) {
+      setSelectedViolationType("Overstaying / Schedule Exceed Breach");
+    }
+  }, [delayMins, isBeforeInspection]);
 
   const handleAddCustomViolation = (e) => {
     e.preventDefault();
@@ -72,7 +83,16 @@ export default function VenuePostInspectionForm({
       </div>
 
       {/* Outcome Condition Selection */}
-      <div className="space-y-1.5">
+      <div className="space-y-2">
+        {delayMins > 0 && !isBeforeInspection && (
+          <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold">
+            <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse shrink-0" />
+            <span>
+              <strong>Overtime Turnover:</strong> Facility event ended <strong>{formatOverdueDuration(delayMins)}</strong> past scheduled time.
+            </span>
+          </div>
+        )}
+
         <label className="block text-[11px] font-bold text-slate-600 uppercase">
           Inspection Outcome Status *
         </label>

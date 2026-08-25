@@ -1,5 +1,6 @@
 import React from "react";
 import { cn } from "@/lib/utils";
+import { formatOverdueDuration } from "@/lib/dateTimeUtils";
 
 const STATUS_CONFIGS = {
   approved:          "bg-emerald-50 text-emerald-700 border-emerald-300 font-extrabold hover:bg-emerald-100",
@@ -45,6 +46,27 @@ export function StatusBadge({ status, className, children }) {
       )}
     >
       {displayLabel}
+    </span>
+  );
+}
+
+/**
+ * Sleek, clean, plain, and simple live overdue badge.
+ */
+export function OverdueBadge({ minutesOverdue, className }) {
+  const text = formatOverdueDuration(minutesOverdue);
+  if (!text) return null;
+
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10.5px] font-bold bg-rose-50 text-rose-700 border border-rose-200 shadow-2xs whitespace-nowrap",
+        className
+      )}
+      title={`${minutesOverdue} minutes overdue`}
+    >
+      <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse shrink-0" />
+      <span>{text}</span>
     </span>
   );
 }

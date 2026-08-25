@@ -7,8 +7,9 @@ import {
 } from "lucide-react";
 import VenueBookingDetailModal from "./components/VenueBookingDetailModal";
 import { PageLoader } from "@/components/ui/page-loader";
-import { StatusBadge } from "@/components/ui/status-badge";
+import { StatusBadge, OverdueBadge } from "@/components/ui/status-badge";
 import { formatDate, formatTime, formatTimeRange } from "@/lib/dateUtils";
+import { getOverdueMinutes } from "@/lib/dateTimeUtils";
 
 export default function VenueBookings() {
   const context = useOutletContext();
@@ -244,6 +245,9 @@ export default function VenueBookings() {
                   const timeRange = formatTimeRange(b.time_start, b.time_end);
                   const currentStatus = b.status || b.tracking_number?.status || "pending";
                   const displayIndex = startIndex + idx + 1;
+                  const isActive = !["completed", "rejected", "cancelled", "damaged", "lost"].includes(currentStatus.toLowerCase());
+                  const scheduledEndDate = b.reservation_end_date || b.date_of_usage || b.start_datetime;
+                  const overdueMins = isActive ? getOverdueMinutes(scheduledEndDate, b.time_end) : 0;
 
                   return (
                     <tr key={`vb-row-${b.id}`} className="hover:bg-slate-50/60 transition-colors">
@@ -257,11 +261,14 @@ export default function VenueBookings() {
                       <td className="px-4 py-3.5 text-slate-600 whitespace-nowrap">{usageDate}</td>
                       <td className="px-4 py-3.5 text-slate-600 whitespace-nowrap">{timeRange}</td>
                       <td className="px-4 py-3.5">
-                        <StatusBadge status={currentStatus} />
+                        <div className="flex flex-col items-start gap-1">
+                          <StatusBadge status={currentStatus} />
+                          {overdueMins > 0 && <OverdueBadge minutesOverdue={overdueMins} />}
+                        </div>
                       </td>
                       <td className="px-4 py-3.5">
                         <button
-                          onClick={() => setSelected(b)}
+                          onClick={() => setSelectedId(b.id)}
                           title="View Details"
                           className="p-2 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-xl font-extrabold text-xs transition-all cursor-pointer shadow-2xs"
                         >
@@ -298,12 +305,18 @@ export default function VenueBookings() {
                 : formatDate(b.date_of_usage || b.start_datetime);
               const timeRange = formatTimeRange(b.time_start, b.time_end);
               const currentStatus = b.status || b.tracking_number?.status || "pending";
+              const isActive = !["completed", "rejected", "cancelled", "damaged", "lost"].includes(currentStatus.toLowerCase());
+              const scheduledEndDate = b.reservation_end_date || b.date_of_usage || b.start_datetime;
+              const overdueMins = isActive ? getOverdueMinutes(scheduledEndDate, b.time_end) : 0;
 
               return (
                 <div key={`vb-card-${b.id}`} className="p-4 space-y-3 bg-white hover:bg-slate-50/50 transition-colors">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-2">
                     <span className="font-mono text-xs font-black text-blue-600 tracking-tight">{refCode}</span>
-                    <StatusBadge status={currentStatus} />
+                    <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                      <StatusBadge status={currentStatus} />
+                      {overdueMins > 0 && <OverdueBadge minutesOverdue={overdueMins} />}
+                    </div>
                   </div>
                   <div>
                     <h4 className="font-extrabold text-slate-900 text-sm">{requestor}</h4>
@@ -311,7 +324,7 @@ export default function VenueBookings() {
                   </div>
                   <div className="bg-slate-50 p-3 rounded-xl text-xs space-y-1.5 border border-slate-100">
                     <div className="flex justify-between items-center text-slate-700">
-                      <span className="text-slate-500 font-medium">Venue:</span>
+                      <span className="text-slate-500 font-medium">Facility / Room:</span>
                       <span className="font-bold text-blue-700">{venueName}</span>
                     </div>
                     <div className="flex justify-between items-center text-slate-700">
@@ -320,7 +333,7 @@ export default function VenueBookings() {
                     </div>
                   </div>
                   <button
-                    onClick={() => setSelected(b)}
+                    onClick={() => setSelectedId(b.id)}
                     className="w-full py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-xl font-extrabold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-2xs"
                   >
                     <Eye size={15} />

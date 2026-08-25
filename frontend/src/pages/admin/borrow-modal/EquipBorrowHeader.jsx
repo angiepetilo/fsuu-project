@@ -1,8 +1,10 @@
 import { X, Mail, Loader2, Send } from "lucide-react";
+import { OverdueBadge } from "@/components/ui/status-badge";
+import { getOverdueMinutes } from "@/lib/dateTimeUtils";
 
 /**
  * EquipBorrowHeader — Top bar of the equipment borrowing modal.
- * Displays: title, tracking number, program office, filed timestamp, inline email/reminder actions, status badge, close button.
+ * Displays: title, tracking number, program office, filed timestamp, inline email/reminder actions, status badge, overdue pill, close button.
  */
 export default function EquipBorrowHeader({
   selected,
@@ -19,6 +21,10 @@ export default function EquipBorrowHeader({
   isOngoing,
   isApproved,
 }) {
+  const currentRawStatus = (currentStatus || selected?.status || selected?.tracking_number?.status || "").toLowerCase();
+  const isActive = !["completed", "rejected", "cancelled", "damaged", "lost"].includes(currentRawStatus);
+  const overdueMins = isActive ? getOverdueMinutes(selected?.date_of_usage || selected?.start_datetime, selected?.time_end || selected?.end_datetime) : 0;
+
   return (
     <div className="px-6 py-4 bg-white border-b border-slate-200 shrink-0">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -83,24 +89,27 @@ export default function EquipBorrowHeader({
         </div>
 
         <div className="flex items-center gap-3">
-          <span className="font-mono text-xs font-bold uppercase text-slate-500">
-            Status:{" "}
-            <span
-              className={`font-black ${
-                currentStatus === "approved"
-                  ? "text-emerald-600"
-                  : currentStatus === "ongoing" || currentStatus === "on-going"
-                  ? "text-blue-600"
-                  : currentStatus === "completed" || currentStatus === "returned"
-                  ? "text-slate-800"
-                  : currentStatus === "damaged" || currentStatus === "rejected"
-                  ? "text-rose-600"
-                  : "text-amber-600"
-              }`}
-            >
-              {currentStatus || selected.status || "pending"}
+          <div className="flex items-center gap-1.5 flex-wrap justify-end">
+            <span className="font-mono text-xs font-bold uppercase text-slate-500">
+              Status:{" "}
+              <span
+                className={`font-black ${
+                  currentStatus === "approved"
+                    ? "text-emerald-600"
+                    : currentStatus === "ongoing" || currentStatus === "on-going"
+                    ? "text-blue-600"
+                    : currentStatus === "completed" || currentStatus === "returned"
+                    ? "text-slate-800"
+                    : currentStatus === "damaged" || currentStatus === "rejected"
+                    ? "text-rose-600"
+                    : "text-amber-600"
+                }`}
+              >
+                {currentStatus || selected.status || "pending"}
+              </span>
             </span>
-          </span>
+            {overdueMins > 0 && <OverdueBadge minutesOverdue={overdueMins} />}
+          </div>
           <button
             type="button"
             onClick={() => { setSelected(null); setShowNotifyModal(false); }}
