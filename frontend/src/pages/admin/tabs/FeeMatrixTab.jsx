@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Save, Printer, Mail, X, Send, Loader2, CheckCircle2, Building, DollarSign, FileText } from "lucide-react";
+import { Save, Printer, Mail, X, Send, Loader2, CheckCircle2, Building, DollarSign, FileText, Pencil, Check } from "lucide-react";
 import api from "@/lib/axios";
 
 export default function FeeMatrixTab({ officeScope = "All Offices", showMsg }) {
@@ -47,8 +47,92 @@ export default function FeeMatrixTab({ officeScope = "All Offices", showMsg }) {
     soundFeeValue: "",
   });
 
+  const [editingRates, setEditingRates] = useState({});
+
+  const toggleEditRate = (key) => {
+    setEditingRates(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const renderRateItem = (key, title, defaultLabel, defaultValue, labelKey, valueKey) => {
+    const isEnabled = Boolean(printConfig[key]);
+    const isEditing = Boolean(editingRates[key]);
+    const currentLabel = printConfig[labelKey] !== undefined ? printConfig[labelKey] : defaultLabel;
+    const currentValue = printConfig[valueKey] !== undefined ? printConfig[valueKey] : defaultValue;
+
+    return (
+      <div className={`p-3.5 rounded-xl border transition-all ${isEnabled ? "bg-white border-slate-200/90 shadow-2xs" : "bg-slate-50/60 border-slate-200/50 opacity-75"}`}>
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            <span className="text-xs font-bold text-slate-800 block truncate">{title}</span>
+            {!isEditing && isEnabled && (
+              <p className="text-[11px] text-slate-500 font-medium truncate mt-0.5">
+                {currentLabel} <span className="font-bold text-slate-800">• {currentValue}</span>
+              </p>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            {isEnabled && (
+              <button
+                type="button"
+                onClick={() => toggleEditRate(key)}
+                className={`px-2.5 py-1 rounded-lg text-xs font-extrabold flex items-center gap-1 border transition-all cursor-pointer ${
+                  isEditing
+                    ? "bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
+                    : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100 hover:text-slate-900"
+                }`}
+              >
+                {isEditing ? <><Check size={12} /> Done</> : <><Pencil size={12} /> Edit</>}
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={() => togglePrintOption(key)}
+              className={`px-3 py-1 rounded-lg text-xs font-extrabold border transition-all cursor-pointer ${
+                isEnabled
+                  ? "bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100"
+                  : "bg-slate-100 text-slate-400 border-slate-200 hover:bg-slate-200 hover:text-slate-600"
+              }`}
+            >
+              {isEnabled ? "Enabled" : "Disabled"}
+            </button>
+          </div>
+        </div>
+
+        {isEnabled && isEditing && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-3 pt-3 border-t border-slate-100 animate-in fade-in-50 duration-200">
+            <div>
+              <label className="block text-[10px] font-bold text-slate-500 mb-1">Description Label</label>
+              <input
+                type="text"
+                value={currentLabel}
+                onChange={(e) => setPrintConfig({ ...printConfig, [labelKey]: e.target.value })}
+                placeholder="Description Label"
+                className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-800 focus:outline-none focus:border-blue-600 focus:bg-white transition-all"
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-bold text-slate-500 mb-1">Rate Text / Amount</label>
+              <input
+                type="text"
+                value={currentValue}
+                onChange={(e) => setPrintConfig({ ...printConfig, [valueKey]: e.target.value })}
+                placeholder="Rate Text"
+                className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-emerald-700 focus:outline-none focus:border-blue-600 focus:bg-white transition-all"
+              />
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const togglePrintOption = (key) => {
-    setPrintConfig((prev) => ({ ...prev, [key]: !prev[key] }));
+    setPrintConfig((prev) => ({
+      ...prev,
+      [key]: !prev[key],
+    }));
   };
 
   const handlePrint = () => {
@@ -220,165 +304,55 @@ export default function FeeMatrixTab({ officeScope = "All Offices", showMsg }) {
           {/* 1. Rate Items Configuration & Text Overrides */}
           <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-xs space-y-4">
             <div className="border-b border-slate-100 pb-2">
-              <h4 className="font-extrabold text-slate-900 text-xs">1. Rate Items (Check / Edit Text)</h4>
+              <h4 className="font-extrabold text-slate-900 text-xs">1. Rate Items (Enable / Edit Text)</h4>
               <p className="text-[11px] text-slate-500 font-medium mt-0.5">Toggle visibility and rename labels or rate strings.</p>
             </div>
 
-            <div className="space-y-4">
-              {/* Internal Rate */}
-              <div className="space-y-2 border-b border-slate-100 pb-3">
-                <label className="flex items-center gap-2 cursor-pointer select-none text-slate-800 text-xs font-bold hover:text-blue-600">
-                  <input
-                    type="checkbox"
-                    checked={printConfig.showInternalRate}
-                    onChange={() => togglePrintOption("showInternalRate")}
-                    className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
-                  />
-                  <span>Internal Academic / Dept Rate</span>
-                </label>
-                {printConfig.showInternalRate && (
-                  <div className="grid grid-cols-2 gap-2 pl-6">
-                    <input
-                      type="text"
-                      value={printConfig.internalRateLabel !== undefined ? printConfig.internalRateLabel : "Internal Rate (Academic / Student Dept)"}
-                      onChange={(e) => setPrintConfig({ ...printConfig, internalRateLabel: e.target.value })}
-                      placeholder="Description Label"
-                      className="p-2 bg-transparent border border-slate-200 rounded-lg text-xs font-medium text-slate-800 focus:outline-none focus:border-blue-600 focus:bg-white transition-all"
-                    />
-                    <input
-                      type="text"
-                      value={printConfig.internalRateValue !== undefined ? printConfig.internalRateValue : `₱${feeForm.internal_hourly} / hr`}
-                      onChange={(e) => setPrintConfig({ ...printConfig, internalRateValue: e.target.value })}
-                      placeholder="Rate Text"
-                      className="p-2 bg-transparent border border-slate-200 rounded-lg text-xs font-bold text-emerald-700 focus:outline-none focus:border-blue-600 focus:bg-white transition-all"
-                    />
-                  </div>
-                )}
-              </div>
+            <div className="space-y-3">
+              {renderRateItem(
+                "showInternalRate",
+                "Internal Academic / Dept Rate",
+                "Internal Rate (Academic / Student Dept)",
+                `₱${feeForm.internal_hourly} / hr`,
+                "internalRateLabel",
+                "internalRateValue"
+              )}
 
-              {/* External Hourly Rate */}
-              <div className="space-y-2 border-b border-slate-100 pb-3">
-                <label className="flex items-center gap-2 cursor-pointer select-none text-slate-800 text-xs font-bold hover:text-blue-600">
-                  <input
-                    type="checkbox"
-                    checked={printConfig.showExternalHourly}
-                    onChange={() => togglePrintOption("showExternalHourly")}
-                    className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
-                  />
-                  <span>External Hourly Rate</span>
-                </label>
-                {printConfig.showExternalHourly && (
-                  <div className="grid grid-cols-2 gap-2 pl-6">
-                    <input
-                      type="text"
-                      value={printConfig.externalHourlyLabel !== undefined ? printConfig.externalHourlyLabel : "External Hourly Rental Rate"}
-                      onChange={(e) => setPrintConfig({ ...printConfig, externalHourlyLabel: e.target.value })}
-                      placeholder="Description Label"
-                      className="p-2 bg-transparent border border-slate-200 rounded-lg text-xs font-medium text-slate-800 focus:outline-none focus:border-blue-600 focus:bg-white transition-all"
-                    />
-                    <input
-                      type="text"
-                      value={printConfig.externalHourlyValue !== undefined ? printConfig.externalHourlyValue : `₱${feeForm.external_hourly} / hr`}
-                      onChange={(e) => setPrintConfig({ ...printConfig, externalHourlyValue: e.target.value })}
-                      placeholder="Rate Text"
-                      className="p-2 bg-transparent border border-slate-200 rounded-lg text-xs font-bold text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white transition-all"
-                    />
-                  </div>
-                )}
-              </div>
+              {renderRateItem(
+                "showExternalHourly",
+                "External Hourly Rate",
+                "External Hourly Rental Rate",
+                `₱${feeForm.external_hourly} / hr`,
+                "externalHourlyLabel",
+                "externalHourlyValue"
+              )}
 
-              {/* External Daily Rate */}
-              <div className="space-y-2 border-b border-slate-100 pb-3">
-                <label className="flex items-center gap-2 cursor-pointer select-none text-slate-800 text-xs font-bold hover:text-blue-600">
-                  <input
-                    type="checkbox"
-                    checked={printConfig.showExternalDaily}
-                    onChange={() => togglePrintOption("showExternalDaily")}
-                    className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
-                  />
-                  <span>External Full Day Rate</span>
-                </label>
-                {printConfig.showExternalDaily && (
-                  <div className="grid grid-cols-2 gap-2 pl-6">
-                    <input
-                      type="text"
-                      value={printConfig.externalDailyLabel !== undefined ? printConfig.externalDailyLabel : "External Full Day Rate"}
-                      onChange={(e) => setPrintConfig({ ...printConfig, externalDailyLabel: e.target.value })}
-                      placeholder="Description Label"
-                      className="p-2 bg-transparent border border-slate-200 rounded-lg text-xs font-medium text-slate-800 focus:outline-none focus:border-blue-600 focus:bg-white transition-all"
-                    />
-                    <input
-                      type="text"
-                      value={printConfig.externalDailyValue !== undefined ? printConfig.externalDailyValue : `₱${feeForm.external_daily} / day`}
-                      onChange={(e) => setPrintConfig({ ...printConfig, externalDailyValue: e.target.value })}
-                      placeholder="Rate Text"
-                      className="p-2 bg-transparent border border-slate-200 rounded-lg text-xs font-bold text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white transition-all"
-                    />
-                  </div>
-                )}
-              </div>
+              {renderRateItem(
+                "showExternalDaily",
+                "External Full Day Rate",
+                "External Full Day Rate",
+                `₱${feeForm.external_daily} / day`,
+                "externalDailyLabel",
+                "externalDailyValue"
+              )}
 
-              {/* Cleaning Fee */}
-              <div className="space-y-2 border-b border-slate-100 pb-3">
-                <label className="flex items-center gap-2 cursor-pointer select-none text-slate-800 text-xs font-bold hover:text-blue-600">
-                  <input
-                    type="checkbox"
-                    checked={printConfig.showCleaningFee}
-                    onChange={() => togglePrintOption("showCleaningFee")}
-                    className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
-                  />
-                  <span>Facility Cleaning Fee</span>
-                </label>
-                {printConfig.showCleaningFee && (
-                  <div className="grid grid-cols-2 gap-2 pl-6">
-                    <input
-                      type="text"
-                      value={printConfig.cleaningFeeLabel !== undefined ? printConfig.cleaningFeeLabel : "Facility Cleaning Fee"}
-                      onChange={(e) => setPrintConfig({ ...printConfig, cleaningFeeLabel: e.target.value })}
-                      placeholder="Description Label"
-                      className="p-2 bg-transparent border border-slate-200 rounded-lg text-xs font-medium text-slate-800 focus:outline-none focus:border-blue-600 focus:bg-white transition-all"
-                    />
-                    <input
-                      type="text"
-                      value={printConfig.cleaningFeeValue !== undefined ? printConfig.cleaningFeeValue : `₱${feeForm.cleaning_fee}`}
-                      onChange={(e) => setPrintConfig({ ...printConfig, cleaningFeeValue: e.target.value })}
-                      placeholder="Rate Text"
-                      className="p-2 bg-transparent border border-slate-200 rounded-lg text-xs font-bold text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white transition-all"
-                    />
-                  </div>
-                )}
-              </div>
+              {renderRateItem(
+                "showCleaningFee",
+                "Facility Cleaning Fee",
+                "Facility Cleaning Fee",
+                `₱${feeForm.cleaning_fee}`,
+                "cleaningFeeLabel",
+                "cleaningFeeValue"
+              )}
 
-              {/* Sound System Setup Fee */}
-              <div className="space-y-2">
-                <label className="flex items-center gap-2 cursor-pointer select-none text-slate-800 text-xs font-bold hover:text-blue-600">
-                  <input
-                    type="checkbox"
-                    checked={printConfig.showSoundFee}
-                    onChange={() => togglePrintOption("showSoundFee")}
-                    className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
-                  />
-                  <span>Sound System Setup Fee</span>
-                </label>
-                {printConfig.showSoundFee && (
-                  <div className="grid grid-cols-2 gap-2 pl-6">
-                    <input
-                      type="text"
-                      value={printConfig.soundFeeLabel !== undefined ? printConfig.soundFeeLabel : "Sound System & Tech Setup Fee"}
-                      onChange={(e) => setPrintConfig({ ...printConfig, soundFeeLabel: e.target.value })}
-                      placeholder="Description Label"
-                      className="p-2 bg-transparent border border-slate-200 rounded-lg text-xs font-medium text-slate-800 focus:outline-none focus:border-blue-600 focus:bg-white transition-all"
-                    />
-                    <input
-                      type="text"
-                      value={printConfig.soundFeeValue !== undefined ? printConfig.soundFeeValue : `₱${feeForm.sound_system_fee}`}
-                      onChange={(e) => setPrintConfig({ ...printConfig, soundFeeValue: e.target.value })}
-                      placeholder="Rate Text"
-                      className="p-2 bg-transparent border border-slate-200 rounded-lg text-xs font-bold text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white transition-all"
-                    />
-                  </div>
-                )}
-              </div>
+              {renderRateItem(
+                "showSoundFee",
+                "Sound System Setup Fee",
+                "Sound System & Tech Setup Fee",
+                `₱${feeForm.sound_system_fee}`,
+                "soundFeeLabel",
+                "soundFeeValue"
+              )}
             </div>
           </div>
 
@@ -389,25 +363,35 @@ export default function FeeMatrixTab({ officeScope = "All Offices", showMsg }) {
             </h4>
 
             <div className="space-y-2.5">
-              <label className="flex items-center gap-2 cursor-pointer select-none text-slate-800 text-xs font-semibold hover:text-blue-600">
-                <input
-                  type="checkbox"
-                  checked={printConfig.showPolicy}
-                  onChange={() => togglePrintOption("showPolicy")}
-                  className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
-                />
-                <span>Include Venue Policy &amp; Terms Box</span>
-              </label>
+              <div className="flex items-center justify-between p-3.5 bg-white rounded-xl border border-slate-200 shadow-2xs">
+                <span className="text-xs font-bold text-slate-800">Include Venue Policy &amp; Terms Box</span>
+                <button
+                  type="button"
+                  onClick={() => togglePrintOption("showPolicy")}
+                  className={`px-3 py-1 rounded-lg text-xs font-extrabold border transition-all cursor-pointer ${
+                    printConfig.showPolicy
+                      ? "bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100"
+                      : "bg-slate-100 text-slate-400 border-slate-200 hover:bg-slate-200 hover:text-slate-600"
+                  }`}
+                >
+                  {printConfig.showPolicy ? "Enabled" : "Disabled"}
+                </button>
+              </div>
 
-              <label className="flex items-center gap-2 cursor-pointer select-none text-slate-800 text-xs font-semibold hover:text-blue-600">
-                <input
-                  type="checkbox"
-                  checked={printConfig.showSignatures}
-                  onChange={() => togglePrintOption("showSignatures")}
-                  className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
-                />
-                <span>Include Authorized Representative Signature Block</span>
-              </label>
+              <div className="flex items-center justify-between p-3.5 bg-white rounded-xl border border-slate-200 shadow-2xs">
+                <span className="text-xs font-bold text-slate-800">Include Authorized Representative Signature Block</span>
+                <button
+                  type="button"
+                  onClick={() => togglePrintOption("showSignatures")}
+                  className={`px-3 py-1 rounded-lg text-xs font-extrabold border transition-all cursor-pointer ${
+                    printConfig.showSignatures
+                      ? "bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100"
+                      : "bg-slate-100 text-slate-400 border-slate-200 hover:bg-slate-200 hover:text-slate-600"
+                  }`}
+                >
+                  {printConfig.showSignatures ? "Enabled" : "Disabled"}
+                </button>
+              </div>
             </div>
 
             <div className="space-y-3 pt-3 border-t border-slate-100">

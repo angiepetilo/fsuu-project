@@ -3,7 +3,7 @@ import { useOutletContext } from "react-router-dom";
 import api from "@/lib/axios";
 import { fetchWithCache } from "@/lib/apiCache";
 import {
-  Save, Loader2, CheckCircle2, Lock, Unlock,
+  Save, Loader2, CheckCircle2,
   Barcode, Copy, Check, MoreVertical, Eye,
   ChevronLeft, ChevronRight, Search, Filter
 } from "lucide-react";
@@ -28,16 +28,6 @@ export default function EquipmentStockTab({
   const [categoryPage, setCategoryPage] = useState(1);
   const CATEGORY_ITEMS_PER_PAGE = 10;
   const [inventoryDrafts, setInventoryDrafts] = useState({});
-  const [overrideRows, setOverrideRows] = useState(new Set());
-
-  const toggleOverride = (itemId) => {
-    setOverrideRows(prev => {
-      const next = new Set(prev);
-      if (next.has(itemId)) next.delete(itemId);
-      else next.add(itemId);
-      return next;
-    });
-  };
 
   useEffect(() => {
     setCategoryPage(1);
@@ -74,49 +64,7 @@ export default function EquipmentStockTab({
     }
   }, [filteredInventory]);
 
-  const handleReleasedChange = (key, delta) => {
-    setInventoryDrafts(prev => {
-      const currentVal = prev[key]?.qty_released ?? 0;
-      const newVal = Math.max(0, currentVal + delta);
-      return {
-        ...prev,
-        [key]: {
-          ...prev[key],
-          qty_released: newVal,
-        }
-      };
-    });
-  };
 
-  const handleDamagedChange = (key, delta) => {
-    setInventoryDrafts(prev => {
-      const currentVal = prev[key]?.qty_damaged ?? 0;
-      const newVal = Math.max(0, currentVal + delta);
-      return {
-        ...prev,
-        [key]: {
-          ...prev[key],
-          qty_damaged: newVal,
-          condition: newVal > 0 ? "Damaged" : (prev[key]?.condition === "Damaged" ? "Good" : (prev[key]?.condition || "Good")),
-        }
-      };
-    });
-  };
-
-  const handleLostChange = (key, delta) => {
-    setInventoryDrafts(prev => {
-      const currentVal = prev[key]?.qty_lost ?? 0;
-      const newVal = Math.max(0, currentVal + delta);
-      return {
-        ...prev,
-        [key]: {
-          ...prev[key],
-          qty_lost: newVal,
-          condition: newVal > 0 ? "Lost" : (prev[key]?.condition === "Lost" ? "Good" : (prev[key]?.condition || "Good")),
-        }
-      };
-    });
-  };
 
   const handleSubmitInventoryReport = async () => {
     setIsSubmitting(true);
@@ -342,9 +290,10 @@ export default function EquipmentStockTab({
           </div>
         )}
 
-        {/* Category Audit Table without NOTES column */}
+        {/* Category Audit Table with Mobile Responsive Card Grid */}
         <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
-          <div className="overflow-x-auto">
+          {/* Desktop View */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-xs">
               <thead>
                 <tr className="bg-slate-50/80 border-b border-slate-200 text-left text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
@@ -356,19 +305,18 @@ export default function EquipmentStockTab({
                   <th className="py-3 px-4 text-center">RESERVED (EVENTS)</th>
                   <th className="py-3 px-4 text-center">DAMAGED</th>
                   <th className="py-3 px-4 text-center">LOST</th>
-                  {!isStaff && <th className="py-3 px-4 text-center">OVERRIDE</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 font-semibold text-xs">
                 {loading ? (
                   <tr>
-                    <td colSpan={isStaff ? 8 : 9} className="text-center py-12 text-slate-400">
+                    <td colSpan={8} className="text-center py-12 text-slate-400">
                       <Loader2 size={20} className="animate-spin inline mr-2" /> Loading inventory items...
                     </td>
                   </tr>
                 ) : filteredInventory.length === 0 ? (
                   <tr>
-                    <td colSpan={isStaff ? 8 : 9} className="text-center py-12 text-slate-400">
+                    <td colSpan={8} className="text-center py-12 text-slate-400">
                       No inventory items registered yet.
                     </td>
                   </tr>
@@ -403,7 +351,7 @@ export default function EquipmentStockTab({
                     };
 
                     return (
-                      <tr key={key || idx} className={`transition-colors ${overrideRows.has(key) ? "bg-amber-50/40 border-l-2 border-amber-300" : "hover:bg-slate-50/60"}`}>
+                      <tr key={key || idx} className="hover:bg-slate-50/60 transition-colors">
                         <td className="py-3.5 px-4 font-mono font-bold text-slate-600 whitespace-nowrap">{itemCode}</td>
                         <td className="py-3.5 px-4 font-bold text-slate-900 max-w-[220px] truncate" title={categoryName}>{categoryName}</td>
                         <td className="py-3.5 px-4 text-center font-extrabold text-slate-900 text-sm">{expectedQty}</td>
@@ -414,19 +362,11 @@ export default function EquipmentStockTab({
 
                         {/* RELEASED */}
                         <td className="py-3.5 px-4 text-center">
-                          {overrideRows.has(key) ? (
-                            <div className="flex items-center justify-center gap-1.5">
-                              <button type="button" onClick={() => handleReleasedChange(key, -1)} className="w-5 h-5 rounded bg-blue-100 hover:bg-blue-200 text-blue-800 font-black text-xs flex items-center justify-center cursor-pointer border border-blue-300">-</button>
-                              <span className="font-extrabold text-sm min-w-[22px] text-center text-blue-700">{currentDraft.qty_released}</span>
-                              <button type="button" onClick={() => handleReleasedChange(key, 1)} className="w-5 h-5 rounded bg-blue-100 hover:bg-blue-200 text-blue-800 font-black text-xs flex items-center justify-center cursor-pointer border border-blue-300">+</button>
-                            </div>
-                          ) : (
-                            <span className={`inline-flex items-center justify-center min-w-[32px] px-2.5 py-0.5 rounded-full text-xs font-extrabold border ${
-                              currentDraft.qty_released > 0
-                                ? "bg-blue-50 text-blue-700 border-blue-200"
-                                : "bg-slate-50 text-slate-400 border-slate-200"
-                            }`}>{currentDraft.qty_released}</span>
-                          )}
+                          <span className={`inline-flex items-center justify-center min-w-[32px] px-2.5 py-0.5 rounded-full text-xs font-extrabold border ${
+                            currentDraft.qty_released > 0
+                              ? "bg-blue-50 text-blue-700 border-blue-200"
+                              : "bg-slate-50 text-slate-400 border-slate-200"
+                          }`}>{currentDraft.qty_released}</span>
                         </td>
 
                         {/* RESERVED */}
@@ -442,65 +382,90 @@ export default function EquipmentStockTab({
 
                         {/* DAMAGED */}
                         <td className="py-3.5 px-4 text-center">
-                          {overrideRows.has(key) ? (
-                            <div className="flex items-center justify-center gap-1.5">
-                              <button type="button" onClick={() => handleDamagedChange(key, -1)} className="w-5 h-5 rounded bg-rose-100 hover:bg-rose-200 text-rose-700 font-black text-xs flex items-center justify-center cursor-pointer border border-rose-300">-</button>
-                              <span className="font-extrabold text-sm min-w-[22px] text-center text-rose-600">{currentDraft.qty_damaged}</span>
-                              <button type="button" onClick={() => handleDamagedChange(key, 1)} className="w-5 h-5 rounded bg-rose-100 hover:bg-rose-200 text-rose-700 font-black text-xs flex items-center justify-center cursor-pointer border border-rose-300">+</button>
-                            </div>
-                          ) : (
-                            <span className={`inline-flex items-center justify-center min-w-[32px] px-2.5 py-0.5 rounded-full text-xs font-extrabold border ${
-                              currentDraft.qty_damaged > 0
-                                ? "bg-rose-50 text-rose-700 border-rose-200"
-                                : "bg-slate-50 text-slate-400 border-slate-200"
-                            }`}>{currentDraft.qty_damaged}</span>
-                          )}
+                          <span className={`inline-flex items-center justify-center min-w-[32px] px-2.5 py-0.5 rounded-full text-xs font-extrabold border ${
+                            currentDraft.qty_damaged > 0
+                              ? "bg-rose-50 text-rose-700 border-rose-200"
+                              : "bg-slate-50 text-slate-400 border-slate-200"
+                          }`}>{currentDraft.qty_damaged}</span>
                         </td>
 
                         {/* LOST */}
                         <td className="py-3.5 px-4 text-center">
-                          {overrideRows.has(key) ? (
-                            <div className="flex items-center justify-center gap-1.5">
-                              <button type="button" onClick={() => handleLostChange(key, -1)} className="w-5 h-5 rounded bg-amber-100 hover:bg-amber-200 text-amber-800 font-black text-xs flex items-center justify-center cursor-pointer border border-amber-300">-</button>
-                              <span className="font-extrabold text-sm min-w-[22px] text-center text-amber-700">{currentDraft.qty_lost}</span>
-                              <button type="button" onClick={() => handleLostChange(key, 1)} className="w-5 h-5 rounded bg-amber-100 hover:bg-amber-200 text-amber-800 font-black text-xs flex items-center justify-center cursor-pointer border border-amber-300">+</button>
-                            </div>
-                          ) : (
-                            <span className={`inline-flex items-center justify-center min-w-[32px] px-2.5 py-0.5 rounded-full text-xs font-extrabold border ${
-                              currentDraft.qty_lost > 0
-                                ? "bg-amber-50 text-amber-700 border-amber-200"
-                                : "bg-slate-50 text-slate-400 border-slate-200"
-                            }`}>{currentDraft.qty_lost}</span>
-                          )}
+                          <span className={`inline-flex items-center justify-center min-w-[32px] px-2.5 py-0.5 rounded-full text-xs font-extrabold border ${
+                            currentDraft.qty_lost > 0
+                              ? "bg-amber-50 text-amber-700 border-amber-200"
+                              : "bg-slate-50 text-slate-400 border-slate-200"
+                          }`}>{currentDraft.qty_lost}</span>
                         </td>
-
-                        {/* OVERRIDE */}
-                        {!isStaff && (
-                          <td className="py-3.5 px-4 text-center">
-                            <button
-                              type="button"
-                              onClick={() => toggleOverride(key)}
-                              title={overrideRows.has(key) ? "Lock — return to auto-calculated view" : "Override — unlock for manual reconciliation / audit correction"}
-                              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-extrabold border transition-all cursor-pointer ${
-                                overrideRows.has(key)
-                                  ? "bg-amber-50 text-amber-700 border-amber-300 hover:bg-amber-100"
-                                  : "bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100 hover:text-slate-700"
-                              }`}
-                            >
-                              {overrideRows.has(key) ? (
-                                <><Lock size={11} /> Lock</>  
-                              ) : (
-                                <><Unlock size={11} /> Override</>  
-                              )}
-                            </button>
-                          </td>
-                        )}
                       </tr>
                     );
                   })
                 )}
               </tbody>
             </table>
+          </div>
+
+          {/* Mobile Card Grid View (< 768px) */}
+          <div className="block md:hidden divide-y divide-slate-100">
+            {loading ? (
+              <div className="p-8 text-center text-slate-400 text-xs">
+                <Loader2 size={18} className="animate-spin inline mr-2" /> Loading inventory items...
+              </div>
+            ) : filteredInventory.length === 0 ? (
+              <div className="p-8 text-center text-slate-400 text-xs">
+                No inventory items registered yet.
+              </div>
+            ) : (
+              paginatedInventory.map((item, idx) => {
+                const itemCode = `EQ-00${startCategoryIndex + idx + 1}`;
+                const categoryName = item.eq_name || item.name || item.category || "General";
+                const expectedQty = Math.max(0, typeof item.total_quantity === 'number' ? item.total_quantity : 0);
+                const available = typeof item.available_count === 'number' ? item.available_count : expectedQty;
+                const released = item.released_count || 0;
+                const reserved = item.reserved_count || 0;
+                const damaged = item.damaged_count || 0;
+                const lost = item.lost_count || 0;
+
+                return (
+                  <div key={`mob-stock-${item.id || idx}`} className="p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono text-xs font-bold text-slate-500">{itemCode}</span>
+                      <span className="font-extrabold text-sm text-slate-900">{categoryName}</span>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                      <div className="p-2 rounded-xl bg-slate-50 border border-slate-100">
+                        <span className="block text-[10px] text-slate-400 font-bold uppercase">Expected</span>
+                        <span className="font-extrabold text-slate-900">{expectedQty}</span>
+                      </div>
+                      <div className="p-2 rounded-xl bg-emerald-50 border border-emerald-100">
+                        <span className="block text-[10px] text-emerald-600 font-bold uppercase">Present</span>
+                        <span className="font-extrabold text-emerald-700">{available}</span>
+                      </div>
+                      <div className="p-2 rounded-xl bg-blue-50 border border-blue-100">
+                        <span className="block text-[10px] text-blue-600 font-bold uppercase">Released</span>
+                        <span className="font-extrabold text-blue-700">{released}</span>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                      <div className="p-2 rounded-xl bg-amber-50 border border-amber-100">
+                        <span className="block text-[10px] text-amber-700 font-bold uppercase">Reserved</span>
+                        <span className="font-extrabold text-amber-800">{reserved}</span>
+                      </div>
+                      <div className="p-2 rounded-xl bg-rose-50 border border-rose-100">
+                        <span className="block text-[10px] text-rose-600 font-bold uppercase">Damaged</span>
+                        <span className="font-extrabold text-rose-700">{damaged}</span>
+                      </div>
+                      <div className="p-2 rounded-xl bg-slate-50 border border-slate-100">
+                        <span className="block text-[10px] text-slate-500 font-bold uppercase">Lost</span>
+                        <span className="font-extrabold text-slate-700">{lost}</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
 
           {/* Pagination Footer */}

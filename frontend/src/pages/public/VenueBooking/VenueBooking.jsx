@@ -222,7 +222,12 @@ export default function VenueBooking() {
     // Hard block if conflicting booking exists
     const targetEndDate = selectedEndDate && selectedEndDate >= selectedDate ? selectedEndDate : selectedDate;
     const vName = (selectedVenue.name || "").toLowerCase();
+    const INACTIVE = ["completed", "done", "returned", "rejected", "cancelled", "cancelled_by_user", "cancelled_by_admin", "solved", "damaged", "lost"];
     const conflict = existingBookings.find(b => {
+      // Completed/done bookings free up the slot \u2014 skip them
+      const bStatus = String(b.status || b.tracking_number?.status || "").toLowerCase();
+      if (INACTIVE.includes(bStatus)) return false;
+
       const bVenueName = (b.venue?.name || b.venue_name || "").toLowerCase();
       const matchVenue = String(b.venue_id) === String(selectedVenue.id) ||
         (bVenueName && (bVenueName.includes(vName) || vName.includes(bVenueName)));
@@ -362,12 +367,14 @@ export default function VenueBooking() {
         venue_id: selectedVenue?.id,
       };
 
-      // Format selected equipment with requested quantities
+      // Format selected equipment with requested quantities and resolved category names
       const equipFormatted = Object.entries(avrEquipment)
         .filter(([_, val]) => Boolean(val))
         .map(([key, val]) => {
           const qty = typeof val === 'number' ? val : 1;
-          return `${key} (Qty: ${qty})`;
+          const found = (equipmentCatalog || []).find(c => String(c.id) === String(key) || String(c.eq_name || c.name).toLowerCase() === String(key).toLowerCase());
+          const catName = found?.eq_name || found?.name || found?.category || key;
+          return `${catName} (Qty: ${qty})`;
         })
         .join(', ');
       payload.equipment_notes = equipFormatted;
@@ -383,6 +390,8 @@ export default function VenueBooking() {
       endpoint = '/public/avr-venue-bookings';
       payload.booking_classification = classification || 'academic';
       payload.number_of_persons = parseInt(persons, 10) || 1;
+      payload.is_pin_verified = isPinVerified ? 1 : 0;
+      payload.pin_override = isPinVerified ? 1 : 0;
 
       const formData = new FormData();
       Object.keys(payload).forEach(key => {
@@ -530,10 +539,9 @@ export default function VenueBooking() {
           if (activeStep === 1) {
             if (!completedSteps.includes(1)) setCompletedSteps((prev) => [...prev, 1]);
             setActiveStep(2);
-          } else if (activeStep === 2) {
-            if (!completedSteps.includes(2)) setCompletedSteps((prev) => [...prev, 2]);
-            setActiveStep(3);
           }
+          // Note: When on Step 2 (Select Venue), verifying PIN marks it as verified but does NOT auto-advance.
+          // The user must explicitly click the "Next: Fill Details" button to proceed.
         }}
         title={pinModalMeta.title}
         description={pinModalMeta.description}

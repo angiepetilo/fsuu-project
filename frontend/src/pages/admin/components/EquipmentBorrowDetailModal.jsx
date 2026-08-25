@@ -177,6 +177,16 @@ export default function EquipmentBorrowDetailModal({
       setAssignedUnitSelections(savedUnits);
 
       // Auto-detect late return by comparing scheduled end time against current time
+      // Reset inspection states to clean blank defaults for new records
+      setPreViolationNotes("");
+      setViolationNotes("");
+      setPreInspectionStatus("clean");
+      setInspectionStatus("clean");
+      setPreUnitReturnedConditions({});
+      setUnitReturnedConditions({});
+      setPreEvidencePhoto([]);
+      setEvidencePhoto([]);
+
       const dateUsage = selected.date_of_usage || (selected.start_datetime ? selected.start_datetime.slice(0, 10) : null);
       const timeEnd = selected.time_end || (selected.end_datetime ? selected.end_datetime.slice(11, 16) : null);
       if (dateUsage && timeEnd) {
@@ -356,10 +366,20 @@ export default function EquipmentBorrowDetailModal({
     return `${(parts[0] || "00").padStart(2, "0")}:${(parts[1] || "00").padStart(2, "0")}:${(parts[2] || "00").padStart(2, "0")}`;
   };
 
+  const cleanDateStr = (val) => {
+    if (!val) return null;
+    const s = String(val).trim();
+    if (s.includes("T")) return s.split("T")[0];
+    if (s.includes(" ")) return s.split(" ")[0];
+    return s.slice(0, 10);
+  };
+
   const getBookingRange = (b) => {
     if (!b) return null;
-    const startD = b.date_of_usage || (b.start_datetime ? b.start_datetime.slice(0, 10) : null) || b.date;
-    const endD = b.reservation_end_date || b.end_date || (b.end_datetime ? b.end_datetime.slice(0, 10) : null) || startD;
+    const rawStartD = b.date_of_usage || b.start_datetime || b.date;
+    const startD = cleanDateStr(rawStartD);
+    const rawEndD = b.reservation_end_date || b.end_date || b.end_datetime || rawStartD;
+    const endD = cleanDateStr(rawEndD) || startD;
     const startT = normalizeTimeTo24h(b.time_start || (b.start_datetime ? b.start_datetime.slice(11, 19) : null) || "08:00:00");
     const endT = normalizeTimeTo24h(b.time_end || (b.end_datetime ? b.end_datetime.slice(11, 19) : null) || "17:00:00");
     if (!startD) return null;
@@ -384,16 +404,28 @@ export default function EquipmentBorrowDetailModal({
     const reserved = new Set();
     const inactiveStatuses = ["completed", "done", "returned", "rejected", "cancelled", "cancelled_by_user", "damaged", "lost", "solved"];
 
+    const extractBarcodes = (au) => {
+      if (!au) return;
+      if (typeof au === "string") {
+        try { au = JSON.parse(au); } catch { au = {}; }
+      }
+      if (Array.isArray(au)) {
+        au.forEach((bCode) => { if (bCode) reserved.add(String(bCode).trim().toUpperCase()); });
+      } else if (au && typeof au === "object") {
+        Object.values(au).forEach((bCode) => { if (bCode) reserved.add(String(bCode).trim().toUpperCase()); });
+      }
+    };
+
     allVenueBookings.forEach((vb) => {
       const st = String(vb.status || vb.tracking_number?.status || "").toLowerCase();
       if (inactiveStatuses.includes(st)) return;
       const vbRange = getBookingRange(vb);
       if (isScheduleConflicting(selectedRange, vbRange)) {
-        let au = vb.assigned_units;
-        if (typeof au === "string") { try { au = JSON.parse(au); } catch { au = {}; } }
-        if (au && typeof au === "object") {
-          Object.values(au).forEach((bCode) => { if (bCode) reserved.add(String(bCode).trim().toUpperCase()); });
-        }
+        extractBarcodes(vb.assigned_units);
+        try {
+          const loc = localStorage.getItem(`fsuu_assigned_units_vb_${vb.id}`) || localStorage.getItem(`fsuu_assigned_units_${vb.id}`);
+          if (loc) extractBarcodes(loc);
+        } catch {}
       }
     });
 
@@ -403,11 +435,11 @@ export default function EquipmentBorrowDetailModal({
       if (inactiveStatuses.includes(st)) return;
       const ebRange = getBookingRange(eb);
       if (isScheduleConflicting(selectedRange, ebRange)) {
-        let au = eb.assigned_units;
-        if (typeof au === "string") { try { au = JSON.parse(au); } catch { au = {}; } }
-        if (au && typeof au === "object") {
-          Object.values(au).forEach((bCode) => { if (bCode) reserved.add(String(bCode).trim().toUpperCase()); });
-        }
+        extractBarcodes(eb.assigned_units);
+        try {
+          const loc = localStorage.getItem(`fsuu_assigned_units_eb_${eb.id}`);
+          if (loc) extractBarcodes(loc);
+        } catch {}
       }
     });
 
@@ -584,18 +616,29 @@ export default function EquipmentBorrowDetailModal({
     const inspectionType = typeOverride || (isPostUseEligible ? "post_use" : "pre_use");
     const isPreUse = inspectionType === "pre_use";
 
+    // 1. Persist assigned physical unit barcodes directly to borrowing record in DB & local cache
+    if (selected && selected.id && assignedUnitSelections) {
+      try {
+        localStorage.setItem(`fsuu_assigned_units_eb_${selected.id}`, JSON.stringify(assignedUnitSelections));
+        await api.put(`/avr-equipment-borrowings/${selected.id}/assign-units`, { assigned_units: assignedUnitSelections }).catch(() => {});
+      } catch {}
+    }
+
     // Normalize unit_conditions: ensure keys are actual barcodes/unit_codes, not positional indexes.
-    // This guarantees the data can be matched correctly when loading the record again.
+    // This guarantees the data can be matched correctly when loading the record again,
+    // and prevents double-counting (e.g. storing both "0-0" and "2849482" for the same unit).
     const rawConditions = isPreUse ? preUnitReturnedConditions : unitReturnedConditions;
     const normalizedConditions = {};
     Object.entries(rawConditions || {}).forEach(([key, condVal]) => {
-      // If key is a positional index like "0-0" or "PROJECTOR-0", resolve to barcode
+      // If key is a positional index like "0-0", resolve to barcode and use ONLY the barcode key
       const barcode = assignedUnitSelections[key];
       if (barcode) {
+        // Store under barcode key only — skip the positional key to avoid double-counting
         normalizedConditions[barcode] = condVal;
+      } else {
+        // Key is already a barcode/non-positional key — keep it
+        normalizedConditions[key] = condVal;
       }
-      // Always keep the original key too (covers barcode keys already)
-      normalizedConditions[key] = condVal;
     });
 
     const payload = {

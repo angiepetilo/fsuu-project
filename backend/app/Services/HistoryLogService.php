@@ -22,6 +22,13 @@ class HistoryLogService
                          $q->where('inspections.inspectable_type', 'like', '%VenueBooking%')
                            ->orWhere('inspections.inspectable_type', 'avr_venue_booking')
                            ->orWhere('inspections.inspectable_type', 'venue_booking');
+                     })
+                     // Only pick the final post-event inspection (not pre_event) to avoid
+                     // double-counting unit_conditions from both pre & post inspections
+                     ->where(function ($q) {
+                         $q->where('inspections.inspection_type', 'post_event')
+                           ->orWhere('inspections.inspection_type', 'post_use')
+                           ->orWhereNull('inspections.inspection_type');
                      });
             })
             ->leftJoin('documents', function ($join) {
@@ -63,6 +70,9 @@ class HistoryLogService
                 'venue_bookings.created_at',
                 'venue_bookings.updated_at'
             )
+            // Order by inspections.id desc so the most recent inspection (post_event) takes priority
+            // when unique('id') deduplicates venue_bookings rows
+            ->orderByDesc('inspections.id')
             ->orderByDesc('venue_bookings.created_at');
 
         return $vbQuery->get()

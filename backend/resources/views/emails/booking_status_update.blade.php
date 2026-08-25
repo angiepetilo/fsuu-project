@@ -25,7 +25,7 @@
 <p>Reminder: Please ensure you arrive at least 15 minutes before your scheduled start time.</p>
 <p>Good day, {{ $requestorName }}.</p>
 <p>Your {{ $itemType }} (Reference: {{ $ref }}) has been approved!<br>
-Scheduled date: {{ $formattedStart }} to {{ $formattedEnd }}.</p>
+Scheduled date: {{ $formattedSchedule ?? ($formattedStart ?? 'Scheduled Time') }}.</p>
 @elseif(($status ?? '') === 'rejected')
 <p>Good day, {{ $requestorName }}.</p>
 <p>Your {{ $itemType }} (Reference: {{ $ref }}) was not approved.<br>

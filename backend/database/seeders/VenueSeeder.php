@@ -36,11 +36,12 @@ class VenueSeeder extends Seeder
                     'name' => $v['name'],
                 ],
                 [
-                    'capacity'    => $v['capacity'],
-                    'location'    => $v['location'],
-                    'status'      => $v['status'],
-                    'avatar'      => null,
-                    'archived_at' => null,
+                    'capacity'          => $v['capacity'],
+                    'location'          => $v['location'],
+                    'status'            => $v['status'],
+                    'allowed_equipment' => null,
+                    'avatar'            => null,
+                    'archived_at'       => null,
                 ]
             );
         }

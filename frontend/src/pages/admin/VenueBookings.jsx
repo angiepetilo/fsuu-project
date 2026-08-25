@@ -1,15 +1,16 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, lazy, Suspense } from "react";
 import { useOutletContext, useLocation } from "react-router-dom";
 import api from "@/lib/axios";
 import notify from "@/lib/notify";
 import {
   Loader2, RefreshCw, AlertCircle, Eye, Building2, ChevronLeft, ChevronRight
 } from "lucide-react";
-import VenueBookingDetailModal from "./components/VenueBookingDetailModal";
 import { PageLoader } from "@/components/ui/page-loader";
 import { StatusBadge, OverdueBadge } from "@/components/ui/status-badge";
 import { formatDate, formatTime, formatTimeRange } from "@/lib/dateUtils";
 import { getOverdueMinutes } from "@/lib/dateTimeUtils";
+
+const VenueBookingDetailModal = lazy(() => import("./components/VenueBookingDetailModal"));
 
 export default function VenueBookings() {
   const context = useOutletContext();
@@ -245,9 +246,9 @@ export default function VenueBookings() {
                   const timeRange = formatTimeRange(b.time_start, b.time_end);
                   const currentStatus = b.status || b.tracking_number?.status || "pending";
                   const displayIndex = startIndex + idx + 1;
-                  const isActive = !["completed", "rejected", "cancelled", "damaged", "lost"].includes(currentStatus.toLowerCase());
+                  const isOngoingOrInSession = ["ongoing", "on-going", "in_use", "in-use", "approved"].includes(currentStatus.toLowerCase());
                   const scheduledEndDate = b.reservation_end_date || b.date_of_usage || b.start_datetime;
-                  const overdueMins = isActive ? getOverdueMinutes(scheduledEndDate, b.time_end) : 0;
+                  const overdueMins = isOngoingOrInSession ? getOverdueMinutes(scheduledEndDate, b.time_end) : 0;
 
                   return (
                     <tr key={`vb-row-${b.id}`} className="hover:bg-slate-50/60 transition-colors">
@@ -305,9 +306,9 @@ export default function VenueBookings() {
                 : formatDate(b.date_of_usage || b.start_datetime);
               const timeRange = formatTimeRange(b.time_start, b.time_end);
               const currentStatus = b.status || b.tracking_number?.status || "pending";
-              const isActive = !["completed", "rejected", "cancelled", "damaged", "lost"].includes(currentStatus.toLowerCase());
+              const isOngoingOrInSession = ["ongoing", "on-going", "in_use", "in-use", "approved"].includes(currentStatus.toLowerCase());
               const scheduledEndDate = b.reservation_end_date || b.date_of_usage || b.start_datetime;
-              const overdueMins = isActive ? getOverdueMinutes(scheduledEndDate, b.time_end) : 0;
+              const overdueMins = isOngoingOrInSession ? getOverdueMinutes(scheduledEndDate, b.time_end) : 0;
 
               return (
                 <div key={`vb-card-${b.id}`} className="p-4 space-y-3 bg-white hover:bg-slate-50/50 transition-colors">
@@ -381,29 +382,31 @@ export default function VenueBookings() {
       </div>
 
       {/* Modal - Items 13, 14 & Item 35 (Clean White Header) */}
-      <VenueBookingDetailModal
-        selected={selected}
-        setSelected={setSelected}
-        formatDate={formatDate}
-        formatTimeRange={formatTimeRange}
-        feedbackMessage={feedbackMessage}
-        showRejectForm={showRejectForm}
-        setShowRejectForm={setShowRejectForm}
-        rejectionComments={rejectionComments}
-        setRejectionComments={setRejectionComments}
-        handleAction={handleAction}
-        actionLoading={actionLoading}
-        inspectionStatus={inspectionStatus}
-        setInspectionStatus={setInspectionStatus}
-        violationNotes={violationNotes}
-        setViolationNotes={setViolationNotes}
-        evidencePhoto={evidencePhoto}
-        setEvidencePhoto={setEvidencePhoto}
-        showNotifyModal={showNotifyModal}
-        setShowNotifyModal={setShowNotifyModal}
-        notifyReason={notifyReason}
-        setNotifyReason={setNotifyReason}
-      />
+      <Suspense fallback={null}>
+        <VenueBookingDetailModal
+          selected={selected}
+          setSelected={setSelected}
+          formatDate={formatDate}
+          formatTimeRange={formatTimeRange}
+          feedbackMessage={feedbackMessage}
+          showRejectForm={showRejectForm}
+          setShowRejectForm={setShowRejectForm}
+          rejectionComments={rejectionComments}
+          setRejectionComments={setRejectionComments}
+          handleAction={handleAction}
+          actionLoading={actionLoading}
+          inspectionStatus={inspectionStatus}
+          setInspectionStatus={setInspectionStatus}
+          violationNotes={violationNotes}
+          setViolationNotes={setViolationNotes}
+          evidencePhoto={evidencePhoto}
+          setEvidencePhoto={setEvidencePhoto}
+          showNotifyModal={showNotifyModal}
+          setShowNotifyModal={setShowNotifyModal}
+          notifyReason={notifyReason}
+          setNotifyReason={setNotifyReason}
+        />
+      </Suspense>
     </div>
   );
 }

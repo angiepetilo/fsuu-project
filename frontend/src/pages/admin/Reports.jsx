@@ -22,14 +22,10 @@ export default function Reports() {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const getInitialTab = () => {
-    const validTabs = isStaff ? ["inventory"] : ["booking_borrowing", "breaches", "inventory"];
+    const validTabs = ["booking_borrowing", "breaches", "inventory"];
     const urlTab = searchParams.get("tab");
     if (urlTab && validTabs.includes(urlTab)) return urlTab;
-    try {
-      const savedTab = localStorage.getItem("fsuu_reports_active_tab");
-      if (savedTab && validTabs.includes(savedTab)) return savedTab;
-    } catch {}
-    return isStaff ? "inventory" : "booking_borrowing";
+    return "booking_borrowing";
   };
 
   const [activeTab, setActiveTab] = useState(getInitialTab);

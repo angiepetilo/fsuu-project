@@ -27,8 +27,7 @@
     $ref = $refCode ?? ($booking->reference_code ?? ($booking->trackingNumber?->reference_code ?? 'TRK-FSUU'));
     $venueName = $booking->venue?->name ?? 'AVR Facility';
     $venueLocation = $booking->venue?->location ?? 'Main Campus';
-    $start = $formattedStart ?? ($booking->time_start ?? 'Start Time');
-    $end = $formattedEnd ?? ($booking->time_end ?? 'End Time');
+    $sched = $formattedSchedule ?? ($formattedStart ?? ($start . ' to ' . $end));
     $purpose = $booking->purpose ?? 'University Event';
     $persons = $booking->no_of_person ?? ($booking->number_of_persons ?? 'N/A');
     $baseUrl = rtrim(config('app.frontend_url') ?: env('FRONTEND_URL', 'https://fsuu-project.vercel.app'), '/');
@@ -52,7 +51,7 @@
     <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
       <tr>
         <td style="padding: 4px 0; color: #475569; font-weight: bold; width: 40%;">Schedule:</td>
-        <td style="padding: 4px 0; color: #0f172a; font-weight: 600;">{{ $start }} to {{ $end }}</td>
+        <td style="padding: 4px 0; color: #0f172a; font-weight: 600;">{{ $sched }}</td>
       </tr>
       <tr>
         <td style="padding: 4px 0; color: #475569; font-weight: bold;">Purpose:</td>
@@ -82,7 +81,7 @@
       </tr>
       <tr>
         <td style="padding: 4px 0; color: #475569; font-weight: bold;">Schedule:</td>
-        <td style="padding: 4px 0; color: #0f172a; font-weight: 600;">{{ $start }} to {{ $end }}</td>
+        <td style="padding: 4px 0; color: #0f172a; font-weight: 600;">{{ $sched }}</td>
       </tr>
       <tr>
         <td style="padding: 4px 0; color: #475569; font-weight: bold;">Purpose:</td>
@@ -101,7 +100,7 @@
   </p>
 @elseif($mode === 'reminder')
   <p>Good day, <strong>{{ $requestorName }}</strong>.</p>
-  <p>This is a friendly reminder that your venue reservation for <strong>{{ $venueName }}</strong> (Reference: <strong>{{ $ref }}</strong>) is scheduled for today from <strong>{{ $start }} to {{ $end }}</strong>.</p>
+  <p>This is a friendly reminder that your venue reservation for <strong>{{ $venueName }}</strong> (Reference: <strong>{{ $ref }}</strong>) is scheduled for <strong>{{ $sched }}</strong>.</p>
   <p><em>Reminder: Please ensure you arrive at least 15 minutes before your scheduled start time.</em></p>
 @else
   <p>Good day, <strong>{{ $requestorName }}</strong>.</p>
@@ -120,7 +119,7 @@
       </tr>
       <tr>
         <td style="padding: 4px 0; color: #475569; font-weight: bold;">Reserved Schedule:</td>
-        <td style="padding: 4px 0; color: #0f172a; font-weight: 600;">{{ $start }} to {{ $end }}</td>
+        <td style="padding: 4px 0; color: #0f172a; font-weight: 600;">{{ $sched }}</td>
       </tr>
       <tr>
         <td style="padding: 4px 0; color: #475569; font-weight: bold;">Purpose:</td>

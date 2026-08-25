@@ -22,8 +22,8 @@ export default function EquipBorrowHeader({
   isApproved,
 }) {
   const currentRawStatus = (currentStatus || selected?.status || selected?.tracking_number?.status || "").toLowerCase();
-  const isActive = !["completed", "rejected", "cancelled", "damaged", "lost"].includes(currentRawStatus);
-  const overdueMins = isActive ? getOverdueMinutes(selected?.date_of_usage || selected?.start_datetime, selected?.time_end || selected?.end_datetime) : 0;
+  const isReleasedOrOngoing = ["ongoing", "on-going", "released", "in_use", "in-use", "borrowed"].includes(currentRawStatus);
+  const overdueMins = isReleasedOrOngoing ? getOverdueMinutes(selected?.date_of_usage || selected?.start_datetime, selected?.time_end || selected?.end_datetime) : 0;
 
   return (
     <div className="px-6 py-4 bg-white border-b border-slate-200 shrink-0">

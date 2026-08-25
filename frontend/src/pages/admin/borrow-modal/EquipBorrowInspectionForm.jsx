@@ -88,7 +88,7 @@ export default function EquipBorrowInspectionForm({
       {/* Global Status Banner for After Inspection */}
       {!isPreRelease && (
         <div className="space-y-2">
-          {delayMins > 0 && (
+          {delayMins > 0 && !readOnly && (
             <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold">
               <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse shrink-0" />
               <span>

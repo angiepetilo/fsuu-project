@@ -16,17 +16,10 @@ class EquipmentTypeController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        $query = EquipmentType::with([
-            'units' => function ($q) {
-                $q->whereNull('archived_at');
-            }
-        ]);
+        $types = EquipmentType::latest()->get();
+        $formatted = $this->categoryService->formatBatchCategoriesResponse($types);
 
-        $types = $query->latest()->get()->map(
-            fn(EquipmentType $e) => $this->categoryService->formatCategoryResponse($e)
-        );
-
-        return response()->json($types);
+        return response()->json($formatted);
     }
 
     public function show($id): JsonResponse

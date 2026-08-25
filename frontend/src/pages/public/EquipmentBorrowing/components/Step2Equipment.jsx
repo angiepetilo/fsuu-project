@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Check, PackageOpen, ChevronLeft, ChevronRight, XCircle, Clock, CalendarDays, AlertTriangle, Search } from "lucide-react";
+import { Check, PackageOpen, ChevronLeft, ChevronRight, XCircle, Clock, CalendarDays, AlertTriangle, Search, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import api from "@/lib/axios";
 import { getTodayISO, isPastTimeToday, isPastDateTime } from "@/lib/dateTimeUtils";
@@ -162,10 +162,21 @@ export default function Step2Equipment({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8">
         {/* Left Column: Equipment Catalog (2x2 Grid) */}
         <div className="lg:col-span-7 sm:col-span-12 space-y-4">
-          {catalogList.length === 0 ? (
+          {catalogLoading && (filteredCatalog || []).length === 0 ? (
+            <div className="p-12 text-center bg-white rounded-3xl border border-slate-200/80 space-y-3">
+              <Loader2 size={32} className="mx-auto text-blue-600 animate-spin" />
+              <p className="text-xs font-bold text-slate-700">Loading equipment inventory...</p>
+              <p className="text-[11px] text-slate-400">Fetching live stock availability</p>
+            </div>
+          ) : catalogList.length === 0 ? (
             <div className="p-8 text-center bg-white rounded-3xl border border-slate-200/80">
-              <p className="text-xs font-bold text-slate-700">No equipment found matching your search</p>
-              <p className="text-[11px] text-slate-400 mt-0.5">Try searching with another category or name</p>
+              <PackageOpen size={32} className="mx-auto text-slate-300 mb-2" />
+              <p className="text-xs font-bold text-slate-700">
+                {(filteredCatalog || []).length === 0 ? "No equipment categories registered yet" : "No equipment found matching your search"}
+              </p>
+              <p className="text-[11px] text-slate-400 mt-0.5">
+                {(filteredCatalog || []).length === 0 ? "Please check back later or contact the PMO/AVR office." : "Try searching with another category or name"}
+              </p>
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">

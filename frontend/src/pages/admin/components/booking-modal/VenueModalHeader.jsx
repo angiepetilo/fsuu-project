@@ -13,10 +13,10 @@ export default function VenueModalHeader({
   setShowRejectForm,
   formatDateTimeFiled,
 }) {
-  const currentRawStatus = (selected?.status || selected?.tracking_number?.status || "").toLowerCase();
-  const isActive = !["completed", "rejected", "cancelled", "damaged", "lost"].includes(currentRawStatus);
+  const currentRawStatus = (displayStatus || selected?.status || selected?.tracking_number?.status || "").toLowerCase();
+  const isOngoingOrInSession = ["ongoing", "on-going", "in_use", "in-use", "approved"].includes(currentRawStatus);
   const scheduledEndDate = selected?.reservation_end_date || selected?.date_of_usage || selected?.start_datetime;
-  const overdueMins = isActive ? getOverdueMinutes(scheduledEndDate, selected?.time_end || selected?.end_datetime) : 0;
+  const overdueMins = isOngoingOrInSession ? getOverdueMinutes(scheduledEndDate, selected?.time_end || selected?.end_datetime) : 0;
 
   return (
     <div className="px-6 py-4 bg-white border-b border-slate-200 shrink-0">
