@@ -97,13 +97,13 @@ class InspectionService
         if (!empty($barcodes) && empty($unitConditions)) {
             if ($overallCondition === 'good') {
                 \App\Models\EquipmentUnit::where(function ($q) use ($barcodes) {
-                    $q->whereIn('unit_code', $barcodes)->orWhereIn('name', $barcodes);
+                    $q->whereIn('unit_code', $barcodes)->orWhereIn('id', $barcodes);
                 })->update(['status' => 'available', 'condition' => 'Good']);
             } else {
                 $status = $overallCondition === 'lost' ? 'lost' : 'damaged';
                 $cond = $overallCondition === 'lost' ? 'Lost' : 'Damaged';
                 \App\Models\EquipmentUnit::where(function ($q) use ($barcodes) {
-                    $q->whereIn('unit_code', $barcodes)->orWhereIn('name', $barcodes);
+                    $q->whereIn('unit_code', $barcodes)->orWhereIn('id', $barcodes);
                 })->update(['status' => $status, 'condition' => $cond]);
             }
         }
@@ -117,7 +117,7 @@ class InspectionService
                     $condNormalized = ucfirst(strtolower($condVal));
                     $uStatus = $condNormalized === 'Damaged' ? 'damaged' : ($condNormalized === 'Lost' ? 'lost' : 'available');
                     \App\Models\EquipmentUnit::where(function ($q) use ($uBar) {
-                        $q->where('unit_code', $uBar)->orWhere('name', $uBar);
+                        $q->where('unit_code', $uBar)->orWhere('id', $uBar);
                     })->update(['status' => $uStatus, 'condition' => $condNormalized]);
                 }
             }
