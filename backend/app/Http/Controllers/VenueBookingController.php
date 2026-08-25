@@ -325,7 +325,7 @@ class VenueBookingController extends Controller
         if (!empty($barcodes)) {
             $newUnitStatus = in_array($currentStatus, ['ongoing', 'on-going', 'post-inspection']) ? 'released' : 'reserved';
             \App\Models\EquipmentUnit::where(function($q) use ($barcodes) {
-                $q->whereIn('unit_code', $barcodes)->orWhereIn('name', $barcodes);
+                $q->whereIn('unit_code', $barcodes)->orWhereIn('id', $barcodes);
             })
             ->update(['status' => $newUnitStatus]);
         }

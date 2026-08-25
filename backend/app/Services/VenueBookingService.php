@@ -401,7 +401,7 @@ class VenueBookingService
             }
             if (!empty($barcodes) && \Illuminate\Support\Facades\Schema::hasTable('equipment_units')) {
                 \App\Models\EquipmentUnit::where(function($q) use ($barcodes) {
-                    $q->whereIn('unit_code', $barcodes)->orWhereIn('name', $barcodes);
+                    $q->whereIn('unit_code', $barcodes)->orWhereIn('id', $barcodes);
                 })->update(['status' => 'released']);
             }
 
@@ -560,7 +560,7 @@ class VenueBookingService
                             $uStatus = ($condNormalized === 'Damaged' || $condNormalized === 'Lost') ? 'unavailable' : 'available';
                             $uCond = $condNormalized === 'Damaged' ? 'Damaged' : ($condNormalized === 'Lost' ? 'Lost' : 'Good');
                             \App\Models\EquipmentUnit::where(function($q) use ($uBar) {
-                                $q->where('unit_code', $uBar)->orWhere('name', $uBar)->orWhere('id', $uBar);
+                                $q->where('unit_code', $uBar)->orWhere('id', $uBar);
                             })->update(['status' => $uStatus, 'condition' => $uCond]);
                         }
                     }
@@ -568,11 +568,11 @@ class VenueBookingService
                     // Fallback to bulk status update
                     if ($newStatus === 'damaged' || !empty($data['has_damage'])) {
                         \App\Models\EquipmentUnit::where(function($q) use ($barcodes) {
-                            $q->whereIn('unit_code', $barcodes)->orWhereIn('name', $barcodes);
+                            $q->whereIn('unit_code', $barcodes)->orWhereIn('id', $barcodes);
                         })->update(['status' => 'unavailable', 'condition' => 'Damaged']);
                     } else {
                         \App\Models\EquipmentUnit::where(function($q) use ($barcodes) {
-                            $q->whereIn('unit_code', $barcodes)->orWhereIn('name', $barcodes);
+                            $q->whereIn('unit_code', $barcodes)->orWhereIn('id', $barcodes);
                         })->update(['status' => 'available', 'condition' => 'Good']);
                     }
                 }
