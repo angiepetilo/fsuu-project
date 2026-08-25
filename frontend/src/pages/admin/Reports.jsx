@@ -88,7 +88,7 @@ export default function Reports() {
       const [histRes, daRes, eqData] = await Promise.all([
         api.get(`/admin/history-log${termParam}`).catch(() => ({ data: { venue_bookings: [], equipment_borrowings: [] } })),
         api.get(`/admin/department-analytics${termParam}`).catch(() => ({ data: { rule_violations: [], late_returns: [] } })),
-        fetchWithCache("equipment_types_list", () => api.get("/admin/equipment-types").then(r => r.data).catch(() => [])),
+        api.get("/admin/equipment-types").then(r => r.data).catch(() => []),
       ]);
 
       // 1. History log venue bookings & equipment borrowings
