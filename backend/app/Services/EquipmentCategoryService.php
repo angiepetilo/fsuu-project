@@ -64,25 +64,35 @@ class EquipmentCategoryService
         $approvedBorrowCount = 0;
         try {
             if (Schema::hasTable('equipment_borrow_items') && Schema::hasTable('equipment_borrows')) {
-                $borrowTypeIds = [$e->id, $e->eq_name, $e->name, $e->category];
+                $borrowTypeIds = array_values(array_unique(array_filter([$e->id, (string)$e->id, $e->eq_name, $e->name, $e->category])));
 
-                $borrowedCount = DB::table('equipment_borrow_items')
-                    ->join('equipment_borrows', 'equipment_borrow_items.equipment_borrow_id', '=', 'equipment_borrows.id')
+                $borrowedCount = (int) DB::table('equipment_borrow_items')
+                    ->join('equipment_borrows', function($join) {
+                        $join->on('equipment_borrow_items.equipment_borrow_id', '=', 'equipment_borrows.id');
+                    })
                     ->leftJoin('tracking_numbers', 'equipment_borrows.tracking_number_id', '=', 'tracking_numbers.id')
-                    ->whereIn('equipment_borrow_items.equipment_type_id', $borrowTypeIds)
+                    ->where(function($q) use ($e, $borrowTypeIds) {
+                        $q->whereIn('equipment_borrow_items.equipment_type_id', $borrowTypeIds)
+                          ->orWhere('equipment_borrow_items.equipment_type_id', '=', $e->id);
+                    })
                     ->whereNull('equipment_borrows.archived_at')
                     ->where(function($q) {
-                        $q->whereIn(DB::raw('LOWER(COALESCE(tracking_numbers.status, equipment_borrows.status))'), ['approved', 'on-going', 'ongoing', 'borrowed', 'released']);
+                        $q->whereIn(DB::raw('LOWER(COALESCE(tracking_numbers.status, equipment_borrows.status))'), ['on-going', 'ongoing', 'borrowed', 'released', 'in_use', 'in-use']);
                     })
                     ->sum('equipment_borrow_items.quantity_requested');
 
-                $approvedBorrowCount = DB::table('equipment_borrow_items')
-                    ->join('equipment_borrows', 'equipment_borrow_items.equipment_borrow_id', '=', 'equipment_borrows.id')
+                $approvedBorrowCount = (int) DB::table('equipment_borrow_items')
+                    ->join('equipment_borrows', function($join) {
+                        $join->on('equipment_borrow_items.equipment_borrow_id', '=', 'equipment_borrows.id');
+                    })
                     ->leftJoin('tracking_numbers', 'equipment_borrows.tracking_number_id', '=', 'tracking_numbers.id')
-                    ->whereIn('equipment_borrow_items.equipment_type_id', $borrowTypeIds)
+                    ->where(function($q) use ($e, $borrowTypeIds) {
+                        $q->whereIn('equipment_borrow_items.equipment_type_id', $borrowTypeIds)
+                          ->orWhere('equipment_borrow_items.equipment_type_id', '=', $e->id);
+                    })
                     ->whereNull('equipment_borrows.archived_at')
                     ->where(function($q) {
-                        $q->whereIn(DB::raw('LOWER(COALESCE(tracking_numbers.status, equipment_borrows.status))'), ['pending', 'scheduled', 'reserved']);
+                        $q->whereIn(DB::raw('LOWER(COALESCE(tracking_numbers.status, equipment_borrows.status, "pending"))'), ['pending', 'scheduled', 'reserved', 'approved']);
                     })
                     ->sum('equipment_borrow_items.quantity_requested');
             }
@@ -100,7 +110,7 @@ class EquipmentCategoryService
                     ->leftJoin('tracking_numbers', 'venue_bookings.tracking_number_id', '=', 'tracking_numbers.id')
                     ->whereNull('venue_bookings.archived_at')
                     ->where(function($q) {
-                        $q->whereIn(DB::raw('LOWER(COALESCE(tracking_numbers.status, venue_bookings.status))'), ['approved', 'on-going', 'ongoing']);
+                        $q->whereIn(DB::raw('LOWER(COALESCE(tracking_numbers.status, venue_bookings.status))'), ['on-going', 'ongoing', 'in_use', 'in-use']);
                     })
                     ->select('venue_bookings.id', 'venue_bookings.equipment_notes')
                     ->get();
@@ -111,7 +121,7 @@ class EquipmentCategoryService
                     ->leftJoin('tracking_numbers', 'venue_bookings.tracking_number_id', '=', 'tracking_numbers.id')
                     ->whereNull('venue_bookings.archived_at')
                     ->where(function($q) {
-                        $q->whereIn(DB::raw('LOWER(COALESCE(tracking_numbers.status, venue_bookings.status))'), ['pending', 'scheduled', 'reserved']);
+                        $q->whereIn(DB::raw('LOWER(COALESCE(tracking_numbers.status, venue_bookings.status, "pending"))'), ['pending', 'scheduled', 'reserved', 'approved']);
                     })
                     ->select('venue_bookings.id', 'venue_bookings.equipment_notes')
                     ->get();

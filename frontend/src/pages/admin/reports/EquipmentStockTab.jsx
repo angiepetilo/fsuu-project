@@ -187,7 +187,7 @@ export default function EquipmentStockTab({
     setUnitsLoading(true);
     try {
       const [catData, unitRes] = await Promise.all([
-        fetchWithCache("equipment_types_list", () => api.get('/admin/equipment-types').then(r => r.data).catch(() => [])),
+        api.get('/admin/equipment-types').then(r => r.data).catch(() => []),
         api.get('/admin/equipment-units').catch(() => ({ data: [] })),
       ]);
 
