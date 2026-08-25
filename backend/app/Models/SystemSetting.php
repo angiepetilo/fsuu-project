@@ -36,8 +36,39 @@ class SystemSetting extends Model
         'allow_advance_equipment_booking' => 'boolean',
         'max_items_per_borrow'            => 'integer',
         'smtp_port'                       => 'integer',
-        'smtp_password'                   => 'encrypted',
     ];
+
+    /**
+     * Resilient accessor for smtp_password that safely decrypts or returns raw string.
+     */
+    public function getSmtpPasswordAttribute($value)
+    {
+        if (empty($value)) {
+            return '';
+        }
+        try {
+            return \Illuminate\Support\Facades\Crypt::decryptString($value);
+        } catch (\Throwable $e) {
+            // Gracefully return raw value if unencrypted or encrypted under different key
+            return $value;
+        }
+    }
+
+    /**
+     * Resilient mutator for smtp_password.
+     */
+    public function setSmtpPasswordAttribute($value)
+    {
+        if (empty($value)) {
+            $this->attributes['smtp_password'] = null;
+            return;
+        }
+        try {
+            $this->attributes['smtp_password'] = \Illuminate\Support\Facades\Crypt::encryptString($value);
+        } catch (\Throwable $e) {
+            $this->attributes['smtp_password'] = $value;
+        }
+    }
 
     /**
      * Get the singleton SystemSetting instance or create with defaults.
