@@ -64,6 +64,9 @@ export default function EquipmentStockTab({
         drafts[key] = {
           qty_expected: expected,
           qty_present: available,
+          qty_released: item.released_count ?? 0,
+          qty_damaged: item.damaged_count ?? 0,
+          qty_lost: item.lost_count ?? 0,
           condition: cond,
         };
       });
