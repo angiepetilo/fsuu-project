@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, lazy, Suspense } from "react";
 import { createPortal } from "react-dom";
 import { useOutletContext, useLocation } from "react-router-dom";
 import api from "@/lib/axios";
@@ -6,12 +6,13 @@ import {
   History, RefreshCw, CheckCircle, Building2, PackageOpen, Search, Loader2,
   Eye, Trash2, Pencil, CheckCircle2, X, AlertTriangle, ChevronLeft, ChevronRight, RotateCcw, MoreVertical
 } from "lucide-react";
-import VenueBookingDetailModal from "./components/VenueBookingDetailModal";
-import EquipmentBorrowDetailModal from "./components/EquipmentBorrowDetailModal";
 import { PageLoader } from "@/components/ui/page-loader";
 import { formatDate, formatTime, formatTimeRange } from "@/lib/dateUtils";
-import HistoryEditModal from "./history/HistoryEditModal";
 import HistoryTable from "./history/HistoryTable";
+
+const VenueBookingDetailModal = lazy(() => import("./components/VenueBookingDetailModal"));
+const EquipmentBorrowDetailModal = lazy(() => import("./components/EquipmentBorrowDetailModal"));
+const HistoryEditModal = lazy(() => import("./history/HistoryEditModal"));
 
 function ActionMenuPopover({ buttonEl, isOpen, onClose, children }) {
   const [coords, setCoords] = useState({ top: 0, left: 0 });
@@ -417,59 +418,63 @@ export default function HistoryLog() {
         handleDeleteHistory={handleDeleteHistory}
       />
 
-      <HistoryEditModal
-        editingRecord={editingRecord}
-        editStatus={editStatus}
-        setEditStatus={setEditStatus}
-        editNotes={editNotes}
-        setEditNotes={setEditNotes}
-        editLoading={editLoading}
-        onClose={() => setEditingRecord(null)}
-        onSave={handleSaveEdit}
-      />
+      <Suspense fallback={null}>
+        {editingRecord && (
+          <HistoryEditModal
+            editingRecord={editingRecord}
+            editStatus={editStatus}
+            setEditStatus={setEditStatus}
+            editNotes={editNotes}
+            setEditNotes={setEditNotes}
+            editLoading={editLoading}
+            onClose={() => setEditingRecord(null)}
+            onSave={handleSaveEdit}
+          />
+        )}
 
-      {/* Existing Full Detail Modals Triggered on Eye View */}
-      {selectedVenueModal && (
-        <VenueBookingDetailModal
-          selected={selectedVenueModal}
-          setSelected={setSelectedVenueModal}
-          isHistoryView={true}
-          formatDate={formatDate}
-          formatTimeRange={formatTimeRange}
-          feedbackMessage={null}
-          showRejectForm={false}
-          setShowRejectForm={() => {}}
-          rejectionComments=""
-          setRejectionComments={() => {}}
-          handleAction={() => {}}
-          actionLoading={null}
-          inspectionStatus={historyInspectionStatus}
-          setInspectionStatus={setHistoryInspectionStatus}
-          violationNotes={historyViolationNotes}
-          setViolationNotes={setHistoryViolationNotes}
-          evidencePhoto={historyEvidencePhoto}
-          setEvidencePhoto={setHistoryEvidencePhoto}
-          showNotifyModal={false}
-          setShowNotifyModal={() => {}}
-          notifyReason=""
-          setNotifyReason={() => {}}
-        />
-      )}
+        {/* Existing Full Detail Modals Triggered on Eye View */}
+        {selectedVenueModal && (
+          <VenueBookingDetailModal
+            selected={selectedVenueModal}
+            setSelected={setSelectedVenueModal}
+            isHistoryView={true}
+            formatDate={formatDate}
+            formatTimeRange={formatTimeRange}
+            feedbackMessage={null}
+            showRejectForm={false}
+            setShowRejectForm={() => {}}
+            rejectionComments=""
+            setRejectionComments={() => {}}
+            handleAction={() => {}}
+            actionLoading={null}
+            inspectionStatus={historyInspectionStatus}
+            setInspectionStatus={setHistoryInspectionStatus}
+            violationNotes={historyViolationNotes}
+            setViolationNotes={setHistoryViolationNotes}
+            evidencePhoto={historyEvidencePhoto}
+            setEvidencePhoto={setHistoryEvidencePhoto}
+            showNotifyModal={false}
+            setShowNotifyModal={() => {}}
+            notifyReason=""
+            setNotifyReason={() => {}}
+          />
+        )}
 
-      {selectedEquipModal && (
-        <EquipmentBorrowDetailModal
-          selected={selectedEquipModal}
-          setSelected={setSelectedEquipModal}
-          formatDate={formatDate}
-          showNotifyModal={false}
-          setShowNotifyModal={() => {}}
-          notifyReason=""
-          setNotifyReason={() => {}}
-          handleSendNotification={() => {}}
-          handleAction={() => {}}
-          actionLoading={null}
-        />
-      )}
+        {selectedEquipModal && (
+          <EquipmentBorrowDetailModal
+            selected={selectedEquipModal}
+            setSelected={setSelectedEquipModal}
+            formatDate={formatDate}
+            showNotifyModal={false}
+            setShowNotifyModal={() => {}}
+            notifyReason=""
+            setNotifyReason={() => {}}
+            handleSendNotification={() => {}}
+            handleAction={() => {}}
+            actionLoading={null}
+          />
+        )}
+      </Suspense>
     </div>
   );
 }

@@ -35,6 +35,9 @@ class StorePublicVenueBookingRequest extends FormRequest
             'time_end' => ['nullable', 'string'],
             'equipment_items' => ['nullable'],
             'endorsement_file' => ['nullable'],
+            'is_pin_verified' => ['nullable'],
+            'pin_override' => ['nullable'],
+            'pin_code' => ['nullable', 'string'],
         ];
     }
 }

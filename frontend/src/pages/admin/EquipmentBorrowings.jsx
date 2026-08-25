@@ -1,15 +1,16 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, lazy, Suspense } from "react";
 import { useOutletContext, useLocation } from "react-router-dom";
 import api from "@/lib/axios";
 import notify from "@/lib/notify";
 import {
   Loader2, RefreshCw, AlertCircle, Eye, PackageOpen, ChevronLeft, ChevronRight
 } from "lucide-react";
-import EquipmentBorrowDetailModal from "./components/EquipmentBorrowDetailModal";
 import { PageLoader } from "@/components/ui/page-loader";
 import { StatusBadge, OverdueBadge } from "@/components/ui/status-badge";
 import { formatDate, formatTimeRange12 } from "@/lib/dateUtils";
 import { getOverdueMinutes } from "@/lib/dateTimeUtils";
+
+const EquipmentBorrowDetailModal = lazy(() => import("./components/EquipmentBorrowDetailModal"));
 
 export default function EquipmentBorrowings() {
   const context = useOutletContext();
@@ -252,8 +253,8 @@ export default function EquipmentBorrowings() {
                 const timeRange = formatTimeRange12(rawStart, rawEnd);
                 const currentStatus = b.status || b.tracking_number?.status || "pending";
                 const displayIndex = startIndex + idx + 1;
-                const isActive = !["completed", "rejected", "cancelled", "damaged", "lost"].includes(currentStatus.toLowerCase());
-                const overdueMins = isActive ? getOverdueMinutes(b.date_of_usage || b.start_datetime, rawEnd) : 0;
+                const isReleasedOrOngoing = ["ongoing", "on-going", "released", "in_use", "in-use", "borrowed"].includes(currentStatus.toLowerCase());
+                const overdueMins = isReleasedOrOngoing ? getOverdueMinutes(b.date_of_usage || b.start_datetime, rawEnd) : 0;
 
                 return (
                   <tr key={`eb-row-${b.id}`} className="hover:bg-slate-50/60 transition-colors">
@@ -308,8 +309,8 @@ export default function EquipmentBorrowings() {
               const rawEnd = b.time_end || b.end_datetime;
               const timeRange = formatTimeRange12(rawStart, rawEnd);
               const currentStatus = b.status || b.tracking_number?.status || "pending";
-              const isActive = !["completed", "rejected", "cancelled", "damaged", "lost"].includes(currentStatus.toLowerCase());
-              const overdueMins = isActive ? getOverdueMinutes(b.date_of_usage || b.start_datetime, rawEnd) : 0;
+              const isReleasedOrOngoing = ["ongoing", "on-going", "released", "in_use", "in-use", "borrowed"].includes(currentStatus.toLowerCase());
+              const overdueMins = isReleasedOrOngoing ? getOverdueMinutes(b.date_of_usage || b.start_datetime, rawEnd) : 0;
 
               return (
                 <div key={`eb-card-${b.id}`} className="p-4 space-y-3 bg-white hover:bg-slate-50/50 transition-colors">
@@ -383,18 +384,20 @@ export default function EquipmentBorrowings() {
       </div>
 
       {/* Detail Modal Sub-Component (Items 16, 17, 35) */}
-      <EquipmentBorrowDetailModal
-        selected={selected}
-        setSelected={setSelected}
-        formatDate={formatDate}
-        showNotifyModal={showNotifyModal}
-        setShowNotifyModal={setShowNotifyModal}
-        notifyReason={notifyReason}
-        setNotifyReason={setNotifyReason}
-        handleSendNotification={handleSendNotification}
-        handleAction={handleAction}
-        actionLoading={actionLoading}
-      />
+      <Suspense fallback={null}>
+        <EquipmentBorrowDetailModal
+          selected={selected}
+          setSelected={setSelected}
+          formatDate={formatDate}
+          showNotifyModal={showNotifyModal}
+          setShowNotifyModal={setShowNotifyModal}
+          notifyReason={notifyReason}
+          setNotifyReason={setNotifyReason}
+          handleSendNotification={handleSendNotification}
+          handleAction={handleAction}
+          actionLoading={actionLoading}
+        />
+      </Suspense>
     </div>
   );
 }

@@ -106,7 +106,9 @@ class SmsService
             ?? $borrowing->trackingNumber?->reference_code 
             ?? "EQ-2026-{$borrowing->id}";
 
-        $message = "FSUU Equipment Borrowing: Good day, {$requestorName}! Your request has been received. Reference Code: {$refCode}. Pickup Notice: Please present your School ID at the AVR Center office before scheduled time.";
+        $sched = \App\Mail\BookingConfirmationMail::formatSchedule($borrowing);
+
+        $message = "FSUU Equipment Borrowing: Good day, {$requestorName}! Your request [{$refCode}] ({$sched}) has been received. Pickup Notice: Please present your School ID at the AVR Center office before scheduled time.";
 
         $res = self::send($contactNumber, $message);
 
@@ -147,9 +149,10 @@ class SmsService
             ?? $borrowing->trackingNumber?->reference_code 
             ?? "EQ-2026-{$borrowing->id}";
 
+        $sched = \App\Mail\BookingConfirmationMail::formatSchedule($borrowing);
         $lateNote = $minutesLate ? " ({$minutesLate} mins late)" : "";
 
-        $message = "URGENT FSUU NOTICE: Good day, {$requestorName}. Your borrowed equipment [{$refCode}] is now OVERDUE for return{$lateNote}. Please return all physical units immediately to the AVR Center to avoid violation records.";
+        $message = "URGENT FSUU NOTICE: Good day, {$requestorName}. Your borrowed equipment [{$refCode}] ({$sched}) is now OVERDUE for return{$lateNote}. Please return all physical units immediately to the AVR Center to avoid violation records.";
 
         $res = self::send($contactNumber, $message);
 
@@ -190,9 +193,9 @@ class SmsService
             ?? $borrowing->trackingNumber?->reference_code 
             ?? "EQ-2026-{$borrowing->id}";
 
-        $endTime = $borrowing->time_end ? substr((string)$borrowing->time_end, 0, 5) : 'scheduled time';
+        $sched = \App\Mail\BookingConfirmationMail::formatSchedule($borrowing);
 
-        $message = "FSUU AVR Reminder: Good day, {$requestorName}. Your borrowed equipment [{$refCode}] is due for return in {$minutesRemaining} mins ({$endTime}). Please return it promptly to avoid late return penalties.";
+        $message = "FSUU AVR Reminder: Good day, {$requestorName}. Your borrowed equipment [{$refCode}] ({$sched}) is due for return in {$minutesRemaining} mins. Please return it promptly to avoid late return penalties.";
 
         $res = self::send($contactNumber, $message);
 

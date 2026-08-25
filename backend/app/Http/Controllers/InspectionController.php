@@ -155,6 +155,16 @@ class InspectionController extends Controller
             $inspection = Inspection::forceCreate($data);
         }
 
+        // Synchronize assigned_units to parent model
+        if (!empty($assignedUnits) && $refId) {
+            $rawAu = is_array($assignedUnits) ? json_encode($assignedUnits) : $assignedUnits;
+            if ($refType === 'equipment_borrow' || ($data['inspectable_type'] ?? '') === \App\Models\EquipmentBorrow::class) {
+                \App\Models\EquipmentBorrow::where('id', $refId)->update(['assigned_units' => $rawAu]);
+            } else {
+                \App\Models\VenueBooking::where('id', $refId)->update(['assigned_units' => $rawAu]);
+            }
+        }
+
         // Synchronize physical units condition and availability status
         if (is_array($unitConditions)) {
             foreach ($unitConditions as $key => $condVal) {

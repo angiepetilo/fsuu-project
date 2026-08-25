@@ -107,7 +107,7 @@ function SlotBarcodeSelector({
       <div className="relative flex items-center">
         <input
           type="text"
-          placeholder={`Type barcode or choose from ${slotEligibleUnits.length} units...`}
+          placeholder={currentBarcode ? "Change unit barcode..." : "Type barcode or choose from dropdown..."}
           value={searchTerm}
           onChange={handleInputChange}
           onFocus={() => setIsOpen(true)}
@@ -147,7 +147,6 @@ function SlotBarcodeSelector({
         <div className="absolute z-50 left-0 right-0 mt-1 max-h-56 overflow-y-auto bg-white border border-slate-200 rounded-xl shadow-xl py-1 text-xs animate-in fade-in zoom-in-95">
           <div className="px-3 py-1.5 border-b border-slate-100 flex items-center justify-between text-[10.5px] font-bold text-slate-500 bg-slate-50">
             <span>AVAILABLE BARCODES FOR {categoryName.toUpperCase()}</span>
-            <span className="font-mono text-emerald-700">{slotEligibleUnits.length} in stock</span>
           </div>
 
           {searchFiltered.length === 0 ? (
@@ -319,12 +318,7 @@ export default function VenueEquipmentChecklist({
             return (
               <div key={`cat-card-${catIdx}`} className="p-3 bg-white border border-slate-200 rounded-xl space-y-2.5">
                 <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-extrabold text-slate-900 block leading-tight font-mono">{item.category}</span>
-                    <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200 font-mono">
-                      {availableUnits.length} in stock
-                    </span>
-                  </div>
+                  <span className="text-xs font-extrabold text-slate-900 block leading-tight font-mono">{item.category}</span>
                   <span className="text-xs font-mono font-bold text-slate-600">
                     Qty: {reqQty}
                   </span>

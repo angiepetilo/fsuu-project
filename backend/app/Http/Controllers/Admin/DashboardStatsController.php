@@ -46,20 +46,17 @@ class DashboardStatsController extends Controller
 
         $pendingBorrowings = $pendingBorrowingsQuery->count();
 
-        // Count available equipment & damage reports
-        $equipUnitQuery = DB::table('equipment_units')
-            ->whereNull('equipment_units.archived_at');
+        // Count available equipment & damage reports in 1 single grouped query
+        $unitCounts = DB::table('equipment_units')
+            ->whereNull('archived_at')
+            ->select(
+                DB::raw('SUM(CASE WHEN LOWER(status) = "available" AND LOWER(COALESCE(`condition`, "good")) NOT IN ("damaged", "maintenance", "worn", "under repair") THEN 1 ELSE 0 END) as available_count'),
+                DB::raw('SUM(CASE WHEN LOWER(status) IN ("damaged", "maintenance", "unavailable") OR LOWER(COALESCE(`condition`, "good")) IN ("damaged", "maintenance", "worn", "under repair") THEN 1 ELSE 0 END) as damage_count')
+            )
+            ->first();
 
-        $availableEquipment = (clone $equipUnitQuery)
-            ->where(DB::raw('LOWER(equipment_units.status)'), 'available')
-            ->count();
-
-        $damageReports = (clone $equipUnitQuery)
-            ->where(function($q) {
-                $q->whereIn(DB::raw('LOWER(equipment_units.status)'), ['damaged', 'maintenance', 'unavailable'])
-                  ->orWhereIn(DB::raw('LOWER(equipment_units.`condition`)'), ['damaged', 'maintenance', 'worn']);
-            })
-            ->count();
+        $availableEquipment = (int) ($unitCounts->available_count ?? 0);
+        $damageReports      = (int) ($unitCounts->damage_count ?? 0);
 
         // Overdue Returns
         $overdueReturnsQuery = DB::table('equipment_borrows')

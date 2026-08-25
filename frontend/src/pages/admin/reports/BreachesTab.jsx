@@ -7,6 +7,8 @@ export default function BreachesTab({
   officeScope = "All Offices",
 }) {
   const [localBreaches, setLocalBreaches] = useState([]);
+  const [violationNotes, setViolationNotes] = useState(() => localStorage.getItem("fsuu_report_breaches_notes") || "");
+
 
   const loadLocalBreaches = () => {
     try {
@@ -24,7 +26,7 @@ export default function BreachesTab({
           if (matchVB) dept = matchVB.program_office || matchVB.department || matchVB.dept;
         }
         return {
-          department: dept || "ASP",
+          department: dept || "Academic Dept",
           violation_type: d.condition === "Lost" ? "Equipment Lost" : "Equipment Damage",
         };
       });
@@ -46,50 +48,6 @@ export default function BreachesTab({
     return () => window.removeEventListener("equipment_inventory_updated", handleUpdate);
   }, []);
 
-  // Filter ONLY completed venue bookings with damage/violations
-  const completedVenueBreaches = venueBookings
-    .filter((b) => {
-      const s = (b.status || "").toLowerCase();
-      return (s === "completed" || s === "damaged" || s === "solved" || s === "done") && (Boolean(b.has_damage) || s === "damaged" || s === "violation" || Boolean(b.violation) || Boolean(b.violation_type));
-    })
-    .map((b) => ({
-      department: b.program_office || b.department || "Academic Dept",
-      is_venue: true,
-      violation_type: b.violation || b.violation_type || "Venue Violation",
-    }));
-
-  const completedEquipBreaches = equipmentBorrowings
-    .filter((eb) => Boolean(eb.is_late) || String(eb.timeliness || "").toLowerCase().includes("late") || String(eb.status || "").toLowerCase().includes("late") || Boolean(eb.has_damage) || (eb.status || "").toLowerCase() === "damaged" || (eb.status || "").toLowerCase() === "lost" || Boolean(eb.violation) || Boolean(eb.violation_type))
-    .map((eb) => {
-      const isLate = Boolean(eb.is_late) || String(eb.timeliness || "").toLowerCase().includes("late") || String(eb.violation_type || "").toLowerCase().includes("overdue") || String(eb.status || "").toLowerCase().includes("late");
-      return {
-        department: eb.program_office || eb.department || "Academic Dept",
-        is_venue: false,
-        is_late: isLate,
-        unit_conditions: eb.unit_conditions || eb.inspection_unit_conditions || null,
-        status: (eb.status || "").toLowerCase(),
-        violation_type: eb.violation || eb.violation_type || (eb.status === "lost" ? "Lost Equipment" : (isLate ? "Late Equipment Return" : "Equipment Damage")),
-      };
-    });
-
-  // Extract equipment damages that occurred DURING venue bookings (even if the venue itself was clean)
-  const venueEquipmentBreaches = venueBookings
-    .filter(b => b.unit_conditions && typeof b.unit_conditions === "object")
-    .map((b) => ({
-      department: b.program_office || b.department || "Academic Dept",
-      is_venue: false, // Treat as equipment violation
-      is_late: false,
-      unit_conditions: b.unit_conditions,
-      status: "completed",
-      violation_type: "Equipment Damage",
-    }))
-    .filter(eb => {
-      return Object.values(eb.unit_conditions).some(c => {
-        const cLower = String(c || "").toLowerCase();
-        return cLower === "damaged" || cLower === "lost";
-      });
-    });
-
   const cleanDeptName = (raw) => {
     if (!raw) return "Academic Dept";
     const str = String(raw).trim();
@@ -100,8 +58,73 @@ export default function BreachesTab({
     return str;
   };
 
-  // Combine synced History Log records + local inspection breaches
-  const allSyncedBreaches = [...completedVenueBreaches, ...completedEquipBreaches, ...venueEquipmentBreaches, ...localBreaches];
+  // Helper: Count unique damaged and lost units without double-counting positional vs barcode duplicate keys
+  const countUniqueDamagedAndLost = (unitConditions, assignedUnits) => {
+    if (!unitConditions || typeof unitConditions !== "object") return { damaged: 0, lost: 0 };
+    let uCond = unitConditions;
+    if (typeof uCond === "string") {
+      try { uCond = JSON.parse(uCond); } catch { uCond = {}; }
+    }
+    let au = assignedUnits || {};
+    if (typeof au === "string") {
+      try { au = JSON.parse(au); } catch { au = {}; }
+    }
+
+    const unitMap = new Map();
+    Object.entries(uCond || {}).forEach(([k, val]) => {
+      const c = String(val || "").toLowerCase();
+      if (!c) return;
+      // If positional key "0-0", look up barcode in au; else use key
+      const resolved = (au && typeof au === "object" && au[k]) ? au[k] : k;
+      const cleanKey = String(resolved).trim().toUpperCase();
+      unitMap.set(cleanKey, c);
+    });
+
+    let damaged = 0;
+    let lost = 0;
+    unitMap.forEach((status) => {
+      if (status === "damaged") damaged++;
+      else if (status === "lost") lost++;
+    });
+
+    return { damaged, lost };
+  };
+
+  // 1. Filter completed venue bookings with policy violations or damaged equipment
+  const completedVenueBreaches = venueBookings
+    .filter((b) => {
+      const s = (b.status || "").toLowerCase();
+      return (s === "completed" || s === "damaged" || s === "solved" || s === "done") && 
+        (Boolean(b.has_damage) || s === "damaged" || s === "violation" || Boolean(b.violation) || Boolean(b.violation_type) || (b.unit_conditions && typeof b.unit_conditions === "object"));
+    })
+    .map((b) => {
+      const isPolicyViolation = Boolean(b.has_damage) || (b.status || "").toLowerCase() === "damaged" || (b.status || "").toLowerCase() === "violation" || Boolean(b.violation) || Boolean(b.violation_type);
+      return {
+        department: b.program_office || b.department || "Academic Dept",
+        is_venue: isPolicyViolation,
+        is_late: false,
+        unit_conditions: b.unit_conditions || b.inspection_unit_conditions || null,
+        assigned_units: b.assigned_units || null,
+        status: (b.status || "").toLowerCase(),
+        violation_type: b.violation || b.violation_type || "Venue Violation",
+      };
+    });
+
+  // 2. Filter equipment borrowings with late returns or equipment damage/lost
+  const completedEquipBreaches = equipmentBorrowings
+    .filter((eb) => Boolean(eb.is_late) || String(eb.timeliness || "").toLowerCase().includes("late") || String(eb.status || "").toLowerCase().includes("late") || Boolean(eb.has_damage) || (eb.status || "").toLowerCase() === "damaged" || (eb.status || "").toLowerCase() === "lost" || Boolean(eb.violation) || Boolean(eb.violation_type) || (eb.unit_conditions && typeof eb.unit_conditions === "object"))
+    .map((eb) => {
+      const isLate = Boolean(eb.is_late) || String(eb.timeliness || "").toLowerCase().includes("late") || String(eb.violation_type || "").toLowerCase().includes("overdue") || String(eb.status || "").toLowerCase().includes("late");
+      return {
+        department: eb.program_office || eb.department || "Academic Dept",
+        is_venue: false,
+        is_late: isLate,
+        unit_conditions: eb.unit_conditions || eb.inspection_unit_conditions || null,
+        assigned_units: eb.assigned_units || null,
+        status: (eb.status || "").toLowerCase(),
+        violation_type: eb.violation || eb.violation_type || (eb.status === "lost" ? "Lost Equipment" : (isLate ? "Late Equipment Return" : "Equipment Damage")),
+      };
+    });
 
   // Department summary counts for overview
   const deptSummaryMap = {};
@@ -110,22 +133,35 @@ export default function BreachesTab({
   const seedDept = (deptNameRaw) => {
     const dName = cleanDeptName(deptNameRaw);
     if (!deptSummaryMap[dName]) {
-      deptSummaryMap[dName] = { department: dName, venue_violations: 0, late_returns: 0, equipment_damages: 0, equipment_lost: 0 };
+      deptSummaryMap[dName] = {
+        department: dName,
+        venue_violations: 0,
+        late_returns: 0,
+        equipment_damages: 0,
+        equipment_lost: 0,
+      };
     }
   };
   
   venueBookings.forEach(b => seedDept(b.program_office || b.department || "Academic Dept"));
   equipmentBorrowings.forEach(eb => seedDept(eb.program_office || eb.department || "Academic Dept"));
 
-  allSyncedBreaches.forEach((b) => {
+
+  // Process unique record breaches
+  [...completedVenueBreaches, ...completedEquipBreaches].forEach((b) => {
     const dName = cleanDeptName(b.department);
     if (!deptSummaryMap[dName]) {
-      deptSummaryMap[dName] = { department: dName, venue_violations: 0, late_returns: 0, equipment_damages: 0, equipment_lost: 0 };
+      deptSummaryMap[dName] = {
+        department: dName,
+        venue_violations: 0,
+        late_returns: 0,
+        equipment_damages: 0,
+        equipment_lost: 0,
+      };
     }
 
     if (b.is_venue) {
       deptSummaryMap[dName].venue_violations += 1;
-      return;
     }
 
     const vType = String(b.violation_type || "").toLowerCase();
@@ -135,32 +171,21 @@ export default function BreachesTab({
       deptSummaryMap[dName].late_returns += 1;
     }
 
-    // 2. Granular Per-Unit Conditions check (Damaged / Lost)
-    let unitCounted = false;
-    if (b.unit_conditions && typeof b.unit_conditions === "object") {
-      Object.values(b.unit_conditions).forEach((cond) => {
-        const c = String(cond || "").toLowerCase();
-        if (c === "damaged") {
-          deptSummaryMap[dName].equipment_damages += 1;
-          unitCounted = true;
-        } else if (c === "lost") {
-          deptSummaryMap[dName].equipment_lost += 1;
-          unitCounted = true;
-        }
-      });
-    }
-
-    // Fallback if no granular unit conditions object
-    if (!unitCounted) {
+    // 2. Granular Unit Condition check (deduplicated by unique unit barcode / slot)
+    const { damaged, lost } = countUniqueDamagedAndLost(b.unit_conditions, b.assigned_units);
+    if (damaged > 0 || lost > 0) {
+      deptSummaryMap[dName].equipment_damages += damaged;
+      deptSummaryMap[dName].equipment_lost += lost;
+    } else {
+      // Fallback if no unit_conditions object was provided
       if (vType.includes("lost") || b.status === "lost") {
         deptSummaryMap[dName].equipment_lost += 1;
-      } else if (vType.includes("damage") || b.status === "damaged") {
+      } else if ((vType.includes("damage") || b.status === "damaged") && !b.is_venue) {
         deptSummaryMap[dName].equipment_damages += 1;
       }
     }
-  });
 
-  const [violationNotes, setViolationNotes] = useState(() => localStorage.getItem("fsuu_report_breaches_notes") || "");
+  });
 
   const departmentSummaries = Object.values(deptSummaryMap);
   const displaySummaries = departmentSummaries.length > 0 ? departmentSummaries : ruleViolations;
@@ -227,7 +252,7 @@ export default function BreachesTab({
             localStorage.setItem("fsuu_report_breaches_notes", e.target.value);
           }}
           placeholder="Type your rule breaches, late return violations report summary, disciplinary notes, or department compliance recommendations here..."
-          className="w-full p-3 bg-white border border-slate-200 rounded-2xl text-xs font-medium text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 shadow-2xs transition-all"
+          className="w-full p-3 bg-white border border-slate-200 rounded-2xl text-xs font-medium text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 shadow-2xs transition-all resize-y"
         />
       </div>
     </div>

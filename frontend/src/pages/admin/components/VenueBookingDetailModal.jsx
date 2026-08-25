@@ -354,11 +354,20 @@ export default function VenueBookingDetailModal({
     return `${h}:${m}:${s}`;
   };
 
-  // Helper: Extract comparable start & end date-time timestamps for any booking object
+  const cleanDateStr = (val) => {
+    if (!val) return null;
+    const s = String(val).trim();
+    if (s.includes("T")) return s.split("T")[0];
+    if (s.includes(" ")) return s.split(" ")[0];
+    return s.slice(0, 10);
+  };
+
   const getBookingRange = (b) => {
     if (!b) return null;
-    const startD = b.date_of_usage || (b.start_datetime ? b.start_datetime.slice(0, 10) : null) || b.date;
-    const endD = b.reservation_end_date || b.end_date || (b.end_datetime ? b.end_datetime.slice(0, 10) : null) || startD;
+    const rawStartD = b.date_of_usage || b.start_datetime || b.date;
+    const startD = cleanDateStr(rawStartD);
+    const rawEndD = b.reservation_end_date || b.end_date || b.end_datetime || rawStartD;
+    const endD = cleanDateStr(rawEndD) || startD;
     const startT = normalizeTimeTo24h(b.time_start || (b.start_datetime ? b.start_datetime.slice(11, 19) : null) || "08:00:00");
     const endT = normalizeTimeTo24h(b.time_end || (b.end_datetime ? b.end_datetime.slice(11, 19) : null) || "17:00:00");
 
@@ -366,6 +375,24 @@ export default function VenueBookingDetailModal({
     const startMs = new Date(`${startD}T${startT}`).getTime();
     const endMs = new Date(`${endD}T${endT}`).getTime();
     return { startMs, endMs, startD, endD, startT, endT };
+  };
+
+  // Helper: Normalize unit_conditions to use ONLY barcode keys (not positional "0-0" AND barcode).
+  // Prevents double-counting where both the positional key and barcode key are stored for the same unit.
+  const normalizeUnitConditions = (rawConditions, assignedUnits) => {
+    if (!rawConditions || typeof rawConditions !== "object") return rawConditions || {};
+    const normalized = {};
+    Object.entries(rawConditions).forEach(([key, condVal]) => {
+      const barcode = assignedUnits ? assignedUnits[key] : null;
+      if (barcode) {
+        // Has a barcode mapping → store ONLY under barcode, skip positional key
+        normalized[barcode] = condVal;
+      } else {
+        // Already a barcode/canonical key → keep it
+        normalized[key] = condVal;
+      }
+    });
+    return normalized;
   };
 
   // Helper: Check if two booking schedules overlap
@@ -385,6 +412,18 @@ export default function VenueBookingDetailModal({
     const reserved = new Set();
     const inactiveStatuses = ["completed", "done", "returned", "rejected", "cancelled", "cancelled_by_user", "damaged", "lost", "solved"];
 
+    const extractBarcodes = (au) => {
+      if (!au) return;
+      if (typeof au === "string") {
+        try { au = JSON.parse(au); } catch { au = {}; }
+      }
+      if (Array.isArray(au)) {
+        au.forEach((bCode) => { if (bCode) reserved.add(String(bCode).trim().toUpperCase()); });
+      } else if (au && typeof au === "object") {
+        Object.values(au).forEach((bCode) => { if (bCode) reserved.add(String(bCode).trim().toUpperCase()); });
+      }
+    };
+
     // 1. Check other Venue Bookings
     allVenueBookings.forEach((vb) => {
       if (String(vb.id) === String(selected.id)) return;
@@ -393,15 +432,11 @@ export default function VenueBookingDetailModal({
 
       const vbRange = getBookingRange(vb);
       if (isScheduleConflicting(selectedRange, vbRange)) {
-        let au = vb.assigned_units;
-        if (typeof au === "string") {
-          try { au = JSON.parse(au); } catch { au = {}; }
-        }
-        if (au && typeof au === "object") {
-          Object.values(au).forEach((bCode) => {
-            if (bCode) reserved.add(String(bCode).trim().toUpperCase());
-          });
-        }
+        extractBarcodes(vb.assigned_units);
+        try {
+          const loc = localStorage.getItem(`fsuu_assigned_units_vb_${vb.id}`) || localStorage.getItem(`fsuu_assigned_units_${vb.id}`);
+          if (loc) extractBarcodes(loc);
+        } catch {}
       }
     });
 
@@ -412,15 +447,11 @@ export default function VenueBookingDetailModal({
 
       const ebRange = getBookingRange(eb);
       if (isScheduleConflicting(selectedRange, ebRange)) {
-        let au = eb.assigned_units;
-        if (typeof au === "string") {
-          try { au = JSON.parse(au); } catch { au = {}; }
-        }
-        if (au && typeof au === "object") {
-          Object.values(au).forEach((bCode) => {
-            if (bCode) reserved.add(String(bCode).trim().toUpperCase());
-          });
-        }
+        extractBarcodes(eb.assigned_units);
+        try {
+          const loc = localStorage.getItem(`fsuu_assigned_units_eb_${eb.id}`);
+          if (loc) extractBarcodes(loc);
+        } catch {}
       }
     });
 
@@ -660,7 +691,7 @@ export default function VenueBookingDetailModal({
           reference_type: "avr_venue_booking",
           reference_id: selected.id,
           assigned_units: next,
-          unit_conditions: unitReturnedConditions,
+          unit_conditions: normalizeUnitConditions(unitReturnedConditions, next),
           condition: inspectionStatus === "clean" ? "good" : "damaged",
           notes: violationNotes || "",
         }).catch(() => {});
@@ -687,7 +718,7 @@ export default function VenueBookingDetailModal({
           reference_type: "avr_venue_booking",
           reference_id: selected.id,
           assigned_units: assignedUnitSelections,
-          unit_conditions: next,
+          unit_conditions: normalizeUnitConditions(next, assignedUnitSelections),
           condition: inspectionStatus === "clean" ? "good" : "damaged",
           violation_type: inspectionStatus === "violation" ? selectedViolationType : null,
           notes: violationNotes || "",
@@ -811,7 +842,7 @@ export default function VenueBookingDetailModal({
         evidence_photo: isPre ? preEvidencePhoto : evidencePhoto,
         evidence_image: isPre ? preEvidencePhoto : evidencePhoto,
         assigned_units: assignedUnitSelections,
-        unit_conditions: unitReturnedConditions,
+        unit_conditions: normalizeUnitConditions(unitReturnedConditions, assignedUnitSelections),
       });
 
       setInspectionSuccessMsg(isPre ? "Pre-event inspection record saved." : "Post-event inspection record saved.");
@@ -844,7 +875,7 @@ export default function VenueBookingDetailModal({
         evidence_photo: evidencePhoto,
         evidence_image: evidencePhoto,
         assigned_units: assignedUnitSelections,
-        unit_conditions: unitReturnedConditions,
+        unit_conditions: normalizeUnitConditions(unitReturnedConditions, assignedUnitSelections),
       }).catch(() => {});
     }
 
@@ -859,7 +890,7 @@ export default function VenueBookingDetailModal({
       notes: violationNotes || (inspectionStatus === "clean" ? "Satisfactory Condition (Clean Room)" : `[${selectedViolationType}] Post-event inspection breach.`),
       equipment_notes: equipmentInspectionNotes,
       assigned_units: assignedUnitSelections,
-      unit_conditions: unitReturnedConditions
+      unit_conditions: normalizeUnitConditions(unitReturnedConditions, assignedUnitSelections)
     });
   };
 

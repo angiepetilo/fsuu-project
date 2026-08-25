@@ -37,8 +37,14 @@ class VenueBookingService
                 throw new \InvalidArgumentException('Reservation end datetime must be strictly ahead of start datetime.');
             }
 
-            // Enforce at least 3 days advance notice for public / student / external reservations
-            if (empty($data['submitted_by'])) {
+            // Enforce at least 3 days advance notice for public / student / external reservations UNLESS PIN verified
+            $isPinVerified = !empty($data['is_pin_verified']) 
+                || !empty($data['pin_override']) 
+                || (isset($data['is_pin_verified']) && in_array($data['is_pin_verified'], [1, '1', true, 'true'], true))
+                || (isset($data['pin_override']) && in_array($data['pin_override'], [1, '1', true, 'true'], true))
+                || !empty($data['submitted_by']);
+
+            if (!$isPinVerified) {
                 $earliestAllowed = now()->addDays(3)->startOfDay();
                 if (strtotime($dateOfUsage) < $earliestAllowed->timestamp) {
                     throw new VenueReservationTooSoonException('Venue bookings must be made at least 3 days in advance.');

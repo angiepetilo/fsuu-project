@@ -16,6 +16,7 @@ class BookingStatusUpdateMail extends Mailable
     public readonly string $refCode;
     public readonly string $formattedStart;
     public readonly string $formattedEnd;
+    public readonly string $formattedSchedule;
 
     public function __construct(
         public readonly string $type,
@@ -27,19 +28,9 @@ class BookingStatusUpdateMail extends Mailable
             ?? ($this->booking->trackingNumber?->reference_code)
             ?? ($this->booking->id ? ($this->type === 'venue' ? "TRK-AVR{$this->booking->id}" : "EQ-2026-{$this->booking->id}") : 'TRK-FSUU');
 
-        $this->formattedStart = $this->parseDateTimeSafely(
-            $this->booking->start_datetime ?? null,
-            $this->booking->date_of_usage ?? null,
-            $this->booking->time_start ?? null,
-            '08:00:00'
-        );
-
-        $this->formattedEnd = $this->parseDateTimeSafely(
-            $this->booking->end_datetime ?? null,
-            $this->booking->reservation_end_date ?? $this->booking->date_of_usage ?? null,
-            $this->booking->time_end ?? null,
-            '17:00:00'
-        );
+        $this->formattedSchedule = BookingConfirmationMail::formatSchedule($this->booking);
+        $this->formattedStart = $this->formattedSchedule;
+        $this->formattedEnd = $this->formattedSchedule;
     }
 
     public function envelope(): Envelope
@@ -59,6 +50,7 @@ class BookingStatusUpdateMail extends Mailable
                 'refCode' => $this->refCode,
                 'formattedStart' => $this->formattedStart,
                 'formattedEnd' => $this->formattedEnd,
+                'formattedSchedule' => $this->formattedSchedule,
             ]
         );
     }

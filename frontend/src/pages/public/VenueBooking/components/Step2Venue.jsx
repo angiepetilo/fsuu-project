@@ -1,4 +1,4 @@
-import { MapPin, ChevronLeft, ChevronRight, Clock, Calendar as CalendarIcon, CheckCircle2, AlertTriangle, Building2, DollarSign, Search } from "lucide-react";
+import { MapPin, ChevronLeft, ChevronRight, Clock, Calendar as CalendarIcon, CheckCircle2, AlertTriangle, Building2, DollarSign, Search, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
 import { useState, useEffect } from "react";
@@ -214,7 +214,11 @@ export default function Step2Venue({
     }
 
     // 2. Filter bookings strictly for the SELECTED venue & date (including multi-day spans)
+    // Exclude completed/done/cancelled/rejected — these slots are free again.
+    const INACTIVE_STATUSES = ["completed", "done", "returned", "rejected", "cancelled", "cancelled_by_user", "cancelled_by_admin", "solved", "damaged", "lost"];
     const dayBookings = existingBookings.filter(b => {
+      const bStatus = String(b.status || b.tracking_number?.status || "").toLowerCase();
+      if (INACTIVE_STATUSES.includes(bStatus)) return false; // slot is free
       const bVenueName = (b.venue?.name || b.venue_name || "").toLowerCase();
       const matchVenue = String(b.venue_id) === String(selectedVenue.id) ||
         (bVenueName && (bVenueName.includes(vName) || vName.includes(bVenueName)));
@@ -287,8 +291,14 @@ export default function Step2Venue({
 
   const targetEndDate = selectedEndDate && selectedEndDate >= selectedDate ? selectedEndDate : selectedDate;
 
+  const CONFLICT_INACTIVE = ["completed", "done", "returned", "rejected", "cancelled", "cancelled_by_user", "cancelled_by_admin", "solved", "damaged", "lost"];
+
   const conflictingBooking = (selectedVenue && selectedDate && timeStart && timeEnd)
     ? existingBookings.find(b => {
+      // Skip bookings that are already completed/done — their time slot is free
+      const bStatus = String(b.status || b.tracking_number?.status || "").toLowerCase();
+      if (CONFLICT_INACTIVE.includes(bStatus)) return false;
+
       const bVenueName = (b.venue?.name || b.venue_name || "").toLowerCase();
       const vName = (selectedVenue.name || "").toLowerCase();
       const matchVenue = String(b.venue_id) === String(selectedVenue.id) ||
@@ -338,11 +348,21 @@ export default function Step2Venue({
         {/* Left Column: 2x2 Venue Cards Grid */}
         <div className="lg:col-span-7 sm:col-span-12 space-y-4">
 
-          {searchedVenues.length === 0 ? (
+          {venuesLoading ? (
+            <div className="p-12 text-center bg-white rounded-3xl border border-slate-200/80 space-y-3">
+              <Loader2 size={32} className="mx-auto text-blue-600 animate-spin" />
+              <p className="text-xs font-bold text-slate-700">Loading university venues...</p>
+              <p className="text-[11px] text-slate-400">Fetching live venue catalog</p>
+            </div>
+          ) : searchedVenues.length === 0 ? (
             <div className="p-8 text-center bg-white rounded-3xl border border-slate-200/80">
               <Building2 size={32} className="mx-auto text-slate-300 mb-2" />
-              <p className="text-xs font-bold text-slate-700">No venues match your search</p>
-              <p className="text-[11px] text-slate-400 mt-0.5">Try searching with a different term or keyword</p>
+              <p className="text-xs font-bold text-slate-700">
+                {filteredVenues.length === 0 ? "No university venues registered yet" : "No venues match your search"}
+              </p>
+              <p className="text-[11px] text-slate-400 mt-0.5">
+                {filteredVenues.length === 0 ? "Please check back later or contact the PMO/AVR office." : "Try searching with a different term or keyword"}
+              </p>
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">

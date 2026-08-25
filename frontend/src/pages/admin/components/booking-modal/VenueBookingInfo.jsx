@@ -172,7 +172,7 @@ export default function VenueBookingInfo({
                   key={idx}
                   className="px-2.5 py-1 bg-slate-100 text-slate-800 border border-slate-200 rounded-lg text-xs font-bold font-mono"
                 >
-                  {cat.name || cat.category} {cat.quantity > 1 ? `(${cat.quantity} units)` : ""}
+                  {cat.name || cat.category} ({cat.quantity || 1} {Number(cat.quantity || 1) === 1 ? 'unit' : 'units'})
                 </span>
               ))}
             </div>

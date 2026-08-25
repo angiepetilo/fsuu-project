@@ -98,7 +98,7 @@ function BorrowSlotBarcodeSelector({
       <div className="relative flex items-center">
         <input
           type="text"
-          placeholder={`Type barcode or choose from ${slotEligibleUnits.length} units...`}
+          placeholder={currentBarcode ? "Change unit barcode..." : "Type barcode or choose from dropdown..."}
           value={searchTerm}
           onChange={handleInputChange}
           onFocus={() => setIsOpen(true)}
@@ -134,7 +134,6 @@ function BorrowSlotBarcodeSelector({
         <div className="absolute z-50 left-0 right-0 mt-1 max-h-56 overflow-y-auto bg-white border border-slate-200 rounded-xl shadow-xl py-1 text-xs animate-in fade-in">
           <div className="px-3 py-1.5 border-b border-slate-100 flex items-center justify-between text-[10.5px] font-bold text-slate-500 bg-slate-50">
             <span>BARCODES FOR {String(categoryName).toUpperCase()}</span>
-            <span className="font-mono text-emerald-700">{slotEligibleUnits.length} in stock</span>
           </div>
 
           {searchFiltered.length === 0 ? (
@@ -258,14 +257,9 @@ export default function EquipBorrowUnitAssignment({
           return (
             <div key={catIdx} className="p-3.5 bg-white rounded-2xl border border-slate-200/90 space-y-2.5 shadow-xs">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="font-extrabold text-slate-900 text-xs">
-                    {reqCat.category}
-                  </span>
-                  <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">
-                    {availableUnits.length} in stock
-                  </span>
-                </div>
+                <span className="font-extrabold text-slate-900 text-xs">
+                  {reqCat.category}
+                </span>
                 <span className="text-[11px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200">
                   Qty: {reqCat.quantity}
                 </span>
@@ -381,7 +375,7 @@ export default function EquipBorrowUnitAssignment({
                             className="w-full p-2 bg-amber-50/50 border border-amber-300 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-50 cursor-pointer"
                           >
                             <option value="">
-                              -- Assign Barcode (Unit {uIdx + 1} of {reqCat.quantity}) • {filteredUnits.length} in stock --
+                              -- Assign Barcode (Unit {uIdx + 1} of {reqCat.quantity}) --
                             </option>
                             {filteredUnits.map((unit) => {
                               const displayCode = unit.unit_code || unit.barcode || unit.serial_number || unit.code || `UNIT-${unit.id}`;

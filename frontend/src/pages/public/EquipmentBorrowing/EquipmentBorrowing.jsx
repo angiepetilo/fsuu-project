@@ -124,14 +124,24 @@ export default function EquipmentBorrowing() {
     if (startTimeStr) params.append("time_start", startTimeStr);
     if (endTimeStr) params.append("time_end", endTimeStr);
 
-    setCatalogLoading(true);
-    api.get(`/public/equipment-types?${params.toString()}`)
-      .then(res => {
-        const data = res.data ?? [];
-        setCatalog(data);
-      })
-      .catch(() => setCatalog([]))
-      .finally(() => setCatalogLoading(false));
+    // Only show full-screen spinner on initial empty load
+    if (catalog.length === 0) {
+      setCatalogLoading(true);
+    }
+
+    const timer = setTimeout(() => {
+      api.get(`/public/equipment-types?${params.toString()}`)
+        .then(res => {
+          const data = res.data ?? [];
+          setCatalog(data);
+        })
+        .catch(() => {
+          if (catalog.length === 0) setCatalog([]);
+        })
+        .finally(() => setCatalogLoading(false));
+    }, 250);
+
+    return () => clearTimeout(timer);
   }, [startTime, endTime, campusBranch]);
 
   const uniqueCategories = ["all", ...new Set(catalog.map(c => c.eq_type || c.category).filter(Boolean))];
@@ -326,6 +336,8 @@ export default function EquipmentBorrowing() {
         used_inside_campus: 1,
         contact_preference: notificationChannel || "email",
         equipment_items: JSON.stringify(itemsList),
+        is_pin_verified: isPinVerified ? 1 : 0,
+        pin_override: isPinVerified ? 1 : 0,
       };
 
       const formData = new FormData();
@@ -480,10 +492,9 @@ export default function EquipmentBorrowing() {
           if (activeStep === 1) {
             if (!completedSteps.includes(1)) setCompletedSteps((prev) => [...prev, 1]);
             setActiveStep(2);
-          } else if (activeStep === 2) {
-            if (!completedSteps.includes(2)) setCompletedSteps((prev) => [...prev, 2]);
-            setActiveStep(3);
           }
+          // Note: When on Step 2 (Select Equipment), verifying PIN marks it as verified but does NOT auto-advance.
+          // The user must explicitly click the "Next: Fill Details" button to proceed.
         }}
         title={pinModalMeta.title}
         description={pinModalMeta.description}
