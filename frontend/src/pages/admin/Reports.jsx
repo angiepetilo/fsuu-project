@@ -81,8 +81,8 @@ export default function Reports() {
     loadTerms();
   }, []);
 
-  const fetchReportsData = async () => {
-    setLoading(true);
+  const fetchReportsData = async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const termParam = selectedTermId ? `?academic_term_id=${selectedTermId}` : "";
       const [histRes, daRes, eqData] = await Promise.all([
@@ -101,21 +101,41 @@ export default function Reports() {
       const violations = daRes.data?.rule_violations || [];
       setRuleViolations(violations);
 
-      // 3. Equipment inventory stock
+      // 3. Equipment inventory stock (fresh, live, un-cached)
       const eqItems = Array.isArray(eqData) ? eqData : (eqData?.data || []);
       setInventoryItems(eqItems);
-      if (eqItems.length > 0) {
-        localStorage.setItem("fsuu_equipment_types", JSON.stringify(eqItems));
-      }
     } catch {
       // Fallback
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
   useEffect(() => {
     fetchReportsData();
+
+    // Auto-reload every 10 seconds to catch live updates automatically
+    const interval = setInterval(() => {
+      fetchReportsData(true);
+    }, 10000);
+
+    // Auto-reload on window focus or custom update events
+    const handleLiveReload = () => {
+      fetchReportsData(true);
+    };
+
+    window.addEventListener("focus", handleLiveReload);
+    window.addEventListener("equipment_inventory_updated", handleLiveReload);
+    window.addEventListener("venue_booking_updated", handleLiveReload);
+    window.addEventListener("equipment_borrowing_updated", handleLiveReload);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("focus", handleLiveReload);
+      window.removeEventListener("equipment_inventory_updated", handleLiveReload);
+      window.removeEventListener("venue_booking_updated", handleLiveReload);
+      window.removeEventListener("equipment_borrowing_updated", handleLiveReload);
+    };
   }, [selectedTermId]);
 
   const selectedOfficeId = context?.selectedOfficeId;
