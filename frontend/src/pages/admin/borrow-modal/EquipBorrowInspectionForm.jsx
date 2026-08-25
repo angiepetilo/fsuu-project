@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { FileCheck, Loader2, CheckCircle2, AlertTriangle, HelpCircle, Camera, Clock, XCircle, CheckSquare, Square } from "lucide-react";
 import InspectionPhotoUploader from "@/components/ui/InspectionPhotoUploader";
+import { getOverdueMinutes, formatOverdueDuration } from "@/lib/dateTimeUtils";
 
 /**
  * EquipBorrowInspectionForm — Physical unit inspection checklist with missing parts spec & condition triggers.
@@ -27,9 +28,21 @@ export default function EquipBorrowInspectionForm({
   handleSaveInspection,
   inspectionSuccessMsg,
   readOnly = false,
+  scheduledDate,
+  scheduledTime,
+  minutesLate = 0,
 }) {
   // Local state for missing parts text if not passed
   const [localMissingParts, setLocalMissingParts] = useState(missingPartsDetails || {});
+
+  const delayMins = minutesLate > 0 ? minutesLate : getOverdueMinutes(scheduledDate, scheduledTime);
+
+  // Auto-suggest late timeliness on load if overdue
+  useEffect(() => {
+    if (!isPreRelease && delayMins > 0 && timeliness === "on_time" && setTimeliness && !readOnly) {
+      setTimeliness("late");
+    }
+  }, [delayMins, isPreRelease]);
 
   const updateMissingParts = (key, text) => {
     const next = { ...localMissingParts, [key]: text };
@@ -74,7 +87,16 @@ export default function EquipBorrowInspectionForm({
 
       {/* Global Status Banner for After Inspection */}
       {!isPreRelease && (
-        <div className="space-y-1.5">
+        <div className="space-y-2">
+          {delayMins > 0 && (
+            <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold">
+              <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse shrink-0" />
+              <span>
+                <strong>Overdue Turnover:</strong> Returned <strong>{formatOverdueDuration(delayMins)}</strong> past scheduled return time.
+              </span>
+            </div>
+          )}
+
           <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">
             Overall Return Outcome
           </label>

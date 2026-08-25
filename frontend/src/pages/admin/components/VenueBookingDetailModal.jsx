@@ -1193,7 +1193,11 @@ export default function VenueBookingDetailModal({
                     isHistoryView={isHistoryView}
                     isAdminOrSuperAdmin={isAdminOrSuperAdmin}
                     user={user}
-                    isOngoing={false}
+                    isOngoing={isOngoing}
+                    isPreEvent={false}
+                    scheduledDate={selected.reservation_end_date || selected.date_of_usage || selected.start_datetime}
+                    scheduledTime={selected.time_end || selected.end_datetime}
+                    minutesLate={selected.minutes_late || selected.inspection?.minutes_late || 0}
                   />
                 </div>
               </div>

@@ -962,6 +962,9 @@ export default function EquipmentBorrowDetailModal({
                       handleSaveInspection={(e) => handleSaveInspection(e, "post_use")}
                       inspectionSuccessMsg={inspectionSuccessMsg}
                       readOnly={isCompleted}
+                      scheduledDate={selected.date_of_usage || selected.start_datetime}
+                      scheduledTime={selected.time_end || selected.end_datetime}
+                      minutesLate={selected.minutes_late || selected.inspection?.minutes_late || 0}
                     />
                   ) : isOngoing ? (
                     <div className="p-8 bg-slate-50/60 border border-dashed border-slate-200 rounded-2xl text-center space-y-3 flex flex-col items-center justify-center min-h-[220px]">

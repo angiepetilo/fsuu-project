@@ -7,8 +7,9 @@ import {
 } from "lucide-react";
 import EquipmentBorrowDetailModal from "./components/EquipmentBorrowDetailModal";
 import { PageLoader } from "@/components/ui/page-loader";
-import { StatusBadge } from "@/components/ui/status-badge";
+import { StatusBadge, OverdueBadge } from "@/components/ui/status-badge";
 import { formatDate, formatTimeRange12 } from "@/lib/dateUtils";
+import { getOverdueMinutes } from "@/lib/dateTimeUtils";
 
 export default function EquipmentBorrowings() {
   const context = useOutletContext();
@@ -251,6 +252,8 @@ export default function EquipmentBorrowings() {
                 const timeRange = formatTimeRange12(rawStart, rawEnd);
                 const currentStatus = b.status || b.tracking_number?.status || "pending";
                 const displayIndex = startIndex + idx + 1;
+                const isActive = !["completed", "rejected", "cancelled", "damaged", "lost"].includes(currentStatus.toLowerCase());
+                const overdueMins = isActive ? getOverdueMinutes(b.date_of_usage || b.start_datetime, rawEnd) : 0;
 
                 return (
                   <tr key={`eb-row-${b.id}`} className="hover:bg-slate-50/60 transition-colors">
@@ -261,10 +264,15 @@ export default function EquipmentBorrowings() {
                     <td className="px-4 py-3.5 font-bold text-blue-700">{equipment}</td>
                     <td className="px-4 py-3.5 text-slate-600 whitespace-nowrap">{usageDate}</td>
                     <td className="px-4 py-3.5 text-slate-600 whitespace-nowrap">{timeRange}</td>
-                    <td className="px-4 py-3.5"><StatusBadge status={currentStatus} /></td>
+                    <td className="px-4 py-3.5">
+                      <div className="flex flex-col items-start gap-1">
+                        <StatusBadge status={currentStatus} />
+                        {overdueMins > 0 && <OverdueBadge minutesOverdue={overdueMins} />}
+                      </div>
+                    </td>
                     <td className="px-4 py-3.5">
                       <button
-                        onClick={() => setSelected(b)}
+                        onClick={() => setSelectedId(b.id)}
                         title="View Details"
                         className="p-2 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg font-bold text-xs transition-all cursor-pointer"
                       >
@@ -300,12 +308,17 @@ export default function EquipmentBorrowings() {
               const rawEnd = b.time_end || b.end_datetime;
               const timeRange = formatTimeRange12(rawStart, rawEnd);
               const currentStatus = b.status || b.tracking_number?.status || "pending";
+              const isActive = !["completed", "rejected", "cancelled", "damaged", "lost"].includes(currentStatus.toLowerCase());
+              const overdueMins = isActive ? getOverdueMinutes(b.date_of_usage || b.start_datetime, rawEnd) : 0;
 
               return (
                 <div key={`eb-card-${b.id}`} className="p-4 space-y-3 bg-white hover:bg-slate-50/50 transition-colors">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-2">
                     <span className="font-mono text-xs font-black text-blue-600 tracking-tight">{refCode}</span>
-                    <StatusBadge status={currentStatus} />
+                    <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                      <StatusBadge status={currentStatus} />
+                      {overdueMins > 0 && <OverdueBadge minutesOverdue={overdueMins} />}
+                    </div>
                   </div>
                   <div>
                     <h4 className="font-extrabold text-slate-900 text-sm">{requestor}</h4>
@@ -322,7 +335,7 @@ export default function EquipmentBorrowings() {
                     </div>
                   </div>
                   <button
-                    onClick={() => setSelected(b)}
+                    onClick={() => setSelectedId(b.id)}
                     className="w-full py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-xl font-extrabold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-2xs"
                   >
                     <Eye size={15} />

@@ -1,8 +1,10 @@
-﻿import { X } from "lucide-react";
+import { X } from "lucide-react";
+import { OverdueBadge } from "@/components/ui/status-badge";
+import { getOverdueMinutes } from "@/lib/dateTimeUtils";
 
 /**
  * VenueModalHeader — Top bar of the booking form modal.
- * Displays: title, tracking number, venue name, filed timestamp, status badge, close button.
+ * Displays: title, tracking number, venue name, filed timestamp, status badge, overdue pill, close button.
  */
 export default function VenueModalHeader({
   selected,
@@ -11,6 +13,11 @@ export default function VenueModalHeader({
   setShowRejectForm,
   formatDateTimeFiled,
 }) {
+  const currentRawStatus = (selected?.status || selected?.tracking_number?.status || "").toLowerCase();
+  const isActive = !["completed", "rejected", "cancelled", "damaged", "lost"].includes(currentRawStatus);
+  const scheduledEndDate = selected?.reservation_end_date || selected?.date_of_usage || selected?.start_datetime;
+  const overdueMins = isActive ? getOverdueMinutes(scheduledEndDate, selected?.time_end || selected?.end_datetime) : 0;
+
   return (
     <div className="px-6 py-4 bg-white border-b border-slate-200 shrink-0">
       <div className="flex items-start justify-between">
@@ -32,24 +39,27 @@ export default function VenueModalHeader({
         </div>
 
         <div className="flex items-center gap-3">
-          <span className="font-mono text-xs font-bold uppercase text-slate-500">
-            Status:{" "}
-            <span
-              className={`font-black ${
-                displayStatus === "Satisfactory" || displayStatus === "approved"
-                  ? "text-emerald-600"
-                  : displayStatus === "ongoing" || displayStatus === "on-going"
-                  ? "text-blue-600"
-                  : displayStatus === "Completed" || displayStatus === "completed"
-                  ? "text-slate-800"
-                  : displayStatus === "Policy Breach" || displayStatus === "damaged" || displayStatus === "rejected"
-                  ? "text-rose-600"
-                  : "text-amber-600"
-              }`}
-            >
-              {displayStatus}
+          <div className="flex items-center gap-1.5 flex-wrap justify-end">
+            <span className="font-mono text-xs font-bold uppercase text-slate-500">
+              Status:{" "}
+              <span
+                className={`font-black ${
+                  displayStatus === "Satisfactory" || displayStatus === "approved"
+                    ? "text-emerald-600"
+                    : displayStatus === "ongoing" || displayStatus === "on-going"
+                    ? "text-blue-600"
+                    : displayStatus === "Completed" || displayStatus === "completed"
+                    ? "text-slate-800"
+                    : displayStatus === "Policy Breach" || displayStatus === "damaged" || displayStatus === "rejected"
+                    ? "text-rose-600"
+                    : "text-amber-600"
+                }`}
+              >
+                {displayStatus}
+              </span>
             </span>
-          </span>
+            {overdueMins > 0 && <OverdueBadge minutesOverdue={overdueMins} />}
+          </div>
           <button
             type="button"
             onClick={() => { setSelected(null); setShowRejectForm(false); }}
