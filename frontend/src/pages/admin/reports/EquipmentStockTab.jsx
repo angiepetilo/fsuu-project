@@ -1,7 +1,14 @@
-import { useState, useEffect } from "react";
-import { PackageOpen, Loader2, Save, CheckCircle2, Settings2, Lock, Unlock, ChevronLeft, ChevronRight, AlertTriangle } from "lucide-react";
-import { useAuth } from "@/context/AuthContext";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { useOutletContext } from "react-router-dom";
 import api from "@/lib/axios";
+import { fetchWithCache } from "@/lib/apiCache";
+import {
+  Save, Loader2, CheckCircle2, Lock, Unlock,
+  Barcode, Copy, Check, MoreVertical, Eye,
+  ChevronLeft, ChevronRight, Search, Filter
+} from "lucide-react";
+import { StatusBadge } from "@/components/ui/status-badge";
+import EquipmentDetailModal from "../components/EquipmentDetailModal";
 
 export default function EquipmentStockTab({
   filteredInventory = [],
@@ -10,42 +17,35 @@ export default function EquipmentStockTab({
   fetchReportsData,
   isStaff = false,
 }) {
-  const { user } = useAuth();
-  const isUserStaff = isStaff || user?.role === "staff" || user?.role?.name === "staff";
+  const context = useOutletContext();
+  const selectedOfficeId = context?.selectedOfficeId;
+  const officeScope = context?.adminOffice || context?.selectedOffice || "All Offices";
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [feedback, setFeedback] = useState(null);
 
-  const [currentPage, setCurrentPage] = useState(1);
-  const ITEMS_PER_PAGE = 10;
-
-  // Local draft state for QTY PRESENT, CONDITION, and NOTES
+  // ── Top Table (Category Stock Audit) Pagination & State ──
+  const [categoryPage, setCategoryPage] = useState(1);
+  const CATEGORY_ITEMS_PER_PAGE = 10;
   const [inventoryDrafts, setInventoryDrafts] = useState({});
-
-  // Per-row override mode — Set of item IDs that have unlocked manual correction
   const [overrideRows, setOverrideRows] = useState(new Set());
 
   const toggleOverride = (itemId) => {
     setOverrideRows(prev => {
       const next = new Set(prev);
-      if (next.has(itemId)) {
-        next.delete(itemId);
-      } else {
-        next.add(itemId);
-      }
+      if (next.has(itemId)) next.delete(itemId);
+      else next.add(itemId);
       return next;
     });
   };
 
-  const [viewPhotoModal, setViewPhotoModal] = useState(null);
-
   useEffect(() => {
-    setCurrentPage(1);
+    setCategoryPage(1);
   }, [filteredInventory.length]);
 
-  const totalPages = Math.ceil(filteredInventory.length / ITEMS_PER_PAGE) || 1;
-  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const paginatedInventory = filteredInventory.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  const totalCategoryPages = Math.ceil(filteredInventory.length / CATEGORY_ITEMS_PER_PAGE) || 1;
+  const startCategoryIndex = (categoryPage - 1) * CATEGORY_ITEMS_PER_PAGE;
+  const paginatedInventory = filteredInventory.slice(startCategoryIndex, startCategoryIndex + CATEGORY_ITEMS_PER_PAGE);
 
   useEffect(() => {
     if (filteredInventory && filteredInventory.length > 0) {
@@ -65,47 +65,11 @@ export default function EquipmentStockTab({
           qty_expected: expected,
           qty_present: available,
           condition: cond,
-          notes: item.description || "",
         };
       });
       setInventoryDrafts(drafts);
     }
   }, [filteredInventory]);
-
-  // Stepper handlers
-  const handleQtyChange = (key, delta) => {
-    setInventoryDrafts(prev => {
-      const currentVal = prev[key]?.qty_present ?? 1;
-      const newVal = Math.max(0, currentVal + delta);
-      return {
-        ...prev,
-        [key]: {
-          ...prev[key],
-          qty_present: newVal,
-        }
-      };
-    });
-  };
-
-  const handleConditionChange = (key, conditionVal) => {
-    setInventoryDrafts(prev => ({
-      ...prev,
-      [key]: {
-        ...prev[key],
-        condition: conditionVal,
-      }
-    }));
-  };
-
-  const handleNotesChange = (key, notesText) => {
-    setInventoryDrafts(prev => ({
-      ...prev,
-      [key]: {
-        ...prev[key],
-        notes: notesText,
-      }
-    }));
-  };
 
   const handleReleasedChange = (key, delta) => {
     setInventoryDrafts(prev => {
@@ -173,265 +137,610 @@ export default function EquipmentStockTab({
               lost_count: finalLost,
               released_count: finalReleased,
               status: mappedStatus,
-              description: draft.notes,
             }).catch(() => null);
           }
           return Promise.resolve();
         })
       );
 
-      setFeedback("✅ Equipment stock report saved successfully!");
+      setFeedback("Equipment stock report saved successfully!");
       setTimeout(() => setFeedback(null), 3000);
       if (fetchReportsData) fetchReportsData();
     } catch {
-      setFeedback("⚠️ Failed to update stock backend.");
+      setFeedback("Failed to update stock backend.");
       setTimeout(() => setFeedback(null), 3000);
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  // ── Bottom Table (Physical Equipment Units) ──
+  const [units, setUnits] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [unitsLoading, setUnitsLoading] = useState(true);
+  const [activeCategory, setActiveCategory] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [openActionId, setOpenActionId] = useState(null);
+  const [copiedBarcode, setCopiedBarcode] = useState(null);
+  const [unitPage, setUnitPage] = useState(1);
+  const UNIT_ITEMS_PER_PAGE = 10;
+
+  useEffect(() => {
+    const handleOutsideClick = (e) => {
+      if (!e.target.closest('.action-menu-container')) {
+        setOpenActionId(null);
+      }
+    };
+    document.addEventListener('click', handleOutsideClick);
+    return () => document.removeEventListener('click', handleOutsideClick);
+  }, []);
+
+  const handleCopyBarcode = (barcode) => {
+    if (!barcode) return;
+    navigator.clipboard.writeText(barcode);
+    setCopiedBarcode(barcode);
+    setTimeout(() => setCopiedBarcode(null), 2000);
+  };
+
+  const fetchUnits = useCallback(async () => {
+    setUnitsLoading(true);
+    try {
+      const [catData, unitRes] = await Promise.all([
+        fetchWithCache("equipment_types_list", () => api.get('/admin/equipment-types').then(r => r.data).catch(() => [])),
+        api.get('/admin/equipment-units').catch(() => ({ data: [] })),
+      ]);
+
+      const catList = Array.isArray(catData) ? catData : [];
+      const unitData = Array.isArray(unitRes.data) ? unitRes.data : [];
+
+      setCategories(catList);
+
+      setUnits(unitData.map((u, idx) => {
+        const bCode = String(u.unit_code || u.barcode || `BC-EQP-2026-00${idx + 1}`).trim();
+        const dbStatusRaw = (u.status || 'available').toLowerCase();
+        let dbStatus = dbStatusRaw;
+        if (['damaged', 'maintenance', 'under_maintenance', 'decommissioned', 'unavailable'].includes(dbStatusRaw)) {
+          dbStatus = 'unavailable';
+        } else if (dbStatusRaw === 'released' || dbStatusRaw === 'in-use' || dbStatusRaw === 'released / in-use' || dbStatusRaw === 'release / in - use') {
+          dbStatus = 'Released';
+        } else {
+          dbStatus = 'Available';
+        }
+
+        const dbCondition = u.condition || '';
+        let conditionLabel;
+        const condLower = dbCondition.toLowerCase();
+        if (condLower === 'good' || condLower === 'good condition') conditionLabel = 'Good';
+        else if (condLower === 'damaged') conditionLabel = 'Damaged';
+        else if (condLower === 'lost') conditionLabel = 'Lost';
+        else if (condLower === 'maintenance' || condLower === 'under_maintenance' || condLower === 'under repair') conditionLabel = 'Under Repair';
+        else if (condLower === 'worn' || condLower === 'minor wear') conditionLabel = 'Minor Wear';
+        else if (dbStatusRaw === 'damaged') conditionLabel = 'Damaged';
+        else if (dbStatusRaw === 'maintenance' || dbStatusRaw === 'under_maintenance') conditionLabel = 'Under Repair';
+        else if (dbStatusRaw === 'decommissioned' || dbStatusRaw === 'lost') conditionLabel = 'Lost';
+        else conditionLabel = 'Good';
+
+        const eqType = u.equipment_type || u.equipmentType || catList.find(c => String(c.id) === String(u.equipment_type_id));
+        const catName = eqType?.eq_name || eqType?.name || eqType?.eq_type || 'AV Equipment';
+        const brandModel = [u.brand, u.model].filter(Boolean).join(' ');
+        const derivedName = brandModel || catName || 'Equipment Unit';
+
+        return {
+          id: u.id || idx + 1,
+          equipment_type_id: u.equipment_type_id,
+          brand: u.brand || '',
+          model: u.model || '',
+          barcode: bCode,
+          name: derivedName,
+          category: catName,
+          office_id: eqType?.office_id || u.office_id || null,
+          office_name: eqType?.office?.name || 'AVR Office I',
+          status: dbStatus,
+          condition: conditionLabel,
+          available_count: dbStatus === 'Available' ? 1 : 0,
+          total_count: 1,
+          date_purchased: u.purchased_at ? u.purchased_at.substring(0, 10) : '2026-01-15',
+          lifespan_years: u.eq_lifespan || 5,
+          description: u.description || '',
+        };
+      }));
+    } catch {
+      setUnits([]);
+      setCategories([]);
+    } finally {
+      setUnitsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchUnits();
+    const handleInventoryUpdate = () => fetchUnits();
+    window.addEventListener("equipment_inventory_updated", handleInventoryUpdate);
+    return () => window.removeEventListener("equipment_inventory_updated", handleInventoryUpdate);
+  }, [fetchUnits]);
+
+  const filteredUnits = useMemo(() => {
+    return units.filter(item => {
+      if (selectedOfficeId && selectedOfficeId !== "all") {
+        const offId = item.office_id || item.equipment_type?.office_id || item.equipmentType?.office_id;
+        const offName = item.office_name || item.office?.name;
+        if (offId && String(offId) !== String(selectedOfficeId)) return false;
+        if (offName && officeScope && officeScope !== "All Offices" && !offName.toLowerCase().includes(officeScope.toLowerCase())) {
+          return false;
+        }
+      }
+      const matchCategory = activeCategory === "all" || (item.category || "").toLowerCase() === activeCategory.toLowerCase();
+      const q = searchQuery.toLowerCase();
+      const matchSearch = !searchQuery || (item.name || "").toLowerCase().includes(q) || (item.barcode || "").toLowerCase().includes(q);
+      return matchCategory && matchSearch;
+    });
+  }, [units, selectedOfficeId, officeScope, activeCategory, searchQuery]);
+
+  useEffect(() => {
+    setUnitPage(1);
+  }, [activeCategory, searchQuery]);
+
+  const totalUnitPages = Math.ceil(filteredUnits.length / UNIT_ITEMS_PER_PAGE) || 1;
+  const startUnitIndex = (unitPage - 1) * UNIT_ITEMS_PER_PAGE;
+  const paginatedUnits = filteredUnits.slice(startUnitIndex, startUnitIndex + UNIT_ITEMS_PER_PAGE);
+
+  const filteredCategories = useMemo(() => {
+    if (!selectedOfficeId || selectedOfficeId === "all") return categories;
+    return categories.filter(c => {
+      const offId = c.office_id || c.office?.id;
+      const offName = c.office?.name || c.office_name;
+      if (offId) return String(offId) === String(selectedOfficeId);
+      if (offName && officeScope && officeScope !== "All Offices") {
+        return offName.toLowerCase().includes(officeScope.toLowerCase());
+      }
+      return true;
+    });
+  }, [categories, selectedOfficeId, officeScope]);
+
+  const categoryNames = Array.from(new Set(filteredCategories.map(c => c.eq_name || c.name || c.eq_type).filter(Boolean)));
+  const categoryList = [
+    { id: "all", label: "All Categories" },
+    ...categoryNames.map(c => ({ id: c, label: c }))
+  ];
+
   return (
-    <div className="space-y-6">
-      {/* Header Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
-        <div>
-          <h3 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
+    <div className="space-y-8">
+      {/* ═══════════════════════════════════════════════════════════════════════ */}
+      {/* ── TOP SECTION: CATEGORY STOCK AUDIT TABLE ───────────────────────── */}
+      {/* ═══════════════════════════════════════════════════════════════════════ */}
+      <div className="space-y-4">
+        {/* Header Bar */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
+          <div>
+            <h3 className="font-extrabold text-slate-900 text-sm">
+              Equipment Inventory &amp; Stock Audit Tab
+            </h3>
+            <p className="text-xs text-slate-500 font-medium mt-0.5">
+              Real-time tracking of expected units, released equipment, and damaged/lost items.
+            </p>
+          </div>
 
-            Equipment Inventory &amp; Stock Audit Tab
-          </h3>
-          <p className="text-xs text-slate-500 font-medium mt-0.5">
-            Real-time tracking of expected units, released equipment, and damaged/lost items.
-          </p>
+          <button
+            type="button"
+            onClick={handleSubmitInventoryReport}
+            disabled={isSubmitting}
+            className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow-xs transition-all cursor-pointer disabled:opacity-50"
+          >
+            {isSubmitting ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
+            <span>Save Stock Report</span>
+          </button>
         </div>
 
-        <button
-          type="button"
-          onClick={handleSubmitInventoryReport}
-          disabled={isSubmitting}
-          className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow-xs transition-all cursor-pointer disabled:opacity-50"
-        >
-          {isSubmitting ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
-          <span>Save Stock Report</span>
-        </button>
-      </div>
-
-      {feedback && (
-        <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold flex items-center gap-2 shadow-2xs">
-          <CheckCircle2 size={16} className="text-emerald-600" />
-          {feedback}
-        </div>
-      )}
-
-      {/* Inventory Table */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-xs">
-            <thead>
-              <tr className="bg-slate-50/80 border-b border-slate-200 text-left text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
-                <th className="py-3 px-4">ITEM NO.</th>
-                <th className="py-3 px-4">CATEGORY</th>
-                <th className="py-3 px-4 text-center">QTY EXPECTED</th>
-                <th className="py-3 px-4 text-center">QTY PRESENT</th>
-                <th className="py-3 px-4 text-center">RELEASED</th>
-                <th className="py-3 px-4 text-center">RESERVED (EVENTS)</th>
-                <th className="py-3 px-4 text-center">DAMAGED</th>
-                <th className="py-3 px-4 text-center">LOST</th>
-                <th className="py-3 px-4">NOTES</th>
-                {!isUserStaff && <th className="py-3 px-4 text-center">OVERRIDE</th>}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 font-semibold text-xs">
-              {loading ? (
-                <tr>
-                  <td colSpan={isUserStaff ? 9 : 10} className="text-center py-12 text-slate-400">
-                    <Loader2 size={20} className="animate-spin inline mr-2" /> Loading inventory items...
-                  </td>
-                </tr>
-              ) : filteredInventory.length === 0 ? (
-                <tr>
-                  <td colSpan={isUserStaff ? 9 : 10} className="text-center py-12 text-slate-400">
-                    No inventory items registered yet.
-                  </td>
-                </tr>
-              ) : (
-                paginatedInventory.map((item, idx) => {
-                  const key = item.id;
-                  const itemCode = `EQ-00${startIndex + idx + 1}`;
-                  const categoryName = item.eq_name || item.name || item.category || item.eq_type || "General";
-                  const realTotal = typeof item.calculated_total === 'number'
-                    ? item.calculated_total
-                    : (typeof item.total_quantity === 'number' ? item.total_quantity : 0);
-
-                  const expectedQty = Math.max(0, realTotal);
-                  const initialReleased = Math.max(0, typeof item.released_count === 'number' ? item.released_count : 0);
-                  const reservedCount = Math.max(0, typeof item.reserved_count === 'number' ? item.reserved_count : 0);
-                  const totalDamaged = Math.max(0, typeof item.damaged_count === 'number' ? item.damaged_count : 0);
-                  const totalLost = Math.max(0, typeof item.lost_count === 'number' ? item.lost_count : 0);
-
-                  const draft = inventoryDrafts[key] || {};
-                  const currentReleased = draft.qty_released ?? initialReleased;
-                  const currentDamaged = draft.qty_damaged ?? totalDamaged;
-                  const currentLost = draft.qty_lost ?? totalLost;
-
-                  const availablePresent = typeof item.available_count === 'number' 
-                    ? item.available_count 
-                    : Math.max(0, expectedQty - currentReleased - currentDamaged - currentLost);
-
-                  const currentDraft = {
-                    qty_released: currentReleased,
-                    qty_damaged: currentDamaged,
-                    qty_lost: currentLost,
-                    notes: draft.notes ?? (item.description || ""),
-                  };
-
-                  return (
-                    <tr key={key || idx} className={`transition-colors ${overrideRows.has(key) ? "bg-amber-50/40 border-l-2 border-amber-300" : "hover:bg-slate-50/60"}`}>
-                      <td className="py-3.5 px-4 font-mono font-bold text-slate-600 whitespace-nowrap">{itemCode}</td>
-                      <td className="py-3.5 px-4 font-bold text-slate-900 max-w-[220px] truncate" title={categoryName}>{categoryName}</td>
-                      <td className="py-3.5 px-4 text-center font-extrabold text-slate-900 text-sm">{expectedQty}</td>
-                      
-                      <td className="py-3.5 px-4 text-center font-extrabold text-sm text-emerald-600">
-                        {availablePresent}
-                      </td>
-
-                      {/* RELEASED — read-only by default, unlocked only in Override mode */}
-                      <td className="py-3.5 px-4 text-center">
-                        {overrideRows.has(key) ? (
-                          <div className="flex items-center justify-center gap-1.5">
-                            <button type="button" onClick={() => handleReleasedChange(key, -1)} className="w-5 h-5 rounded bg-blue-100 hover:bg-blue-200 text-blue-700 font-black text-xs flex items-center justify-center cursor-pointer border border-blue-300">-</button>
-                            <span className="font-extrabold text-sm min-w-[22px] text-center text-blue-700">{currentDraft.qty_released}</span>
-                            <button type="button" onClick={() => handleReleasedChange(key, 1)} className="w-5 h-5 rounded bg-blue-100 hover:bg-blue-200 text-blue-700 font-black text-xs flex items-center justify-center cursor-pointer border border-blue-300">+</button>
-                          </div>
-                        ) : (
-                          <span className={`inline-flex items-center justify-center min-w-[32px] px-2.5 py-0.5 rounded-full text-xs font-extrabold border ${
-                            currentDraft.qty_released > 0
-                              ? "bg-blue-50 text-blue-700 border-blue-200"
-                              : "bg-slate-50 text-slate-400 border-slate-200"
-                          }`}>{currentDraft.qty_released}</span>
-                        )}
-                      </td>
-
-                      {/* RESERVED (FOR VENUE EVENTS) */}
-                      <td className="py-3.5 px-4 text-center">
-                        <span className={`inline-flex items-center justify-center min-w-[32px] px-2.5 py-0.5 rounded-full text-xs font-extrabold border ${
-                          reservedCount > 0
-                            ? "bg-amber-50 text-amber-800 border-amber-200"
-                            : "bg-slate-50 text-slate-400 border-slate-200"
-                        }`}>
-                          {reservedCount}
-                        </span>
-                      </td>
-
-                      {/* DAMAGED — read-only by default, unlocked only in Override mode */}
-                      <td className="py-3.5 px-4 text-center">
-                        {overrideRows.has(key) ? (
-                          <div className="flex items-center justify-center gap-1.5">
-                            <button type="button" onClick={() => handleDamagedChange(key, -1)} className="w-5 h-5 rounded bg-rose-100 hover:bg-rose-200 text-rose-700 font-black text-xs flex items-center justify-center cursor-pointer border border-rose-300">-</button>
-                            <span className="font-extrabold text-sm min-w-[22px] text-center text-rose-600">{currentDraft.qty_damaged}</span>
-                            <button type="button" onClick={() => handleDamagedChange(key, 1)} className="w-5 h-5 rounded bg-rose-100 hover:bg-rose-200 text-rose-700 font-black text-xs flex items-center justify-center cursor-pointer border border-rose-300">+</button>
-                          </div>
-                        ) : (
-                          <span className={`inline-flex items-center justify-center min-w-[32px] px-2.5 py-0.5 rounded-full text-xs font-extrabold border ${
-                            currentDraft.qty_damaged > 0
-                              ? "bg-rose-50 text-rose-700 border-rose-200"
-                              : "bg-slate-50 text-slate-400 border-slate-200"
-                          }`}>{currentDraft.qty_damaged}</span>
-                        )}
-                      </td>
-
-                      {/* LOST — read-only by default, unlocked only in Override mode */}
-                      <td className="py-3.5 px-4 text-center">
-                        {overrideRows.has(key) ? (
-                          <div className="flex items-center justify-center gap-1.5">
-                            <button type="button" onClick={() => handleLostChange(key, -1)} className="w-5 h-5 rounded bg-amber-100 hover:bg-amber-200 text-amber-800 font-black text-xs flex items-center justify-center cursor-pointer border border-amber-300">-</button>
-                            <span className="font-extrabold text-sm min-w-[22px] text-center text-amber-700">{currentDraft.qty_lost}</span>
-                            <button type="button" onClick={() => handleLostChange(key, 1)} className="w-5 h-5 rounded bg-amber-100 hover:bg-amber-200 text-amber-800 font-black text-xs flex items-center justify-center cursor-pointer border border-amber-300">+</button>
-                          </div>
-                        ) : (
-                          <span className={`inline-flex items-center justify-center min-w-[32px] px-2.5 py-0.5 rounded-full text-xs font-extrabold border ${
-                            currentDraft.qty_lost > 0
-                              ? "bg-amber-50 text-amber-700 border-amber-200"
-                              : "bg-slate-50 text-slate-400 border-slate-200"
-                          }`}>{currentDraft.qty_lost}</span>
-                        )}
-                      </td>
-
-                      {/* NOTES — always editable */}
-                      <td className="py-4 px-4 max-w-[200px]">
-                        <input
-                          type="text"
-                          placeholder="Notes..."
-                          value={currentDraft.notes}
-                          onChange={(e) => handleNotesChange(key, e.target.value)}
-                          title={currentDraft.notes}
-                          className="w-full px-3 py-1.5 border border-slate-200 rounded-xl bg-white text-xs font-medium focus:outline-none focus:border-blue-600 shadow-xs truncate"
-                        />
-                      </td>
-
-                      {/* OVERRIDE toggle — per row, unlocks steppers for reconciliation */}
-                      {!isUserStaff && (
-                        <td className="py-3.5 px-4 text-center">
-                          <button
-                            type="button"
-                            onClick={() => toggleOverride(key)}
-                            title={overrideRows.has(key) ? "Lock — return to auto-calculated view" : "Override — unlock for manual reconciliation / audit correction"}
-                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-extrabold border transition-all cursor-pointer ${
-                              overrideRows.has(key)
-                                ? "bg-amber-50 text-amber-700 border-amber-300 hover:bg-amber-100"
-                                : "bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100 hover:text-slate-700"
-                            }`}
-                          >
-                            {overrideRows.has(key) ? (
-                              <><Lock size={11} /> Lock</>  
-                            ) : (
-                              <><Unlock size={11} /> Override</>  
-                            )}
-                          </button>
-                        </td>
-                      )}
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Pagination Footer */}
-        {filteredInventory.length > 0 && (
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-6 py-4 bg-slate-50/80 border-t border-slate-100 text-xs font-semibold text-slate-600">
-            <div>
-              Showing <span className="font-extrabold text-slate-900">{startIndex + 1}</span> to{" "}
-              <span className="font-extrabold text-slate-900">{Math.min(startIndex + ITEMS_PER_PAGE, filteredInventory.length)}</span> of{" "}
-              <span className="font-extrabold text-slate-900">{filteredInventory.length}</span> inventory stock items
-            </div>
-
-            <div className="flex items-center gap-2">
-              <span className="text-slate-500 font-bold mr-2">
-                Page {currentPage} of {totalPages}
-              </span>
-              <button
-                type="button"
-                disabled={currentPage === 1}
-                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                className="flex items-center gap-1 px-3.5 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all shadow-xs font-bold text-xs"
-              >
-                <ChevronLeft size={14} /> Previous
-              </button>
-
-              <button
-                type="button"
-                disabled={currentPage >= totalPages}
-                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                className="flex items-center gap-1 px-3.5 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all shadow-xs font-bold text-xs"
-              >
-                Next <ChevronRight size={14} />
-              </button>
-            </div>
+        {feedback && (
+          <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold flex items-center gap-2 shadow-2xs">
+            <CheckCircle2 size={16} className="text-emerald-600" />
+            {feedback}
           </div>
         )}
+
+        {/* Category Audit Table without NOTES column */}
+        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="bg-slate-50/80 border-b border-slate-200 text-left text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
+                  <th className="py-3 px-4">ITEM NO.</th>
+                  <th className="py-3 px-4">CATEGORY</th>
+                  <th className="py-3 px-4 text-center">QTY EXPECTED</th>
+                  <th className="py-3 px-4 text-center">QTY PRESENT</th>
+                  <th className="py-3 px-4 text-center">RELEASED</th>
+                  <th className="py-3 px-4 text-center">RESERVED (EVENTS)</th>
+                  <th className="py-3 px-4 text-center">DAMAGED</th>
+                  <th className="py-3 px-4 text-center">LOST</th>
+                  {!isStaff && <th className="py-3 px-4 text-center">OVERRIDE</th>}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 font-semibold text-xs">
+                {loading ? (
+                  <tr>
+                    <td colSpan={isStaff ? 8 : 9} className="text-center py-12 text-slate-400">
+                      <Loader2 size={20} className="animate-spin inline mr-2" /> Loading inventory items...
+                    </td>
+                  </tr>
+                ) : filteredInventory.length === 0 ? (
+                  <tr>
+                    <td colSpan={isStaff ? 8 : 9} className="text-center py-12 text-slate-400">
+                      No inventory items registered yet.
+                    </td>
+                  </tr>
+                ) : (
+                  paginatedInventory.map((item, idx) => {
+                    const key = item.id;
+                    const itemCode = `EQ-00${startCategoryIndex + idx + 1}`;
+                    const categoryName = item.eq_name || item.name || item.category || item.eq_type || "General";
+                    const realTotal = typeof item.calculated_total === 'number'
+                      ? item.calculated_total
+                      : (typeof item.total_quantity === 'number' ? item.total_quantity : 0);
+
+                    const expectedQty = Math.max(0, realTotal);
+                    const initialReleased = Math.max(0, typeof item.released_count === 'number' ? item.released_count : 0);
+                    const reservedCount = Math.max(0, typeof item.reserved_count === 'number' ? item.reserved_count : 0);
+                    const totalDamaged = Math.max(0, typeof item.damaged_count === 'number' ? item.damaged_count : 0);
+                    const totalLost = Math.max(0, typeof item.lost_count === 'number' ? item.lost_count : 0);
+
+                    const draft = inventoryDrafts[key] || {};
+                    const currentReleased = draft.qty_released ?? initialReleased;
+                    const currentDamaged = draft.qty_damaged ?? totalDamaged;
+                    const currentLost = draft.qty_lost ?? totalLost;
+
+                    const availablePresent = typeof item.available_count === 'number' 
+                      ? item.available_count 
+                      : Math.max(0, expectedQty - currentReleased - currentDamaged - currentLost);
+
+                    const currentDraft = {
+                      qty_released: currentReleased,
+                      qty_damaged: currentDamaged,
+                      qty_lost: currentLost,
+                    };
+
+                    return (
+                      <tr key={key || idx} className={`transition-colors ${overrideRows.has(key) ? "bg-amber-50/40 border-l-2 border-amber-300" : "hover:bg-slate-50/60"}`}>
+                        <td className="py-3.5 px-4 font-mono font-bold text-slate-600 whitespace-nowrap">{itemCode}</td>
+                        <td className="py-3.5 px-4 font-bold text-slate-900 max-w-[220px] truncate" title={categoryName}>{categoryName}</td>
+                        <td className="py-3.5 px-4 text-center font-extrabold text-slate-900 text-sm">{expectedQty}</td>
+                        
+                        <td className="py-3.5 px-4 text-center font-extrabold text-sm text-emerald-600">
+                          {availablePresent}
+                        </td>
+
+                        {/* RELEASED */}
+                        <td className="py-3.5 px-4 text-center">
+                          {overrideRows.has(key) ? (
+                            <div className="flex items-center justify-center gap-1.5">
+                              <button type="button" onClick={() => handleReleasedChange(key, -1)} className="w-5 h-5 rounded bg-blue-100 hover:bg-blue-200 text-blue-800 font-black text-xs flex items-center justify-center cursor-pointer border border-blue-300">-</button>
+                              <span className="font-extrabold text-sm min-w-[22px] text-center text-blue-700">{currentDraft.qty_released}</span>
+                              <button type="button" onClick={() => handleReleasedChange(key, 1)} className="w-5 h-5 rounded bg-blue-100 hover:bg-blue-200 text-blue-800 font-black text-xs flex items-center justify-center cursor-pointer border border-blue-300">+</button>
+                            </div>
+                          ) : (
+                            <span className={`inline-flex items-center justify-center min-w-[32px] px-2.5 py-0.5 rounded-full text-xs font-extrabold border ${
+                              currentDraft.qty_released > 0
+                                ? "bg-blue-50 text-blue-700 border-blue-200"
+                                : "bg-slate-50 text-slate-400 border-slate-200"
+                            }`}>{currentDraft.qty_released}</span>
+                          )}
+                        </td>
+
+                        {/* RESERVED */}
+                        <td className="py-3.5 px-4 text-center">
+                          <span className={`inline-flex items-center justify-center min-w-[32px] px-2.5 py-0.5 rounded-full text-xs font-extrabold border ${
+                            reservedCount > 0
+                              ? "bg-amber-50 text-amber-800 border-amber-200"
+                              : "bg-slate-50 text-slate-400 border-slate-200"
+                          }`}>
+                            {reservedCount}
+                          </span>
+                        </td>
+
+                        {/* DAMAGED */}
+                        <td className="py-3.5 px-4 text-center">
+                          {overrideRows.has(key) ? (
+                            <div className="flex items-center justify-center gap-1.5">
+                              <button type="button" onClick={() => handleDamagedChange(key, -1)} className="w-5 h-5 rounded bg-rose-100 hover:bg-rose-200 text-rose-700 font-black text-xs flex items-center justify-center cursor-pointer border border-rose-300">-</button>
+                              <span className="font-extrabold text-sm min-w-[22px] text-center text-rose-600">{currentDraft.qty_damaged}</span>
+                              <button type="button" onClick={() => handleDamagedChange(key, 1)} className="w-5 h-5 rounded bg-rose-100 hover:bg-rose-200 text-rose-700 font-black text-xs flex items-center justify-center cursor-pointer border border-rose-300">+</button>
+                            </div>
+                          ) : (
+                            <span className={`inline-flex items-center justify-center min-w-[32px] px-2.5 py-0.5 rounded-full text-xs font-extrabold border ${
+                              currentDraft.qty_damaged > 0
+                                ? "bg-rose-50 text-rose-700 border-rose-200"
+                                : "bg-slate-50 text-slate-400 border-slate-200"
+                            }`}>{currentDraft.qty_damaged}</span>
+                          )}
+                        </td>
+
+                        {/* LOST */}
+                        <td className="py-3.5 px-4 text-center">
+                          {overrideRows.has(key) ? (
+                            <div className="flex items-center justify-center gap-1.5">
+                              <button type="button" onClick={() => handleLostChange(key, -1)} className="w-5 h-5 rounded bg-amber-100 hover:bg-amber-200 text-amber-800 font-black text-xs flex items-center justify-center cursor-pointer border border-amber-300">-</button>
+                              <span className="font-extrabold text-sm min-w-[22px] text-center text-amber-700">{currentDraft.qty_lost}</span>
+                              <button type="button" onClick={() => handleLostChange(key, 1)} className="w-5 h-5 rounded bg-amber-100 hover:bg-amber-200 text-amber-800 font-black text-xs flex items-center justify-center cursor-pointer border border-amber-300">+</button>
+                            </div>
+                          ) : (
+                            <span className={`inline-flex items-center justify-center min-w-[32px] px-2.5 py-0.5 rounded-full text-xs font-extrabold border ${
+                              currentDraft.qty_lost > 0
+                                ? "bg-amber-50 text-amber-700 border-amber-200"
+                                : "bg-slate-50 text-slate-400 border-slate-200"
+                            }`}>{currentDraft.qty_lost}</span>
+                          )}
+                        </td>
+
+                        {/* OVERRIDE */}
+                        {!isStaff && (
+                          <td className="py-3.5 px-4 text-center">
+                            <button
+                              type="button"
+                              onClick={() => toggleOverride(key)}
+                              title={overrideRows.has(key) ? "Lock — return to auto-calculated view" : "Override — unlock for manual reconciliation / audit correction"}
+                              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-extrabold border transition-all cursor-pointer ${
+                                overrideRows.has(key)
+                                  ? "bg-amber-50 text-amber-700 border-amber-300 hover:bg-amber-100"
+                                  : "bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100 hover:text-slate-700"
+                              }`}
+                            >
+                              {overrideRows.has(key) ? (
+                                <><Lock size={11} /> Lock</>  
+                              ) : (
+                                <><Unlock size={11} /> Override</>  
+                              )}
+                            </button>
+                          </td>
+                        )}
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Pagination Footer */}
+          {filteredInventory.length > 0 && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-6 py-4 bg-slate-50/80 border-t border-slate-100 text-xs font-semibold text-slate-600">
+              <div>
+                Showing <span className="font-extrabold text-slate-900">{startCategoryIndex + 1}</span> to{" "}
+                <span className="font-extrabold text-slate-900">{Math.min(startCategoryIndex + CATEGORY_ITEMS_PER_PAGE, filteredInventory.length)}</span> of{" "}
+                <span className="font-extrabold text-slate-900">{filteredInventory.length}</span> inventory stock items
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="text-slate-500 font-bold mr-2">
+                  Page {categoryPage} of {totalCategoryPages}
+                </span>
+                <button
+                  type="button"
+                  disabled={categoryPage === 1}
+                  onClick={() => setCategoryPage(prev => Math.max(prev - 1, 1))}
+                  className="flex items-center gap-1 px-3.5 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all shadow-xs font-bold text-xs"
+                >
+                  <ChevronLeft size={14} /> Previous
+                </button>
+
+                <button
+                  type="button"
+                  disabled={categoryPage >= totalCategoryPages}
+                  onClick={() => setCategoryPage(prev => Math.min(prev + 1, totalCategoryPages))}
+                  className="flex items-center gap-1 px-3.5 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all shadow-xs font-bold text-xs"
+                >
+                  Next <ChevronRight size={14} />
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
+
+      {/* ═══════════════════════════════════════════════════════════════════════ */}
+      {/* ── BOTTOM SECTION: PHYSICAL EQUIPMENT UNITS TABLE ─────────────────── */}
+      {/* ═══════════════════════════════════════════════════════════════════════ */}
+      <div className="space-y-4 pt-2">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h4 className="font-extrabold text-slate-900 text-sm">Physical Equipment Units Inventory</h4>
+            <p className="text-xs text-slate-500 font-medium">Individual barcode-tracked units, active conditions, and lifespan statuses.</p>
+          </div>
+        </div>
+
+        {/* Search & Category Filter */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white p-3 rounded-2xl border border-slate-200/80 shadow-xs">
+          <div className="flex items-center gap-2 bg-slate-50 px-3.5 py-2 rounded-xl border border-slate-200 shadow-xs text-xs font-bold text-slate-700">
+            <Filter size={14} className="text-blue-600 flex-shrink-0" />
+            <select
+              value={activeCategory}
+              onChange={(e) => setActiveCategory(e.target.value)}
+              className="bg-transparent font-bold text-slate-900 focus:outline-none cursor-pointer text-xs pr-2"
+            >
+              {categoryList.map(t => (
+                <option key={t.id} value={t.id}>{t.label}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="relative w-full sm:w-64">
+            <Search size={14} className="absolute left-3 top-2.5 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Search unit name, barcode..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:border-blue-600"
+            />
+          </div>
+        </div>
+
+        {/* Physical Units Table */}
+        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-slate-50/80 border-b border-slate-100">
+                  {["#", "UNIT BARCODE", "EQUIPMENT UNIT NAME", "ASSIGNED CATEGORY", "STATUS", "CONDITION", "DATE PURCHASED", "LIFESPAN VS CURRENT", "ACTION"].map((h, i) => (
+                    <th key={h} className={`px-4 py-3.5 text-left text-[11px] font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap ${i === 0 ? 'rounded-tl-2xl' : i === 8 ? 'rounded-tr-2xl' : ''}`}>
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 text-xs font-semibold">
+                {unitsLoading ? (
+                  <tr>
+                    <td colSpan={9} className="text-center py-12 text-slate-400">
+                      <Loader2 size={20} className="animate-spin inline mr-2" /> Loading equipment units...
+                    </td>
+                  </tr>
+                ) : filteredUnits.length === 0 ? (
+                  <tr>
+                    <td colSpan={9} className="text-center py-12 text-slate-400">
+                      📦 No physical equipment units found.
+                    </td>
+                  </tr>
+                ) : (
+                  paginatedUnits.map((item, index) => {
+                    const lifespanYears = item.lifespan_years || 5;
+                    const purchaseYear = item.date_purchased ? parseInt(item.date_purchased.split("-")[0], 10) : 2026;
+                    const currentYear = new Date().getFullYear();
+                    const ageYears = Math.max(0.5, currentYear - purchaseYear + 0.2);
+                    const displayIndex = startUnitIndex + index + 1;
+                    const isNearBottom = index >= Math.max(1, paginatedUnits.length - 2);
+                    const isOpen = openActionId === item.id;
+
+                    return (
+                      <tr key={item.id} className={`hover:bg-slate-50/60 transition-colors ${isOpen ? 'relative z-30' : ''}`}>
+                        <td className="px-4 py-3.5 font-bold text-slate-400">{displayIndex}</td>
+                        <td className="px-4 py-3.5 font-mono text-xs font-bold text-blue-600 whitespace-nowrap">
+                          <div className="flex items-center gap-1.5">
+                            <div className="flex items-center gap-1.5 bg-blue-50/60 border border-blue-200/60 px-2.5 py-1 rounded-xl w-fit">
+                              <Barcode size={14} className="text-blue-500" />
+                              <span>{item.barcode}</span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleCopyBarcode(item.barcode)}
+                              className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-500 hover:text-slate-900 transition-all cursor-pointer"
+                              title="Copy Barcode"
+                            >
+                              {copiedBarcode === item.barcode ? (
+                                <Check size={13} className="text-emerald-600 font-extrabold" />
+                              ) : (
+                                <Copy size={13} />
+                              )}
+                            </button>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3.5 font-extrabold text-slate-900 max-w-[200px] truncate" title={item.name}>
+                          {item.name}
+                        </td>
+                        <td className="px-4 py-3.5 font-bold text-blue-700 max-w-[180px]">
+                          <span className="bg-blue-50 px-3 py-1 rounded-full border border-blue-200/60 block w-fit max-w-full truncate text-xs" title={item.category}>
+                            {item.category}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3.5">
+                          <StatusBadge status={item.status} />
+                        </td>
+                        <td className="px-4 py-3.5 whitespace-nowrap">
+                          <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold border ${
+                            item.condition === "Damaged" || item.condition === "Lost"
+                              ? "bg-rose-50 text-rose-700 border-rose-200"
+                              : item.condition === "Under Repair" || item.condition === "Minor Wear"
+                              ? "bg-amber-50 text-amber-700 border-amber-200"
+                              : "bg-emerald-50 text-emerald-700 border-emerald-200"
+                          }`}>
+                            {item.condition || "Good"}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3.5 text-slate-600 whitespace-nowrap">{item.date_purchased}</td>
+                        <td className="px-4 py-3.5 text-slate-600 whitespace-nowrap">{ageYears.toFixed(1)} / {lifespanYears} yrs</td>
+                        <td className="px-4 py-3.5 relative">
+                          <div className="relative action-menu-container inline-block">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOpenActionId(openActionId === item.id ? null : item.id);
+                              }}
+                              className={`p-1.5 rounded-full border transition-all cursor-pointer shadow-2xs ${
+                                isOpen
+                                  ? "bg-blue-600 border-blue-600 text-white shadow-md shadow-blue-600/20"
+                                  : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                              }`}
+                              title="Actions"
+                            >
+                              <MoreVertical size={15} />
+                            </button>
+
+                            {isOpen && (
+                              <div className={`absolute right-0 ${isNearBottom ? 'bottom-full mb-1.5' : 'top-full mt-1.5'} w-40 bg-white rounded-2xl shadow-2xl border border-slate-200/90 py-1.5 z-50 animate-in fade-in zoom-in-95 backdrop-blur-md`}>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setOpenActionId(null);
+                                    setSelectedItem(item);
+                                  }}
+                                  className="w-full px-3.5 py-2 text-left text-xs font-bold text-slate-700 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-2.5 transition-colors cursor-pointer"
+                                >
+                                  <Eye size={14} className="text-blue-500" />
+                                  <span>View Details</span>
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Pagination Footer */}
+          {filteredUnits.length > 0 && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-6 py-4 bg-slate-50/80 border-t border-slate-100 text-xs font-semibold text-slate-600">
+              <div>
+                Showing <span className="font-extrabold text-slate-900">{startUnitIndex + 1}</span> to{" "}
+                <span className="font-extrabold text-slate-900">{Math.min(startUnitIndex + UNIT_ITEMS_PER_PAGE, filteredUnits.length)}</span> of{" "}
+                <span className="font-extrabold text-slate-900">{filteredUnits.length}</span> equipment units
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="text-slate-500 font-bold mr-2">
+                  Page {unitPage} of {totalUnitPages}
+                </span>
+                <button
+                  type="button"
+                  disabled={unitPage === 1}
+                  onClick={() => setUnitPage(prev => Math.max(prev - 1, 1))}
+                  className="flex items-center gap-1 px-3.5 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all shadow-xs font-bold text-xs"
+                >
+                  <ChevronLeft size={14} /> Previous
+                </button>
+
+                <button
+                  type="button"
+                  disabled={unitPage >= totalUnitPages}
+                  onClick={() => setUnitPage(prev => Math.min(prev + 1, totalUnitPages))}
+                  className="flex items-center gap-1 px-3.5 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all shadow-xs font-bold text-xs"
+                >
+                  Next <ChevronRight size={14} />
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Detail Modal */}
+      <EquipmentDetailModal
+        selectedItem={selectedItem}
+        setSelectedItem={setSelectedItem}
+      />
     </div>
   );
 }

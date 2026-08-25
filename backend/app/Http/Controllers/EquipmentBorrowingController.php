@@ -310,14 +310,11 @@ class EquipmentBorrowingController extends Controller
             // Find existing inspection record — accept both post_use (saved via Save button)
             // and post_event (saved via previous complete actions) to avoid duplicates.
             $existingInsp = \Illuminate\Support\Facades\DB::table('inspections')
-                ->where(function($q) use ($equipmentBorrowing) {
-                    $q->where('inspectable_id', $equipmentBorrowing->id)
-                      ->orWhere('reference_id', $equipmentBorrowing->id);
-                })
+                ->where('inspectable_id', $equipmentBorrowing->id)
                 ->where(function($q) {
                     $q->where('inspectable_type', \App\Models\EquipmentBorrow::class)
                       ->orWhere('inspectable_type', 'equipment_borrow')
-                      ->orWhere('reference_type', 'equipment_borrow');
+                      ->orWhere('inspectable_type', 'avr_equipment_borrowing');
                 })
                 ->whereIn('inspection_type', ['post_use', 'post_event'])
                 ->latest('updated_at')
@@ -326,8 +323,6 @@ class EquipmentBorrowingController extends Controller
             $inspData = [
                 'inspectable_type' => \App\Models\EquipmentBorrow::class,
                 'inspectable_id'   => $equipmentBorrowing->id,
-                'reference_type'   => 'equipment_borrow',
-                'reference_id'     => $equipmentBorrowing->id,
                 'inspected_by'     => auth()->id() ?? 1,
                 'inspection_type'  => 'post_event',
                 'condition'        => $condition,
@@ -454,7 +449,7 @@ class EquipmentBorrowingController extends Controller
                 ->whereNotNull('equipment_borrows.assigned_units')
                 ->where(function ($q) use ($dateOfUsage, $reservationEndDate, $timeStart, $timeEnd) {
                     $q->where('equipment_borrows.date_of_usage', '<=', $reservationEndDate)
-                      ->whereRaw('COALESCE(equipment_borrows.reservation_end_date, equipment_borrows.date_of_usage) >= ?', [$dateOfUsage])
+                      ->where('equipment_borrows.date_of_usage', '>=', $dateOfUsage)
                       ->where('equipment_borrows.time_start', '<', $timeEnd)
                       ->where('equipment_borrows.time_end', '>', $timeStart);
                 })

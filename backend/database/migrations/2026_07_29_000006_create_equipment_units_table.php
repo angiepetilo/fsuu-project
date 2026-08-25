@@ -13,7 +13,6 @@ return new class extends Migration
             $table->foreignId('equipment_type_id')->constrained('equipment_types')->cascadeOnDelete();
             $table->string('brand')->nullable();
             $table->string('model')->nullable();
-            $table->string('name')->nullable();
             $table->string('unit_code')->unique();
             $table->date('purchased_at')->nullable();
             $table->integer('eq_lifespan')->default(5); // in years

@@ -1,4 +1,4 @@
-import { MapPin, ChevronLeft, ChevronRight, Clock, Calendar as CalendarIcon, CheckCircle2, AlertTriangle, Building2, DollarSign } from "lucide-react";
+import { MapPin, ChevronLeft, ChevronRight, Clock, Calendar as CalendarIcon, CheckCircle2, AlertTriangle, Building2, DollarSign, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
 import { useState, useEffect } from "react";
@@ -61,13 +61,13 @@ export default function Step2Venue({
       .then(res => {
         if (res?.data) setOpHours(res.data);
       })
-      .catch(() => {});
+      .catch(() => { });
 
     api.get("/public/venue-overrides")
       .then(res => {
         if (Array.isArray(res.data)) setDbOverrides(res.data);
       })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   const formatTime12 = (tStr) => {
@@ -91,11 +91,23 @@ export default function Step2Venue({
   minDate.setDate(minDate.getDate() + 3);
   const minDateStr = `${minDate.getFullYear()}-${pad(minDate.getMonth() + 1)}-${pad(minDate.getDate())}`;
 
+  // Search state
+  const [venueSearch, setVenueSearch] = useState("");
+
+  const searchedVenues = filteredVenues.filter(v => {
+    if (!venueSearch.trim()) return true;
+    const q = venueSearch.toLowerCase();
+    const name = (v.name || "").toLowerCase();
+    const loc = (v.office?.location || v.office?.name || v.location || "").toLowerCase();
+    const cap = String(v.capacity || "");
+    return name.includes(q) || loc.includes(q) || cap.includes(q);
+  });
+
   // 4-card venue pagination state
   const [venuePage, setVenuePage] = useState(0);
   const pageSize = 4;
-  const totalPages = Math.ceil(filteredVenues.length / pageSize) || 1;
-  const paginatedVenues = filteredVenues.slice(venuePage * pageSize, (venuePage + 1) * pageSize);
+  const totalPages = Math.ceil(searchedVenues.length / pageSize) || 1;
+  const paginatedVenues = searchedVenues.slice(venuePage * pageSize, (venuePage + 1) * pageSize);
 
   // Calendar navigation state
   const [calYear, setCalYear] = useState(today.getFullYear());
@@ -277,26 +289,26 @@ export default function Step2Venue({
 
   const conflictingBooking = (selectedVenue && selectedDate && timeStart && timeEnd)
     ? existingBookings.find(b => {
-        const bVenueName = (b.venue?.name || b.venue_name || "").toLowerCase();
-        const vName = (selectedVenue.name || "").toLowerCase();
-        const matchVenue = String(b.venue_id) === String(selectedVenue.id) ||
-          (bVenueName && (bVenueName.includes(vName) || vName.includes(bVenueName)));
-        if (!matchVenue) return false;
+      const bVenueName = (b.venue?.name || b.venue_name || "").toLowerCase();
+      const vName = (selectedVenue.name || "").toLowerCase();
+      const matchVenue = String(b.venue_id) === String(selectedVenue.id) ||
+        (bVenueName && (bVenueName.includes(vName) || vName.includes(bVenueName)));
+      if (!matchVenue) return false;
 
-        const bStartDate = b.date_of_usage ? b.date_of_usage.substring(0, 10) : (b.date_of_use || "");
-        const bEndDate = b.reservation_end_date ? b.reservation_end_date.substring(0, 10) : bStartDate;
-        
-        const dateOverlap = bStartDate <= targetEndDate && bEndDate >= selectedDate;
-        if (!dateOverlap) return false;
+      const bStartDate = b.date_of_usage ? b.date_of_usage.substring(0, 10) : (b.date_of_use || "");
+      const bEndDate = b.reservation_end_date ? b.reservation_end_date.substring(0, 10) : bStartDate;
 
-        const bStart = b.time_start?.substring(0, 5) || "08:00";
-        const bEnd = b.time_end?.substring(0, 5) || "17:00";
-        return checkOverlap(timeStart, timeEnd, bStart, bEnd);
-      })
+      const dateOverlap = bStartDate <= targetEndDate && bEndDate >= selectedDate;
+      if (!dateOverlap) return false;
+
+      const bStart = b.time_start?.substring(0, 5) || "08:00";
+      const bEnd = b.time_end?.substring(0, 5) || "17:00";
+      return checkOverlap(timeStart, timeEnd, bStart, bEnd);
+    })
     : null;
 
   const isInvalidEndDate = Boolean(selectedEndDate && selectedEndDate < selectedDate);
-  const isInvalidTimeRange = Boolean(timeStart && timeEnd && timeEnd <= timeStart && (!selectedEndDate || selectedEndDate === selectedDate));
+  const isInvalidTimeRange = Boolean(timeStart && timeEnd && timeEnd <= timeStart);
   const isPastSelection = isPastDateTime(selectedDate, timeStart);
   const isConflict = Boolean(conflictingBooking);
 
@@ -325,95 +337,103 @@ export default function Step2Venue({
 
         {/* Left Column: 2x2 Venue Cards Grid */}
         <div className="lg:col-span-7 sm:col-span-12 space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-            {paginatedVenues.map((v) => {
-              const isSelected = selectedVenue?.id === v.id;
-              const campusName = v.office?.location || v.office?.name || v.location || "Main Campus";
 
-              const getVenueData = (v) => {
-                let photo = v.photo || v.image || v.avatar || v.avatar_url || v.photo_url || null;
-                let status = v.status || "Available";
-                let schedule = v.schedule || null;
-                let capacity = v.capacity || null;
-                return { photo, status, schedule, capacity };
-              };
+          {searchedVenues.length === 0 ? (
+            <div className="p-8 text-center bg-white rounded-3xl border border-slate-200/80">
+              <Building2 size={32} className="mx-auto text-slate-300 mb-2" />
+              <p className="text-xs font-bold text-slate-700">No venues match your search</p>
+              <p className="text-[11px] text-slate-400 mt-0.5">Try searching with a different term or keyword</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              {paginatedVenues.map((v) => {
+                const isSelected = selectedVenue?.id === v.id;
+                const campusName = v.office?.location || v.office?.name || v.location || "Main Campus";
 
-              const venueInfo = getVenueData(v);
-              const isMaintenance = venueInfo.status === "Maintenance Block";
+                const getVenueData = (v) => {
+                  let photo = v.photo || v.image || v.avatar || v.avatar_url || v.photo_url || null;
+                  let status = v.status || "Available";
+                  let schedule = v.schedule || null;
+                  let capacity = v.capacity || null;
+                  return { photo, status, schedule, capacity };
+                };
 
-              return (
-                <div
-                  key={v.id}
-                  onClick={() => {
-                    if (!isMaintenance) handleVenueSelect(v);
-                  }}
-                  className={`relative border-2 rounded-[32px] p-6 transition-all duration-300 flex flex-col justify-between overflow-hidden ${isMaintenance
-                    ? "border-amber-300/80 bg-amber-50/20 opacity-90 cursor-not-allowed shadow-2xs"
-                    : isSelected
-                      ? "border-blue-600 bg-white shadow-lg ring-4 ring-blue-50/60 cursor-pointer"
-                      : "border-slate-100 bg-white hover:border-slate-300 hover:shadow-xs cursor-pointer"
-                    }`}
-                >
-                  <div>
-                    {/* Venue Image / Placeholder Box (Screenshot 1) */}
-                    <div className="w-full h-[160px] bg-blue-50/70 border border-blue-100/80 rounded-3xl overflow-hidden flex flex-col items-center justify-center text-center relative">
-                      {venueInfo.photo ? (
-                        <img src={venueInfo.photo} alt={v.name} className="w-full h-full object-contain p-2" />
+                const venueInfo = getVenueData(v);
+                const isMaintenance = venueInfo.status === "Maintenance Block";
+
+                return (
+                  <div
+                    key={v.id}
+                    onClick={() => {
+                      if (!isMaintenance) handleVenueSelect(v);
+                    }}
+                    className={`relative border-2 rounded-[32px] p-6 transition-all duration-300 flex flex-col justify-between overflow-hidden ${isMaintenance
+                      ? "border-amber-300/80 bg-amber-50/20 opacity-90 cursor-not-allowed shadow-2xs"
+                      : isSelected
+                        ? "border-blue-600 bg-white shadow-lg ring-4 ring-blue-50/60 cursor-pointer"
+                        : "border-slate-100 bg-white hover:border-slate-300 hover:shadow-xs cursor-pointer"
+                      }`}
+                  >
+                    <div>
+                      {/* Venue Image / Placeholder Box */}
+                      <div className="w-full h-[160px] bg-blue-50/70 border border-blue-100/80 rounded-3xl overflow-hidden flex flex-col items-center justify-center text-center relative">
+                        {venueInfo.photo ? (
+                          <img src={venueInfo.photo} alt={v.name} className="w-full h-full object-contain p-2" />
+                        ) : (
+                          <div className="p-6 flex flex-col items-center justify-center h-full w-full">
+                            <span className="text-blue-950 font-extrabold text-sm leading-snug line-clamp-2">
+                              {v.name}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Venue Metadata */}
+                      <div className="mt-4 space-y-1">
+                        <h4 className="font-extrabold text-slate-900 text-sm leading-tight line-clamp-1">{v.name}</h4>
+                        <p className="text-xs text-slate-600 font-semibold line-clamp-1">
+                          {v.location ? `${v.location} [ ${campusName} ]` : `[ ${campusName} ]`}
+                        </p>
+                        <p className="text-xs text-slate-600 font-semibold">
+                          {v.capacity || venueInfo.capacity || 80} seats
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Bottom Action Pill Button */}
+                    <div className="mt-5">
+                      {isMaintenance ? (
+                        <button
+                          disabled
+                          className="w-full py-3 rounded-full border border-amber-300 bg-amber-50 text-amber-800 text-xs font-extrabold flex items-center justify-center gap-1.5 opacity-90 cursor-not-allowed"
+                        >
+                          <AlertTriangle size={14} className="text-amber-600" />
+                          <span>Maintenance Block</span>
+                        </button>
+                      ) : isSelected ? (
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); handleVenueSelect(v); }}
+                          className="w-full py-3 rounded-full bg-blue-600 text-white text-xs font-black flex items-center justify-center gap-1.5 shadow-md transition-colors cursor-pointer"
+                        >
+                          <CheckCircle2 size={14} />
+                          <span>Selected</span>
+                        </button>
                       ) : (
-                        <div className="p-6 flex flex-col items-center justify-center h-full w-full">
-                          <Building2 size={44} className="text-blue-600 mb-2.5 shrink-0" />
-                          <span className="text-blue-950 font-extrabold text-sm leading-snug line-clamp-2">
-                            {v.name}
-                          </span>
-                        </div>
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); handleVenueSelect(v); }}
+                          className="w-full py-3 rounded-full border border-slate-200 bg-white hover:bg-blue-600 hover:text-white hover:border-blue-600 text-slate-800 text-xs font-black transition-all cursor-pointer shadow-2xs"
+                        >
+                          Select Venue
+                        </button>
                       )}
                     </div>
-
-                    {/* Venue Metadata (Screenshot 1) */}
-                    <div className="mt-4 space-y-1">
-                      <h4 className="font-extrabold text-slate-900 text-sm leading-tight line-clamp-1">{v.name}</h4>
-                      <p className="text-xs text-slate-600 font-semibold line-clamp-1">
-                        {v.location ? `${v.location} [ ${campusName} ]` : `[ ${campusName} ]`}
-                      </p>
-                      <p className="text-xs text-slate-600 font-semibold">
-                        {v.capacity || venueInfo.capacity || 80} seats
-                      </p>
-                    </div>
                   </div>
-
-                  {/* Bottom Action Pill Button (Screenshot 1) */}
-                  <div className="mt-5">
-                    {isMaintenance ? (
-                      <button
-                        disabled
-                        className="w-full py-3 rounded-full border border-amber-300 bg-amber-50 text-amber-800 text-xs font-extrabold flex items-center justify-center gap-1.5 opacity-90 cursor-not-allowed"
-                      >
-                        <AlertTriangle size={14} className="text-amber-600" />
-                        <span>Maintenance Block</span>
-                      </button>
-                    ) : isSelected ? (
-                      <button
-                        type="button"
-                        onClick={(e) => { e.stopPropagation(); handleVenueSelect(v); }}
-                        className="w-full py-3 rounded-full bg-blue-600 text-white text-xs font-black flex items-center justify-center gap-1.5 shadow-md transition-colors cursor-pointer"
-                      >
-                        <CheckCircle2 size={14} />
-                        <span>Selected Venue</span>
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={(e) => { e.stopPropagation(); handleVenueSelect(v); }}
-                        className="w-full py-3 rounded-full border border-slate-200 bg-white hover:bg-blue-600 hover:text-white hover:border-blue-600 text-slate-800 text-xs font-black transition-all cursor-pointer shadow-2xs"
-                      >
-                        Select Venue
-                      </button>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
 
           {/* Pagination Controls Below Venue Selection */}
           {totalPages > 1 && (
@@ -445,15 +465,29 @@ export default function Step2Venue({
           )}
         </div>
 
-        {/* Right Column: Preline Single-Calendar Preset Ranges & Time Panel */}
-        <div className="lg:col-span-5 sm:col-span-12">
+        {/* Right Column: Venue Search + Preline Single-Calendar Preset Ranges & Time Panel */}
+        <div className="lg:col-span-5 sm:col-span-12 space-y-4">
+          {/* Venue Search Bar */}
+          <div className="relative">
+            <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Search venue name, campus, capacity..."
+              value={venueSearch}
+              onChange={(e) => {
+                setVenueSearch(e.target.value);
+                setVenuePage(0);
+              }}
+              className="w-full pl-9.5 pr-4 py-2.5 bg-white border border-slate-200/90 rounded-2xl text-xs font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-blue-500 focus:bg-white transition-all shadow-xs"
+            />
+          </div>
+
           <div className="bg-white/95 backdrop-blur-md p-5 rounded-[28px] border border-slate-200/90 shadow-md space-y-4 sticky top-4">
 
             {/* Panel Header */}
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h4 className="font-extrabold text-slate-900 text-xs flex items-center gap-2 uppercase tracking-wider">
-                <Clock size={16} className="text-blue-600" />
-                2. Date & Time Selection
+              <h4 className="font-extrabold text-slate-900 text-xs uppercase tracking-wider">
+                Date & Time Selection
               </h4>
             </div>
 
@@ -528,22 +562,21 @@ export default function Step2Venue({
                   return (
                     <div
                       key={day}
-                      className={`relative h-9 flex items-center justify-center ${
-                        hasRange && isInBetween
+                      className={`relative h-9 flex items-center justify-center ${hasRange && isInBetween
                           ? "bg-blue-50"
                           : hasRange && isStart
                             ? "bg-gradient-to-r from-transparent 50% to-blue-50 50%"
                             : hasRange && isEnd
                               ? "bg-gradient-to-l from-transparent 50% to-blue-50 50%"
                               : ""
-                      }`}
+                        }`}
                     >
                       <button
                         type="button"
                         disabled={isDisabled}
                         onClick={() => {
                           if (isDisabled) return;
-                          
+
                           // Multi-day Range Picker via Calendar Clicks
                           if (!selectedDate || (selectedDate && selectedEndDate && selectedEndDate !== selectedDate)) {
                             // Reset/start new range
@@ -567,8 +600,7 @@ export default function Step2Venue({
                             setShowPinModal && setShowPinModal(true);
                           }
                         }}
-                        className={`w-8 h-8 rounded-full text-xs font-extrabold flex items-center justify-center mx-auto transition-all relative z-10 ${
-                          isStart || isEnd
+                        className={`w-8 h-8 rounded-full text-xs font-extrabold flex items-center justify-center mx-auto transition-all relative z-10 ${isStart || isEnd
                             ? "bg-blue-600 text-white font-black shadow-sm scale-105 cursor-pointer"
                             : isPast
                               ? "text-slate-300 cursor-not-allowed pointer-events-none select-none"
@@ -579,7 +611,7 @@ export default function Step2Venue({
                                   : isShortNotice
                                     ? "text-amber-700 bg-amber-50/60 hover:bg-amber-100 cursor-pointer"
                                     : "text-slate-700 hover:bg-slate-100 cursor-pointer"
-                        }`}
+                          }`}
                         title={
                           isPast
                             ? "Date already passed"

@@ -222,6 +222,11 @@ export default function EquipmentBorrowing() {
       return;
     }
 
+    if (endTimeStr <= startTimeStr) {
+      alert("Expected return time must be later than the borrow start time.");
+      return;
+    }
+
     if (selectedItems.length === 0) {
       alert("Please select at least one equipment item to borrow.");
       return;

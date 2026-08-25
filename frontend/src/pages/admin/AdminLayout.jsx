@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import NotificationDropdown from "@/components/notifications/NotificationDropdown";
 import IncidentDetailModal from "@/components/notifications/IncidentDetailModal";
+import ConfirmModal from "@/components/ui/ConfirmModal";
 
 const NAV_GROUPS = [
   {
@@ -48,7 +49,6 @@ export default function AdminLayout() {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [showNotifDropdown, setShowNotifDropdown] = useState(false);
   const [selectedOffice, setSelectedOffice] = useState("All Offices");
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [selectedIncident, setSelectedIncident] = useState(null);
 
   const userRole = user?.role?.name || user?.role || "admin";
@@ -144,6 +144,7 @@ export default function AdminLayout() {
   const markAllAsRead = async () => {
     const allIds = new Set(notifications.map(n => n.id));
     setReadNotifIds(allIds);
+    setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
     try {
       localStorage.setItem("fsuu_read_notification_ids", JSON.stringify(Array.from(allIds)));
     } catch {}
@@ -186,7 +187,11 @@ export default function AdminLayout() {
     }
   }, [user, navigate]);
 
-  const handleLogout = async () => {
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+
+  const doLogout = async () => {
+    setShowLogoutConfirm(false);
     setIsLoggingOut(true);
     try {
       await logout();
@@ -274,6 +279,18 @@ export default function AdminLayout() {
 
   return (
     <div className="min-h-screen bg-[#f8fafc] flex font-sans antialiased text-slate-900 relative">
+
+      {/* ── Logout Confirm Modal ── */}
+      <ConfirmModal
+        open={showLogoutConfirm}
+        onClose={() => setShowLogoutConfirm(false)}
+        onConfirm={doLogout}
+        variant="logout"
+        title="Sign Out?"
+        message="You will be logged out of your session. Any unsaved changes will be lost."
+        confirmLabel="Sign Out"
+        loading={isLoggingOut}
+      />
 
       {/* ── Logout Loading Overlay ── */}
       {isLoggingOut && (
@@ -396,7 +413,7 @@ export default function AdminLayout() {
                 <div className="pt-1.5 border-t border-slate-800 mt-1">
                   <button
                     type="button"
-                    onClick={handleLogout}
+                    onClick={() => setShowLogoutConfirm(true)}
                     className="w-full flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors cursor-pointer"
                   >
                     <LogOut size={13} /> Sign Out
@@ -408,7 +425,7 @@ export default function AdminLayout() {
             <div className="flex flex-col items-center gap-2 py-0.5">
               <button
                 type="button"
-                onClick={handleLogout}
+                onClick={() => setShowLogoutConfirm(true)}
                 title={`Sign Out (${adminName})`}
                 className="w-9 h-9 rounded-xl bg-slate-800/80 hover:bg-rose-500/20 text-slate-300 hover:text-rose-400 border border-slate-700 hover:border-rose-500/40 flex items-center justify-center transition-all cursor-pointer shadow-xs"
               >

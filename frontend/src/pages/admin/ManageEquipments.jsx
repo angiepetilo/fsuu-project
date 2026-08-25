@@ -50,24 +50,28 @@ export default function ManageEquipments() {
 
   // Form State
   const [formData, setFormData] = useState({
-    name: "",
+    brand: "",
+    model: "",
     barcode: "",
     category: "",
     date_purchased: new Date().toISOString().split("T")[0],
     lifespan_years: "5",
     total_units: "1",
     status: "available",
+    condition: "Good",
     description: "",
   });
 
   const [editFormData, setEditFormData] = useState({
-    name: "",
+    brand: "",
+    model: "",
     barcode: "",
     category: "",
     date_purchased: "2026-03-15",
     lifespan_years: "5",
     total_units: "1",
     status: "available",
+    condition: "Good",
     description: "",
   });
 
@@ -111,16 +115,21 @@ export default function ManageEquipments() {
         else if (dbStatusRaw === 'decommissioned' || dbStatusRaw === 'lost') conditionLabel = 'Lost';
         else conditionLabel = 'Good';
 
+        const eqType = u.equipment_type || u.equipmentType || catList.find(c => String(c.id) === String(u.equipment_type_id));
+        const catName = eqType?.eq_name || eqType?.name || eqType?.eq_type || 'AV Equipment';
+        const brandModel = [u.brand, u.model].filter(Boolean).join(' ');
+        const derivedName = brandModel || catName || 'Equipment Unit';
+
         return {
           id: u.id || idx + 1,
           equipment_type_id: u.equipment_type_id,
           brand: u.brand || '',
           model: u.model || '',
           barcode: bCode,
-          name: u.name || u.equipmentType?.eq_name || u.equipmentType?.name || 'Equipment Unit',
-          category: u.equipmentType?.eq_name || u.equipmentType?.name || 'AV Equipment',
-          office_id: u.equipmentType?.office_id || u.equipment_type?.office_id || u.office_id || null,
-          office_name: u.equipmentType?.office?.name || u.equipment_type?.office?.name || 'AVR Office I',
+          name: derivedName,
+          category: catName,
+          office_id: eqType?.office_id || u.office_id || null,
+          office_name: eqType?.office?.name || 'AVR Office I',
           status: dbStatus,
           condition: conditionLabel,
           available_count: dbStatus === 'Available' ? 1 : 0,
@@ -169,7 +178,6 @@ export default function ManageEquipments() {
 
     const defaultCatName = activeCats[0]?.eq_name || activeCats[0]?.name || "";
     setFormData({
-      name: "",
       brand: "",
       model: "",
       barcode: "",
@@ -198,7 +206,8 @@ export default function ManageEquipments() {
       (c.eq_name || c.name || "").toLowerCase() === (formData.category || "").toLowerCase()
     ) || categories[0];
 
-    const unitDisplayName = formData.name || `${formData.brand ? formData.brand + ' ' : ''}${formData.model || matchedCat.eq_name || 'Unit'}`;
+    const brandModel = [formData.brand, formData.model].filter(Boolean).join(' ');
+    const unitDisplayName = brandModel || matchedCat.eq_name || matchedCat.name || 'Unit';
 
     // ── OPTIMISTIC: add a placeholder row immediately ─────────────────────────
     const tempId = `temp-${Date.now()}`;
@@ -229,7 +238,6 @@ export default function ManageEquipments() {
         equipment_type_id: matchedCat.id,
         brand: formData.brand || undefined,
         model: formData.model || undefined,
-        name: unitDisplayName,
         unit_code: formData.barcode || optimisticUnit.barcode,
         purchased_at: formData.date_purchased || undefined,
         eq_lifespan: parseInt(formData.lifespan_years, 10) || 5,
@@ -249,7 +257,7 @@ export default function ManageEquipments() {
       ));
 
       notify.success("Equipment Unit Added", `"${unitDisplayName}" registered under ${matchedCat.eq_name || matchedCat.name}.`);
-      setFormData({ name: "", brand: "", model: "", barcode: "", category: matchedCat.eq_name || matchedCat.name || "", status: "available", condition: "Good", date_purchased: new Date().toISOString().split("T")[0], lifespan_years: 5, description: "" });
+      setFormData({ brand: "", model: "", barcode: "", category: matchedCat.eq_name || matchedCat.name || "", status: "available", condition: "Good", date_purchased: new Date().toISOString().split("T")[0], lifespan_years: 5, description: "" });
     } catch (err) {
       // Rollback
       setUnits(prevUnits);
@@ -269,7 +277,8 @@ export default function ManageEquipments() {
       (c.eq_name || c.name || "").toLowerCase() === (editFormData.category || "").toLowerCase()
     ) || categories[0];
 
-    const unitDisplayName = editFormData.name || `${editFormData.brand ? editFormData.brand + ' ' : ''}${editFormData.model || matchedCat.eq_name || 'Unit'}`;
+    const brandModel = [editFormData.brand, editFormData.model].filter(Boolean).join(' ');
+    const unitDisplayName = brandModel || matchedCat.eq_name || matchedCat.name || 'Unit';
 
     // ── OPTIMISTIC: update row immediately ────────────────────────────────────
     const prevUnits = units;
@@ -295,7 +304,6 @@ export default function ManageEquipments() {
         equipment_type_id: matchedCat.id,
         brand: editFormData.brand || undefined,
         model: editFormData.model || undefined,
-        name: unitDisplayName,
         unit_code: editFormData.barcode,
         purchased_at: editFormData.date_purchased,
         eq_lifespan: parseInt(editFormData.lifespan_years, 10) || 5,
@@ -456,8 +464,8 @@ export default function ManageEquipments() {
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-slate-50/80 border-b border-slate-100">
-                {["#", "Unit Barcode", "Equipment Unit Name", "Assigned Category", "Status", "Condition", "Date Purchased", "Lifespan vs Current", "Action"].map((h, i) => (
-                  <th key={h} className={`px-4 py-3.5 text-left text-[11px] font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap ${i === 0 ? 'rounded-tl-2xl' : i === 8 ? 'rounded-tr-2xl' : ''}`}>
+                {["#", "Unit Barcode", "Equipment Unit Name", "Assigned Category", "Date Purchased", "Lifespan vs Current", "Action"].map((h, i) => (
+                  <th key={h} className={`px-4 py-3.5 text-left text-[11px] font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap ${i === 0 ? 'rounded-tl-2xl' : i === 6 ? 'rounded-tr-2xl' : ''}`}>
                     {h}
                   </th>
                 ))}
@@ -466,13 +474,13 @@ export default function ManageEquipments() {
             <tbody className="divide-y divide-slate-100 text-xs font-semibold">
               {loading ? (
                 <tr>
-                  <td colSpan={9} className="text-center py-12 text-slate-400">
+                  <td colSpan={7} className="text-center py-12 text-slate-400">
                     <Loader2 size={20} className="animate-spin inline mr-2" /> Loading equipment units...
                   </td>
                 </tr>
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="text-center py-12 text-slate-400">
+                  <td colSpan={7} className="text-center py-12 text-slate-400">
                     {categories.length === 0
                       ? "⚠️ Create an Equipment Category in Settings first before adding physical equipment units."
                       : "📦 No physical equipment units added yet. Click 'Add Equipment' to add units to a category."}
@@ -517,20 +525,6 @@ export default function ManageEquipments() {
                           {item.category}
                         </span>
                       </td>
-                      <td className="px-4 py-3.5">
-                        <StatusBadge status={item.status} />
-                      </td>
-                      <td className="px-4 py-3.5 whitespace-nowrap">
-                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold border ${
-                          item.condition === "Damaged" || item.condition === "Lost"
-                            ? "bg-rose-50 text-rose-700 border-rose-200"
-                            : item.condition === "Under Repair" || item.condition === "Minor Wear"
-                            ? "bg-amber-50 text-amber-700 border-amber-200"
-                            : "bg-emerald-50 text-emerald-700 border-emerald-200"
-                        }`}>
-                          {item.condition || "Good"}
-                        </span>
-                      </td>
                       <td className="px-4 py-3.5 text-slate-600 whitespace-nowrap">{item.date_purchased}</td>
                       <td className="px-4 py-3.5 text-slate-600 whitespace-nowrap">{ageYears.toFixed(1)} / {lifespanYears} yrs</td>
                       <td className="px-4 py-3.5 relative">
@@ -571,7 +565,6 @@ export default function ManageEquipments() {
                                   setOpenActionId(null);
                                   setEditingItem(item);
                                   setEditFormData({
-                                    name: item.name || "",
                                     brand: item.brand || "",
                                     model: item.model || "",
                                     barcode: item.barcode || "",

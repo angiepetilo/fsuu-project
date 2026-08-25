@@ -136,6 +136,31 @@ class AuthController extends Controller
         return response()->json(['message' => 'Password updated successfully!']);
     }
 
+    /**
+     * Verify the authenticated user's current password.
+     * Used for sensitive settings access confirmation.
+     */
+    public function verifyPassword(Request $request)
+    {
+        $request->validate([
+            'password' => 'required|string',
+        ]);
+
+        $user = auth()->user();
+
+        if (!\Illuminate\Support\Facades\Hash::check($request->password, $user->password)) {
+            return response()->json([
+                'valid'   => false,
+                'message' => 'Incorrect password. Please try again.',
+            ], 422);
+        }
+
+        return response()->json([
+            'valid'   => true,
+            'message' => 'Password verified.',
+        ]);
+    }
+
     public function updateProfile(Request $request)
     {
         $user = auth()->user();

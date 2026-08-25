@@ -291,15 +291,14 @@ export default function NotificationDropdown({
           {/* Footer Actions */}
           {activeTab === "inbox" && inboxItems.length > 0 && (
             <div className="p-3 border-t border-slate-100 bg-slate-50/70 flex items-center gap-2">
-              {unreadCount > 0 && (
-                <button
-                  type="button"
-                  onClick={markAllAsRead}
-                  className="flex-1 py-1.5 text-xs font-bold text-blue-600 hover:text-blue-800 transition-colors cursor-pointer bg-white hover:bg-slate-50 rounded-xl border border-slate-200 shadow-2xs text-center"
-                >
-                  Mark all as read
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={markAllAsRead}
+                disabled={unreadCount === 0}
+                className="flex-1 py-1.5 text-xs font-bold text-blue-600 hover:text-blue-800 disabled:text-slate-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer bg-white hover:bg-slate-50 disabled:hover:bg-white rounded-xl border border-slate-200 shadow-2xs text-center"
+              >
+                Mark all as read
+              </button>
               <button
                 type="button"
                 onClick={handleArchiveAll}

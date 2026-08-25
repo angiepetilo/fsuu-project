@@ -216,10 +216,98 @@ class NotificationController extends Controller
                 }
             }
 
+            // 3. Cancelled & Rejected Bookings Across All Departments
+            if (Schema::hasTable('venue_bookings') && Schema::hasTable('tracking_numbers')) {
+                $cancelledVenues = DB::table('venue_bookings')
+                    ->join('tracking_numbers', 'venue_bookings.tracking_number_id', '=', 'tracking_numbers.id')
+                    ->leftJoin('venues', 'venue_bookings.venue_id', '=', 'venues.id')
+                    ->whereIn(DB::raw('LOWER(tracking_numbers.status)'), ['cancelled', 'rejected', 'cancelled_by_user'])
+                    ->select(
+                        'venue_bookings.*',
+                        'tracking_numbers.reference_code',
+                        'tracking_numbers.status as tracking_status',
+                        'venues.name as venue_name'
+                    )
+                    ->orderByDesc('venue_bookings.updated_at')
+                    ->limit(20)
+                    ->get();
+
+                foreach ($cancelledVenues as $cv) {
+                    $key = 'sysad-cnl-vb-' . $cv->id;
+                    $rawDate = $cv->updated_at ?? $cv->created_at ?? now();
+                    $dt = Carbon::parse($rawDate);
+                    $formattedTime = $dt->isToday() ? $dt->format('h:i A') : $dt->format('M d, h:i A');
+
+                    $notifs->push([
+                        'id'             => $key,
+                        'target_id'      => $cv->id,
+                        'target_type'    => 'venue_booking',
+                        'incident_type'  => 'cancelled',
+                        'title'          => 'Venue Booking Cancelled',
+                        'message'        => ($cv->filer_name ?? 'Requestor') . ' cancelled booking for ' . ($cv->venue_name ?? 'Facility') . " ({$cv->reference_code})",
+                        'person_name'    => $cv->filer_name ?? 'Requestor',
+                        'person_contact' => $cv->contact_number ?? 'N/A',
+                        'person_office'  => $cv->program_office ?? 'Department',
+                        'person_email'   => $cv->email_address ?? 'N/A',
+                        'item_name'      => $cv->venue_name ?? 'AVR Facility',
+                        'unit_code'      => 'N/A',
+                        'notes'          => $cv->rejection_reason ?: ($cv->cancellation_reason ?: 'Venue booking was cancelled.'),
+                        'ref'            => $cv->reference_code,
+                        'priority'       => 'medium',
+                        'time'           => $formattedTime,
+                        'rawDate'        => $rawDate,
+                        'is_read'        => isset($readKeys[$key]),
+                    ]);
+                }
+            }
+
+            if (Schema::hasTable('equipment_borrows') && Schema::hasTable('tracking_numbers')) {
+                $cancelledBorrows = DB::table('equipment_borrows')
+                    ->join('tracking_numbers', 'equipment_borrows.tracking_number_id', '=', 'tracking_numbers.id')
+                    ->whereIn(DB::raw('LOWER(tracking_numbers.status)'), ['cancelled', 'rejected', 'cancelled_by_user'])
+                    ->select(
+                        'equipment_borrows.*',
+                        'tracking_numbers.reference_code',
+                        'tracking_numbers.status as tracking_status'
+                    )
+                    ->orderByDesc('equipment_borrows.updated_at')
+                    ->limit(20)
+                    ->get();
+
+                foreach ($cancelledBorrows as $cb) {
+                    $key = 'sysad-cnl-eb-' . $cb->id;
+                    $rawDate = $cb->updated_at ?? $cb->created_at ?? now();
+                    $dt = Carbon::parse($rawDate);
+                    $formattedTime = $dt->isToday() ? $dt->format('h:i A') : $dt->format('M d, h:i A');
+
+                    $notifs->push([
+                        'id'             => $key,
+                        'target_id'      => $cb->id,
+                        'target_type'    => 'equipment_borrow',
+                        'incident_type'  => 'cancelled',
+                        'title'          => 'Equipment Borrow Cancelled',
+                        'message'        => ($cb->filer_name ?? 'Borrower') . " cancelled borrow request ({$cb->reference_code})",
+                        'person_name'    => $cb->filer_name ?? 'Borrower',
+                        'person_contact' => $cb->contact_number ?? 'N/A',
+                        'person_office'  => $cb->program_office ?? 'Department',
+                        'person_email'   => $cb->email_address ?? 'N/A',
+                        'item_name'      => $cb->equipment_notes ?? 'Borrow Request',
+                        'unit_code'      => 'N/A',
+                        'notes'          => $cb->rejection_reason ?: ($cb->cancellation_reason ?: 'Equipment borrow request was cancelled.'),
+                        'ref'            => $cb->reference_code,
+                        'priority'       => 'medium',
+                        'time'           => $formattedTime,
+                        'rawDate'        => $rawDate,
+                        'is_read'        => isset($readKeys[$key]),
+                    ]);
+                }
+            }
+
             $sorted = $notifs->sortByDesc('rawDate')->values();
 
             return response()->json($sorted);
-        } catch (\Throwable $e) {
+        } 
+        catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::error('SuperAdmin NotificationController error: ' . $e->getMessage());
             return response()->json([]);
         }

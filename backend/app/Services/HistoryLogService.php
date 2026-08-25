@@ -21,9 +21,7 @@ class HistoryLogService
                      ->where(function ($q) {
                          $q->where('inspections.inspectable_type', 'like', '%VenueBooking%')
                            ->orWhere('inspections.inspectable_type', 'avr_venue_booking')
-                           ->orWhere('inspections.inspectable_type', 'venue_booking')
-                           ->orWhere('inspections.reference_type', 'avr_venue_booking')
-                           ->orWhere('inspections.reference_type', 'venue_booking');
+                           ->orWhere('inspections.inspectable_type', 'venue_booking');
                      });
             })
             ->leftJoin('documents', function ($join) {
@@ -116,7 +114,7 @@ class HistoryLogService
                      ->where(function ($q) {
                           $q->where('inspections.inspectable_type', 'like', '%EquipmentBorrow%')
                             ->orWhere('inspections.inspectable_type', 'equipment_borrow')
-                            ->orWhere('inspections.reference_type', 'equipment_borrow');
+                            ->orWhere('inspections.inspectable_type', 'avr_equipment_borrowing');
                      });
             })
             ->whereNull('equipment_borrows.archived_at')

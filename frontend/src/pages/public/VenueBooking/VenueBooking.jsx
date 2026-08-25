@@ -214,7 +214,7 @@ export default function VenueBooking() {
       alert("Reservation end date cannot be earlier than the start date.");
       return;
     }
-    if (endTime <= startTime && (!selectedEndDate || selectedEndDate === selectedDate)) {
+    if (endTime <= startTime) {
       alert("Time End must be later than Time Start.");
       return;
     }

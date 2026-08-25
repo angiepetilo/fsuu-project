@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Plus, Edit2, Trash2, X, Loader2, Mail, MoreVertical, ShieldCheck, UserCheck, Users, Shield } from "lucide-react";
 import api from "@/lib/axios";
 import notify from "@/lib/notify";
+import ConfirmModal from "@/components/ui/ConfirmModal";
 
 const ALL_PERMISSIONS = [
   { key: "manage_equipments", label: "Manage Equipment" },
@@ -19,8 +20,22 @@ export default function UserManagementTab({ showMsg }) {
   const [editUser, setEditUser] = useState(null);
   const [formLoading, setFormLoading] = useState(false);
   const [resendingId, setResendingId] = useState(null);
-  const [roleFilter, setRoleFilter] = useState("all");
+  const [roleFilter, setRoleFilter] = useState(() => {
+    try {
+      return localStorage.getItem("fsuu_user_mgmt_role_filter") || "all";
+    } catch {
+      return "all";
+    }
+  });
+
+  const handleRoleFilterChange = (filter) => {
+    setRoleFilter(filter);
+    try {
+      localStorage.setItem("fsuu_user_mgmt_role_filter", filter);
+    } catch {}
+  };
   const [openActionId, setOpenActionId] = useState(null);
+  const [archiveTarget, setArchiveTarget] = useState(null); // { id, name, role }
 
   const [userForm, setUserForm] = useState({
     name: "",
@@ -111,13 +126,18 @@ export default function UserManagementTab({ showMsg }) {
     }
   };
 
-  const handleDeleteUser = async (id, name, role) => {
+  const handleDeleteUser = (id, name, role) => {
+    setOpenActionId(null);
+    setArchiveTarget({ id, name, role });
+  };
+
+  const confirmArchiveUser = async () => {
+    if (!archiveTarget) return;
+    const { id, name, role } = archiveTarget;
     const roleLabel = role === "admin" ? "Admin" : "Staff";
-    if (!confirm(`Archive ${roleLabel} account "${name || 'User'}"?`)) return;
-    // ── OPTIMISTIC DELETE ────────────────────────────────────────────────
     const prev = users;
     setUsers(u => u.filter(x => x.id !== id));
-    setOpenActionId(null);
+    setArchiveTarget(null);
     try {
       await api.delete(`/admin/users/${id}`);
       notify.info("Account Archived", `${roleLabel} "${name || 'User'}" archived.`);
@@ -191,7 +211,7 @@ export default function UserManagementTab({ showMsg }) {
       <div className="flex items-center gap-2">
         <button
           type="button"
-          onClick={() => setRoleFilter("all")}
+          onClick={() => handleRoleFilterChange("all")}
           className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
             roleFilter === "all"
               ? "bg-slate-900 text-white shadow-2xs"
@@ -202,7 +222,7 @@ export default function UserManagementTab({ showMsg }) {
         </button>
         <button
           type="button"
-          onClick={() => setRoleFilter("admin")}
+          onClick={() => handleRoleFilterChange("admin")}
           className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
             roleFilter === "admin"
               ? "bg-blue-600 text-white shadow-2xs"
@@ -213,7 +233,7 @@ export default function UserManagementTab({ showMsg }) {
         </button>
         <button
           type="button"
-          onClick={() => setRoleFilter("staff")}
+          onClick={() => handleRoleFilterChange("staff")}
           className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
             roleFilter === "staff"
               ? "bg-blue-600 text-white shadow-2xs"
@@ -559,6 +579,16 @@ export default function UserManagementTab({ showMsg }) {
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        open={!!archiveTarget}
+        onClose={() => setArchiveTarget(null)}
+        onConfirm={confirmArchiveUser}
+        variant="archive"
+        title="Archive Account?"
+        message={`Archive the account for "${archiveTarget?.name || 'this user'}"? They will no longer have access to the system.`}
+        confirmLabel="Archive"
+      />
     </div>
   );
 }

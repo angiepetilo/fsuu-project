@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Check, PackageOpen, ChevronLeft, ChevronRight, XCircle, Clock, CalendarDays, AlertTriangle } from "lucide-react";
+import { Check, PackageOpen, ChevronLeft, ChevronRight, XCircle, Clock, CalendarDays, AlertTriangle, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import api from "@/lib/axios";
 import { getTodayISO, isPastTimeToday, isPastDateTime } from "@/lib/dateTimeUtils";
@@ -24,10 +24,21 @@ export default function Step2Equipment({
   onBack,
   catalogLoading = false,
 }) {
+  const [equipSearch, setEquipSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 4;
 
-  const catalogList = filteredCatalog || [];
+  const rawCatalogList = filteredCatalog || [];
+  const catalogList = rawCatalogList.filter(item => {
+    if (!equipSearch.trim()) return true;
+    const q = equipSearch.toLowerCase();
+    const name = (item.name || "").toLowerCase();
+    const cat = (item.category || item.eq_type || "").toLowerCase();
+    const brand = (item.brand || "").toLowerCase();
+    const model = (item.model || "").toLowerCase();
+    return name.includes(q) || cat.includes(q) || brand.includes(q) || model.includes(q);
+  });
+
   const totalPages = Math.ceil(catalogList.length / itemsPerPage) || 1;
   const startIndex = (currentPage - 1) * itemsPerPage;
   const currentGridItems = catalogList.slice(startIndex, startIndex + itemsPerPage);
@@ -151,7 +162,13 @@ export default function Step2Equipment({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8">
         {/* Left Column: Equipment Catalog (2x2 Grid) */}
         <div className="lg:col-span-7 sm:col-span-12 space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+          {catalogList.length === 0 ? (
+            <div className="p-8 text-center bg-white rounded-3xl border border-slate-200/80">
+              <p className="text-xs font-bold text-slate-700">No equipment found matching your search</p>
+              <p className="text-[11px] text-slate-400 mt-0.5">Try searching with another category or name</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             {currentGridItems.map((item) => {
               const isChecked = selectedItems.includes(item.id);
               const isMaintenance = item.status === "maintenance" || item.status === "under_maintenance" || item.is_maintenance === true;
@@ -178,13 +195,12 @@ export default function Step2Equipment({
                     }`}
                 >
                   <div>
-                    {/* Top Image / Placeholder Box */}
+                    {/* Top Image / Placeholder Box (Clean without icon) */}
                     <div className="w-full h-[160px] bg-blue-50/70 border border-blue-100/80 rounded-3xl overflow-hidden flex flex-col items-center justify-center text-center relative">
                       {item.avatar || item.photo || item.image || item.photo_url ? (
                         <img src={item.avatar || item.photo || item.image || item.photo_url} alt={item.name} className="w-full h-full object-contain p-2" />
                       ) : (
                         <div className="p-6 flex flex-col items-center justify-center h-full w-full">
-                          <PackageOpen size={44} className="text-blue-600 mb-2.5 shrink-0" />
                           <span className="text-blue-950 font-extrabold text-sm leading-snug line-clamp-2" title={item.name}>
                             {item.name}
                           </span>
@@ -261,7 +277,8 @@ export default function Step2Equipment({
                 </div>
               );
             })}
-          </div>
+            </div>
+          )}
 
           {/* Pagination Controls Below Equipment Selection */}
           {totalPages > 1 && (
@@ -293,8 +310,23 @@ export default function Step2Equipment({
           )}
         </div>
 
-        {/* Right Column: Walk-In / Same-Day & Next-Day Schedule Controls */}
-        <div className="lg:col-span-5 sm:col-span-12">
+        {/* Right Column: Equipment Search + Walk-In / Same-Day & Next-Day Schedule Controls */}
+        <div className="lg:col-span-5 sm:col-span-12 space-y-4">
+          {/* Equipment Search Bar */}
+          <div className="relative">
+            <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Search equipment item, category, brand..."
+              value={equipSearch}
+              onChange={(e) => {
+                setEquipSearch(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="w-full pl-9.5 pr-4 py-2.5 bg-white border border-slate-200/90 rounded-2xl text-xs font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-blue-500 focus:bg-white transition-all shadow-xs"
+            />
+          </div>
+
           <div className="bg-white/95 backdrop-blur-md p-5 rounded-[28px] border border-slate-200/90 shadow-md space-y-4 sticky top-4">
             {/* Header */}
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
@@ -509,6 +541,7 @@ export default function Step2Equipment({
                   !selectedItems ||
                   selectedItems.length === 0 ||
                   isPastSlot ||
+                  endTimeVal <= startTimeVal ||
                   isBlocked
                 }
                 onClick={handleEquipmentSubmit}
