@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 use App\Services\EquipmentCategoryService;
 
@@ -12,24 +13,53 @@ class DashboardStatsController extends Controller
 {
     public function index(Request $request)
     {
-        $user = $request->user();
-        return response()->json($this->getAvrStats($user));
+        try {
+            $user = $request->user();
+            return response()->json($this->getAvrStats($user));
+        } catch (\Throwable $e) {
+            Log::error("DashboardStatsController Error: " . $e->getMessage() . " in " . $e->getFile() . ":" . $e->getLine());
+            return response()->json([
+                'quick_stats' => [
+                    'total_venue_bookings' => 0,
+                    'total_equip_borrows' => 0,
+                    'pending_bookings' => 0,
+                    'pending_borrowings' => 0,
+                    'pending_approval' => 0,
+                    'available_equipment' => 0,
+                    'damage_reports' => 0,
+                    'overdue_returns' => 0,
+                    'completed_today' => 0,
+                    'total_equipment_damages' => 0,
+                    'total_equipment_lost' => 0,
+                    'top_violating_department' => 'None',
+                ],
+                'top_departments' => [],
+                'top_equipment' => [],
+                'programs_with_violations' => [],
+                'calendar_bookings' => [],
+                'error' => $e->getMessage(),
+            ], 200);
+        }
     }
 
     private function getAvrStats($user)
     {
-        // Auto-synchronize physical unit condition/status before computing statistics
-        EquipmentCategoryService::autoSyncUnitConditions();
+        // 1. Auto-synchronize physical unit condition/status before computing statistics
+        try {
+            EquipmentCategoryService::autoSyncUnitConditions();
+        } catch (\Throwable $e) {
+            Log::warning("autoSyncUnitConditions warning: " . $e->getMessage());
+        }
 
         $now = Carbon::now();
 
-        // 1. Total Venue Bookings (All non-archived)
+        // 2. Total Venue Bookings (All non-archived)
         $totalVenueBookings = DB::table('venue_bookings')->whereNull('archived_at')->count();
 
-        // 2. Total Equipment Borrows (All non-archived)
+        // 3. Total Equipment Borrows (All non-archived)
         $totalEquipBorrows = DB::table('equipment_borrows')->whereNull('archived_at')->count();
 
-        // 3. Pending Approval (Both Venue Bookings & Equipment Borrows)
+        // 4. Pending Approvals
         $pendingVb = DB::table('venue_bookings')
             ->join('tracking_numbers', 'venue_bookings.tracking_number_id', '=', 'tracking_numbers.id')
             ->whereNull('venue_bookings.archived_at')
@@ -44,7 +74,7 @@ class DashboardStatsController extends Controller
 
         $pendingApproval = $pendingVb + $pendingEb;
 
-        // 4. Physical Units Inventory: Available, Damaged, and Lost counts
+        // 5. Physical Equipment Units Count
         $unitCounts = DB::table('equipment_units')
             ->whereNull('archived_at')
             ->select(
@@ -58,7 +88,7 @@ class DashboardStatsController extends Controller
         $physicalDamages    = (int) ($unitCounts->damage_count ?? 0);
         $physicalLost       = (int) ($unitCounts->lost_count ?? 0);
 
-        // Inspection-based Lost and Damaged counts
+        // 6. Inspection-based Lost and Damaged counts
         $inspectionDamages = DB::table('inspections')
             ->where(function($q) {
                 $q->where(DB::raw('LOWER(condition)'), 'damaged')
@@ -76,7 +106,7 @@ class DashboardStatsController extends Controller
         $totalEquipmentDamages = max($physicalDamages, $inspectionDamages);
         $totalEquipmentLost = max($physicalLost, $inspectionLost);
 
-        // 5. Overdue Returns & Completed Today
+        // 7. Overdue Returns & Completed Today
         $overdueReturns = DB::table('equipment_borrows')
             ->join('tracking_numbers', 'equipment_borrows.tracking_number_id', '=', 'tracking_numbers.id')
             ->whereNull('equipment_borrows.archived_at')
@@ -91,39 +121,37 @@ class DashboardStatsController extends Controller
             ->whereDate('tracking_numbers.updated_at', $now->toDateString())
             ->count();
 
-        // 6. Top 5 Borrowed Equipment Types
+        // 8. Top 5 Borrowed Equipment Types
         $topEquipment = [];
         try {
-            if (\Illuminate\Support\Facades\Schema::hasTable('equipment_borrow_items')) {
-                $topEquipmentData = DB::table('equipment_borrow_items')
-                    ->join('equipment_borrows', 'equipment_borrow_items.equipment_borrow_id', '=', 'equipment_borrows.id')
-                    ->join('equipment_types', 'equipment_borrow_items.equipment_type_id', '=', 'equipment_types.id')
-                    ->select(
-                        DB::raw("equipment_types.eq_name as name"),
-                        DB::raw('count(*) as total_borrows')
-                    )
-                    ->groupBy('equipment_types.id', 'equipment_types.eq_name')
-                    ->orderByDesc('total_borrows')
-                    ->limit(5)
-                    ->get();
+            $topEquipmentData = DB::table('equipment_borrow_items')
+                ->join('equipment_borrows', 'equipment_borrow_items.equipment_borrow_id', '=', 'equipment_borrows.id')
+                ->join('equipment_types', 'equipment_borrow_items.equipment_type_id', '=', 'equipment_types.id')
+                ->select(
+                    'equipment_types.eq_name as name',
+                    DB::raw('count(*) as total_borrows')
+                )
+                ->groupBy('equipment_types.id', 'equipment_types.eq_name')
+                ->orderByDesc('total_borrows')
+                ->limit(5)
+                ->get();
 
-                $topEquipment = $topEquipmentData->map(function ($item, $index) {
-                    return [
-                        'rank' => $index + 1,
-                        'name' => $item->name,
-                        'count' => $item->total_borrows . ' borrows'
-                    ];
-                })->all();
-            }
+            $topEquipment = $topEquipmentData->map(function ($item, $index) {
+                return [
+                    'rank' => $index + 1,
+                    'name' => $item->name,
+                    'count' => $item->total_borrows . ' borrows'
+                ];
+            })->all();
         } catch (\Throwable $e) {}
 
-        // 7. Department with Most Venue Bookings & Borrowings
+        // 9. Department with Most Bookings (Venue Bookings + Equipment Borrows)
         $topBookedDeptsMap = [];
         try {
             $vbDepts = DB::table('venue_bookings')
                 ->whereNull('archived_at')
-                ->select(DB::raw("COALESCE(program_office, 'General') as program_office"), DB::raw('count(*) as total'))
-                ->groupBy(DB::raw("COALESCE(program_office, 'General')"))
+                ->select('program_office', DB::raw('count(*) as total'))
+                ->groupBy('program_office')
                 ->get();
             foreach ($vbDepts as $row) {
                 $p = trim($row->program_office ?: 'General');
@@ -132,8 +160,8 @@ class DashboardStatsController extends Controller
 
             $ebDepts = DB::table('equipment_borrows')
                 ->whereNull('archived_at')
-                ->select(DB::raw("COALESCE(program_office, requestor_program_office, 'General') as program_office"), DB::raw('count(*) as total'))
-                ->groupBy(DB::raw("COALESCE(program_office, requestor_program_office, 'General')"))
+                ->select('program_office', DB::raw('count(*) as total'))
+                ->groupBy('program_office')
                 ->get();
             foreach ($ebDepts as $row) {
                 $p = trim($row->program_office ?: 'General');
@@ -151,7 +179,7 @@ class DashboardStatsController extends Controller
             ];
         }
 
-        // 8. Department with Most Violations (Aggregated from inspections & borrow tracking)
+        // 10. Department with Most Violations
         $deptViolationsMap = [];
         try {
             $insps = DB::table('inspections')
@@ -172,7 +200,7 @@ class DashboardStatsController extends Controller
                       });
                 })
                 ->select(
-                    DB::raw("COALESCE(equipment_borrows.program_office, equipment_borrows.requestor_program_office, venue_bookings.program_office, 'General') as program_office"),
+                    DB::raw("COALESCE(equipment_borrows.program_office, venue_bookings.program_office, 'General') as program_office"),
                     'inspections.condition',
                     'inspections.violation_type',
                     'inspections.is_late',
@@ -191,22 +219,17 @@ class DashboardStatsController extends Controller
                 if ($isViolation) $deptViolationsMap[$p]['violations'] += 1;
             }
 
-            // Direct check from equipment_borrows table (e.g. status = 'late return' or 'lost' or 'damaged')
+            // Direct check from equipment_borrows tracking status
             $ebBreaches = DB::table('equipment_borrows')
-                ->leftJoin('tracking_numbers', 'equipment_borrows.tracking_number_id', '=', 'tracking_numbers.id')
+                ->join('tracking_numbers', 'equipment_borrows.tracking_number_id', '=', 'tracking_numbers.id')
                 ->whereNull('equipment_borrows.archived_at')
-                ->select(
-                    DB::raw("COALESCE(equipment_borrows.program_office, equipment_borrows.requestor_program_office, 'General') as program_office"),
-                    'equipment_borrows.is_late',
-                    'tracking_numbers.status as tracking_status',
-                    'equipment_borrows.status as eb_status'
-                )
+                ->select('equipment_borrows.program_office', 'tracking_numbers.status as tracking_status')
                 ->get();
 
             foreach ($ebBreaches as $eb) {
                 $p = trim($eb->program_office ?: 'General');
-                $tStatus = strtolower((string)($eb->tracking_status ?? $eb->eb_status ?? ''));
-                $isLate = $eb->is_late == 1 || str_contains($tStatus, 'late');
+                $tStatus = strtolower((string)($eb->tracking_status ?? ''));
+                $isLate = str_contains($tStatus, 'late');
                 $isViolation = str_contains($tStatus, 'damaged') || str_contains($tStatus, 'lost');
                 if ($isLate || $isViolation) {
                     if (!isset($deptViolationsMap[$p])) {
@@ -238,7 +261,7 @@ class DashboardStatsController extends Controller
         usort($programsList, fn($a, $b) => ($b['violations'] + $b['late']) <=> ($a['violations'] + $a['late']));
         $topViolatingDept = !empty($programsList) ? $programsList[0]['program'] : 'None';
 
-        // 9. Schedule Overview Calendar Data (Both Venue Bookings and Equipment Borrowings)
+        // 11. Schedule Overview Calendar Data (Both Venue Bookings and Equipment Borrowings)
         $calendarVenueBookings = DB::table('venue_bookings')
             ->join('tracking_numbers', 'venue_bookings.tracking_number_id', '=', 'tracking_numbers.id')
             ->leftJoin('venues', 'venue_bookings.venue_id', '=', 'venues.id')
@@ -268,10 +291,10 @@ class DashboardStatsController extends Controller
             ->whereIn(DB::raw('LOWER(tracking_numbers.status)'), ['pending', 'approved', 'ongoing', 'on-going', 'completed', 'late return', 'returned late', 'damaged', 'lost'])
             ->select(
                 'equipment_borrows.id',
-                DB::raw("COALESCE(equipment_borrows.filer_name, equipment_borrows.requestor_name, 'Requestor') as filer_name"),
-                DB::raw("COALESCE(equipment_borrows.program_office, equipment_borrows.requestor_program_office, 'Academic Dept') as program_office"),
+                'equipment_borrows.filer_name',
+                'equipment_borrows.program_office',
                 'equipment_borrows.date_of_usage',
-                DB::raw("COALESCE(equipment_borrows.reservation_end_date, equipment_borrows.date_of_usage) as reservation_end_date"),
+                'equipment_borrows.date_of_usage as reservation_end_date',
                 'equipment_borrows.time_start',
                 'equipment_borrows.time_end',
                 'equipment_borrows.purpose',
