@@ -1,10 +1,16 @@
 #!/bin/sh
 set -e
 
-DB_TARGET_HOST="${DB_HOST:-127.0.0.1}"
-DB_TARGET_PORT="${DB_PORT:-3306}"
+if [ "$DB_CONNECTION" = "pgsql" ]; then
+  DEFAULT_PORT="5432"
+else
+  DEFAULT_PORT="3306"
+fi
 
-echo "⏳ Checking database connection at ${DB_TARGET_HOST}:${DB_TARGET_PORT}..."
+DB_TARGET_HOST="${DB_HOST:-127.0.0.1}"
+DB_TARGET_PORT="${DB_PORT:-$DEFAULT_PORT}"
+
+echo "⏳ Checking database connection at ${DB_TARGET_HOST}:${DB_TARGET_PORT} (Driver: ${DB_CONNECTION:-mysql})..."
 
 if [ "$DB_TARGET_HOST" != "127.0.0.1" ] && [ "$DB_TARGET_HOST" != "localhost" ]; then
   MAX_RETRIES=15
@@ -20,8 +26,9 @@ if [ "$DB_TARGET_HOST" != "127.0.0.1" ] && [ "$DB_TARGET_HOST" != "localhost" ];
   done
 fi
 
-echo "⚡ Running migrations and seeders..."
-php artisan migrate:fresh --seed --force || php artisan migrate --force || true
+echo "⚡ Running database migrations and seeders..."
+php artisan migrate --force || true
+php artisan db:seed --force || true
 
 echo "🚀 Caching routes and configuration..."
 php artisan optimize || true
