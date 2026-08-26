@@ -25,7 +25,7 @@ class DepartmentAnalyticsController extends Controller
                   ->orWhere('inspections.inspectable_type', 'avr_venue_booking');
             })
             ->where(function($q) {
-                $q->where(DB::raw('LOWER(inspections.`condition`)'), 'damaged')
+                $q->where(DB::raw('LOWER(inspections.condition)'), 'damaged')
                   ->orWhere('inspections.is_late', true)
                   ->orWhereNotNull('inspections.violation_type');
             });
@@ -49,7 +49,7 @@ class DepartmentAnalyticsController extends Controller
                   ->orWhere('inspections.inspectable_type', 'avr_equipment_borrowing');
             })
             ->where(function($q) {
-                $q->whereIn(DB::raw('LOWER(inspections.`condition`)'), ['damaged', 'lost'])
+                $q->whereIn(DB::raw('LOWER(inspections.condition)'), ['damaged', 'lost'])
                   ->orWhereNotNull('inspections.violation_type');
             });
 

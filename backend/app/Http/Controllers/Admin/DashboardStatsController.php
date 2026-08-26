@@ -50,8 +50,8 @@ class DashboardStatsController extends Controller
         $unitCounts = DB::table('equipment_units')
             ->whereNull('archived_at')
             ->select(
-                DB::raw('SUM(CASE WHEN LOWER(status) = "available" AND LOWER(COALESCE(`condition`, "good")) NOT IN ("damaged", "maintenance", "worn", "under repair") THEN 1 ELSE 0 END) as available_count'),
-                DB::raw('SUM(CASE WHEN LOWER(status) IN ("damaged", "maintenance", "unavailable") OR LOWER(COALESCE(`condition`, "good")) IN ("damaged", "maintenance", "worn", "under repair") THEN 1 ELSE 0 END) as damage_count')
+                DB::raw("SUM(CASE WHEN LOWER(status) = 'available' AND LOWER(COALESCE(condition, 'good')) NOT IN ('damaged', 'maintenance', 'worn', 'under repair') THEN 1 ELSE 0 END) as available_count"),
+                DB::raw("SUM(CASE WHEN LOWER(status) IN ('damaged', 'maintenance', 'unavailable') OR LOWER(COALESCE(condition, 'good')) IN ('damaged', 'maintenance', 'worn', 'under repair') THEN 1 ELSE 0 END) as damage_count")
             )
             ->first();
 
@@ -129,7 +129,7 @@ class DashboardStatsController extends Controller
                   });
             })
             ->where(function($q) {
-                $q->where(DB::raw('LOWER(inspections.`condition`)'), 'damaged')
+                $q->where(DB::raw('LOWER(inspections.condition)'), 'damaged')
                   ->orWhere('inspections.violation_type', 'LIKE', '%damage%');
             });
 
@@ -146,7 +146,7 @@ class DashboardStatsController extends Controller
             ->whereNull('equipment_units.archived_at')
             ->where(function($q) {
                 $q->whereIn(DB::raw('LOWER(equipment_units.status)'), ['damaged', 'unavailable'])
-                  ->orWhereIn(DB::raw('LOWER(equipment_units.`condition`)'), ['damaged']);
+                  ->orWhereIn(DB::raw('LOWER(equipment_units.condition)'), ['damaged']);
             });
 
         $physicalDamages = $damagedUnitsQuery->count();
@@ -168,7 +168,7 @@ class DashboardStatsController extends Controller
                         ->orWhere('inspections.inspectable_type', 'equipment_borrow');
                   });
             })
-            ->where(DB::raw('LOWER(inspections.`condition`)'), 'lost');
+            ->where(DB::raw('LOWER(inspections.condition)'), 'lost');
 
         if ($termId) {
             $lostQuery->where(function($q) use ($termId) {
@@ -198,10 +198,10 @@ class DashboardStatsController extends Controller
             })
             ->where(function($q) {
                 $q->whereNotNull('inspections.violation_type')
-                  ->orWhere(DB::raw('LOWER(inspections.is_late)'), 1)
+                  ->orWhere(DB::raw('LOWER(CAST(inspections.is_late AS CHAR))'), '1')
                   ->orWhere('inspections.timeliness', 'late')
-                  ->orWhere(DB::raw('LOWER(inspections.`condition`)'), 'damaged')
-                  ->orWhere(DB::raw('LOWER(inspections.`condition`)'), 'lost');
+                  ->orWhere(DB::raw('LOWER(inspections.condition)'), 'damaged')
+                  ->orWhere(DB::raw('LOWER(inspections.condition)'), 'lost');
             });
 
         if ($termId) {
@@ -215,7 +215,7 @@ class DashboardStatsController extends Controller
             ->select(
                 DB::raw("COALESCE(equipment_borrows.program_office, venue_bookings.program_office, 'General') as program_office"),
                 DB::raw("SUM(CASE WHEN inspections.is_late = 1 OR inspections.timeliness = 'late' THEN 1 ELSE 0 END) as late_count"),
-                DB::raw("SUM(CASE WHEN LOWER(inspections.`condition`) IN ('damaged', 'lost') OR inspections.violation_type IS NOT NULL THEN 1 ELSE 0 END) as violation_count")
+                DB::raw("SUM(CASE WHEN LOWER(inspections.condition) IN ('damaged', 'lost') OR inspections.violation_type IS NOT NULL THEN 1 ELSE 0 END) as violation_count")
             )
             ->groupBy(DB::raw("COALESCE(equipment_borrows.program_office, venue_bookings.program_office, 'General')"))
             ->get();

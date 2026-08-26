@@ -34,10 +34,10 @@ class EquipmentCategoryService
                     ->select(
                         'equipment_type_id',
                         DB::raw('COUNT(*) as total_registered'),
-                        DB::raw('SUM(CASE WHEN LOWER(status) IN ("released", "in_use", "borrowed", "in-use") THEN 1 ELSE 0 END) as physical_released'),
-                        DB::raw('SUM(CASE WHEN LOWER(status) = "reserved" THEN 1 ELSE 0 END) as physical_reserved'),
-                        DB::raw('SUM(CASE WHEN LOWER(status) IN ("damaged", "maintenance", "unavailable") OR LOWER(`condition`) IN ("damaged", "maintenance", "worn", "under repair") THEN 1 ELSE 0 END) as physical_damaged'),
-                        DB::raw('SUM(CASE WHEN LOWER(status) IN ("decommissioned", "lost") OR LOWER(`condition`) = "lost" THEN 1 ELSE 0 END) as physical_lost')
+                        DB::raw("SUM(CASE WHEN LOWER(status) IN ('released', 'in_use', 'borrowed', 'in-use') THEN 1 ELSE 0 END) as physical_released"),
+                        DB::raw("SUM(CASE WHEN LOWER(status) = 'reserved' THEN 1 ELSE 0 END) as physical_reserved"),
+                        DB::raw("SUM(CASE WHEN LOWER(status) IN ('damaged', 'maintenance', 'unavailable') OR LOWER(condition) IN ('damaged', 'maintenance', 'worn', 'under repair') THEN 1 ELSE 0 END) as physical_damaged"),
+                        DB::raw("SUM(CASE WHEN LOWER(status) IN ('decommissioned', 'lost') OR LOWER(condition) = 'lost' THEN 1 ELSE 0 END) as physical_lost")
                     )
                     ->groupBy('equipment_type_id')
                     ->get();
@@ -209,7 +209,7 @@ class EquipmentCategoryService
                     ->whereNull('archived_at')
                     ->where(function($q) {
                         $q->whereIn(DB::raw('LOWER(status)'), ['damaged', 'maintenance', 'unavailable'])
-                          ->orWhereIn(DB::raw('LOWER(`condition`)'), ['damaged', 'maintenance', 'worn', 'under repair']);
+                          ->orWhereIn(DB::raw('LOWER(condition)'), ['damaged', 'maintenance', 'worn', 'under repair']);
                     })
                     ->count();
 
@@ -218,7 +218,7 @@ class EquipmentCategoryService
                     ->whereNull('archived_at')
                     ->where(function($q) {
                         $q->whereIn(DB::raw('LOWER(status)'), ['decommissioned', 'lost'])
-                          ->orWhereIn(DB::raw('LOWER(`condition`)'), ['lost']);
+                          ->orWhereIn(DB::raw('LOWER(condition)'), ['lost']);
                     })
                     ->count();
             } catch (\Throwable $th) {}

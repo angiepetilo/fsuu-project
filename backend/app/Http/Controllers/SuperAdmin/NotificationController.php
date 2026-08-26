@@ -30,7 +30,7 @@ class NotificationController extends Controller
             // 1. Critical Inspection Incidents (Damages, Lost Gear, Violations)
             if (Schema::hasTable('inspections')) {
                 $inspections = DB::table('inspections')
-                    ->whereIn(DB::raw('LOWER(`condition`)'), ['damaged', 'lost', 'missing'])
+                    ->whereIn(DB::raw('LOWER(condition)'), ['damaged', 'lost', 'missing'])
                     ->orWhereNotNull('violation_type')
                     ->orWhere('is_late', true)
                     ->orderByDesc('created_at')
@@ -177,7 +177,7 @@ class NotificationController extends Controller
                     ->join('equipment_types', 'equipment_units.equipment_type_id', '=', 'equipment_types.id')
                     ->where(function ($q) {
                         $q->whereIn(DB::raw('LOWER(equipment_units.status)'), ['damaged', 'unavailable', 'decommissioned', 'lost'])
-                          ->orWhereIn(DB::raw('LOWER(equipment_units.`condition`)'), ['damaged', 'lost']);
+                          ->orWhereIn(DB::raw('LOWER(equipment_units.condition)'), ['damaged', 'lost']);
                     })
                     ->whereNull('equipment_units.archived_at')
                     ->select(
@@ -330,7 +330,7 @@ class NotificationController extends Controller
                 $operationalCounts = DB::table('equipment_units')
                     ->whereNull('archived_at')
                     ->where('status', 'available')
-                    ->whereNotIn(DB::raw('LOWER(`condition`)'), ['damaged', 'lost', 'under repair'])
+                    ->whereNotIn(DB::raw('LOWER(condition)'), ['damaged', 'lost', 'under repair'])
                     ->select('equipment_type_id', DB::raw('COUNT(*) as on_hand_good'))
                     ->groupBy('equipment_type_id')
                     ->pluck('on_hand_good', 'equipment_type_id');

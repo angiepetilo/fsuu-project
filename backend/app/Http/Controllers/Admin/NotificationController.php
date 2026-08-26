@@ -126,7 +126,7 @@ class NotificationController extends Controller
             // 3. Damaged, Lost & Policy Violation Incidents from Inspections
             if (Schema::hasTable('inspections')) {
                 $inspections = DB::table('inspections')
-                    ->whereIn(DB::raw('LOWER(`condition`)'), ['damaged', 'lost', 'missing'])
+                    ->whereIn(DB::raw('LOWER(condition)'), ['damaged', 'lost', 'missing'])
                     ->orWhereNotNull('violation_type')
                     ->orWhere('is_late', true)
                     ->orderByDesc('created_at')
@@ -294,7 +294,7 @@ class NotificationController extends Controller
                 $operationalCounts = DB::table('equipment_units')
                     ->whereNull('archived_at')
                     ->where('status', 'available')
-                    ->whereNotIn(DB::raw('LOWER(`condition`)'), ['damaged', 'lost', 'under repair'])
+                    ->whereNotIn(DB::raw('LOWER(condition)'), ['damaged', 'lost', 'under repair'])
                     ->select('equipment_type_id', DB::raw('COUNT(*) as on_hand_good'))
                     ->groupBy('equipment_type_id')
                     ->pluck('on_hand_good', 'equipment_type_id');

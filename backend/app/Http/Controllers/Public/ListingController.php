@@ -92,12 +92,12 @@ class ListingController extends Controller
                 'equipmentUnits as calculated_operational' => function ($q) {
                     $q->whereNull('archived_at')
                       ->whereNotIn(DB::raw('LOWER(status)'), ['damaged', 'lost', 'decommissioned', 'maintenance'])
-                      ->whereNotIn(DB::raw('LOWER(`condition`)'), ['damaged', 'lost', 'under repair']);
+                      ->whereNotIn(DB::raw('LOWER(condition)'), ['damaged', 'lost', 'under repair']);
                 },
                 'equipmentUnits as calculated_available' => function ($q) {
                     $q->whereNull('archived_at')
                       ->where('status', 'available')
-                      ->whereNotIn(DB::raw('LOWER(`condition`)'), ['damaged', 'lost', 'under repair']);
+                      ->whereNotIn(DB::raw('LOWER(condition)'), ['damaged', 'lost', 'under repair']);
                 }
             ]);
 
