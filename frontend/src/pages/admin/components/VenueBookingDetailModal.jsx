@@ -687,12 +687,14 @@ export default function VenueBookingDetailModal({
         // Persist assigned_units directly to venue_booking database record
         api.put(`/avr-venue-bookings/${selected.id}/assign-units`, { assigned_units: next }).catch(() => {});
         // Auto-persist release assignment to backend inspection record
+        const hasDamagedOrLost = Object.values(unitReturnedConditions || {}).some(c => c === "Damaged" || c === "Lost");
         api.post("/inspections", {
           reference_type: "avr_venue_booking",
           reference_id: selected.id,
           assigned_units: next,
           unit_conditions: normalizeUnitConditions(unitReturnedConditions, next),
-          condition: inspectionStatus === "clean" ? "good" : "damaged",
+          condition: hasDamagedOrLost ? "damaged" : "good",
+          violation_type: inspectionStatus === "violation" ? selectedViolationType : null,
           notes: violationNotes || "",
         }).catch(() => {});
       }
@@ -705,21 +707,14 @@ export default function VenueBookingDetailModal({
     setUnitReturnedConditions(prev => {
       const next = typeof updater === "function" ? updater(prev) : updater;
       if (selected && selected.id) {
-        // Check if any unit is marked Damaged or Lost to keep shared outcome state in sync
-        // Note: Decoupled per user request. Marking an equipment unit as Damaged or Lost 
-        // will no longer force the overall Venue Inspection Status to Policy Breach. 
-        // The venue status remains exactly what the user explicitly selects.
-        // const hasDamageOrLoss = Object.values(next).some(cond => cond === "Damaged" || cond === "Lost");
-        // const targetStatus = hasDamageOrLoss ? "violation" : "clean";
-        // setInspectionStatus(targetStatus);
-
+        const hasDamagedOrLost = Object.values(next || {}).some(c => c === "Damaged" || c === "Lost");
         // Auto-save to backend inspection record
         api.post("/inspections", {
           reference_type: "avr_venue_booking",
           reference_id: selected.id,
           assigned_units: assignedUnitSelections,
           unit_conditions: normalizeUnitConditions(next, assignedUnitSelections),
-          condition: inspectionStatus === "clean" ? "good" : "damaged",
+          condition: hasDamagedOrLost ? "damaged" : "good",
           violation_type: inspectionStatus === "violation" ? selectedViolationType : null,
           notes: violationNotes || "",
         }).catch(() => {});
@@ -826,6 +821,7 @@ export default function VenueBookingDetailModal({
     
     const inspectionType = typeOverride || (isOngoing ? "pre_event" : "post_event");
     const isPre = inspectionType === "pre_event";
+    const hasDamagedOrLost = Object.values(unitReturnedConditions || {}).some(c => c === "Damaged" || c === "Lost");
     
     try {
       await api.post("/inspections", {
@@ -834,7 +830,7 @@ export default function VenueBookingDetailModal({
         inspectable_type: "avr_venue_booking",
         inspectable_id: selected.id,
         inspection_type: inspectionType,
-        condition: isPre ? (preInspectionStatus === "clean" ? "good" : "damaged") : (inspectionStatus === "clean" ? "good" : "damaged"),
+        condition: isPre ? (preInspectionStatus === "clean" ? "good" : "damaged") : (hasDamagedOrLost ? "damaged" : "good"),
         violation_type: isPre ? (preInspectionStatus === "violation" ? preSelectedViolationType : null) : (inspectionStatus === "violation" ? selectedViolationType : null),
         notes: isPre ? (preViolationNotes || (preInspectionStatus === "clean" ? "Satisfactory Condition (Clean Room)" : `[${preSelectedViolationType}] Pre-event inspection breach.`)) : (violationNotes || (inspectionStatus === "clean" ? "Satisfactory Condition (Clean Room)" : `[${selectedViolationType}] Post-event inspection breach.`)),
         equipment_notes: isPre ? preEquipmentInspectionNotes : equipmentInspectionNotes,
@@ -859,6 +855,8 @@ export default function VenueBookingDetailModal({
     // 1. Trigger final reconciliation (Good -> Released -1, Available +1; Damaged -> Released -1, Damaged +1; Lost -> Released -1, Lost +1)
     syncInspectedUnitsToInventory(true);
 
+    const hasDamagedOrLost = Object.values(unitReturnedConditions || {}).some(c => c === "Damaged" || c === "Lost");
+
     // 2. Persist the final inspection outcome silently in background
     if (isPostInspection) {
       api.post("/inspections", {
@@ -867,7 +865,7 @@ export default function VenueBookingDetailModal({
         inspectable_type: "avr_venue_booking",
         inspectable_id: selected.id,
         inspection_type: "post_event",
-        condition: inspectionStatus === "clean" ? "good" : "damaged",
+        condition: hasDamagedOrLost ? "damaged" : "good",
         violation_type: inspectionStatus === "violation" ? selectedViolationType : null,
         notes: violationNotes || (inspectionStatus === "clean" ? "Satisfactory Condition (Clean Room)" : `[${selectedViolationType}] Post-event inspection breach.`),
         equipment_notes: equipmentInspectionNotes,
@@ -882,8 +880,8 @@ export default function VenueBookingDetailModal({
     // 3. Mark completed and update status
     handleAction(selected.id, "complete", {
       inspection_status: inspectionStatus,
-      condition: inspectionStatus === "violation" ? "damaged" : "good",
-      has_damage: inspectionStatus === "violation" ? 1 : 0,
+      condition: hasDamagedOrLost ? "damaged" : "good",
+      has_damage: hasDamagedOrLost ? 1 : 0,
       violation_type: inspectionStatus === "violation" ? selectedViolationType : null,
       evidence_photos: evidencePhoto,
       evidence_photo: evidencePhoto,

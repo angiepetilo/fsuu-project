@@ -556,34 +556,55 @@ class VenueBookingService
             }
 
             if (!empty($barcodes) && \Illuminate\Support\Facades\Schema::hasTable('equipment_units')) {
-                // If per-unit conditions provided, update each unit individually
+                $damagedBarcodes = [];
+                $lostBarcodes = [];
+                $goodBarcodes = [];
+
                 if (is_array($unitConditions) && !empty($unitConditions)) {
-                    foreach ($unitConditions as $key => $condVal) {
-                        $uBar = $assigned[$key] ?? null;
-                        if (!$uBar && is_string($key)) {
-                            $uBar = $key;
+                    foreach ($barcodes as $bCode) {
+                        $bCodeTrim = trim((string)$bCode);
+                        $matchedCond = 'Good';
+
+                        // Check direct barcode key or positional key
+                        if (isset($unitConditions[$bCodeTrim])) {
+                            $matchedCond = is_array($unitConditions[$bCodeTrim]) ? ($unitConditions[$bCodeTrim]['condition'] ?? 'Good') : (string)$unitConditions[$bCodeTrim];
+                        } else {
+                            foreach ($unitConditions as $k => $cVal) {
+                                $posBarcode = $assigned[$k] ?? null;
+                                if ($posBarcode && trim((string)$posBarcode) === $bCodeTrim) {
+                                    $matchedCond = is_array($cVal) ? ($cVal['condition'] ?? 'Good') : (string)$cVal;
+                                    break;
+                                }
+                            }
                         }
-                        if ($uBar) {
-                            $uBar = trim((string)$uBar);
-                            $condNormalized = ucfirst(strtolower((string)$condVal));
-                            $uStatus = ($condNormalized === 'Damaged' || $condNormalized === 'Lost') ? 'unavailable' : 'available';
-                            $uCond = $condNormalized === 'Damaged' ? 'Damaged' : ($condNormalized === 'Lost' ? 'Lost' : 'Good');
-                            \App\Models\EquipmentUnit::where(function($q) use ($uBar) {
-                                $q->where('unit_code', $uBar)->orWhere('id', $uBar);
-                            })->update(['status' => $uStatus, 'condition' => $uCond]);
+
+                        $condNorm = ucfirst(strtolower(trim($matchedCond)));
+                        if ($condNorm === 'Damaged') {
+                            $damagedBarcodes[] = $bCodeTrim;
+                        } elseif ($condNorm === 'Lost') {
+                            $lostBarcodes[] = $bCodeTrim;
+                        } else {
+                            $goodBarcodes[] = $bCodeTrim;
                         }
                     }
                 } else {
-                    // Fallback to bulk status update
-                    if ($newStatus === 'damaged' || !empty($data['has_damage'])) {
-                        \App\Models\EquipmentUnit::where(function($q) use ($barcodes) {
-                            $q->whereIn('unit_code', $barcodes)->orWhereIn('id', $barcodes);
-                        })->update(['status' => 'unavailable', 'condition' => 'Damaged']);
-                    } else {
-                        \App\Models\EquipmentUnit::where(function($q) use ($barcodes) {
-                            $q->whereIn('unit_code', $barcodes)->orWhereIn('id', $barcodes);
-                        })->update(['status' => 'available', 'condition' => 'Good']);
-                    }
+                    $goodBarcodes = $barcodes;
+                }
+
+                if (!empty($goodBarcodes)) {
+                    \App\Models\EquipmentUnit::where(function($q) use ($goodBarcodes) {
+                        $q->whereIn('unit_code', $goodBarcodes)->orWhereIn('id', $goodBarcodes);
+                    })->update(['status' => 'available', 'condition' => 'Good']);
+                }
+                if (!empty($damagedBarcodes)) {
+                    \App\Models\EquipmentUnit::where(function($q) use ($damagedBarcodes) {
+                        $q->whereIn('unit_code', $damagedBarcodes)->orWhereIn('id', $damagedBarcodes);
+                    })->update(['status' => 'unavailable', 'condition' => 'Damaged']);
+                }
+                if (!empty($lostBarcodes)) {
+                    \App\Models\EquipmentUnit::where(function($q) use ($lostBarcodes) {
+                        $q->whereIn('unit_code', $lostBarcodes)->orWhereIn('id', $lostBarcodes);
+                    })->update(['status' => 'unavailable', 'condition' => 'Lost']);
                 }
             }
 
