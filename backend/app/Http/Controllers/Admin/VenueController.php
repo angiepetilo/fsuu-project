@@ -41,6 +41,10 @@ class VenueController extends Controller
             $data['avatar'] = app(\App\Services\MediaUploadService::class)->upload($data['avatar'], 'venues');
         }
 
+        if (array_key_exists('allowed_equipment', $data)) {
+            $data['allowed_equipment'] = is_array($data['allowed_equipment']) ? array_values(array_filter($data['allowed_equipment'])) : [];
+        }
+
         $venue = Venue::create($data);
 
         return response()->json($venue, 201);
@@ -62,6 +66,10 @@ class VenueController extends Controller
 
         if (array_key_exists('avatar', $data) && !empty($data['avatar'])) {
             $data['avatar'] = app(\App\Services\MediaUploadService::class)->upload($data['avatar'], 'venues');
+        }
+
+        if (array_key_exists('allowed_equipment', $data)) {
+            $data['allowed_equipment'] = is_array($data['allowed_equipment']) ? array_values(array_filter($data['allowed_equipment'])) : [];
         }
 
         $venue->update($data);
