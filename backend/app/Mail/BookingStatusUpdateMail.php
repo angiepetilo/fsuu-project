@@ -36,7 +36,7 @@ class BookingStatusUpdateMail extends Mailable
     public function envelope(): Envelope
     {
         $label = $this->type === 'venue' ? 'Venue Reservation' : 'Equipment Borrowing';
-        $statusLabel = ucfirst($this->status);
+        $statusLabel = $this->status === 'overdue' ? 'URGENT OVERDUE REMINDER' : ucfirst($this->status);
         return new Envelope(
             subject: "[{$this->refCode}] FSUU {$label} — {$statusLabel}"
         );

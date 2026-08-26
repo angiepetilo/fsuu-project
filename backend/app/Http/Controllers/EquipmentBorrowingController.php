@@ -398,19 +398,37 @@ class EquipmentBorrowingController extends Controller
         }
 
         $email = $borrow->email_address ?? $borrow->requestor_email ?? '';
-        if (!$email) {
-            return response()->json(['message' => 'No borrower email address found to send return notice.'], 422);
+        $contactNumber = $borrow->contact_number 
+            ?? $borrow->requestor_contact_number 
+            ?? $borrow->borrower_contact_number 
+            ?? null;
+
+        if (!$email && !$contactNumber) {
+            return response()->json(['message' => 'No borrower email address or contact number found.'], 422);
         }
 
         try {
-            // Dispatch email reminder for urgent return
-            \App\Jobs\SendBookingConfirmationJob::dispatch('equipment', $borrow);
+            // 1. Send Overdue / Past Due Reminder SMS
+            if ($contactNumber) {
+                \App\Services\SmsService::sendOverdueAlert($borrow);
+            }
 
+            // 2. Dispatch Urgent Overdue Email Reminder
+            if ($email) {
+                \App\Jobs\SendBookingStatusUpdateJob::dispatch(
+                    'equipment',
+                    $borrow,
+                    'overdue',
+                    'URGENT NOTICE: Your borrowed equipment is past scheduled return time. Please return all physical units immediately to the AVR Center.'
+                );
+            }
+
+            $recipientInfo = $email ?: $contactNumber;
             return response()->json([
-                'message' => "✅ Urgent return email reminder sent to {$email}",
+                'message' => "✅ Urgent return reminder dispatched to {$recipientInfo}",
             ]);
         } catch (\Throwable $e) {
-            return response()->json(['message' => 'Failed to send return email reminder: ' . $e->getMessage()], 500);
+            return response()->json(['message' => 'Failed to dispatch urgent reminder: ' . $e->getMessage()], 500);
         }
     }
 
