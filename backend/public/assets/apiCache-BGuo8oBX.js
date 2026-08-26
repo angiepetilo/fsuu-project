@@ -1,0 +1,1 @@
+var e=new Map,t=new Map;async function n(n,r,i=180*1e3){let a=Date.now();if(e.has(n)){let t=e.get(n);if(a-t.timestamp<t.ttl)return t.data;e.delete(n)}if(t.has(n))return t.get(n);let o=(async()=>{try{let t=await r();return e.set(n,{data:t,timestamp:Date.now(),ttl:i}),t}finally{t.delete(n)}})();return t.set(n,o),o}export{n as t};

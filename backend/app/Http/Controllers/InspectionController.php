@@ -171,17 +171,21 @@ class InspectionController extends Controller
                 if (is_array($condVal)) {
                     $rawCondition = $condVal['condition'] ?? $condVal['status'] ?? 'good';
                 } else {
-                    $rawCondition = $condVal;
+                    $rawCondition = (string)$condVal;
                 }
-                $condStr = strtolower(trim((string)$rawCondition));
-                $uStatus = ($condStr === 'damaged' || $condStr === 'lost') ? 'unavailable' : 'available';
+                $condStr = strtolower(trim($rawCondition));
+                $uStatus = ($condStr === 'damaged' || $condStr === 'lost') ? ($condStr === 'lost' ? 'lost' : 'damaged') : 'available';
                 $uCond = $condStr === 'damaged' ? 'Damaged' : ($condStr === 'lost' ? 'Lost' : 'Good');
                 
-                \App\Models\EquipmentUnit::where(function($q) use ($key) {
-                    $q->where('unit_code', $key)
-                      ->orWhere('name', $key)
-                      ->orWhere('id', $key);
-                })->update(['status' => $uStatus, 'condition' => $uCond]);
+                $uBar = is_array($assignedUnits) ? ($assignedUnits[$key] ?? null) : null;
+                $lookupKeys = array_filter(array_unique([$key, $uBar]));
+
+                if (!empty($lookupKeys)) {
+                    \App\Models\EquipmentUnit::where(function($q) use ($lookupKeys) {
+                        $q->whereIn('unit_code', $lookupKeys)
+                          ->orWhereIn('id', $lookupKeys);
+                    })->update(['status' => $uStatus, 'condition' => $uCond]);
+                }
             }
         }
 

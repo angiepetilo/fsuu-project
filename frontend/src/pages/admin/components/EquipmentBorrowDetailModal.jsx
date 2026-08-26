@@ -608,6 +608,21 @@ export default function EquipmentBorrowDetailModal({
     }
   };
 
+  // Helper: Normalize unit_conditions to use ONLY barcode keys (not positional "0-0" AND barcode).
+  const normalizeUnitConditions = (rawConditions, assignedUnits) => {
+    if (!rawConditions || typeof rawConditions !== "object") return rawConditions || {};
+    const normalized = {};
+    Object.entries(rawConditions).forEach(([key, condVal]) => {
+      const barcode = assignedUnits ? assignedUnits[key] : null;
+      if (barcode) {
+        normalized[barcode] = condVal;
+      } else {
+        normalized[key] = condVal;
+      }
+    });
+    return normalized;
+  };
+
   const handleSaveInspection = async (e, typeOverride = null) => {
     if (e) e.preventDefault();
     setSavingInspection(true);
@@ -623,30 +638,21 @@ export default function EquipmentBorrowDetailModal({
       } catch {}
     }
 
-    // Normalize unit_conditions: ensure keys are actual barcodes/unit_codes, not positional indexes.
-    // This guarantees the data can be matched correctly when loading the record again,
-    // and prevents double-counting (e.g. storing both "0-0" and "2849482" for the same unit).
     const rawConditions = isPreUse ? preUnitReturnedConditions : unitReturnedConditions;
-    const normalizedConditions = {};
-    Object.entries(rawConditions || {}).forEach(([key, condVal]) => {
-      // If key is a positional index like "0-0", resolve to barcode and use ONLY the barcode key
-      const barcode = assignedUnitSelections[key];
-      if (barcode) {
-        // Store under barcode key only — skip the positional key to avoid double-counting
-        normalizedConditions[barcode] = condVal;
-      } else {
-        // Key is already a barcode/non-positional key — keep it
-        normalizedConditions[key] = condVal;
-      }
-    });
+    const normalizedConditions = normalizeUnitConditions(rawConditions, assignedUnitSelections);
+
+    const hasLostUnit = Object.values(normalizedConditions || {}).some(v => String(v).toLowerCase() === "lost");
+    const hasDamagedUnit = Object.values(normalizedConditions || {}).some(v => String(v).toLowerCase() === "damaged");
+    const activeInspStatus = isPreUse ? preInspectionStatus : inspectionStatus;
+    const resolvedCondition = (activeInspStatus === "lost" || hasLostUnit) ? "lost" : ((activeInspStatus === "violation" || hasDamagedUnit) ? "damaged" : "good");
 
     const payload = {
       inspectable_type: "equipment_borrow",
       inspectable_id: selected.id,
       inspection_type: inspectionType,
-      condition: isPreUse ? (preInspectionStatus === "clean" ? "good" : "damaged") : (inspectionStatus === "clean" ? "good" : "damaged"),
+      condition: resolvedCondition,
       timeliness: timeliness,
-      notes: isPreUse ? preViolationNotes : (violationNotes || (inspectionStatus === "clean" ? "Returned safely in good condition." : "Returned with damaged/lost equipment.")),
+      notes: isPreUse ? preViolationNotes : (violationNotes || (resolvedCondition === "good" ? "Returned safely in good condition." : (resolvedCondition === "lost" ? "Returned with lost equipment." : "Returned with damaged equipment."))),
       evidence_photos: isPreUse ? preEvidencePhoto : evidencePhoto,
       evidence_photo: isPreUse ? preEvidencePhoto : evidencePhoto,
       evidence_image: isPreUse ? preEvidencePhoto : evidencePhoto,
@@ -663,15 +669,15 @@ export default function EquipmentBorrowDetailModal({
 
       // Instantly sync physical units in Manage Equipments & Inventory
       if (!isPreUse) {
-        const condMap = unitReturnedConditions || {};
-        Object.entries(condMap).forEach(([key, condVal]) => {
+        Object.entries(normalizedConditions).forEach(([bCode, condVal]) => {
           const condStr = String(condVal).toLowerCase();
-          const isDamagedOrLost = condStr === "damaged" || condStr === "lost";
-          const newStatus = isDamagedOrLost ? "unavailable" : "available";
-          const newCondition = condStr === "damaged" ? "Damaged" : (condStr === "lost" ? "Lost" : "Good");
+          const isLost = condStr === "lost";
+          const isDamaged = condStr === "damaged";
+          const newStatus = isLost ? "lost" : (isDamaged ? "damaged" : "available");
+          const newCondition = isLost ? "Lost" : (isDamaged ? "Damaged" : "Good");
 
           const matchedUnit = (physicalUnits || []).find(u => 
-            String(u.unit_code || u.barcode || u.id).trim().toUpperCase() === String(key).trim().toUpperCase()
+            String(u.unit_code || u.barcode || u.id).trim().toUpperCase() === String(bCode).trim().toUpperCase()
           );
 
           if (matchedUnit?.id) {
@@ -695,30 +701,34 @@ export default function EquipmentBorrowDetailModal({
 
   const handleReleaseOngoing = async () => {
     // Automatically save pre-release inspection before marking as ongoing
-    // This captures the current state of preViolationNotes and preUnitReturnedConditions
     try {
       await handleSaveInspection(null, "pre_use");
-    } catch {
-      // Non-blocking: proceed even if pre-inspection save fails
-    }
+    } catch {}
     handleAction(selected.id, "ongoing");
   };
 
   const handleDoneComplete = async () => {
+    const normalizedConditions = normalizeUnitConditions(unitReturnedConditions, assignedUnitSelections);
+    const hasLostUnit = Object.values(normalizedConditions || {}).some(v => String(v).toLowerCase() === "lost");
+    const hasDamagedUnit = Object.values(normalizedConditions || {}).some(v => String(v).toLowerCase() === "damaged");
+    const isLost = inspectionStatus === "lost" || hasLostUnit;
+    const isDamaged = inspectionStatus === "violation" || hasDamagedUnit;
+    const finalCond = isLost ? "lost" : (isDamaged ? "damaged" : "good");
+
     if (isPostUseEligible) {
       // Persist inspection silently in background
       api.post("/inspections", {
         inspectable_type: "equipment_borrow",
         inspectable_id: selected.id,
         inspection_type: "post_use",
-        condition: inspectionStatus === "clean" ? "good" : "damaged",
+        condition: finalCond,
         timeliness: timeliness,
-        notes: violationNotes || (inspectionStatus === "clean" ? "Returned safely in good condition." : "Returned with damaged/lost equipment."),
+        notes: violationNotes || (finalCond === "good" ? "Returned safely in good condition." : (finalCond === "lost" ? "Returned with lost equipment." : "Returned with damaged equipment.")),
         evidence_photos: evidencePhoto,
         evidence_photo: evidencePhoto,
         evidence_image: evidencePhoto,
         assigned_units: assignedUnitSelections,
-        unit_conditions: unitReturnedConditions,
+        unit_conditions: normalizedConditions,
       }).catch(() => {});
     }
 
@@ -738,11 +748,11 @@ export default function EquipmentBorrowDetailModal({
           const idxKey = `${catIdx}-${uIdx}`;
           const catKey = `${catName}-${uIdx}`;
           const bCode = (assignedUnitSelections[idxKey] || assignedUnitSelections[catKey]) ? String(assignedUnitSelections[idxKey] || assignedUnitSelections[catKey]).trim() : "";
-          const condChoice = unitReturnedConditions[idxKey] || unitReturnedConditions[catKey] || (inspectionStatus === "violation" ? "Damaged" : "Good");
+          const condChoice = normalizedConditions[bCode] || unitReturnedConditions[idxKey] || unitReturnedConditions[catKey] || (isLost ? "Lost" : (isDamaged ? "Damaged" : "Good"));
 
           if (bCode) {
-            const condNormalized = condChoice === "Good" ? "Good" : (condChoice === "Damaged" ? "Damaged" : "Lost");
-            const newStatus = condNormalized === "Damaged" ? "damaged" : (condNormalized === "Lost" ? "lost" : "available");
+            const condNormalized = condChoice === "Lost" ? "Lost" : (condChoice === "Damaged" ? "Damaged" : "Good");
+            const newStatus = condNormalized === "Lost" ? "lost" : (condNormalized === "Damaged" ? "damaged" : "available");
             const newCondition = condNormalized;
 
             const dbUnit = (physicalUnits || []).find(u => String(u.unit_code || u.barcode || u.id).trim() === bCode);
@@ -772,8 +782,6 @@ export default function EquipmentBorrowDetailModal({
               );
             }
           } else if (condChoice === "Damaged" || condChoice === "Lost") {
-            // No physical unit was assigned (abstract mode), but the item was damaged/lost
-            // Automate the count on the master equipment category so QTY PRESENT/RESERVED updates
             const cleanCatName = String(catName).toLowerCase();
             const matchedType = dbEquipmentTypes.find(t => 
               String(t.eq_name || t.name || t.category || "").toLowerCase() === cleanCatName
@@ -790,7 +798,6 @@ export default function EquipmentBorrowDetailModal({
                     available_count: Math.max(0, (curr.available_count || curr.present_count || curr.total_quantity || 1) - 1),
                     damaged_count: (curr.damaged_count || 0) + damageIncr,
                     lost_count: (curr.lost_count || 0) + lostIncr,
-                    // Required fields based on EquipmentTypeController store logic
                     office_id: curr.office_id,
                     eq_name: curr.eq_name || curr.name,
                     eq_type: curr.eq_type || curr.category,
@@ -810,11 +817,11 @@ export default function EquipmentBorrowDetailModal({
 
     handleAction(selected.id, "complete", {
       assigned_units: assignedUnitSelections,
-      unit_conditions: unitReturnedConditions,
-      condition: inspectionStatus === "violation" ? "damaged" : "good",
-      inspection_status: inspectionStatus,
+      unit_conditions: normalizedConditions,
+      condition: finalCond,
+      inspection_status: isLost ? "lost" : (isDamaged ? "violation" : "clean"),
       timeliness: timeliness,
-      notes: violationNotes || (inspectionStatus === "clean" ? "Returned safely in good condition." : "Returned with damaged/lost equipment.")
+      notes: violationNotes || (finalCond === "good" ? "Returned safely in good condition." : (finalCond === "lost" ? "Returned with lost equipment." : "Returned with damaged equipment."))
     });
   };
 
