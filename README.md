@@ -96,15 +96,6 @@ The frontend provides the responsive user interface for public filers, office st
 
 ## 🔑 Default Administrative Login Credentials
 
-After running `php artisan migrate:fresh --seed`, log into the System Administrator or Office Admin portal using these seeded credentials:
-
-| Role | Email / Username | Default Password | Access Level |
-|---|---|---|---|
-| **Super Admin (SysAd)** | `superadmin@fsuu.edu.ph` | `password123` | Global System Access (All Campuses & Offices) |
-| **AVR Office Admin** | `admin.avr@fsuu.edu.ph` | `password123` | AVR Campus Office Management (Main & Morelos) |
-
-*(Credentials are configurable in `backend/database/seeders/UserSeeder.php`)*.
-
 ---
 
 ## 📌 Development & Design Standards
