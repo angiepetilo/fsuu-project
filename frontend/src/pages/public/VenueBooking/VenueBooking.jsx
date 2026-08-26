@@ -128,6 +128,11 @@ export default function VenueBooking() {
         avatar: avatarPhoto,
         status: v.status || "Available",
         schedule: v.schedule || null,
+        allowed_equipment: Array.isArray(v.allowed_equipment)
+          ? v.allowed_equipment
+          : typeof v.allowed_equipment === "string"
+          ? (() => { try { return JSON.parse(v.allowed_equipment); } catch { return []; } })()
+          : [],
       };
     });
   };
