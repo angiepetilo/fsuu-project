@@ -6,30 +6,45 @@ use App\Http\Controllers\Controller;
 use App\Models\Venue;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 
 class VenueController extends Controller
 {
+    private function ensureSchema(): void
+    {
+        try {
+            if (Schema::hasTable('venues') && !Schema::hasColumn('venues', 'allowed_equipment')) {
+                Schema::table('venues', function ($table) {
+                    $table->longText('allowed_equipment')->nullable();
+                });
+            }
+        } catch (\Throwable $e) {}
+    }
+
     public function index(Request $request): JsonResponse
     {
+        $this->ensureSchema();
         $query = Venue::query();
         return response()->json($query->latest()->get());
     }
 
     public function show(int $id): JsonResponse
     {
+        $this->ensureSchema();
         $venue = Venue::findOrFail($id);
         return response()->json($venue);
     }
 
     public function store(Request $request): JsonResponse
     {
+        $this->ensureSchema();
         $data = $request->validate([
-            'name'              => 'required|string|max:255',
-            'avatar'            => 'nullable|string',
-            'location'          => 'nullable|string|max:255',
-            'capacity'          => 'nullable|integer|min:1',
-            'status'            => 'nullable|string',
-            'allowed_equipment' => 'nullable|array',
+            'name'                => 'required|string|max:255',
+            'avatar'              => 'nullable|string',
+            'location'            => 'nullable|string|max:255',
+            'capacity'            => 'nullable|integer|min:1',
+            'status'              => 'nullable|string',
+            'allowed_equipment'   => 'nullable|array',
             'allowed_equipment.*' => 'nullable',
         ]);
 
@@ -52,15 +67,16 @@ class VenueController extends Controller
 
     public function update(Request $request, int $id): JsonResponse
     {
+        $this->ensureSchema();
         $venue = Venue::findOrFail($id);
 
         $data = $request->validate([
-            'name'              => 'sometimes|string|max:255',
-            'avatar'            => 'nullable|string',
-            'location'          => 'nullable|string|max:255',
-            'capacity'          => 'sometimes|integer|min:1',
-            'status'            => 'sometimes|string',
-            'allowed_equipment' => 'nullable|array',
+            'name'                => 'sometimes|string|max:255',
+            'avatar'              => 'nullable|string',
+            'location'            => 'nullable|string|max:255',
+            'capacity'            => 'sometimes|integer|min:1',
+            'status'              => 'sometimes|string',
+            'allowed_equipment'   => 'nullable|array',
             'allowed_equipment.*' => 'nullable',
         ]);
 
@@ -79,6 +95,7 @@ class VenueController extends Controller
 
     public function destroy(Request $request, int $id): JsonResponse
     {
+        $this->ensureSchema();
         $venue = Venue::findOrFail($id);
         $venue->delete();
 
