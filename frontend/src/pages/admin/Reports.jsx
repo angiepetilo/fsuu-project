@@ -461,9 +461,7 @@ export default function Reports() {
           { id: "booking_borrowing", label: "Booking & Borrowing Report" },
           { id: "breaches", label: "Rule & Late Return Violations" },
           { id: "inventory", label: "Inventory & Stock Table" },
-        ]
-          .filter((tab) => !isStaff || tab.id === "inventory")
-          .map((tab) => {
+        ].map((tab) => {
             const active = activeTab === tab.id;
             return (
               <button
