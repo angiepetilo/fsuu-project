@@ -50,6 +50,7 @@ export default function Reports() {
   const [emailSubject, setEmailSubject] = useState("");
   const [emailNotes, setEmailNotes] = useState("");
   const [sendingEmail, setSendingEmail] = useState(false);
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
 
   const [venueBookings, setVenueBookings] = useState([]);
   const [equipmentBorrowings, setEquipmentBorrowings] = useState([]);
@@ -327,7 +328,7 @@ export default function Reports() {
     }
 
     try {
-      await api.post("/admin/send-report-email", {
+      const res = await api.post("/admin/send-report-email", {
         recipient: recipientEmail.trim(),
         subject: emailSubject,
         notes: emailNotes,
@@ -337,19 +338,56 @@ export default function Reports() {
       });
 
       setShowEmailModal(false);
-      setFeedback(`✅ ${tabLabels[activeTab]} successfully dispatched to ${recipientEmail.trim()}`);
+      setFeedback(`✅ ${res.data?.message || `${tabLabels[activeTab]} successfully delivered to ${recipientEmail.trim()}`}`);
       setRecipientEmail("");
-      setTimeout(() => setFeedback(null), 4000);
-    } catch {
+      setTimeout(() => setFeedback(null), 5000);
+    } catch (err) {
       setShowEmailModal(false);
-      setFeedback(`✅ ${tabLabels[activeTab]} dispatched to ${recipientEmail.trim()}`);
-      setTimeout(() => setFeedback(null), 4000);
+      const errMsg = err.response?.data?.message || err.response?.data?.error || "Failed to send email. Please verify SMTP settings in System Settings.";
+      setFeedback(`❌ ${errMsg}`);
+      setTimeout(() => setFeedback(null), 6000);
     } finally {
       setSendingEmail(false);
     }
   };
 
-  // ── 3. PRINT / EXPORT PDF ──
+  // ── 3. DIRECT PDF DOWNLOAD (Generates and saves .pdf file to user's device) ──
+  const handleDownloadPDF = async () => {
+    setIsExportingPdf(true);
+    try {
+      const element = document.getElementById("printable-report-area");
+      if (!element) {
+        setShowPdfModal(true);
+        setTimeout(() => handleDownloadPDF(), 350);
+        return;
+      }
+      const cleanTab = (tabLabels[activeTab] || "Report").replace(/[^a-zA-Z0-9]/g, "_");
+      const filename = `FSUU_${cleanTab}_${new Date().toISOString().slice(0, 10)}.pdf`;
+
+      const html2pdfModule = await import("html2pdf.js");
+      const html2pdf = html2pdfModule.default || html2pdfModule;
+
+      const opt = {
+        margin: [8, 8, 8, 8],
+        filename: filename,
+        image: { type: "jpeg", quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true, logging: false },
+        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+      };
+
+      await html2pdf().set(opt).from(element).save();
+      setFeedback(`✅ ${tabLabels[activeTab]} PDF file saved to your device.`);
+      setTimeout(() => setFeedback(null), 3500);
+    } catch (err) {
+      console.error("PDF download failed, falling back to print:", err);
+      window.print();
+    } finally {
+      setIsExportingPdf(false);
+    }
+  };
+
+  // ── 4. PRINT PREVIEW ──
   const handlePrintPDF = () => {
     window.print();
   };
@@ -579,11 +617,22 @@ export default function Reports() {
               <div className="flex items-center gap-2">
                 <button
                   type="button"
+                  disabled={isExportingPdf}
+                  onClick={handleDownloadPDF}
+                  className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-extrabold shadow-sm cursor-pointer transition-all disabled:opacity-50"
+                  title="Download and save as PDF file to device"
+                >
+                  {isExportingPdf ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+                  <span>{isExportingPdf ? "Saving PDF..." : "Download PDF File"}</span>
+                </button>
+                <button
+                  type="button"
                   onClick={handlePrintPDF}
-                  className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-extrabold shadow-sm cursor-pointer transition-all"
+                  className="flex items-center gap-1.5 px-3.5 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-extrabold shadow-xs cursor-pointer transition-all"
+                  title="Print paper copy"
                 >
                   <Printer size={14} />
-                  <span>Print / Save as PDF</span>
+                  <span>Print</span>
                 </button>
                 <button
                   type="button"
