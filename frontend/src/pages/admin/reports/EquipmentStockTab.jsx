@@ -150,18 +150,10 @@ export default function EquipmentStockTab({
       setUnits(unitData.map((u, idx) => {
         const bCode = String(u.unit_code || u.barcode || `BC-EQP-2026-00${idx + 1}`).trim();
         const dbStatusRaw = (u.status || 'available').toLowerCase();
-        let dbStatus = dbStatusRaw;
-        if (['damaged', 'maintenance', 'under_maintenance', 'decommissioned', 'unavailable'].includes(dbStatusRaw)) {
-          dbStatus = 'unavailable';
-        } else if (dbStatusRaw === 'released' || dbStatusRaw === 'in-use' || dbStatusRaw === 'released / in-use' || dbStatusRaw === 'release / in - use') {
-          dbStatus = 'Released';
-        } else {
-          dbStatus = 'Available';
-        }
-
         const dbCondition = u.condition || '';
-        let conditionLabel;
         const condLower = dbCondition.toLowerCase();
+
+        let conditionLabel;
         if (condLower === 'good' || condLower === 'good condition') conditionLabel = 'Good';
         else if (condLower === 'damaged') conditionLabel = 'Damaged';
         else if (condLower === 'lost') conditionLabel = 'Lost';
@@ -171,6 +163,18 @@ export default function EquipmentStockTab({
         else if (dbStatusRaw === 'maintenance' || dbStatusRaw === 'under_maintenance') conditionLabel = 'Under Repair';
         else if (dbStatusRaw === 'decommissioned' || dbStatusRaw === 'lost') conditionLabel = 'Lost';
         else conditionLabel = 'Good';
+
+        let dbStatus = dbStatusRaw;
+        if (
+          ['lost', 'damaged', 'under repair', 'worn', 'minor wear'].includes(conditionLabel.toLowerCase()) ||
+          ['damaged', 'maintenance', 'under_maintenance', 'decommissioned', 'unavailable', 'lost'].includes(dbStatusRaw)
+        ) {
+          dbStatus = 'unavailable';
+        } else if (dbStatusRaw === 'released' || dbStatusRaw === 'in-use' || dbStatusRaw === 'released / in-use' || dbStatusRaw === 'release / in - use') {
+          dbStatus = 'Released';
+        } else {
+          dbStatus = 'Available';
+        }
 
         const eqType = u.equipment_type || u.equipmentType || catList.find(c => String(c.id) === String(u.equipment_type_id));
         const catName = eqType?.eq_name || eqType?.name || eqType?.eq_type || 'AV Equipment';
