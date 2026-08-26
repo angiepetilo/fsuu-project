@@ -16,6 +16,8 @@ class EquipmentUnitController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
+        \App\Services\EquipmentCategoryService::autoSyncUnitConditions();
+
         $query = EquipmentUnit::with('equipmentType')
             ->whereNull('equipment_units.archived_at');
 

@@ -70,14 +70,46 @@ export default function BreachesTab({
       try { au = JSON.parse(au); } catch { au = {}; }
     }
 
+    // Build barcode values list from assignedUnits
+    const barcodeList = [];
+    if (Array.isArray(au)) {
+      au.forEach(b => { if (b) barcodeList.push(String(b).trim().toUpperCase()); });
+    } else if (au && typeof au === "object") {
+      Object.values(au).forEach(b => { if (b) barcodeList.push(String(b).trim().toUpperCase()); });
+    }
+
     const unitMap = new Map();
     Object.entries(uCond || {}).forEach(([k, val]) => {
       const c = String(val || "").toLowerCase();
-      if (!c) return;
-      // If positional key "0-0", look up barcode in au; else use key
-      const resolved = (au && typeof au === "object" && au[k]) ? au[k] : k;
-      const cleanKey = String(resolved).trim().toUpperCase();
-      unitMap.set(cleanKey, c);
+      if (!c || c === "complete" || c === "good") return;
+
+      let resolvedBarcode = null;
+      // 1. Direct lookup in assignedUnits
+      if (au && typeof au === "object" && au[k]) {
+        resolvedBarcode = String(au[k]).trim().toUpperCase();
+      }
+      // 2. If k is already a barcode that exists in barcodeList
+      if (!resolvedBarcode && barcodeList.includes(String(k).trim().toUpperCase())) {
+        resolvedBarcode = String(k).trim().toUpperCase();
+      }
+      // 3. If k is a composite key like "Projector-0" or "0-0", extract the unit index
+      if (!resolvedBarcode) {
+        const match = String(k).match(/-(\d+)$/);
+        if (match) {
+          const uIdx = parseInt(match[1], 10);
+          if (barcodeList[uIdx]) {
+            resolvedBarcode = barcodeList[uIdx];
+          } else {
+            resolvedBarcode = `SLOT-${uIdx}`;
+          }
+        }
+      }
+      // 4. Fallback to clean key
+      if (!resolvedBarcode) {
+        resolvedBarcode = String(k).trim().toUpperCase();
+      }
+
+      unitMap.set(resolvedBarcode, c);
     });
 
     let damaged = 0;

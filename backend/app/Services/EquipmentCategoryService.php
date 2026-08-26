@@ -24,6 +24,8 @@ class EquipmentCategoryService
             $typeMap[$t->id] = $t;
         }
 
+        self::autoSyncUnitConditions();
+
         // 1. Grouped physical units statistics
         $unitsStats = [];
         if (Schema::hasTable('equipment_units')) {
@@ -36,8 +38,8 @@ class EquipmentCategoryService
                         DB::raw('COUNT(*) as total_registered'),
                         DB::raw("SUM(CASE WHEN LOWER(status) IN ('released', 'in_use', 'borrowed', 'in-use') THEN 1 ELSE 0 END) as physical_released"),
                         DB::raw("SUM(CASE WHEN LOWER(status) = 'reserved' THEN 1 ELSE 0 END) as physical_reserved"),
-                        DB::raw("SUM(CASE WHEN LOWER(status) IN ('damaged', 'maintenance', 'unavailable') OR LOWER(condition) IN ('damaged', 'maintenance', 'worn', 'under repair') THEN 1 ELSE 0 END) as physical_damaged"),
-                        DB::raw("SUM(CASE WHEN LOWER(status) IN ('decommissioned', 'lost') OR LOWER(condition) = 'lost' THEN 1 ELSE 0 END) as physical_lost")
+                        DB::raw("SUM(CASE WHEN (LOWER(status) IN ('damaged', 'maintenance', 'unavailable') OR LOWER(COALESCE(condition, 'good')) IN ('damaged', 'maintenance', 'worn', 'under repair')) AND LOWER(COALESCE(condition, 'good')) NOT IN ('lost', 'decommissioned') AND LOWER(COALESCE(status, 'available')) NOT IN ('lost', 'decommissioned') THEN 1 ELSE 0 END) as physical_damaged"),
+                        DB::raw("SUM(CASE WHEN LOWER(status) IN ('decommissioned', 'lost') OR LOWER(COALESCE(condition, '')) = 'lost' THEN 1 ELSE 0 END) as physical_lost")
                     )
                     ->groupBy('equipment_type_id')
                     ->get();
@@ -208,8 +210,12 @@ class EquipmentCategoryService
                     ->where('equipment_type_id', $e->id)
                     ->whereNull('archived_at')
                     ->where(function($q) {
-                        $q->whereIn(DB::raw('LOWER(status)'), ['damaged', 'maintenance', 'unavailable'])
-                          ->orWhereIn(DB::raw('LOWER(condition)'), ['damaged', 'maintenance', 'worn', 'under repair']);
+                        $q->where(function($sub) {
+                            $sub->whereIn(DB::raw('LOWER(status)'), ['damaged', 'maintenance', 'unavailable'])
+                                ->orWhereIn(DB::raw('LOWER(condition)'), ['damaged', 'maintenance', 'worn', 'under repair']);
+                        })
+                        ->whereNotIn(DB::raw('LOWER(COALESCE(condition, "good"))'), ['lost', 'decommissioned'])
+                        ->whereNotIn(DB::raw('LOWER(COALESCE(status, "available"))'), ['lost', 'decommissioned']);
                     })
                     ->count();
 
@@ -218,7 +224,7 @@ class EquipmentCategoryService
                     ->whereNull('archived_at')
                     ->where(function($q) {
                         $q->whereIn(DB::raw('LOWER(status)'), ['decommissioned', 'lost'])
-                          ->orWhereIn(DB::raw('LOWER(condition)'), ['lost']);
+                          ->orWhereIn(DB::raw('LOWER(COALESCE(condition, ""))'), ['lost']);
                     })
                     ->count();
             } catch (\Throwable $th) {}
@@ -392,5 +398,58 @@ class EquipmentCategoryService
                 $q->where('id', '!=', $excludeId);
             })
             ->exists();
+    }
+
+    /**
+     * Synchronize physical unit status/condition from completed inspections with recorded damages/losses.
+     */
+    public static function autoSyncUnitConditions(): void
+    {
+        try {
+            if (!Schema::hasTable('inspections') || !Schema::hasTable('equipment_units')) {
+                return;
+            }
+
+            $inspections = DB::table('inspections')
+                ->whereNotNull('unit_conditions')
+                ->select('unit_conditions', 'assigned_units', 'condition')
+                ->get();
+
+            foreach ($inspections as $insp) {
+                $rawConds = $insp->unit_conditions;
+                if (is_string($rawConds)) {
+                    $rawConds = json_decode($rawConds, true);
+                }
+                $assigned = $insp->assigned_units;
+                if (is_string($assigned)) {
+                    $assigned = json_decode($assigned, true);
+                }
+                if (!is_array($rawConds)) continue;
+
+                foreach ($rawConds as $k => $cVal) {
+                    $cStr = strtolower(is_array($cVal) ? ($cVal['condition'] ?? $cVal['status'] ?? '') : (string)$cVal);
+                    if ($cStr === 'lost' || $cStr === 'damaged') {
+                        $uStatus = $cStr === 'lost' ? 'lost' : 'damaged';
+                        $uCond = $cStr === 'lost' ? 'Lost' : 'Damaged';
+                        $uBar = is_array($assigned) ? ($assigned[$k] ?? null) : null;
+                        $keys = array_filter(array_unique([$k, $uBar]));
+
+                        if (!empty($keys)) {
+                            DB::table('equipment_units')
+                                ->where(function($q) use ($keys) {
+                                    $q->whereIn('unit_code', $keys)
+                                      ->orWhereIn('id', $keys);
+                                })
+                                ->where(function($q) use ($uStatus, $uCond) {
+                                    $q->where('status', '!=', $uStatus)
+                                      ->orWhere('condition', '!=', $uCond)
+                                      ->orWhereNull('condition');
+                                })
+                                ->update(['status' => $uStatus, 'condition' => $uCond, 'updated_at' => now()]);
+                        }
+                    }
+                }
+            }
+        } catch (\Throwable $e) {}
     }
 }
