@@ -8,6 +8,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Log;
 
 class NotificationController extends Controller
 {
@@ -17,145 +18,68 @@ class NotificationController extends Controller
             $user = $request->user();
             $userId = $user ? $user->id : null;
 
-            $readKeys = DB::table('notification_reads')
-                ->where('user_id', $userId)
-                ->pluck('notification_key')
-                ->flip();
+            $readKeys = [];
+            if (Schema::hasTable('notification_reads')) {
+                $readKeys = DB::table('notification_reads')
+                    ->where('user_id', $userId)
+                    ->pluck('notification_key')
+                    ->flip()
+                    ->toArray();
+            }
 
             $notifs = collect();
 
-            // 1. Venue Bookings Notifications
-            $vbQuery = DB::table('venue_bookings')
-                ->join('tracking_numbers', 'venue_bookings.tracking_number_id', '=', 'tracking_numbers.id')
-                ->leftJoin('venues', 'venue_bookings.venue_id', '=', 'venues.id')
-                ->whereNull('venue_bookings.archived_at')
-                ->select(
-                    'venue_bookings.id',
-                    'venue_bookings.filer_name',
-                    'venue_bookings.program_office',
-                    'venue_bookings.email_address',
-                    'venue_bookings.contact_number',
-                    'venue_bookings.date_of_usage',
-                    'venue_bookings.created_at',
-                    'venue_bookings.updated_at',
-                    'venues.name as venue_name',
-                    'tracking_numbers.reference_code',
-                    'tracking_numbers.status'
-                )
-                ->orderByDesc('venue_bookings.updated_at')
-                ->limit(30);
-
-            foreach ($vbQuery->get() as $b) {
-                $st = strtolower($b->status ?? '');
-                $ref = $b->reference_code ?? 'TRK-AVR';
-                $dt = Carbon::parse($b->updated_at ?? $b->created_at);
-                $time = $dt->isToday() ? $dt->format('h:i A') : $dt->format('M d, h:i A');
-                $rawDate = $b->updated_at ?? $b->created_at;
-
-                $key = 'notif-vb-' . $st . '-' . $b->id;
-                $notifs->push([
-                    'id'             => $key,
-                    'target_id'      => $b->id,
-                    'target_type'    => 'venue_booking',
-                    'incident_type'  => 'venue_booking',
-                    'url'            => '/admin/venue-bookings?id=' . $b->id . '&trk=' . $ref,
-                    'type'           => $st === 'pending' ? 'pending_booking' : 'booking_' . $st,
-                    'priority'       => $st === 'pending' ? 'high' : 'medium',
-                    'title'          => $st === 'pending' ? 'New Venue Booking' : 'Venue Booking ' . ucfirst($st),
-                    'message'        => ($b->filer_name ?? $b->program_office ?? 'Requestor') . ' booked ' . ($b->venue_name ?? 'Venue Facility'),
-                    'person_name'    => $b->filer_name ?? 'Requestor',
-                    'person_contact' => $b->contact_number ?? 'N/A',
-                    'person_office'  => $b->program_office ?? 'Department',
-                    'person_email'   => $b->email_address ?? 'N/A',
-                    'item_name'      => $b->venue_name ?? 'Venue Facility',
-                    'ref'            => $ref,
-                    'time'           => $time,
-                    'rawDate'        => $rawDate,
-                    'is_read'        => isset($readKeys[$key]),
-                ]);
-            }
-
-            // 2. Equipment Borrowing Notifications
-            $ebQuery = DB::table('equipment_borrows')
-                ->join('tracking_numbers', 'equipment_borrows.tracking_number_id', '=', 'tracking_numbers.id')
-                ->whereNull('equipment_borrows.archived_at')
-                ->select(
-                    'equipment_borrows.id',
-                    'equipment_borrows.filer_name',
-                    'equipment_borrows.program_office',
-                    'equipment_borrows.email_address',
-                    'equipment_borrows.contact_number',
-                    'equipment_borrows.created_at',
-                    'equipment_borrows.updated_at',
-                    'tracking_numbers.reference_code',
-                    'tracking_numbers.status'
-                )
-                ->orderByDesc('equipment_borrows.updated_at')
-                ->limit(30);
-
-            foreach ($ebQuery->get() as $b) {
-                $st = strtolower($b->status ?? '');
-                $ref = $b->reference_code ?? 'TRK-BORROW';
-                $dt = Carbon::parse($b->updated_at ?? $b->created_at);
-                $time = $dt->isToday() ? $dt->format('h:i A') : $dt->format('M d, h:i A');
-                $rawDate = $b->updated_at ?? $b->created_at;
-
-                $key = 'notif-eb-' . $st . '-' . $b->id;
-                $notifs->push([
-                    'id'             => $key,
-                    'target_id'      => $b->id,
-                    'target_type'    => 'equipment_borrow',
-                    'incident_type'  => 'equipment_borrow',
-                    'url'            => '/admin/equipment-borrowing?id=' . $b->id . '&trk=' . $ref,
-                    'type'           => $st === 'pending' ? 'pending_borrow' : 'borrow_' . $st,
-                    'priority'       => $st === 'pending' ? 'high' : 'medium',
-                    'title'          => $st === 'pending' ? 'New Equipment Request' : 'Equipment Borrow ' . ucfirst($st),
-                    'message'        => ($b->filer_name ?? $b->program_office ?? 'Borrower') . ' requested equipment (' . $ref . ')',
-                    'person_name'    => $b->filer_name ?? 'Borrower',
-                    'person_contact' => $b->contact_number ?? 'N/A',
-                    'person_office'  => $b->program_office ?? 'Department',
-                    'person_email'   => $b->email_address ?? 'N/A',
-                    'item_name'      => 'Requested Equipment',
-                    'ref'            => $ref,
-                    'time'           => $time,
-                    'rawDate'        => $rawDate,
-                    'is_read'        => isset($readKeys[$key]),
-                ]);
-            }
-
-            // 3. Damaged, Lost & Policy Violation Incidents from Inspections
+            // 1. Critical Inspection Incidents (Equipment Lost, Equipment Damaged, Venue Booking Policy Violations)
             if (Schema::hasTable('inspections')) {
                 $inspections = DB::table('inspections')
-                    ->whereIn(DB::raw('LOWER(condition)'), ['damaged', 'lost', 'missing'])
-                    ->orWhereNotNull('violation_type')
-                    ->orWhere('is_late', true)
-                    ->orderByDesc('created_at')
-                    ->limit(30)
+                    ->orderByDesc('id')
+                    ->limit(50)
                     ->get();
 
                 foreach ($inspections as $ins) {
                     $condition = strtolower($ins->condition ?? 'good');
-                    $isDamaged = $condition === 'damaged';
-                    $isLost = in_array($condition, ['lost', 'missing']);
-                    $hasViolation = !empty($ins->violation_type) || $ins->is_late;
+                    $isDamaged = $condition === 'damaged' || str_contains(strtolower($ins->violation_type ?? ''), 'damage');
+                    $isLost = in_array($condition, ['lost', 'missing']) || str_contains(strtolower($ins->violation_type ?? ''), 'lost');
+                    $isLate = (bool)($ins->is_late ?? false) || strtolower($ins->timeliness ?? '') === 'late' || str_contains(strtolower($ins->violation_type ?? ''), 'late');
+                    $hasViolation = !empty($ins->violation_type) || $isLate;
+
+                    // Inspect unit_conditions for granular unit-level lost/damaged flags
+                    $rawUnitConds = $ins->unit_conditions ?? null;
+                    if (is_string($rawUnitConds)) {
+                        $rawUnitConds = json_decode($rawUnitConds, true);
+                    }
+                    if (is_array($rawUnitConds)) {
+                        foreach ($rawUnitConds as $uKey => $cVal) {
+                            $cStr = strtolower(is_array($cVal) ? ($cVal['condition'] ?? $cVal['status'] ?? '') : (string)$cVal);
+                            if ($cStr === 'lost') $isLost = true;
+                            if ($cStr === 'damaged') $isDamaged = true;
+                        }
+                    }
+
+                    if (!$isDamaged && !$isLost && !$hasViolation) {
+                        continue;
+                    }
 
                     $personName = 'Borrower / Requestor';
                     $personContact = 'N/A';
                     $personOffice = 'FSUU Department';
                     $personEmail = 'N/A';
                     $refCode = 'TRK-INCIDENT';
-                    $itemName = 'Physical Unit';
+                    $itemName = 'Physical Unit / Facility';
                     $unitCodes = [];
 
                     if (!empty($ins->assigned_units)) {
-                        $decodedUnits = json_decode($ins->assigned_units, true);
+                        $decodedUnits = is_string($ins->assigned_units) ? json_decode($ins->assigned_units, true) : $ins->assigned_units;
                         if (is_array($decodedUnits)) {
-                            $unitCodes = $decodedUnits;
+                            $unitCodes = array_values(array_filter($decodedUnits));
                         }
                     }
 
-                    if ($ins->inspectable_type === 'equipment_borrow' || $ins->reference_type === 'equipment_borrow' || str_contains($ins->inspectable_type ?? '', 'EquipmentBorrow')) {
-                        $borrowId = $ins->inspectable_id ?: $ins->reference_id;
+                    $isVenueInsp = in_array(strtolower($ins->inspectable_type ?? ''), ['venue_booking', 'avr_venue_booking']) || str_contains($ins->inspectable_type ?? '', 'VenueBooking');
+                    $isEquipInsp = in_array(strtolower($ins->inspectable_type ?? ''), ['equipment_borrow', 'avr_equipment_borrowing']) || str_contains($ins->inspectable_type ?? '', 'EquipmentBorrow');
+
+                    if ($isEquipInsp && Schema::hasTable('equipment_borrows')) {
+                        $borrowId = $ins->inspectable_id;
                         $borrow = DB::table('equipment_borrows')
                             ->leftJoin('tracking_numbers', 'equipment_borrows.tracking_number_id', '=', 'tracking_numbers.id')
                             ->where('equipment_borrows.id', $borrowId)
@@ -168,9 +92,10 @@ class NotificationController extends Controller
                             $personOffice = $borrow->program_office ?? 'Department';
                             $personEmail = $borrow->email_address ?? 'N/A';
                             $refCode = $borrow->reference_code ?? 'TRK-BORROW';
+                            $itemName = 'Borrowed Equipment';
                         }
-                    } elseif ($ins->inspectable_type === 'venue_booking' || $ins->reference_type === 'venue_booking' || str_contains($ins->inspectable_type ?? '', 'VenueBooking')) {
-                        $bookingId = $ins->inspectable_id ?: $ins->reference_id;
+                    } elseif ($isVenueInsp && Schema::hasTable('venue_bookings')) {
+                        $bookingId = $ins->inspectable_id;
                         $booking = DB::table('venue_bookings')
                             ->leftJoin('tracking_numbers', 'venue_bookings.tracking_number_id', '=', 'tracking_numbers.id')
                             ->leftJoin('venues', 'venue_bookings.venue_id', '=', 'venues.id')
@@ -192,38 +117,16 @@ class NotificationController extends Controller
                     $dt = Carbon::parse($rawDate);
                     $formattedTime = $dt->isToday() ? $dt->format('h:i A') : $dt->format('M d, h:i A');
 
-                    if ($isDamaged) {
-                        $key = 'admin-dmg-' . $ins->id;
-                        $notifs->push([
-                            'id'                => $key,
-                            'target_id'         => $ins->id,
-                            'target_type'       => 'damaged_unit',
-                            'incident_type'     => 'damaged',
-                            'title'             => 'Damaged Physical Unit',
-                            'message'           => "Physical unit reported damaged by {$personName} ({$refCode})",
-                            'person_name'       => $personName,
-                            'person_contact'    => $personContact,
-                            'person_office'     => $personOffice,
-                            'person_email'      => $personEmail,
-                            'item_name'         => !empty($unitCodes) ? implode(', ', $unitCodes) : $itemName,
-                            'unit_code'         => !empty($unitCodes) ? implode(', ', $unitCodes) : 'N/A',
-                            'notes'             => $ins->notes ?: 'Physical equipment unit returned with damage.',
-                            'evidence_photo'    => $ins->evidence_photo ?? null,
-                            'ref'               => $refCode,
-                            'priority'          => 'high',
-                            'time'              => $formattedTime,
-                            'rawDate'           => $rawDate,
-                            'is_read'           => isset($readKeys[$key]),
-                        ]);
-                    } elseif ($isLost) {
+                    // 1a. Lost Equipment Notification
+                    if ($isLost) {
                         $key = 'admin-lost-' . $ins->id;
                         $notifs->push([
                             'id'                => $key,
                             'target_id'         => $ins->id,
                             'target_type'       => 'lost_unit',
                             'incident_type'     => 'lost',
-                            'title'             => 'Lost Physical Unit',
-                            'message'           => "Physical unit reported lost/missing by {$personName} ({$refCode})",
+                            'title'             => 'Lost Equipment Incident',
+                            'message'           => "Equipment unit reported LOST for transaction {$refCode} by {$personName} ({$personOffice})",
                             'person_name'       => $personName,
                             'person_contact'    => $personContact,
                             'person_office'     => $personOffice,
@@ -232,23 +135,50 @@ class NotificationController extends Controller
                             'unit_code'         => !empty($unitCodes) ? implode(', ', $unitCodes) : 'N/A',
                             'notes'             => $ins->notes ?: 'Physical equipment unit not returned / marked lost.',
                             'ref'               => $refCode,
-                            'priority'          => 'high',
+                            'priority'          => 'critical',
                             'time'              => $formattedTime,
                             'rawDate'           => $rawDate,
                             'is_read'           => isset($readKeys[$key]),
                         ]);
                     }
 
+                    // 1b. Damaged Equipment Notification
+                    if ($isDamaged) {
+                        $key = 'admin-dmg-' . $ins->id;
+                        $notifs->push([
+                            'id'                => $key,
+                            'target_id'         => $ins->id,
+                            'target_type'       => 'damaged_unit',
+                            'incident_type'     => 'damaged',
+                            'title'             => 'Damaged Equipment Alert',
+                            'message'           => "Equipment unit damaged during reservation {$refCode} by {$personName} ({$personOffice})",
+                            'person_name'       => $personName,
+                            'person_contact'    => $personContact,
+                            'person_office'     => $personOffice,
+                            'person_email'      => $personEmail,
+                            'item_name'         => !empty($unitCodes) ? implode(', ', $unitCodes) : $itemName,
+                            'unit_code'         => !empty($unitCodes) ? implode(', ', $unitCodes) : 'N/A',
+                            'notes'             => $ins->notes ?: 'Physical unit reported damaged upon post-inspection.',
+                            'evidence_photo'    => $ins->evidence_photo ?? null,
+                            'ref'               => $refCode,
+                            'priority'          => 'critical',
+                            'time'              => $formattedTime,
+                            'rawDate'           => $rawDate,
+                            'is_read'           => isset($readKeys[$key]),
+                        ]);
+                    }
+
+                    // 1c. Venue Booking Policy Violation Notification
                     if ($hasViolation) {
-                        $violationTitle = $ins->violation_type ?: ($ins->is_late ? "Late Return ({$ins->minutes_late} mins)" : 'Policy Violation');
+                        $violationTitle = $ins->violation_type ?: ($isLate ? "Late Return ({$ins->minutes_late} mins)" : 'Policy Violation');
                         $key = 'admin-viol-' . $ins->id;
                         $notifs->push([
                             'id'                => $key,
                             'target_id'         => $ins->id,
                             'target_type'       => 'policy_violation',
                             'incident_type'     => 'policy_violation',
-                            'title'             => 'Policy Violation Incident',
-                            'message'           => "{$violationTitle} recorded for {$personName} ({$refCode})",
+                            'title'             => $isVenueInsp ? 'Venue Booking Policy Violation' : 'Equipment Policy Violation',
+                            'message'           => "{$violationTitle} recorded for {$personName} ({$personOffice}) on {$refCode}",
                             'person_name'       => $personName,
                             'person_contact'    => $personContact,
                             'person_office'     => $personOffice,
@@ -256,9 +186,9 @@ class NotificationController extends Controller
                             'item_name'         => $itemName,
                             'unit_code'         => !empty($unitCodes) ? implode(', ', $unitCodes) : 'N/A',
                             'violation_details' => $violationTitle,
-                            'notes'             => $ins->notes ?: "Violation: {$violationTitle}",
+                            'notes'             => $ins->notes ?: "Violation logged: {$violationTitle}",
                             'ref'               => $refCode,
-                            'priority'          => 'high',
+                            'priority'          => 'critical',
                             'time'              => $formattedTime,
                             'rawDate'           => $rawDate,
                             'is_read'           => isset($readKeys[$key]),
@@ -267,80 +197,95 @@ class NotificationController extends Controller
                 }
             }
 
-            // 4. Proactive Upcoming Equipment Shortage Sentinel
-            if (Schema::hasTable('venue_bookings') && Schema::hasTable('equipment_types')) {
-                $today = now()->toDateString();
-                $upcomingBookings = DB::table('venue_bookings')
-                    ->join('tracking_numbers', 'venue_bookings.tracking_number_id', '=', 'tracking_numbers.id')
-                    ->leftJoin('venues', 'venue_bookings.venue_id', '=', 'venues.id')
-                    ->whereIn('tracking_numbers.status', ['pending', 'approved'])
-                    ->where('venue_bookings.date_of_usage', '>=', $today)
-                    ->whereNotNull('venue_bookings.equipment_notes')
-                    ->where('venue_bookings.equipment_notes', '!=', '')
-                    ->whereNull('venue_bookings.archived_at')
-                    ->select('venue_bookings.*', 'venues.name as venue_name', 'tracking_numbers.reference_code')
-                    ->orderBy('venue_bookings.date_of_usage')
-                    ->limit(20)
+            // 2. Physical Equipment Units Catalog (Units Marked Lost or Damaged in Inventory)
+            if (Schema::hasTable('equipment_units') && Schema::hasTable('equipment_types')) {
+                $flaggedUnits = DB::table('equipment_units')
+                    ->join('equipment_types', 'equipment_units.equipment_type_id', '=', 'equipment_types.id')
+                    ->where(function ($q) {
+                        $q->whereIn(DB::raw('LOWER(equipment_units.status)'), ['damaged', 'lost', 'decommissioned'])
+                          ->orWhereIn(DB::raw('LOWER(equipment_units.condition)'), ['damaged', 'lost']);
+                    })
+                    ->whereNull('equipment_units.archived_at')
+                    ->select(
+                        'equipment_units.*',
+                        'equipment_types.eq_name'
+                    )
+                    ->orderByDesc('equipment_units.updated_at')
+                    ->limit(25)
                     ->get();
 
-                $allTypes = DB::table('equipment_types')->whereNull('archived_at')->get();
-                $damagedOrOutUnitCounts = DB::table('equipment_units')
-                    ->whereNull('archived_at')
-                    ->whereIn(DB::raw('LOWER(status)'), ['damaged', 'lost', 'decommissioned', 'maintenance', 'released'])
-                    ->select('equipment_type_id', DB::raw('COUNT(*) as unavailable_count'))
-                    ->groupBy('equipment_type_id')
-                    ->pluck('unavailable_count', 'equipment_type_id');
+                foreach ($flaggedUnits as $du) {
+                    $isUnitLost = strtolower($du->condition ?? '') === 'lost' || strtolower($du->status ?? '') === 'lost';
+                    $key = 'admin-unit-flag-' . $du->id;
+                    $dt = Carbon::parse($du->updated_at ?? $du->created_at ?? now());
+                    $formattedTime = $dt->isToday() ? $dt->format('h:i A') : $dt->format('M d, h:i A');
 
-                $operationalCounts = DB::table('equipment_units')
-                    ->whereNull('archived_at')
-                    ->where('status', 'available')
-                    ->whereNotIn(DB::raw('LOWER(condition)'), ['damaged', 'lost', 'under repair'])
-                    ->select('equipment_type_id', DB::raw('COUNT(*) as on_hand_good'))
-                    ->groupBy('equipment_type_id')
-                    ->pluck('on_hand_good', 'equipment_type_id');
+                    $notifs->push([
+                        'id'                => $key,
+                        'target_id'         => $du->id,
+                        'target_type'       => 'equipment_unit',
+                        'incident_type'     => $isUnitLost ? 'lost' : 'damaged',
+                        'title'             => $isUnitLost ? 'Physical Unit Lost in Inventory' : 'Physical Unit Damaged',
+                        'message'           => "Barcode {$du->unit_code} ({$du->eq_name}) condition is " . strtoupper($du->condition ?: $du->status),
+                        'person_name'       => 'Equipment Custodian',
+                        'person_contact'    => 'AVR Office',
+                        'person_office'     => 'Resource Management',
+                        'person_email'      => 'custodian@fsuu.edu.ph',
+                        'item_name'         => "{$du->eq_name} ({$du->unit_code})",
+                        'unit_code'         => $du->unit_code,
+                        'notes'             => $du->description ?: "Unit flagged as " . ($du->condition ?: $du->status),
+                        'ref'               => $du->unit_code,
+                        'priority'          => 'critical',
+                        'time'              => $formattedTime,
+                        'rawDate'           => $du->updated_at ?? $du->created_at ?? now(),
+                        'is_read'           => isset($readKeys[$key]),
+                    ]);
+                }
+            }
 
-                foreach ($upcomingBookings as $ub) {
-                    $eqNotes = strtoupper($ub->equipment_notes);
-                    foreach ($allTypes as $et) {
-                        $tName = strtoupper($et->name ?? $et->eq_name ?? '');
-                        if (!$tName || !str_contains($eqNotes, $tName)) continue;
+            // 3. New Pending Venue Bookings
+            if (Schema::hasTable('venue_bookings') && Schema::hasTable('tracking_numbers')) {
+                $vbQuery = DB::table('venue_bookings')
+                    ->join('tracking_numbers', 'venue_bookings.tracking_number_id', '=', 'tracking_numbers.id')
+                    ->leftJoin('venues', 'venue_bookings.venue_id', '=', 'venues.id')
+                    ->whereNull('venue_bookings.archived_at')
+                    ->where(DB::raw('LOWER(tracking_numbers.status)'), 'pending')
+                    ->select(
+                        'venue_bookings.*',
+                        'venues.name as venue_name',
+                        'tracking_numbers.reference_code',
+                        'tracking_numbers.status as tracking_status'
+                    )
+                    ->orderByDesc('venue_bookings.created_at')
+                    ->limit(15)
+                    ->get();
 
-                        $qtyNeeded = 1;
-                        if (preg_match('/\b' . preg_quote($tName, '/') . '\s*\(Qty:\s*(\d+)\)/i', $eqNotes, $qm)) {
-                            $qtyNeeded = (int)$qm[1];
-                        }
+                foreach ($vbQuery as $b) {
+                    $ref = $b->reference_code ?? 'TRK-AVR';
+                    $dt = Carbon::parse($b->created_at);
+                    $time = $dt->isToday() ? $dt->format('h:i A') : $dt->format('M d, h:i A');
+                    $key = 'notif-vb-pending-' . $b->id;
 
-                        $onHand = (int)($operationalCounts[$et->id] ?? 0);
-                        $unavailable = (int)($damagedOrOutUnitCounts[$et->id] ?? 0);
-
-                        // If damaged/unreturned units cause shortage for upcoming reservation
-                        if ($unavailable > 0 && $onHand < $qtyNeeded) {
-                            $key = 'shortage-alert-vb-' . $ub->id . '-' . $et->id;
-                            $refCode = $ub->reference_code ?? ('TRK-AVR' . $ub->id);
-                            $usageDt = Carbon::parse($ub->date_of_usage)->format('M d, Y');
-
-                            $notifs->push([
-                                'id'             => $key,
-                                'target_id'      => $ub->id,
-                                'target_type'    => 'venue_booking',
-                                'incident_type'  => 'stock_shortage',
-                                'url'            => '/admin/venue-bookings?id=' . $ub->id . '&trk=' . $refCode,
-                                'type'           => 'stock_shortage_alert',
-                                'priority'       => 'high',
-                                'title'          => 'Stock Shortage Warning',
-                                'message'        => "Damage/unreturned {$et->name} units affects upcoming booking {$refCode} on {$usageDt} (Needed: {$qtyNeeded}, Ready: {$onHand}).",
-                                'person_name'    => $ub->filer_name ?? 'Filer',
-                                'person_contact' => $ub->contact_number ?? 'N/A',
-                                'person_office'  => $ub->program_office ?? 'Department',
-                                'person_email'   => $ub->email_address ?? 'N/A',
-                                'item_name'      => $et->name ?? 'Equipment',
-                                'ref'            => $refCode,
-                                'time'           => Carbon::parse($ub->updated_at ?? now())->format('M d, h:i A'),
-                                'rawDate'        => $ub->updated_at ?? now(),
-                                'is_read'        => isset($readKeys[$key]),
-                            ]);
-                        }
-                    }
+                    $notifs->push([
+                        'id'             => $key,
+                        'target_id'      => $b->id,
+                        'target_type'    => 'venue_booking',
+                        'incident_type'  => 'venue_booking',
+                        'url'            => '/admin/venue-bookings?id=' . $b->id . '&trk=' . $ref,
+                        'type'           => 'pending_booking',
+                        'priority'       => 'high',
+                        'title'          => 'New Venue Booking',
+                        'message'        => ($b->filer_name ?? 'Requestor') . ' submitted a booking for ' . ($b->venue_name ?? 'Facility') . " ({$ref})",
+                        'person_name'    => $b->filer_name ?? 'Requestor',
+                        'person_contact' => $b->contact_number ?? 'N/A',
+                        'person_office'  => $b->program_office ?? 'Department',
+                        'person_email'   => $b->email_address ?? 'N/A',
+                        'item_name'      => $b->venue_name ?? 'Venue Facility',
+                        'ref'            => $ref,
+                        'time'           => $time,
+                        'rawDate'        => $b->created_at,
+                        'is_read'        => isset($readKeys[$key]),
+                    ]);
                 }
             }
 
@@ -348,7 +293,7 @@ class NotificationController extends Controller
 
             return response()->json($sorted);
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::error('Admin NotificationController error: ' . $e->getMessage());
+            Log::error('Admin NotificationController error: ' . $e->getMessage());
             return response()->json([]);
         }
     }
