@@ -54,6 +54,11 @@ class ListingController extends Controller
      */
     public function equipmentTypes(\Illuminate\Http\Request $request): JsonResponse
     {
+        // Proactively clear expired no-show reservations past grace period to restock inventory
+        try {
+            app(\App\Services\NoShowAutoReleaseService::class)->processNoShows(15);
+        } catch (\Throwable $e) {}
+
         $startDatetime = $request->query('start_datetime');
         $endDatetime = $request->query('end_datetime');
         $dateStr = $request->query('date') ?? $request->query('date_of_usage') ?? ($startDatetime ? substr($startDatetime, 0, 10) : null);
@@ -133,14 +138,14 @@ class ListingController extends Controller
                 ->get();
 
             $vbIds = $overlappingVenueBookings->pluck('id')->toArray();
-            $structVenueItems = [];
+            $structVenueItems = collect();
             if (!empty($vbIds) && \Illuminate\Support\Facades\Schema::hasTable('venue_booking_equipment')) {
                 $structVenueItems = DB::table('venue_booking_equipment')
                     ->whereIn('venue_booking_id', $vbIds)
                     ->get();
             }
 
-            // Populate venue committed count per equipment type
+            // Populate venue committed count per equipment type (avoid double-counting structured items + notes on same booking)
             foreach ($allTypes as $eType) {
                 $typeKeys = [
                     strtoupper(trim((string)$eType->id)),
@@ -149,25 +154,31 @@ class ListingController extends Controller
                 ];
                 $totalForType = 0;
 
-                // Check struct items
-                if (!empty($structVenueItems)) {
-                    foreach ($structVenueItems as $svi) {
-                        $sId = strtoupper(trim((string)$svi->equipment_type_id));
-                        if (in_array($sId, $typeKeys, true)) {
-                            $totalForType += (int)($svi->quantity_requested ?? 1);
-                        }
-                    }
-                }
-
-                // Check notes on bookings
                 foreach ($overlappingVenueBookings as $vb) {
-                    $eqText = strtoupper($vb->equipment_notes ?? '');
-                    $typeName = strtoupper($eType->name ?? $eType->eq_name ?? '');
-                    if ($typeName && str_contains($eqText, $typeName)) {
-                        if (preg_match('/\b' . preg_quote($typeName, '/') . '\s*\(Qty:\s*(\d+)\)/i', $eqText, $m)) {
-                            $totalForType += (int)$m[1];
+                    $bookingDemand = 0;
+
+                    // A. Structured items in venue_booking_equipment
+                    $matchingStruct = $structVenueItems->where('venue_booking_id', $vb->id)->filter(function ($svi) use ($typeKeys) {
+                        return in_array(strtoupper(trim((string)$svi->equipment_type_id)), $typeKeys, true);
+                    });
+                    if ($matchingStruct->isNotEmpty()) {
+                        $bookingDemand = (int)$matchingStruct->sum('quantity_requested');
+                    }
+
+                    // B. Fallback to equipment_notes text if no structured items found
+                    if ($bookingDemand === 0 && !empty($vb->equipment_notes)) {
+                        $eqText = strtoupper($vb->equipment_notes);
+                        $typeName = strtoupper($eType->name ?? $eType->eq_name ?? '');
+                        if ($typeName && str_contains($eqText, $typeName)) {
+                            if (preg_match('/\b' . preg_quote($typeName, '/') . '\s*\(Qty:\s*(\d+)\)/i', $eqText, $m)) {
+                                $bookingDemand = (int)$m[1];
+                            } elseif (preg_match('/\b' . preg_quote($typeName, '/') . '\b/i', $eqText)) {
+                                $bookingDemand = 1;
+                            }
                         }
                     }
+
+                    $totalForType += $bookingDemand;
                 }
 
                 $venueCommittedMap[strtoupper(trim((string)$eType->id))] = $totalForType;
@@ -178,7 +189,7 @@ class ListingController extends Controller
             $hasRegisteredUnits = $e->calculated_total > 0;
             $total = (int)($hasRegisteredUnits ? $e->calculated_total : ($e->total_quantity ?? 0));
             $operational = (int)($hasRegisteredUnits ? $e->calculated_operational : ($e->total_quantity ?? 0));
-            $avail = (int)($hasRegisteredUnits ? $e->calculated_available : $operational);
+            $availableNow = (int)($hasRegisteredUnits ? $e->calculated_available : $operational);
 
             $typeKey = strtoupper(trim((string)$e->id));
             $typeNameKey = strtoupper(trim((string)($e->name ?? $e->eq_name ?? '')));
@@ -186,9 +197,13 @@ class ListingController extends Controller
             $borrowCommitted = $borrowCommittedMap[$typeKey] ?? $borrowCommittedMap[$typeNameKey] ?? 0;
             $venueCommitted = $venueCommittedMap[$typeKey] ?? 0;
 
+            $totalCommitted = $borrowCommitted + $venueCommitted;
+
+            // Available stock is strictly capped by operational shelf stock minus commitments
             if ($dateStr && $startTimeStr && $endTimeStr) {
-                $totalCommitted = $borrowCommitted + $venueCommitted;
-                $avail = max(0, $operational - $totalCommitted);
+                $avail = max(0, min($availableNow, $operational - $totalCommitted));
+            } else {
+                $avail = $availableNow;
             }
 
             return [

@@ -148,18 +148,28 @@ class GoogleAuthController extends Controller
         // Revoke previous tokens — one active session per user
         $user->tokens()->delete();
 
+        $user->load(['role']);
         $token = $user->createToken('google-auth-token')->plainTextToken;
-        $roleName = $user->role?->name ?? ($user->role_id === 1 ? 'superadmin' : 'admin');
+        $roleName = $user->role?->name ?? ($user->role_id === 1 ? 'superadmin' : ($user->role_id === 3 ? 'staff' : 'admin'));
+        $permissions = $user->permissions ?? [];
+        if (is_string($permissions)) {
+            $permissions = json_decode($permissions, true) ?: [];
+        }
 
         if ($isBrowserRedirect) {
             $queryParams = http_build_query([
                 'token'          => $token,
+                'id'             => $user->id,
                 'role'           => $roleName,
+                'role_id'        => $user->role_id,
                 'email'          => $user->email,
                 'name'           => $user->name,
                 'personal_email' => $user->personal_email ?? '',
                 'avatar'         => $user->avatar ?? '',
                 'office_id'      => $user->office_id ?? '',
+                'location'       => $user->location ?? '',
+                'permissions'    => json_encode($permissions),
+                'status'         => $user->status ?? 'active',
             ]);
             return redirect("{$frontendUrl}/auth/google/callback?{$queryParams}");
         }
@@ -167,13 +177,18 @@ class GoogleAuthController extends Controller
         return response()->json([
             'token' => $token,
             'user'  => [
-                'id'        => $user->id,
-                'name'      => $user->name,
-                'email'     => $user->email,
-                'avatar'    => $user->avatar,
-                'role'      => $user->role,
-                'office_id' => $user->office_id ?? null,
-                'office'    => $user->location ?? 'FSUU Main Campus',
+                'id'             => $user->id,
+                'name'           => $user->name,
+                'email'          => $user->email,
+                'personal_email' => $user->personal_email,
+                'avatar'         => $user->avatar,
+                'role'           => $user->role,
+                'role_id'        => $user->role_id,
+                'permissions'    => $permissions,
+                'office_id'      => $user->office_id ?? null,
+                'location'       => $user->location ?? 'FSUU Main Campus',
+                'office'         => $user->location ?? 'FSUU Main Campus',
+                'status'         => $user->status,
             ],
         ]);
     }
