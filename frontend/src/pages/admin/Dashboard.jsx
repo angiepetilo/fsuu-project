@@ -89,9 +89,8 @@ export default function Dashboard() {
     if (showLoading && !cachedData) setLoading(true);
     setError(null);
     try {
-      const statsData = await fetchWithCache("admin_dashboard_stats", () => 
-        api.get("/dashboard/stats").then(r => r.data).catch(() => null)
-      );
+      const res = await api.get(`/dashboard/stats?_t=${Date.now()}`);
+      const statsData = res.data;
 
       if (!statsData) {
         setLoading(false);
@@ -101,19 +100,30 @@ export default function Dashboard() {
       const q = statsData.quick_stats || {};
       setTotalVenueBookings(q.total_venue_bookings || 0);
       setTotalEquipBorrows(q.total_equip_borrows || 0);
-      setPendingApproval((q.pending_bookings || 0) + (q.pending_borrowings || 0));
+      setPendingApproval(q.pending_approval !== undefined ? q.pending_approval : ((q.pending_bookings || 0) + (q.pending_borrowings || 0)));
       setPendingEquipBorrowings(q.pending_borrowings || 0);
       setTotalDamaged(q.total_equipment_damages || q.damage_reports || 0);
       setTotalLost(q.total_equipment_lost || 0);
 
       // Top Departments
-      setTopBookedDepartments(statsData.top_departments || []);
+      const rawDepts = statsData.top_departments || [];
+      const totalAllBookings = rawDepts.reduce((sum, d) => sum + (d.bookings || d.count || 0), 0) || 1;
+      const finalDepts = rawDepts.map(d => ({
+        name: d.name || d.program || "Department",
+        count: d.bookings || d.count || 0,
+        pct: Math.round(((d.bookings || d.count || 0) / totalAllBookings) * 100)
+      }));
+      setTopBookedDepartments(finalDepts);
 
       // Top Equipment
       setMostUsedEquipment(statsData.top_equipment || []);
 
       // Top Violations
-      setTopViolatingDepartments(statsData.programs_with_violations || []);
+      const rawViolations = (statsData.programs_with_violations || []).map(p => ({
+        dept: p.program || p.dept || "Academic Dept",
+        count: (p.violations || 0) + (p.late || 0) || p.count || 0,
+      }));
+      setTopViolatingDepartments(rawViolations);
 
       // Calendar & Staff Tasks
       const calBookings = statsData.calendar_bookings || [];
@@ -158,35 +168,7 @@ export default function Dashboard() {
       try {
         localStorage.setItem("fsuu_cache_admin_dashboard", JSON.stringify({
           totalVenueBookings: q.total_venue_bookings || 0,
-          pendingApproval: (q.pending_bookings || 0) + (q.pending_borrowings || 0),
-          pendingEquipBorrowings: q.pending_borrowings || 0,
-          totalEquipBorrows: q.total_equip_borrows || 0,
-          totalDamaged: q.total_equipment_damages || q.damage_reports || 0,
-          totalLost: q.total_equipment_lost || 0,
-          topBookedDepartments: statsData.top_departments || [],
-          topViolatingDepartments: statsData.programs_with_violations || [],
-        }));
-      } catch {}
-      const rawDepts = statsData.top_departments || [];
-      const totalAllBookings = rawDepts.reduce((sum, d) => sum + (d.bookings || d.count || 0), 0) || 1;
-      const finalDepts = rawDepts.map(d => ({
-        name: d.name || d.program || "Department",
-        count: d.bookings || d.count || 0,
-        pct: Math.round(((d.bookings || d.count || 0) / totalAllBookings) * 100)
-      }));
-      setTopBookedDepartments(finalDepts);
-
-      // Top Violations
-      const rawViolations = (statsData.programs_with_violations || []).map(p => ({
-        dept: p.program || p.dept || "Academic Dept",
-        count: (p.violations || 0) + (p.late || 0),
-      }));
-      setTopViolatingDepartments(rawViolations);
-
-      try {
-        localStorage.setItem("fsuu_cache_admin_dashboard", JSON.stringify({
-          totalVenueBookings: q.total_venue_bookings || 0,
-          pendingApproval: (q.pending_bookings || 0) + (q.pending_borrowings || 0),
+          pendingApproval: q.pending_approval !== undefined ? q.pending_approval : ((q.pending_bookings || 0) + (q.pending_borrowings || 0)),
           pendingEquipBorrowings: q.pending_borrowings || 0,
           totalEquipBorrows: q.total_equip_borrows || 0,
           totalDamaged: q.total_equipment_damages || q.damage_reports || 0,
@@ -250,8 +232,9 @@ export default function Dashboard() {
     } else if (bookedOnDate.some(b => ["maintenance", "closed", "damaged"].includes((b.status || "").toLowerCase()))) {
       dominantStatus = "maintenance";
       statusClass = "border-slate-700 bg-slate-700 text-white";
-    } else if (bookedOnDate.every(b => ["completed", "done", "returned"].includes((b.status || "").toLowerCase()))) {
-      return { status: "available", hasEvent: false, tooltip: `${monthLabel} ${day}: All venue slots open` };
+    } else if (bookedOnDate.some(b => ["completed", "done", "returned", "late return", "returned late", "lost"].includes((b.status || "").toLowerCase()))) {
+      dominantStatus = "completed";
+      statusClass = "border-emerald-600 bg-emerald-600 text-white";
     } else {
       dominantStatus = "event";
       statusClass = "border-rose-600 bg-white text-rose-600";
