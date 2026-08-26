@@ -74,7 +74,7 @@ export default function VenuesTab({ showMsg }) {
       try {
         const res = await api.put(`/admin/venues/${editItem.id}`, payload);
         const saved = res.data || payload;
-        setVenues(prev => prev.map(v => v.id === editItem.id ? { ...v, ...saved, _optimistic: false } : v));
+        setVenues(prev => prev.map(v => v.id === editItem.id ? { ...v, ...saved, allowed_equipment: payload.allowed_equipment, _optimistic: false } : v));
         showMsg(`Venue "${form.name}" updated!`);
       } catch (err) {
         setVenues(prevVenues);
@@ -97,8 +97,8 @@ export default function VenuesTab({ showMsg }) {
       setShowModal(false);
       try {
         const res = await api.post("/admin/venues", payload);
-        const saved = res.data;
-        setVenues(prev => prev.map(v => v.id === tempId ? { ...saved, _optimistic: false } : v));
+        const saved = res.data || payload;
+        setVenues(prev => prev.map(v => v.id === tempId ? { ...saved, allowed_equipment: payload.allowed_equipment, _optimistic: false } : v));
         showMsg(`Venue "${form.name}" created!`);
       } catch (err) {
         setVenues(prevVenues);
