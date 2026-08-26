@@ -31,7 +31,7 @@ class ListingController extends Controller
                         'capacity'  => $v->capacity ?? 100,
                         'type'      => 'avr',
                         'status'    => $v->status ?? 'Available',
-                        'allowed_equipment' => $v->allowed_equipment,
+                        'allowed_equipment' => is_array($v->allowed_equipment) ? array_values(array_filter($v->allowed_equipment)) : (is_string($v->allowed_equipment) ? (json_decode($v->allowed_equipment, true) ?? []) : []),
                     ];
                 })
         );

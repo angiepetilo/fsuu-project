@@ -245,7 +245,7 @@ export default function Step3Details({
                     try { allowedList = JSON.parse(rawAllowed); } catch { allowedList = []; }
                   }
 
-                  if (allowedList && allowedList.length > 0) {
+                  if (Array.isArray(allowedList) && allowedList.length > 0) {
                     baseCatalog = equipmentCatalog.filter(e => {
                       const eIdStr = String(e.id);
                       const eNameLower = String(e.name || e.eq_name || "").trim().toLowerCase();
@@ -254,9 +254,8 @@ export default function Step3Details({
                         return aStr === eIdStr || (eNameLower && aStr.toLowerCase() === eNameLower) || (Number(a) > 0 && Number(a) === Number(e.id));
                       });
                     });
-                  } else if (rawAllowed === undefined || rawAllowed === null) {
-                    // Fallback only if venue has not configured allowed_equipment at all
-                    baseCatalog = equipmentCatalog;
+                  } else {
+                    baseCatalog = [];
                   }
 
                   if (!baseCatalog || baseCatalog.length === 0) {
