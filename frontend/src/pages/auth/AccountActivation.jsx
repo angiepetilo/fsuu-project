@@ -30,7 +30,11 @@ export default function AccountActivation() {
         const { data } = await api.get(`/auth/invite/${urlToken}`);
         setInviteData(data);
       } catch (err) {
-        setError(err.response?.data?.message || "Invalid or expired activation link.");
+        if (!err.response) {
+          setError("Unable to connect to the backend API server. Please check your connection or server status.");
+        } else {
+          setError(err.response?.data?.message || "Invalid or expired activation link.");
+        }
       } finally {
         setLoading(false);
       }
@@ -62,7 +66,11 @@ export default function AccountActivation() {
 
       setSuccess(true);
     } catch (err) {
-      setError(err.response?.data?.message || "Failed to activate account. Please try again.");
+      if (!err.response) {
+        setError("Unable to connect to the backend API server. Please check your connection or server status.");
+      } else {
+        setError(err.response?.data?.message || "Failed to activate account. Please try again.");
+      }
     } finally {
       setSubmitLoading(false);
     }
