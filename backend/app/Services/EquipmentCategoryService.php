@@ -65,10 +65,8 @@ class EquipmentCategoryService
                     ->leftJoin('tracking_numbers', 'equipment_borrows.tracking_number_id', '=', 'tracking_numbers.id')
                     ->whereNull('equipment_borrows.archived_at')
                     ->where(function($q) use ($today) {
-                        $q->where(function($sq) use ($today) {
-                            $sq->where(DB::raw('COALESCE(equipment_borrows.date_of_usage, CURRENT_DATE)'), '<=', $today)
-                              ->where(DB::raw('COALESCE(equipment_borrows.date_of_usage, CURRENT_DATE)'), '>=', $today);
-                        })->orWhereIn(DB::raw('LOWER(COALESCE(tracking_numbers.status, "pending"))'), ['on-going', 'ongoing', 'borrowed', 'released', 'in_use', 'in-use']);
+                        $q->where('equipment_borrows.date_of_usage', '>=', $today)
+                          ->orWhereIn(DB::raw('LOWER(COALESCE(tracking_numbers.status, "pending"))'), ['on-going', 'ongoing', 'borrowed', 'released', 'in_use', 'in-use']);
                     })
                     ->select(
                         'equipment_borrow_items.equipment_type_id',
@@ -118,11 +116,11 @@ class EquipmentCategoryService
                 if ($cnt > 0) {
                     $start = !empty($vb->date_of_usage) ? substr($vb->date_of_usage, 0, 10) : $today;
                     $end = !empty($vb->reservation_end_date) ? substr($vb->reservation_end_date, 0, 10) : $start;
-                    $isTodayOrActive = ($today >= $start && $today <= $end) || in_array($vb->current_status, ['on-going', 'ongoing', 'in_use', 'in-use']);
+                    $isUpcomingOrActive = ($end >= $today) || in_array($vb->current_status, ['on-going', 'ongoing', 'in_use', 'in-use']);
 
                     if (in_array($vb->current_status, ['on-going', 'ongoing', 'in_use', 'in-use'])) {
                         $venueReleased += $cnt;
-                    } elseif ($isTodayOrActive && in_array($vb->current_status, ['pending', 'scheduled', 'reserved', 'approved'])) {
+                    } elseif ($isUpcomingOrActive && in_array($vb->current_status, ['pending', 'scheduled', 'reserved', 'approved'])) {
                         $venueReserved += $cnt;
                     }
                 }

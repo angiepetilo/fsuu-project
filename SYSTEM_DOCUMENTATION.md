@@ -1,9 +1,9 @@
 # Father Saturnino Urios University (FSUU)
 ## Automated Venue Reservation & Equipment Borrowing Management System
-# System Documentation (v2.4.0)
+# System Documentation (v2.5.0)
 
 ## Overview & Architecture
-This platform provides multi-office, role-based reservation management for Father Saturnino Urios University (FSUU). It handles **Venue Bookings** and **Equipment Borrowings** with real-time stock computation, physical unit barcode tracking, department breach analytics, strict schedule collision prevention, automated email confirmation with tracking codes, role-based incident alerting, and **instant WebSocket broadcasting via Pusher & Laravel Echo**.
+This platform provides multi-office, role-based reservation management for Father Saturnino Urios University (FSUU). It handles **Venue Bookings** and **Equipment Borrowings** with real-time dynamic timeslot stock computation, physical unit barcode tracking, department breach analytics, strict schedule collision prevention, automated Brevo API email confirmation with tracking codes, Google OAuth role-permission parity, single vs. multi-day date range formatting, and role-based incident alerting.
 
 ---
 

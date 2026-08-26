@@ -1,6 +1,7 @@
 import { FileText, CheckCircle2, FileCheck, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
+import { formatDateRange } from "@/lib/dateUtils";
 import api from "@/lib/axios";
 
 export default function Step3Details({
@@ -44,7 +45,11 @@ export default function Step3Details({
 
     const fetchEquipment = async () => {
       try {
-        const res = await api.get("/public/equipment-types").catch(() => api.get("/admin/equipment-types"));
+        const params = new URLSearchParams();
+        if (selectedDate) params.append("date", selectedDate);
+        if (startTime) params.append("time_start", startTime);
+        if (endTime) params.append("time_end", endTime);
+        const res = await api.get(`/public/equipment-types?${params.toString()}`).catch(() => api.get("/admin/equipment-types"));
         let data = Array.isArray(res.data) ? res.data : (res.data?.data || []);
         setEquipmentCatalog(data);
       } catch {
@@ -79,7 +84,7 @@ export default function Step3Details({
         <div>
           <h4 className="font-black text-sm tracking-tight text-slate-900">Booking Form</h4>
           <p className="text-xs text-blue-900 font-semibold mt-0.5">
-            Target Venue: <span className="font-extrabold text-blue-700">{selectedVenue?.name}</span> | Date: <span className="font-extrabold text-blue-700">{selectedDate}{selectedEndDate && selectedEndDate !== selectedDate ? ` to ${selectedEndDate}` : ''}</span> ({formatTime12(startTime)} - {formatTime12(endTime)})
+            Target Venue: <span className="font-extrabold text-blue-700">{selectedVenue?.name}</span> | Date: <span className="font-extrabold text-blue-700">{formatDateRange(selectedDate, selectedEndDate)}</span> ({formatTime12(startTime)} - {formatTime12(endTime)})
           </p>
         </div>
       </div>

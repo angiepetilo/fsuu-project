@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import { PageLoader } from "@/components/ui/page-loader";
 import { StatusBadge, OverdueBadge } from "@/components/ui/status-badge";
-import { formatDate, formatTime, formatTimeRange } from "@/lib/dateUtils";
+import { formatDate, formatTime, formatTimeRange, formatDateRange } from "@/lib/dateUtils";
 import { getOverdueMinutes } from "@/lib/dateTimeUtils";
 
 const VenueBookingDetailModal = lazy(() => import("./components/VenueBookingDetailModal"));
@@ -240,9 +240,7 @@ export default function VenueBookings() {
                   const requestor = b.filer_name || b.requestor_name || "—";
                   const department = b.program_office || b.department || "—";
                   const venueName = b.venue?.name || b.venue_name || "AVR Auditorium";
-                  const usageDate = b.reservation_end_date && String(b.reservation_end_date).substring(0, 10) !== String(b.date_of_usage || b.start_datetime).substring(0, 10)
-                    ? `${formatDate(b.date_of_usage || b.start_datetime)} - ${formatDate(b.reservation_end_date)}`
-                    : formatDate(b.date_of_usage || b.start_datetime);
+                  const usageDate = formatDateRange(b.date_of_usage || b.start_datetime, b.reservation_end_date);
                   const timeRange = formatTimeRange(b.time_start, b.time_end);
                   const currentStatus = b.status || b.tracking_number?.status || "pending";
                   const displayIndex = startIndex + idx + 1;
@@ -301,9 +299,7 @@ export default function VenueBookings() {
               const requestor = b.filer_name || b.requestor_name || "—";
               const department = b.program_office || b.department || "—";
               const venueName = b.venue?.name || b.venue_name || "AVR Auditorium";
-              const usageDate = b.reservation_end_date && String(b.reservation_end_date).substring(0, 10) !== String(b.date_of_usage || b.start_datetime).substring(0, 10)
-                ? `${formatDate(b.date_of_usage || b.start_datetime)} - ${formatDate(b.reservation_end_date)}`
-                : formatDate(b.date_of_usage || b.start_datetime);
+              const usageDate = formatDateRange(b.date_of_usage || b.start_datetime, b.reservation_end_date);
               const timeRange = formatTimeRange(b.time_start, b.time_end);
               const currentStatus = b.status || b.tracking_number?.status || "pending";
               const isOngoingOrInSession = ["ongoing", "on-going", "in_use", "in-use", "approved"].includes(currentStatus.toLowerCase());

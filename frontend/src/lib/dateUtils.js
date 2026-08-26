@@ -89,3 +89,26 @@ export const formatTimeRange12 = (start, end) => {
   };
   return `${formatTime12(extractTime(start))} – ${formatTime12(extractTime(end))}`;
 };
+
+/**
+ * Formats a date range.
+ * If start date and end date are the same (single day), returns only "Aug 26, 2026".
+ * If different (multi-day), returns "Aug 26, 2026 — Aug 28, 2026".
+ * @param {string|null} start
+ * @param {string|null} end
+ * @returns {string}
+ */
+export const formatDateRange = (start, end) => {
+  if (!start && !end) return "—";
+  const startClean = start ? String(start).split("T")[0].split(" ")[0] : null;
+  const endClean = end ? String(end).split("T")[0].split(" ")[0] : null;
+
+  const formattedStart = formatDate(startClean || start);
+  const formattedEnd = endClean ? formatDate(endClean || end) : null;
+
+  if (!formattedEnd || formattedEnd === "—" || formattedStart === formattedEnd || (startClean && endClean && startClean === endClean)) {
+    return formattedStart;
+  }
+  return `${formattedStart} — ${formattedEnd}`;
+};
+

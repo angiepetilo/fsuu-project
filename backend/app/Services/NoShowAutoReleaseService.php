@@ -15,17 +15,18 @@ class NoShowAutoReleaseService
     /**
      * Run no-show auto-release check for both venue bookings and equipment borrowings.
      * Default grace period: 15 minutes past scheduled start time.
-     *
-     * @param int $graceMinutes
-     * @return array
      */
-    public function processNoShows(int $graceMinutes = 15): array
+    public function processNoShows(?int $graceMinutes = null): array
     {
+        if ($graceMinutes === null) {
+            $opHours = \App\Models\OperatingHour::first();
+            $graceMinutes = (int)($opHours->auto_cancel_mins ?? $opHours->arrival_grace_mins ?? 15);
+        }
+
         $released = [
             'venue_bookings'      => [],
             'equipment_borrows'   => [],
         ];
-
         $now = now();
         $cutoffTime = $now->copy()->subMinutes($graceMinutes);
 
