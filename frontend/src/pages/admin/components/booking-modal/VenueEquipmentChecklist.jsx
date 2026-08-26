@@ -329,8 +329,8 @@ export default function VenueEquipmentChecklist({
                   <div className="space-y-2 pt-1">
                     {Array.from({ length: reqQty }).map((_, uIdx) => {
                       const unitKey = `${catIdx}-${uIdx}`;
-                      const cond = unitReturnedConditions[unitKey] || "Good";
                       const assignedBarcode = assignedUnitSelections[unitKey];
+                      const cond = (assignedBarcode && unitReturnedConditions[assignedBarcode]) || unitReturnedConditions[unitKey] || "Good";
 
                       return (
                         <div key={`ret-unit-${catIdx}-${uIdx}`} className="py-2 border-b border-slate-100 last:border-b-0 space-y-1 text-xs">
