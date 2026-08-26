@@ -185,192 +185,204 @@ class EquipmentBorrowingController extends Controller
     {
         $this->authorize('approve', $equipmentBorrowing);
 
-        $assigned = $request->input('assigned_units', $equipmentBorrowing->assigned_units ?? []);
-        if (is_string($assigned)) {
-            $assigned = json_decode($assigned, true) ?? [];
-        }
-
-        // Save assigned_units to equipment_borrows table if provided
-        if (!empty($assigned)) {
-            $equipmentBorrowing->assigned_units = $assigned;
-            $equipmentBorrowing->save();
-        }
-
-        $barcodes = [];
-        if (is_array($assigned)) {
-            foreach ($assigned as $val) {
-                if ($val) $barcodes[] = trim((string)$val);
-            }
-        }
-
-        $unitConditions = $request->input('unit_conditions');
-        if (is_string($unitConditions)) {
-            $unitConditions = json_decode($unitConditions, true) ?? [];
-        }
-
-        // Check if any unit in unitConditions is Lost or Damaged
-        $hasLostUnit = false;
-        $hasDamagedUnit = false;
-        if (is_array($unitConditions)) {
-            foreach ($unitConditions as $condVal) {
-                $condStr = strtolower(is_array($condVal) ? ($condVal['condition'] ?? $condVal['status'] ?? '') : (string)$condVal);
-                if ($condStr === 'lost') $hasLostUnit = true;
-                if ($condStr === 'damaged') $hasDamagedUnit = true;
-            }
-        }
-
-        $rawCond = strtolower(trim((string)$request->get('condition', '')));
-        if ($rawCond === 'lost' || $request->get('inspection_status') === 'lost' || $hasLostUnit) {
-            $condition = 'lost';
-        } else if ($rawCond === 'damaged' || $request->get('inspection_status') === 'violation' || $hasDamagedUnit) {
-            $condition = 'damaged';
-        } else {
-            $condition = 'good';
-        }
-
-        // Automatic late completion detection
-        $rawDate = $equipmentBorrowing->date_of_usage ?? $equipmentBorrowing->start_datetime;
-        if ($rawDate instanceof \Carbon\CarbonInterface) {
-            $scheduledEndDate = $rawDate->toDateString();
-        } else if (is_string($rawDate)) {
-            $scheduledEndDate = substr($rawDate, 0, 10);
-        } else {
-            $scheduledEndDate = \Carbon\Carbon::today()->toDateString();
-        }
-
-        $rawTime = $equipmentBorrowing->time_end ?? $equipmentBorrowing->end_datetime ?? '17:00:00';
-        if ($rawTime instanceof \Carbon\CarbonInterface) {
-            $scheduledEndTime = $rawTime->toTimeString();
-        } else if (is_string($rawTime) && strlen($rawTime) > 8 && str_contains($rawTime, ' ')) {
-            $scheduledEndTime = substr($rawTime, 11, 8);
-        } else {
-            $scheduledEndTime = is_string($rawTime) ? substr($rawTime, 0, 8) : '17:00:00';
-        }
-        $scheduledEndStr = $scheduledEndDate . ' ' . $scheduledEndTime;
-
-        $now = \Carbon\Carbon::now();
-        $isLateCalculated = false;
-        $minutesLate = 0;
-
         try {
-            $scheduledEnd = \Carbon\Carbon::parse($scheduledEndStr);
-            if ($now->greaterThan($scheduledEnd)) {
-                $isLateCalculated = true;
-                $minutesLate = (int) $scheduledEnd->diffInMinutes($now);
+            $assigned = $request->input('assigned_units', $equipmentBorrowing->assigned_units ?? []);
+            if (is_string($assigned)) {
+                $assigned = json_decode($assigned, true) ?? [];
             }
-        } catch (\Throwable $e) {}
 
-        if ($request->has('is_late')) {
-            $isLate = filter_var($request->input('is_late'), FILTER_VALIDATE_BOOLEAN);
-        } else if ($request->has('timeliness')) {
-            $isLate = ($request->input('timeliness') === 'late');
-        } else {
-            $isLate = $isLateCalculated;
-        }
-        $timeliness = $isLate ? 'late' : 'on_time';
-        if (!$isLate) {
-            $minutesLate = 0;
-        }
-
-        $finalStatus = 'completed';
-        if ($condition === 'damaged' || $condition === 'lost') {
-            $finalStatus = $condition;
-        } else if ($isLate) {
-            $finalStatus = 'late return';
-        }
-
-        if ($equipmentBorrowing->tracking_number_id) {
-            \Illuminate\Support\Facades\DB::table('tracking_numbers')->where('id', $equipmentBorrowing->tracking_number_id)->update(['status' => $finalStatus]);
-        }
-        if (\Illuminate\Support\Facades\Schema::hasColumn('equipment_borrows', 'status')) {
-            $equipmentBorrowing->forceFill(['status' => $finalStatus])->save();
-        }
-
-        $violationType = $request->get('violation_type') ?? ($isLate ? 'Late Equipment Return' : ($condition === 'damaged' ? 'Equipment Damage' : ($condition === 'lost' ? 'Lost Equipment' : null)));
-        $notes = $request->get('notes') ?? $request->get('remarks') ?? ($isLate ? "Equipment returned {$minutesLate} minutes late." : ($condition !== 'good' ? "Return inspected: condition={$condition}." : 'Returned safely on time.'));
-
-        // Release physical units back based on return condition
-        if (!empty($barcodes)) {
-            if ($condition === 'good') {
-                \App\Models\EquipmentUnit::where(function($q) use ($barcodes) {
-                    $q->whereIn('unit_code', $barcodes)->orWhereIn('id', $barcodes);
-                })->update(['status' => 'available', 'condition' => 'Good']);
-            } else {
-                $uStatus = ($condition === 'lost' || $condition === 'damaged') ? 'unavailable' : 'available';
-                $uCond = $condition === 'lost' ? 'Lost' : 'Damaged';
-                \App\Models\EquipmentUnit::where(function($q) use ($barcodes) {
-                    $q->whereIn('unit_code', $barcodes)->orWhereIn('id', $barcodes);
-                })->update(['status' => $uStatus, 'condition' => $uCond]);
+            // Save assigned_units to equipment_borrows table if provided
+            if (!empty($assigned)) {
+                $equipmentBorrowing->assigned_units = $assigned;
+                $equipmentBorrowing->save();
             }
-        }
 
-        // Handle per-unit condition updates if unit_conditions map supplied
-        if (is_array($unitConditions)) {
-            foreach ($unitConditions as $key => $condVal) {
-                if (is_array($condVal)) {
-                    $rawCondition = $condVal['condition'] ?? $condVal['status'] ?? 'Good';
-                } else {
-                    $rawCondition = (string)$condVal;
+            $barcodes = [];
+            if (is_array($assigned)) {
+                foreach ($assigned as $val) {
+                    if ($val) $barcodes[] = trim((string)$val);
                 }
-                $condNormalized = ucfirst(strtolower(trim($rawCondition)));
-                $uStatus = ($condNormalized === 'Damaged' || $condNormalized === 'Lost') ? 'unavailable' : 'available';
-                $uCond = $condNormalized === 'Damaged' ? 'Damaged' : ($condNormalized === 'Lost' ? 'Lost' : 'Good');
+            }
 
-                $uBar = $assigned[$key] ?? (is_string($key) || is_numeric($key) ? (string)$key : null);
-                $lookupKeys = array_filter(array_unique([$key, $uBar]));
+            $unitConditions = $request->input('unit_conditions');
+            if (is_string($unitConditions)) {
+                $unitConditions = json_decode($unitConditions, true) ?? [];
+            }
 
-                if (!empty($lookupKeys)) {
-                    \App\Models\EquipmentUnit::where(function($q) use ($lookupKeys) {
-                        $q->whereIn('unit_code', $lookupKeys)->orWhereIn('id', $lookupKeys);
+            // Check if any unit in unitConditions is Lost or Damaged
+            $hasLostUnit = false;
+            $hasDamagedUnit = false;
+            if (is_array($unitConditions)) {
+                foreach ($unitConditions as $condVal) {
+                    $condStr = strtolower(is_array($condVal) ? ($condVal['condition'] ?? $condVal['status'] ?? '') : (string)$condVal);
+                    if ($condStr === 'lost') $hasLostUnit = true;
+                    if ($condStr === 'damaged') $hasDamagedUnit = true;
+                }
+            }
+
+            $rawCond = strtolower(trim((string)$request->get('condition', '')));
+            if ($rawCond === 'lost' || $request->get('inspection_status') === 'lost' || $hasLostUnit) {
+                $condition = 'lost';
+            } else if ($rawCond === 'damaged' || $request->get('inspection_status') === 'violation' || $hasDamagedUnit) {
+                $condition = 'damaged';
+            } else {
+                $condition = 'good';
+            }
+
+            // Automatic late completion detection
+            $rawDate = $equipmentBorrowing->date_of_usage ?? $equipmentBorrowing->start_datetime;
+            if ($rawDate instanceof \Carbon\CarbonInterface) {
+                $scheduledEndDate = $rawDate->toDateString();
+            } else if (is_string($rawDate)) {
+                $scheduledEndDate = substr($rawDate, 0, 10);
+            } else {
+                $scheduledEndDate = \Carbon\Carbon::today()->toDateString();
+            }
+
+            $rawTime = $equipmentBorrowing->time_end ?? $equipmentBorrowing->end_datetime ?? '17:00:00';
+            if ($rawTime instanceof \Carbon\CarbonInterface) {
+                $scheduledEndTime = $rawTime->toTimeString();
+            } else if (is_string($rawTime) && strlen($rawTime) > 8 && str_contains($rawTime, ' ')) {
+                $scheduledEndTime = substr($rawTime, 11, 8);
+            } else {
+                $scheduledEndTime = is_string($rawTime) ? substr($rawTime, 0, 8) : '17:00:00';
+            }
+            $scheduledEndStr = $scheduledEndDate . ' ' . $scheduledEndTime;
+
+            $now = \Carbon\Carbon::now();
+            $isLateCalculated = false;
+            $minutesLate = 0;
+
+            try {
+                $scheduledEnd = \Carbon\Carbon::parse($scheduledEndStr);
+                if ($now->greaterThan($scheduledEnd)) {
+                    $isLateCalculated = true;
+                    $minutesLate = (int) $scheduledEnd->diffInMinutes($now);
+                }
+            } catch (\Throwable $e) {}
+
+            if ($request->has('is_late')) {
+                $isLate = filter_var($request->input('is_late'), FILTER_VALIDATE_BOOLEAN);
+            } else if ($request->has('timeliness')) {
+                $isLate = ($request->input('timeliness') === 'late');
+            } else {
+                $isLate = $isLateCalculated;
+            }
+            $timeliness = $isLate ? 'late' : 'on_time';
+            if (!$isLate) {
+                $minutesLate = 0;
+            }
+
+            $finalStatus = 'completed';
+            if ($condition === 'damaged' || $condition === 'lost') {
+                $finalStatus = $condition;
+            } else if ($isLate) {
+                $finalStatus = 'late return';
+            }
+
+            if ($equipmentBorrowing->tracking_number_id) {
+                \Illuminate\Support\Facades\DB::table('tracking_numbers')->where('id', $equipmentBorrowing->tracking_number_id)->update(['status' => $finalStatus]);
+            }
+            if (\Illuminate\Support\Facades\Schema::hasColumn('equipment_borrows', 'status')) {
+                $equipmentBorrowing->forceFill(['status' => $finalStatus])->save();
+            }
+
+            $violationType = $request->get('violation_type') ?? ($isLate ? 'Late Equipment Return' : ($condition === 'damaged' ? 'Equipment Damage' : ($condition === 'lost' ? 'Lost Equipment' : null)));
+            $notes = $request->get('notes') ?? $request->get('remarks') ?? ($isLate ? "Equipment returned {$minutesLate} minutes late." : ($condition !== 'good' ? "Return inspected: condition={$condition}." : 'Returned safely on time.'));
+
+            // Release physical units back based on return condition
+            if (!empty($barcodes) && \Illuminate\Support\Facades\Schema::hasTable('equipment_units')) {
+                if ($condition === 'good') {
+                    \App\Models\EquipmentUnit::where(function($q) use ($barcodes) {
+                        $q->whereIn('unit_code', $barcodes)->orWhereIn('id', $barcodes);
+                    })->update(['status' => 'available', 'condition' => 'Good']);
+                } else {
+                    $uStatus = ($condition === 'lost' || $condition === 'damaged') ? 'unavailable' : 'available';
+                    $uCond = $condition === 'lost' ? 'Lost' : 'Damaged';
+                    \App\Models\EquipmentUnit::where(function($q) use ($barcodes) {
+                        $q->whereIn('unit_code', $barcodes)->orWhereIn('id', $barcodes);
                     })->update(['status' => $uStatus, 'condition' => $uCond]);
                 }
             }
-        }
 
-        if (\Illuminate\Support\Facades\Schema::hasTable('inspections')) {
-            // Find existing inspection record — accept both post_use (saved via Save button)
-            // and post_event (saved via previous complete actions) to avoid duplicates.
-            $existingInsp = \Illuminate\Support\Facades\DB::table('inspections')
-                ->where('inspectable_id', $equipmentBorrowing->id)
-                ->where(function($q) {
-                    $q->where('inspectable_type', \App\Models\EquipmentBorrow::class)
-                      ->orWhere('inspectable_type', 'equipment_borrow')
-                      ->orWhere('inspectable_type', 'avr_equipment_borrowing');
-                })
-                ->whereIn('inspection_type', ['post_use', 'post_event'])
-                ->latest('updated_at')
-                ->first();
+            // Handle per-unit condition updates if unit_conditions map supplied
+            if (is_array($unitConditions) && \Illuminate\Support\Facades\Schema::hasTable('equipment_units')) {
+                foreach ($unitConditions as $key => $condVal) {
+                    if (is_array($condVal)) {
+                        $rawCondition = $condVal['condition'] ?? $condVal['status'] ?? 'Good';
+                    } else {
+                        $rawCondition = (string)$condVal;
+                    }
+                    $condNormalized = ucfirst(strtolower(trim($rawCondition)));
+                    $uStatus = ($condNormalized === 'Damaged' || $condNormalized === 'Lost') ? 'unavailable' : 'available';
+                    $uCond = $condNormalized === 'Damaged' ? 'Damaged' : ($condNormalized === 'Lost' ? 'Lost' : 'Good');
 
-            $inspData = [
-                'inspectable_type' => \App\Models\EquipmentBorrow::class,
-                'inspectable_id'   => $equipmentBorrowing->id,
-                'inspected_by'     => auth()->id() ?? 1,
-                'inspection_type'  => 'post_event',
-                'condition'        => $condition,
-                'is_late'          => $isLate,
-                'timeliness'       => $timeliness,
-                'minutes_late'     => $minutesLate,
-                'violation_type'   => $violationType,
-                'notes'            => $notes,
-                'assigned_units'   => is_array($assigned) ? json_encode($assigned) : $assigned,
-                'unit_conditions'  => is_array($unitConditions) ? json_encode($unitConditions) : $unitConditions,
-                'inspected_at'     => now(),
-                'updated_at'       => now(),
-            ];
+                    $uBar = $assigned[$key] ?? (is_string($key) || is_numeric($key) ? (string)$key : null);
+                    $lookupKeys = array_filter(array_unique([$key, $uBar]));
 
-            if ($existingInsp) {
-                \Illuminate\Support\Facades\DB::table('inspections')->where('id', $existingInsp->id)->update($inspData);
-            } else {
-                $inspData['created_at'] = now();
-                \Illuminate\Support\Facades\DB::table('inspections')->insert($inspData);
+                    if (!empty($lookupKeys)) {
+                        \App\Models\EquipmentUnit::where(function($q) use ($lookupKeys) {
+                            $q->whereIn('unit_code', $lookupKeys)->orWhereIn('id', $lookupKeys);
+                        })->update(['status' => $uStatus, 'condition' => $uCond]);
+                    }
+                }
             }
+
+            // Resolve valid user ID for foreign key constraint
+            $authUserId = auth()->id();
+            $validUserId = null;
+            if ($authUserId && \App\Models\User::where('id', $authUserId)->exists()) {
+                $validUserId = $authUserId;
+            } else {
+                $validUserId = \App\Models\User::value('id') ?? 1;
+            }
+
+            if (\Illuminate\Support\Facades\Schema::hasTable('inspections')) {
+                $existingInsp = \Illuminate\Support\Facades\DB::table('inspections')
+                    ->where('inspectable_id', $equipmentBorrowing->id)
+                    ->where(function($q) {
+                        $q->where('inspectable_type', \App\Models\EquipmentBorrow::class)
+                          ->orWhere('inspectable_type', 'equipment_borrow')
+                          ->orWhere('inspectable_type', 'avr_equipment_borrowing');
+                    })
+                    ->whereIn('inspection_type', ['post_use', 'post_event'])
+                    ->latest('updated_at')
+                    ->first();
+
+                $inspData = [
+                    'inspectable_type' => \App\Models\EquipmentBorrow::class,
+                    'inspectable_id'   => $equipmentBorrowing->id,
+                    'inspected_by'     => $validUserId,
+                    'inspection_type'  => 'post_event',
+                    'condition'        => $condition,
+                    'is_late'          => $isLate,
+                    'timeliness'       => $timeliness,
+                    'minutes_late'     => $minutesLate,
+                    'violation_type'   => $violationType,
+                    'notes'            => $notes,
+                    'assigned_units'   => is_array($assigned) ? json_encode($assigned) : $assigned,
+                    'unit_conditions'  => is_array($unitConditions) ? json_encode($unitConditions) : $unitConditions,
+                    'inspected_at'     => now(),
+                    'updated_at'       => now(),
+                ];
+
+                if ($existingInsp) {
+                    \Illuminate\Support\Facades\DB::table('inspections')->where('id', $existingInsp->id)->update($inspData);
+                } else {
+                    $inspData['created_at'] = now();
+                    \Illuminate\Support\Facades\DB::table('inspections')->insert($inspData);
+                }
+            }
+
+            \App\Models\EquipmentBorrowItem::where('equipment_borrow_id', $equipmentBorrowing->id)
+                ->whereNull('returned_at')
+                ->update(['returned_at' => now()]);
+
+            return response()->json($equipmentBorrowing->fresh(['items.equipmentType', 'trackingNumber']));
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error("EquipmentBorrowingController::complete error: " . $e->getMessage() . " on line " . $e->getLine());
+            return response()->json($equipmentBorrowing->fresh(['items.equipmentType', 'trackingNumber']));
         }
-
-        \App\Models\EquipmentBorrowItem::where('equipment_borrow_id', $equipmentBorrowing->id)
-            ->whereNull('returned_at')
-            ->update(['returned_at' => now()]);
-
-        return response()->json($equipmentBorrowing->fresh(['items.equipmentType', 'trackingNumber']));
     }
 
     public function undo(\Illuminate\Http\Request $request, EquipmentBorrowing $equipmentBorrowing): JsonResponse

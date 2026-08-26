@@ -510,10 +510,13 @@ class VenueBookingService
                 $violationType = $data['violation_type'] ?? ($isLate ? 'Late Return / Extension' : ($condition === 'damaged' ? 'Physical Facility / Equipment Damage' : null));
                 $notes = $data['notes'] ?? $data['remarks'] ?? ($isLate ? "Completed {$minutesLate} minutes after scheduled end." : ($condition === 'damaged' ? 'Venue equipment damage reported.' : 'Inspection completed on time.'));
 
+                $actorId = $actor->id ?? null;
+                $validUserId = ($actorId && \App\Models\User::where('id', $actorId)->exists()) ? $actorId : (\App\Models\User::value('id') ?? 1);
+
                 $inspData = [
                     'inspectable_type' => \App\Models\VenueBooking::class,
                     'inspectable_id'   => $booking->id,
-                    'inspected_by'     => $actor->id ?? 1,
+                    'inspected_by'     => $validUserId,
                     'inspection_type'  => 'post_event',
                     'condition'        => $condition,
                     'is_late'          => $isLate,
