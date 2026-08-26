@@ -133,6 +133,38 @@ export default function VenuesTab({ showMsg }) {
     }
   };
 
+  const isItemChecked = (eq) => {
+    if (!Array.isArray(form.allowed_equipment)) return false;
+    const eqIdStr = String(eq.id);
+    const eqNameLower = String(eq.name || eq.eq_name || "").trim().toLowerCase();
+    return form.allowed_equipment.some(item => {
+      const itemStr = String(item).trim();
+      return itemStr === eqIdStr || (eqNameLower && itemStr.toLowerCase() === eqNameLower) || (Number(item) > 0 && Number(item) === Number(eq.id));
+    });
+  };
+
+  const toggleEquipment = (eq) => {
+    const checked = isItemChecked(eq);
+    const eqId = Number(eq.id) || eq.id;
+    const eqIdStr = String(eq.id);
+    const eqNameLower = String(eq.name || eq.eq_name || "").trim().toLowerCase();
+
+    if (checked) {
+      setForm(prev => ({
+        ...prev,
+        allowed_equipment: (prev.allowed_equipment || []).filter(item => {
+          const itemStr = String(item).trim();
+          return itemStr !== eqIdStr && itemStr.toLowerCase() !== eqNameLower && Number(item) !== Number(eq.id);
+        })
+      }));
+    } else {
+      setForm(prev => ({
+        ...prev,
+        allowed_equipment: [...(prev.allowed_equipment || []), eqId]
+      }));
+    }
+  };
+
   return (
     <div className="space-y-4">
       {/* Header Bar */}
@@ -354,16 +386,10 @@ export default function VenuesTab({ showMsg }) {
                       <input
                         type="checkbox"
                         className="accent-blue-600 w-4 h-4"
-                        checked={form.allowed_equipment.includes(eq.id)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setForm({ ...form, allowed_equipment: [...form.allowed_equipment, eq.id] });
-                          } else {
-                            setForm({ ...form, allowed_equipment: form.allowed_equipment.filter(id => id !== eq.id) });
-                          }
-                        }}
+                        checked={isItemChecked(eq)}
+                        onChange={() => toggleEquipment(eq)}
                       />
-                      <span className="text-xs font-semibold text-slate-700">{eq.name}</span>
+                      <span className="text-xs font-semibold text-slate-700">{eq.name || eq.eq_name}</span>
                     </label>
                   ))}
                   {equipmentCatalog.length === 0 && (

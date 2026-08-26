@@ -237,11 +237,24 @@ export default function Step3Details({
                 {(() => {
                   let baseCatalog = equipmentCatalog;
                   
-                  if (selectedVenue?.allowed_equipment && Array.isArray(selectedVenue.allowed_equipment)) {
-                    if (selectedVenue.allowed_equipment.length > 0) {
-                      baseCatalog = equipmentCatalog.filter(e => selectedVenue.allowed_equipment.includes(e.id));
-                    } else {
-                      baseCatalog = []; // empty array means no equipment allowed
+                  if (selectedVenue?.allowed_equipment) {
+                    const rawAllowed = selectedVenue.allowed_equipment;
+                    let allowedList = [];
+                    if (Array.isArray(rawAllowed)) {
+                      allowedList = rawAllowed;
+                    } else if (typeof rawAllowed === "string") {
+                      try { allowedList = JSON.parse(rawAllowed); } catch { allowedList = []; }
+                    }
+
+                    if (allowedList.length > 0) {
+                      baseCatalog = equipmentCatalog.filter(e => {
+                        const eIdStr = String(e.id);
+                        const eNameLower = String(e.name || e.eq_name || "").trim().toLowerCase();
+                        return allowedList.some(a => {
+                          const aStr = String(a).trim();
+                          return aStr === eIdStr || (eNameLower && aStr.toLowerCase() === eNameLower) || (Number(a) > 0 && Number(a) === Number(e.id));
+                        });
+                      });
                     }
                   }
 
