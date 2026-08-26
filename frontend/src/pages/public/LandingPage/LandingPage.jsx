@@ -19,9 +19,7 @@ export default function LandingPage() {
         setRequirements(data);
       })
       .catch(() => {
-        api.get("/admin/booking-requirements")
-          .then((res) => setRequirements(Array.isArray(res.data) ? res.data : []))
-          .catch(() => setRequirements([]));
+        setRequirements([]);
       })
       .finally(() => setLoading(false));
   }, []);

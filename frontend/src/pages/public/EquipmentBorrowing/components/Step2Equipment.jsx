@@ -74,7 +74,6 @@ export default function Step2Equipment({
   useEffect(() => {
     if (!propOpHours) {
       api.get("/public/operating-hours")
-        .catch(() => api.get("/admin/operating-hours"))
         .then(res => {
           if (res?.data) setOpHours(res.data);
         })

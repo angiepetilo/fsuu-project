@@ -64,7 +64,7 @@ export default function Step4Verification({
   const [reqList, setReqList] = useState([]);
 
   useEffect(() => {
-    api.get("/booking-requirements")
+    api.get("/public/booking-requirements")
       .then(res => {
         if (Array.isArray(res.data) && res.data.length > 0) {
           setReqList(res.data);

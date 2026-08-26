@@ -47,7 +47,6 @@ export default function EquipmentBorrowing() {
   // Fetch Operating Hours & PIN Settings
   useEffect(() => {
     api.get("/public/operating-hours")
-      .catch(() => api.get("/admin/operating-hours"))
       .then(res => {
         if (res?.data) setOpHours(res.data);
       })
