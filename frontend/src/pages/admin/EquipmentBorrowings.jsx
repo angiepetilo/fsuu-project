@@ -3,7 +3,7 @@ import { useOutletContext, useLocation } from "react-router-dom";
 import api from "@/lib/axios";
 import notify from "@/lib/notify";
 import {
-  Loader2, RefreshCw, AlertCircle, Eye, PackageOpen, ChevronLeft, ChevronRight, Send
+  Loader2, RefreshCw, AlertCircle, Eye, PackageOpen, ChevronLeft, ChevronRight
 } from "lucide-react";
 import { PageLoader } from "@/components/ui/page-loader";
 import { StatusBadge, OverdueBadge } from "@/components/ui/status-badge";
@@ -20,7 +20,6 @@ export default function EquipmentBorrowings() {
   const [borrowings, setBorrowings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(null);
-  const [urgentLoadingId, setUrgentLoadingId] = useState(null);
   const [error, setError] = useState(null);
   const [statusFilter, setStatusFilter] = useState("all");
 
@@ -170,19 +169,6 @@ export default function EquipmentBorrowings() {
     }
   };
 
-  const handleSendUrgentReminder = async (e, id, refCode) => {
-    if (e) e.stopPropagation();
-    setUrgentLoadingId(id);
-    try {
-      const res = await api.post(`/avr-equipment-borrowings/${id}/send-overdue-sms`);
-      notify.success("Urgent Reminder Sent", res.data?.message || `Urgent equipment return reminder sent for ${refCode}.`);
-    } catch (err) {
-      notify.error("Reminder Failed", err.response?.data?.message || "Failed to send urgent return reminder.");
-    } finally {
-      setUrgentLoadingId(null);
-    }
-  };
-
   const handleSendNotification = (item) => {
     if (!notifyReason.trim()) {
       alert("Please enter a notification reason.");
@@ -286,31 +272,13 @@ export default function EquipmentBorrowings() {
                       </div>
                     </td>
                     <td className="px-4 py-3.5">
-                      <div className="flex items-center gap-1.5 justify-end">
-                        {isReleasedOrOngoing && (
-                          <button
-                            type="button"
-                            onClick={(e) => handleSendUrgentReminder(e, b.id, refCode)}
-                            disabled={urgentLoadingId === b.id}
-                            title="Send urgent return email/SMS reminder"
-                            className="px-2.5 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300/90 rounded-lg font-bold text-xs flex items-center gap-1 transition-all cursor-pointer shadow-2xs disabled:opacity-50"
-                          >
-                            {urgentLoadingId === b.id ? (
-                              <Loader2 size={13} className="animate-spin text-amber-700" />
-                            ) : (
-                              <Send size={13} className="text-amber-700" />
-                            )}
-                            <span className="hidden xl:inline">Urgent Reminder</span>
-                          </button>
-                        )}
-                        <button
-                          onClick={() => setSelectedId(b.id)}
-                          title="View Details"
-                          className="p-2 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg font-bold text-xs transition-all cursor-pointer"
-                        >
-                          <Eye size={16} />
-                        </button>
-                      </div>
+                      <button
+                        onClick={() => setSelectedId(b.id)}
+                        title="View Details"
+                        className="p-2 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg font-bold text-xs transition-all cursor-pointer"
+                      >
+                        <Eye size={16} />
+                      </button>
                     </td>
                   </tr>
                 );
@@ -367,30 +335,13 @@ export default function EquipmentBorrowings() {
                       <span className="font-bold text-slate-900">{usageDate} ({timeRange})</span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 pt-1">
-                    {isReleasedOrOngoing && (
-                      <button
-                        type="button"
-                        onClick={(e) => handleSendUrgentReminder(e, b.id, refCode)}
-                        disabled={urgentLoadingId === b.id}
-                        className="flex-1 py-2.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-2xs disabled:opacity-50"
-                      >
-                        {urgentLoadingId === b.id ? (
-                          <Loader2 size={14} className="animate-spin text-amber-700" />
-                        ) : (
-                          <Send size={14} className="text-amber-700" />
-                        )}
-                        <span>Urgent Reminder</span>
-                      </button>
-                    )}
-                    <button
-                      onClick={() => setSelectedId(b.id)}
-                      className="flex-1 py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-xl font-extrabold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-2xs"
-                    >
-                      <Eye size={15} />
-                      <span>View Details</span>
-                    </button>
-                  </div>
+                  <button
+                    onClick={() => setSelectedId(b.id)}
+                    className="w-full py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-xl font-extrabold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-2xs"
+                  >
+                    <Eye size={15} />
+                    <span>View Borrowing Details</span>
+                  </button>
                 </div>
               );
             })
