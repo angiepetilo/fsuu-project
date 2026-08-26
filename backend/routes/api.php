@@ -122,6 +122,9 @@ Route::middleware('auth:sanctum')->group(function () {
             default             => 'Official Resource Report'
         };
 
+        // Dynamically apply database-configured SMTP settings
+        \App\Models\SystemSetting::configureMailer();
+
         $htmlBody = '
         <!DOCTYPE html>
         <html>
@@ -135,7 +138,6 @@ Route::middleware('auth:sanctum')->group(function () {
             .header p { margin: 0; font-size: 12px; opacity: 0.9; }
             .content { padding: 24px; font-size: 13px; line-height: 1.6; }
             .meta-box { background: #f1f5f9; border-radius: 10px; padding: 14px; margin-bottom: 20px; font-size: 12px; }
-            .meta-row { display: flex; justify-content: space-between; margin-bottom: 4px; }
             .notes-box { background: #eff6ff; border-left: 4px solid #3b82f6; padding: 14px; border-radius: 6px; margin-bottom: 20px; font-size: 12px; white-space: pre-wrap; }
             .report-text { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; font-family: monospace; font-size: 11.5px; white-space: pre-wrap; word-break: break-word; }
             .footer { padding: 18px 24px; background: #f8fafc; border-top: 1px solid #e2e8f0; text-align: center; font-size: 11px; color: #64748b; }
@@ -171,6 +173,9 @@ Route::middleware('auth:sanctum')->group(function () {
                    . ($notes ? "=== EXECUTIVE NOTES & OBSERVATIONS ===\n{$notes}\n\n" : "")
                    . "=== REPORT DATA ===\n" . $content;
 
+        $mailSent = false;
+        $errorMessage = null;
+
         try {
             \Illuminate\Support\Facades\Mail::send([], [], function ($message) use ($to, $subject, $htmlBody, $plainBody) {
                 $message->to($to)
@@ -178,24 +183,48 @@ Route::middleware('auth:sanctum')->group(function () {
                         ->html($htmlBody)
                         ->text($plainBody);
             });
-
-            try {
-                \App\Models\CommunicationLog::record([
-                    'channel'         => 'email',
-                    'category'        => 'report_dispatch',
-                    'recipient_name'  => 'Report Recipient',
-                    'recipient_email' => $to,
-                    'subject'         => $subject,
-                    'message_preview' => substr($plainBody, 0, 150),
-                    'status'          => 'sent',
-                ]);
-            } catch (\Throwable $t) {}
-
-            return response()->json(['message' => "Official report successfully delivered to {$to}"]);
+            $mailSent = true;
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::error("send-report-email error: " . $e->getMessage());
-            return response()->json(['message' => "Official report queued and dispatched to {$to}"]);
+            \Illuminate\Support\Facades\Log::warning("Default send-report-email failed: {$e->getMessage()}. Retrying via SMTP...");
+            try {
+                \Illuminate\Support\Facades\Mail::mailer('smtp')->send([], [], function ($message) use ($to, $subject, $htmlBody, $plainBody) {
+                    $message->to($to)
+                            ->subject($subject)
+                            ->html($htmlBody)
+                            ->text($plainBody);
+                });
+                $mailSent = true;
+            } catch (\Throwable $err) {
+                $errorMessage = $err->getMessage();
+                \Illuminate\Support\Facades\Log::error("send-report-email failed on all mailers: " . $errorMessage);
+            }
         }
+
+        try {
+            \App\Models\CommunicationLog::record([
+                'channel'         => 'email',
+                'category'        => 'report_dispatch',
+                'recipient_name'  => 'Report Recipient',
+                'recipient_email' => $to,
+                'subject'         => $subject,
+                'message_preview' => substr($plainBody, 0, 150),
+                'status'          => $mailSent ? 'sent' : 'failed',
+                'error_message'   => $errorMessage,
+            ]);
+        } catch (\Throwable $t) {}
+
+        if ($mailSent) {
+            return response()->json([
+                'success' => true,
+                'message' => "Official report successfully sent to {$to}",
+            ]);
+        }
+
+        return response()->json([
+            'success' => false,
+            'message' => "Email sending failed: " . ($errorMessage ?: "Could not connect to configured mail server. Please check SMTP settings."),
+            'error'   => $errorMessage,
+        ], 500);
     });
 
     // ── Admin: History Log (with type filter + soft-delete) ───────────────────
