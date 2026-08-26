@@ -200,10 +200,13 @@ code {
     visibility: hidden;
   }
   #printable-fee-matrix,
-  #printable-fee-matrix * {
+  #printable-fee-matrix *,
+  #printable-report-area,
+  #printable-report-area * {
     visibility: visible;
   }
-  #printable-fee-matrix {
+  #printable-fee-matrix,
+  #printable-report-area {
     position: absolute;
     left: 0;
     top: 0;

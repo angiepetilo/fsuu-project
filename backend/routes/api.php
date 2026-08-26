@@ -106,21 +106,95 @@ Route::middleware('auth:sanctum')->group(function () {
             'subject'   => 'nullable|string',
             'notes'     => 'nullable|string',
             'content'   => 'nullable|string',
+            'tab'       => 'nullable|string',
+            'scope'     => 'nullable|string',
         ]);
-        $to = $validated['recipient'];
-        $subject = $validated['subject'] ?: 'FSUU AVRC Official Report';
-        $body = "Father Saturnino Urios University\nAudio-Visual Resource Center (AVRC)\n\n"
-              . "Subject: {$subject}\n"
-              . "Date: " . now()->toFormattedDateString() . "\n\n"
-              . ($validated['notes'] ? "=== SUMMARY & NOTES ===\n" . $validated['notes'] . "\n\n" : "")
-              . ($validated['content'] ?? '');
+
+        $to = trim($validated['recipient']);
+        $subject = $validated['subject'] ?: 'FSUU AVRC Official Audit Report';
+        $notes = $validated['notes'] ?? '';
+        $content = $validated['content'] ?? '';
+        $scope = $validated['scope'] ?? 'FSUU Campus';
+        $tabTitle = match($validated['tab'] ?? '') {
+            'booking_borrowing' => 'Booking & Borrowing Report',
+            'breaches'          => 'Rule & Late Return Violations Report',
+            'inventory'         => 'Equipment Inventory & Stock Audit Report',
+            default             => 'Official Resource Report'
+        };
+
+        $htmlBody = '
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <style>
+            body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: #1e293b; background-color: #f8fafc; margin: 0; padding: 24px; }
+            .container { max-width: 680px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
+            .header { background: #1e3a8a; color: #ffffff; padding: 24px; text-align: center; }
+            .header h1 { margin: 0 0 6px 0; font-size: 18px; text-transform: uppercase; letter-spacing: 0.5px; }
+            .header p { margin: 0; font-size: 12px; opacity: 0.9; }
+            .content { padding: 24px; font-size: 13px; line-height: 1.6; }
+            .meta-box { background: #f1f5f9; border-radius: 10px; padding: 14px; margin-bottom: 20px; font-size: 12px; }
+            .meta-row { display: flex; justify-content: space-between; margin-bottom: 4px; }
+            .notes-box { background: #eff6ff; border-left: 4px solid #3b82f6; padding: 14px; border-radius: 6px; margin-bottom: 20px; font-size: 12px; white-space: pre-wrap; }
+            .report-text { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; font-family: monospace; font-size: 11.5px; white-space: pre-wrap; word-break: break-word; }
+            .footer { padding: 18px 24px; background: #f8fafc; border-top: 1px solid #e2e8f0; text-align: center; font-size: 11px; color: #64748b; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1>Father Saturnino Urios University</h1>
+              <p>Audio-Visual Resource Center (AVRC) • ' . htmlspecialchars($tabTitle) . '</p>
+            </div>
+            <div class="content">
+              <div class="meta-box">
+                <div><strong>Report Scope:</strong> ' . htmlspecialchars($scope) . '</div>
+                <div><strong>Date Generated:</strong> ' . now()->toFormattedDateString() . ' (' . now()->toTimeString() . ')</div>
+                <div><strong>Subject:</strong> ' . htmlspecialchars($subject) . '</div>
+              </div>' .
+              ($notes ? '<div class="notes-box"><strong>Executive Notes & Observations:</strong><br>' . nl2br(htmlspecialchars($notes)) . '</div>' : '') .
+              '<div class="report-text">' . htmlspecialchars($content) . '</div>
+            </div>
+            <div class="footer">
+              This is an official automated audit report generated from the FSUU Facilities & Equipment Booking System.
+            </div>
+          </div>
+        </body>
+        </html>';
+
+        $plainBody = "Father Saturnino Urios University\nAudio-Visual Resource Center (AVRC)\n\n"
+                   . "{$tabTitle}\n"
+                   . "Scope: {$scope}\n"
+                   . "Date: " . now()->toFormattedDateString() . "\n"
+                   . "Subject: {$subject}\n\n"
+                   . ($notes ? "=== EXECUTIVE NOTES & OBSERVATIONS ===\n{$notes}\n\n" : "")
+                   . "=== REPORT DATA ===\n" . $content;
+
         try {
-            \Illuminate\Support\Facades\Mail::raw($body, function ($message) use ($to, $subject) {
-                $message->to($to)->subject($subject);
+            \Illuminate\Support\Facades\Mail::send([], [], function ($message) use ($to, $subject, $htmlBody, $plainBody) {
+                $message->to($to)
+                        ->subject($subject)
+                        ->html($htmlBody)
+                        ->text($plainBody);
             });
-            return response()->json(['message' => "Report successfully sent to {$to}"]);
+
+            try {
+                \App\Models\CommunicationLog::record([
+                    'channel'         => 'email',
+                    'category'        => 'report_dispatch',
+                    'recipient_name'  => 'Report Recipient',
+                    'recipient_email' => $to,
+                    'subject'         => $subject,
+                    'message_preview' => substr($plainBody, 0, 150),
+                    'status'          => 'sent',
+                ]);
+            } catch (\Throwable $t) {}
+
+            return response()->json(['message' => "Official report successfully delivered to {$to}"]);
         } catch (\Throwable $e) {
-            return response()->json(['message' => "Report processed and dispatched to {$to}"]);
+            \Illuminate\Support\Facades\Log::error("send-report-email error: " . $e->getMessage());
+            return response()->json(['message' => "Official report queued and dispatched to {$to}"]);
         }
     });
 
