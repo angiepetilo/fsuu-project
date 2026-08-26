@@ -203,10 +203,26 @@ class EquipmentBorrowingController extends Controller
             }
         }
 
+        $unitConditions = $request->input('unit_conditions');
+        if (is_string($unitConditions)) {
+            $unitConditions = json_decode($unitConditions, true) ?? [];
+        }
+
+        // Check if any unit in unitConditions is Lost or Damaged
+        $hasLostUnit = false;
+        $hasDamagedUnit = false;
+        if (is_array($unitConditions)) {
+            foreach ($unitConditions as $condVal) {
+                $condStr = strtolower(is_array($condVal) ? ($condVal['condition'] ?? $condVal['status'] ?? '') : (string)$condVal);
+                if ($condStr === 'lost') $hasLostUnit = true;
+                if ($condStr === 'damaged') $hasDamagedUnit = true;
+            }
+        }
+
         $rawCond = strtolower(trim((string)$request->get('condition', '')));
-        if ($rawCond === 'lost') {
+        if ($rawCond === 'lost' || $request->get('inspection_status') === 'lost' || $hasLostUnit) {
             $condition = 'lost';
-        } else if ($rawCond === 'damaged' || $request->get('inspection_status') === 'violation') {
+        } else if ($rawCond === 'damaged' || $request->get('inspection_status') === 'violation' || $hasDamagedUnit) {
             $condition = 'damaged';
         } else {
             $condition = 'good';
@@ -270,12 +286,8 @@ class EquipmentBorrowingController extends Controller
             $equipmentBorrowing->forceFill(['status' => $finalStatus])->save();
         }
 
-        $violationType = $request->get('violation_type') ?? ($isLate ? 'Late Equipment Return' : ($condition === 'damaged' ? 'Equipment Damage' : null));
+        $violationType = $request->get('violation_type') ?? ($isLate ? 'Late Equipment Return' : ($condition === 'damaged' ? 'Equipment Damage' : ($condition === 'lost' ? 'Lost Equipment' : null)));
         $notes = $request->get('notes') ?? $request->get('remarks') ?? ($isLate ? "Equipment returned {$minutesLate} minutes late." : ($condition !== 'good' ? "Return inspected: condition={$condition}." : 'Returned safely on time.'));
-        $unitConditions = $request->input('unit_conditions');
-        if (is_string($unitConditions)) {
-            $unitConditions = json_decode($unitConditions, true) ?? [];
-        }
 
         // Release physical units back based on return condition
         if (!empty($barcodes)) {
@@ -284,7 +296,7 @@ class EquipmentBorrowingController extends Controller
                     $q->whereIn('unit_code', $barcodes)->orWhereIn('id', $barcodes);
                 })->update(['status' => 'available', 'condition' => 'Good']);
             } else {
-                $uStatus = 'unavailable';
+                $uStatus = $condition === 'lost' ? 'lost' : 'damaged';
                 $uCond = $condition === 'lost' ? 'Lost' : 'Damaged';
                 \App\Models\EquipmentUnit::where(function($q) use ($barcodes) {
                     $q->whereIn('unit_code', $barcodes)->orWhereIn('id', $barcodes);
@@ -295,17 +307,21 @@ class EquipmentBorrowingController extends Controller
         // Handle per-unit condition updates if unit_conditions map supplied
         if (is_array($unitConditions)) {
             foreach ($unitConditions as $key => $condVal) {
-                $uBar = $assigned[$key] ?? null;
-                if (!$uBar && is_string($key)) {
-                    $uBar = $key;
+                if (is_array($condVal)) {
+                    $rawCondition = $condVal['condition'] ?? $condVal['status'] ?? 'Good';
+                } else {
+                    $rawCondition = (string)$condVal;
                 }
-                if ($uBar) {
-                    $uBar = trim((string)$uBar);
-                    $condNormalized = ucfirst(strtolower($condVal));
-                    $uStatus = ($condNormalized === 'Damaged' || $condNormalized === 'Lost') ? 'unavailable' : 'available';
-                    $uCond = $condNormalized === 'Damaged' ? 'Damaged' : ($condNormalized === 'Lost' ? 'Lost' : 'Good');
-                    \App\Models\EquipmentUnit::where(function($q) use ($uBar) {
-                        $q->where('unit_code', $uBar)->orWhere('id', $uBar);
+                $condNormalized = ucfirst(strtolower(trim($rawCondition)));
+                $uStatus = $condNormalized === 'Damaged' ? 'damaged' : ($condNormalized === 'Lost' ? 'lost' : 'available');
+                $uCond = $condNormalized === 'Damaged' ? 'Damaged' : ($condNormalized === 'Lost' ? 'Lost' : 'Good');
+
+                $uBar = $assigned[$key] ?? (is_string($key) || is_numeric($key) ? (string)$key : null);
+                $lookupKeys = array_filter(array_unique([$key, $uBar]));
+
+                if (!empty($lookupKeys)) {
+                    \App\Models\EquipmentUnit::where(function($q) use ($lookupKeys) {
+                        $q->whereIn('unit_code', $lookupKeys)->orWhereIn('id', $lookupKeys);
                     })->update(['status' => $uStatus, 'condition' => $uCond]);
                 }
             }

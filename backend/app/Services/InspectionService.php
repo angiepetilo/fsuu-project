@@ -111,14 +111,16 @@ class InspectionService
         // Granular per-unit condition map
         if (is_array($unitConditions)) {
             foreach ($unitConditions as $key => $condVal) {
-                $uBar = $assigned[$key] ?? null;
-                if ($uBar) {
-                    $uBar = trim((string)$uBar);
-                    $condNormalized = ucfirst(strtolower($condVal));
+                $uBar = $assigned[$key] ?? (is_string($key) || is_numeric($key) ? (string)$key : null);
+                $lookupKeys = array_filter(array_unique([$key, $uBar]));
+                if (!empty($lookupKeys)) {
+                    $rawCondition = is_array($condVal) ? ($condVal['condition'] ?? $condVal['status'] ?? 'Good') : (string)$condVal;
+                    $condNormalized = ucfirst(strtolower(trim($rawCondition)));
                     $uStatus = $condNormalized === 'Damaged' ? 'damaged' : ($condNormalized === 'Lost' ? 'lost' : 'available');
-                    \App\Models\EquipmentUnit::where(function ($q) use ($uBar) {
-                        $q->where('unit_code', $uBar)->orWhere('id', $uBar);
-                    })->update(['status' => $uStatus, 'condition' => $condNormalized]);
+                    $uCond = $condNormalized === 'Damaged' ? 'Damaged' : ($condNormalized === 'Lost' ? 'Lost' : 'Good');
+                    \App\Models\EquipmentUnit::where(function ($q) use ($lookupKeys) {
+                        $q->whereIn('unit_code', $lookupKeys)->orWhereIn('id', $lookupKeys);
+                    })->update(['status' => $uStatus, 'condition' => $uCond]);
                 }
             }
         }
