@@ -57,7 +57,6 @@ export default function Step2Venue({
 
   useEffect(() => {
     api.get("/public/operating-hours")
-      .catch(() => api.get("/admin/operating-hours"))
       .then(res => {
         if (res?.data) setOpHours(res.data);
       })

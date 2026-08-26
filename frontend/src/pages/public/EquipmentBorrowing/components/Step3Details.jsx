@@ -26,7 +26,7 @@ export default function Step3Details({
   useEffect(() => {
     const fetchDepts = async () => {
       try {
-        const res = await api.get("/public/departments").catch(() => api.get("/admin/departments"));
+        const res = await api.get("/public/departments");
         let data = Array.isArray(res.data) ? res.data : [];
         setDepartmentsList(data);
       } catch {

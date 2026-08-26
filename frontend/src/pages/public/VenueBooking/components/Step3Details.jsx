@@ -35,7 +35,7 @@ export default function Step3Details({
 
     const fetchDepts = async () => {
       try {
-        const res = await api.get("/public/departments").catch(() => api.get("/admin/departments"));
+        const res = await api.get("/public/departments");
         let data = Array.isArray(res.data) ? res.data : [];
         setDepartmentsList(data);
       } catch {
@@ -49,7 +49,7 @@ export default function Step3Details({
         if (selectedDate) params.append("date", selectedDate);
         if (startTime) params.append("time_start", startTime);
         if (endTime) params.append("time_end", endTime);
-        const res = await api.get(`/public/equipment-types?${params.toString()}`).catch(() => api.get("/admin/equipment-types"));
+        const res = await api.get(`/public/equipment-types?${params.toString()}`);
         let data = Array.isArray(res.data) ? res.data : (res.data?.data || []);
         setEquipmentCatalog(data);
       } catch {
