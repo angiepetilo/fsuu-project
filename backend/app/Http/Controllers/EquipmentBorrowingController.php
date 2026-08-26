@@ -25,6 +25,11 @@ class EquipmentBorrowingController extends Controller
     {
         $this->authorize('viewAny', EquipmentBorrowing::class);
 
+        // Automatically auto-release unclaimed no-show equipment loans past 15m grace period
+        try {
+            app(\App\Services\NoShowAutoReleaseService::class)->processNoShows(15);
+        } catch (\Throwable $e) {}
+
         $user = $request->user();
         
         $academicTermId = $request->query('academic_term_id') ?: $request->query('term_id');
@@ -34,7 +39,7 @@ class EquipmentBorrowingController extends Controller
 
         $borrowings = EquipmentBorrowing::with(['trackingNumber', 'items.equipmentType'])
             ->where(function ($q) {
-                $completedStatuses = ['completed', 'done', 'returned', 'damaged', 'lost', 'returned late', 'returned_late', 'rejected', 'cancelled'];
+                $completedStatuses = ['completed', 'done', 'returned', 'damaged', 'lost', 'returned late', 'returned_late'];
                 $q->where(function ($q2) use ($completedStatuses) {
                     $q2->whereHas('trackingNumber', function ($t) use ($completedStatuses) {
                         $t->whereNotIn('status', $completedStatuses);

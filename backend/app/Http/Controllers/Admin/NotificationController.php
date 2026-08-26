@@ -267,6 +267,83 @@ class NotificationController extends Controller
                 }
             }
 
+            // 4. Proactive Upcoming Equipment Shortage Sentinel
+            if (Schema::hasTable('venue_bookings') && Schema::hasTable('equipment_types')) {
+                $today = now()->toDateString();
+                $upcomingBookings = DB::table('venue_bookings')
+                    ->join('tracking_numbers', 'venue_bookings.tracking_number_id', '=', 'tracking_numbers.id')
+                    ->leftJoin('venues', 'venue_bookings.venue_id', '=', 'venues.id')
+                    ->whereIn('tracking_numbers.status', ['pending', 'approved'])
+                    ->where('venue_bookings.date_of_usage', '>=', $today)
+                    ->whereNotNull('venue_bookings.equipment_notes')
+                    ->where('venue_bookings.equipment_notes', '!=', '')
+                    ->whereNull('venue_bookings.archived_at')
+                    ->select('venue_bookings.*', 'venues.name as venue_name', 'tracking_numbers.reference_code')
+                    ->orderBy('venue_bookings.date_of_usage')
+                    ->limit(20)
+                    ->get();
+
+                $allTypes = DB::table('equipment_types')->whereNull('archived_at')->get();
+                $damagedOrOutUnitCounts = DB::table('equipment_units')
+                    ->whereNull('archived_at')
+                    ->whereIn(DB::raw('LOWER(status)'), ['damaged', 'lost', 'decommissioned', 'maintenance', 'released'])
+                    ->select('equipment_type_id', DB::raw('COUNT(*) as unavailable_count'))
+                    ->groupBy('equipment_type_id')
+                    ->pluck('unavailable_count', 'equipment_type_id');
+
+                $operationalCounts = DB::table('equipment_units')
+                    ->whereNull('archived_at')
+                    ->where('status', 'available')
+                    ->whereNotIn(DB::raw('LOWER(`condition`)'), ['damaged', 'lost', 'under repair'])
+                    ->select('equipment_type_id', DB::raw('COUNT(*) as on_hand_good'))
+                    ->groupBy('equipment_type_id')
+                    ->pluck('on_hand_good', 'equipment_type_id');
+
+                foreach ($upcomingBookings as $ub) {
+                    $eqNotes = strtoupper($ub->equipment_notes);
+                    foreach ($allTypes as $et) {
+                        $tName = strtoupper($et->name ?? $et->eq_name ?? '');
+                        if (!$tName || !str_contains($eqNotes, $tName)) continue;
+
+                        $qtyNeeded = 1;
+                        if (preg_match('/\b' . preg_quote($tName, '/') . '\s*\(Qty:\s*(\d+)\)/i', $eqNotes, $qm)) {
+                            $qtyNeeded = (int)$qm[1];
+                        }
+
+                        $onHand = (int)($operationalCounts[$et->id] ?? 0);
+                        $unavailable = (int)($damagedOrOutUnitCounts[$et->id] ?? 0);
+
+                        // If damaged/unreturned units cause shortage for upcoming reservation
+                        if ($unavailable > 0 && $onHand < $qtyNeeded) {
+                            $key = 'shortage-alert-vb-' . $ub->id . '-' . $et->id;
+                            $refCode = $ub->reference_code ?? ('TRK-AVR' . $ub->id);
+                            $usageDt = Carbon::parse($ub->date_of_usage)->format('M d, Y');
+
+                            $notifs->push([
+                                'id'             => $key,
+                                'target_id'      => $ub->id,
+                                'target_type'    => 'venue_booking',
+                                'incident_type'  => 'stock_shortage',
+                                'url'            => '/admin/venue-bookings?id=' . $ub->id . '&trk=' . $refCode,
+                                'type'           => 'stock_shortage_alert',
+                                'priority'       => 'high',
+                                'title'          => 'Stock Shortage Warning',
+                                'message'        => "Damage/unreturned {$et->name} units affects upcoming booking {$refCode} on {$usageDt} (Needed: {$qtyNeeded}, Ready: {$onHand}).",
+                                'person_name'    => $ub->filer_name ?? 'Filer',
+                                'person_contact' => $ub->contact_number ?? 'N/A',
+                                'person_office'  => $ub->program_office ?? 'Department',
+                                'person_email'   => $ub->email_address ?? 'N/A',
+                                'item_name'      => $et->name ?? 'Equipment',
+                                'ref'            => $refCode,
+                                'time'           => Carbon::parse($ub->updated_at ?? now())->format('M d, h:i A'),
+                                'rawDate'        => $ub->updated_at ?? now(),
+                                'is_read'        => isset($readKeys[$key]),
+                            ]);
+                        }
+                    }
+                }
+            }
+
             $sorted = $notifs->sortByDesc('rawDate')->values();
 
             return response()->json($sorted);

@@ -24,6 +24,11 @@ class VenueBookingController extends Controller
     {
         $this->authorize('viewAny', VenueBooking::class);
 
+        // Automatically auto-release unclaimed no-show bookings past 15m grace period
+        try {
+            app(\App\Services\NoShowAutoReleaseService::class)->processNoShows(15);
+        } catch (\Throwable $e) {}
+
         $user = $request->user();
 
         $academicTermId = $request->query('academic_term_id') ?: $request->query('term_id');
@@ -33,7 +38,7 @@ class VenueBookingController extends Controller
 
         $bookings = VenueBooking::with(['trackingNumber', 'venue', 'documents', 'venueBookingEquipment.equipmentType'])
             ->where(function ($q) {
-                $completedStatuses = ['completed', 'done', 'returned', 'damaged', 'lost', 'returned late', 'returned_late', 'rejected', 'cancelled'];
+                $completedStatuses = ['completed', 'done', 'returned', 'damaged', 'lost', 'returned late', 'returned_late'];
                 $q->where(function ($q2) use ($completedStatuses) {
                     $q2->whereHas('trackingNumber', function ($t) use ($completedStatuses) {
                         $t->whereNotIn('status', $completedStatuses);
