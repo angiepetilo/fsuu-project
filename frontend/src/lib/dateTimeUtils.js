@@ -37,33 +37,90 @@ export function isPastDateTime(dateStr, timeStr) {
 
 /**
  * Calculates how many minutes overdue an active event or borrowing is.
- * Returns 0 if not overdue or invalid.
+ * Returns 0 if not overdue, if scheduled end time is in the future, or invalid.
  */
 export function getOverdueMinutes(dateStr, timeStr) {
   if (!dateStr || !timeStr) return 0;
   try {
-    const cleanDate = typeof dateStr === "string" ? dateStr.substring(0, 10) : "";
-    let cleanTime = typeof timeStr === "string" ? timeStr.trim() : "";
-    if (!cleanDate || !cleanTime) return 0;
+    // 1. Extract clean Year, Month (1-12), Day
+    let year, month, day;
 
-    // Handle 12-hour format "05:00 PM"
-    if (cleanTime.includes(" ")) {
-      const parts = cleanTime.split(/\s+/);
-      let [h, m] = parts[0].split(":").map(Number);
-      const mer = (parts[1] || "").toUpperCase();
-      if (mer === "PM" && h < 12) h += 12;
-      if (mer === "AM" && h === 12) h = 0;
-      cleanTime = `${String(h).padStart(2, "0")}:${String(m || 0).padStart(2, "0")}:00`;
-    } else if (cleanTime.length === 5) {
-      cleanTime = `${cleanTime}:00`;
+    if (dateStr instanceof Date) {
+      year = dateStr.getFullYear();
+      month = dateStr.getMonth() + 1;
+      day = dateStr.getDate();
+    } else {
+      const rawDateStr = String(dateStr).trim();
+      // Handle UTC ISO format like "2026-08-27T00:00:00.000000Z"
+      if (rawDateStr.includes("T") || rawDateStr.includes("Z") || rawDateStr.length > 10) {
+        const d = new Date(rawDateStr);
+        if (!isNaN(d.getTime())) {
+          year = d.getFullYear();
+          month = d.getMonth() + 1;
+          day = d.getDate();
+        }
+      }
+      
+      // Fallback: extract YYYY-MM-DD
+      if (!year) {
+        const dateMatch = rawDateStr.match(/(\d{4})-(\d{1,2})-(\d{1,2})/);
+        if (dateMatch) {
+          year = parseInt(dateMatch[1], 10);
+          month = parseInt(dateMatch[2], 10);
+          day = parseInt(dateMatch[3], 10);
+        }
+      }
     }
 
-    const endDateTime = new Date(`${cleanDate}T${cleanTime}`);
+    if (!year || !month || !day) return 0;
+
+    // 2. Extract clean Hours & Minutes from time string
+    let cleanTime = String(timeStr).trim();
+
+    // If timeStr is a range like "08:00 AM – 10:00 AM" or "08:00 - 10:00", take the end time
+    if (cleanTime.includes("–")) {
+      cleanTime = cleanTime.split("–").pop().trim();
+    } else if (cleanTime.includes(" - ")) {
+      cleanTime = cleanTime.split(" - ").pop().trim();
+    } else if (cleanTime.toLowerCase().includes(" to ")) {
+      cleanTime = cleanTime.toLowerCase().split(" to ").pop().trim();
+    }
+
+    // If timeStr is a full ISO datetime like "2026-08-27T10:00:00"
+    if (cleanTime.includes("T")) {
+      cleanTime = cleanTime.split("T")[1].replace("Z", "").trim();
+    } else if (cleanTime.includes(" ") && cleanTime.length > 11 && cleanTime.includes("-")) {
+      cleanTime = cleanTime.split(" ")[1].trim();
+    }
+
+    let hours = 0;
+    let minutes = 0;
+
+    // Handle 12-hour AM/PM format (e.g. "10:00 AM", "05:00 PM")
+    if (/am|pm/i.test(cleanTime)) {
+      const isPM = /pm/i.test(cleanTime);
+      const digitsOnly = cleanTime.replace(/[^0-9:]/g, "");
+      const [h, m] = digitsOnly.split(":").map(Number);
+      hours = Number(h || 0);
+      minutes = Number(m || 0);
+      if (isPM && hours < 12) hours += 12;
+      if (!isPM && hours === 12) hours = 0;
+    } else {
+      // 24-hour format (e.g. "10:00:00" or "10:00")
+      const parts = cleanTime.split(":").map(Number);
+      hours = Number(parts[0] || 0);
+      minutes = Number(parts[1] || 0);
+    }
+
+    // 3. Construct local Date object representing the exact scheduled end time
+    const endDateTime = new Date(year, month - 1, day, hours, minutes, 0, 0);
     if (isNaN(endDateTime.getTime())) return 0;
 
+    // 4. Compare with current client time
     const now = new Date();
     const diffMs = now.getTime() - endDateTime.getTime();
     const diffMins = Math.floor(diffMs / 60000);
+
     return diffMins > 0 ? diffMins : 0;
   } catch (e) {
     return 0;

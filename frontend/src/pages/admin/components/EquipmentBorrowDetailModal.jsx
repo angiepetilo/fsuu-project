@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import api from "@/lib/axios";
 import { formatTime12, formatTimeRange12 } from "@/lib/dateUtils";
+import { getOverdueMinutes } from "@/lib/dateTimeUtils";
 import { resolveStorageUrl } from "@/lib/utils";
 import EquipBorrowHeader from "../borrow-modal/EquipBorrowHeader";
 import EquipBorrowInspectionForm from "../borrow-modal/EquipBorrowInspectionForm";
@@ -187,16 +188,14 @@ export default function EquipmentBorrowDetailModal({
       setPreEvidencePhoto([]);
       setEvidencePhoto([]);
 
-      const dateUsage = selected.date_of_usage || (selected.start_datetime ? selected.start_datetime.slice(0, 10) : null);
-      const timeEnd = selected.time_end || (selected.end_datetime ? selected.end_datetime.slice(11, 16) : null);
-      if (dateUsage && timeEnd) {
-        const schedEndStr = timeEnd.length === 5 ? `${timeEnd}:00` : timeEnd;
-        const schedEnd = new Date(`${dateUsage}T${schedEndStr}`);
-        if (!isNaN(schedEnd.getTime()) && new Date() > schedEnd) {
-          setTimeliness("late");
-        } else {
-          setTimeliness("on_time");
-        }
+      const overdueMins = getOverdueMinutes(
+        selected.date_of_usage || selected.start_datetime,
+        selected.time_end || selected.end_datetime
+      );
+      if (overdueMins > 0) {
+        setTimeliness("late");
+      } else {
+        setTimeliness("on_time");
       }
 
       if (selected.timeliness) {
