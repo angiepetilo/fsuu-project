@@ -42,30 +42,29 @@ export default function Settings() {
 
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // Determine initial tab from URL param -> localStorage -> default "roles"
+  // Determine tab from URL param or default to "roles"
   const getInitialTab = () => {
     const urlTab = searchParams.get("tab");
     if (urlTab && ADMIN_TABS.some((t) => t.id === urlTab)) {
       return urlTab;
     }
-    try {
-      const savedTab = localStorage.getItem("fsuu_admin_settings_active_tab");
-      if (savedTab && ADMIN_TABS.some((t) => t.id === savedTab)) {
-        return savedTab;
-      }
-    } catch {}
     return "roles";
   };
 
   const [activeTab, setActiveTab] = useState(getInitialTab);
   const [mountedTabs, setMountedTabs] = useState(() => new Set([getInitialTab()]));
 
+  // When user navigates from other features to /admin/settings, always reset to default tab if no ?tab= in URL
+  useEffect(() => {
+    const urlTab = searchParams.get("tab");
+    const targetTab = urlTab && ADMIN_TABS.some((t) => t.id === urlTab) ? urlTab : "roles";
+    setActiveTab(targetTab);
+    setMountedTabs((prev) => new Set([...prev, targetTab]));
+  }, [searchParams]);
+
   const switchTab = (tabId) => {
     setActiveTab(tabId);
     setMountedTabs((prev) => new Set([...prev, tabId]));
-    try {
-      localStorage.setItem("fsuu_admin_settings_active_tab", tabId);
-    } catch {}
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
       next.set("tab", tabId);

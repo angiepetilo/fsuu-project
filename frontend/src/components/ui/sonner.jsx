@@ -9,10 +9,12 @@ import { Toaster as Sonner } from "sonner";
 const Toaster = ({ ...props }) => (
   <Sonner
     position="top-right"
+    duration={2500}
     closeButton={false}
     hotkey={[]}
     expand={false}
     richColors={false}
+    pauseWhenPageIsHidden={false}
     icons={{
       success: null,
       error: null,
@@ -22,11 +24,13 @@ const Toaster = ({ ...props }) => (
     }}
     style={{
       zIndex: 999999,
+      pointerEvents: "none",
     }}
     toastOptions={{
+      duration: 2500,
       unstyled: true,
       classNames: {
-        toast: "!bg-transparent !p-0 !border-0 !shadow-none",
+        toast: "!bg-transparent !p-0 !border-0 !shadow-none pointer-events-auto select-none",
       },
     }}
     {...props}

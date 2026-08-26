@@ -31,7 +31,7 @@ class VenueBookingController extends Controller
             $academicTermId = DB::table('academic_terms')->where('is_active', true)->value('id');
         }
 
-        $bookings = VenueBooking::with(['trackingNumber', 'venue', 'documents'])
+        $bookings = VenueBooking::with(['trackingNumber', 'venue', 'documents', 'venueBookingEquipment.equipmentType'])
             ->where(function ($q) {
                 $completedStatuses = ['completed', 'done', 'returned', 'damaged', 'lost', 'returned late', 'returned_late', 'rejected', 'cancelled'];
                 $q->where(function ($q2) use ($completedStatuses) {

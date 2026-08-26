@@ -5,7 +5,7 @@ import { CheckCircle2, XCircle, AlertTriangle, Info, Loader2 } from "lucide-reac
  * PlainToast — sleek, clean, minimal notification card.
  * Thin left accent line per type, soft shadow, no emojis.
  */
-function PlainToast({ title, description, type = "default" }) {
+function PlainToast({ id, title, description, type = "default" }) {
   const styles = {
     success: {
       accent: "bg-emerald-500",
@@ -36,7 +36,12 @@ function PlainToast({ title, description, type = "default" }) {
   const { accent, icon } = styles[type] || styles.default;
 
   return (
-    <div className="pointer-events-auto flex items-stretch overflow-hidden rounded-xl bg-white shadow-lg border border-slate-200 min-w-[260px] max-w-[340px] font-sans">
+    <div 
+      tabIndex={-1}
+      onClick={() => id && sonnerToast.dismiss(id)}
+      className="pointer-events-auto cursor-pointer flex items-stretch overflow-hidden rounded-xl bg-white shadow-lg border border-slate-200 min-w-[260px] max-w-[340px] font-sans select-none hover:opacity-90 transition-opacity"
+      title="Click to dismiss"
+    >
       {/* Left accent stripe */}
       <div className={`w-1 shrink-0 ${accent}`} />
 
@@ -58,34 +63,58 @@ function PlainToast({ title, description, type = "default" }) {
   );
 }
 
-const BASE_OPTS = { duration: 2500 };
+const BASE_DURATION = 2500;
 
 export const notify = {
-  success: (title, description) =>
-    sonnerToast.custom(() => (
-      <PlainToast title={title} description={description} type="success" />
-    ), BASE_OPTS),
+  success: (title, description) => {
+    let tId;
+    tId = sonnerToast.custom((id) => (
+      <PlainToast id={id || tId} title={title} description={description} type="success" />
+    ), { duration: BASE_DURATION });
+    setTimeout(() => {
+      if (tId) sonnerToast.dismiss(tId);
+    }, BASE_DURATION + 100);
+    return tId;
+  },
 
-  error: (title, description) =>
-    sonnerToast.custom(() => (
-      <PlainToast title={title} description={description} type="error" />
-    ), BASE_OPTS),
+  error: (title, description) => {
+    let tId;
+    tId = sonnerToast.custom((id) => (
+      <PlainToast id={id || tId} title={title} description={description} type="error" />
+    ), { duration: 3000 });
+    setTimeout(() => {
+      if (tId) sonnerToast.dismiss(tId);
+    }, 3100);
+    return tId;
+  },
 
-  warning: (title, description) =>
-    sonnerToast.custom(() => (
-      <PlainToast title={title} description={description} type="warning" />
-    ), BASE_OPTS),
+  warning: (title, description) => {
+    let tId;
+    tId = sonnerToast.custom((id) => (
+      <PlainToast id={id || tId} title={title} description={description} type="warning" />
+    ), { duration: 3000 });
+    setTimeout(() => {
+      if (tId) sonnerToast.dismiss(tId);
+    }, 3100);
+    return tId;
+  },
 
-  info: (title, description) =>
-    sonnerToast.custom(() => (
-      <PlainToast title={title} description={description} type="info" />
-    ), BASE_OPTS),
+  info: (title, description) => {
+    let tId;
+    tId = sonnerToast.custom((id) => (
+      <PlainToast id={id || tId} title={title} description={description} type="info" />
+    ), { duration: BASE_DURATION });
+    setTimeout(() => {
+      if (tId) sonnerToast.dismiss(tId);
+    }, BASE_DURATION + 100);
+    return tId;
+  },
 
   dismiss: (id) => sonnerToast.dismiss(id),
 
   loading: (title, description) =>
-    sonnerToast.custom(() => (
-      <PlainToast title={title} description={description} type="loading" />
+    sonnerToast.custom((id) => (
+      <PlainToast id={id} title={title} description={description} type="loading" />
     ), { duration: Infinity }),
 };
 
