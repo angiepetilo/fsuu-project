@@ -116,7 +116,7 @@ class InspectionService
                 if (!empty($lookupKeys)) {
                     $rawCondition = is_array($condVal) ? ($condVal['condition'] ?? $condVal['status'] ?? 'Good') : (string)$condVal;
                     $condNormalized = ucfirst(strtolower(trim($rawCondition)));
-                    $uStatus = $condNormalized === 'Damaged' ? 'damaged' : ($condNormalized === 'Lost' ? 'lost' : 'available');
+                    $uStatus = ($condNormalized === 'Damaged' || $condNormalized === 'Lost') ? 'unavailable' : 'available';
                     $uCond = $condNormalized === 'Damaged' ? 'Damaged' : ($condNormalized === 'Lost' ? 'Lost' : 'Good');
                     \App\Models\EquipmentUnit::where(function ($q) use ($lookupKeys) {
                         $q->whereIn('unit_code', $lookupKeys)->orWhereIn('id', $lookupKeys);

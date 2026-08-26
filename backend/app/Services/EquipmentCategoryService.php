@@ -429,7 +429,7 @@ class EquipmentCategoryService
                 foreach ($rawConds as $k => $cVal) {
                     $cStr = strtolower(is_array($cVal) ? ($cVal['condition'] ?? $cVal['status'] ?? '') : (string)$cVal);
                     if ($cStr === 'lost' || $cStr === 'damaged') {
-                        $uStatus = $cStr === 'lost' ? 'lost' : 'damaged';
+                        $uStatus = 'unavailable';
                         $uCond = $cStr === 'lost' ? 'Lost' : 'Damaged';
                         $uBar = is_array($assigned) ? ($assigned[$k] ?? null) : null;
                         $keys = array_filter(array_unique([$k, $uBar]));

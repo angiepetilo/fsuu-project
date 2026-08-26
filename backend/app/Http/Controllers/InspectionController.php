@@ -174,7 +174,7 @@ class InspectionController extends Controller
                     $rawCondition = (string)$condVal;
                 }
                 $condStr = strtolower(trim($rawCondition));
-                $uStatus = ($condStr === 'damaged' || $condStr === 'lost') ? ($condStr === 'lost' ? 'lost' : 'damaged') : 'available';
+                $uStatus = ($condStr === 'damaged' || $condStr === 'lost') ? 'unavailable' : 'available';
                 $uCond = $condStr === 'damaged' ? 'Damaged' : ($condStr === 'lost' ? 'Lost' : 'Good');
                 
                 $uBar = is_array($assignedUnits) ? ($assignedUnits[$key] ?? null) : null;

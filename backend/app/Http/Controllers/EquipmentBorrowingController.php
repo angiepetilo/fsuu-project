@@ -296,7 +296,7 @@ class EquipmentBorrowingController extends Controller
                     $q->whereIn('unit_code', $barcodes)->orWhereIn('id', $barcodes);
                 })->update(['status' => 'available', 'condition' => 'Good']);
             } else {
-                $uStatus = $condition === 'lost' ? 'lost' : 'damaged';
+                $uStatus = ($condition === 'lost' || $condition === 'damaged') ? 'unavailable' : 'available';
                 $uCond = $condition === 'lost' ? 'Lost' : 'Damaged';
                 \App\Models\EquipmentUnit::where(function($q) use ($barcodes) {
                     $q->whereIn('unit_code', $barcodes)->orWhereIn('id', $barcodes);
@@ -313,7 +313,7 @@ class EquipmentBorrowingController extends Controller
                     $rawCondition = (string)$condVal;
                 }
                 $condNormalized = ucfirst(strtolower(trim($rawCondition)));
-                $uStatus = $condNormalized === 'Damaged' ? 'damaged' : ($condNormalized === 'Lost' ? 'lost' : 'available');
+                $uStatus = ($condNormalized === 'Damaged' || $condNormalized === 'Lost') ? 'unavailable' : 'available';
                 $uCond = $condNormalized === 'Damaged' ? 'Damaged' : ($condNormalized === 'Lost' ? 'Lost' : 'Good');
 
                 $uBar = $assigned[$key] ?? (is_string($key) || is_numeric($key) ? (string)$key : null);
