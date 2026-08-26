@@ -45,7 +45,7 @@ return [
         // The redirect URI must exactly match what is registered in Google Cloud Console.
         // For local dev: http://localhost:8000/api/auth/google/callback
         // For production: https://your-domain.com/api/auth/google/callback
-        'redirect'      => env('GOOGLE_REDIRECT_URI') ?: (env('APP_ENV') === 'production' ? 'https://fsuu-project.onrender.com/api/auth/google/callback' : 'http://localhost:8000/api/auth/google/callback'),
+        'redirect'      => env('GOOGLE_REDIRECT_URI') ?: (env('APP_ENV') === 'production' ? 'https://fsuu-booking-api.onrender.com/api/auth/google/callback' : 'http://localhost:8000/api/auth/google/callback'),
     ],
 
     'iprogsms' => [
