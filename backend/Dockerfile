@@ -11,6 +11,8 @@ RUN apk add --no-cache \
     zip \
     unzip \
     mysql-client \
+    postgresql-client \
+    postgresql-dev \
     oniguruma-dev \
     freetype-dev \
     libjpeg-turbo-dev \
@@ -21,6 +23,8 @@ RUN apk add --no-cache \
 RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install -j$(nproc) \
         pdo_mysql \
+        pdo_pgsql \
+        pgsql \
         mbstring \
         exif \
         pcntl \
