@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { FileText, ExternalLink, Upload, CheckCircle, HardDrive } from "lucide-react";
 import { resolveStorageUrl, openFileInNewTab } from "@/lib/utils";
+import { formatDateRange } from "@/lib/dateUtils";
 import api from "@/lib/axios";
 
 export default function VenueBookingInfo({
@@ -139,9 +140,10 @@ export default function VenueBookingInfo({
         <div className="flex justify-between items-baseline py-1 border-b border-slate-100">
           <span className="text-slate-500">Date Range :</span>
           <span className="font-mono text-slate-900 font-bold">
-            {selected.reservation_end_date && String(selected.reservation_end_date).substring(0, 10) !== String(selected.date_of_usage).substring(0, 10)
-              ? `${formatDate(selected.date_of_usage)} — ${formatDate(selected.reservation_end_date)}`
-              : formatDate(selected.date_of_usage || selected.start_datetime || selected.date)}
+            {formatDateRange(
+              selected.date_of_usage || selected.start_datetime || selected.date,
+              selected.reservation_end_date || selected.end_datetime || selected.end_date
+            )}
           </span>
         </div>
 

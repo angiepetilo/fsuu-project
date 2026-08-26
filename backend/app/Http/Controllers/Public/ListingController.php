@@ -233,6 +233,10 @@ class ListingController extends Controller
      */
     public function venueBookings(): JsonResponse
     {
+        try {
+            app(\App\Services\NoShowAutoReleaseService::class)->processNoShows();
+        } catch (\Throwable $e) {}
+
         $bookings = DB::table('venue_bookings')
             ->join('tracking_numbers', 'venue_bookings.tracking_number_id', '=', 'tracking_numbers.id')
             ->whereIn('tracking_numbers.status', ['pending', 'approved'])

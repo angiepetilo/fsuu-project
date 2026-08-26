@@ -27,13 +27,27 @@ export default function GoogleCallback() {
 
     if (token) {
       const role = params.get("role") || "admin";
+      let permissions = [];
+      try {
+        const permsParam = params.get("permissions");
+        if (permsParam) {
+          permissions = JSON.parse(permsParam);
+        }
+      } catch (e) {}
+
       const user = {
+        id: params.get("id") ? parseInt(params.get("id"), 10) : undefined,
         name: params.get("name") || "Authenticated User",
         email: params.get("email") || "",
         personal_email: params.get("personal_email") || "",
         avatar: params.get("avatar") || null,
         office_id: params.get("office_id") ? parseInt(params.get("office_id"), 10) : null,
+        location: params.get("location") || "FSUU Main Campus",
+        office: params.get("location") || "FSUU Main Campus",
+        role_id: params.get("role_id") ? parseInt(params.get("role_id"), 10) : (role === "superadmin" ? 1 : (role === "staff" ? 3 : 2)),
         role: role,
+        permissions: permissions,
+        status: params.get("status") || "active",
       };
       login(user, token);
       if (role === "superadmin" || role === "super_admin") {

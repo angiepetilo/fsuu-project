@@ -136,6 +136,10 @@ Upon event conclusion, staff conduct a post-use inspection:
 * **SQL Injection Protection**: Executed via Laravel Eloquent ORM with PDO Parameter Binding.
 * **Role-Based Access Control (RBAC)**: Enforces campus isolation between FSUU Main Campus and FSUU Morelos Campus.
 * **Sanitized Media Uploads**: Endorsement letters and inspection evidence photos are validated against strict MIME types and stored securely in server storage.
+* **Google OAuth & RBAC Parity**: Google Single Sign-On dynamically propagates role-based permissions (`venue_bookings`, `equipment_borrowing`, `reports`, `history_log`) identically to email/password authentication.
+* **Brevo API (HTTPS Port 443) Transport**: Bypasses cloud host outbound SMTP port blocks via direct HTTPS API mail dispatch.
+* **Dynamic Overlapping Schedule Availability Engine**: Automatically computes live available equipment stock across overlapping venue reservations and equipment loans.
+* **Date Range Engine**: Formats single-day events as `Aug 26, 2026` (or `MM/DD/YYYY`) and multi-day events as `Aug 26, 2026 — Aug 28, 2026`.
 
 ---
 
