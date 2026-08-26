@@ -235,27 +235,28 @@ export default function Step3Details({
 
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 text-xs pt-1">
                 {(() => {
-                  let baseCatalog = equipmentCatalog;
+                  let baseCatalog = [];
                   
-                  if (selectedVenue?.allowed_equipment) {
-                    const rawAllowed = selectedVenue.allowed_equipment;
-                    let allowedList = [];
-                    if (Array.isArray(rawAllowed)) {
-                      allowedList = rawAllowed;
-                    } else if (typeof rawAllowed === "string") {
-                      try { allowedList = JSON.parse(rawAllowed); } catch { allowedList = []; }
-                    }
+                  const rawAllowed = selectedVenue?.allowed_equipment;
+                  let allowedList = [];
+                  if (Array.isArray(rawAllowed)) {
+                    allowedList = rawAllowed;
+                  } else if (typeof rawAllowed === "string") {
+                    try { allowedList = JSON.parse(rawAllowed); } catch { allowedList = []; }
+                  }
 
-                    if (allowedList.length > 0) {
-                      baseCatalog = equipmentCatalog.filter(e => {
-                        const eIdStr = String(e.id);
-                        const eNameLower = String(e.name || e.eq_name || "").trim().toLowerCase();
-                        return allowedList.some(a => {
-                          const aStr = String(a).trim();
-                          return aStr === eIdStr || (eNameLower && aStr.toLowerCase() === eNameLower) || (Number(a) > 0 && Number(a) === Number(e.id));
-                        });
+                  if (allowedList && allowedList.length > 0) {
+                    baseCatalog = equipmentCatalog.filter(e => {
+                      const eIdStr = String(e.id);
+                      const eNameLower = String(e.name || e.eq_name || "").trim().toLowerCase();
+                      return allowedList.some(a => {
+                        const aStr = String(a).trim();
+                        return aStr === eIdStr || (eNameLower && aStr.toLowerCase() === eNameLower) || (Number(a) > 0 && Number(a) === Number(e.id));
                       });
-                    }
+                    });
+                  } else if (rawAllowed === undefined || rawAllowed === null) {
+                    // Fallback only if venue has not configured allowed_equipment at all
+                    baseCatalog = equipmentCatalog;
                   }
 
                   if (!baseCatalog || baseCatalog.length === 0) {
