@@ -18,7 +18,12 @@
     $trackUrl = $baseUrl . '/track?tracking=' . urlencode($ref);
 @endphp
 
-@if(($type ?? 'venue') === 'equipment' && ($status ?? '') === 'approved')
+@if(($status ?? '') === 'overdue')
+<p style="font-size: 16px; font-weight: bold; color: #dc2626;">URGENT FSUU OVERDUE NOTICE</p>
+<p>Good day, {{ $requestorName }}.</p>
+<p>Your {{ $itemType }} [<strong>{{ $ref }}</strong>] ({{ $formattedSchedule ?? ($formattedStart ?? 'Scheduled Time') }}) is now <strong>OVERDUE</strong> for return.</p>
+<p style="color: #b91c1c; font-weight: bold; background-color: #fef2f2; border-left: 4px solid #ef4444; padding: 12px 16px;">Please return all physical equipment units immediately to the AVR Center to avoid policy violation records and penalties.</p>
+@elseif(($type ?? 'venue') === 'equipment' && ($status ?? '') === 'approved')
 <p>Good day {{ $requestorName }}. Use reference code {{ $ref }} to claim your item.</p>
 <p>Please proceed to the office and present your School ID. Reminder: Arrive at least 15 minutes before your scheduled start time. Thank you.</p>
 @elseif(($status ?? '') === 'approved')
