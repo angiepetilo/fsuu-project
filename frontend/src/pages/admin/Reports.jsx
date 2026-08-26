@@ -77,14 +77,17 @@ export default function Reports() {
     loadTerms();
   }, []);
 
+  const [equipmentUnits, setEquipmentUnits] = useState([]);
+
   const fetchReportsData = async (silent = false) => {
     if (!silent) setLoading(true);
     try {
       const termParam = selectedTermId ? `?academic_term_id=${selectedTermId}` : "";
-      const [histRes, daRes, eqData] = await Promise.all([
+      const [histRes, daRes, eqData, unitsRes] = await Promise.all([
         api.get(`/admin/history-log${termParam}`).catch(() => ({ data: { venue_bookings: [], equipment_borrowings: [] } })),
         api.get(`/admin/department-analytics${termParam}`).catch(() => ({ data: { rule_violations: [], late_returns: [] } })),
         api.get("/admin/equipment-types").then(r => r.data).catch(() => []),
+        api.get("/admin/equipment-units").then(r => r.data).catch(() => []),
       ]);
 
       // 1. History log venue bookings & equipment borrowings
@@ -100,6 +103,10 @@ export default function Reports() {
       // 3. Equipment inventory stock (fresh, live, un-cached)
       const eqItems = Array.isArray(eqData) ? eqData : (eqData?.data || []);
       setInventoryItems(eqItems);
+
+      // 4. Physical Equipment Units
+      const unitItems = Array.isArray(unitsRes) ? unitsRes : (unitsRes?.data || []);
+      setEquipmentUnits(unitItems);
     } catch {
       // Fallback
     } finally {
@@ -176,6 +183,65 @@ export default function Reports() {
     });
   }, [inventoryItems, selectedOfficeId, selectedOfficeName]);
 
+  const filteredUnits = useMemo(() => {
+    const rawList = Array.isArray(equipmentUnits) ? equipmentUnits : (equipmentUnits?.data || []);
+    return rawList.map((u, idx) => {
+      const bCode = String(u.unit_code || u.barcode || `BC-EQP-2026-00${idx + 1}`).trim();
+      const dbStatusRaw = (u.status || 'available').toLowerCase();
+      const dbCondition = u.condition || '';
+      const condLower = dbCondition.toLowerCase();
+
+      let conditionLabel = 'Good';
+      if (condLower === 'good' || condLower === 'good condition') conditionLabel = 'Good';
+      else if (condLower === 'damaged') conditionLabel = 'Damaged';
+      else if (condLower === 'lost') conditionLabel = 'Lost';
+      else if (condLower === 'maintenance' || condLower === 'under_maintenance' || condLower === 'under repair') conditionLabel = 'Under Repair';
+      else if (condLower === 'worn' || condLower === 'minor wear') conditionLabel = 'Minor Wear';
+      else if (dbStatusRaw === 'damaged') conditionLabel = 'Damaged';
+      else if (dbStatusRaw === 'maintenance' || dbStatusRaw === 'under_maintenance') conditionLabel = 'Under Repair';
+      else if (dbStatusRaw === 'decommissioned' || dbStatusRaw === 'lost') conditionLabel = 'Lost';
+
+      let dbStatus = 'Available';
+      if (['lost', 'damaged', 'under repair', 'worn', 'minor wear'].includes(conditionLabel.toLowerCase()) ||
+          ['damaged', 'maintenance', 'under_maintenance', 'decommissioned', 'unavailable', 'lost'].includes(dbStatusRaw)) {
+        dbStatus = 'Unavailable';
+      } else if (dbStatusRaw === 'released' || dbStatusRaw === 'in-use' || dbStatusRaw === 'released / in-use') {
+        dbStatus = 'Released';
+      } else {
+        dbStatus = 'Available';
+      }
+
+      const eqType = u.equipment_type || u.equipmentType || inventoryItems.find(c => String(c.id) === String(u.equipment_type_id));
+      const catName = eqType?.eq_name || eqType?.name || eqType?.eq_type || 'AV Equipment';
+      const brandModel = [u.brand, u.model].filter(Boolean).join(' ');
+      const derivedName = brandModel || catName || 'Equipment Unit';
+
+      return {
+        id: u.id || idx + 1,
+        equipment_type_id: u.equipment_type_id,
+        barcode: bCode,
+        name: derivedName,
+        category: catName,
+        office_id: eqType?.office_id || u.office_id || null,
+        office_name: eqType?.office?.name || 'AVR Office I',
+        status: dbStatus,
+        condition: conditionLabel,
+        date_purchased: u.purchased_at ? u.purchased_at.substring(0, 10) : (u.date_purchased || '2026-01-15'),
+        lifespan_years: u.eq_lifespan || 5,
+        description: u.description || '',
+      };
+    }).filter(item => {
+      if (!selectedOfficeId || selectedOfficeId === "all") return true;
+      const offId = item.office_id;
+      const offName = item.office_name;
+      if (offId && String(offId) !== String(selectedOfficeId)) return false;
+      if (offName && officeScope && officeScope !== "All Offices" && !offName.toLowerCase().includes(officeScope.toLowerCase())) {
+        return false;
+      }
+      return true;
+    });
+  }, [equipmentUnits, inventoryItems, selectedOfficeId, officeScope]);
+
   const filteredRuleViolations = useMemo(() => {
     if (!selectedOfficeId || selectedOfficeId === "all") return ruleViolations;
     return ruleViolations.filter(v => {
@@ -202,129 +268,7 @@ export default function Reports() {
     inventory: "Inventory & Stock Table",
   };
 
-  // ── 1. REAL CSV EXPORT (Scoped to Active Tab) ──
-  const handleExportCSV = () => {
-    let csvContent = "";
-    let filename = `FSUU_${activeTab.toUpperCase()}_REPORT_${new Date().toISOString().slice(0, 10)}.csv`;
-
-    if (activeTab === "booking_borrowing") {
-      csvContent += `=== VENUE BOOKING REPORTS (${selectedOfficeName}) ===\n`;
-      csvContent += "Track Number,Requestor Name,Venue,Date of Usage,Time,Department / Office,Purpose,Remarks / Outcome\n";
-      filteredVenueBookings.forEach((b) => {
-        const track = b.tracking_number?.reference_code || (typeof b.tracking_number === 'string' ? b.tracking_number : '') || b.reference_code || `TRK-VB-${b.id}`;
-        const name = (b.filer_name || b.requestor || "Filer").replace(/"/g, '""');
-        const venue = (b.venue_name || b.venue || "AVR").replace(/"/g, '""');
-        const date = b.date_of_usage || b.date || "—";
-        const time = `${b.time_start || "08:00 AM"} - ${b.time_end || "05:00 PM"}`;
-        const dept = (b.program_office || b.department || "Academic Dept").replace(/"/g, '""');
-        const purpose = (b.purpose || "Academic Event").replace(/"/g, '""');
-        const isBreach = Boolean(b.has_damage) || (b.status || "").toLowerCase() === "damaged" || (b.status || "").toLowerCase() === "violation";
-        const remarks = isBreach ? "VIOLATION / DAMAGED" : "CLEAN / GOOD";
-        csvContent += `"${track}","${name}","${venue}","${date}","${time}","${dept}","${purpose}","${remarks}"\n`;
-      });
-
-      csvContent += `\n=== EQUIPMENT BORROWING REPORTS (${selectedOfficeName}) ===\n`;
-      csvContent += "Track Number,Requestor Name,Equipment,Quantity,Date of Usage,Department / Office,Purpose,Remarks / Outcome\n";
-      filteredEquipmentBorrowings.forEach((eb) => {
-        const track = eb.tracking_number?.reference_code || (typeof eb.tracking_number === 'string' ? eb.tracking_number : '') || eb.reference_code || `TRK-EB-${eb.id}`;
-        const name = (eb.filer_name || eb.requestor || "Borrower").replace(/"/g, '""');
-        const equip = (eb.equipment_name || eb.equipment || "Equipment Item").replace(/"/g, '""');
-        const qty = eb.quantity || eb.qty || 1;
-        const date = eb.date_of_usage || eb.date || "—";
-        const dept = (eb.program_office || eb.department || "Academic Dept").replace(/"/g, '""');
-        const purpose = (eb.purpose || "Academic Seminar").replace(/"/g, '""');
-        const isLost = (eb.status || "").toLowerCase() === "lost";
-        const isDamaged = (eb.status || "").toLowerCase() === "damaged" || Boolean(eb.has_damage);
-        const isLate = (eb.status || "").toLowerCase() === "late return" || (eb.status || "").toLowerCase() === "returned late" || (eb.timeliness || "").toLowerCase() === "late" || Boolean(eb.is_late);
-        const remarks = isLost ? "LOST" : isDamaged ? "VIOLATION / DAMAGED" : isLate ? "LATE RETURN" : "CLEAN / GOOD";
-        csvContent += `"${track}","${name}","${equip}","${qty}","${date}","${dept}","${purpose}","${remarks}"\n`;
-      });
-    } else if (activeTab === "breaches") {
-      csvContent += "Department / Program,Policy Violations,Equipment Violations,Late Returns,Total Violations\n";
-
-      const deptMap = {};
-      const addBreach = (dept, type) => {
-        const d = dept || "Academic Dept";
-        if (!deptMap[d]) deptMap[d] = { venue: 0, equip: 0, late: 0 };
-        if (type === "venue") deptMap[d].venue++;
-        else if (type === "late") deptMap[d].late++;
-        else deptMap[d].equip++;
-      };
-
-      filteredVenueBookings
-        .filter((b) => Boolean(b.has_damage) || (b.status || "").toLowerCase() === "damaged" || Boolean(b.violation))
-        .forEach((b) => addBreach(b.program_office || b.department, "venue"));
-
-      // Include equipment damaged during venue bookings
-      filteredVenueBookings
-        .filter(b => b.unit_conditions && typeof b.unit_conditions === "object")
-        .forEach(b => {
-          Object.values(b.unit_conditions).forEach(c => {
-            const cLower = String(c || "").toLowerCase();
-            if (cLower === "damaged" || cLower === "lost") {
-              addBreach(b.program_office || b.department, "equip");
-            }
-          });
-        });
-
-      filteredEquipmentBorrowings
-        .filter((eb) => Boolean(eb.has_damage) || (eb.status || "").toLowerCase() === "damaged" || (eb.status || "").toLowerCase() === "lost" || (eb.status || "").toLowerCase() === "late return" || (eb.status || "").toLowerCase() === "returned late" || Boolean(eb.is_late) || (eb.timeliness || "").toLowerCase() === "late")
-        .forEach((eb) => {
-          const isEqDmg = Boolean(eb.has_damage) || (eb.status || "").toLowerCase() === "damaged" || (eb.status || "").toLowerCase() === "lost";
-          addBreach(eb.program_office || eb.department, isEqDmg ? "equip" : "late");
-        });
-
-      try {
-        const dLogs = JSON.parse(localStorage.getItem("fsuu_damaged_equipment_log") || "[]");
-        dLogs.forEach((d) => {
-          let dept = d.department || d.program_office || d.dept;
-          if (!dept && d.borrow_id && Array.isArray(filteredEquipmentBorrowings)) {
-            const matchEB = filteredEquipmentBorrowings.find(eb => String(eb.id) === String(d.borrow_id));
-            if (matchEB) dept = matchEB.program_office || matchEB.department || matchEB.dept;
-          }
-          if (!dept && d.booking_id && Array.isArray(filteredVenueBookings)) {
-            const matchVB = filteredVenueBookings.find(vb => String(vb.id) === String(d.booking_id));
-            if (matchVB) dept = matchVB.program_office || matchVB.department || matchVB.dept;
-          }
-          addBreach(dept || "ASP", "equip");
-        });
-      } catch {}
-
-      Object.entries(deptMap).forEach(([dept, counts]) => {
-        const total = counts.venue + counts.equip + counts.late;
-        csvContent += `"${dept.replace(/"/g, '""')}","${selectedOfficeName}","${counts.venue}","${counts.equip}","${counts.late}","${total}"\n`;
-      });
-    } else if (activeTab === "inventory") {
-      csvContent += `=== EQUIPMENT INVENTORY STOCK TABLE (${selectedOfficeName}) ===\n`;
-      csvContent += "Item Code,Category,Expected Total,Present Available,Reserved,Released,Damaged,Lost,Notes\n";
-      filteredInventoryItems.forEach((item, idx) => {
-        const code = `EQ-00${idx + 1}`;
-        const cat = (item.eq_name || item.name || item.category || item.eq_type || "Equipment").replace(/"/g, '""');
-        const expected = item.calculated_total ?? item.total_quantity ?? 0;
-        const available = item.calculated_available ?? item.available_count ?? expected;
-        const reserved = item.reserved_count ?? item.reserved ?? 0;
-        const released = item.released_count ?? 0;
-        const damaged = item.damaged_count ?? 0;
-        const lost = item.lost_count ?? 0;
-        const notes = (item.description || "").replace(/"/g, '""');
-        csvContent += `"${code}","${cat}","${expected}","${available}","${reserved}","${released}","${damaged}","${lost}","${notes}"\n`;
-      });
-    }
-
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", filename);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-
-    setFeedback(`✅ ${tabLabels[activeTab]} exported as CSV.`);
-    setTimeout(() => setFeedback(null), 3500);
-  };
-
-  // ── 2. OPEN EMAIL MODAL (Pre-fill with user typed report notes & table summary) ──
+  // ── 1. OPEN EMAIL MODAL (Pre-fill with user typed report notes & table summary) ──
   const handleOpenEmailModal = () => {
     const venueNotes = localStorage.getItem("fsuu_report_venue_notes") || "";
     const equipNotes = localStorage.getItem("fsuu_report_equipment_notes") || "";
@@ -344,7 +288,7 @@ export default function Reports() {
     setShowEmailModal(true);
   };
 
-  // ── 3. SEND REPORT EMAIL (Itemized text payload) ──
+  // ── 2. SEND REPORT EMAIL (Itemized text payload) ──
   const handleSendEmailSubmit = async (e) => {
     e.preventDefault();
     if (!recipientEmail.trim()) {
@@ -372,9 +316,13 @@ export default function Reports() {
         contentData += `${i + 1}. ${v.department || "Academic Dept"}: ${v.venue_violations || 0} Venue Breaches, ${v.late_returns || 0} Late Returns, ${v.equipment_damages || 0} Damaged, ${v.equipment_lost || 0} Lost\n`;
       });
     } else if (activeTab === "inventory") {
-      contentData += `=== EQUIPMENT STOCK INVENTORY ===\n`;
+      contentData += `=== MASTER EQUIPMENT STOCK INVENTORY (${filteredInventoryItems.length} categories) ===\n`;
       filteredInventoryItems.forEach((it, i) => {
         contentData += `${i + 1}. ${it.eq_name || it.name}: Expected: ${it.total_quantity || 0}, Available: ${it.available_count || 0}, Released: ${it.released_count || 0}, Damaged: ${it.damaged_count || 0}, Lost: ${it.lost_count || 0}\n`;
+      });
+      contentData += `\n=== PHYSICAL EQUIPMENT UNITS (${filteredUnits.length} units) ===\n`;
+      filteredUnits.forEach((u, i) => {
+        contentData += `${i + 1}. [${u.barcode}] ${u.name} | Category: ${u.category} | Status: ${u.status} | Condition: ${u.condition} | Purchased: ${u.date_purchased}\n`;
       });
     }
 
@@ -401,7 +349,7 @@ export default function Reports() {
     }
   };
 
-  // ── 4. PRINT / EXPORT PDF ──
+  // ── 3. PRINT / EXPORT PDF ──
   const handlePrintPDF = () => {
     window.print();
   };
@@ -415,38 +363,26 @@ export default function Reports() {
     <div className="space-y-6">
       {/* Action Toolbar */}
       <div className="flex items-center justify-end gap-2 flex-wrap">
+        <button
+          type="button"
+          onClick={() => setShowPdfModal(true)}
+          className="flex items-center gap-1.5 px-3.5 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-extrabold shadow-xs transition-colors cursor-pointer"
+          title={`Preview / Export ${tabLabels[activeTab]} as PDF`}
+        >
+          <Printer size={14} className="text-blue-600" />
+          <span>Export PDF</span>
+        </button>
 
-
-          <button
-            type="button"
-            onClick={handleExportCSV}
-            className="flex items-center gap-1.5 px-3.5 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-extrabold shadow-xs transition-colors cursor-pointer"
-            title={`Export ${tabLabels[activeTab]} as CSV`}
-          >
-            <Download size={14} className="text-blue-600" />
-            <span>Export CSV</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setShowPdfModal(true)}
-            className="flex items-center gap-1.5 px-3.5 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-extrabold shadow-xs transition-colors cursor-pointer"
-            title={`Preview / Print ${tabLabels[activeTab]} as PDF`}
-          >
-            <Printer size={14} className="text-slate-700" />
-            <span>Export PDF</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={handleOpenEmailModal}
-            className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-extrabold shadow-xs transition-colors cursor-pointer"
-            title={`Send ${tabLabels[activeTab]} via Email`}
-          >
-            <Mail size={14} />
-            <span>Send via Email</span>
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={handleOpenEmailModal}
+          className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-extrabold shadow-xs transition-colors cursor-pointer"
+          title={`Send ${tabLabels[activeTab]} via Email`}
+        >
+          <Mail size={14} />
+          <span>Send via Email</span>
+        </button>
+      </div>
 
       {feedback && (
         <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-extrabold flex items-center gap-2 shadow-2xs animate-in fade-in duration-200">
@@ -660,7 +596,7 @@ export default function Reports() {
             </div>
 
             {/* Printable Report Document Body */}
-            <div className="p-8 overflow-y-auto space-y-6 text-xs print:p-0">
+            <div id="printable-report-area" className="p-8 overflow-y-auto space-y-6 text-xs print:p-0">
               {/* Official Document Letterhead */}
               <div className="text-center border-b-2 border-slate-900 pb-4 space-y-1">
                 <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
@@ -828,34 +764,87 @@ export default function Reports() {
               )}
 
               {activeTab === "inventory" && (
-                <div className="space-y-4">
-                  <h4 className="font-extrabold text-xs text-slate-900 uppercase tracking-wider border-b border-slate-200 pb-1">
-                    Equipment Stock Inventory Table
-                  </h4>
-                  <table className="w-full text-[11px] border border-slate-300">
-                    <thead className="bg-slate-100">
-                      <tr>
-                        {["Item Code", "Category", "Expected Qty", "Present Available", "Reserved", "Released", "Damaged", "Lost", "Notes"].map(h => (
-                          <th key={h} className="border border-slate-300 p-2 text-left font-bold">{h}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredInventoryItems.map((item, idx) => (
-                        <tr key={idx}>
-                          <td className="border border-slate-300 p-2 font-mono font-bold text-slate-700">EQ-00{idx + 1}</td>
-                          <td className="border border-slate-300 p-2 font-bold text-slate-900">{item.eq_type || item.eq_name || item.name || "Equipment"}</td>
-                          <td className="border border-slate-300 p-2 text-center font-bold">{item.calculated_total ?? item.total_quantity ?? 0}</td>
-                          <td className="border border-slate-300 p-2 text-center font-bold text-emerald-600">{item.calculated_available ?? item.available_count ?? 0}</td>
-                          <td className="border border-slate-300 p-2 text-center font-bold text-indigo-600">{item.reserved_count ?? item.reserved ?? 0}</td>
-                          <td className="border border-slate-300 p-2 text-center font-bold text-blue-600">{item.released_count ?? 0}</td>
-                          <td className="border border-slate-300 p-2 text-center font-bold text-rose-600">{item.damaged_count ?? 0}</td>
-                          <td className="border border-slate-300 p-2 text-center font-bold text-amber-600">{item.lost_count ?? 0}</td>
-                          <td className="border border-slate-300 p-2 text-slate-600">{item.description || "—"}</td>
+                <div className="space-y-6">
+                  {/* 1. Master Equipment Stock Inventory Table */}
+                  <div className="space-y-2">
+                    <h4 className="font-extrabold text-xs text-slate-900 uppercase tracking-wider border-b border-slate-200 pb-1">
+                      Master Equipment Stock Summary ({filteredInventoryItems.length} Categories)
+                    </h4>
+                    <table className="w-full text-[11px] border border-slate-300">
+                      <thead className="bg-slate-100">
+                        <tr>
+                          {["Item Code", "Category / Equipment Name", "Expected Total", "Present Available", "Reserved", "Released", "Damaged", "Lost", "Notes"].map(h => (
+                            <th key={h} className="border border-slate-300 p-2 text-left font-bold">{h}</th>
+                          ))}
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {filteredInventoryItems.length === 0 ? (
+                          <tr>
+                            <td colSpan={9} className="border border-slate-300 p-3 text-center text-slate-400">
+                              No equipment stock inventory records found.
+                            </td>
+                          </tr>
+                        ) : (
+                          filteredInventoryItems.map((item, idx) => (
+                            <tr key={idx} className="border-b border-slate-200">
+                              <td className="border border-slate-300 p-2 font-mono font-bold text-slate-700">EQ-00{idx + 1}</td>
+                              <td className="border border-slate-300 p-2 font-bold text-slate-900">{item.eq_type || item.eq_name || item.name || "Equipment"}</td>
+                              <td className="border border-slate-300 p-2 text-center font-bold">{item.calculated_total ?? item.total_quantity ?? 0}</td>
+                              <td className="border border-slate-300 p-2 text-center font-bold text-emerald-600">{item.calculated_available ?? item.available_count ?? 0}</td>
+                              <td className="border border-slate-300 p-2 text-center font-bold text-indigo-600">{item.reserved_count ?? item.reserved ?? 0}</td>
+                              <td className="border border-slate-300 p-2 text-center font-bold text-blue-600">{item.released_count ?? 0}</td>
+                              <td className="border border-slate-300 p-2 text-center font-bold text-rose-600">{item.damaged_count ?? 0}</td>
+                              <td className="border border-slate-300 p-2 text-center font-bold text-amber-600">{item.lost_count ?? 0}</td>
+                              <td className="border border-slate-300 p-2 text-slate-600">{item.description || "—"}</td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* 2. Physical Equipment Units Table */}
+                  <div className="space-y-2 pt-2 border-t border-slate-200">
+                    <h4 className="font-extrabold text-xs text-slate-900 uppercase tracking-wider border-b border-slate-200 pb-1">
+                      Physical Equipment Units Inventory ({filteredUnits.length} Units Registered)
+                    </h4>
+                    <table className="w-full text-[11px] border border-slate-300">
+                      <thead className="bg-slate-100">
+                        <tr>
+                          {["#", "Unit Barcode", "Equipment Unit Name", "Assigned Category", "Status", "Condition", "Date Purchased", "Lifespan"].map(h => (
+                            <th key={h} className="border border-slate-300 p-2 text-left font-bold">{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredUnits.length === 0 ? (
+                          <tr>
+                            <td colSpan={8} className="border border-slate-300 p-3 text-center text-slate-400">
+                              No physical equipment units found in this scope.
+                            </td>
+                          </tr>
+                        ) : (
+                          filteredUnits.map((u, i) => (
+                            <tr key={i} className="border-b border-slate-200">
+                              <td className="border border-slate-300 p-2 text-center text-slate-500 font-bold">{i + 1}</td>
+                              <td className="border border-slate-300 p-2 font-mono font-bold text-blue-700">{u.barcode || u.unit_code || `UNIT-${u.id}`}</td>
+                              <td className="border border-slate-300 p-2 font-semibold text-slate-900">{u.name || "Equipment Unit"}</td>
+                              <td className="border border-slate-300 p-2">{u.category || "AV Equipment"}</td>
+                              <td className="border border-slate-300 p-2 font-bold uppercase text-[10px]">{u.status || "AVAILABLE"}</td>
+                              <td className="border border-slate-300 p-2 font-bold">
+                                <span className={u.condition === "Damaged" ? "text-rose-600" : (u.condition === "Lost" ? "text-amber-600" : "text-emerald-600")}>
+                                  {u.condition || "Good"}
+                                </span>
+                              </td>
+                              <td className="border border-slate-300 p-2 text-slate-600">{u.date_purchased || "—"}</td>
+                              <td className="border border-slate-300 p-2 text-slate-600">{u.lifespan_years || 5} yrs</td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               )}
 
