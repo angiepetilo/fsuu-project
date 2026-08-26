@@ -89,91 +89,42 @@ export default function Dashboard() {
     if (showLoading && !cachedData) setLoading(true);
     setError(null);
     try {
-      const [histData, vbRes, eqData, ebRes, dmgData, overridesData] = await Promise.all([
-        fetchWithCache("dashboard_history_log", () => api.get("/admin/history-log").then(r => r.data).catch(() => ({ venue_bookings: [], equipment_borrowings: [] }))),
-        fetchWithCache("dashboard_venue_bookings", () => api.get("/avr-venue-bookings").catch(() => ({ data: { data: [] } }))),
-        fetchWithCache("equipment_types_list", () => api.get("/admin/equipment-types").then(r => r.data).catch(() => [])),
-        fetchWithCache("dashboard_equipment_borrowings", () => api.get("/avr-equipment-borrowings").catch(() => ({ data: { data: [] } }))),
-        fetchWithCache("equipment_damages_summary", () => api.get("/admin/equipment-damages").then(r => r.data).catch(() => ({ total_damaged_count: 0, total_lost_count: 0 }))),
-        fetchWithCache("venue_overrides_list", () => api.get("/public/venue-overrides").then(r => r.data).catch(() => [])),
-      ]);
+      const statsData = await fetchWithCache("admin_dashboard_stats", () => 
+        api.get("/dashboard/stats").then(r => r.data).catch(() => null)
+      );
 
-      const selectedOfficeId = context?.selectedOfficeId;
-      const selectedOfficeName = context?.selectedOffice || officeScope;
+      if (!statsData) {
+        setLoading(false);
+        return;
+      }
 
-      const matchesOffice = (item) => {
-        if (!selectedOfficeId || selectedOfficeId === "all") {
-          if (!isSuperAdmin && officeScope && officeScope !== "All Offices" && officeScope !== "Admin" && officeScope !== "Staff" && officeScope !== "AVR Operations") {
-            const name = item.office_name || item.office?.name || item.office || "";
-            if (name) return name.toLowerCase().includes(officeScope.toLowerCase());
-          }
-          return true;
-        }
-        const offId = item.office_id || item.office?.id || item.venue?.office_id || item.items?.[0]?.equipment_type?.office_id;
-        const offName = item.office_name || item.office?.name || item.venue?.office?.name;
-        if (offId) return String(offId) === String(selectedOfficeId);
-        if (offName && selectedOfficeName && selectedOfficeName !== "All Offices") {
-          return offName.toLowerCase().includes(selectedOfficeName.toLowerCase());
-        }
-        return true;
-      };
+      const q = statsData.quick_stats || {};
+      setTotalVenueBookings(q.total_venue_bookings || 0);
+      setTotalEquipBorrows(q.total_equip_borrows || 0);
+      setPendingApproval((q.pending_bookings || 0) + (q.pending_borrowings || 0));
+      setPendingEquipBorrowings(q.pending_borrowings || 0);
+      setTotalDamaged(q.total_equipment_damages || q.damage_reports || 0);
+      setTotalLost(q.total_equipment_lost || 0);
 
-      // 1. History Log Data
-      let histVB = (histData?.venue_bookings || []).filter(matchesOffice);
-      let histEB = (histData?.equipment_borrowings || []).filter(matchesOffice);
-      setTotalVenueBookings(histVB.length);
-      setTotalEquipBorrows(histEB.length);
+      // Top Departments
+      setTopBookedDepartments(statsData.top_departments || []);
 
-      // 2. Active Venue Bookings
-      const rawVb = vbRes.data?.data || vbRes.data || [];
-      let activeVB = (Array.isArray(rawVb) ? rawVb : []).filter(matchesOffice);
-      
-      const rawOverrides = overridesData || [];
-      const formattedOverrides = (Array.isArray(rawOverrides) ? rawOverrides : []).map(o => ({
-        date_of_usage: o.override_date ? o.override_date.split("T")[0] : "",
-        status: o.status || "maintenance",
-        venue_name: o.venue?.name || "Facility",
-        filer_name: o.notes || "System Override",
-      }));
-      
-      setCalendarBookings([...activeVB, ...formattedOverrides]);
+      // Top Equipment
+      setMostUsedEquipment(statsData.top_equipment || []);
 
-      const pendingVBCount = activeVB.filter(b => {
-        const s = (b.status || b.tracking_number?.status || "").toLowerCase();
-        return s === "pending";
-      }).length;
+      // Top Violations
+      setTopViolatingDepartments(statsData.programs_with_violations || []);
 
-      // 3. Active Equipment Borrowings
-      const rawEb = ebRes.data?.data || ebRes.data || [];
-      let activeEB = (Array.isArray(rawEb) ? rawEb : []).filter(matchesOffice);
-      const pendingEBCount = activeEB.filter(b => {
-        const s = (b.status || b.tracking_number?.status || "").toLowerCase();
-        return s === "pending";
-      }).length;
-      setPendingEquipBorrowings(pendingEBCount);
-      setPendingApproval(pendingVBCount + pendingEBCount);
+      // Calendar & Staff Tasks
+      const calBookings = statsData.calendar_bookings || [];
+      setCalendarBookings(calBookings);
 
-      // 4. Equipment Stock
-      const eqCatalog = (Array.isArray(eqData) ? eqData : (eqData?.data || [])).filter(matchesOffice);
-      const dmgSummary = dmgData || {};
-      const damagedCount = typeof dmgSummary.total_damaged_count === 'number' && dmgSummary.total_damaged_count > 0 && (!selectedOfficeId || selectedOfficeId === "all")
-        ? dmgSummary.total_damaged_count
-        : eqCatalog.reduce((sum, e) => sum + (e.damaged_count || 0), 0);
-      const lostCount = typeof dmgSummary.total_lost_count === 'number' && dmgSummary.total_lost_count > 0 && (!selectedOfficeId || selectedOfficeId === "all")
-        ? dmgSummary.total_lost_count
-        : eqCatalog.reduce((sum, e) => sum + (e.lost_count || 0), 0);
-      setTotalDamaged(damagedCount);
-      setTotalLost(lostCount);
-
-      // 5. Staff Tasks (Include both Venue Bookings & Equipment Borrowings)
       const tasks = [];
-
-      // Venue Tasks
-      activeVB.forEach((b, idx) => {
-        const s = (b.status || b.tracking_number?.status || "").toLowerCase();
-        const ref = b.reference_code || b.tracking_number?.reference_code || `TRK-AVR${b.id}`;
-        const filer = b.filer_name || b.requestor || "FSUU Filer";
-        const vName = b.venue_name || b.venue?.name || "AVR Facility";
+      calBookings.forEach((b, idx) => {
+        const s = (b.status || "").toLowerCase();
+        const ref = b.reference_code || `TRK-AVR${b.id}`;
+        const filer = b.filer_name || "FSUU Filer";
+        const vName = b.venue_name || "AVR Facility";
         const tRange = `${b.time_start || "08:00"} - ${b.time_end || "17:00"}`;
 
         if (s === "pending") {
@@ -202,92 +153,48 @@ export default function Dashboard() {
           });
         }
       });
-
-      // Equipment Tasks
-      activeEB.forEach((eb, idx) => {
-        const s = (eb.status || eb.tracking_number?.status || "").toLowerCase();
-        const ref = eb.reference_code || eb.tracking_number?.reference_code || `EQUIP-REQ-${eb.id}`;
-        const filer = eb.filer_name || eb.requestor || "Borrower";
-        
-        let equipNames = "Equipment Units";
-        if (Array.isArray(eb.items) && eb.items.length > 0) {
-          equipNames = eb.items.map(it => it.equipment_type?.name || it.equipmentType?.name || it.name || "Item").join(", ");
-        } else if (eb.equipment_type?.name) {
-          equipNames = eb.equipment_type.name;
-        } else if (eb.equipment_name) {
-          equipNames = eb.equipment_name;
-        }
-
-        const tRange = `${eb.time_borrowed || eb.start_time || "08:00"} - ${eb.time_returned || eb.end_time || "17:00"}`;
-
-        if (s === "pending") {
-          tasks.push({
-            id: `eb-task-${eb.id || idx}`,
-            type: "equipment",
-            tracking_no: ref,
-            borrower: filer,
-            equipment: equipNames,
-            time: tRange,
-            task: "Verify & Dispatch Equipment",
-            action_label: "Release",
-            link: isSysadRoute ? "/sysad/equipment-borrowing" : "/admin/equipment-borrowing",
-          });
-        } else if (s === "ongoing" || s === "on-going" || s === "borrowed" || s === "approved") {
-          tasks.push({
-            id: `eb-task-${eb.id || idx}`,
-            type: "equipment",
-            tracking_no: ref,
-            borrower: filer,
-            equipment: equipNames,
-            time: tRange,
-            task: "Inspect & Return Clearance",
-            action_label: "Inspect",
-            link: isSysadRoute ? "/sysad/equipment-borrowing" : "/admin/equipment-borrowing",
-          });
-        }
-      });
-
       setStaffTasks(tasks);
-
-      // 6. Department Bookings Distribution
-      const deptCounts = {};
-      [...histVB, ...activeVB].forEach(b => {
-        const dept = (b.program_office || b.department || "General Dept").trim();
-        if (dept) deptCounts[dept] = (deptCounts[dept] || 0) + 1;
-      });
-      const sortedDepts = Object.entries(deptCounts)
-        .map(([name, count]) => ({ name, count }))
-        .sort((a, b) => b.count - a.count);
-      const totalAllBookings = sortedDepts.reduce((sum, d) => sum + d.count, 0) || 1;
-      const finalDepts = sortedDepts.map(d => ({
-        ...d,
-        pct: Math.round((d.count / totalAllBookings) * 100)
-      }));
-      setTopBookedDepartments(finalDepts);
-
-      // 7. Violations by Department (Aggregated)
-      const violationCounts = {};
-      histVB.filter(b => (b.status || "").toLowerCase() === "damaged" || Boolean(b.has_damage) || Boolean(b.violation)).forEach(b => {
-        const dept = (b.program_office || b.department || "General Dept").trim();
-        if (dept) violationCounts[dept] = (violationCounts[dept] || 0) + 1;
-      });
-      const sortedViolations = Object.entries(violationCounts)
-        .map(([dept, count]) => ({ dept, count }))
-        .sort((a, b) => b.count - a.count);
-      setTopViolatingDepartments(sortedViolations);
 
       try {
         localStorage.setItem("fsuu_cache_admin_dashboard", JSON.stringify({
-          totalVenueBookings: histVB.length,
-          pendingApproval: pendingVBCount + pendingEBCount,
-          pendingEquipBorrowings: pendingEBCount,
-          totalEquipBorrows: histEB.length,
-          totalDamaged: damagedCount,
-          totalLost: lostCount,
-          topBookedDepartments: finalDepts,
-          topViolatingDepartments: sortedViolations,
+          totalVenueBookings: q.total_venue_bookings || 0,
+          pendingApproval: (q.pending_bookings || 0) + (q.pending_borrowings || 0),
+          pendingEquipBorrowings: q.pending_borrowings || 0,
+          totalEquipBorrows: q.total_equip_borrows || 0,
+          totalDamaged: q.total_equipment_damages || q.damage_reports || 0,
+          totalLost: q.total_equipment_lost || 0,
+          topBookedDepartments: statsData.top_departments || [],
+          topViolatingDepartments: statsData.programs_with_violations || [],
         }));
-      } catch { }
+      } catch {}
+      const rawDepts = statsData.top_departments || [];
+      const totalAllBookings = rawDepts.reduce((sum, d) => sum + (d.bookings || d.count || 0), 0) || 1;
+      const finalDepts = rawDepts.map(d => ({
+        name: d.name || d.program || "Department",
+        count: d.bookings || d.count || 0,
+        pct: Math.round(((d.bookings || d.count || 0) / totalAllBookings) * 100)
+      }));
+      setTopBookedDepartments(finalDepts);
+
+      // Top Violations
+      const rawViolations = (statsData.programs_with_violations || []).map(p => ({
+        dept: p.program || p.dept || "Academic Dept",
+        count: (p.violations || 0) + (p.late || 0),
+      }));
+      setTopViolatingDepartments(rawViolations);
+
+      try {
+        localStorage.setItem("fsuu_cache_admin_dashboard", JSON.stringify({
+          totalVenueBookings: q.total_venue_bookings || 0,
+          pendingApproval: (q.pending_bookings || 0) + (q.pending_borrowings || 0),
+          pendingEquipBorrowings: q.pending_borrowings || 0,
+          totalEquipBorrows: q.total_equip_borrows || 0,
+          totalDamaged: q.total_equipment_damages || q.damage_reports || 0,
+          totalLost: q.total_equipment_lost || 0,
+          topBookedDepartments: finalDepts,
+          topViolatingDepartments: rawViolations,
+        }));
+      } catch {}
 
     } catch {
       setError("Unable to sync dashboard data.");

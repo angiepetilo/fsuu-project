@@ -45,23 +45,25 @@ const PROTECTED_TAB_NAMES = {
 export default function SysadSettings() {
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // Determine initial tab from URL param -> localStorage -> default "users"
+  // Determine tab from URL param or default to "users"
   const getInitialTab = () => {
     const urlTab = searchParams.get("tab");
     if (urlTab && SYSAD_TABS.some((t) => t.id === urlTab)) {
       return urlTab;
     }
-    try {
-      const savedTab = localStorage.getItem("fsuu_sysad_active_tab");
-      if (savedTab && SYSAD_TABS.some((t) => t.id === savedTab)) {
-        return savedTab;
-      }
-    } catch {}
     return "users";
   };
 
   const [activeTab, setActiveTab] = useState(getInitialTab);
   const [mountedTabs, setMountedTabs] = useState(() => new Set([getInitialTab()]));
+
+  // When user navigates from other features to /sysad/settings, always reset to default tab if no ?tab= in URL
+  useEffect(() => {
+    const urlTab = searchParams.get("tab");
+    const targetTab = urlTab && SYSAD_TABS.some((t) => t.id === urlTab) ? urlTab : "users";
+    setActiveTab(targetTab);
+    setMountedTabs((prev) => new Set([...prev, targetTab]));
+  }, [searchParams]);
 
   // Password modal state
   const [pendingTab, setPendingTab]     = useState(null);

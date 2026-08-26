@@ -248,8 +248,62 @@ class DashboardStatsController extends Controller
 
         $topViolatingDept = !empty($programsList) ? $programsList[0]['program'] : 'None';
 
+        // Total Venue Bookings (active term)
+        $totalVbQuery = DB::table('venue_bookings')->whereNull('archived_at');
+        if ($termId) $totalVbQuery->where('academic_term_id', $termId);
+        $totalVenueBookings = $totalVbQuery->count();
+
+        // Total Equipment Borrows (active term)
+        $totalEbQuery = DB::table('equipment_borrows')->whereNull('archived_at');
+        if ($termId) $totalEbQuery->where('academic_term_id', $termId);
+        $totalEquipBorrows = $totalEbQuery->count();
+
+        // Top Booked Departments (from venue bookings and equipment borrows)
+        $deptBookingsBuilder = DB::table('venue_bookings')
+            ->whereNull('archived_at')
+            ->select('program_office', DB::raw('count(*) as total'));
+        if ($termId) $deptBookingsBuilder->where('academic_term_id', $termId);
+        $deptBookings = $deptBookingsBuilder
+            ->groupBy('program_office')
+            ->orderByDesc('total')
+            ->limit(5)
+            ->get();
+
+        $topBookedDepts = $deptBookings->map(function($d) {
+            return [
+                'name' => $d->program_office ?: 'Academic Dept',
+                'bookings' => (int)$d->total,
+            ];
+        });
+
+        // Lightweight active bookings for calendar & tasks
+        $calendarBookings = DB::table('venue_bookings')
+            ->join('tracking_numbers', 'venue_bookings.tracking_number_id', '=', 'tracking_numbers.id')
+            ->leftJoin('venues', 'venue_bookings.venue_id', '=', 'venues.id')
+            ->whereNull('venue_bookings.archived_at')
+            ->whereIn(DB::raw('LOWER(tracking_numbers.status)'), ['pending', 'approved', 'ongoing', 'on-going', 'post-inspection', 'completed'])
+            ->select(
+                'venue_bookings.id',
+                'venue_bookings.filer_name',
+                'venue_bookings.program_office',
+                'venue_bookings.date_of_usage',
+                'venue_bookings.reservation_end_date',
+                'venue_bookings.time_start',
+                'venue_bookings.time_end',
+                'venue_bookings.purpose',
+                'venue_bookings.equipment_notes',
+                'venues.name as venue_name',
+                'tracking_numbers.reference_code',
+                'tracking_numbers.status'
+            )
+            ->orderBy('venue_bookings.date_of_usage', 'asc')
+            ->limit(100)
+            ->get();
+
         return [
             'quick_stats' => [
+                'total_venue_bookings' => $totalVenueBookings,
+                'total_equip_borrows' => $totalEquipBorrows,
                 'pending_bookings' => $pendingBookings,
                 'pending_borrowings' => $pendingBorrowings,
                 'available_equipment' => $availableEquipment,
@@ -260,8 +314,10 @@ class DashboardStatsController extends Controller
                 'total_equipment_lost' => $totalEquipmentLost,
                 'top_violating_department' => $topViolatingDept,
             ],
+            'top_departments' => $topBookedDepts,
             'top_equipment' => $topEquipment,
             'programs_with_violations' => array_slice($programsList, 0, 5),
+            'calendar_bookings' => $calendarBookings,
         ];
     }
 }
