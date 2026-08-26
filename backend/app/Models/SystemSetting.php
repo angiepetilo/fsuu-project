@@ -137,17 +137,24 @@ class SystemSetting extends Model
     {
         try {
             $settings = self::first();
-            if ($settings && !empty($settings->smtp_host)) {
-                Config::set('mail.default', 'smtp');
-                Config::set('mail.mailers.smtp.host', $settings->smtp_host);
-                Config::set('mail.mailers.smtp.port', $settings->smtp_port ?: 587);
-                if (!empty($settings->smtp_username)) {
-                    Config::set('mail.mailers.smtp.username', $settings->smtp_username);
+            $configuredMailer = env('MAIL_MAILER', config('mail.default', 'smtp'));
+
+            if ($settings) {
+                // If the app is configured with an API transport (brevo, resend), respect it
+                if (in_array($configuredMailer, ['brevo', 'resend'])) {
+                    Config::set('mail.default', $configuredMailer);
+                } elseif (!empty($settings->smtp_host)) {
+                    Config::set('mail.default', 'smtp');
+                    Config::set('mail.mailers.smtp.host', $settings->smtp_host);
+                    Config::set('mail.mailers.smtp.port', $settings->smtp_port ?: 587);
+                    if (!empty($settings->smtp_username)) {
+                        Config::set('mail.mailers.smtp.username', $settings->smtp_username);
+                    }
+                    if (!empty($settings->smtp_password)) {
+                        Config::set('mail.mailers.smtp.password', $settings->smtp_password);
+                    }
+                    Config::set('mail.mailers.smtp.encryption', $settings->smtp_encryption ?: 'tls');
                 }
-                if (!empty($settings->smtp_password)) {
-                    Config::set('mail.mailers.smtp.password', $settings->smtp_password);
-                }
-                Config::set('mail.mailers.smtp.encryption', $settings->smtp_encryption ?: 'tls');
 
                 if (!empty($settings->mail_from_address)) {
                     Config::set('mail.from.address', $settings->mail_from_address);

@@ -22,6 +22,12 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // ─── Custom Mail Drivers ─────────────────────────────────────────────
+        \Illuminate\Support\Facades\Mail::extend('brevo', function (array $config = []) {
+            $key = $config['key'] ?? config('services.brevo.key') ?? env('BREVO_API_KEY') ?? env('BREVO_KEY');
+            return new \Symfony\Component\Mailer\Bridge\Brevo\Transport\BrevoApiTransport((string) $key);
+        });
+
         Gate::policy(VenueBooking::class, VenueBookingPolicy::class);
         Gate::policy(EquipmentBorrowing::class, EquipmentBorrowingPolicy::class);
 
