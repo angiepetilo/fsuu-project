@@ -26,5 +26,6 @@ php artisan migrate:fresh --seed --force || php artisan migrate --force || true
 echo "🚀 Caching routes and configuration..."
 php artisan optimize || true
 
-echo "🌟 Starting PHP-FPM..."
-exec php-fpm
+PORT_TO_SERVE="${PORT:-8000}"
+echo "🌟 Starting HTTP server on port ${PORT_TO_SERVE}..."
+exec php artisan serve --host=0.0.0.0 --port="${PORT_TO_SERVE}" --no-reload

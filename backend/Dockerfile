@@ -75,6 +75,6 @@ RUN chmod +x /usr/local/bin/entrypoint.sh
 
 USER www-data
 
-EXPOSE 9000
+EXPOSE 8000 10000
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
