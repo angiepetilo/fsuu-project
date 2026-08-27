@@ -31,19 +31,25 @@ class VenueSeeder extends Seeder
         ];
 
         foreach ($venues as $v) {
-            Venue::withTrashed()->updateOrCreate(
-                [
-                    'name' => $v['name'],
-                ],
-                [
+            $existing = Venue::withTrashed()->where('name', $v['name'])->first();
+            if ($existing) {
+                $existing->update([
+                    'capacity'    => $v['capacity'],
+                    'location'    => $v['location'],
+                    'status'      => $v['status'],
+                    'archived_at' => null,
+                ]);
+            } else {
+                Venue::create([
+                    'name'              => $v['name'],
                     'capacity'          => $v['capacity'],
                     'location'          => $v['location'],
                     'status'            => $v['status'],
                     'allowed_equipment' => null,
                     'avatar'            => null,
                     'archived_at'       => null,
-                ]
-            );
+                ]);
+            }
         }
     }
 }

@@ -52,8 +52,18 @@ export default function Step3Details({
         const res = await api.get(`/public/equipment-types?${params.toString()}`);
         let data = Array.isArray(res.data) ? res.data : (res.data?.data || []);
         setEquipmentCatalog(data);
+        if (data.length > 0) {
+          try {
+            localStorage.setItem("fsuu_equipment_types", JSON.stringify(data));
+          } catch {}
+        }
       } catch {
-        setEquipmentCatalog([]);
+        try {
+          const saved = JSON.parse(localStorage.getItem("fsuu_equipment_types") || "[]");
+          setEquipmentCatalog(saved);
+        } catch {
+          setEquipmentCatalog([]);
+        }
       }
     };
 

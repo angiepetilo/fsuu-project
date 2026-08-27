@@ -114,6 +114,8 @@ export default function ManageEquipments() {
           dbStatus = 'unavailable';
         } else if (dbStatusRaw === 'released' || dbStatusRaw === 'in-use' || dbStatusRaw === 'released / in-use' || dbStatusRaw === 'release / in - use') {
           dbStatus = 'Released';
+        } else if (dbStatusRaw === 'reserved') {
+          dbStatus = 'Reserved';
         } else {
           dbStatus = 'Available';
         }

@@ -208,6 +208,8 @@ export default function Reports() {
         dbStatus = 'Unavailable';
       } else if (dbStatusRaw === 'released' || dbStatusRaw === 'in-use' || dbStatusRaw === 'released / in-use') {
         dbStatus = 'Released';
+      } else if (dbStatusRaw === 'reserved') {
+        dbStatus = 'Reserved';
       } else {
         dbStatus = 'Available';
       }
@@ -364,24 +366,47 @@ export default function Reports() {
       const cleanTab = (tabLabels[activeTab] || "Report").replace(/[^a-zA-Z0-9]/g, "_");
       const filename = `FSUU_${cleanTab}_${new Date().toISOString().slice(0, 10)}.pdf`;
 
-      const html2pdfModule = await import("html2pdf.js");
-      const html2pdf = html2pdfModule.default || html2pdfModule;
+      const html2canvasModule = await import("html2canvas-pro");
+      const html2canvas = html2canvasModule.default || html2canvasModule;
+      const { jsPDF } = await import("jspdf");
 
-      const opt = {
-        margin: [8, 8, 8, 8],
-        filename: filename,
-        image: { type: "jpeg", quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true, logging: false },
-        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
-      };
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: "#ffffff",
+      });
 
-      await html2pdf().set(opt).from(element).save();
+      const imgData = canvas.toDataURL("image/jpeg", 0.98);
+      const pdf = new jsPDF({
+        orientation: "portrait",
+        unit: "mm",
+        format: "a4",
+      });
+
+      const imgWidth = 210; // A4 width in mm
+      const pageHeight = 297; // A4 height in mm
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      let heightLeft = imgHeight;
+      let position = 0;
+
+      pdf.addImage(imgData, "JPEG", 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+
+      while (heightLeft > 0) {
+        position = -(imgHeight - heightLeft);
+        pdf.addPage();
+        pdf.addImage(imgData, "JPEG", 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+      }
+
+      pdf.save(filename);
       setFeedback(`✅ ${tabLabels[activeTab]} PDF file saved to your device.`);
       setTimeout(() => setFeedback(null), 3500);
     } catch (err) {
-      console.error("PDF download failed, falling back to print:", err);
-      window.print();
+      console.error("PDF download failed:", err);
+      setFeedback(`❌ PDF generation failed: ${err?.message || "Unknown error"}`);
+      setTimeout(() => setFeedback(null), 5000);
     } finally {
       setIsExportingPdf(false);
     }

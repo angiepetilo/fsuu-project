@@ -67,13 +67,13 @@ class EquipmentCategoryService
                     ->leftJoin('tracking_numbers', 'equipment_borrows.tracking_number_id', '=', 'tracking_numbers.id')
                     ->whereNull('equipment_borrows.archived_at')
                     ->where(function($q) use ($today) {
-                        $q->where('equipment_borrows.date_of_usage', '>=', $today)
-                          ->orWhereIn(DB::raw('LOWER(COALESCE(tracking_numbers.status, "pending"))'), ['on-going', 'ongoing', 'borrowed', 'released', 'in_use', 'in-use']);
+                        $q->where(DB::raw('COALESCE(equipment_borrows.date_of_usage, SUBSTRING(equipment_borrows.start_datetime, 1, 10), CURRENT_DATE)'), '>=', $today)
+                          ->orWhereIn(DB::raw('LOWER(COALESCE(tracking_numbers.status, equipment_borrows.status, "pending"))'), ['on-going', 'ongoing', 'borrowed', 'released', 'in_use', 'in-use']);
                     })
                     ->select(
                         'equipment_borrow_items.equipment_type_id',
-                        DB::raw('SUM(CASE WHEN LOWER(COALESCE(tracking_numbers.status, "pending")) IN ("on-going", "ongoing", "borrowed", "released", "in_use", "in-use") THEN equipment_borrow_items.quantity_requested ELSE 0 END) as released_sum'),
-                        DB::raw('SUM(CASE WHEN LOWER(COALESCE(tracking_numbers.status, "pending")) IN ("pending", "scheduled", "reserved", "approved") THEN equipment_borrow_items.quantity_requested ELSE 0 END) as reserved_sum')
+                        DB::raw('SUM(CASE WHEN LOWER(COALESCE(tracking_numbers.status, equipment_borrows.status, "pending")) IN ("on-going", "ongoing", "borrowed", "released", "in_use", "in-use") THEN equipment_borrow_items.quantity_requested ELSE 0 END) as released_sum'),
+                        DB::raw('SUM(CASE WHEN LOWER(COALESCE(tracking_numbers.status, equipment_borrows.status, "pending")) IN ("pending", "scheduled", "reserved", "approved") THEN equipment_borrow_items.quantity_requested ELSE 0 END) as reserved_sum')
                     )
                     ->groupBy('equipment_borrow_items.equipment_type_id')
                     ->get();
@@ -94,7 +94,7 @@ class EquipmentCategoryService
                 $venueList = DB::table('venue_bookings')
                     ->leftJoin('tracking_numbers', 'venue_bookings.tracking_number_id', '=', 'tracking_numbers.id')
                     ->whereNull('venue_bookings.archived_at')
-                    ->select('venue_bookings.id', 'venue_bookings.equipment_notes', 'venue_bookings.date_of_usage', 'venue_bookings.reservation_end_date', DB::raw('LOWER(COALESCE(tracking_numbers.status, "pending")) as current_status'))
+                    ->select('venue_bookings.id', 'venue_bookings.equipment_notes', 'venue_bookings.date_of_usage', 'venue_bookings.reservation_end_date', DB::raw('LOWER(COALESCE(tracking_numbers.status, venue_bookings.status, "pending")) as current_status'))
                     ->get();
             } catch (\Throwable $th) {}
         }
@@ -104,10 +104,14 @@ class EquipmentCategoryService
             $u = $unitsStats[$e->id] ?? ['total' => 0, 'released' => 0, 'reserved' => 0, 'damaged' => 0, 'lost' => 0];
             $b = $borrowStats[$e->id] ?? ['released' => 0, 'reserved' => 0];
 
-            // Also check if borrow items mapped by name/category
+            // Also check if borrow items mapped by name/category or string ID
             if ($e->eq_name && isset($borrowStats[$e->eq_name])) {
                 $b['released'] += $borrowStats[$e->eq_name]['released'];
                 $b['reserved'] += $borrowStats[$e->eq_name]['reserved'];
+            }
+            if (isset($borrowStats[(string)$e->id])) {
+                $b['released'] = max($b['released'], $borrowStats[(string)$e->id]['released']);
+                $b['reserved'] = max($b['reserved'], $borrowStats[(string)$e->id]['reserved']);
             }
 
             // Venue items
@@ -180,6 +184,7 @@ class EquipmentCategoryService
      */
     public function formatCategoryResponse(EquipmentType $e): array
     {
+        $today = now()->toDateString();
         $hasUnitsTable = Schema::hasTable('equipment_units');
         $registeredUnitsCount = 0;
         $physicalReleased = 0;
@@ -248,7 +253,7 @@ class EquipmentCategoryService
                     })
                     ->whereNull('equipment_borrows.archived_at')
                     ->where(function($q) {
-                        $q->whereIn(DB::raw('LOWER(COALESCE(tracking_numbers.status, "pending"))'), ['on-going', 'ongoing', 'borrowed', 'released', 'in_use', 'in-use']);
+                        $q->whereIn(DB::raw('LOWER(COALESCE(tracking_numbers.status, equipment_borrows.status, "pending"))'), ['on-going', 'ongoing', 'borrowed', 'released', 'in_use', 'in-use']);
                     })
                     ->sum('equipment_borrow_items.quantity_requested');
 
@@ -263,11 +268,10 @@ class EquipmentCategoryService
                     })
                     ->whereNull('equipment_borrows.archived_at')
                     ->where(function($q) use ($today) {
-                        $q->where(DB::raw('COALESCE(equipment_borrows.date_of_usage, CURRENT_DATE)'), '<=', $today)
-                          ->where(DB::raw('COALESCE(equipment_borrows.date_of_usage, CURRENT_DATE)'), '>=', $today);
+                        $q->where(DB::raw('COALESCE(equipment_borrows.date_of_usage, SUBSTRING(equipment_borrows.start_datetime, 1, 10), CURRENT_DATE)'), '>=', $today);
                     })
                     ->where(function($q) {
-                        $q->whereIn(DB::raw('LOWER(COALESCE(tracking_numbers.status, "pending"))'), ['pending', 'scheduled', 'reserved', 'approved']);
+                        $q->whereIn(DB::raw('LOWER(COALESCE(tracking_numbers.status, equipment_borrows.status, "pending"))'), ['pending', 'scheduled', 'reserved', 'approved']);
                     })
                     ->sum('equipment_borrow_items.quantity_requested');
             }
@@ -285,7 +289,7 @@ class EquipmentCategoryService
                     ->leftJoin('tracking_numbers', 'venue_bookings.tracking_number_id', '=', 'tracking_numbers.id')
                     ->whereNull('venue_bookings.archived_at')
                     ->where(function($q) {
-                        $q->whereIn(DB::raw('LOWER(COALESCE(tracking_numbers.status, "pending"))'), ['on-going', 'ongoing', 'in_use', 'in-use']);
+                        $q->whereIn(DB::raw('LOWER(COALESCE(tracking_numbers.status, venue_bookings.status, "pending"))'), ['on-going', 'ongoing', 'in_use', 'in-use']);
                     })
                     ->select('venue_bookings.id', 'venue_bookings.equipment_notes')
                     ->get();
@@ -300,7 +304,7 @@ class EquipmentCategoryService
                           ->where(DB::raw('COALESCE(venue_bookings.reservation_end_date, venue_bookings.date_of_usage, CURRENT_DATE)'), '>=', $today);
                     })
                     ->where(function($q) {
-                        $q->whereIn(DB::raw('LOWER(COALESCE(tracking_numbers.status, "pending"))'), ['pending', 'scheduled', 'reserved', 'approved']);
+                        $q->whereIn(DB::raw('LOWER(COALESCE(tracking_numbers.status, venue_bookings.status, "pending"))'), ['pending', 'scheduled', 'reserved', 'approved']);
                     })
                     ->select('venue_bookings.id', 'venue_bookings.equipment_notes')
                     ->get();
@@ -401,55 +405,162 @@ class EquipmentCategoryService
     }
 
     /**
-     * Synchronize physical unit status/condition from completed inspections with recorded damages/losses.
+     * Synchronize physical unit status/condition from active assignments and completed inspections.
      */
     public static function autoSyncUnitConditions(): void
     {
         try {
-            if (!Schema::hasTable('inspections') || !Schema::hasTable('equipment_units')) {
+            if (!Schema::hasTable('equipment_units')) {
                 return;
             }
 
-            $inspections = DB::table('inspections')
-                ->whereNotNull('unit_conditions')
-                ->select('unit_conditions', 'assigned_units', 'condition')
-                ->get();
+            // 1. Sync damaged / lost statuses from inspections
+            if (Schema::hasTable('inspections')) {
+                $inspections = DB::table('inspections')
+                    ->whereNotNull('unit_conditions')
+                    ->select('unit_conditions', 'assigned_units', 'condition')
+                    ->get();
 
-            foreach ($inspections as $insp) {
-                $rawConds = $insp->unit_conditions;
-                if (is_string($rawConds)) {
-                    $rawConds = json_decode($rawConds, true);
-                }
-                $assigned = $insp->assigned_units;
-                if (is_string($assigned)) {
-                    $assigned = json_decode($assigned, true);
-                }
-                if (!is_array($rawConds)) continue;
+                foreach ($inspections as $insp) {
+                    $rawConds = $insp->unit_conditions;
+                    if (is_string($rawConds)) {
+                        $rawConds = json_decode($rawConds, true);
+                    }
+                    $assigned = $insp->assigned_units;
+                    if (is_string($assigned)) {
+                        $assigned = json_decode($assigned, true);
+                    }
+                    if (!is_array($rawConds)) continue;
 
-                foreach ($rawConds as $k => $cVal) {
-                    $cStr = strtolower(is_array($cVal) ? ($cVal['condition'] ?? $cVal['status'] ?? '') : (string)$cVal);
-                    if ($cStr === 'lost' || $cStr === 'damaged') {
-                        $uStatus = 'unavailable';
-                        $uCond = $cStr === 'lost' ? 'Lost' : 'Damaged';
-                        $uBar = is_array($assigned) ? ($assigned[$k] ?? null) : null;
-                        $keys = array_filter(array_unique([$k, $uBar]));
+                    foreach ($rawConds as $k => $cVal) {
+                        $cStr = strtolower(is_array($cVal) ? ($cVal['condition'] ?? $cVal['status'] ?? '') : (string)$cVal);
+                        if ($cStr === 'lost' || $cStr === 'damaged') {
+                            $uStatus = 'unavailable';
+                            $uCond = $cStr === 'lost' ? 'Lost' : 'Damaged';
+                            $uBar = is_array($assigned) ? ($assigned[$k] ?? null) : null;
+                            $keys = array_filter(array_unique([$k, $uBar]));
 
-                        if (!empty($keys)) {
-                            DB::table('equipment_units')
-                                ->where(function($q) use ($keys) {
-                                    $q->whereIn('unit_code', $keys)
-                                      ->orWhereIn('id', $keys);
-                                })
-                                ->where(function($q) use ($uStatus, $uCond) {
-                                    $q->where('status', '!=', $uStatus)
-                                      ->orWhere('condition', '!=', $uCond)
-                                      ->orWhereNull('condition');
-                                })
-                                ->update(['status' => $uStatus, 'condition' => $uCond, 'updated_at' => now()]);
+                            if (!empty($keys)) {
+                                DB::table('equipment_units')
+                                    ->where(function($q) use ($keys) {
+                                        $q->whereIn('unit_code', $keys)
+                                          ->orWhereIn('id', $keys);
+                                    })
+                                    ->update(['status' => $uStatus, 'condition' => $uCond, 'updated_at' => now()]);
+                            }
                         }
                     }
                 }
             }
+
+            // 2. Collect all active assigned barcodes from equipment borrows and venue bookings
+            $releasedBarcodes = [];
+            $reservedBarcodes = [];
+
+            // A. From equipment_borrows
+            if (Schema::hasTable('equipment_borrows')) {
+                $activeEquipBorrows = DB::table('equipment_borrows')
+                    ->leftJoin('tracking_numbers', 'equipment_borrows.tracking_number_id', '=', 'tracking_numbers.id')
+                    ->whereNull('equipment_borrows.archived_at')
+                    ->whereNotNull('equipment_borrows.assigned_units')
+                    ->select(
+                        'equipment_borrows.assigned_units',
+                        DB::raw('LOWER(COALESCE(tracking_numbers.status, equipment_borrows.status, "pending")) as current_status')
+                    )
+                    ->get();
+
+                foreach ($activeEquipBorrows as $row) {
+                    $units = $row->assigned_units;
+                    if (is_string($units)) {
+                        $units = json_decode($units, true);
+                    }
+                    if (is_array($units)) {
+                        foreach ($units as $val) {
+                            $code = trim((string)$val);
+                            if ($code && $code !== '—' && $code !== '-') {
+                                if (in_array($row->current_status, ['on-going', 'ongoing', 'borrowed', 'released', 'in_use', 'in-use'])) {
+                                    $releasedBarcodes[] = $code;
+                                } elseif (in_array($row->current_status, ['pending', 'scheduled', 'reserved', 'approved'])) {
+                                    $reservedBarcodes[] = $code;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // B. From venue_bookings
+            if (Schema::hasTable('venue_bookings')) {
+                $activeVenueBookings = DB::table('venue_bookings')
+                    ->leftJoin('tracking_numbers', 'venue_bookings.tracking_number_id', '=', 'tracking_numbers.id')
+                    ->whereNull('venue_bookings.archived_at')
+                    ->whereNotNull('venue_bookings.assigned_units')
+                    ->select(
+                        'venue_bookings.assigned_units',
+                        DB::raw('LOWER(COALESCE(tracking_numbers.status, venue_bookings.status, "pending")) as current_status')
+                    )
+                    ->get();
+
+                foreach ($activeVenueBookings as $row) {
+                    $units = $row->assigned_units;
+                    if (is_string($units)) {
+                        $units = json_decode($units, true);
+                    }
+                    if (is_array($units)) {
+                        foreach ($units as $val) {
+                            $code = trim((string)$val);
+                            if ($code && $code !== '—' && $code !== '-') {
+                                if (in_array($row->current_status, ['on-going', 'ongoing', 'borrowed', 'released', 'in_use', 'in-use'])) {
+                                    $releasedBarcodes[] = $code;
+                                } elseif (in_array($row->current_status, ['pending', 'scheduled', 'reserved', 'approved'])) {
+                                    $reservedBarcodes[] = $code;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            $releasedBarcodes = array_unique($releasedBarcodes);
+            $reservedBarcodes = array_diff(array_unique($reservedBarcodes), $releasedBarcodes);
+
+            // 3. Mark released physical units
+            if (!empty($releasedBarcodes)) {
+                DB::table('equipment_units')
+                    ->where(function($q) use ($releasedBarcodes) {
+                        $q->whereIn('unit_code', $releasedBarcodes)
+                          ->orWhereIn('id', $releasedBarcodes);
+                    })
+                    ->whereNotIn(DB::raw('LOWER(COALESCE(condition, "good"))'), ['lost', 'damaged'])
+                    ->whereNotIn(DB::raw('LOWER(COALESCE(status, "available"))'), ['lost', 'damaged'])
+                    ->where('status', '!=', 'released')
+                    ->update(['status' => 'released', 'updated_at' => now()]);
+            }
+
+            // 4. Mark reserved physical units
+            if (!empty($reservedBarcodes)) {
+                DB::table('equipment_units')
+                    ->where(function($q) use ($reservedBarcodes) {
+                        $q->whereIn('unit_code', $reservedBarcodes)
+                          ->orWhereIn('id', $reservedBarcodes);
+                    })
+                    ->whereNotIn(DB::raw('LOWER(COALESCE(condition, "good"))'), ['lost', 'damaged'])
+                    ->whereNotIn(DB::raw('LOWER(COALESCE(status, "available"))'), ['lost', 'damaged'])
+                    ->where('status', '!=', 'reserved')
+                    ->update(['status' => 'reserved', 'updated_at' => now()]);
+            }
+
+            // 5. Revert units that are no longer released or reserved back to 'available'
+            $occupiedBarcodes = array_merge($releasedBarcodes, $reservedBarcodes);
+            DB::table('equipment_units')
+                ->whereIn('status', ['reserved', 'released'])
+                ->whereNotIn(DB::raw('LOWER(COALESCE(condition, "good"))'), ['lost', 'damaged', 'worn', 'minor wear', 'under repair'])
+                ->when(!empty($occupiedBarcodes), function($q) use ($occupiedBarcodes) {
+                    $q->whereNotIn('unit_code', $occupiedBarcodes)
+                      ->whereNotIn('id', $occupiedBarcodes);
+                })
+                ->update(['status' => 'available', 'updated_at' => now()]);
+
         } catch (\Throwable $e) {}
     }
 }

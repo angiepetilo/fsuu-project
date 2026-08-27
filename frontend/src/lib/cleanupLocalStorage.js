@@ -5,14 +5,11 @@
 export function cleanupLocalStorage() {
   try {
     const keysToRemove = [
-      "fsuu_cache_public_venues",
-      "fsuu_cache_public_equipment",
       "fsuu_cache_admin_dashboard",
       "fsuu_venue_availability",
       "fsuu_venue_bookings",
       "fsuu_equipment_borrowings",
       "fsuu_equipment_inventory",
-      "fsuu_equipment_types",
       "fsuu_history_venue_bookings",
       "fsuu_history_equipment_borrowings",
       "fsuu_damaged_equipment_log",

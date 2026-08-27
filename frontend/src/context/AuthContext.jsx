@@ -65,7 +65,7 @@ export function AuthProvider({ children }) {
       echoInstance?.leave("equipment-inventory");
     } catch {}
 
-    // Flush all localStorage cache keys
+    // Flush all staff auth session localStorage cache keys (preserve catalog data)
     const keysToClean = [
       "staff_user",
       "staff_token",
@@ -77,7 +77,6 @@ export function AuthProvider({ children }) {
       "fsuu_cache_admin_dashboard",
       "fsuu_cache_sysad_users",
       "fsuu_cache_sysad_offices",
-      "fsuu_equipment_types",
       "fsuu_venue_overrides",
       "fsuu_venue_maintenance",
       "fsuu_read_notification_ids",
