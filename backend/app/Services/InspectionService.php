@@ -95,15 +95,24 @@ class InspectionService
 
         // Baseline batch update if no per-unit conditions
         if (!empty($barcodes) && empty($unitConditions)) {
+            $numIds = array_values(array_filter($barcodes, fn($v) => is_numeric($v) && (int)$v > 0));
+            $uCodes = array_values(array_filter($barcodes, fn($v) => !empty($v)));
+
             if ($overallCondition === 'good') {
-                \App\Models\EquipmentUnit::where(function ($q) use ($barcodes) {
-                    $q->whereIn('unit_code', $barcodes)->orWhereIn('id', $barcodes);
+                \App\Models\EquipmentUnit::where(function ($q) use ($uCodes, $numIds) {
+                    $q->whereIn('unit_code', $uCodes);
+                    if (!empty($numIds)) {
+                        $q->orWhereIn('id', array_map('intval', $numIds));
+                    }
                 })->update(['status' => 'available', 'condition' => 'Good']);
             } else {
                 $status = $overallCondition === 'lost' ? 'lost' : 'damaged';
                 $cond = $overallCondition === 'lost' ? 'Lost' : 'Damaged';
-                \App\Models\EquipmentUnit::where(function ($q) use ($barcodes) {
-                    $q->whereIn('unit_code', $barcodes)->orWhereIn('id', $barcodes);
+                \App\Models\EquipmentUnit::where(function ($q) use ($uCodes, $numIds) {
+                    $q->whereIn('unit_code', $uCodes);
+                    if (!empty($numIds)) {
+                        $q->orWhereIn('id', array_map('intval', $numIds));
+                    }
                 })->update(['status' => $status, 'condition' => $cond]);
             }
         }
@@ -118,8 +127,15 @@ class InspectionService
                     $condNormalized = ucfirst(strtolower(trim($rawCondition)));
                     $uStatus = ($condNormalized === 'Damaged' || $condNormalized === 'Lost') ? 'unavailable' : 'available';
                     $uCond = $condNormalized === 'Damaged' ? 'Damaged' : ($condNormalized === 'Lost' ? 'Lost' : 'Good');
-                    \App\Models\EquipmentUnit::where(function ($q) use ($lookupKeys) {
-                        $q->whereIn('unit_code', $lookupKeys)->orWhereIn('id', $lookupKeys);
+
+                    $nIds = array_values(array_filter($lookupKeys, fn($v) => is_numeric($v) && (int)$v > 0));
+                    $uCodes = array_values(array_filter($lookupKeys, fn($v) => !empty($v)));
+
+                    \App\Models\EquipmentUnit::where(function ($q) use ($uCodes, $nIds) {
+                        $q->whereIn('unit_code', $uCodes);
+                        if (!empty($nIds)) {
+                            $q->orWhereIn('id', array_map('intval', $nIds));
+                        }
                     })->update(['status' => $uStatus, 'condition' => $uCond]);
                 }
             }
