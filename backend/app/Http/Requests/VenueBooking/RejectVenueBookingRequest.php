@@ -11,10 +11,18 @@ class RejectVenueBookingRequest extends FormRequest
         return auth()->check();
     }
 
+    protected function prepareForValidation(): void
+    {
+        $comment = $this->input('remarks') ?? $this->input('rejection_reason') ?? $this->input('reason') ?? 'Venue booking rejected by administrator';
+        $this->merge([
+            'remarks' => trim((string)$comment),
+        ]);
+    }
+
     public function rules(): array
     {
         return [
-            'remarks' => ['required', 'string', 'max:1000'],
+            'remarks' => ['nullable', 'string', 'max:1000'],
         ];
     }
 }

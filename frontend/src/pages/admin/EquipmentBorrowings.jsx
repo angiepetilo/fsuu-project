@@ -117,7 +117,11 @@ export default function EquipmentBorrowings() {
   const handleAction = async (id, type, payload = {}) => {
     setActionLoading(id + "-" + type);
     try {
-      const res = await api.post(`/avr-equipment-borrowings/${id}/${type}`, payload);
+      const dataPayload = { ...payload };
+      if (type === "reject" && !dataPayload.remarks) {
+        dataPayload.remarks = dataPayload.rejection_reason || dataPayload.reason || "Borrow request rejected by admin";
+      }
+      const res = await api.post(`/avr-equipment-borrowings/${id}/${type}`, dataPayload);
 
       const updatedRecord = res.data && typeof res.data === "object" ? res.data : {};
       const statusMap = {
