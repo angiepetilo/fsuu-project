@@ -441,10 +441,15 @@ class EquipmentCategoryService
                             $keys = array_filter(array_unique([$k, $uBar]));
 
                             if (!empty($keys)) {
+                                $nIds = array_values(array_filter($keys, fn($v) => is_numeric($v) && (int)$v > 0));
+                                $uCodes = array_values(array_filter($keys, fn($v) => !empty($v)));
+
                                 DB::table('equipment_units')
-                                    ->where(function($q) use ($keys) {
-                                        $q->whereIn('unit_code', $keys)
-                                          ->orWhereIn('id', $keys);
+                                    ->where(function($q) use ($uCodes, $nIds) {
+                                        $q->whereIn('unit_code', $uCodes);
+                                        if (!empty($nIds)) {
+                                            $q->orWhereIn('id', array_map('intval', $nIds));
+                                        }
                                     })
                                     ->update(['status' => $uStatus, 'condition' => $uCond, 'updated_at' => now()]);
                             }
@@ -465,7 +470,7 @@ class EquipmentCategoryService
                     ->whereNotNull('equipment_borrows.assigned_units')
                     ->select(
                         'equipment_borrows.assigned_units',
-                        DB::raw('LOWER(COALESCE(tracking_numbers.status, equipment_borrows.status, "pending")) as current_status')
+                        DB::raw("LOWER(COALESCE(tracking_numbers.status, equipment_borrows.status, 'pending')) as current_status")
                     )
                     ->get();
 
@@ -497,7 +502,7 @@ class EquipmentCategoryService
                     ->whereNotNull('venue_bookings.assigned_units')
                     ->select(
                         'venue_bookings.assigned_units',
-                        DB::raw('LOWER(COALESCE(tracking_numbers.status, venue_bookings.status, "pending")) as current_status')
+                        DB::raw("LOWER(COALESCE(tracking_numbers.status, venue_bookings.status, 'pending')) as current_status")
                     )
                     ->get();
 
@@ -526,38 +531,53 @@ class EquipmentCategoryService
 
             // 3. Mark released physical units
             if (!empty($releasedBarcodes)) {
+                $relNumIds = array_values(array_filter($releasedBarcodes, fn($v) => is_numeric($v) && (int)$v > 0));
+                $relCodes = array_values(array_filter($releasedBarcodes, fn($v) => !empty($v)));
+
                 DB::table('equipment_units')
-                    ->where(function($q) use ($releasedBarcodes) {
-                        $q->whereIn('unit_code', $releasedBarcodes)
-                          ->orWhereIn('id', $releasedBarcodes);
+                    ->where(function($q) use ($relCodes, $relNumIds) {
+                        $q->whereIn('unit_code', $relCodes);
+                        if (!empty($relNumIds)) {
+                            $q->orWhereIn('id', array_map('intval', $relNumIds));
+                        }
                     })
-                    ->whereNotIn(DB::raw('LOWER(COALESCE(condition, "good"))'), ['lost', 'damaged'])
-                    ->whereNotIn(DB::raw('LOWER(COALESCE(status, "available"))'), ['lost', 'damaged'])
+                    ->whereNotIn(DB::raw("LOWER(COALESCE(condition, 'good'))"), ['lost', 'damaged'])
+                    ->whereNotIn(DB::raw("LOWER(COALESCE(status, 'available'))"), ['lost', 'damaged'])
                     ->where('status', '!=', 'released')
                     ->update(['status' => 'released', 'updated_at' => now()]);
             }
 
             // 4. Mark reserved physical units
             if (!empty($reservedBarcodes)) {
+                $resNumIds = array_values(array_filter($reservedBarcodes, fn($v) => is_numeric($v) && (int)$v > 0));
+                $resCodes = array_values(array_filter($reservedBarcodes, fn($v) => !empty($v)));
+
                 DB::table('equipment_units')
-                    ->where(function($q) use ($reservedBarcodes) {
-                        $q->whereIn('unit_code', $reservedBarcodes)
-                          ->orWhereIn('id', $reservedBarcodes);
+                    ->where(function($q) use ($resCodes, $resNumIds) {
+                        $q->whereIn('unit_code', $resCodes);
+                        if (!empty($resNumIds)) {
+                            $q->orWhereIn('id', array_map('intval', $resNumIds));
+                        }
                     })
-                    ->whereNotIn(DB::raw('LOWER(COALESCE(condition, "good"))'), ['lost', 'damaged'])
-                    ->whereNotIn(DB::raw('LOWER(COALESCE(status, "available"))'), ['lost', 'damaged'])
+                    ->whereNotIn(DB::raw("LOWER(COALESCE(condition, 'good'))"), ['lost', 'damaged'])
+                    ->whereNotIn(DB::raw("LOWER(COALESCE(status, 'available'))"), ['lost', 'damaged'])
                     ->where('status', '!=', 'reserved')
                     ->update(['status' => 'reserved', 'updated_at' => now()]);
             }
 
             // 5. Revert units that are no longer released or reserved back to 'available'
             $occupiedBarcodes = array_merge($releasedBarcodes, $reservedBarcodes);
+            $occNumIds = array_values(array_filter($occupiedBarcodes, fn($v) => is_numeric($v) && (int)$v > 0));
+            $occCodes = array_values(array_filter($occupiedBarcodes, fn($v) => !empty($v)));
+
             DB::table('equipment_units')
                 ->whereIn('status', ['reserved', 'released'])
-                ->whereNotIn(DB::raw('LOWER(COALESCE(condition, "good"))'), ['lost', 'damaged', 'worn', 'minor wear', 'under repair'])
-                ->when(!empty($occupiedBarcodes), function($q) use ($occupiedBarcodes) {
-                    $q->whereNotIn('unit_code', $occupiedBarcodes)
-                      ->whereNotIn('id', $occupiedBarcodes);
+                ->whereNotIn(DB::raw("LOWER(COALESCE(condition, 'good'))"), ['lost', 'damaged', 'worn', 'minor wear', 'under repair'])
+                ->when(!empty($occupiedBarcodes), function($q) use ($occCodes, $occNumIds) {
+                    $q->whereNotIn('unit_code', $occCodes);
+                    if (!empty($occNumIds)) {
+                        $q->whereNotIn('id', array_map('intval', $occNumIds));
+                    }
                 })
                 ->update(['status' => 'available', 'updated_at' => now()]);
 

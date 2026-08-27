@@ -406,11 +406,15 @@ class VenueBookingService
                 }
             }
             if (!empty($barcodes) && \Illuminate\Support\Facades\Schema::hasTable('equipment_units')) {
-                try {
-                    \App\Models\EquipmentUnit::where(function($q) use ($barcodes) {
-                        $q->whereIn('unit_code', $barcodes)->orWhereIn('id', $barcodes);
-                    })->update(['status' => 'released']);
-                } catch (\Throwable $e) {}
+                $numericIds = array_values(array_filter($barcodes, fn($v) => is_numeric($v) && (int)$v > 0));
+                $unitCodes = array_values(array_filter($barcodes, fn($v) => !empty($v)));
+
+                \App\Models\EquipmentUnit::where(function($q) use ($unitCodes, $numericIds) {
+                    $q->whereIn('unit_code', $unitCodes);
+                    if (!empty($numericIds)) {
+                        $q->orWhereIn('id', array_map('intval', $numericIds));
+                    }
+                })->update(['status' => 'released']);
             }
 
             try {
@@ -601,21 +605,22 @@ class VenueBookingService
                     $goodBarcodes = $barcodes;
                 }
 
-                if (!empty($goodBarcodes)) {
-                    \App\Models\EquipmentUnit::where(function($q) use ($goodBarcodes) {
-                        $q->whereIn('unit_code', $goodBarcodes)->orWhereIn('id', $goodBarcodes);
-                    })->update(['status' => 'available', 'condition' => 'Good']);
-                }
-                if (!empty($damagedBarcodes)) {
-                    \App\Models\EquipmentUnit::where(function($q) use ($damagedBarcodes) {
-                        $q->whereIn('unit_code', $damagedBarcodes)->orWhereIn('id', $damagedBarcodes);
-                    })->update(['status' => 'unavailable', 'condition' => 'Damaged']);
-                }
-                if (!empty($lostBarcodes)) {
-                    \App\Models\EquipmentUnit::where(function($q) use ($lostBarcodes) {
-                        $q->whereIn('unit_code', $lostBarcodes)->orWhereIn('id', $lostBarcodes);
-                    })->update(['status' => 'unavailable', 'condition' => 'Lost']);
-                }
+                $applyStatusUpdate = function(array $codes, string $status, string $condition) {
+                    if (empty($codes)) return;
+                    $numericIds = array_values(array_filter($codes, fn($v) => is_numeric($v) && (int)$v > 0));
+                    $unitCodes = array_values(array_filter($codes, fn($v) => !empty($v)));
+
+                    \App\Models\EquipmentUnit::where(function($q) use ($unitCodes, $numericIds) {
+                        $q->whereIn('unit_code', $unitCodes);
+                        if (!empty($numericIds)) {
+                            $q->orWhereIn('id', array_map('intval', $numericIds));
+                        }
+                    })->update(['status' => $status, 'condition' => $condition]);
+                };
+
+                $applyStatusUpdate($goodBarcodes, 'available', 'Good');
+                $applyStatusUpdate($damagedBarcodes, 'unavailable', 'Damaged');
+                $applyStatusUpdate($lostBarcodes, 'unavailable', 'Lost');
             }
 
             try {

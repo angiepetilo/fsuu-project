@@ -337,8 +337,14 @@ class VenueBookingController extends Controller
 
             if (!empty($barcodes) && Schema::hasTable('equipment_units')) {
                 $newUnitStatus = in_array($currentStatus, ['ongoing', 'on-going', 'post-inspection']) ? 'released' : 'reserved';
-                \App\Models\EquipmentUnit::where(function($q) use ($barcodes) {
-                    $q->whereIn('unit_code', $barcodes)->orWhereIn('id', $barcodes);
+                $numIds = array_values(array_filter($barcodes, fn($v) => is_numeric($v) && (int)$v > 0));
+                $uCodes = array_values(array_filter($barcodes, fn($v) => !empty($v)));
+
+                \App\Models\EquipmentUnit::where(function($q) use ($uCodes, $numIds) {
+                    $q->whereIn('unit_code', $uCodes);
+                    if (!empty($numIds)) {
+                        $q->orWhereIn('id', array_map('intval', $numIds));
+                    }
                 })
                 ->update(['status' => $newUnitStatus]);
             }

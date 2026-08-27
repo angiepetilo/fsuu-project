@@ -213,9 +213,14 @@ class InspectionController extends Controller
                     $lookupKeys = array_filter(array_unique([$key, $uBar]));
 
                     if (!empty($lookupKeys)) {
-                        EquipmentUnit::where(function($q) use ($lookupKeys) {
-                            $q->whereIn('unit_code', $lookupKeys)
-                              ->orWhereIn('id', $lookupKeys);
+                        $nIds = array_values(array_filter($lookupKeys, fn($v) => is_numeric($v) && (int)$v > 0));
+                        $uCodes = array_values(array_filter($lookupKeys, fn($v) => !empty($v)));
+
+                        EquipmentUnit::where(function($q) use ($uCodes, $nIds) {
+                            $q->whereIn('unit_code', $uCodes);
+                            if (!empty($nIds)) {
+                                $q->orWhereIn('id', array_map('intval', $nIds));
+                            }
                         })->update(['status' => $uStatus, 'condition' => $uCond]);
                     }
                 }

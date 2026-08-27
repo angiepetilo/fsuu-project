@@ -169,8 +169,14 @@ class EquipmentBorrowingController extends Controller
             }
         }
         if (!empty($barcodes)) {
-            \App\Models\EquipmentUnit::where(function($q) use ($barcodes) {
-                $q->whereIn('unit_code', $barcodes)->orWhereIn('id', $barcodes);
+            $numericIds = array_values(array_filter($barcodes, fn($v) => is_numeric($v) && (int)$v > 0));
+            $unitCodes = array_values(array_filter($barcodes, fn($v) => !empty($v)));
+
+            \App\Models\EquipmentUnit::where(function($q) use ($unitCodes, $numericIds) {
+                $q->whereIn('unit_code', $unitCodes);
+                if (!empty($numericIds)) {
+                    $q->orWhereIn('id', array_map('intval', $numericIds));
+                }
             })->update(['status' => 'released']);
         }
 
@@ -321,8 +327,14 @@ class EquipmentBorrowingController extends Controller
                     $lookupKeys = array_filter(array_unique([$key, $uBar]));
 
                     if (!empty($lookupKeys)) {
-                        \App\Models\EquipmentUnit::where(function($q) use ($lookupKeys) {
-                            $q->whereIn('unit_code', $lookupKeys)->orWhereIn('id', $lookupKeys);
+                        $nIds = array_values(array_filter($lookupKeys, fn($v) => is_numeric($v) && (int)$v > 0));
+                        $uCodes = array_values(array_filter($lookupKeys, fn($v) => !empty($v)));
+
+                        \App\Models\EquipmentUnit::where(function($q) use ($uCodes, $nIds) {
+                            $q->whereIn('unit_code', $uCodes);
+                            if (!empty($nIds)) {
+                                $q->orWhereIn('id', array_map('intval', $nIds));
+                            }
                         })->update(['status' => $uStatus, 'condition' => $uCond]);
                     }
                 }
