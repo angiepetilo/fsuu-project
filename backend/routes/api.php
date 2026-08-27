@@ -332,6 +332,25 @@ Route::get('/test-email', function (Request $request) {
         return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
     }
 });
+Route::get('/test-sms', function (Request $request) {
+    $phone = $request->query('phone', '09123456789');
+    $apiKey = config('services.iprogsms.api_key') ?: env('IPROG_SMS_API_KEY');
+    
+    if (empty($apiKey)) {
+        return response()->json([
+            'status'     => 'warning',
+            'configured' => false,
+            'message'    => 'IPROG_SMS_API_KEY is missing in Render environment variables.',
+        ], 200);
+    }
+    
+    $res = \App\Services\SmsService::send($phone, "FSUU Booking System SMS Verification sent at " . now()->toDateTimeString());
+    return response()->json([
+        'status'           => $res ? 'success' : 'dispatched',
+        'configured'       => true,
+        'gateway_response' => $res,
+    ]);
+});
 Route::get('/user', fn (Request $request) => $request->user()->load(['role']))->middleware('auth:sanctum');
 
 // ─── Public (Unauthenticated) Routes ──────────────────────────────────────────
