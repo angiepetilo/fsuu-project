@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Log;
 
 class SmsService
 {
-    public static bool $smsEnabled = false;
+    public static bool $smsEnabled = true;
 
     /**
      * Send an SMS via iPROG SMS API.
@@ -206,6 +206,94 @@ class SmsService
             'recipient_phone' => $contactNumber,
             'reference_code'  => $refCode,
             'subject'         => "SMS: Due Time Advance Reminder",
+            'message_preview' => $message,
+            'status'          => $res ? 'sent' : 'queued',
+        ]);
+
+        return $res;
+    }
+
+    /**
+     * Send Return Equipment Reminder SMS.
+     */
+    public static function sendReturnReminder($borrowing, ?string $customMessage = null): ?array
+    {
+        $contactNumber = $borrowing->contact_number 
+            ?? $borrowing->requestor_contact_number 
+            ?? $borrowing->borrower_contact_number 
+            ?? null;
+
+        if (!$contactNumber) {
+            return null;
+        }
+
+        $requestorName = $borrowing->filer_name 
+            ?? $borrowing->requestor_name 
+            ?? $borrowing->borrower_name 
+            ?? 'Borrower';
+
+        $refCode = $borrowing->reference_code 
+            ?? $borrowing->trackingNumber?->reference_code 
+            ?? "EQ-2026-{$borrowing->id}";
+
+        $sched = \App\Mail\BookingConfirmationMail::formatSchedule($borrowing);
+
+        $message = $customMessage ?: "FSUU AVR Reminder: Good day, {$requestorName}. Please be reminded to return the borrowed equipment units for request [{$refCode}] ({$sched}) to the AVR Center office. Thank you!";
+
+        $res = self::send($contactNumber, $message);
+
+        \App\Models\CommunicationLog::record([
+            'channel'         => 'sms',
+            'category'        => 'return_reminder',
+            'recipient_name'  => $requestorName,
+            'recipient_phone' => $contactNumber,
+            'reference_code'  => $refCode,
+            'subject'         => "SMS: Equipment Return Notice",
+            'message_preview' => $message,
+            'status'          => $res ? 'sent' : 'queued',
+        ]);
+
+        return $res;
+    }
+
+    /**
+     * Send general status update SMS (e.g. Approved, Rejected, Cancelled, Ready for Claim).
+     */
+    public static function sendStatusNotification(string $type, $booking, string $status, ?string $remarks = null): ?array
+    {
+        $contactNumber = $booking->contact_number 
+            ?? $booking->requestor_contact_number 
+            ?? $booking->borrower_contact_number 
+            ?? null;
+
+        if (!$contactNumber) {
+            return null;
+        }
+
+        $requestorName = $booking->filer_name 
+            ?? $booking->requestor_name 
+            ?? $booking->borrower_name 
+            ?? 'Client';
+
+        $refCode = $booking->reference_code 
+            ?? $booking->trackingNumber?->reference_code 
+            ?? ($type === 'venue' ? "TRK-AVR-{$booking->id}" : "EQ-2026-{$booking->id}");
+
+        $statusUpper = strtoupper($status);
+        $typeLabel = $type === 'venue' ? 'Venue Reservation' : 'Equipment Borrowing';
+        $remarksNote = $remarks ? " Note: {$remarks}" : "";
+
+        $message = "FSUU Notice: Good day, {$requestorName}. Your {$typeLabel} [{$refCode}] status has been updated to {$statusUpper}.{$remarksNote}";
+
+        $res = self::send($contactNumber, $message);
+
+        \App\Models\CommunicationLog::record([
+            'channel'         => 'sms',
+            'category'        => 'status_update',
+            'recipient_name'  => $requestorName,
+            'recipient_phone' => $contactNumber,
+            'reference_code'  => $refCode,
+            'subject'         => "SMS: Status Update ({$statusUpper})",
             'message_preview' => $message,
             'status'          => $res ? 'sent' : 'queued',
         ]);
