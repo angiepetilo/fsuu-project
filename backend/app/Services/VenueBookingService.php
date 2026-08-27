@@ -379,7 +379,7 @@ class VenueBookingService
         });
     }
 
-    public function ongoing(VenueBooking $booking, User $actor): VenueBooking
+    public function ongoing(VenueBooking $booking, ?User $actor = null): VenueBooking
     {
         return DB::transaction(function () use ($booking, $actor) {
             if (\Illuminate\Support\Facades\Schema::hasColumn('venue_bookings', 'status')) {
@@ -406,18 +406,24 @@ class VenueBookingService
                 }
             }
             if (!empty($barcodes) && \Illuminate\Support\Facades\Schema::hasTable('equipment_units')) {
-                \App\Models\EquipmentUnit::where(function($q) use ($barcodes) {
-                    $q->whereIn('unit_code', $barcodes)->orWhereIn('id', $barcodes);
-                })->update(['status' => 'released']);
+                try {
+                    \App\Models\EquipmentUnit::where(function($q) use ($barcodes) {
+                        $q->whereIn('unit_code', $barcodes)->orWhereIn('id', $barcodes);
+                    })->update(['status' => 'released']);
+                } catch (\Throwable $e) {}
             }
 
-            $this->auditLog->log($actor, 'booking_ongoing', 'avr_venue_booking', $booking->id);
+            try {
+                if ($actor) {
+                    $this->auditLog->log($actor, 'booking_ongoing', 'avr_venue_booking', $booking->id);
+                }
+            } catch (\Throwable $e) {}
 
             return $booking->fresh(['venue', 'trackingNumber', 'documents']);
         });
     }
 
-    public function postInspection(VenueBooking $booking, User $actor): VenueBooking
+    public function postInspection(VenueBooking $booking, ?User $actor = null): VenueBooking
     {
         return DB::transaction(function () use ($booking, $actor) {
             if (\Illuminate\Support\Facades\Schema::hasColumn('venue_bookings', 'status')) {
@@ -432,13 +438,17 @@ class VenueBookingService
                 })
                 ->update(['status' => 'post-inspection']);
 
-            $this->auditLog->log($actor, 'booking_post_inspection', 'avr_venue_booking', $booking->id);
+            try {
+                if ($actor) {
+                    $this->auditLog->log($actor, 'booking_post_inspection', 'avr_venue_booking', $booking->id);
+                }
+            } catch (\Throwable $e) {}
 
             return $booking->fresh(['venue', 'trackingNumber', 'documents']);
         });
     }
 
-    public function complete(VenueBooking $booking, User $actor, array $data = []): VenueBooking
+    public function complete(VenueBooking $booking, ?User $actor = null, array $data = []): VenueBooking
     {
         return DB::transaction(function () use ($booking, $actor, $data) {
             $unitConditions = $data['unit_conditions'] ?? null;
@@ -608,13 +618,17 @@ class VenueBookingService
                 }
             }
 
-            $this->auditLog->log($actor, 'booking_completed', 'avr_venue_booking', $booking->id);
+            try {
+                if ($actor) {
+                    $this->auditLog->log($actor, 'booking_completed', 'avr_venue_booking', $booking->id);
+                }
+            } catch (\Throwable $e) {}
 
             return $booking->fresh(['venue', 'trackingNumber', 'documents']);
         });
     }
 
-    public function undo(VenueBooking $booking, User $actor): VenueBooking
+    public function undo(VenueBooking $booking, ?User $actor = null): VenueBooking
     {
         return DB::transaction(function () use ($booking, $actor) {
             if (\Illuminate\Support\Facades\Schema::hasColumn('venue_bookings', 'status')) {
@@ -629,7 +643,11 @@ class VenueBookingService
                 })
                 ->update(['status' => 'approved']);
 
-            $this->auditLog->log($actor, 'booking_undo', 'avr_venue_booking', $booking->id);
+            try {
+                if ($actor) {
+                    $this->auditLog->log($actor, 'booking_undo', 'avr_venue_booking', $booking->id);
+                }
+            } catch (\Throwable $e) {}
 
             return $booking->fresh(['venue', 'trackingNumber', 'documents']);
         });

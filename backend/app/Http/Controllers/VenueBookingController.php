@@ -132,28 +132,46 @@ class VenueBookingController extends Controller
     public function ongoing(\Illuminate\Http\Request $request, VenueBooking $avrVenueBooking): JsonResponse
     {
         $this->authorize('approve', $avrVenueBooking);
-        $booking = $this->service->ongoing($avrVenueBooking, auth()->user());
-        return response()->json($booking);
+
+        try {
+            if ($request->has('assigned_units')) {
+                $assignedData = $request->input('assigned_units');
+                if (is_string($assignedData)) {
+                    try { $assignedData = json_decode($assignedData, true); } catch (\Throwable $t) { $assignedData = []; }
+                }
+                $avrVenueBooking->forceFill(['assigned_units' => $assignedData])->save();
+            }
+
+            $user = auth()->user() ?? $request->user();
+            $booking = $this->service->ongoing($avrVenueBooking, $user);
+            return response()->json($booking);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error("VenueBooking ongoing error: " . $e->getMessage());
+            return response()->json(['message' => 'Failed to mark venue booking ongoing: ' . $e->getMessage()], 500);
+        }
     }
 
     public function postInspection(\Illuminate\Http\Request $request, VenueBooking $avrVenueBooking): JsonResponse
     {
         $this->authorize('approve', $avrVenueBooking);
-        $booking = $this->service->postInspection($avrVenueBooking, auth()->user());
+        $user = auth()->user() ?? $request->user();
+        $booking = $this->service->postInspection($avrVenueBooking, $user);
         return response()->json($booking);
     }
 
     public function complete(\Illuminate\Http\Request $request, VenueBooking $avrVenueBooking): JsonResponse
     {
         $this->authorize('approve', $avrVenueBooking);
-        $booking = $this->service->complete($avrVenueBooking, auth()->user(), $request->all());
+        $user = auth()->user() ?? $request->user();
+        $booking = $this->service->complete($avrVenueBooking, $user, $request->all());
         return response()->json($booking);
     }
 
     public function undo(\Illuminate\Http\Request $request, VenueBooking $avrVenueBooking): JsonResponse
     {
         $this->authorize('approve', $avrVenueBooking);
-        $booking = $this->service->undo($avrVenueBooking, auth()->user());
+        $user = auth()->user() ?? $request->user();
+        $booking = $this->service->undo($avrVenueBooking, $user);
         return response()->json($booking);
     }
 
