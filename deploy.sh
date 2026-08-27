@@ -14,6 +14,10 @@ npm ci --prefer-offline --no-audit
 npm run build
 cd ..
 
+# Copy built frontend assets and template to backend
+cp -r frontend/dist/assets/* backend/public/assets/
+cp frontend/dist/index.html backend/resources/views/app.blade.php
+
 # 3. Optimize Backend
 echo "⚡ Optimizing Laravel Backend..."
 cd backend

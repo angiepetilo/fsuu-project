@@ -25,13 +25,31 @@ export default function VenuesTab({ showMsg }) {
     setLoading(true);
     try {
       const [venueRes, equipRes] = await Promise.all([
-        api.get("/admin/venues"),
-        api.get("/public/equipment-types").catch(() => ({ data: [] })),
+        api.get("/admin/venues").catch(() => api.get("/public/venues")),
+        api.get("/admin/equipment-types").catch(() => api.get("/public/equipment-types").catch(() => ({ data: [] }))),
       ]);
-      setVenues(Array.isArray(venueRes.data) ? venueRes.data : []);
-      setEquipmentCatalog(Array.isArray(equipRes.data) ? equipRes.data : []);
+      const rawVenues = Array.isArray(venueRes.data) ? venueRes.data : [];
+      const rawEquip = Array.isArray(equipRes.data) ? equipRes.data : (equipRes.data?.data || []);
+      setVenues(rawVenues);
+      setEquipmentCatalog(rawEquip);
+      try {
+        if (rawVenues.length > 0) {
+          localStorage.setItem("fsuu_venues_catalog", JSON.stringify(rawVenues));
+        }
+        if (rawEquip.length > 0) {
+          localStorage.setItem("fsuu_equipment_types", JSON.stringify(rawEquip));
+        }
+      } catch {}
     } catch {
-      setVenues([]);
+      try {
+        const savedVenues = JSON.parse(localStorage.getItem("fsuu_venues_catalog") || "[]");
+        const savedEquip = JSON.parse(localStorage.getItem("fsuu_equipment_types") || "[]");
+        setVenues(savedVenues);
+        setEquipmentCatalog(savedEquip);
+      } catch {
+        setVenues([]);
+        setEquipmentCatalog([]);
+      }
     } finally {
       setLoading(false);
     }
@@ -68,13 +86,19 @@ export default function VenuesTab({ showMsg }) {
     if (editItem) {
       // ── OPTIMISTIC EDIT ─────────────────────────────────────────────────
       const prevVenues = venues;
-      setVenues(prev => prev.map(v => v.id === editItem.id ? { ...v, ...payload, _optimistic: true } : v));
+      const updatedVenues = prevVenues.map(v => v.id === editItem.id ? { ...v, ...payload, _optimistic: true } : v);
+      setVenues(updatedVenues);
       setShowModal(false);
       setEditItem(null);
       try {
         const res = await api.put(`/admin/venues/${editItem.id}`, payload);
         const saved = res.data || payload;
-        setVenues(prev => prev.map(v => v.id === editItem.id ? { ...v, ...saved, allowed_equipment: payload.allowed_equipment, _optimistic: false } : v));
+        const finalized = prevVenues.map(v => v.id === editItem.id ? { ...v, ...saved, allowed_equipment: payload.allowed_equipment, _optimistic: false } : v);
+        setVenues(finalized);
+        try {
+          localStorage.setItem("fsuu_venues_catalog", JSON.stringify(finalized));
+        } catch {}
+        window.dispatchEvent(new Event("venues_updated"));
         showMsg(`Venue "${form.name}" updated!`);
       } catch (err) {
         setVenues(prevVenues);
@@ -98,7 +122,12 @@ export default function VenuesTab({ showMsg }) {
       try {
         const res = await api.post("/admin/venues", payload);
         const saved = res.data || payload;
-        setVenues(prev => prev.map(v => v.id === tempId ? { ...saved, allowed_equipment: payload.allowed_equipment, _optimistic: false } : v));
+        const finalized = prevVenues.map(v => v.id === tempId ? { ...saved, allowed_equipment: payload.allowed_equipment, _optimistic: false } : v);
+        setVenues(finalized);
+        try {
+          localStorage.setItem("fsuu_venues_catalog", JSON.stringify(finalized));
+        } catch {}
+        window.dispatchEvent(new Event("venues_updated"));
         showMsg(`Venue "${form.name}" created!`);
       } catch (err) {
         setVenues(prevVenues);
@@ -122,10 +151,15 @@ export default function VenuesTab({ showMsg }) {
     if (!archiveTarget) return;
     const { id, name } = archiveTarget;
     const prevVenues = venues;
-    setVenues(prev => prev.filter(v => v.id !== id));
+    const updated = prevVenues.filter(v => v.id !== id);
+    setVenues(updated);
     setArchiveTarget(null);
     try {
       await api.delete(`/admin/venues/${id}`);
+      try {
+        localStorage.setItem("fsuu_venues_catalog", JSON.stringify(updated));
+      } catch {}
+      window.dispatchEvent(new Event("venues_updated"));
       showMsg(`Venue "${name}" archived.`);
     } catch (err) {
       setVenues(prevVenues);

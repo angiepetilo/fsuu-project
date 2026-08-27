@@ -10,17 +10,36 @@ use Illuminate\Support\Facades\DB;
 
 class ListingController extends Controller
 {
+    private function ensureSchema(): void
+    {
+        try {
+            if (Schema::hasTable('venues') && !Schema::hasColumn('venues', 'allowed_equipment')) {
+                Schema::table('venues', function ($table) {
+                    $table->longText('allowed_equipment')->nullable();
+                });
+            }
+        } catch (\Throwable $e) {}
+    }
+
     /**
      * GET /public/venues
      * Lists all active venues for the public booking form.
      */
     public function venues(): JsonResponse
     {
+        $this->ensureSchema();
         return response()->json(
             Venue::where('status', '!=', 'maintenance')
                 ->get()
                 ->map(function ($v) {
                     $imgUrl = str_starts_with($v->avatar ?? '', '/storage/') ? url($v->avatar) : $v->avatar;
+                    $allowed = $v->allowed_equipment;
+                    if (is_string($allowed)) {
+                        $allowed = json_decode($allowed, true) ?? [];
+                    }
+                    if (!is_array($allowed)) {
+                        $allowed = [];
+                    }
                     return [
                         'id'        => $v->id,
                         'name'      => $v->name,
@@ -31,7 +50,7 @@ class ListingController extends Controller
                         'capacity'  => $v->capacity ?? 100,
                         'type'      => 'avr',
                         'status'    => $v->status ?? 'Available',
-                        'allowed_equipment' => is_array($v->allowed_equipment) ? array_values(array_filter($v->allowed_equipment)) : (is_string($v->allowed_equipment) ? (json_decode($v->allowed_equipment, true) ?? []) : []),
+                        'allowed_equipment' => array_values(array_filter($allowed)),
                     ];
                 })
         );

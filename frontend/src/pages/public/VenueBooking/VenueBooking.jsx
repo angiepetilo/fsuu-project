@@ -115,6 +115,13 @@ export default function VenueBooking() {
   const formatVenues = (apiVenues = []) => {
     return apiVenues.map(v => {
       const avatarPhoto = v.avatar || v.photo || v.image || v.avatar_url || v.photo_url || null;
+      let allowed = v.allowed_equipment;
+      if (typeof allowed === "string") {
+        try { allowed = JSON.parse(allowed); } catch { allowed = []; }
+      }
+      if (!Array.isArray(allowed)) {
+        allowed = [];
+      }
 
       return {
         ...v,
@@ -128,11 +135,7 @@ export default function VenueBooking() {
         avatar: avatarPhoto,
         status: v.status || "Available",
         schedule: v.schedule || null,
-        allowed_equipment: Array.isArray(v.allowed_equipment)
-          ? v.allowed_equipment
-          : typeof v.allowed_equipment === "string"
-          ? (() => { try { return JSON.parse(v.allowed_equipment); } catch { return []; } })()
-          : [],
+        allowed_equipment: allowed,
       };
     });
   };
@@ -141,14 +144,28 @@ export default function VenueBooking() {
     const fetchVenues = () => {
       api.get('/public/venues')
         .then(res => {
-          const formatted = formatVenues(res.data ?? []);
+          const raw = Array.isArray(res.data) ? res.data : (res.data?.data ?? []);
+          const formatted = formatVenues(raw);
           setVenues(formatted);
+          if (formatted.length > 0) {
+            try {
+              localStorage.setItem("fsuu_venues_catalog", JSON.stringify(formatted));
+            } catch {}
+          }
         })
-        .catch(() => setVenues([]))
+        .catch(() => {
+          try {
+            const saved = JSON.parse(localStorage.getItem("fsuu_venues_catalog") || "[]");
+            setVenues(formatVenues(saved));
+          } catch {
+            setVenues([]);
+          }
+        })
         .finally(() => setVenuesLoading(false));
     };
 
     fetchVenues();
+    window.addEventListener("venues_updated", fetchVenues);
 
     api.get('/public/venue-bookings')
       .then(res => {
@@ -156,6 +173,10 @@ export default function VenueBooking() {
         setExistingBookings(data);
       })
       .catch(() => setExistingBookings([]));
+
+    return () => {
+      window.removeEventListener("venues_updated", fetchVenues);
+    };
   }, []);
 
   const filteredVenues = venueCategory === "all"

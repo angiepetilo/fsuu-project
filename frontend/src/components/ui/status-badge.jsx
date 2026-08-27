@@ -9,6 +9,7 @@ const STATUS_CONFIGS = {
   active:            "bg-emerald-50 text-emerald-700 border-emerald-300 font-extrabold hover:bg-emerald-100",
   
   pending:           "bg-amber-50 text-amber-700 border-amber-300 font-extrabold hover:bg-amber-100",
+  reserved:          "bg-amber-50 text-amber-800 border-amber-300 font-extrabold hover:bg-amber-100",
   ongoing:           "bg-blue-50 text-blue-700 border-blue-300 font-extrabold hover:bg-blue-100",
   "on-going":        "bg-blue-50 text-blue-700 border-blue-300 font-extrabold hover:bg-blue-100",
   borrowed:          "bg-blue-50 text-blue-700 border-blue-300 font-extrabold hover:bg-blue-100",
