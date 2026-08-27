@@ -67,7 +67,7 @@ class EquipmentCategoryService
                     ->leftJoin('tracking_numbers', 'equipment_borrows.tracking_number_id', '=', 'tracking_numbers.id')
                     ->whereNull('equipment_borrows.archived_at')
                     ->where(function($q) use ($today) {
-                        $q->where(DB::raw("COALESCE(equipment_borrows.date_of_usage, SUBSTRING(equipment_borrows.start_datetime, 1, 10), CURRENT_DATE)"), '>=', $today)
+                        $q->where(DB::raw("COALESCE(equipment_borrows.date_of_usage, CURRENT_DATE)"), '>=', $today)
                           ->orWhereIn(DB::raw("LOWER(COALESCE(tracking_numbers.status, 'pending'))"), ['on-going', 'ongoing', 'borrowed', 'released', 'in_use', 'in-use']);
                     })
                     ->select(
@@ -267,7 +267,7 @@ class EquipmentCategoryService
                     })
                     ->whereNull('equipment_borrows.archived_at')
                     ->where(function($q) use ($today) {
-                        $q->where(DB::raw("COALESCE(equipment_borrows.date_of_usage, SUBSTRING(equipment_borrows.start_datetime, 1, 10), CURRENT_DATE)"), '>=', $today);
+                        $q->where(DB::raw("COALESCE(equipment_borrows.date_of_usage, CURRENT_DATE)"), '>=', $today);
                     })
                     ->where(function($q) {
                         $q->whereIn(DB::raw("LOWER(COALESCE(tracking_numbers.status, 'pending'))"), ['pending', 'scheduled', 'reserved', 'approved']);
