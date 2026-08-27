@@ -12,6 +12,7 @@ import Step3Details from "./components/Step3Details";
 import Step4Verification from "./components/Step4Verification";
 
 import { isPastDateTime } from "@/lib/dateTimeUtils";
+import { useAuth } from "@/context/AuthContext";
 
 const VENUE_STEPS = [
   { title: "SELECT ROLE", subtitle: "Select role" },
@@ -20,11 +21,22 @@ const VENUE_STEPS = [
   { title: "UPLOAD & SUBMIT", subtitle: "Upload & submit" },
 ];
 
-export default function VenueBooking() {
+export default function VenueBooking({ isPortal: isPortalProp }) {
+  const { user, token } = useAuth();
+  const isAuthenticated = Boolean(user || token);
   const [activeStep, setActiveStep] = useState(1);
   const [completedSteps, setCompletedSteps] = useState([]);
   const [venues, setVenues] = useState([]);
   const [venuesLoading, setVenuesLoading] = useState(true);
+
+  const isPortal = isAuthenticated && (isPortalProp ?? (
+    typeof window !== "undefined" && (
+      window.location.pathname.startsWith("/interface") ||
+      window.location.pathname.startsWith("/admin") ||
+      window.location.pathname.startsWith("/sysad") ||
+      window.location.search.includes("portal=true")
+    )
+  ));
 
   // Operating Hours & PIN Rules
   const [opHours, setOpHours] = useState(null);
@@ -64,6 +76,7 @@ export default function VenueBooking() {
   const [classification, setClassification] = useState("");
   const [persons, setPersons] = useState("");
   const [avrEquipment, setAvrEquipment] = useState({ mic: false, proj: false, sound: false, podium: false });
+  const [equipmentRemarks, setEquipmentRemarks] = useState("");
 
   // PIN Verification State
   const [showPinModal, setShowPinModal] = useState(false);
@@ -119,33 +132,35 @@ export default function VenueBooking() {
       if (typeof allowed === "string") {
         try { allowed = JSON.parse(allowed); } catch { allowed = []; }
       }
-      if (!Array.isArray(allowed)) {
-        allowed = [];
+      let maxQtys = v.equipment_max_qtys;
+      if (typeof maxQtys === "string") {
+        try { maxQtys = JSON.parse(maxQtys); } catch { maxQtys = {}; }
       }
-
       return {
-        ...v,
         id: v.id,
         name: v.name,
-        location: v.office?.location || v.location || "FSUU Main Campus",
-        capacity: v.capacity || 100,
-        type: "avr",
+        type: v.type || "avr",
+        capacity: v.capacity,
         photo: avatarPhoto,
-        image: avatarPhoto,
-        avatar: avatarPhoto,
-        status: v.status || "Available",
-        schedule: v.schedule || null,
-        allowed_equipment: allowed,
+        location: v.location || (v.office ? v.office.name : "Main Campus"),
+        status: v.status || "available",
+        allowed_equipment: Array.isArray(allowed) ? allowed : [],
+        equipment_max_qtys: maxQtys || {},
+        operating_hours: v.operating_hours || (v.time_open && v.time_close ? `${v.time_open} - ${v.time_close}` : "07:30 - 17:00"),
+        rate_per_hour: v.rate_per_hour || (v.type === "avr" ? 500 : 300),
+        schedule: v.schedule || (v.time_open && v.time_close ? `Mon - Sat (${v.time_open} - ${v.time_close})` : "Mon - Sat (7:30 AM - 5:00 PM)"),
+        price_per_hour: v.price_per_hour || (v.type === "avr" ? 500 : 300),
+        raw: v
       };
     });
   };
 
   useEffect(() => {
     const fetchVenues = () => {
-      api.get('/public/venues')
+      api.get("/public/venues")
         .then(res => {
-          const raw = Array.isArray(res.data) ? res.data : (res.data?.data ?? []);
-          const formatted = formatVenues(raw);
+          const list = Array.isArray(res.data) ? res.data : (res.data?.data || []);
+          const formatted = formatVenues(list);
           setVenues(formatted);
           if (formatted.length > 0) {
             try {
@@ -187,21 +202,20 @@ export default function VenueBooking() {
     const norm = (id || "").toLowerCase();
     setIdentity(norm);
 
-    const isSystemPinActive = pinRules?.isEnabled === true || (pinRules?.isEnabled !== false && pinRules?.isEnabled !== "false");
-    const externalRequiresPin = isSystemPinActive && (pinRules?.enableExternalVenue === true || (pinRules?.enableExternalVenue !== false && pinRules?.enableExternalVenue !== "false")) && norm === "external";
+    if (isPortal) {
+      const isSystemPinActive = pinRules?.isEnabled !== false && pinRules?.isEnabled !== "false";
+      const externalRequiresPin = isSystemPinActive && (pinRules?.enableExternalVenue !== false && pinRules?.enableExternalVenue !== "false") && norm === "external";
 
-    if (externalRequiresPin && !isPinVerified) {
-      setPinModalMeta({
-        title: "External Client Verification",
-        description: "External client reservations require AVR Head / Administrative clearance PIN to proceed.",
-      });
-      setShowPinModal(true);
-      return;
+      if (externalRequiresPin && !isPinVerified) {
+        setPinModalMeta({
+          title: "Verification Pin",
+          description: "External client reservations required clearance Pin.",
+        });
+        setShowPinModal(true);
+        return;
+      }
     }
 
-    if (norm !== "external") {
-      setIsPinVerified(false);
-    }
     if (!completedSteps.includes(1)) setCompletedSteps([...completedSteps, 1]);
     setActiveStep(2);
   };
@@ -249,7 +263,6 @@ export default function VenueBooking() {
     const vName = (selectedVenue.name || "").toLowerCase();
     const INACTIVE = ["completed", "done", "returned", "rejected", "cancelled", "cancelled_by_user", "cancelled_by_admin", "solved", "damaged", "lost"];
     const conflict = existingBookings.find(b => {
-      // Completed/done bookings free up the slot \u2014 skip them
       const bStatus = String(b.status || b.tracking_number?.status || "").toLowerCase();
       if (INACTIVE.includes(bStatus)) return false;
 
@@ -281,6 +294,7 @@ export default function VenueBooking() {
     const venueOpen = opHours?.venue_open?.substring(0, 5) || "07:30";
     const venueClose = opHours?.venue_close?.substring(0, 5) || "17:00";
     const isOutsideHours = (startTime && startTime < venueOpen) || (endTime && endTime > venueClose);
+    
     let diffDays = 0;
     if (selectedEndDate && selectedEndDate > selectedDate) {
       const startD = new Date(selectedDate);
@@ -288,56 +302,70 @@ export default function VenueBooking() {
       const diffTime = endD - startD;
       diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     }
-    // More than 1 day (spans 2 or more days)
-    const isMultiDay = diffDays >= 1;
 
-    // Evaluate trigger rules accurately based on checked/unchecked settings
-    const isSystemPinActive = pinRules?.isEnabled !== false && pinRules?.isEnabled !== "false";
-    const outsideRequiresPin = (pinRules?.requirePinOutsideHours !== false && pinRules?.requirePinOutsideHours !== "false") && isOutsideHours;
-    const multiDayRequiresPin = (pinRules?.requirePinMultiDayVenue !== false && pinRules?.requirePinMultiDayVenue !== "false") && isMultiDay;
-    const externalRequiresPin = (pinRules?.enableExternalVenue !== false && pinRules?.enableExternalVenue !== "false") && identity === "external";
+    if (isPortal) {
+      // In Portal Mode: Allow multi-day, short-notice, and outside hours WITH Verification PIN
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const minDate = new Date(today);
+      minDate.setDate(minDate.getDate() + 3);
+      const pad = (n) => String(n).padStart(2, "0");
+      const minDateStr = `${minDate.getFullYear()}-${pad(minDate.getMonth() + 1)}-${pad(minDate.getDate())}`;
+      const isShortNotice = selectedDate < minDateStr;
 
-    // Rule 1: External users always require PIN for venue booking
-    // Rule 2: Faculty & Students require PIN ONLY if multi-day venue booking (or outside hours)
-    const requiresPin = isSystemPinActive && (
-      externalRequiresPin ||
-      ((identity === "student" || identity === "faculty") && multiDayRequiresPin) ||
-      outsideRequiresPin
-    );
+      const isMultiDay = diffDays >= 1;
+      const isSystemPinActive = pinRules?.isEnabled !== false && pinRules?.isEnabled !== "false";
+      const outsideRequiresPin = (pinRules?.requirePinOutsideHours !== false && pinRules?.requirePinOutsideHours !== "false") && isOutsideHours;
+      const multiDayRequiresPin = (pinRules?.requirePinMultiDayVenue !== false && pinRules?.requirePinMultiDayVenue !== "false") && isMultiDay;
+      const externalRequiresPin = (pinRules?.enableExternalVenue !== false && pinRules?.enableExternalVenue !== "false") && identity === "external";
 
-    if (requiresPin && !isPinVerified) {
-      if (externalRequiresPin) {
-        setPinModalMeta({
-          title: "External Client Verification",
-          description: "External client reservations require AVR Head / Administrative clearance PIN to proceed.",
-        });
-      } else if (multiDayRequiresPin) {
-        const spanText = diffDays > 1 ? `${diffDays + 1} days` : "2 days";
-        setPinModalMeta({
-          title: "Multi-Day Venue Reservation PIN",
-          description: `This venue reservation spans ${spanText} (multi-day booking). AVR Head / Admin Verification PIN is required for faculty and student multi-day reservations.`,
-        });
-      } else if (outsideRequiresPin) {
-        setPinModalMeta({
-          title: "Outside Office Hours PIN",
-          description: `Selected booking time (${formatTime12(startTime)} - ${formatTime12(endTime)}) is outside official campus hours (${formatTime12(venueOpen)} - ${formatTime12(venueClose)}). AVR Head / Admin Verification PIN is required for authorization.`,
-        });
-      } else if (externalRequiresPin) {
-        setPinModalMeta({
-          title: "External Client Verification",
-          description: "External client reservations require AVR Head / Administrative clearance PIN to proceed.",
-        });
-      } else {
-        setPinModalMeta({
-          title: "Verification PIN Required",
-          description: "AVR Head / Administrative authorization PIN is required to complete this reservation.",
-        });
+      const requiresPin = isSystemPinActive && (
+        externalRequiresPin ||
+        outsideRequiresPin ||
+        multiDayRequiresPin ||
+        isShortNotice
+      );
+
+      if (requiresPin && !isPinVerified) {
+        if (isShortNotice) {
+          setPinModalMeta({
+            title: "Short-Notice Booking Verification PIN",
+            description: `Selected date (${selectedDate}) is within the 3-day notice window (tomorrow / short-notice booking). AVR Head / Admin Verification PIN is required for authorization.`,
+          });
+        } else if (multiDayRequiresPin) {
+          setPinModalMeta({
+            title: "Multi-Day Venue Reservation PIN",
+            description: `This venue reservation spans ${diffDays + 1} days (multi-day booking). AVR Head / Admin Verification PIN is required to authorize multi-day reservations.`,
+          });
+        } else if (outsideRequiresPin) {
+          setPinModalMeta({
+            title: "Outside Office Hours PIN",
+            description: `Selected booking time (${formatTime12(startTime)} - ${formatTime12(endTime)}) is outside campus hours (${formatTime12(venueOpen)} - ${formatTime12(venueClose)}). AVR Head / Admin Verification PIN is required for authorization.`,
+          });
+        } else if (externalRequiresPin) {
+          setPinModalMeta({
+            title: "Verification Pin",
+            description: "External client reservations required clearance Pin.",
+          });
+        }
+
+        setShowPinModal(true);
+        setPinError(false);
+        setPinInput("");
+        return;
+      }
+    } else {
+      // Public Rule: Limit to maximum 3 days duration (start date + 2 additional days max)
+      if (diffDays > 2) {
+        alert(`Public venue bookings are strictly limited to a maximum duration of 3 days. You cannot extend the reservation date beyond 3 days. Please adjust your date range.`);
+        return;
       }
 
-      setShowPinModal(true);
-      setPinError(false);
-      setPinInput("");
-      return;
+      // Public Rule: Must follow operational hours (no outside-hours extension)
+      if (isOutsideHours) {
+        alert(`Selected booking time (${formatTime12(startTime)} - ${formatTime12(endTime)}) is outside official campus operating hours (${formatTime12(venueOpen)} - ${formatTime12(venueClose)}). Please select a time range within operating hours.`);
+        return;
+      }
     }
 
     if (!completedSteps.includes(2)) setCompletedSteps([...completedSteps, 2]);
@@ -393,7 +421,7 @@ export default function VenueBooking() {
       };
 
       // Format selected equipment with requested quantities and resolved category names
-      const equipFormatted = Object.entries(avrEquipment)
+      let equipFormatted = Object.entries(avrEquipment)
         .filter(([_, val]) => Boolean(val))
         .map(([key, val]) => {
           const qty = typeof val === 'number' ? val : 1;
@@ -402,6 +430,9 @@ export default function VenueBooking() {
           return `${catName} (Qty: ${qty})`;
         })
         .join(', ');
+      if (equipmentRemarks && equipmentRemarks.trim()) {
+        equipFormatted = equipFormatted ? `${equipFormatted} | Equipment-Needed: ${equipmentRemarks.trim()}` : `Equipment-Needed: ${equipmentRemarks.trim()}`;
+      }
       payload.equipment_notes = equipFormatted;
 
       const equipItems = Object.entries(avrEquipment)
@@ -478,6 +509,7 @@ export default function VenueBooking() {
             selectedIdentity={identity}
             onSelectIdentity={handleIdentitySelect}
             onNext={() => handleIdentitySelect(identity)}
+            isPortal={isPortal}
           />
         )}
 
@@ -507,6 +539,7 @@ export default function VenueBooking() {
             onBack={() => setActiveStep(1)}
             onNext={handleStep2Next}
             venuesLoading={venuesLoading}
+            isPortal={isPortal}
           />
         )}
 
@@ -527,6 +560,7 @@ export default function VenueBooking() {
             startTime={startTime} setStartTime={setStartTime}
             endTime={endTime} setEndTime={setEndTime}
             avrEquipment={avrEquipment} setAvrEquipment={setAvrEquipment}
+            equipmentRemarks={equipmentRemarks} setEquipmentRemarks={setEquipmentRemarks}
             equipmentCatalog={equipmentCatalog}
             onBack={() => setActiveStep(2)}
           />
@@ -549,6 +583,8 @@ export default function VenueBooking() {
             isSubmitting={isSubmitting}
             endorsementFile={endorsementFile}
             setEndorsementFile={setEndorsementFile}
+            avrEquipment={avrEquipment}
+            equipmentCatalog={equipmentCatalog}
             onBack={() => setActiveStep(3)}
           />
         )}

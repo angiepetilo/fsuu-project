@@ -1,9 +1,10 @@
 import { lazy, Suspense, useEffect, useState } from "react";
-import { BrowserRouter, Routes, Route, Link, useLocation, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Link, useLocation, useNavigate, Navigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import api from "@/lib/axios";
 import { cleanupLocalStorage } from "@/lib/cleanupLocalStorage";
 import { PageLoader } from "@/components/ui/page-loader";
+import ConfirmModal from "@/components/ui/ConfirmModal";
 
 // Public — landing page loads eagerly (it's the first paint)
 import LandingPage from "./pages/public/LandingPage/LandingPage";
@@ -32,16 +33,65 @@ const ManageVenues       = lazy(() => import("./pages/admin/ManageVenues"));
 const Reports            = lazy(() => import("./pages/admin/Reports"));
 const HistoryLog         = lazy(() => import("./pages/admin/HistoryLog"));
 const Settings           = lazy(() => import("./pages/admin/Settings"));
+const PortalInterface    = lazy(() => import("./pages/admin/PortalInterface"));
 
 import { Toaster } from "@/components/ui/sonner";
 
+import { LayoutDashboard } from "lucide-react";
+
+function ProtectedInterfaceRoute({ children }) {
+  const { user, token } = useAuth();
+  const location = useLocation();
+
+  if (!user && !token) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  return children;
+}
+
 function AppContent() {
   const location = useLocation();
-  const { user } = useAuth();
+  const navigate = useNavigate();
+  const { user, token, logout } = useAuth();
+  const userRole = user?.role?.name || user?.role || "staff";
+
+  const [showHomeLogoutConfirm, setShowHomeLogoutConfirm] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   useEffect(() => {
     cleanupLocalStorage();
   }, []);
+
+  // When user is logged in and tries to navigate to the public landing page "/"
+  useEffect(() => {
+    if ((user || token) && location.pathname === "/") {
+      setShowHomeLogoutConfirm(true);
+    } else {
+      setShowHomeLogoutConfirm(false);
+    }
+  }, [location.pathname, user, token]);
+
+  const handleConfirmLogoutForHome = async () => {
+    setIsLoggingOut(true);
+    try {
+      await logout();
+      setShowHomeLogoutConfirm(false);
+    } catch {
+      setShowHomeLogoutConfirm(false);
+    } finally {
+      setIsLoggingOut(false);
+    }
+  };
+
+  const handleCancelLogoutForHome = () => {
+    setShowHomeLogoutConfirm(false);
+    if (userRole === "superadmin" || userRole === "super_admin") {
+      navigate("/sysad/dashboard");
+    } else {
+      navigate("/admin/dashboard");
+    }
+  };
 
   const isAuthPage     = location.pathname.startsWith("/login") || location.pathname.startsWith("/auth") || location.pathname.startsWith("/activate");
   const isAdminPage    = location.pathname.startsWith("/admin");
@@ -101,12 +151,22 @@ function AppContent() {
 
   return (
     <>
-      {/* Navigation — only on public pages */}
+      {/* Navigation — public and interface pages */}
       {!hideHeaderFooter && (
         <header className="fixed top-0 left-0 w-full z-50 bg-white/85 backdrop-blur-md border-b border-slate-200 transition-all shadow-xs">
           <div className="max-w-[1280px] mx-auto px-6 sm:px-8 py-3.5 flex justify-between items-center">
             {/* Logo on Left */}
-            <Link to="/" className="flex items-center gap-3.5 text-slate-900 group">
+            <button
+              type="button"
+              onClick={() => {
+                if (user || token) {
+                  setShowHomeLogoutConfirm(true);
+                } else {
+                  navigate("/");
+                }
+              }}
+              className="flex items-center gap-3.5 text-slate-900 group bg-transparent border-0 p-0 text-left cursor-pointer"
+            >
               <img src="/fsuu_logo.png" alt="FSUU Seal" className="h-11 w-auto transition-transform duration-300 group-hover:scale-105" />
               <div className="flex flex-col">
                 <span className="font-extrabold text-xl tracking-tight text-slate-900 leading-tight">
@@ -114,7 +174,45 @@ function AppContent() {
                 </span>
                 <span className="text-xs text-slate-500 font-semibold">{publicSettings.system_name || "Reserve and Booking System"}</span>
               </div>
-            </Link>
+            </button>
+
+            {/* Right Side Header Items */}
+            <div className="flex items-center gap-3">
+              {(user || token) && location.pathname.startsWith("/interface") && (
+                <div className="flex items-center p-1 bg-slate-100 border border-slate-200 rounded-full">
+                  <Link
+                    to="/interface/venue"
+                    className={`px-3.5 py-1 rounded-full text-xs font-extrabold transition-all ${
+                      location.pathname === "/interface/venue"
+                        ? "bg-blue-600 text-white shadow-xs"
+                        : "text-slate-600 hover:text-slate-900"
+                    }`}
+                  >
+                    Book Venue
+                  </Link>
+                  <Link
+                    to="/interface/equipment"
+                    className={`px-3.5 py-1 rounded-full text-xs font-extrabold transition-all ${
+                      location.pathname === "/interface/equipment"
+                        ? "bg-blue-600 text-white shadow-xs"
+                        : "text-slate-600 hover:text-slate-900"
+                    }`}
+                  >
+                    Borrow Equipment
+                  </Link>
+                </div>
+              )}
+
+              {(user || token) && (
+                <Link
+                  to={userRole === "superadmin" || userRole === "super_admin" ? "/sysad/dashboard" : "/admin/dashboard"}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-extrabold bg-slate-900 hover:bg-slate-800 text-white transition-all shadow-xs"
+                >
+                  <LayoutDashboard size={14} />
+                  <span>Dashboard</span>
+                </Link>
+              )}
+            </div>
           </div>
         </header>
       )}
@@ -129,11 +227,28 @@ function AppContent() {
         <Suspense fallback={<PageLoader />}>
           <Routes>
             {/* Public */}
-            <Route path="/"                 element={<LandingPage />} />
-            <Route path="/track"            element={<TrackBooking />} />
-            <Route path="/track-booking"    element={<TrackBooking />} />
-            <Route path="/book-venue"       element={<VenueBooking />} />
-            <Route path="/borrow-equipment" element={<EquipmentBorrowing />} />
+            <Route path="/"                     element={<LandingPage />} />
+            <Route path="/track"                element={<TrackBooking />} />
+            <Route path="/track-booking"        element={<TrackBooking />} />
+            <Route path="/book-venue"           element={<VenueBooking />} />
+            <Route path="/borrow-equipment"     element={<EquipmentBorrowing />} />
+
+            {/* Interface (Strictly Protected: Unauthenticated users CANNOT locate or access) */}
+            <Route path="/interface" element={
+              <ProtectedInterfaceRoute>
+                <Navigate to="/interface/venue" replace />
+              </ProtectedInterfaceRoute>
+            } />
+            <Route path="/interface/venue" element={
+              <ProtectedInterfaceRoute>
+                <VenueBooking isPortal={true} />
+              </ProtectedInterfaceRoute>
+            } />
+            <Route path="/interface/equipment" element={
+              <ProtectedInterfaceRoute>
+                <EquipmentBorrowing isPortal={true} />
+              </ProtectedInterfaceRoute>
+            } />
 
             {/* Auth */}
             <Route path="/login"                 element={<StaffLogin />} />
@@ -141,7 +256,11 @@ function AppContent() {
             <Route path="/activate/:token"       element={<AccountActivation />} />
 
             {/* SysAd Portal — dedicated route for Super Administrator */}
-            <Route path="/sysad" element={<SysadLayout />}>
+            <Route path="/sysad" element={
+              <ProtectedInterfaceRoute>
+                <SysadLayout />
+              </ProtectedInterfaceRoute>
+            }>
               <Route index              element={<Navigate to="/sysad/dashboard" replace />} />
               <Route path="dashboard"           element={<Dashboard />} />
               <Route path="venue-bookings"      element={<VenueBookings />} />
@@ -155,7 +274,11 @@ function AppContent() {
             </Route>
 
             {/* Admin — nested under AdminLayout */}
-            <Route path="/admin" element={<AdminLayout />}>
+            <Route path="/admin" element={
+              <ProtectedInterfaceRoute>
+                <AdminLayout />
+              </ProtectedInterfaceRoute>
+            }>
               <Route index              element={<Navigate to="/admin/dashboard" replace />} />
               <Route path="dashboard"           element={<Dashboard />} />
               <Route path="venue-bookings"      element={<VenueBookings />} />
@@ -167,6 +290,9 @@ function AppContent() {
               <Route path="history-log"         element={<HistoryLog />} />
               <Route path="settings"            element={<Settings />} />
             </Route>
+
+            {/* Fallback */}
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>
       </main>
@@ -208,6 +334,19 @@ function AppContent() {
           </div>
         </footer>
       )}
+
+      {/* Logout Confirmation when visiting homepage while logged in */}
+      <ConfirmModal
+        open={showHomeLogoutConfirm}
+        onClose={handleCancelLogoutForHome}
+        onConfirm={handleConfirmLogoutForHome}
+        variant="logout"
+        title="Sign Out to View Public Homepage?"
+        message={`You are currently signed in as ${user?.name || user?.email || "Staff"}. To view the public landing page as a guest visitor, you need to sign out of your account.`}
+        confirmLabel="Sign Out & Continue"
+        cancelLabel="Return to Dashboard"
+        loading={isLoggingOut}
+      />
 
       <Toaster position="top-right" expand={false} />
     </>

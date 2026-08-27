@@ -19,28 +19,37 @@ export default function VenueModalFooter({
   showRejectForm,
   rejectionComments,
   setRejectionComments,
+  isStudentAssistant = false,
 }) {
   return (
     <div className="px-6 py-3.5 bg-white border-t border-slate-200 flex items-center justify-end gap-3 shrink-0">
       {isPending ? (
         <>
-          <button
-            type="button"
-            onClick={() => setShowRejectForm(true)}
-            disabled={!!actionLoading}
-            className="px-6 py-2 bg-rose-50 hover:bg-rose-600 text-rose-700 hover:text-white border border-rose-200 hover:border-rose-600 font-bold text-xs rounded-lg shadow-2xs transition-all duration-150 cursor-pointer disabled:opacity-50"
-          >
-            Reject
-          </button>
-          <button
-            type="button"
-            onClick={() => handleAction(selected.id, "approve")}
-            disabled={!!actionLoading}
-            className="px-6 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-extrabold text-xs rounded-lg shadow-2xs transition-all duration-150 cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
-          >
-            {actionLoading === `${selected.id}-approve` ? <Loader2 size={14} className="animate-spin" /> : null}
-            Approve
-          </button>
+          {isStudentAssistant ? (
+            <span className="text-xs font-semibold text-slate-500 italic mr-2">
+              Approval restricted to Staff & Super Admin.
+            </span>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => setShowRejectForm(true)}
+                disabled={!!actionLoading}
+                className="px-6 py-2 bg-rose-50 hover:bg-rose-600 text-rose-700 hover:text-white border border-rose-200 hover:border-rose-600 font-bold text-xs rounded-lg shadow-2xs transition-all duration-150 cursor-pointer disabled:opacity-50"
+              >
+                Reject
+              </button>
+              <button
+                type="button"
+                onClick={() => handleAction(selected.id, "approve")}
+                disabled={!!actionLoading}
+                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-extrabold text-xs rounded-lg shadow-2xs transition-all duration-150 cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+              >
+                {actionLoading === `${selected.id}-approve` ? <Loader2 size={14} className="animate-spin" /> : null}
+                Approve
+              </button>
+            </>
+          )}
         </>
       ) : isApproved ? (
         <div className="flex items-center gap-2.5">
@@ -91,7 +100,7 @@ export default function VenueModalFooter({
                 <span>Completing Event...</span>
               </>
             ) : (
-              <span>Complete Event</span>
+              <span>Done</span>
             )}
           </button>
           <button

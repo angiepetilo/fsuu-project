@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Check, PackageOpen, ChevronLeft, ChevronRight, XCircle, Clock, CalendarDays, AlertTriangle, Search, Loader2 } from "lucide-react";
+import { Check, PackageOpen, ChevronLeft, ChevronRight, XCircle, Clock, CalendarDays, AlertTriangle, AlertCircle, Search, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import api from "@/lib/axios";
 import { getTodayISO, isPastTimeToday, isPastDateTime } from "@/lib/dateTimeUtils";
@@ -23,6 +23,7 @@ export default function Step2Equipment({
   handleEquipmentSubmit,
   onBack,
   catalogLoading = false,
+  isPortal = false,
 }) {
   const [equipSearch, setEquipSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -108,18 +109,20 @@ export default function Step2Equipment({
   };
   const tomorrowISO = getTomorrowISO();
 
-  // Check if current real-time is past today's operating hours close
+  // Check if current real-time is past today's operating hours close or before opening
   const now = new Date();
   const currentHHMM = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-  const isPastClosingToday = currentHHMM >= kioskClose;
+  const isPastClosingToday = currentHHMM >= kioskClose || currentHHMM < kioskOpen;
 
   // Determine initial borrow date mode (if past closing hours, auto-shift to tomorrow)
   const initialDateMode = isPastClosingToday || (startTime && startTime.startsWith(tomorrowISO)) ? "tomorrow" : "today";
   const [borrowDateMode, setBorrowDateMode] = useState(initialDateMode);
 
   const activeBorrowDate = borrowDateMode === "tomorrow" ? tomorrowISO : todayISO;
-  const startTimeVal = getTimePart(startTime, kioskOpen);
-  const endTimeVal = getTimePart(endTime, kioskClose);
+  const defaultStart = isPastClosingToday || borrowDateMode === "tomorrow" ? kioskOpen : (currentHHMM > kioskOpen && currentHHMM < kioskClose ? currentHHMM : kioskOpen);
+  const defaultEnd = kioskClose;
+  const startTimeVal = getTimePart(startTime, defaultStart);
+  const endTimeVal = getTimePart(endTime, defaultEnd);
 
   // Sync date with start/end time
   useEffect(() => {
@@ -205,13 +208,17 @@ export default function Step2Equipment({
                     }`}
                 >
                   <div>
-                    {/* Top Image / Placeholder Box (Clean without icon) */}
-                    <div className="w-full h-[160px] bg-blue-50/70 border border-blue-100/80 rounded-3xl overflow-hidden flex flex-col items-center justify-center text-center relative">
+                    {/* Top Image / Placeholder Box - Seamless Full Fit */}
+                    <div className="w-full h-[175px] bg-slate-50 border border-slate-100 rounded-2xl overflow-hidden flex flex-col items-center justify-center text-center relative group">
                       {item.avatar || item.photo || item.image || item.photo_url ? (
-                        <img src={item.avatar || item.photo || item.image || item.photo_url} alt={item.name} className="w-full h-full object-contain p-2" />
+                        <img
+                          src={item.avatar || item.photo || item.image || item.photo_url}
+                          alt={item.name}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
                       ) : (
-                        <div className="p-6 flex flex-col items-center justify-center h-full w-full">
-                          <span className="text-blue-950 font-extrabold text-sm leading-snug line-clamp-2" title={item.name}>
+                        <div className="p-6 flex flex-col items-center justify-center h-full w-full bg-slate-50">
+                          <span className="text-slate-800 font-extrabold text-sm leading-snug line-clamp-2" title={item.name}>
                             {item.name}
                           </span>
                         </div>
@@ -364,52 +371,26 @@ export default function Step2Equipment({
                 <button
                   type="button"
                   onClick={() => setBorrowDateMode("tomorrow")}
-                  disabled={!isPastClosingToday}
                   className={`flex-1 py-1.5 rounded-lg text-xs font-extrabold transition-all ${borrowDateMode === "tomorrow"
                     ? "bg-white text-blue-600 shadow-2xs"
-                    : !isPastClosingToday
-                      ? "text-slate-400 cursor-not-allowed opacity-60"
-                      : "text-slate-600 hover:text-slate-900 cursor-pointer"
+                    : "text-slate-600 hover:text-slate-900 cursor-pointer"
                     }`}
-                  title={!isPastClosingToday ? `Advance booking for tomorrow unlocks after operating hours end at ${formatTime12(kioskClose)}.` : "Next-Day Borrowing"}
+                  title="Next-Day Borrowing"
                 >
                   Tomorrow
                 </button>
               </div>
 
-              {!isPastClosingToday && (
+              {isPastClosingToday ? (
+                <div className="p-3 bg-amber-50/80 border border-amber-200/80 rounded-xl flex items-start gap-2 text-xs text-amber-900 font-bold leading-relaxed">
+                  <AlertCircle size={15} className="text-amber-600 shrink-0 mt-0.5" />
+                  <span>Sorry, the equipment borrowing is closed for now. You can reserve for tomorrow</span>
+                </div>
+              ) : (
                 <p className="text-[10px] text-slate-400 font-medium text-center">
                   Tomorrow's schedule opens after today's operating hours end ({formatTime12(kioskClose)}).
                 </p>
               )}
-            </div>
-
-            {/* Borrowing Date Card Banner */}
-            <div className={`p-4 rounded-2xl border space-y-1.5 shadow-2xs ${borrowDateMode === "tomorrow"
-              ? "bg-amber-50/70 border-amber-200/80"
-              : "bg-blue-50/80 border-blue-200/80"
-              }`}>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 font-extrabold text-xs">
-                  <CalendarDays size={16} className={borrowDateMode === "tomorrow" ? "text-amber-600 shrink-0" : "text-blue-600 shrink-0"} />
-                  <span className={borrowDateMode === "tomorrow" ? "text-amber-900" : "text-blue-800"}>
-                    Borrowing Date: <b>{borrowDateMode === "tomorrow" ? "Tomorrow" : "Today"}</b>
-                  </span>
-                </div>
-                {isPastClosingToday && borrowDateMode === "tomorrow" && (
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-200/70 text-amber-900">
-                    Next-Day Window
-                  </span>
-                )}
-              </div>
-              <p className="text-xs font-black text-slate-900 ml-6">
-                {formattedDisplayDate}
-              </p>
-              <p className="text-[11px] text-slate-600 font-medium ml-6 leading-relaxed">
-                {borrowDateMode === "tomorrow"
-                  ? "Physical units will be reserved and pre-allocated for tomorrow's session."
-                  : "Physical units are audited and released at the counter for today's session."}
-              </p>
             </div>
 
             {/* Time Settings */}
@@ -433,9 +414,9 @@ export default function Step2Equipment({
                     const endMins = (eh || 0) * 60 + (em || 0);
                     if (endMins <= startMins) {
                       const newEndMins = Math.min(1439, startMins + 60);
-                      const newEndH = String(Math.floor(newEndMins / 60)).padStart(2, "0");
-                      const newEndM = String(newEndMins % 60).padStart(2, "0");
-                      setEndTime && setEndTime(`${activeBorrowDate}T${newEndH}:${newEndM}`);
+                      const nH = String(Math.floor(newEndMins / 60)).padStart(2, '0');
+                      const nM = String(newEndMins % 60).padStart(2, '0');
+                      setEndTime && setEndTime(`${activeBorrowDate}T${nH}:${nM}`);
                     }
                   }}
                   className="w-full px-3.5 py-2.5 bg-slate-100/80 border border-slate-200 rounded-2xl text-xs font-extrabold text-slate-900 focus:bg-white focus:border-blue-600 focus:ring-4 focus:ring-blue-50 focus:outline-none transition-all shadow-inner"
@@ -444,14 +425,17 @@ export default function Step2Equipment({
 
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-extrabold text-slate-800 flex items-center gap-1.5">
-                  <span>Expected Return End Time</span>
+                  <span>Expected Return Time</span>
                   <span className="text-rose-500">*</span>
                 </label>
                 <input
                   type="time"
                   required
                   value={endTimeVal}
-                  onChange={(e) => setEndTime && setEndTime(`${activeBorrowDate}T${e.target.value}`)}
+                  onChange={(e) => {
+                    const newEndTime = e.target.value;
+                    setEndTime && setEndTime(`${activeBorrowDate}T${newEndTime}`);
+                  }}
                   className="w-full px-3.5 py-2.5 bg-slate-100/80 border border-slate-200 rounded-2xl text-xs font-extrabold text-slate-900 focus:bg-white focus:border-blue-600 focus:ring-4 focus:ring-blue-50 focus:outline-none transition-all shadow-inner"
                 />
               </div>
@@ -469,26 +453,64 @@ export default function Step2Equipment({
                   <span>Selected start time ({formatTime12(startTimeVal)}) has already passed for today. Please select a future time slot or reserve for tomorrow.</span>
                 </div>
               )}
+
+              {/* Extended Multi-day Return for Portal Mode */}
+              {isPortal && (
+                <div className="p-3 bg-blue-50/70 border border-blue-200 rounded-2xl space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-extrabold text-slate-900 flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={wishesToExtend}
+                        onChange={(e) => {
+                          setWishesToExtend && setWishesToExtend(e.target.checked);
+                          if (!e.target.checked) {
+                            setEndTime && setEndTime(`${activeBorrowDate}T${endTimeVal}`);
+                          }
+                        }}
+                        className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer"
+                      />
+                      <span>Allow Extended Multi-Day Return</span>
+                    </label>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-blue-200 text-blue-900">
+                      Portal Mode
+                    </span>
+                  </div>
+                  {wishesToExtend && (
+                    <div className="flex flex-col gap-1.5 pt-1">
+                      <label className="text-xs font-bold text-slate-700">Target Return Date</label>
+                      <input
+                        type="date"
+                        min={activeBorrowDate}
+                        value={endTime ? endTime.split("T")[0] : activeBorrowDate}
+                        onChange={(e) => {
+                          const newEndDate = e.target.value;
+                          setEndTime && setEndTime(`${newEndDate}T${endTimeVal}`);
+                        }}
+                        className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-2xl text-xs font-bold text-slate-900 focus:border-blue-600 focus:outline-none shadow-inner"
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Operating Hours Notice Banner */}
             {(() => {
               const isOutside = startTimeVal < kioskOpen || endTimeVal > kioskClose;
-              const requiresPinForOutside = (pinRules?.requirePinOutsideHours !== false) && isOutside;
 
               if (isOutside) {
-                return (
-                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-700 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="font-semibold text-slate-800">
-                        Outside Office Hours ({formatTime12(kioskOpen)} – {formatTime12(kioskClose)})
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-600 font-normal leading-relaxed">
-                      Selected borrowing/return time ({formatTime12(startTimeVal)} – {formatTime12(endTimeVal)}) is outside campus hours.
-                      {requiresPinForOutside ? " AVR Head / Admin Verification PIN is required." : ""}
-                    </p>
-                    {requiresPinForOutside && (
+                if (isPortal) {
+                  return (
+                    <div className="p-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs text-slate-700 space-y-2 mt-2">
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold text-slate-800">
+                          Outside Operating Hours ({formatTime12(kioskOpen)} – {formatTime12(kioskClose)})
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-600 font-normal leading-relaxed">
+                        Selected borrowing/return time ({formatTime12(startTimeVal)} – {formatTime12(endTimeVal)}) is outside operating hours. Verification PIN is required for authorization.
+                      </p>
                       <div className="pt-1.5 border-t border-slate-200 flex items-center justify-between gap-2">
                         {isPinVerified ? (
                           <span className="text-xs font-medium text-slate-700">
@@ -500,21 +522,33 @@ export default function Step2Equipment({
                             onClick={() => {
                               if (setPinModalMeta) {
                                 setPinModalMeta({
-                                  title: "Outside Office Hours PIN",
-                                  description: `Selected borrowing time (${formatTime12(startTimeVal)} - ${formatTime12(endTimeVal)}) is outside campus hours (${formatTime12(kioskOpen)} - ${formatTime12(kioskClose)}). AVR Head / Admin Verification PIN is required.`,
+                                  title: "Outside Operating Hours PIN",
+                                  description: `Selected borrowing time (${formatTime12(startTimeVal)} - ${formatTime12(endTimeVal)}) is outside operating hours (${formatTime12(kioskOpen)} - ${formatTime12(kioskClose)}). Verification PIN is required.`,
                                 });
                               }
                               setShowPinModal && setShowPinModal(true);
                             }}
-                            className="w-full py-2 px-3 rounded-lg border border-blue-600 bg-blue-50/70 hover:bg-blue-600 text-blue-700 hover:text-white active:bg-blue-700 active:scale-[0.99] font-semibold text-xs transition-all cursor-pointer text-center shadow-2xs"
+                            className="w-full py-2 px-3 rounded-lg border border-blue-600 bg-blue-50/70 hover:bg-blue-600 text-blue-700 hover:text-white active:bg-blue-700 font-semibold text-xs transition-all cursor-pointer text-center shadow-2xs"
                           >
                             Verify PIN
                           </button>
                         )}
                       </div>
-                    )}
-                  </div>
-                );
+                    </div>
+                  );
+                } else {
+                  return (
+                    <div className="p-3 bg-rose-50 border border-rose-200 rounded-2xl text-xs text-rose-800 space-y-1 mt-2">
+                      <div className="flex items-center gap-1.5 font-bold text-rose-900">
+                        <AlertTriangle size={14} className="text-rose-600 shrink-0" />
+                        <span>Outside Operating Hours</span>
+                      </div>
+                      <p className="text-[11px] font-semibold text-rose-700 leading-snug">
+                        Must be schedule within Operating Hours [ {formatTime12(kioskOpen)} - {formatTime12(kioskClose)} ].
+                      </p>
+                    </div>
+                  );
+                }
               }
               return null;
             })()}
@@ -560,7 +594,7 @@ export default function Step2Equipment({
                 <span>Next: Fill Details ({totalSelectedCount} items selected)</span>
                 <ChevronRight size={16} />
               </Button>
-              {isBlocked ? (
+              {isPortal && isBlocked && !isPinVerified ? (
                 <span className="text-[10px] font-bold text-rose-600">
                   Verify AVR Head PIN to proceed with requisition
                 </span>

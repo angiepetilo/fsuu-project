@@ -4,8 +4,7 @@ import PasswordInput from "./PasswordInput";
 
 export default function UserForm({ initial, onSubmit, loading, onClose, isSuperAdmin }) {
   const [name, setName] = useState(initial?.name ?? "");
-  const [email, setEmail] = useState(initial?.email ?? "");
-  const [personalEmail, setPersonalEmail] = useState(initial?.personal_email ?? "");
+  const [email, setEmail] = useState(initial?.email_address ?? initial?.email ?? "");
   const [role, setRole] = useState(initial?.role?.name ?? initial?.role ?? "staff");
   const [newPassword, setNewPassword] = useState("");
   const [imageFile, setImageFile] = useState(null);
@@ -35,7 +34,7 @@ export default function UserForm({ initial, onSubmit, loading, onClose, isSuperA
     if (initial) {
       fd.append("name", name);
       fd.append("email", email);
-      fd.append("personal_email", personalEmail);
+      fd.append("email_address", email);
       fd.append("role", role);
       fd.append("status", isDisabled ? "disabled" : "active");
       fd.append("is_active", isDisabled ? "0" : "1");
@@ -46,7 +45,8 @@ export default function UserForm({ initial, onSubmit, loading, onClose, isSuperA
       if (newPassword) fd.append("new_password", newPassword);
     } else {
       if (name) fd.append("name", name);
-      fd.append("personal_email", personalEmail);
+      fd.append("email", email);
+      fd.append("email_address", email);
       fd.append("role", role || "staff");
       fd.append("status", isDisabled ? "disabled" : "active");
       fd.append("is_active", isDisabled ? "0" : "1");
@@ -94,39 +94,21 @@ export default function UserForm({ initial, onSubmit, loading, onClose, isSuperA
           </div>
 
           <div>
-            <label className="text-xs font-bold text-slate-700 mb-1 block">Institutional / Login Email <span className="text-rose-600">*</span></label>
+            <label className="text-xs font-bold text-slate-700 mb-1 block">Email Address <span className="text-rose-600">*</span></label>
             <input
               required value={email} onChange={e => setEmail(e.target.value)}
               placeholder="e.g. sco.admin@fsuu.edu.ph"
               className="w-full px-3.5 py-2 border border-slate-300 rounded-xl text-xs font-mono font-bold text-slate-900 focus:outline-none focus:border-slate-900 transition-all bg-white"
             />
           </div>
-
-          <div>
-            <label className="text-xs font-bold text-slate-700 mb-1 block">Personal Email</label>
-            <input
-              type="email" value={personalEmail} onChange={e => setPersonalEmail(e.target.value)}
-              placeholder="e.g. juan@gmail.com"
-              className="w-full px-3.5 py-2 border border-slate-300 rounded-xl text-xs font-mono text-slate-900 focus:outline-none focus:border-slate-900 transition-all bg-white"
-            />
-          </div>
         </>
       ) : (
         <>
           <div>
-            <label className="text-xs font-bold text-slate-900 mb-1 block">Full Name</label>
+            <label className="text-xs font-bold text-slate-900 mb-1 block">Email Address <span className="text-rose-600">*</span></label>
             <input
-              type="text" value={name} onChange={e => setName(e.target.value)}
-              placeholder="e.g. Juan Dela Cruz"
-              className="w-full px-3.5 py-2 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:border-slate-900 transition-all bg-white"
-            />
-          </div>
-
-          <div>
-            <label className="text-xs font-bold text-slate-900 mb-1 block">Personal Email <span className="text-rose-600">*</span></label>
-            <input
-              required type="email" value={personalEmail} onChange={e => setPersonalEmail(e.target.value)}
-              placeholder="e.g. juan@gmail.com"
+              required type="email" value={email} onChange={e => setEmail(e.target.value)}
+              placeholder="e.g. staff@urios.edu.ph"
               className="w-full px-3.5 py-2 border border-slate-300 rounded-xl text-xs font-mono font-bold text-slate-900 focus:outline-none focus:border-slate-900 transition-all bg-white"
             />
             <p className="text-[10px] text-slate-400 mt-1 font-medium">An activation link and credentials will be sent to this email.</p>

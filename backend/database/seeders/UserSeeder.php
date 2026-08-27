@@ -21,8 +21,10 @@ class UserSeeder extends Seeder
             ['email' => $superAdminEmail],
             [
                 'name'           => 'Super Administrator',
+                'first_name'     => 'Super',
+                'last_name'      => 'Administrator',
+                'email_address'  => $superAdminEmail,
                 'email'          => $superAdminEmail,
-                'personal_email' => $superAdminEmail,
                 'password'       => Hash::make($superAdminPassword),
                 'role_id'        => $superAdminRole->id,
                 'created_by'     => null,

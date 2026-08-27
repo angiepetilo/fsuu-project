@@ -212,23 +212,7 @@ export default function AdminProfileTab({
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Personal / Recovery Email <span className="text-slate-400 font-normal">(Optional)</span>
-                </label>
-                <input
-                  type="email"
-                  disabled={!isEditing}
-                  value={profileForm.personal_email || ""}
-                  onChange={(e) => setProfileForm({ ...profileForm, personal_email: e.target.value })}
-                  placeholder="e.g. personal@gmail.com"
-                  className={`w-full p-2.5 border rounded-lg font-mono font-medium text-xs transition-colors ${
-                    isEditing
-                      ? "bg-white border-slate-300 text-slate-900 focus:outline-none focus:border-blue-600"
-                      : "bg-slate-50 border-slate-200 text-slate-600 cursor-not-allowed"
-                  }`}
-                />
-              </div>
+
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">Account Role</label>

@@ -10,10 +10,12 @@ return new class extends Migration
     {
         Schema::create('inspections', function (Blueprint $table) {
             $table->id();
-            $table->string('inspectable_type'); // 'equipment_borrow' or 'avr_venue_booking'
-            $table->unsignedBigInteger('inspectable_id');
+            $table->string('inspectable_type')->nullable(); // 'equipment_borrow' or 'avr_venue_booking'
+            $table->unsignedBigInteger('inspectable_id')->nullable();
             $table->foreignId('inspected_by')->constrained('users')->cascadeOnDelete();
             $table->string('inspection_type'); // pre_use / pre_event, post_use / post_event
+            $table->text('equipment_types')->nullable();
+            $table->text('equipment_unit')->nullable();
             $table->string('condition');       // good, damaged, lost
             $table->boolean('is_late')->default(false);
             $table->string('timeliness')->default('on_time'); // on_time, late

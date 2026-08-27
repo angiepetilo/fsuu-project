@@ -37,6 +37,32 @@ class EquipmentBorrowingService
                 );
             }
 
+            // Anti-Spam Duplicate Prevention (15-Minute Buffer)
+            $applicantEmail = $data['email_address'] ?? $data['email'] ?? null;
+            $firstName = $data['first_name'] ?? null;
+            $lastName = $data['last_name'] ?? null;
+
+            if (!empty($applicantEmail) || (!empty($firstName) && !empty($lastName))) {
+                $recentDuplicate = DB::table('equipment_borrows')
+                    ->where('created_at', '>=', now()->subMinutes(15))
+                    ->where(function ($q) use ($applicantEmail, $firstName, $lastName) {
+                        if ($applicantEmail) {
+                            $q->where('email_address', $applicantEmail);
+                        }
+                        if ($firstName && $lastName) {
+                            $q->orWhere(function ($sub) use ($firstName, $lastName) {
+                                $sub->where('first_name', $firstName)
+                                    ->where('last_name', $lastName);
+                            });
+                        }
+                    })
+                    ->exists();
+
+                if ($recentDuplicate) {
+                    throw new \InvalidArgumentException('You have already submitted an equipment borrowing request recently. To prevent duplicate requests, please wait 15 minutes before submitting again or track your existing request.');
+                }
+            }
+
             $referenceCode = $this->referenceCodeService->generate('EQ');
 
             $trackingId = null;
@@ -182,7 +208,11 @@ class EquipmentBorrowingService
                 $borrowing->forceFill(['status' => 'approved'])->save();
             }
             if ($borrowing->tracking_number_id) {
-                DB::table('tracking_numbers')->where('id', $borrowing->tracking_number_id)->update(['status' => 'approved']);
+                DB::table('tracking_numbers')->where('id', $borrowing->tracking_number_id)->update([
+                    'status' => 'approved',
+                    'approved_by' => $actor->id,
+                    'rejected_by' => null,
+                ]);
             }
 
             if (\Illuminate\Support\Facades\Schema::hasTable('approvals')) {
@@ -195,7 +225,17 @@ class EquipmentBorrowingService
                 ]);
             }
 
-            $this->auditLog->log($actor, 'borrowing_approved', 'equipment_borrowing', $borrowing->id);
+            $this->auditLog->log(
+                $actor,
+                'EQUIPMENT_BORROW_APPROVED',
+                'equipment_borrows',
+                $borrowing->id,
+                [
+                    'remarks'        => $remarks,
+                    'reference_code' => $borrowing->reference_code ?? $borrowing->trackingNumber?->reference_code,
+                    'filer_name'     => $borrowing->filer_name,
+                ]
+            );
 
             $channel = $borrowing->contact_preference ?: 'email';
             $recipient = ($channel === 'sms' && $borrowing->requestor_contact_number)
@@ -230,7 +270,11 @@ class EquipmentBorrowingService
                 $borrowing->forceFill(['status' => 'rejected'])->save();
             }
             if ($borrowing->tracking_number_id) {
-                DB::table('tracking_numbers')->where('id', $borrowing->tracking_number_id)->update(['status' => 'rejected']);
+                DB::table('tracking_numbers')->where('id', $borrowing->tracking_number_id)->update([
+                    'status' => 'rejected',
+                    'rejected_by' => $actor->id,
+                    'approved_by' => null,
+                ]);
             }
 
             if (\Illuminate\Support\Facades\Schema::hasTable('approvals')) {
@@ -243,7 +287,17 @@ class EquipmentBorrowingService
                 ]);
             }
 
-            $this->auditLog->log($actor, 'borrowing_rejected', 'equipment_borrowing', $borrowing->id);
+            $this->auditLog->log(
+                $actor,
+                'EQUIPMENT_BORROW_REJECTED',
+                'equipment_borrows',
+                $borrowing->id,
+                [
+                    'remarks'        => $remarks,
+                    'reference_code' => $borrowing->reference_code ?? $borrowing->trackingNumber?->reference_code,
+                    'filer_name'     => $borrowing->filer_name,
+                ]
+            );
 
             $channel = $borrowing->contact_preference ?: 'email';
             $recipient = ($channel === 'sms' && $borrowing->requestor_contact_number)

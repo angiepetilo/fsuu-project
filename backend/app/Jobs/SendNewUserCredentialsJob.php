@@ -26,7 +26,7 @@ class SendNewUserCredentialsJob implements ShouldQueue
 
     public function handle(): void
     {
-        $recipient = $this->user->email ?? $this->user->personal_email;
+        $recipient = $this->user->email_address ?: $this->user->email;
         if (empty($recipient)) {
             Log::warning('[MAIL] SendNewUserCredentialsJob: No recipient email provided.');
             return;
@@ -80,7 +80,7 @@ class SendNewUserCredentialsJob implements ShouldQueue
     {
         Log::error('[MAIL] SendNewUserCredentialsJob permanently failed', [
             'user_id'   => $this->user->id ?? null,
-            'recipient' => $this->user->email ?? $this->user->personal_email ?? null,
+            'recipient' => $this->user->email_address ?: $this->user->email ?: null,
             'error'     => $e->getMessage(),
         ]);
     }

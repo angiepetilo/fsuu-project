@@ -20,10 +20,12 @@ class Venue extends Model
         'capacity',
         'status',
         'allowed_equipment',
+        'equipment_max_qtys',
     ];
 
     protected $casts = [
         'allowed_equipment' => 'array',
+        'equipment_max_qtys' => 'array',
     ];
 
     public function venueBookings(): HasMany

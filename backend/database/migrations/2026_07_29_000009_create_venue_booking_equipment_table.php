@@ -11,7 +11,8 @@ return new class extends Migration
         Schema::create('venue_booking_equipment', function (Blueprint $table) {
             $table->id();
             $table->foreignId('venue_booking_id')->constrained('venue_bookings')->cascadeOnDelete();
-            $table->foreignId('equipment_type_id')->constrained('equipment_types')->cascadeOnDelete();
+            $table->foreignId('equipment_type_id')->nullable()->constrained('equipment_types')->cascadeOnDelete();
+            $table->foreignId('equipment_types_id')->nullable()->constrained('equipment_types')->cascadeOnDelete();
             $table->integer('quantity_requested')->default(1);
             $table->string('others_specify')->nullable();
             $table->timestamps();

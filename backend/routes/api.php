@@ -241,6 +241,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/sysad/notifications',                 [SuperAdminNotificationController::class, 'index']);
     Route::post('/sysad/notifications/mark-as-read',   [SuperAdminNotificationController::class, 'markAsRead']);
     Route::post('/sysad/notifications/mark-all-read',  [SuperAdminNotificationController::class, 'markAllRead']);
+    Route::get('/sysad/audit-logs',                     [\App\Http\Controllers\SuperAdmin\AuditLogController::class, 'index']);
 
     // ── Admin: Departments ────────────────────────────────────────────────────
     Route::get('/admin/departments',         [DepartmentController::class, 'index']);

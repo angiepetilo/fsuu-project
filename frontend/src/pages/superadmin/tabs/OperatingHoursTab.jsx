@@ -70,7 +70,7 @@ export default function OperatingHoursTab({ showMsg }) {
         <div>
           <h3 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
 
-            Operating Schedules & Service Hours
+            Operating Hours
           </h3>
           <p className="text-xs text-slate-500 font-medium">
             Define daily operating windows during which requestors may book venues and borrow equipment.
@@ -80,7 +80,7 @@ export default function OperatingHoursTab({ showMsg }) {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2 border-t border-slate-100">
           <div className="space-y-3 bg-slate-50 p-4 rounded-2xl border border-slate-200">
             <h4 className="font-extrabold text-slate-900 text-xs flex items-center gap-2">
-              🏛️ Venue Reservation Operating Hours
+              🏛️ Venue Booking
             </h4>
             <p className="text-[11px] text-slate-500 font-medium">
               Requestors may only book venues during this operating time range.
@@ -109,7 +109,7 @@ export default function OperatingHoursTab({ showMsg }) {
 
           <div className="space-y-3 bg-slate-50 p-4 rounded-2xl border border-slate-200">
             <h4 className="font-extrabold text-slate-900 text-xs flex items-center gap-2">
-              📦 Equipment Kiosk Borrowing Hours
+              📦 Equipment Borrowing
             </h4>
             <p className="text-[11px] text-slate-500 font-medium">
               Requestors should borrow and return equipment during this operating time.

@@ -7,6 +7,7 @@ export function Step1Identity({
   handleIdentitySelect,
   onSelectIdentity,
   onNext,
+  isPortal = false,
 }) {
   const currentIdentity = (identity || selectedIdentity || "").toLowerCase();
   const selectHandler = (val) => {
@@ -16,7 +17,7 @@ export function Step1Identity({
 
   return (
     <div className="p-6 sm:p-10 animate-in fade-in duration-300">
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 mb-8">
+      <div className={`grid grid-cols-1 ${isPortal ? "sm:grid-cols-3" : "sm:grid-cols-2 max-w-2xl mx-auto"} gap-6 mb-8`}>
 
         {/* Role 1: Student */}
         <div
@@ -28,13 +29,13 @@ export function Step1Identity({
           }`}
         >
           <div className="w-14 h-14 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform shrink-0">
-            <GraduationCap size={28} />
+            <GraduationCap size={30} />
           </div>
           <h3 className="font-extrabold text-slate-900 text-base mb-1">Student</h3>
           <p className="text-xs font-semibold text-slate-500">Enrolled FSUU Student</p>
         </div>
 
-        {/* Role 2: Faculty / Staff */}
+        {/* Role 2: Faculty */}
         <div
           onClick={() => selectHandler("faculty")}
           className={`group bg-white rounded-[24px] p-6 text-center cursor-pointer transition-all duration-300 border-2 flex flex-col items-center justify-center min-h-[190px] ${
@@ -44,38 +45,44 @@ export function Step1Identity({
           }`}
         >
           <div className="w-14 h-14 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform shrink-0">
-            <Users size={28} />
+            <Users size={30} />
           </div>
-          <h3 className="font-extrabold text-slate-900 text-base mb-1">Faculty / Staff</h3>
+          <h3 className="font-extrabold text-slate-900 text-base mb-1">Faculty</h3>
           <p className="text-xs font-semibold text-slate-500">Academic or Administrative Dept</p>
         </div>
 
-        {/* Role 3: External User */}
-        <div
-          onClick={() => selectHandler("external")}
-          className={`group bg-white rounded-[24px] p-6 text-center cursor-pointer transition-all duration-300 border-2 flex flex-col items-center justify-center min-h-[190px] ${
-            currentIdentity === "external"
-              ? "border-emerald-500 bg-white shadow-md shadow-emerald-500/10 ring-4 ring-emerald-50/60 scale-[1.02]"
-              : "border-slate-200/80 shadow-2xs hover:border-emerald-300 hover:shadow-md"
-          }`}
-        >
-          <div className="w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform shrink-0">
-            <User size={28} />
+        {/* Role 3: External User (Only in Portal Interface) */}
+        {isPortal && (
+          <div
+            onClick={() => selectHandler("external")}
+            className={`group bg-white rounded-[24px] p-6 text-center cursor-pointer transition-all duration-300 border-2 flex flex-col items-center justify-center min-h-[190px] ${
+              currentIdentity === "external"
+                ? "border-emerald-500 bg-white shadow-md shadow-emerald-500/10 ring-4 ring-emerald-50/60 scale-[1.02]"
+                : "border-slate-200/80 shadow-2xs hover:border-emerald-300 hover:shadow-md"
+            }`}
+          >
+            <div className="w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform shrink-0">
+              <User size={30} />
+            </div>
+            <h3 className="font-extrabold text-slate-900 text-base mb-1">External User</h3>
+            <p className="text-xs font-semibold text-slate-500">Guest or Partner Entity</p>
           </div>
-          <h3 className="font-extrabold text-slate-900 text-base mb-1">External User</h3>
-          <p className="text-xs font-semibold text-slate-500">Guest or Partner Entity</p>
-        </div>
+        )}
 
       </div>
 
       {/* Navigation Buttons */}
       <div className="flex items-center justify-between pt-4 border-t border-slate-100">
-        <a
-          href="/"
-          className="px-6 py-3 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-extrabold text-xs flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer no-underline"
-        >
-          <span>← Back to Homepage</span>
-        </a>
+        {!isPortal ? (
+          <a
+            href="/"
+            className="px-6 py-3 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-extrabold text-xs flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer no-underline"
+          >
+            <span>← Back to Homepage</span>
+          </a>
+        ) : (
+          <span className="text-xs font-semibold text-slate-400">Step 1 of 4: Select Requestor Identity</span>
+        )}
 
         <Button
           disabled={!currentIdentity}

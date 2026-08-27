@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Pencil, Trash2, X, Package, Loader2, Image as ImageIcon, ChevronLeft, ChevronRight, Camera, MoreVertical } from "lucide-react";
+import { Plus, Pencil, Ban, X, Package, Loader2, Image as ImageIcon, ChevronLeft, ChevronRight, Camera, MoreVertical, Trash2 } from "lucide-react";
 import api from "@/lib/axios";
 import notify from "@/lib/notify";
 import ConfirmModal from "@/components/ui/ConfirmModal";
@@ -11,7 +11,7 @@ export default function EquipmentCategoriesTab({ showMsg }) {
   const [editItem, setEditItem] = useState(null);
   const [openActionId, setOpenActionId] = useState(null);
   const [formLoading, setFormLoading] = useState(false);
-  const [archiveTarget, setArchiveTarget] = useState(null);
+  const [disableTarget, setDisableTarget] = useState(null);
 
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 10;
@@ -29,6 +29,7 @@ export default function EquipmentCategoriesTab({ showMsg }) {
   const [form, setForm] = useState({
     eq_name: "",
     eq_type: "AV Equipment",
+    photo: "",
     avatar: "",
     total_quantity: 0,
     available_count: 0,
@@ -51,6 +52,10 @@ export default function EquipmentCategoriesTab({ showMsg }) {
   };
 
   useEffect(() => {
+    fetchCategories();
+  }, []);
+
+  useEffect(() => {
     setCurrentPage(1);
   }, [categories.length]);
 
@@ -58,19 +63,14 @@ export default function EquipmentCategoriesTab({ showMsg }) {
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
   const paginatedCategories = categories.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
-  useEffect(() => {
-    fetchCategories();
-  }, []);
-
-  const handleAvatarUpload = (e) => {
+  const handlePhotoUpload = (e) => {
     const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setForm((prev) => ({ ...prev, avatar: reader.result }));
-      };
-      reader.readAsDataURL(file);
-    }
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setForm((prev) => ({ ...prev, photo: reader.result, avatar: reader.result }));
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleOpenAddModal = () => {
@@ -78,6 +78,7 @@ export default function EquipmentCategoriesTab({ showMsg }) {
     setForm({
       eq_name: "",
       eq_type: "AV Equipment",
+      photo: "",
       avatar: "",
       total_quantity: 0,
       available_count: 0,
@@ -89,10 +90,12 @@ export default function EquipmentCategoriesTab({ showMsg }) {
 
   const handleOpenEditModal = (cat) => {
     setEditItem(cat);
+    const photoVal = cat.photo || cat.avatar || "";
     setForm({
-      eq_name: cat.eq_name || cat.name || "",
+      eq_name: cat.eq_name || cat.name || cat.equipment_types_name || "",
       eq_type: cat.eq_type || "AV Equipment",
-      avatar: cat.avatar || "",
+      photo: photoVal,
+      avatar: photoVal,
       total_quantity: cat.total_quantity || 0,
       available_count: cat.available_count || 0,
       status: cat.status || "available",
@@ -103,93 +106,123 @@ export default function EquipmentCategoriesTab({ showMsg }) {
 
   const handleSave = async (e) => {
     e.preventDefault();
+    if (!form.eq_name.trim()) return;
+
     setFormLoading(true);
+    const photoData = form.photo || form.avatar;
     const payload = {
-      ...form,
-      eq_type: form.eq_type || "AV Equipment",
-      total_quantity: parseInt(form.total_quantity, 10) || 0,
-      available_count: parseInt(form.available_count, 10) || 0,
-      avatar: form.avatar || null,
-      description: form.description || null,
+      eq_name: form.eq_name.trim(),
+      name: form.eq_name.trim(),
+      equipment_types_name: form.eq_name.trim(),
+      eq_type: form.eq_type,
+      photo: photoData,
+      avatar: photoData,
+      description: form.description,
+      status: form.status || "available",
     };
 
     if (editItem) {
       // ── OPTIMISTIC EDIT ─────────────────────────────────────────────────
-      const prev = categories;
-      setCategories(c => c.map(x => x.id === editItem.id ? { ...x, ...payload, _optimistic: true } : x));
-      setShowModal(false); setEditItem(null);
-      try {
-        await api.put(`/admin/equipment-types/${editItem.id}`, payload);
-        setCategories(c => c.map(x => x.id === editItem.id ? { ...x, _optimistic: false } : x));
-        notify.success("Category Updated", `"${form.eq_name}" updated.`);
-      } catch (err) {
-        setCategories(prev); setEditItem(editItem); setShowModal(true);
-        notify.error("Update Failed", err.response?.data?.message || "Changes reverted.");
-      } finally { setFormLoading(false); }
-    } else {
-      // ── OPTIMISTIC ADD ──────────────────────────────────────────────────
-      const tempId = `temp-${Date.now()}`;
-      const prev = categories;
-      setCategories(c => [...c, { ...payload, id: tempId, _optimistic: true }]);
+      const prevCats = categories;
+      const updated = prevCats.map(c => c.id === editItem.id ? { ...c, ...payload } : c);
+      setCategories(updated);
       setShowModal(false);
+
+      try {
+        const res = await api.put(`/admin/equipment-types/${editItem.id}`, payload);
+        const saved = res.data?.equipment_type || res.data;
+        setCategories(prev => prev.map(c => c.id === editItem.id ? { ...c, ...saved } : c));
+        try {
+          localStorage.setItem("fsuu_equipment_types", JSON.stringify(updated));
+        } catch {}
+        window.dispatchEvent(new Event("equipment_updated"));
+        if (showMsg) showMsg("Equipment category updated.");
+        notify.success("Category Updated", "Equipment category successfully updated.");
+      } catch (err) {
+        setCategories(prevCats);
+        if (showMsg) showMsg(err.response?.data?.message || "Failed to update category — reverted.");
+        notify.error("Update Failed", err.response?.data?.message || "Failed to update category.");
+      } finally {
+        setFormLoading(false);
+      }
+    } else {
+      // ── OPTIMISTIC CREATE ────────────────────────────────────────────────
+      const tempId = Date.now();
+      const newCatTemp = { id: tempId, ...payload, total_quantity: 0, available_count: 0, created_at: new Date().toISOString() };
+      const nextCats = [newCatTemp, ...categories];
+      setCategories(nextCats);
+      setShowModal(false);
+
       try {
         const res = await api.post("/admin/equipment-types", payload);
-        const saved = res.data;
-        setCategories(c => c.map(x => x.id === tempId ? { ...saved, _optimistic: false } : x));
-        notify.success("Category Created", `"${form.eq_name}" added.`);
+        const actualCat = res.data?.equipment_type || res.data || newCatTemp;
+        setCategories(prev => prev.map(c => c.id === tempId ? { ...actualCat, id: actualCat.id || tempId } : c));
+        try {
+          localStorage.setItem("fsuu_equipment_types", JSON.stringify(nextCats));
+        } catch {}
+        window.dispatchEvent(new Event("equipment_updated"));
+        if (showMsg) showMsg("Equipment category created.");
+        notify.success("Category Created", "New equipment category successfully registered.");
       } catch (err) {
-        setCategories(prev); setShowModal(true);
-        notify.error("Create Failed", err.response?.data?.message || "Changes reverted.");
-      } finally { setFormLoading(false); }
+        setCategories(categories);
+        if (showMsg) showMsg(err.response?.data?.message || "Failed to create category — reverted.");
+        notify.error("Creation Failed", err.response?.data?.message || "Failed to create category.");
+      } finally {
+        setFormLoading(false);
+      }
     }
   };
 
-  const handleDelete = (id, name) => {
-    setOpenActionId(null);
-    setArchiveTarget({ id, name });
-  };
+  const confirmToggleDisable = async () => {
+    if (!disableTarget) return;
+    const { id, name, status } = disableTarget;
+    const isCurrentlyDisabled = status === "disabled" || status === "inactive" || status === "unavailable";
+    const newStatus = isCurrentlyDisabled ? "available" : "disabled";
 
-  const confirmArchive = async () => {
-    if (!archiveTarget) return;
-    const { id, name } = archiveTarget;
-    const prev = categories;
-    setCategories(c => c.filter(x => x.id !== id));
-    setArchiveTarget(null);
+    const prevCats = categories;
+    const updated = prevCats.map(c => c.id === id ? { ...c, status: newStatus } : c);
+    setCategories(updated);
+    setDisableTarget(null);
+
     try {
-      await api.delete(`/admin/equipment-types/${id}`);
-      notify.info("Category Archived", `"${name}" archived.`);
+      await api.put(`/admin/equipment-types/${id}`, { status: newStatus });
+      try {
+        localStorage.setItem("fsuu_equipment_types", JSON.stringify(updated));
+      } catch {}
+      window.dispatchEvent(new Event("equipment_updated"));
+      notify.success("Category Updated", `Equipment category "${name}" has been ${isCurrentlyDisabled ? 'enabled' : 'disabled'}.`);
     } catch (err) {
-      setCategories(prev);
-      notify.error("Archive Failed", err.response?.data?.message || "Failed to archive — reverted.");
+      setCategories(prevCats);
+      notify.error("Action Failed", err.response?.data?.message || `Failed to update "${name}".`);
     }
   };
 
   return (
     <div className="space-y-4">
-      {/* Top Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs">
+      {/* Header Bar */}
+      <div className="flex justify-between items-center bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs">
         <div>
           <h3 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
-            Equipment Catalog Categories
+            Equipment Category
           </h3>
-          <p className="text-xs text-slate-500 font-medium mt-0.5">
-            Add categories with visual photo avatars to represent equipment models available for borrowing.
+          <p className="text-xs text-slate-500 font-medium">
+            Manage equipment categories, photos, and inventory specifications.
           </p>
         </div>
         <button
           onClick={handleOpenAddModal}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-extrabold shadow-sm transition-all cursor-pointer"
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-extrabold shadow-sm cursor-pointer transition-all"
         >
-          <Plus size={15} /> Add Category
+          <Plus size={16} /> Add Category
         </button>
       </div>
 
-      {/* Main Table: [Avatar, Category Name, Total, Available, Reserved, Released, Damaged, Lost, Action] */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs">
-        <table className="w-full text-left text-xs border-collapse">
-          <thead>
-            <tr className="bg-slate-50/80 border-b border-slate-200/80 text-[11px] font-extrabold text-slate-500 uppercase tracking-wider">
-              <th className="px-4 py-3.5 w-16 rounded-tl-2xl">Avatar</th>
+      {/* Table: [Photo, Category, Total, Available, Reserved, Released, Damaged, Lost, Action] */}
+      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-visible">
+        <table className="w-full text-xs text-left">
+          <thead className="bg-slate-50/80 border-b border-slate-100 text-slate-400 font-bold uppercase text-[10px] tracking-wider">
+            <tr>
+              <th className="px-4 py-3.5 w-16">Photo</th>
               <th className="px-4 py-3.5">Category Name</th>
               <th className="px-4 py-3.5">Total</th>
               <th className="px-4 py-3.5">Available</th>
@@ -197,7 +230,7 @@ export default function EquipmentCategoriesTab({ showMsg }) {
               <th className="px-4 py-3.5">Released</th>
               <th className="px-4 py-3.5">Damaged</th>
               <th className="px-4 py-3.5">Lost</th>
-              <th className="px-4 py-3.5 w-20 text-center rounded-tr-2xl">Action</th>
+              <th className="px-4 py-3.5 text-right">Action</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
@@ -226,63 +259,67 @@ export default function EquipmentCategoriesTab({ showMsg }) {
                 const lost = cat.lost_count ?? 0;
                 const isNearBottom = idx >= Math.max(1, paginatedCategories.length - 2);
                 const isOpen = openActionId === cat.id;
+                const displayPhoto = cat.photo || cat.avatar;
+                const isItemDisabled = cat.status === "disabled" || cat.status === "inactive" || cat.status === "unavailable";
 
                 return (
-                  <tr key={cat.id} className={`hover:bg-slate-50/80 transition-colors ${isOpen ? "relative z-30" : ""}`}>
+                  <tr key={cat.id} className="hover:bg-slate-50/80 transition-colors">
                     <td className="px-4 py-3">
                       <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 overflow-hidden flex items-center justify-center shadow-inner shrink-0">
-                        {cat.avatar ? (
-                          <img src={cat.avatar} alt={cat.eq_name || cat.name} className="w-full h-full object-contain p-0.5" />
+                        {displayPhoto ? (
+                          <img src={displayPhoto} alt={cat.eq_name || cat.name} className="w-full h-full object-contain p-0.5" />
                         ) : (
                           <Package size={18} className="text-slate-400" />
                         )}
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      <div className="font-extrabold text-slate-900 text-xs">{cat.eq_name || cat.name}</div>
+                      <div className={`font-extrabold text-xs ${isItemDisabled ? 'text-slate-400 line-through' : 'text-slate-900'}`}>
+                        {cat.eq_name || cat.name}
+                      </div>
                       {cat.description && (
                         <div className="text-[11px] text-slate-400 truncate max-w-xs">{cat.description}</div>
                       )}
                     </td>
                     <td className="px-4 py-3 font-mono font-bold text-slate-900">
-                      <span className="px-2.5 py-1 rounded-lg bg-slate-100 border border-slate-200 inline-flex items-center">
+                      <span className="px-2 py-0.5 rounded-lg bg-slate-100 border border-slate-200 inline-flex items-center">
                         {total}
                       </span>
                     </td>
                     <td className="px-4 py-3 font-mono font-bold text-emerald-700">
-                      <span className="px-2.5 py-1 rounded-lg bg-emerald-50 border border-emerald-200 inline-flex items-center">
+                      <span className="px-2 py-0.5 rounded-lg bg-emerald-50 border border-emerald-200 inline-flex items-center">
                         {available}
                       </span>
                     </td>
                     <td className="px-4 py-3 font-mono font-bold text-indigo-700">
-                      <span className={`px-2.5 py-1 rounded-lg border inline-flex items-center ${
+                      <span className={`px-2 py-0.5 rounded-lg border inline-flex items-center ${
                         reserved > 0 ? "bg-indigo-50 border-indigo-200 text-indigo-700 font-extrabold" : "bg-slate-50 border-slate-200 text-slate-400"
                       }`}>
                         {reserved}
                       </span>
                     </td>
                     <td className="px-4 py-3 font-mono font-bold text-blue-700">
-                      <span className={`px-2.5 py-1 rounded-lg border inline-flex items-center ${
+                      <span className={`px-2 py-0.5 rounded-lg border inline-flex items-center ${
                         released > 0 ? "bg-blue-50 border-blue-200 text-blue-700 font-extrabold" : "bg-slate-50 border-slate-200 text-slate-400"
                       }`}>
                         {released}
                       </span>
                     </td>
                     <td className="px-4 py-3 font-mono font-bold text-rose-700">
-                      <span className={`px-2.5 py-1 rounded-lg border inline-flex items-center ${
+                      <span className={`px-2 py-0.5 rounded-lg border inline-flex items-center ${
                         damaged > 0 ? "bg-rose-50 border-rose-200 text-rose-700 font-extrabold" : "bg-slate-50 border-slate-200 text-slate-400"
                       }`}>
                         {damaged}
                       </span>
                     </td>
                     <td className="px-4 py-3 font-mono font-bold text-amber-700">
-                      <span className={`px-2.5 py-1 rounded-lg border inline-flex items-center ${
+                      <span className={`px-2 py-0.5 rounded-lg border inline-flex items-center ${
                         lost > 0 ? "bg-amber-50 border-amber-200 text-amber-700 font-extrabold" : "bg-slate-50 border-slate-200 text-slate-400"
                       }`}>
                         {lost}
                       </span>
                     </td>
-                    <td className="px-4 py-3 relative">
+                    <td className="px-4 py-3 text-right relative">
                       <div className="relative action-menu-container inline-block">
                         <button
                           type="button"
@@ -297,11 +334,11 @@ export default function EquipmentCategoriesTab({ showMsg }) {
                           }`}
                           title="Actions"
                         >
-                          <MoreVertical size={15} />
+                          <MoreVertical size={14} />
                         </button>
 
                         {isOpen && (
-                          <div className={`absolute right-0 ${isNearBottom ? "bottom-full mb-1.5" : "top-full mt-1.5"} w-44 bg-white rounded-2xl shadow-2xl border border-slate-200/90 py-1.5 z-50 animate-in fade-in zoom-in-95 backdrop-blur-md`}>
+                          <div className={`absolute right-0 ${isNearBottom ? "bottom-full mb-1.5" : "top-full mt-1.5"} w-48 bg-white rounded-2xl shadow-2xl border border-slate-200/90 py-1.5 z-[9999] animate-in fade-in zoom-in-95 backdrop-blur-md text-left`}>
                             <button
                               type="button"
                               onClick={() => {
@@ -320,12 +357,12 @@ export default function EquipmentCategoriesTab({ showMsg }) {
                               type="button"
                               onClick={() => {
                                 setOpenActionId(null);
-                                handleDelete(cat.id, cat.eq_name || cat.name);
+                                setDisableTarget({ id: cat.id, name: cat.eq_name || cat.name, status: cat.status });
                               }}
                               className="w-full px-3.5 py-2 text-left text-xs font-bold text-rose-600 hover:bg-rose-50 flex items-center gap-2.5 transition-colors cursor-pointer"
                             >
-                              <Trash2 size={13} className="text-rose-500" />
-                              <span>Archive Category</span>
+                              <Ban size={13} className="text-rose-500" />
+                              <span>{isItemDisabled ? "Enable Category" : "Disable Category"}</span>
                             </button>
                           </div>
                         )}
@@ -347,31 +384,25 @@ export default function EquipmentCategoriesTab({ showMsg }) {
             <span className="font-mono font-bold text-slate-900">
               {Math.min(startIndex + ITEMS_PER_PAGE, categories.length)}
             </span> of{" "}
-            <span className="font-mono font-bold text-slate-900">
-              {categories.length}
-            </span> categories
+            <span className="font-mono font-bold text-slate-900">{categories.length}</span> categories
           </div>
-
-          <div className="flex items-center gap-2">
-            <span className="text-slate-500 font-mono text-xs mr-2">
-              Page {currentPage} of {totalPages}
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed"
+            >
+              <ChevronLeft size={14} />
+            </button>
+            <span className="px-2 font-mono font-bold text-slate-700">
+              {currentPage} / {totalPages}
             </span>
             <button
-              type="button"
-              disabled={currentPage === 1}
-              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all shadow-2xs font-bold text-xs"
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed"
             >
-              <ChevronLeft size={13} /> Previous
-            </button>
-
-            <button
-              type="button"
-              disabled={currentPage >= totalPages}
-              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all shadow-2xs font-bold text-xs"
-            >
-              Next <ChevronRight size={13} />
+              <ChevronRight size={14} />
             </button>
           </div>
         </div>
@@ -395,31 +426,31 @@ export default function EquipmentCategoriesTab({ showMsg }) {
             </div>
 
             <form onSubmit={handleSave} className="space-y-4 text-xs">
-              {/* Avatar Upload */}
+              {/* Photo Upload */}
               <div className="flex items-center gap-4 bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
                 <div className="w-16 h-16 rounded-2xl bg-white border border-slate-200 overflow-hidden flex items-center justify-center shadow-inner shrink-0 relative">
-                  {form.avatar ? (
-                    <img src={form.avatar} alt="Preview" className="w-full h-full object-contain p-1" />
+                  {(form.photo || form.avatar) ? (
+                    <img src={form.photo || form.avatar} alt="Preview" className="w-full h-full object-contain p-1" />
                   ) : (
                     <Package size={24} className="text-slate-400" />
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <label className="block font-bold text-slate-900 text-xs mb-1">Category Photo Avatar</label>
+                  <label className="block font-bold text-slate-900 text-xs mb-1">Category Photo</label>
                   <div className="flex flex-wrap items-center gap-2">
                     <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs cursor-pointer shadow-2xs transition-all">
                       <Camera size={13} />
-                      <span>{form.avatar ? "Change Photo" : "Upload Photo"}</span>
-                      <input type="file" accept="image/*" onChange={handleAvatarUpload} className="hidden" />
+                      <span>{(form.photo || form.avatar) ? "Change Photo" : "Upload Photo"}</span>
+                      <input type="file" accept="image/*" onChange={handlePhotoUpload} className="hidden" />
                     </label>
-                    {form.avatar && (
+                    {(form.photo || form.avatar) && (
                       <button
                         type="button"
-                        onClick={() => setForm({ ...form, avatar: "" })}
+                        onClick={() => setForm({ ...form, photo: "", avatar: "" })}
                         className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border border-red-200 bg-white hover:bg-red-50 text-red-600 font-bold text-xs cursor-pointer shadow-2xs transition-all"
                       >
                         <Trash2 size={12} />
-                        Delete Photo
+                        Remove
                       </button>
                     )}
                   </div>
@@ -460,10 +491,10 @@ export default function EquipmentCategoriesTab({ showMsg }) {
                 <button
                   type="submit"
                   disabled={formLoading}
-                  className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs shadow-md flex items-center gap-1.5 cursor-pointer"
+                  className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs shadow-md flex items-center gap-1.5 cursor-pointer transition-all"
                 >
                   {formLoading && <Loader2 size={14} className="animate-spin" />}
-                  <span>{editItem ? "Save Changes" : "Save Equipment Category"}</span>
+                  <span>{editItem ? "Save Changes" : "Save"}</span>
                 </button>
               </div>
             </form>
@@ -472,13 +503,13 @@ export default function EquipmentCategoriesTab({ showMsg }) {
       )}
 
       <ConfirmModal
-        open={!!archiveTarget}
-        onClose={() => setArchiveTarget(null)}
-        onConfirm={confirmArchive}
-        variant="archive"
-        title="Archive Equipment Category?"
-        message={`Archive "${archiveTarget?.name}"? This will remove it from the active catalog.`}
-        confirmLabel="Archive"
+        open={!!disableTarget}
+        onClose={() => setDisableTarget(null)}
+        onConfirm={confirmToggleDisable}
+        title={disableTarget?.status === "disabled" ? "Enable Equipment Category" : "Disable Equipment Category"}
+        message={`Are you sure you want to ${disableTarget?.status === "disabled" ? 'enable' : 'disable'} category "${disableTarget?.name}"?`}
+        confirmText={disableTarget?.status === "disabled" ? "Enable" : "Disable"}
+        variant={disableTarget?.status === "disabled" ? "primary" : "danger"}
       />
     </div>
   );

@@ -6,10 +6,11 @@ import {
   LayoutDashboard, CalendarCheck, PackageOpen, Settings,
   ChevronRight, LogOut, Bell, Menu, X, Box, Building2,
   FileBarChart2, User, ChevronDown, ShieldCheck, Filter, Globe,
-  Loader2
+  Loader2, Monitor
 } from "lucide-react";
 import NotificationDropdown from "@/components/notifications/NotificationDropdown";
 import IncidentDetailModal from "@/components/notifications/IncidentDetailModal";
+import PendingTasksIndicator from "@/components/notifications/PendingTasksIndicator";
 import ConfirmModal from "@/components/ui/ConfirmModal";
 
 const SYSAD_NAV_GROUPS = [
@@ -17,6 +18,7 @@ const SYSAD_NAV_GROUPS = [
     title: "GLOBAL OVERVIEW",
     items: [
       { label: "Dashboard", icon: LayoutDashboard, path: "/sysad/dashboard" },
+      { label: "Interface", icon: Monitor, path: "/interface/venue" },
       { label: "Venue Booking", icon: Building2, path: "/sysad/venue-bookings" },
       { label: "Equipment Borrowing", icon: PackageOpen, path: "/sysad/equipment-borrowing" },
     ],
@@ -146,6 +148,12 @@ export default function SysadLayout() {
       return {
         title: "Dashboard",
         subtitle: "Global facility utilization, reservation analytics & inventory overview."
+      };
+    }
+    if (path.includes("/interface")) {
+      return {
+        title: "Interface",
+        subtitle: "Super admin & staff reservation interface with PIN verification overrides."
       };
     }
     if (path.includes("/venue-booking")) {
@@ -382,8 +390,12 @@ export default function SysadLayout() {
               </div>
             </div>
 
-            {/* Right Side: Notification Bell */}
-            <div className="flex items-center gap-3">
+            {/* Right Side: Quick Links, Tasks & Notification Bell */}
+            <div className="flex items-center gap-2.5">
+              {/* Tasks Counter Indicator */}
+              <PendingTasksIndicator isSysad={true} />
+
+              {/* Notification Bell */}
               <NotificationDropdown
                 notifications={filteredNotifications}
                 readNotifIds={readNotifIds}

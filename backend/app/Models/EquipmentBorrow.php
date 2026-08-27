@@ -16,27 +16,36 @@ class EquipmentBorrow extends Model
     public const DELETED_AT = 'archived_at';
 
     protected $fillable = [
+        'academic_term_id',
         'tracking_number_id',
         'submission_channel',
+        'first_name',
+        'middle_name',
+        'last_name',
         'filer_name',
         'email_address',
+        'department_id',
         'program_office',
         'contact_number',
         'classification',
         'place_of_use',
         'purpose',
         'date_of_usage',
+        'extend_of_date_returned',
         'time_start',
         'time_end',
         'assigned_units',
+        'equipment_units_id',
+        'status',
     ];
 
     protected $casts = [
-        'date_of_usage'  => 'date',
-        'assigned_units' => 'array',
+        'date_of_usage'           => 'date',
+        'extend_of_date_returned' => 'date',
+        'assigned_units'          => 'array',
     ];
 
-    protected $appends = ['reference_code', 'status'];
+    protected $appends = ['reference_code', 'status', 'filer_name'];
 
     public function getReferenceCodeAttribute(): ?string
     {
@@ -48,9 +57,38 @@ class EquipmentBorrow extends Model
         return $this->attributes['status'] ?? $this->trackingNumber?->status ?? 'pending';
     }
 
+    public function getFilerNameAttribute(): string
+    {
+        $parts = array_filter([$this->first_name, $this->middle_name, $this->last_name]);
+        if (!empty($parts)) {
+            return implode(' ', $parts);
+        }
+        return $this->attributes['filer_name'] ?? '';
+    }
+
+    public function setFilerNameAttribute($value): void
+    {
+        $this->attributes['filer_name'] = $value;
+        if (empty($this->first_name) && !empty($value)) {
+            $parts = explode(' ', trim($value));
+            $this->first_name = array_shift($parts) ?: $value;
+            $this->last_name = !empty($parts) ? implode(' ', $parts) : '';
+        }
+    }
+
     public function trackingNumber(): BelongsTo
     {
         return $this->belongsTo(TrackingNumber::class);
+    }
+
+    public function academicTerm(): BelongsTo
+    {
+        return $this->belongsTo(AcademicTerm::class);
+    }
+
+    public function department(): BelongsTo
+    {
+        return $this->belongsTo(Department::class);
     }
 
     public function submittedBy(): BelongsTo

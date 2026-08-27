@@ -62,9 +62,8 @@ export default function Step4Verification({
 
         {/* ── Left Column: Selected Equipment Items & Purpose ── */}
         <div className="bg-slate-50/70 p-6 rounded-2xl border border-slate-200/80 space-y-4">
-          <h3 className="text-sm font-extrabold text-slate-900 uppercase tracking-wide flex items-center gap-2">
-            <PackageOpen size={16} className="text-blue-600 shrink-0" />
-            <span>1. Requisition Items ({selectedDetails.reduce((acc, curr) => acc + curr.quantity, 0)} Total Units)</span>
+          <h3 className="text-sm font-extrabold text-slate-900 uppercase tracking-wide">
+            Request Item
           </h3>
 
           <div className="space-y-2">
@@ -78,7 +77,7 @@ export default function Step4Verification({
                   </div>
                   <div>
                     <h5 className="font-extrabold text-slate-900 text-xs truncate max-w-[200px]">{item.name}</h5>
-                    <span className="text-[9.5px] font-bold text-slate-400 uppercase">{item.dept === "sco" ? "SCO Asset" : "AVR Resource"}</span>
+                    <span className="text-[10px] font-semibold text-slate-500">{item.quantity} physical unit{item.quantity === 1 ? '' : 's'}</span>
                   </div>
                 </div>
                 <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
@@ -97,7 +96,7 @@ export default function Step4Verification({
         {/* ── Right Column: Verification Summary & Policy Agreement ── */}
         <div className="bg-slate-50/70 p-6 rounded-2xl border border-slate-200/80 space-y-5">
           <h3 className="text-sm font-extrabold text-slate-900 uppercase tracking-wide">
-            2. Requisition Verification
+            Request Review
           </h3>
 
           <div className="bg-white p-4 rounded-xl border border-slate-200/80 space-y-2.5 text-xs">
@@ -140,6 +139,11 @@ export default function Step4Verification({
             />
             <span>By submitting this requisition, you agree to inspect physical units at the AVR counter upon release and return them in good condition on time.</span>
           </label>
+
+          {/* Contact Note */}
+          <p className="text-[11px] text-slate-400 font-medium text-center">
+            Note: Should there be any problem please contact <span className="font-bold text-slate-600">(085) 342-1830</span>.
+          </p>
         </div>
 
       </div>

@@ -3,84 +3,66 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Laravel\Socialite\Facades\Socialite;
+use Illuminate\Support\Facades\Log;
 
-/**
- * Google OAuth flow (Socialite + Sanctum):
- *
- *   1. Frontend calls GET /api/auth/google/redirect
- *      → Returns the Google authorization URL as JSON.
- *      → Frontend redirects the browser there.
- *
- *   2. Google redirects back to GET /api/auth/google/callback?code=...
- *      → Socialite exchanges code for the Google user profile.
- *      → We find or create the local User record.
- *      → Sanctum issues a token, returned as JSON.
- *      → Frontend stores the token and redirects to /dashboard.
- *
- * Security notes:
- *   - Only users whose email already has a record in the `users` table
- *     (seeded by Admin) are allowed in. Unknown Google accounts receive 403.
- *   - Admin creates Staff accounts first (with the correct email + office_id + role),
- *     THEN Staff can log in via Google. Self-registration is not possible.
- *   - `google_id` is stored on first successful login for faster future lookups.
- */
 class GoogleAuthController extends Controller
 {
     /**
-     * Step 1 — return the Google OAuth authorization URL.
-     * Frontend will redirect the browser to this URL.
+     * Redirect user to Google OAuth consent screen.
      */
-    public function redirect(): JsonResponse
+    public function redirect(Request $request)
     {
-        $clientId = config('services.google.client_id');
-        if (empty($clientId)) {
-            return response()->json([
-                'message' => 'Google OAuth is not configured yet. Please add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET to your Render environment variables, or use email and password to log in.'
-            ], 422);
-        }
+        $redirectUrl = config('services.google.redirect');
 
-        $url = Socialite::driver('google')
+        return Socialite::driver('google')
+            ->redirectUrl($redirectUrl)
+            ->scopes(['openid', 'profile', 'email'])
+            ->with(['prompt' => 'select_account'])
             ->stateless()
-            ->redirect()
-            ->getTargetUrl();
-
-        return response()->json(['url' => $url]);
+            ->redirect();
     }
 
     /**
-     * Step 2 — Google redirects back here with ?code=...
-     * Exchange code → Google user profile → find/update local User → issue Sanctum token.
+     * Handle the callback from Google OAuth.
      */
     public function callback(Request $request)
     {
         $frontendUrl = env('FRONTEND_URL', 'http://localhost:5173');
-        $isBrowserRedirect = !$request->wantsJson() && !$request->ajax();
+        $isBrowserRedirect = ! $request->expectsJson() && ! $request->is('api/*');
 
-        $googleUser = null;
         try {
-            $googleUser = Socialite::driver('google')->stateless()->user();
-        } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::warning('Google OAuth callback failed: ' . $e->getMessage());
+            $redirectUrl = config('services.google.redirect');
 
-            // Local development fallback if Google credentials or auth code is invalid
-            if (config('app.env') === 'local' || app()->environment('local')) {
-                $user = User::first();
+            $googleUser = Socialite::driver('google')
+                ->redirectUrl($redirectUrl)
+                ->stateless()
+                ->user();
+        } catch (\Exception $e) {
+            Log::warning('Google OAuth callback failed: ' . $e->getMessage());
+
+            // Dev Fallback
+            if (app()->environment('local') || env('APP_DEBUG', false)) {
+                $user = User::with(['role'])->first();
                 if ($user) {
-                    $token = $user->createToken('google-auth-dev-token')->plainTextToken;
-                    $roleName = $user->role?->name ?? ($user->role_id === 1 ? 'superadmin' : 'admin');
+                    $token = $user->createToken('google-auth-token')->plainTextToken;
+                    $roleName = $user->role?->name ?? 'staff';
 
                     if ($isBrowserRedirect) {
                         $queryParams = http_build_query([
                             'token'          => $token,
+                            'id'             => $user->id,
                             'role'           => $roleName,
-                            'email'          => $user->email,
+                            'role_id'        => $user->role_id,
+                            'email'          => $user->email_address ?: $user->email,
+                            'email_address'  => $user->email_address ?: $user->email,
                             'name'           => $user->name,
-                            'personal_email' => $user->personal_email ?? '',
                             'avatar'         => $user->avatar ?? '',
                             'office_id'      => $user->office_id ?? '',
+                            'location'       => $user->location ?? '',
+                            'permissions'    => json_encode($user->permissions ?? []),
+                            'status'         => $user->status ?? 'active',
                         ]);
                         return redirect("{$frontendUrl}/auth/google/callback?{$queryParams}");
                     }
@@ -88,13 +70,14 @@ class GoogleAuthController extends Controller
                     return response()->json([
                         'token' => $token,
                         'user'  => [
-                            'id'        => $user->id,
-                            'name'      => $user->name,
-                            'email'     => $user->email,
-                            'avatar'    => $user->avatar,
-                            'role'      => $user->role,
-                            'office_id' => $user->office_id,
-                            'office'    => $user->location ?? 'FSUU Main Campus',
+                            'id'            => $user->id,
+                            'name'          => $user->name,
+                            'email'         => $user->email_address ?: $user->email,
+                            'email_address' => $user->email_address ?: $user->email,
+                            'avatar'        => $user->avatar,
+                            'role'          => $user->role,
+                            'office_id'     => $user->office_id,
+                            'office'        => $user->location ?? 'FSUU Main Campus',
                         ],
                         'dev_notice' => 'Authenticated via local development fallback account.',
                     ]);
@@ -110,11 +93,11 @@ class GoogleAuthController extends Controller
             ], 401);
         }
 
-        // Prefer lookup by google_id (stable, never changes), fall back to email or personal_email
+        // Lookup by google_id, email_address, or email
         $googleEmail = $googleUser->getEmail();
         $user = User::where('google_id', $googleUser->getId())->first()
-            ?? User::where('email', $googleEmail)->first()
-            ?? User::where('personal_email', $googleEmail)->first();
+            ?? User::where('email_address', $googleEmail)->first()
+            ?? User::where('email', $googleEmail)->first();
 
         // Only pre-created accounts are allowed. No self-registration.
         if (! $user) {
@@ -139,18 +122,27 @@ class GoogleAuthController extends Controller
             ], 403);
         }
 
-        // Persist google_id and avatar on login
-        $user->update([
-            'google_id' => $googleUser->getId(),
-            'avatar'    => $googleUser->getAvatar(),
-        ]);
+        if ($user->status === 'inactive' || $user->status === 'disabled' || $user->is_active === false || !is_null($user->archived_at)) {
+            $inactiveMsg = 'This account is deactivated or disabled. Please contact your system administrator.';
+            if ($isBrowserRedirect) {
+                return redirect("{$frontendUrl}/login?error=" . urlencode($inactiveMsg));
+            }
 
-        // Revoke previous tokens — one active session per user
-        $user->tokens()->delete();
+            return response()->json([
+                'message' => $inactiveMsg,
+            ], 403);
+        }
+
+        // Link google_id and refresh avatar if not previously set
+        $user->google_id = $googleUser->getId();
+        if (empty($user->avatar)) {
+            $user->avatar = $googleUser->getAvatar();
+        }
+        $user->save();
 
         $user->load(['role']);
         $token = $user->createToken('google-auth-token')->plainTextToken;
-        $roleName = $user->role?->name ?? ($user->role_id === 1 ? 'superadmin' : ($user->role_id === 3 ? 'staff' : 'admin'));
+        $roleName = $user->role?->name ?? 'staff';
         $permissions = $user->permissions ?? [];
         if (is_string($permissions)) {
             $permissions = json_decode($permissions, true) ?: [];
@@ -162,9 +154,9 @@ class GoogleAuthController extends Controller
                 'id'             => $user->id,
                 'role'           => $roleName,
                 'role_id'        => $user->role_id,
-                'email'          => $user->email,
+                'email'          => $user->email_address ?: $user->email,
+                'email_address'  => $user->email_address ?: $user->email,
                 'name'           => $user->name,
-                'personal_email' => $user->personal_email ?? '',
                 'avatar'         => $user->avatar ?? '',
                 'office_id'      => $user->office_id ?? '',
                 'location'       => $user->location ?? '',
@@ -179,8 +171,8 @@ class GoogleAuthController extends Controller
             'user'  => [
                 'id'             => $user->id,
                 'name'           => $user->name,
-                'email'          => $user->email,
-                'personal_email' => $user->personal_email,
+                'email'          => $user->email_address ?: $user->email,
+                'email_address'  => $user->email_address ?: $user->email,
                 'avatar'         => $user->avatar,
                 'role'           => $user->role,
                 'role_id'        => $user->role_id,
@@ -193,4 +185,3 @@ class GoogleAuthController extends Controller
         ]);
     }
 }
-

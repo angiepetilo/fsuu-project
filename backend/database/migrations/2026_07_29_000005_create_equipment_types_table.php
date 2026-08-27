@@ -10,7 +10,9 @@ return new class extends Migration
     {
         Schema::create('equipment_types', function (Blueprint $table) {
             $table->id();
-            $table->string('eq_name');
+            $table->string('equipment_types_name')->nullable();
+            $table->string('eq_name')->nullable();
+            $table->string('name')->nullable();
             $table->longText('avatar')->nullable();
             $table->string('status')->default('available');
             $table->integer('total_quantity')->default(1);

@@ -9,6 +9,7 @@ import { Toaster as Sonner } from "sonner";
 const Toaster = ({ ...props }) => (
   <Sonner
     position="top-right"
+    offset="75px"
     duration={2500}
     closeButton={false}
     hotkey={[]}

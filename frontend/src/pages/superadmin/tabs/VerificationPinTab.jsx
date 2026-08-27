@@ -433,12 +433,12 @@ export default function VerificationPinTab({
         </div>
       </form>
 
-      {/* Section 3: Booking Checklist Requirements */}
+      {/* Section 3: Booking Requirements */}
       <div className="bg-white p-5 rounded-xl border border-slate-200 space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
           <div>
-            <h4 className="text-xs font-semibold text-slate-900">
-              Booking Requirements &amp; Documents Checklist
+            <h4 className="text-xs font-extrabold text-slate-900">
+              Booking Requirements
             </h4>
             <p className="text-xs text-slate-500 mt-0.5">
               Endorsement letters and documents required before venue booking clearance.
@@ -451,7 +451,7 @@ export default function VerificationPinTab({
               setReqForm({ classification: "all", label: "", description: "" });
               setShowReqModal(true);
             }}
-            className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-medium self-start sm:self-auto"
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-extrabold shadow-xs transition-all self-start sm:self-auto cursor-pointer flex items-center gap-1.5"
           >
             Add Requirement
           </button>
@@ -626,6 +626,8 @@ export default function VerificationPinTab({
         isOpen={showTemplateModal}
         onClose={() => setShowTemplateModal(false)}
         initialType={selectedTemplateType}
+        allowEdit={true}
+        showTypeTabs={true}
       />
     </div>
   );

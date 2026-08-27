@@ -19,11 +19,11 @@ class AuthController extends Controller
 
         $loginInput = trim($request->email);
 
-        // Case-insensitive user lookup by primary email or personal email
+        // Case-insensitive user lookup by primary email or email_address
         $user = \App\Models\User::where(function ($query) use ($loginInput) {
             $lower = strtolower($loginInput);
-            $query->whereRaw('LOWER(email) = ?', [$lower])
-                  ->orWhereRaw('LOWER(personal_email) = ?', [$lower]);
+            $query->whereRaw('LOWER(email_address) = ?', [$lower])
+                  ->orWhereRaw('LOWER(email) = ?', [$lower]);
         })->first();
 
         if (!$user || !\Illuminate\Support\Facades\Hash::check($request->password, $user->password)) {
@@ -70,11 +70,12 @@ class AuthController extends Controller
         }
 
         return response()->json([
-            'email'       => $user->personal_email ?? $user->email,
-            'office'      => $user->location ?? 'FSUU Main Campus',
-            'role'        => $user->role ? ucfirst($user->role->name) : 'Staff',
-            'permissions' => $user->permissions ?? [],
-            'status'      => $user->status,
+            'email'         => $user->email_address ?: $user->email,
+            'email_address' => $user->email_address ?: $user->email,
+            'office'        => $user->location ?? 'FSUU Main Campus',
+            'role'          => $user->role ? ucfirst($user->role->name) : 'Staff',
+            'permissions'   => $user->permissions ?? [],
+            'status'        => $user->status,
         ]);
     }
 
@@ -84,9 +85,13 @@ class AuthController extends Controller
     public function activateAccount(Request $request)
     {
         $validated = $request->validate([
-            'token'    => 'required|string',
-            'name'     => 'required|string|max:255',
-            'password' => 'required|string|min:6',
+            'token'       => 'required|string',
+            'first_name'  => 'nullable|string|max:255',
+            'middle_name' => 'nullable|string|max:255',
+            'last_name'   => 'nullable|string|max:255',
+            'suffix'      => 'nullable|string|max:50',
+            'name'        => 'nullable|string|max:255',
+            'password'    => 'required|string|min:6',
         ]);
 
         $user = \App\Models\User::where('invite_token', $validated['token'])->first();
@@ -95,12 +100,42 @@ class AuthController extends Controller
             return response()->json(['message' => 'Invalid or expired activation token.'], 404);
         }
 
-        $user->name = trim($validated['name']);
-        $user->password = \Illuminate\Support\Facades\Hash::make($validated['password']);
-        $user->status = 'active';
-        $user->is_active = true;
+        $firstName  = $validated['first_name'] ?? null;
+        $middleName = $validated['middle_name'] ?? null;
+        $lastName   = $validated['last_name'] ?? null;
+        $suffix     = $validated['suffix'] ?? null;
+
+        if (empty($firstName) && !empty($validated['name'])) {
+            $parts = explode(' ', trim($validated['name']));
+            $firstName = array_shift($parts) ?: $validated['name'];
+            $lastName = !empty($parts) ? implode(' ', $parts) : '';
+        }
+
+        $fullName = trim(implode(' ', array_filter([$firstName, $middleName, $lastName, $suffix])));
+        if (empty($fullName)) {
+            $fullName = $validated['name'] ?? 'User';
+        }
+
+        $user->first_name   = $firstName;
+        $user->middle_name  = $middleName;
+        $user->last_name    = $lastName;
+        $user->suffix       = $suffix;
+        $user->name         = $fullName;
+        $user->password     = \Illuminate\Support\Facades\Hash::make($validated['password']);
+        $user->status       = 'active';
+        $user->is_active    = true;
         $user->invite_token = null;
         $user->save();
+
+        try {
+            app(\App\Services\AuditLogService::class)->log(
+                $user,
+                'USER_ACTIVATED',
+                'users',
+                $user->id,
+                ['name' => $fullName, 'email' => $user->email_address ?: $user->email, 'role' => $user->role?->name]
+            );
+        } catch (\Throwable $e) {}
 
         return response()->json([
             'message' => 'Account activated successfully! You may now sign in.',
@@ -115,31 +150,54 @@ class AuthController extends Controller
         return response()->json(['message' => 'Logged out successfully']);
     }
 
+    public function me(Request $request)
+    {
+        return response()->json($request->user()->load(['role']));
+    }
+
+    public function checkEmail(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email'
+        ]);
+
+        $exists = \App\Models\User::where('email_address', $request->email)
+            ->orWhere('email', $request->email)
+            ->exists();
+
+        return response()->json(['exists' => $exists]);
+    }
+
     public function changePassword(Request $request)
     {
         $request->validate([
-            'current_password' => 'required|string',
-            'new_password'     => 'required|string|min:6',
+            'current_password' => 'required',
+            'new_password' => 'required|min:8|confirmed'
         ]);
 
         $user = auth()->user();
 
         if (!\Illuminate\Support\Facades\Hash::check($request->current_password, $user->password)) {
             throw ValidationException::withMessages([
-                'current_password' => ['The provided current password does not match our records.'],
+                'current_password' => ['The provided current password does not match our records.']
             ]);
         }
 
         $user->password = \Illuminate\Support\Facades\Hash::make($request->new_password);
         $user->save();
 
-        return response()->json(['message' => 'Password updated successfully!']);
+        return response()->json(['message' => 'Password updated successfully']);
     }
 
-    /**
-     * Verify the authenticated user's current password.
-     * Used for sensitive settings access confirmation.
-     */
+    public function getPermissions(Request $request)
+    {
+        $user = auth()->user();
+        return response()->json([
+            'is_superadmin' => $user->isSuperAdmin(),
+            'permissions' => $user->permissions ?? []
+        ]);
+    }
+
     public function verifyPassword(Request $request)
     {
         $request->validate([
@@ -167,14 +225,26 @@ class AuthController extends Controller
 
         $validated = $request->validate([
             'name'           => 'sometimes|string|max:255',
-            'email'          => ['sometimes', 'email', 'max:255', \Illuminate\Validation\Rule::unique('users')->ignore($user->id)],
-            'personal_email' => 'nullable|email|max:255',
+            'first_name'     => 'nullable|string|max:255',
+            'middle_name'    => 'nullable|string|max:255',
+            'last_name'      => 'nullable|string|max:255',
+            'suffix'         => 'nullable|string|max:50',
+            'email_address'  => ['sometimes', 'email', 'max:255', \Illuminate\Validation\Rule::unique('users', 'email_address')->ignore($user->id)],
+            'email'          => ['sometimes', 'email', 'max:255'],
             'avatar'         => 'nullable|string',
         ]);
 
+        if (array_key_exists('first_name', $validated)) $user->first_name = $validated['first_name'];
+        if (array_key_exists('middle_name', $validated)) $user->middle_name = $validated['middle_name'];
+        if (array_key_exists('last_name', $validated)) $user->last_name = $validated['last_name'];
+        if (array_key_exists('suffix', $validated)) $user->suffix = $validated['suffix'];
+
         if (isset($validated['name'])) $user->name = $validated['name'];
-        if (isset($validated['email'])) $user->email = $validated['email'];
-        if (isset($validated['personal_email'])) $user->personal_email = $validated['personal_email'];
+        $newEmail = $validated['email_address'] ?? $validated['email'] ?? null;
+        if ($newEmail) {
+            $user->email_address = $newEmail;
+            $user->email = $newEmail;
+        }
         
         if (array_key_exists('avatar', $validated)) {
             $user->avatar = app(\App\Services\MediaUploadService::class)->upload($validated['avatar'], 'avatars');

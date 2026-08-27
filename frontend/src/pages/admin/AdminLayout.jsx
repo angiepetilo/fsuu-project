@@ -5,13 +5,13 @@ import api from "@/lib/axios";
 import echoInstance from "@/lib/echo";
 import { toast } from "sonner";
 import {
-  LayoutDashboard, CalendarCheck, PackageOpen, Settings,
-  ChevronRight, LogOut, Bell, Menu, X, Box, Building2,
-  FileBarChart2, User, ChevronDown, ShieldCheck, Building,
-  Loader2
+  LayoutDashboard, Building2, PackageOpen, Box, CalendarCheck,
+  FileBarChart2, Settings, ShieldCheck, ChevronRight,
+  ChevronDown, Menu, X, LogOut, Globe, Monitor
 } from "lucide-react";
 import NotificationDropdown from "@/components/notifications/NotificationDropdown";
 import IncidentDetailModal from "@/components/notifications/IncidentDetailModal";
+import PendingTasksIndicator from "@/components/notifications/PendingTasksIndicator";
 import ConfirmModal from "@/components/ui/ConfirmModal";
 
 const NAV_GROUPS = [
@@ -19,6 +19,7 @@ const NAV_GROUPS = [
     title: "GLOBAL OVERVIEW",
     items: [
       { label: "Dashboard",           icon: LayoutDashboard, path: "/admin/dashboard",          roles: ["super_admin", "admin", "staff"] },
+      { label: "Interface",           icon: Monitor,          path: "/interface/venue",          roles: ["super_admin", "admin", "staff"] },
       { label: "Venue Booking",       icon: Building2,        path: "/admin/venue-bookings",     roles: ["super_admin", "admin", "staff"], permissionKey: "venue_bookings" },
       { label: "Equipment Borrowing", icon: PackageOpen,      path: "/admin/equipment-borrowing",roles: ["super_admin", "admin", "staff"], permissionKey: "equipment_borrowing" },
     ],
@@ -225,6 +226,12 @@ export default function AdminLayout() {
       return {
         title: "Dashboard",
         subtitle: `${getGreeting()}, ${adminName} • Live facility utilization & inventory overview.`
+      };
+    }
+    if (path.includes("/interface")) {
+      return {
+        title: "Interface",
+        subtitle: "Staff & administrator desk reservation interface with PIN verification overrides."
       };
     }
     if (path.includes("/venue-booking")) {
@@ -473,7 +480,11 @@ export default function AdminLayout() {
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
+            {/* Right Side: Quick Links, Tasks & Notification Bell */}
+            <div className="flex items-center gap-2.5">
+              {/* Tasks Counter Indicator */}
+              <PendingTasksIndicator isSysad={isSuperAdmin} />
+
               {/* Notification Bell Dropdown */}
               <NotificationDropdown
                 notifications={filteredNotifications}

@@ -19,20 +19,22 @@ import ProfileConfigTab from "./tabs/ProfileConfigTab";
 import AcademicTermsTab from "./tabs/AcademicTermsTab";
 import SystemSettingsTab from "./tabs/SystemSettingsTab";
 import CommunicationLogsTab from "./tabs/CommunicationLogsTab";
+import AuditLogsTab from "./tabs/AuditLogsTab";
 
 // Tabs that require password confirmation before viewing
 const PROTECTED_TABS = ["pin", "system_settings"];
 
 const SYSAD_TABS = [
   { id: "users",             label: "User Management",            icon: Users },
-  { id: "equipment",         label: "Equipment Categories",        icon: Package },
-  { id: "venues",            label: "Venue Catalog",               icon: Building },
+  { id: "audit_logs",        label: "Audit Logs",                 icon: ShieldAlert },
+  { id: "equipment",         label: "Equipment Category",         icon: Package },
+  { id: "venues",            label: "Venue Creation",             icon: Building },
   { id: "fee_matrix",        label: "Fee Matrix",                  icon: DollarSign },
   { id: "departments",       label: "Departments",                 icon: BookOpen },
   { id: "operating_hours",   label: "Operating Hours",             icon: Clock },
-  { id: "academic_terms",    label: "Academic Terms & Archiving",  icon: GraduationCap },
+  { id: "academic_terms",    label: "Academic Terms",              icon: GraduationCap },
   { id: "pin",               label: "Verification PIN",            icon: Key,     protected: true },
-  { id: "communication_logs",label: "Communications Log",          icon: Building2 },
+  { id: "communication_logs",label: "SMS and Email Log",           icon: Building2 },
   { id: "system_settings",   label: "System Settings",             icon: Sliders, protected: true },
   { id: "profile",           label: "Profile",                     icon: User },
 ];
@@ -182,6 +184,11 @@ export default function SysadSettings() {
       {mountedTabs.has("users") && (
         <div className={activeTab === "users" ? "block" : "hidden"}>
           <UserManagementTab showMsg={showMsg} />
+        </div>
+      )}
+      {mountedTabs.has("audit_logs") && (
+        <div className={activeTab === "audit_logs" ? "block" : "hidden"}>
+          <AuditLogsTab />
         </div>
       )}
       {mountedTabs.has("equipment") && (

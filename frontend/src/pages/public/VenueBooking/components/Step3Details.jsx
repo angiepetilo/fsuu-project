@@ -20,6 +20,7 @@ export default function Step3Details({
   endTime, setEndTime,
   purpose, setPurpose,
   avrEquipment, setAvrEquipment,
+  equipmentRemarks, setEquipmentRemarks,
   onBack,
 }) {
   const [requirements, setRequirements] = useState([]);
@@ -180,8 +181,8 @@ export default function Step3Details({
               <select required value={classification} onChange={e => setClassification(e.target.value)} className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600">
                 <option value="">Select Classification...</option>
                 <option value="organization">Student Organization Event</option>
-                <option value="academic">Academic Class / Exam / Defense</option>
-                <option value="admin">Administrative Meeting / Assembly</option>
+                <option value="academic">Academic Class</option>
+                <option value="admin">Administrative Meeting</option>
               </select>
 
               {/* Endorsement Letter Notice Based on Booking Classification */}
@@ -234,7 +235,7 @@ export default function Step3Details({
             <div className="sm:col-span-2 flex flex-col gap-2.5 bg-slate-50 p-4 rounded-2xl border border-slate-200/60">
               <div className="flex items-center justify-between">
                 <label className="text-xs font-bold text-slate-900">
-                  Equipment-Needed: <span className="text-slate-500 font-semibold text-[11px]">(Optional)</span>
+                  Allowed Venue Equipment <span className="text-slate-500 font-semibold text-[11px]">(Optional)</span>
                 </label>
               </div>
 
@@ -293,9 +294,18 @@ export default function Step3Details({
                       realStock = 0;
                     }
 
-                    const isOutOfStock = realStock <= 0;
+                    // Check if venue has a specific Max Needed Qty configured for this equipment category
+                    const venueQtys = selectedVenue?.equipment_max_qtys || {};
+                    let venueCap = venueQtys[item.id] ?? venueQtys[String(item.id)] ?? venueQtys[item.name] ?? venueQtys[String(item.name || '').toLowerCase()];
+                    if (typeof venueCap === "string") venueCap = Number(venueCap);
+
+                    const effectiveMax = typeof venueCap === "number" && venueCap > 0
+                      ? Math.min(venueCap, realStock)
+                      : realStock;
+
+                    const isOutOfStock = effectiveMax <= 0 || realStock <= 0;
                     const isChecked = Boolean(val) && !isOutOfStock;
-                    const qty = isOutOfStock ? 0 : Math.min(typeof val === "number" ? val : 1, Math.max(1, realStock));
+                    const qty = isOutOfStock ? 0 : Math.min(typeof val === "number" ? val : 1, Math.max(1, effectiveMax));
 
                     return (
                       <div
@@ -327,7 +337,7 @@ export default function Step3Details({
                             <span className="truncate text-xs font-bold">{item.name}</span>
                             {!isOutOfStock && (
                               <span className="text-[10px] text-slate-500 font-mono">
-                                Max {realStock} unit{realStock === 1 ? "" : "s"} in facility
+                                Max {effectiveMax} unit{effectiveMax === 1 ? "" : "s"} allowed
                               </span>
                             )}
                           </div>
@@ -343,11 +353,11 @@ export default function Step3Details({
                             <input
                               type="number"
                               min="1"
-                              max={realStock}
+                              max={effectiveMax}
                               value={qty}
                               onChange={(e) => {
                                 const inputVal = parseInt(e.target.value) || 1;
-                                const newQty = Math.min(Math.max(1, inputVal), realStock);
+                                const newQty = Math.min(Math.max(1, inputVal), effectiveMax);
                                 setAvrEquipment({ ...avrEquipment, [key]: newQty });
                               }}
                               className="w-11 py-0.5 px-1 bg-white border border-blue-300 rounded-lg text-xs font-black text-center text-blue-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
@@ -360,10 +370,25 @@ export default function Step3Details({
                 })()}
               </div>
             </div>
+
+            {/* Optional Equipment Needed Remarks */}
+            <div className="sm:col-span-2 space-y-1.5 pt-2">
+              <label className="block text-xs font-bold text-slate-800">
+                Equipment-Needed Remarks <span className="text-slate-500 font-semibold text-[11px]">(Optional)</span>
+              </label>
+              <textarea
+                rows={2}
+                value={equipmentRemarks || ""}
+                onChange={(e) => setEquipmentRemarks && setEquipmentRemarks(e.target.value)}
+                placeholder="Explain why you require more units than the venue's allowed limit (e.g., expected high attendee count, workshop breakout activities, extra speakers)..."
+                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:border-blue-600 shadow-2xs"
+              />
+              <p className="text-[11px] text-slate-400 font-medium">
+                Note: If your event requires more units than the venue's default limit, provide your justification here for AVR administrator review and special allocation.
+              </p>
+            </div>
           </>
         )}
-
-
 
         <div className="sm:col-span-2 flex items-center justify-between mt-6 pt-4 border-t border-slate-100">
           <Button

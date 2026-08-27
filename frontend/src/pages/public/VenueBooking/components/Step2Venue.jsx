@@ -28,6 +28,7 @@ export default function Step2Venue({
   onBack,
   onNext,
   venuesLoading = false,
+  isPortal = false,
 }) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -321,6 +322,11 @@ export default function Step2Venue({
   const isPastSelection = isPastDateTime(selectedDate, timeStart);
   const isConflict = Boolean(conflictingBooking);
 
+  const venueOpen = opHours?.venue_open?.substring(0, 5) || "07:30";
+  const venueClose = opHours?.venue_close?.substring(0, 5) || "17:00";
+  const isOutsideHours = Boolean(timeStart && timeEnd && (timeStart < venueOpen || timeEnd > venueClose));
+  const isShortNotice = Boolean(selectedDate && selectedDate < minDateStr);
+
   const canProceed = Boolean(
     selectedVenue &&
     selectedDate &&
@@ -329,7 +335,10 @@ export default function Step2Venue({
     !isPastSelection &&
     !isInvalidEndDate &&
     !isInvalidTimeRange &&
-    !isConflict
+    !isConflict &&
+    (isPortal
+      ? (isOutsideHours || isShortNotice ? isPinVerified : true)
+      : (!isOutsideHours && !isShortNotice))
   );
 
   return (
@@ -394,13 +403,17 @@ export default function Step2Venue({
                       }`}
                   >
                     <div>
-                      {/* Venue Image / Placeholder Box */}
-                      <div className="w-full h-[160px] bg-blue-50/70 border border-blue-100/80 rounded-3xl overflow-hidden flex flex-col items-center justify-center text-center relative">
+                      {/* Venue Image / Placeholder Box - Seamless Full Fit */}
+                      <div className="w-full h-[175px] bg-slate-50 border border-slate-100 rounded-2xl overflow-hidden flex flex-col items-center justify-center text-center relative group">
                         {venueInfo.photo ? (
-                          <img src={venueInfo.photo} alt={v.name} className="w-full h-full object-contain p-2" />
+                          <img
+                            src={venueInfo.photo}
+                            alt={v.name}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          />
                         ) : (
-                          <div className="p-6 flex flex-col items-center justify-center h-full w-full">
-                            <span className="text-blue-950 font-extrabold text-sm leading-snug line-clamp-2">
+                          <div className="p-6 flex flex-col items-center justify-center h-full w-full bg-slate-50">
+                            <span className="text-slate-800 font-extrabold text-sm leading-snug line-clamp-2">
                               {v.name}
                             </span>
                           </div>
@@ -566,6 +579,7 @@ export default function Step2Venue({
                   const dateStr = `${calYear}-${pad(calMonth + 1)}-${pad(day)}`;
                   const isPast = isPastDate(dateStr);
                   const isShortNotice = !isPast && dateStr < minDateStr;
+                  const isPublicBlockedNotice = !isPortal && isShortNotice;
                   const todayStr = getTodayISO();
                   const isToday = dateStr === todayStr;
                   const info = getDayInfo(day);
@@ -575,8 +589,8 @@ export default function Step2Venue({
                   const hasRange = Boolean(selectedEndDate && selectedEndDate > selectedDate);
                   const isInBetween = hasRange && dateStr > selectedDate && dateStr < selectedEndDate;
 
-                  // Disabled state for past dates or maintenance
-                  const isDisabled = isPast || info.status === "maintenance" || info.status === "closed" || info.status === "fully";
+                  // Disabled state for past dates, short notice (in public view), or maintenance/full
+                  const isDisabled = isPast || isPublicBlockedNotice || info.status === "maintenance" || info.status === "closed" || info.status === "fully";
 
                   return (
                     <div
@@ -596,47 +610,76 @@ export default function Step2Venue({
                         onClick={() => {
                           if (isDisabled) return;
 
-                          // Multi-day Range Picker via Calendar Clicks
-                          if (!selectedDate || (selectedDate && selectedEndDate && selectedEndDate !== selectedDate)) {
-                            // Reset/start new range
-                            handleDateSelect(dateStr);
-                            if (setSelectedEndDate) setSelectedEndDate(dateStr);
-                          } else if (selectedDate && (!selectedEndDate || selectedEndDate === selectedDate)) {
-                            if (dateStr < selectedDate) {
+                          if (isPortal) {
+                            // Portal Interface: Full multi-day selection & tomorrow short notice allowed with PIN prompt
+                            if (!selectedDate || (selectedDate && selectedEndDate && selectedEndDate !== selectedDate)) {
                               handleDateSelect(dateStr);
                               if (setSelectedEndDate) setSelectedEndDate(dateStr);
-                            } else {
-                              if (setSelectedEndDate) setSelectedEndDate(dateStr);
+                            } else if (selectedDate && (!selectedEndDate || selectedEndDate === selectedDate)) {
+                              if (dateStr < selectedDate) {
+                                handleDateSelect(dateStr);
+                                if (setSelectedEndDate) setSelectedEndDate(dateStr);
+                              } else {
+                                if (setSelectedEndDate) setSelectedEndDate(dateStr);
+                              }
                             }
-                          }
 
-                          // Trigger verification pin modal prompt for short notice (within 3 days)
-                          if (isShortNotice && !isPinVerified) {
-                            setPinModalMeta && setPinModalMeta({
-                              title: "Short-Notice Booking Verification PIN",
-                              description: `Selected date (${dateStr}) is within the 3-day booking window. AVR Head / Administrative clearance PIN is required to authorize this slot.`,
-                            });
-                            setShowPinModal && setShowPinModal(true);
+                            // Trigger verification pin modal prompt for short notice (within 3 days / tomorrow)
+                            if (isShortNotice && !isPinVerified) {
+                              setPinModalMeta && setPinModalMeta({
+                                title: "Short-Notice Booking Verification PIN",
+                                description: `Selected date (${dateStr}) is within the 3-day notice window (tomorrow / short-notice booking). AVR Head / Administrative clearance PIN is required to authorize this slot.`,
+                              });
+                              setShowPinModal && setShowPinModal(true);
+                            }
+                          } else {
+                            // Public View: Limited to maximum 3 days duration, strictly >= 3 days advance
+                            if (!selectedDate || (selectedDate && selectedEndDate && selectedEndDate !== selectedDate)) {
+                              handleDateSelect(dateStr);
+                              if (setSelectedEndDate) setSelectedEndDate(dateStr);
+                            } else if (selectedDate && (!selectedEndDate || selectedEndDate === selectedDate)) {
+                              if (dateStr < selectedDate) {
+                                handleDateSelect(dateStr);
+                                if (setSelectedEndDate) setSelectedEndDate(dateStr);
+                              } else {
+                                const startD = new Date(selectedDate);
+                                const targetD = new Date(dateStr);
+                                const diffDays = Math.ceil((targetD - startD) / (1000 * 60 * 60 * 24));
+                                if (diffDays > 2) {
+                                  const maxEnd = new Date(startD);
+                                  maxEnd.setDate(maxEnd.getDate() + 2);
+                                  const maxEndStr = `${maxEnd.getFullYear()}-${pad(maxEnd.getMonth() + 1)}-${pad(maxEnd.getDate())}`;
+                                  if (setSelectedEndDate) setSelectedEndDate(maxEndStr);
+                                  alert("Public venue bookings are limited to a maximum of 3 days. Your reservation has been set to 3 days (" + selectedDate + " to " + maxEndStr + ").");
+                                } else {
+                                  if (setSelectedEndDate) setSelectedEndDate(dateStr);
+                                }
+                              }
+                            }
                           }
                         }}
                         className={`w-8 h-8 rounded-full text-xs font-extrabold flex items-center justify-center mx-auto transition-all relative z-10 ${isStart || isEnd
                             ? "bg-blue-600 text-white font-black shadow-sm scale-105 cursor-pointer"
                             : isPast
                               ? "text-slate-300 cursor-not-allowed pointer-events-none select-none"
-                              : isDisabled
-                                ? "text-slate-300 bg-slate-100/60 cursor-not-allowed"
-                                : isToday
-                                  ? "text-blue-600 border border-blue-500 font-black hover:bg-blue-50 cursor-pointer"
-                                  : isShortNotice
-                                    ? "text-amber-700 bg-amber-50/60 hover:bg-amber-100 cursor-pointer"
-                                    : "text-slate-700 hover:bg-slate-100 cursor-pointer"
+                              : isPublicBlockedNotice
+                                ? "text-slate-300 bg-slate-50 cursor-not-allowed line-through select-none"
+                                : isDisabled
+                                  ? "text-slate-300 bg-slate-100/60 cursor-not-allowed"
+                                  : isToday
+                                    ? "text-blue-600 border border-blue-500 font-black hover:bg-blue-50 cursor-pointer"
+                                    : isShortNotice
+                                      ? "text-amber-700 bg-amber-50/60 hover:bg-amber-100 cursor-pointer"
+                                      : "text-slate-700 hover:bg-slate-100 cursor-pointer"
                           }`}
                         title={
                           isPast
                             ? "Date already passed"
-                            : isShortNotice
-                              ? `${dateStr} (Short-Notice: PIN Authorization Required)`
-                              : `${dateStr} (Available)`
+                            : isPublicBlockedNotice
+                              ? `${dateStr} (Requires at least 3 days advance booking)`
+                              : isShortNotice
+                                ? `${dateStr} (Short-Notice: PIN Authorization Required)`
+                                : `${dateStr} (Available)`
                         }
                       >
                         {day}
@@ -723,21 +766,19 @@ export default function Step2Venue({
                     const venueOpen = opHours?.venue_open?.substring(0, 5) || "07:30";
                     const venueClose = opHours?.venue_close?.substring(0, 5) || "17:00";
                     const isOutside = timeStart < venueOpen || timeEnd > venueClose;
-                    const requiresPinForOutside = (pinRules?.requirePinOutsideHours !== false) && isOutside;
 
                     if (isOutside) {
-                      return (
-                        <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 space-y-2 mt-2">
-                          <div className="flex items-center justify-between">
-                            <span className="font-semibold text-slate-800">
-                              Outside Office Hours ({formatTime12(venueOpen)} – {formatTime12(venueClose)})
-                            </span>
-                          </div>
-                          <p className="text-xs text-slate-600 font-normal leading-relaxed">
-                            Selected booking time ({formatTime12(timeStart)} – {formatTime12(timeEnd)}) is outside campus hours.
-                            {requiresPinForOutside ? " AVR Head / Admin Verification PIN is required for authorization." : ""}
-                          </p>
-                          {requiresPinForOutside && (
+                      if (isPortal) {
+                        return (
+                          <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 space-y-2 mt-2">
+                            <div className="flex items-center justify-between">
+                              <span className="font-semibold text-slate-800">
+                                Outside Office Hours ({formatTime12(venueOpen)} – {formatTime12(venueClose)})
+                              </span>
+                            </div>
+                            <p className="text-xs text-slate-600 font-normal leading-relaxed">
+                              Selected booking time ({formatTime12(timeStart)} – {formatTime12(timeEnd)}) is outside campus hours. AVR Head / Admin Verification PIN is required for authorization.
+                            </p>
                             <div className="pt-1.5 border-t border-slate-200 flex items-center justify-between gap-2">
                               {isPinVerified ? (
                                 <span className="text-xs font-medium text-slate-700">
@@ -750,20 +791,32 @@ export default function Step2Venue({
                                     if (setPinModalMeta) {
                                       setPinModalMeta({
                                         title: "Outside Office Hours PIN",
-                                        description: `Selected booking time (${formatTime12(timeStart)} - ${formatTime12(timeEnd)}) is outside official campus hours (${formatTime12(venueOpen)} - ${formatTime12(venueClose)}). AVR Head / Admin Verification PIN is required for authorization.`,
+                                        description: `Selected booking time (${formatTime12(timeStart)} - ${formatTime12(timeEnd)}) is outside official campus hours (${formatTime12(venueOpen)} - ${formatTime12(venueClose)}). AVR Head / Admin Verification PIN is required.`,
                                       });
                                     }
                                     setShowPinModal && setShowPinModal(true);
                                   }}
-                                  className="w-full py-2 px-3 rounded-lg border border-blue-600 bg-blue-50/70 hover:bg-blue-600 text-blue-700 hover:text-white active:bg-blue-700 active:scale-[0.99] font-semibold text-xs transition-all cursor-pointer text-center shadow-2xs"
+                                  className="w-full py-2 px-3 rounded-lg border border-blue-600 bg-blue-50/70 hover:bg-blue-600 text-blue-700 hover:text-white active:bg-blue-700 font-semibold text-xs transition-all cursor-pointer text-center shadow-2xs"
                                 >
                                   Verify PIN
                                 </button>
                               )}
                             </div>
-                          )}
-                        </div>
-                      );
+                          </div>
+                        );
+                      } else {
+                        return (
+                          <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-800 space-y-1 mt-2">
+                            <div className="flex items-center gap-1.5 font-bold text-rose-900">
+                              <AlertTriangle size={14} className="text-rose-600 shrink-0" />
+                              <span>Outside Operating Hours</span>
+                            </div>
+                            <p className="text-[11px] font-semibold text-rose-700 leading-snug">
+                              Must be schedule within Operating Hours [ {formatTime12(venueOpen)} - {formatTime12(venueClose)} ].
+                            </p>
+                          </div>
+                        );
+                      }
                     }
                     return null;
                   })()}

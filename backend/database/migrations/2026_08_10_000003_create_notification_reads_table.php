@@ -13,12 +13,11 @@ return new class extends Migration
     {
         Schema::create('notification_reads', function (Blueprint $table) {
             $table->id();
-            $table->string('notification_key')->index();
+            $table->string('notification_key')->nullable()->index();
+            $table->text('text')->nullable();
             $table->foreignId('user_id')->nullable()->constrained('users')->onDelete('cascade');
             $table->timestamp('read_at')->useCurrent();
             $table->timestamps();
-
-            $table->unique(['notification_key', 'user_id']);
         });
     }
 

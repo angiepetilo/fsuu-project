@@ -78,6 +78,34 @@ class VenueBookingService
                 throw new VenueOverlapException('This venue is already booked for the selected date and time range.');
             }
 
+            // Anti-Spam Duplicate Prevention (15-Minute Buffer)
+            $applicantEmail = $data['email_address'] ?? $data['email'] ?? null;
+            $firstName = $data['first_name'] ?? null;
+            $lastName = $data['last_name'] ?? null;
+
+            if (!empty($applicantEmail) || (!empty($firstName) && !empty($lastName))) {
+                $recentDuplicate = DB::table('venue_bookings')
+                    ->where('venue_id', $venue->id)
+                    ->where('created_at', '>=', now()->subMinutes(15))
+                    ->where(function ($q) use ($applicantEmail, $firstName, $lastName, $dateOfUsage) {
+                        if ($applicantEmail) {
+                            $q->where('email_address', $applicantEmail);
+                        }
+                        if ($firstName && $lastName) {
+                            $q->orWhere(function ($sub) use ($firstName, $lastName, $dateOfUsage) {
+                                $sub->where('first_name', $firstName)
+                                    ->where('last_name', $lastName)
+                                    ->where('date_of_usage', $dateOfUsage);
+                            });
+                        }
+                    })
+                    ->exists();
+
+                if ($recentDuplicate) {
+                    throw new \InvalidArgumentException('You have already submitted a venue booking request recently. To prevent duplicate bookings, please wait 15 minutes before submitting again or check your existing tracking number.');
+                }
+            }
+
             $referenceCode = 'TRK-AVR' . rand(1000, 9999);
 
             // Create tracking number entry
@@ -252,7 +280,11 @@ class VenueBookingService
                 ->orWhere(function($q) use ($booking) {
                     $q->where('reservation_type', 'venue_booking')->where('reservation_id', $booking->id);
                 })
-                ->update(['status' => 'approved']);
+                ->update([
+                    'status' => 'approved',
+                    'approved_by' => $actor->id,
+                    'rejected_by' => null,
+                ]);
 
             if (\Illuminate\Support\Facades\Schema::hasTable('approvals')) {
                 DB::table('approvals')->insert([
@@ -266,7 +298,18 @@ class VenueBookingService
                 ]);
             }
 
-            $this->auditLog->log($actor, 'booking_approved', 'avr_venue_booking', $booking->id);
+            $this->auditLog->log(
+                $actor,
+                'VENUE_BOOKING_APPROVED',
+                'venue_bookings',
+                $booking->id,
+                [
+                    'remarks'        => $remarks,
+                    'reference_code' => $booking->reference_code ?? $booking->trackingNumber?->reference_code,
+                    'filer_name'     => $booking->filer_name,
+                    'venue_name'     => $booking->venue?->name,
+                ]
+            );
 
             $notificationType = $booking->requestor_identity_type === 'external'
                 ? 'payment_required'
@@ -306,7 +349,11 @@ class VenueBookingService
                 ->orWhere(function($q) use ($booking) {
                     $q->where('reservation_type', 'venue_booking')->where('reservation_id', $booking->id);
                 })
-                ->update(['status' => 'rejected']);
+                ->update([
+                    'status' => 'rejected',
+                    'rejected_by' => $actor->id,
+                    'approved_by' => null,
+                ]);
 
             if (\Illuminate\Support\Facades\Schema::hasTable('approvals')) {
                 DB::table('approvals')->insert([
@@ -320,7 +367,18 @@ class VenueBookingService
                 ]);
             }
 
-            $this->auditLog->log($actor, 'booking_rejected', 'avr_venue_booking', $booking->id);
+            $this->auditLog->log(
+                $actor,
+                'VENUE_BOOKING_REJECTED',
+                'venue_bookings',
+                $booking->id,
+                [
+                    'remarks'        => $remarks,
+                    'reference_code' => $booking->reference_code ?? $booking->trackingNumber?->reference_code,
+                    'filer_name'     => $booking->filer_name,
+                    'venue_name'     => $booking->venue?->name,
+                ]
+            );
 
             $this->notification->log(
                 'avr_venue_booking',

@@ -13,10 +13,17 @@ class ListingController extends Controller
     private function ensureSchema(): void
     {
         try {
-            if (Schema::hasTable('venues') && !Schema::hasColumn('venues', 'allowed_equipment')) {
-                Schema::table('venues', function ($table) {
-                    $table->longText('allowed_equipment')->nullable();
-                });
+            if (\Illuminate\Support\Facades\Schema::hasTable('venues')) {
+                if (!\Illuminate\Support\Facades\Schema::hasColumn('venues', 'allowed_equipment')) {
+                    \Illuminate\Support\Facades\Schema::table('venues', function ($table) {
+                        $table->longText('allowed_equipment')->nullable();
+                    });
+                }
+                if (!\Illuminate\Support\Facades\Schema::hasColumn('venues', 'equipment_max_qtys')) {
+                    \Illuminate\Support\Facades\Schema::table('venues', function ($table) {
+                        $table->longText('equipment_max_qtys')->nullable();
+                    });
+                }
             }
         } catch (\Throwable $e) {}
     }
@@ -40,17 +47,25 @@ class ListingController extends Controller
                     if (!is_array($allowed)) {
                         $allowed = [];
                     }
+                    $maxQtys = $v->equipment_max_qtys;
+                    if (is_string($maxQtys)) {
+                        $maxQtys = json_decode($maxQtys, true) ?? [];
+                    }
+                    if (!is_array($maxQtys)) {
+                        $maxQtys = [];
+                    }
                     return [
-                        'id'        => $v->id,
-                        'name'      => $v->name,
-                        'avatar'    => $imgUrl,
-                        'photo'     => $imgUrl,
-                        'image'     => $imgUrl,
-                        'location'  => $v->location ?? 'FSUU Campus',
-                        'capacity'  => $v->capacity ?? 100,
-                        'type'      => 'avr',
-                        'status'    => $v->status ?? 'Available',
-                        'allowed_equipment' => array_values(array_filter($allowed)),
+                        'id'                 => $v->id,
+                        'name'               => $v->name,
+                        'avatar'             => $imgUrl,
+                        'photo'              => $imgUrl,
+                        'image'              => $imgUrl,
+                        'location'           => $v->location ?? 'FSUU Campus',
+                        'capacity'           => $v->capacity ?? 100,
+                        'type'               => 'avr',
+                        'status'             => $v->status ?? 'Available',
+                        'allowed_equipment'  => array_values(array_filter($allowed)),
+                        'equipment_max_qtys' => $maxQtys,
                     ];
                 })
         );
@@ -110,13 +125,13 @@ class ListingController extends Controller
                 },
                 'equipmentUnits as calculated_operational' => function ($q) {
                     $q->whereNull('archived_at')
-                      ->whereNotIn(DB::raw('LOWER(status)'), ['damaged', 'lost', 'decommissioned', 'maintenance'])
-                      ->whereNotIn(DB::raw('LOWER(condition)'), ['damaged', 'lost', 'under repair']);
+                      ->whereNotIn('status', ['damaged', 'lost', 'decommissioned', 'maintenance', 'Damaged', 'Lost', 'Decommissioned', 'Maintenance'])
+                      ->whereNotIn('condition', ['damaged', 'lost', 'under repair', 'Damaged', 'Lost', 'Under Repair', 'under_repair']);
                 },
                 'equipmentUnits as calculated_available' => function ($q) {
                     $q->whereNull('archived_at')
                       ->where('status', 'available')
-                      ->whereNotIn(DB::raw('LOWER(condition)'), ['damaged', 'lost', 'under repair']);
+                      ->whereNotIn('condition', ['damaged', 'lost', 'under repair', 'Damaged', 'Lost', 'Under Repair', 'under_repair']);
                 }
             ]);
 
