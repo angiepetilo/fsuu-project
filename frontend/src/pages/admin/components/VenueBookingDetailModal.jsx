@@ -1255,8 +1255,8 @@ export default function VenueBookingDetailModal({
                 <button
                   type="button"
                   disabled={!rejectionComments.trim() || !!actionLoading}
-                  onClick={() => handleAction(selected.id, "reject", { rejection_reason: rejectionComments })}
-                  className="px-4 py-1.5 bg-white border border-rose-600 text-rose-600 hover:bg-rose-50 rounded-lg text-xs font-bold"
+                  onClick={() => handleAction(selected.id, "reject", { remarks: rejectionComments, rejection_reason: rejectionComments })}
+                  className="px-4 py-1.5 bg-white border border-rose-600 text-rose-600 hover:bg-rose-50 rounded-lg text-xs font-bold cursor-pointer"
                 >
                   Submit Rejection
                 </button>

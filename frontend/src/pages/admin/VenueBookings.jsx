@@ -123,8 +123,10 @@ export default function VenueBookings() {
     try {
       let endpoint = `/avr-venue-bookings/${bookingId}/${action}`;
       const payload = { ...customData };
-      if (action === "reject" && rejectionComments) {
-        payload.rejection_reason = rejectionComments;
+      if (action === "reject") {
+        const comment = customData.remarks || customData.rejection_reason || rejectionComments || "Venue reservation rejected by admin";
+        payload.remarks = comment;
+        payload.rejection_reason = comment;
       }
       const res = await api.post(endpoint, payload);
 
