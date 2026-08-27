@@ -430,12 +430,15 @@ class EquipmentBorrowingController extends Controller
         }
     }
 
-    public function sendOverdueSms(\Illuminate\Http\Request $request, int $id): JsonResponse
+    public function sendReturnReminder(\Illuminate\Http\Request $request, int $id): JsonResponse
     {
-        $borrow = EquipmentBorrowing::with('items', 'trackingNumber')->find($id);
+        $borrow = EquipmentBorrowing::with('items.equipmentType', 'trackingNumber')->find($id);
         if (!$borrow) {
             return response()->json(['message' => 'Equipment borrowing record not found'], 404);
         }
+
+        $channel = $request->input('channel', 'both'); // 'both', 'sms', 'email'
+        $customMessage = $request->input('message');
 
         $email = $borrow->email_address ?? $borrow->requestor_email ?? '';
         $contactNumber = $borrow->contact_number 
@@ -443,33 +446,42 @@ class EquipmentBorrowingController extends Controller
             ?? $borrow->borrower_contact_number 
             ?? null;
 
-        if (!$email && !$contactNumber) {
-            return response()->json(['message' => 'No borrower email address or contact number found.'], 422);
+        $results = [];
+
+        // 1. Send SMS Return Reminder
+        if (in_array($channel, ['both', 'sms']) && $contactNumber) {
+            try {
+                \App\Services\SmsService::sendReturnReminder($borrow, $customMessage);
+                $results[] = "SMS sent to {$contactNumber}";
+            } catch (\Throwable $e) {}
         }
 
-        try {
-            // 1. Send Overdue / Past Due Reminder SMS
-            if ($contactNumber) {
-                \App\Services\SmsService::sendOverdueAlert($borrow);
-            }
-
-            // 2. Dispatch Urgent Overdue Email Reminder
-            if ($email) {
+        // 2. Send Email Return Reminder
+        if (in_array($channel, ['both', 'email']) && $email) {
+            try {
                 \App\Jobs\SendBookingStatusUpdateJob::dispatch(
                     'equipment',
                     $borrow,
-                    'overdue',
-                    'URGENT NOTICE: Your borrowed equipment is past scheduled return time. Please return all physical units immediately to the AVR Center.'
+                    'return_reminder',
+                    $customMessage ?: 'Please return all borrowed physical equipment units to the AVR Center promptly. Thank you!'
                 );
-            }
-
-            $recipientInfo = $email ?: $contactNumber;
-            return response()->json([
-                'message' => "✅ Urgent return reminder dispatched to {$recipientInfo}",
-            ]);
-        } catch (\Throwable $e) {
-            return response()->json(['message' => 'Failed to dispatch urgent reminder: ' . $e->getMessage()], 500);
+                $results[] = "Email sent to {$email}";
+            } catch (\Throwable $e) {}
         }
+
+        if (empty($results)) {
+            return response()->json(['message' => 'No borrower email address or valid phone number found.'], 422);
+        }
+
+        return response()->json([
+            'message' => '✅ Return reminder sent (' . implode(' & ', $results) . ')',
+            'results' => $results,
+        ]);
+    }
+
+    public function sendOverdueSms(\Illuminate\Http\Request $request, int $id): JsonResponse
+    {
+        return $this->sendReturnReminder($request, $id);
     }
 
     public function assignUnits(\Illuminate\Http\Request $request, EquipmentBorrowing $equipmentBorrowing): JsonResponse

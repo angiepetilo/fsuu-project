@@ -18,6 +18,7 @@ export default function EquipBorrowHeader({
   smsLoading,
   smsMsg,
   handleSendOverdueSms,
+  handleSendReturnReminder,
   isOngoing,
   isApproved,
 }) {
@@ -48,7 +49,7 @@ export default function EquipBorrowHeader({
               </span>
 
               {/* Inline Action Buttons to the right of Time and Date Filed */}
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5 flex-wrap">
                 <button
                   type="button"
                   onClick={handleResendEmail}
@@ -61,16 +62,38 @@ export default function EquipBorrowHeader({
                 </button>
 
                 {(isOngoing || isApproved) && (
-                  <button
-                    type="button"
-                    onClick={handleSendOverdueSms}
-                    disabled={smsLoading}
-                    className="px-2.5 py-1 bg-amber-50 hover:bg-amber-100/80 text-amber-900 rounded-lg text-[11px] font-bold border border-amber-300/80 flex items-center gap-1 cursor-pointer disabled:opacity-50 transition-colors shadow-2xs"
-                    title="Send urgent return email reminder to borrower"
-                  >
-                    {smsLoading ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} className="text-amber-700" />}
-                    <span>Urgent Reminder</span>
-                  </button>
+                  <div className="relative inline-flex items-center rounded-lg shadow-2xs border border-amber-300 bg-amber-50">
+                    <button
+                      type="button"
+                      onClick={() => handleSendReturnReminder ? handleSendReturnReminder("both") : handleSendOverdueSms()}
+                      disabled={smsLoading}
+                      className="px-2.5 py-1 text-amber-900 hover:bg-amber-100/90 rounded-l-lg text-[11px] font-extrabold flex items-center gap-1 cursor-pointer disabled:opacity-50 transition-colors"
+                      title="Send return equipment notice to borrower via SMS & Email"
+                    >
+                      {smsLoading ? <Loader2 size={12} className="animate-spin text-amber-700" /> : <Send size={12} className="text-amber-700" />}
+                      <span>Return Equipment (Send via SMS & Email)</span>
+                    </button>
+                    <div className="flex items-center border-l border-amber-300 divide-x divide-amber-300 text-[10.5px]">
+                      <button
+                        type="button"
+                        onClick={() => handleSendReturnReminder ? handleSendReturnReminder("sms") : handleSendOverdueSms()}
+                        disabled={smsLoading}
+                        className="px-1.5 py-1 text-amber-800 hover:bg-amber-100 font-bold cursor-pointer disabled:opacity-50"
+                        title="Send via SMS only"
+                      >
+                        SMS
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleSendReturnReminder ? handleSendReturnReminder("email") : handleSendOverdueSms()}
+                        disabled={smsLoading}
+                        className="px-1.5 py-1 text-amber-800 hover:bg-amber-100 font-bold rounded-r-lg cursor-pointer disabled:opacity-50"
+                        title="Send via Email only"
+                      >
+                        Email
+                      </button>
+                    </div>
+                  </div>
                 )}
 
                 {resendMsg && (
@@ -79,7 +102,7 @@ export default function EquipBorrowHeader({
                   </span>
                 )}
                 {smsMsg && (
-                  <span className="text-[10px] font-mono text-amber-600 font-bold animate-in fade-in">
+                  <span className="text-[10px] font-mono text-amber-700 font-bold animate-in fade-in bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
                     {smsMsg}
                   </span>
                 )}

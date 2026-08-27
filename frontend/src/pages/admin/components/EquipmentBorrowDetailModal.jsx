@@ -595,14 +595,22 @@ export default function EquipmentBorrowDetailModal({
   };
 
   const handleSendOverdueSms = async () => {
+    return handleSendReturnReminder("both");
+  };
+
+  const handleSendReturnReminder = async (channel = "both", customMsg = null) => {
+    if (!selected?.id) return;
     setSmsLoading(true);
     try {
-      const res = await api.post(`/avr-equipment-borrowings/${selected.id}/send-overdue-sms`);
-      setSmsMsg(res.data?.message || "Overdue SMS alert dispatched.");
-      setTimeout(() => setSmsMsg(null), 4000);
+      const res = await api.post(`/avr-equipment-borrowings/${selected.id}/send-return-reminder`, {
+        channel,
+        message: customMsg,
+      });
+      setSmsMsg(res.data?.message || "Return reminder dispatched successfully.");
+      setTimeout(() => setSmsMsg(null), 5000);
     } catch (err) {
-      setSmsMsg(err.response?.data?.message || "Failed to send Overdue SMS.");
-      setTimeout(() => setSmsMsg(null), 4000);
+      setSmsMsg(err.response?.data?.message || "Failed to send return reminder.");
+      setTimeout(() => setSmsMsg(null), 5000);
     } finally {
       setSmsLoading(false);
     }
@@ -843,6 +851,7 @@ export default function EquipmentBorrowDetailModal({
           smsLoading={smsLoading}
           smsMsg={smsMsg}
           handleSendOverdueSms={handleSendOverdueSms}
+          handleSendReturnReminder={handleSendReturnReminder}
           isOngoing={isOngoing}
           isApproved={isApproved}
         />

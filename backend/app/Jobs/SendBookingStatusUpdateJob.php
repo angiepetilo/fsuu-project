@@ -92,6 +92,13 @@ class SendBookingStatusUpdateJob implements ShouldQueue
             'status'          => $mailSent ? 'sent' : 'failed',
             'error_message'   => $mailError,
         ]);
+
+        // Send SMS status update notification
+        try {
+            \App\Services\SmsService::sendStatusNotification($this->type, $this->booking, $this->status, $this->remarks);
+        } catch (\Throwable $smsErr) {
+            Log::warning("SendBookingStatusUpdateJob SMS dispatch failed: " . $smsErr->getMessage());
+        }
     }
 
     public function failed(\Throwable $e): void
