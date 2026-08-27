@@ -136,9 +136,8 @@ class EquipmentCategoryService
             $bookingReserved = $b['reserved'] + $venueReserved;
 
             if ($u['total'] > 0) {
-                $releasedTotal = $u['released'];
-                $unassignedOngoing = max(0, $bookingReleased - $u['released']);
-                $reservedTotal = max($u['reserved'], $bookingReserved + $unassignedOngoing);
+                $releasedTotal = max($u['released'], $bookingReleased);
+                $reservedTotal = max($u['reserved'], $bookingReserved);
                 $damagedCount = $u['damaged'];
                 $lostCount = $u['lost'];
                 $totalQty = $u['total'];
@@ -319,11 +318,9 @@ class EquipmentCategoryService
         $bookingReleased = (int) ($borrowedCount + $venueCount);
         $bookingReserved = (int) ($approvedBorrowCount + $approvedVenueCount);
 
-        // If physical units are registered, actual release strictly reflects physical units in released/borrowed status
         if ($registeredUnitsCount > 0) {
-            $releasedTotal = $physicalReleased;
-            $unassignedOngoing = max(0, $bookingReleased - $physicalReleased);
-            $reservedTotal = max($reservedCount, $bookingReserved + $unassignedOngoing);
+            $releasedTotal = max($physicalReleased, $bookingReleased);
+            $reservedTotal = max($reservedCount, $bookingReserved);
         } else {
             $releasedTotal = max($bookingReleased, (int) ($e->released_count ?? 0));
             $reservedTotal = max($reservedCount, $bookingReserved);
@@ -593,7 +590,7 @@ class EquipmentCategoryService
 
             DB::table('equipment_units')
                 ->whereIn('status', ['reserved', 'released'])
-                ->whereNotIn(DB::raw("LOWER(COALESCE(condition, 'good'))"), ['lost', 'damaged', 'worn', 'minor wear', 'under repair'])
+                ->whereNotIn(DB::raw("LOWER(COALESCE(condition, 'good'))"), ['lost', 'damaged'])
                 ->when(!empty($occupiedBarcodes), function($q) use ($occCodes, $occNumIds) {
                     $q->whereNotIn('unit_code', $occCodes);
                     if (!empty($occNumIds)) {
