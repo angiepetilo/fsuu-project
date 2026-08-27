@@ -60,6 +60,8 @@ class MediaUploadService
                         'use_filename'    => true,
                         'unique_filename' => true,
                         'resource_type'   => $isPdf ? 'image' : 'auto',
+                        'type'            => 'upload',
+                        'access_mode'     => 'public',
                     ];
                     if ($isPdf) {
                         $options['format'] = 'pdf';
@@ -84,7 +86,9 @@ class MediaUploadService
             if ($this->isCloudinaryEnabled()) {
                 try {
                     $upload = cloudinary()->uploadApi()->upload($file, [
-                        'folder' => 'fsuu/' . $folder,
+                        'folder'      => 'fsuu/' . $folder,
+                        'type'        => 'upload',
+                        'access_mode' => 'public',
                     ]);
                     if (!empty($upload['secure_url'])) {
                         return $upload['secure_url'];
