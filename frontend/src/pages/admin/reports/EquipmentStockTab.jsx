@@ -341,14 +341,13 @@ export default function EquipmentStockTab({
                     const totalDamaged = Math.max(0, typeof item.damaged_count === 'number' ? item.damaged_count : 0);
                     const totalLost = Math.max(0, typeof item.lost_count === 'number' ? item.lost_count : 0);
 
-                    const draft = inventoryDrafts[key] || {};
-                    const currentReleased = draft.qty_released ?? initialReleased;
-                    const currentDamaged = draft.qty_damaged ?? totalDamaged;
-                    const currentLost = draft.qty_lost ?? totalLost;
+                    const currentReleased = typeof item.released_count === 'number' ? item.released_count : (draft.qty_released ?? initialReleased);
+                    const currentDamaged = typeof item.damaged_count === 'number' ? item.damaged_count : (draft.qty_damaged ?? totalDamaged);
+                    const currentLost = typeof item.lost_count === 'number' ? item.lost_count : (draft.qty_lost ?? totalLost);
 
-                    const availablePresent = typeof item.available_count === 'number' 
-                      ? item.available_count 
-                      : Math.max(0, expectedQty - currentReleased - currentDamaged - currentLost);
+                    const availablePresent = typeof item.present_count === 'number'
+                      ? item.present_count
+                      : (typeof item.available_count === 'number' ? item.available_count : Math.max(0, expectedQty - currentReleased - currentDamaged - currentLost));
 
                     const currentDraft = {
                       qty_released: currentReleased,

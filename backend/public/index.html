@@ -8,7 +8,7 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/png" href="/fsuu_logo.png" />
     <title>FSUU Reserve and Booking System</title>
-    <script type="module" crossorigin src="/assets/index-ne-TCHHr.js"></script>
+    <script type="module" crossorigin src="/assets/index-BkjNQ977.js"></script>
     <link rel="modulepreload" crossorigin href="/assets/rolldown-runtime-QTnfLwEv.js">
     <link rel="modulepreload" crossorigin href="/assets/jsx-runtime-CIxEorsV.js">
     <link rel="modulepreload" crossorigin href="/assets/react-dom-CGMXk-vi.js">
