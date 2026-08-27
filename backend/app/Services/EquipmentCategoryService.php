@@ -67,13 +67,13 @@ class EquipmentCategoryService
                     ->leftJoin('tracking_numbers', 'equipment_borrows.tracking_number_id', '=', 'tracking_numbers.id')
                     ->whereNull('equipment_borrows.archived_at')
                     ->where(function($q) use ($today) {
-                        $q->where(DB::raw('COALESCE(equipment_borrows.date_of_usage, SUBSTRING(equipment_borrows.start_datetime, 1, 10), CURRENT_DATE)'), '>=', $today)
-                          ->orWhereIn(DB::raw('LOWER(COALESCE(tracking_numbers.status, equipment_borrows.status, "pending"))'), ['on-going', 'ongoing', 'borrowed', 'released', 'in_use', 'in-use']);
+                        $q->where(DB::raw("COALESCE(equipment_borrows.date_of_usage, SUBSTRING(equipment_borrows.start_datetime, 1, 10), CURRENT_DATE)"), '>=', $today)
+                          ->orWhereIn(DB::raw("LOWER(COALESCE(tracking_numbers.status, equipment_borrows.status, 'pending'))"), ['on-going', 'ongoing', 'borrowed', 'released', 'in_use', 'in-use']);
                     })
                     ->select(
                         'equipment_borrow_items.equipment_type_id',
-                        DB::raw('SUM(CASE WHEN LOWER(COALESCE(tracking_numbers.status, equipment_borrows.status, "pending")) IN ("on-going", "ongoing", "borrowed", "released", "in_use", "in-use") THEN equipment_borrow_items.quantity_requested ELSE 0 END) as released_sum'),
-                        DB::raw('SUM(CASE WHEN LOWER(COALESCE(tracking_numbers.status, equipment_borrows.status, "pending")) IN ("pending", "scheduled", "reserved", "approved") THEN equipment_borrow_items.quantity_requested ELSE 0 END) as reserved_sum')
+                        DB::raw("SUM(CASE WHEN LOWER(COALESCE(tracking_numbers.status, equipment_borrows.status, 'pending')) IN ('on-going', 'ongoing', 'borrowed', 'released', 'in_use', 'in-use') THEN equipment_borrow_items.quantity_requested ELSE 0 END) as released_sum"),
+                        DB::raw("SUM(CASE WHEN LOWER(COALESCE(tracking_numbers.status, equipment_borrows.status, 'pending')) IN ('pending', 'scheduled', 'reserved', 'approved') THEN equipment_borrow_items.quantity_requested ELSE 0 END) as reserved_sum")
                     )
                     ->groupBy('equipment_borrow_items.equipment_type_id')
                     ->get();
@@ -94,7 +94,7 @@ class EquipmentCategoryService
                 $venueList = DB::table('venue_bookings')
                     ->leftJoin('tracking_numbers', 'venue_bookings.tracking_number_id', '=', 'tracking_numbers.id')
                     ->whereNull('venue_bookings.archived_at')
-                    ->select('venue_bookings.id', 'venue_bookings.equipment_notes', 'venue_bookings.date_of_usage', 'venue_bookings.reservation_end_date', DB::raw('LOWER(COALESCE(tracking_numbers.status, venue_bookings.status, "pending")) as current_status'))
+                    ->select('venue_bookings.id', 'venue_bookings.equipment_notes', 'venue_bookings.date_of_usage', 'venue_bookings.reservation_end_date', DB::raw("LOWER(COALESCE(tracking_numbers.status, venue_bookings.status, 'pending')) as current_status"))
                     ->get();
             } catch (\Throwable $th) {}
         }
@@ -219,8 +219,8 @@ class EquipmentCategoryService
                             $sub->whereIn(DB::raw('LOWER(status)'), ['damaged', 'maintenance', 'unavailable'])
                                 ->orWhereIn(DB::raw('LOWER(condition)'), ['damaged', 'maintenance', 'worn', 'under repair']);
                         })
-                        ->whereNotIn(DB::raw('LOWER(COALESCE(condition, "good"))'), ['lost', 'decommissioned'])
-                        ->whereNotIn(DB::raw('LOWER(COALESCE(status, "available"))'), ['lost', 'decommissioned']);
+                        ->whereNotIn(DB::raw("LOWER(COALESCE(condition, 'good'))"), ['lost', 'decommissioned'])
+                        ->whereNotIn(DB::raw("LOWER(COALESCE(status, 'available'))"), ['lost', 'decommissioned']);
                     })
                     ->count();
 
@@ -229,7 +229,7 @@ class EquipmentCategoryService
                     ->whereNull('archived_at')
                     ->where(function($q) {
                         $q->whereIn(DB::raw('LOWER(status)'), ['decommissioned', 'lost'])
-                          ->orWhereIn(DB::raw('LOWER(COALESCE(condition, ""))'), ['lost']);
+                          ->orWhereIn(DB::raw("LOWER(COALESCE(condition, ''))"), ['lost']);
                     })
                     ->count();
             } catch (\Throwable $th) {}
@@ -253,7 +253,7 @@ class EquipmentCategoryService
                     })
                     ->whereNull('equipment_borrows.archived_at')
                     ->where(function($q) {
-                        $q->whereIn(DB::raw('LOWER(COALESCE(tracking_numbers.status, equipment_borrows.status, "pending"))'), ['on-going', 'ongoing', 'borrowed', 'released', 'in_use', 'in-use']);
+                        $q->whereIn(DB::raw("LOWER(COALESCE(tracking_numbers.status, equipment_borrows.status, 'pending'))"), ['on-going', 'ongoing', 'borrowed', 'released', 'in_use', 'in-use']);
                     })
                     ->sum('equipment_borrow_items.quantity_requested');
 
@@ -268,10 +268,10 @@ class EquipmentCategoryService
                     })
                     ->whereNull('equipment_borrows.archived_at')
                     ->where(function($q) use ($today) {
-                        $q->where(DB::raw('COALESCE(equipment_borrows.date_of_usage, SUBSTRING(equipment_borrows.start_datetime, 1, 10), CURRENT_DATE)'), '>=', $today);
+                        $q->where(DB::raw("COALESCE(equipment_borrows.date_of_usage, SUBSTRING(equipment_borrows.start_datetime, 1, 10), CURRENT_DATE)"), '>=', $today);
                     })
                     ->where(function($q) {
-                        $q->whereIn(DB::raw('LOWER(COALESCE(tracking_numbers.status, equipment_borrows.status, "pending"))'), ['pending', 'scheduled', 'reserved', 'approved']);
+                        $q->whereIn(DB::raw("LOWER(COALESCE(tracking_numbers.status, equipment_borrows.status, 'pending'))"), ['pending', 'scheduled', 'reserved', 'approved']);
                     })
                     ->sum('equipment_borrow_items.quantity_requested');
             }
@@ -289,7 +289,7 @@ class EquipmentCategoryService
                     ->leftJoin('tracking_numbers', 'venue_bookings.tracking_number_id', '=', 'tracking_numbers.id')
                     ->whereNull('venue_bookings.archived_at')
                     ->where(function($q) {
-                        $q->whereIn(DB::raw('LOWER(COALESCE(tracking_numbers.status, venue_bookings.status, "pending"))'), ['on-going', 'ongoing', 'in_use', 'in-use']);
+                        $q->whereIn(DB::raw("LOWER(COALESCE(tracking_numbers.status, venue_bookings.status, 'pending'))"), ['on-going', 'ongoing', 'in_use', 'in-use']);
                     })
                     ->select('venue_bookings.id', 'venue_bookings.equipment_notes')
                     ->get();
@@ -300,11 +300,11 @@ class EquipmentCategoryService
                     ->leftJoin('tracking_numbers', 'venue_bookings.tracking_number_id', '=', 'tracking_numbers.id')
                     ->whereNull('venue_bookings.archived_at')
                     ->where(function($q) use ($today) {
-                        $q->where(DB::raw('COALESCE(venue_bookings.date_of_usage, CURRENT_DATE)'), '<=', $today)
-                          ->where(DB::raw('COALESCE(venue_bookings.reservation_end_date, venue_bookings.date_of_usage, CURRENT_DATE)'), '>=', $today);
+                        $q->where(DB::raw("COALESCE(venue_bookings.date_of_usage, CURRENT_DATE)"), '<=', $today)
+                          ->where(DB::raw("COALESCE(venue_bookings.reservation_end_date, venue_bookings.date_of_usage, CURRENT_DATE)"), '>=', $today);
                     })
                     ->where(function($q) {
-                        $q->whereIn(DB::raw('LOWER(COALESCE(tracking_numbers.status, venue_bookings.status, "pending"))'), ['pending', 'scheduled', 'reserved', 'approved']);
+                        $q->whereIn(DB::raw("LOWER(COALESCE(tracking_numbers.status, venue_bookings.status, 'pending'))"), ['pending', 'scheduled', 'reserved', 'approved']);
                     })
                     ->select('venue_bookings.id', 'venue_bookings.equipment_notes')
                     ->get();
