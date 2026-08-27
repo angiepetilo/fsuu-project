@@ -68,12 +68,12 @@ class EquipmentCategoryService
                     ->whereNull('equipment_borrows.archived_at')
                     ->where(function($q) use ($today) {
                         $q->where(DB::raw("COALESCE(equipment_borrows.date_of_usage, SUBSTRING(equipment_borrows.start_datetime, 1, 10), CURRENT_DATE)"), '>=', $today)
-                          ->orWhereIn(DB::raw("LOWER(COALESCE(tracking_numbers.status, equipment_borrows.status, 'pending'))"), ['on-going', 'ongoing', 'borrowed', 'released', 'in_use', 'in-use']);
+                          ->orWhereIn(DB::raw("LOWER(COALESCE(tracking_numbers.status, 'pending'))"), ['on-going', 'ongoing', 'borrowed', 'released', 'in_use', 'in-use']);
                     })
                     ->select(
                         'equipment_borrow_items.equipment_type_id',
-                        DB::raw("SUM(CASE WHEN LOWER(COALESCE(tracking_numbers.status, equipment_borrows.status, 'pending')) IN ('on-going', 'ongoing', 'borrowed', 'released', 'in_use', 'in-use') THEN equipment_borrow_items.quantity_requested ELSE 0 END) as released_sum"),
-                        DB::raw("SUM(CASE WHEN LOWER(COALESCE(tracking_numbers.status, equipment_borrows.status, 'pending')) IN ('pending', 'scheduled', 'reserved', 'approved') THEN equipment_borrow_items.quantity_requested ELSE 0 END) as reserved_sum")
+                        DB::raw("SUM(CASE WHEN LOWER(COALESCE(tracking_numbers.status, 'pending')) IN ('on-going', 'ongoing', 'borrowed', 'released', 'in_use', 'in-use') THEN equipment_borrow_items.quantity_requested ELSE 0 END) as released_sum"),
+                        DB::raw("SUM(CASE WHEN LOWER(COALESCE(tracking_numbers.status, 'pending')) IN ('pending', 'scheduled', 'reserved', 'approved') THEN equipment_borrow_items.quantity_requested ELSE 0 END) as reserved_sum")
                     )
                     ->groupBy('equipment_borrow_items.equipment_type_id')
                     ->get();
@@ -94,7 +94,7 @@ class EquipmentCategoryService
                 $venueList = DB::table('venue_bookings')
                     ->leftJoin('tracking_numbers', 'venue_bookings.tracking_number_id', '=', 'tracking_numbers.id')
                     ->whereNull('venue_bookings.archived_at')
-                    ->select('venue_bookings.id', 'venue_bookings.equipment_notes', 'venue_bookings.date_of_usage', 'venue_bookings.reservation_end_date', DB::raw("LOWER(COALESCE(tracking_numbers.status, venue_bookings.status, 'pending')) as current_status"))
+                    ->select('venue_bookings.id', 'venue_bookings.equipment_notes', 'venue_bookings.date_of_usage', 'venue_bookings.reservation_end_date', DB::raw("LOWER(COALESCE(tracking_numbers.status, 'pending')) as current_status"))
                     ->get();
             } catch (\Throwable $th) {}
         }
@@ -253,7 +253,7 @@ class EquipmentCategoryService
                     })
                     ->whereNull('equipment_borrows.archived_at')
                     ->where(function($q) {
-                        $q->whereIn(DB::raw("LOWER(COALESCE(tracking_numbers.status, equipment_borrows.status, 'pending'))"), ['on-going', 'ongoing', 'borrowed', 'released', 'in_use', 'in-use']);
+                        $q->whereIn(DB::raw("LOWER(COALESCE(tracking_numbers.status, 'pending'))"), ['on-going', 'ongoing', 'borrowed', 'released', 'in_use', 'in-use']);
                     })
                     ->sum('equipment_borrow_items.quantity_requested');
 
@@ -271,7 +271,7 @@ class EquipmentCategoryService
                         $q->where(DB::raw("COALESCE(equipment_borrows.date_of_usage, SUBSTRING(equipment_borrows.start_datetime, 1, 10), CURRENT_DATE)"), '>=', $today);
                     })
                     ->where(function($q) {
-                        $q->whereIn(DB::raw("LOWER(COALESCE(tracking_numbers.status, equipment_borrows.status, 'pending'))"), ['pending', 'scheduled', 'reserved', 'approved']);
+                        $q->whereIn(DB::raw("LOWER(COALESCE(tracking_numbers.status, 'pending'))"), ['pending', 'scheduled', 'reserved', 'approved']);
                     })
                     ->sum('equipment_borrow_items.quantity_requested');
             }
@@ -289,7 +289,7 @@ class EquipmentCategoryService
                     ->leftJoin('tracking_numbers', 'venue_bookings.tracking_number_id', '=', 'tracking_numbers.id')
                     ->whereNull('venue_bookings.archived_at')
                     ->where(function($q) {
-                        $q->whereIn(DB::raw("LOWER(COALESCE(tracking_numbers.status, venue_bookings.status, 'pending'))"), ['on-going', 'ongoing', 'in_use', 'in-use']);
+                        $q->whereIn(DB::raw("LOWER(COALESCE(tracking_numbers.status, 'pending'))"), ['on-going', 'ongoing', 'in_use', 'in-use']);
                     })
                     ->select('venue_bookings.id', 'venue_bookings.equipment_notes')
                     ->get();
@@ -304,7 +304,7 @@ class EquipmentCategoryService
                           ->where(DB::raw("COALESCE(venue_bookings.reservation_end_date, venue_bookings.date_of_usage, CURRENT_DATE)"), '>=', $today);
                     })
                     ->where(function($q) {
-                        $q->whereIn(DB::raw("LOWER(COALESCE(tracking_numbers.status, venue_bookings.status, 'pending'))"), ['pending', 'scheduled', 'reserved', 'approved']);
+                        $q->whereIn(DB::raw("LOWER(COALESCE(tracking_numbers.status, 'pending'))"), ['pending', 'scheduled', 'reserved', 'approved']);
                     })
                     ->select('venue_bookings.id', 'venue_bookings.equipment_notes')
                     ->get();
@@ -367,28 +367,49 @@ class EquipmentCategoryService
      */
     private function calculateVenueEquipmentCount(object $vb, EquipmentType $e): int
     {
+        $count = 0;
         if (Schema::hasTable('venue_booking_equipment')) {
-            $structItems = DB::table('venue_booking_equipment')
-                ->where('venue_booking_id', $vb->id)
-                ->get();
+            try {
+                $structItems = DB::table('venue_booking_equipment')
+                    ->where('venue_booking_id', $vb->id)
+                    ->get();
 
-            if ($structItems->count() > 0) {
-                return (int) $structItems->whereIn('equipment_type_id', [$e->id, $e->eq_name, $e->name])->sum('quantity_requested');
+                foreach ($structItems as $item) {
+                    if ((int)$item->equipment_type_id === (int)$e->id ||
+                        strcasecmp((string)($item->others_specify ?? ''), (string)$e->eq_name) === 0) {
+                        $count += (int) $item->quantity_requested;
+                    }
+                }
+            } catch (\Throwable $t) {}
+        }
+
+        $eqRaw = $vb->equipment_notes ?? '';
+        if (is_string($eqRaw) && !empty($eqRaw)) {
+            if (str_starts_with(trim($eqRaw), '[') || str_starts_with(trim($eqRaw), '{')) {
+                try {
+                    $json = json_decode($eqRaw, true);
+                    if (is_array($json)) {
+                        foreach ($json as $jItem) {
+                            $jName = $jItem['name'] ?? $jItem['category'] ?? $jItem['eq_name'] ?? '';
+                            $jId = $jItem['id'] ?? $jItem['equipment_type_id'] ?? null;
+                            $jQty = (int)($jItem['quantity'] ?? $jItem['quantity_requested'] ?? $jItem['qty'] ?? 1);
+                            if ((int)$jId === (int)$e->id || (strtolower(trim($jName)) === strtolower(trim($e->eq_name)))) {
+                                $count = max($count, $jQty);
+                            }
+                        }
+                    }
+                } catch (\Throwable $t) {}
+            }
+
+            $typeName = preg_quote($e->eq_name ?? $e->name ?? '', '/');
+            if ($typeName && preg_match('/' . $typeName . '[^\d]*(\d+)/i', $eqRaw, $m)) {
+                $count = max($count, (int)$m[1]);
+            } elseif ($typeName && stripos($eqRaw, $e->eq_name) !== false) {
+                $count = max($count, 1);
             }
         }
 
-        $eqText = strtoupper($vb->equipment_notes ?? '');
-        $typeName = strtoupper($e->eq_name ?? $e->name ?? '');
-        $typeId = (string) $e->id;
-
-        if (preg_match('/(?:^|,\s*)' . preg_quote($typeId, '/') . '\s*\(Qty:\s*(\d+)\)/i', $eqText, $m)) {
-            return (int)$m[1];
-        }
-        if ($typeName && str_contains($eqText, $typeName)) {
-            preg_match('/' . preg_quote($typeName, '/') . '[^\d]*(\d+)/i', $eqText, $m);
-            return isset($m[1]) ? (int)$m[1] : 1;
-        }
-        return 0;
+        return $count;
     }
 
     /**
@@ -470,7 +491,7 @@ class EquipmentCategoryService
                     ->whereNotNull('equipment_borrows.assigned_units')
                     ->select(
                         'equipment_borrows.assigned_units',
-                        DB::raw("LOWER(COALESCE(tracking_numbers.status, equipment_borrows.status, 'pending')) as current_status")
+                        DB::raw("LOWER(COALESCE(tracking_numbers.status, 'pending')) as current_status")
                     )
                     ->get();
 
@@ -502,7 +523,7 @@ class EquipmentCategoryService
                     ->whereNotNull('venue_bookings.assigned_units')
                     ->select(
                         'venue_bookings.assigned_units',
-                        DB::raw("LOWER(COALESCE(tracking_numbers.status, venue_bookings.status, 'pending')) as current_status")
+                        DB::raw("LOWER(COALESCE(tracking_numbers.status, 'pending')) as current_status")
                     )
                     ->get();
 
