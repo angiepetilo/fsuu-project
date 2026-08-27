@@ -291,6 +291,32 @@ class NotificationController extends Controller
 
             $sorted = $notifs->sortByDesc('rawDate')->values();
 
+            // Persist notifications into database table
+            if (Schema::hasTable('notifications')) {
+                foreach ($sorted as $n) {
+                    try {
+                        DB::table('notifications')->updateOrInsert(
+                            [
+                                'reference_code' => $n['ref'] ?? $n['id'],
+                                'title'          => $n['title'] ?? 'Notification',
+                            ],
+                            [
+                                'user_id'        => $userId,
+                                'target_role'    => 'staff',
+                                'type'           => $n['type'] ?? 'info',
+                                'priority'       => $n['priority'] ?? 'medium',
+                                'text'           => $n['message'] ?? $n['title'] ?? '',
+                                'action_url'     => $n['url'] ?? null,
+                                'metadata'       => json_encode($n),
+                                'read_at'        => !empty($n['is_read']) ? now() : null,
+                                'created_at'     => $n['rawDate'] ?? now(),
+                                'updated_at'     => now(),
+                            ]
+                        );
+                    } catch (\Throwable $t) {}
+                }
+            }
+
             return response()->json($sorted);
         } catch (\Throwable $e) {
             Log::error('Admin NotificationController error: ' . $e->getMessage());
@@ -309,6 +335,13 @@ class NotificationController extends Controller
                 ['notification_key' => $key, 'user_id' => $userId],
                 ['read_at' => now(), 'updated_at' => now(), 'created_at' => now()]
             );
+
+            if (Schema::hasTable('notifications')) {
+                DB::table('notifications')
+                    ->where('reference_code', $key)
+                    ->orWhere('id', is_numeric($key) ? (int)$key : 0)
+                    ->update(['read_at' => now()]);
+            }
         }
 
         return response()->json(['success' => true]);
@@ -332,6 +365,10 @@ class NotificationController extends Controller
                     ['read_at' => now(), 'updated_at' => now(), 'created_at' => now()]
                 );
             }
+        }
+
+        if (Schema::hasTable('notifications')) {
+            DB::table('notifications')->update(['read_at' => now()]);
         }
 
         return response()->json(['success' => true, 'marked_count' => count($keys)]);

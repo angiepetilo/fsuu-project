@@ -13,10 +13,17 @@ class VenueController extends Controller
     private function ensureSchema(): void
     {
         try {
-            if (Schema::hasTable('venues') && !Schema::hasColumn('venues', 'allowed_equipment')) {
-                Schema::table('venues', function ($table) {
-                    $table->longText('allowed_equipment')->nullable();
-                });
+            if (\Illuminate\Support\Facades\Schema::hasTable('venues')) {
+                if (!\Illuminate\Support\Facades\Schema::hasColumn('venues', 'allowed_equipment')) {
+                    \Illuminate\Support\Facades\Schema::table('venues', function ($table) {
+                        $table->longText('allowed_equipment')->nullable();
+                    });
+                }
+                if (!\Illuminate\Support\Facades\Schema::hasColumn('venues', 'equipment_max_qtys')) {
+                    \Illuminate\Support\Facades\Schema::table('venues', function ($table) {
+                        $table->longText('equipment_max_qtys')->nullable();
+                    });
+                }
             }
         } catch (\Throwable $e) {}
     }
@@ -46,6 +53,7 @@ class VenueController extends Controller
             'status'              => 'nullable|string',
             'allowed_equipment'   => 'nullable|array',
             'allowed_equipment.*' => 'nullable',
+            'equipment_max_qtys'  => 'nullable',
         ]);
 
         if (empty($data['capacity'])) {
@@ -58,6 +66,10 @@ class VenueController extends Controller
 
         if (array_key_exists('allowed_equipment', $data)) {
             $data['allowed_equipment'] = is_array($data['allowed_equipment']) ? array_values(array_filter($data['allowed_equipment'])) : [];
+        }
+
+        if (array_key_exists('equipment_max_qtys', $data)) {
+            $data['equipment_max_qtys'] = is_array($data['equipment_max_qtys']) ? $data['equipment_max_qtys'] : (is_string($data['equipment_max_qtys']) ? json_decode($data['equipment_max_qtys'], true) : []);
         }
 
         $venue = Venue::create($data);
@@ -78,6 +90,7 @@ class VenueController extends Controller
             'status'              => 'sometimes|string',
             'allowed_equipment'   => 'nullable|array',
             'allowed_equipment.*' => 'nullable',
+            'equipment_max_qtys'  => 'nullable',
         ]);
 
         if (array_key_exists('avatar', $data) && !empty($data['avatar'])) {
@@ -86,6 +99,10 @@ class VenueController extends Controller
 
         if (array_key_exists('allowed_equipment', $data)) {
             $data['allowed_equipment'] = is_array($data['allowed_equipment']) ? array_values(array_filter($data['allowed_equipment'])) : [];
+        }
+
+        if (array_key_exists('equipment_max_qtys', $data)) {
+            $data['equipment_max_qtys'] = is_array($data['equipment_max_qtys']) ? $data['equipment_max_qtys'] : (is_string($data['equipment_max_qtys']) ? json_decode($data['equipment_max_qtys'], true) : []);
         }
 
         $venue->update($data);

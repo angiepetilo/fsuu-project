@@ -108,7 +108,7 @@ export default function UserRolesTab({
                         </div>
                         <div>
                           <div className="font-bold text-slate-900">{u.name || "Pending User"}</div>
-                          <div className="text-[11px] text-slate-400">{u.personal_email || u.email}</div>
+                          <div className="text-[11px] text-slate-400">{u.email_address || u.email}</div>
                         </div>
                       </div>
                     </td>

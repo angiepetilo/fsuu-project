@@ -16,21 +16,28 @@ class VenueBooking extends Model
     public const DELETED_AT = 'archived_at';
 
     protected $fillable = [
+        'academic_term_id',
         'tracking_number_id',
         'venue_id',
         'submission_channel',
+        'first_name',
+        'last_name',
         'filer_name',
         'email_address',
+        'department_id',
         'program_office',
         'contact_number',
         'classification',
         'place_of_use',
         'purpose',
+        'equipment_types',
+        'equipment_units',
         'status',
         'equipment_notes',
         'no_of_person',
         'date_of_usage',
         'reservation_end_date',
+        'extend_reservation_end_date',
         'time_start',
         'time_end',
         'agreed_to_policy',
@@ -43,10 +50,12 @@ class VenueBooking extends Model
         'agreed_to_policy' => 'boolean',
         'no_of_person'     => 'integer',
         'date_of_usage'    => 'date',
+        'reservation_end_date' => 'date',
+        'extend_reservation_end_date' => 'date',
         'assigned_units'   => 'array',
     ];
 
-    protected $appends = ['reference_code', 'status', 'endorsement_url'];
+    protected $appends = ['reference_code', 'status', 'endorsement_url', 'filer_name', 'extend_reservation_end_date'];
 
     public function getReferenceCodeAttribute(): ?string
     {
@@ -56,6 +65,30 @@ class VenueBooking extends Model
     public function getStatusAttribute(): string
     {
         return $this->attributes['status'] ?? $this->trackingNumber?->status ?? 'pending';
+    }
+
+    public function getExtendReservationEndDateAttribute(): ?string
+    {
+        return $this->attributes['extend_reservation_end_date'] ?? $this->attributes['reservation_end_date'] ?? null;
+    }
+
+    public function getFilerNameAttribute(): string
+    {
+        $parts = array_filter([$this->first_name, $this->last_name]);
+        if (!empty($parts)) {
+            return implode(' ', $parts);
+        }
+        return $this->attributes['filer_name'] ?? '';
+    }
+
+    public function setFilerNameAttribute($value): void
+    {
+        $this->attributes['filer_name'] = $value;
+        if (empty($this->attributes['first_name']) && !empty($value)) {
+            $parts = explode(' ', trim($value));
+            $this->attributes['first_name'] = array_shift($parts) ?: $value;
+            $this->attributes['last_name'] = !empty($parts) ? implode(' ', $parts) : '';
+        }
     }
 
     public function getEndorsementUrlAttribute(): ?string
@@ -79,6 +112,16 @@ class VenueBooking extends Model
     public function venue(): BelongsTo
     {
         return $this->belongsTo(Venue::class);
+    }
+
+    public function academicTerm(): BelongsTo
+    {
+        return $this->belongsTo(AcademicTerm::class);
+    }
+
+    public function department(): BelongsTo
+    {
+        return $this->belongsTo(Department::class);
     }
 
     public function submittedBy(): BelongsTo

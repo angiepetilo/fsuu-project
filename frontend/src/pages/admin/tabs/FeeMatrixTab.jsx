@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Save, Printer, Mail, X, Send, Loader2, CheckCircle2, Building, DollarSign, FileText, Pencil, Check } from "lucide-react";
+import { Save, Printer, Mail, X, Send, Loader2, CheckCircle2, Building, DollarSign, FileText, Pencil, Check, Plus, Trash2, Ban } from "lucide-react";
 import api from "@/lib/axios";
 
 export default function FeeMatrixTab({ officeScope = "All Offices", showMsg }) {
@@ -23,7 +23,7 @@ export default function FeeMatrixTab({ officeScope = "All Offices", showMsg }) {
 
   // Print & Live Preview Configuration
   const [printConfig, setPrintConfig] = useState({
-    title: "Facility Rental Fee Schedule & Reservation Policy",
+    title: "Facility Rental Fee Schedule and Reservation Policy",
     orgName: "Father Saturnino Urios University",
     signatoryTitle: "AVR Center Administrator",
     signatoryName: "",
@@ -35,97 +35,26 @@ export default function FeeMatrixTab({ officeScope = "All Offices", showMsg }) {
     showPolicy: true,
     showSignatures: true,
     customMemo: "",
-    internalRateLabel: "Internal Rate (Academic / Student Dept)",
-    internalRateValue: "",
+    internalRateLabel: "Internal Academic and Dept Rate",
+    internalRateValue: "Free of Charge",
     externalHourlyLabel: "External Hourly Rental Rate",
-    externalHourlyValue: "",
+    externalHourlyValue: "₱1,500 per hour",
     externalDailyLabel: "External Full Day Rate",
-    externalDailyValue: "",
+    externalDailyValue: "₱8,000 per day",
     cleaningFeeLabel: "Facility Cleaning Fee",
-    cleaningFeeValue: "",
-    soundFeeLabel: "Sound System & Tech Setup Fee",
-    soundFeeValue: "",
+    cleaningFeeValue: "₱200",
+    soundFeeLabel: "Sound System and Tech Setup Fee",
+    soundFeeValue: "₱500",
   });
+
+  const [customRates, setCustomRates] = useState([]);
+  const [showAddCustomModal, setShowAddCustomModal] = useState(false);
+  const [newCustomRate, setNewCustomRate] = useState({ label: "", amount: "", enabled: true });
 
   const [editingRates, setEditingRates] = useState({});
 
   const toggleEditRate = (key) => {
     setEditingRates(prev => ({ ...prev, [key]: !prev[key] }));
-  };
-
-  const renderRateItem = (key, title, defaultLabel, defaultValue, labelKey, valueKey) => {
-    const isEnabled = Boolean(printConfig[key]);
-    const isEditing = Boolean(editingRates[key]);
-    const currentLabel = printConfig[labelKey] !== undefined ? printConfig[labelKey] : defaultLabel;
-    const currentValue = printConfig[valueKey] !== undefined ? printConfig[valueKey] : defaultValue;
-
-    return (
-      <div className={`p-3.5 rounded-xl border transition-all ${isEnabled ? "bg-white border-slate-200/90 shadow-2xs" : "bg-slate-50/60 border-slate-200/50 opacity-75"}`}>
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex-1 min-w-0">
-            <span className="text-xs font-bold text-slate-800 block truncate">{title}</span>
-            {!isEditing && isEnabled && (
-              <p className="text-[11px] text-slate-500 font-medium truncate mt-0.5">
-                {currentLabel} <span className="font-bold text-slate-800">• {currentValue}</span>
-              </p>
-            )}
-          </div>
-
-          <div className="flex items-center gap-2 shrink-0">
-            {isEnabled && (
-              <button
-                type="button"
-                onClick={() => toggleEditRate(key)}
-                className={`px-2.5 py-1 rounded-lg text-xs font-extrabold flex items-center gap-1 border transition-all cursor-pointer ${
-                  isEditing
-                    ? "bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
-                    : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100 hover:text-slate-900"
-                }`}
-              >
-                {isEditing ? <><Check size={12} /> Done</> : <><Pencil size={12} /> Edit</>}
-              </button>
-            )}
-
-            <button
-              type="button"
-              onClick={() => togglePrintOption(key)}
-              className={`px-3 py-1 rounded-lg text-xs font-extrabold border transition-all cursor-pointer ${
-                isEnabled
-                  ? "bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100"
-                  : "bg-slate-100 text-slate-400 border-slate-200 hover:bg-slate-200 hover:text-slate-600"
-              }`}
-            >
-              {isEnabled ? "Enabled" : "Disabled"}
-            </button>
-          </div>
-        </div>
-
-        {isEnabled && isEditing && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-3 pt-3 border-t border-slate-100 animate-in fade-in-50 duration-200">
-            <div>
-              <label className="block text-[10px] font-bold text-slate-500 mb-1">Description Label</label>
-              <input
-                type="text"
-                value={currentLabel}
-                onChange={(e) => setPrintConfig({ ...printConfig, [labelKey]: e.target.value })}
-                placeholder="Description Label"
-                className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-800 focus:outline-none focus:border-blue-600 focus:bg-white transition-all"
-              />
-            </div>
-            <div>
-              <label className="block text-[10px] font-bold text-slate-500 mb-1">Rate Text / Amount</label>
-              <input
-                type="text"
-                value={currentValue}
-                onChange={(e) => setPrintConfig({ ...printConfig, [valueKey]: e.target.value })}
-                placeholder="Rate Text"
-                className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-emerald-700 focus:outline-none focus:border-blue-600 focus:bg-white transition-all"
-              />
-            </div>
-          </div>
-        )}
-      </div>
-    );
   };
 
   const togglePrintOption = (key) => {
@@ -150,9 +79,9 @@ export default function FeeMatrixTab({ officeScope = "All Offices", showMsg }) {
 
         setVenues(combined);
         if (combined.length > 0) {
-          const firstId = String(combined[0].id);
-          setSelectedVenueId(firstId);
-          loadSavedMatrix(firstId, combined[0]);
+          const firstVenueId = combined[0].id;
+          setSelectedVenueId(firstVenueId);
+          loadVenueFeeSettings(firstVenueId, combined[0]);
         }
       } catch {
         setVenues([]);
@@ -164,130 +93,180 @@ export default function FeeMatrixTab({ officeScope = "All Offices", showMsg }) {
     fetchVenues();
   }, []);
 
-  const loadSavedMatrix = (venueId, venueObj) => {
-    const key = `fsuu_fee_matrix_${venueId}`;
-    const saved = localStorage.getItem(key);
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        setFeeForm({
-          internal_hourly: parsed.internal_hourly ?? "0",
-          external_hourly: parsed.external_hourly ?? "1500",
-          external_daily: parsed.external_daily ?? "8000",
-          cleaning_fee: parsed.cleaning_fee ?? "200",
-          sound_system_fee: parsed.sound_system_fee ?? "500",
-          policy: parsed.policy || parsed.notes || (venueObj?.policies || "Internal FSUU events are free of charge. External rentals require fee matrix approval. A 50% downpayment is required to confirm the reservation schedule."),
-        });
+  const loadVenueFeeSettings = (venueId, venueObj = null) => {
+    try {
+      const stored = localStorage.getItem(`fsuu_fee_matrix_${venueId}`);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        setFeeForm(prev => ({ ...prev, ...parsed.form }));
+        setPrintConfig(prev => ({ ...prev, ...parsed.printConfig }));
+        if (parsed.customRates) setCustomRates(parsed.customRates);
         return;
-      } catch {}
+      }
+    } catch {}
+
+    const v = venueObj || venues.find((x) => String(x.id) === String(venueId));
+    if (v) {
+      setFeeForm({
+        internal_hourly: "0",
+        external_hourly: "1500",
+        external_daily: "8000",
+        cleaning_fee: "200",
+        sound_system_fee: "500",
+        policy: `Official FSUU internal academic events held at ${v.name} are free of charge. External reservations are subject to university fee guidelines.`,
+      });
+      setPrintConfig(prev => ({
+        ...prev,
+        internalRateValue: "Free of Charge",
+        externalHourlyValue: "₱1,500 per hour",
+        externalDailyValue: "₱8,000 per day",
+      }));
     }
-    // Default fallback
-    setFeeForm({
-      internal_hourly: "0",
-      external_hourly: "1500",
-      external_daily: "8000",
-      cleaning_fee: "200",
-      sound_system_fee: "500",
-      policy: venueObj?.policies || "Internal FSUU events are free of charge. External rentals require fee matrix approval. A 50% downpayment is required to confirm the reservation schedule.",
-    });
   };
 
   const handleVenueChange = (e) => {
-    const newId = e.target.value;
-    setSelectedVenueId(newId);
-    const vObj = venues.find((v) => String(v.id) === newId);
-    loadSavedMatrix(newId, vObj);
+    const vId = e.target.value;
+    setSelectedVenueId(vId);
+    loadVenueFeeSettings(vId);
   };
 
-  const handleSaveFeeMatrix = (e) => {
-    if (e) e.preventDefault();
-    const selVenue = venues.find((v) => String(v.id) === selectedVenueId);
-    const key = `fsuu_fee_matrix_${selectedVenueId}`;
-    localStorage.setItem(key, JSON.stringify(feeForm));
-    if (showMsg) {
-      showMsg(`Rental fee matrix and policy saved for ${selVenue?.name || "Selected Venue"}!`);
-    }
-  };
-
-  const handleSendEmail = (e) => {
-    e.preventDefault();
-    if (!recipientEmail.trim()) {
-      alert("Please enter recipient email address.");
-      return;
-    }
-    setSendingEmail(true);
-    setTimeout(() => {
-      setSendingEmail(false);
-      setShowEmailModal(false);
-      const selVenue = venues.find((v) => String(v.id) === selectedVenueId);
-      if (showMsg) {
-        showMsg(`Fee breakdown and policy for ${selVenue?.name || "Venue"} sent to ${recipientEmail.trim()}!`);
+  const handleSaveFeeMatrix = async () => {
+    try {
+      localStorage.setItem(
+        `fsuu_fee_matrix_${selectedVenueId || "global"}`,
+        JSON.stringify({ form: feeForm, printConfig, customRates })
+      );
+      if (typeof showMsg === "function") {
+        showMsg("Fee Matrix settings saved successfully.");
       }
-      setEmailFeedback(`Fee schedule sent to ${recipientEmail.trim()}`);
-      setRecipientEmail("");
-      setTimeout(() => setEmailFeedback(null), 4000);
-    }, 1000);
+    } catch {
+      if (typeof showMsg === "function") {
+        showMsg("Fee Matrix settings saved locally.");
+      }
+    }
   };
 
-  const currentVenue = venues.find((v) => String(v.id) === selectedVenueId);
+  const handleAddCustomRate = (e) => {
+    e.preventDefault();
+    if (!newCustomRate.label.trim() || !newCustomRate.amount.trim()) return;
+    setCustomRates(prev => [...prev, { id: Date.now(), ...newCustomRate }]);
+    setNewCustomRate({ label: "", amount: "", enabled: true });
+    setShowAddCustomModal(false);
+  };
+
+  const currentVenue = venues.find((v) => String(v.id) === String(selectedVenueId));
+
+  const renderRateItem = (key, title, defaultLabel, defaultValue, labelKey, valueKey) => {
+    const isEnabled = Boolean(printConfig[key]);
+    const isEditing = Boolean(editingRates[key]);
+    const currentLabel = printConfig[labelKey] !== undefined ? printConfig[labelKey] : defaultLabel;
+    const currentValue = printConfig[valueKey] !== undefined ? printConfig[valueKey] : defaultValue;
+
+    return (
+      <div className={`p-3.5 rounded-xl border transition-all ${isEnabled ? "bg-white border-slate-200 shadow-2xs" : "bg-slate-50 border-slate-200/60 opacity-75"}`}>
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            <span className="text-xs font-bold text-slate-800 block truncate">{title}</span>
+            {!isEditing && isEnabled && (
+              <p className="text-[11px] text-slate-500 font-medium truncate mt-0.5">
+                {currentLabel} • <span className="font-bold text-emerald-700">{currentValue}</span>
+              </p>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            {isEnabled && (
+              <button
+                type="button"
+                onClick={() => toggleEditRate(key)}
+                className={`px-2.5 py-1 rounded-lg text-xs font-extrabold flex items-center gap-1 border transition-all cursor-pointer ${
+                  isEditing
+                    ? "bg-blue-50 text-blue-700 border-blue-200"
+                    : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
+                }`}
+              >
+                {isEditing ? <><Check size={12} /> Done</> : <><Pencil size={12} /> Edit</>}
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={() => togglePrintOption(key)}
+              className={`px-3 py-1 rounded-lg text-xs font-extrabold border transition-all cursor-pointer ${
+                isEnabled
+                  ? "bg-emerald-50 text-emerald-700 border-emerald-300"
+                  : "bg-rose-50 text-rose-600 border-rose-200"
+              }`}
+            >
+              {isEnabled ? "Enabled" : "Disabled"}
+            </button>
+          </div>
+        </div>
+
+        {isEnabled && isEditing && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-3 pt-3 border-t border-slate-100">
+            <div>
+              <label className="block text-[10px] font-bold text-slate-500 mb-1">Item Title</label>
+              <input
+                type="text"
+                value={currentLabel}
+                onChange={(e) => setPrintConfig({ ...printConfig, [labelKey]: e.target.value })}
+                className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-800 focus:outline-none focus:border-blue-600"
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-bold text-slate-500 mb-1">Rate and Amount</label>
+              <input
+                type="text"
+                value={currentValue}
+                onChange={(e) => setPrintConfig({ ...printConfig, [valueKey]: e.target.value })}
+                className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-emerald-700 focus:outline-none focus:border-blue-600"
+              />
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-6">
-      {/* Header Bar with Venue Selector & Direct Print Action */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
+      {/* Header Bar */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
         <div>
-          <h3 className="font-black text-slate-900 text-base">
-            Fee Matrix Configuration
+          <h3 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
+            Fee Matrix
           </h3>
           <p className="text-xs text-slate-500 font-medium mt-0.5">
-            Configure rates, customize visible print line items, and export official fee matrix sheets.
+            Configure standard venue rates, equipment fees, and terms for internal and external bookings.
           </p>
         </div>
 
-        {/* Action Buttons: Direct Print & Send via Email */}
-        <div className="flex items-center gap-2.5 flex-wrap">
+        <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={handlePrint}
-            className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-extrabold shadow-sm hover:shadow-md transition-all cursor-pointer"
-            title="Immediately Print / Save PDF"
+            className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-extrabold shadow-sm transition-all cursor-pointer"
           >
             <Printer size={14} />
             <span>Print to PDF</span>
           </button>
-
-          <button
-            type="button"
-            onClick={() => setShowEmailModal(true)}
-            className="flex items-center gap-1.5 px-3.5 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-extrabold shadow-2xs transition-all cursor-pointer"
-            title="Send Fee Matrix via Email"
-          >
-            <Mail size={14} />
-            <span>Send via Email</span>
-          </button>
         </div>
       </div>
 
-      {emailFeedback && (
-        <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-extrabold flex items-center gap-2 animate-in fade-in duration-200">
-          <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
-          <span>{emailFeedback}</span>
-        </div>
-      )}
-
-      {/* Main Grid: Left Customizer & Form | Right Live Document Sheet */}
+      {/* Main Form and Live Preview Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         
-        {/* Left Column: Form Settings, Line Item Toggles & Customization */}
+        {/* Left Column */}
         <div className="lg:col-span-6 space-y-5 text-xs">
           
-          {/* Venue Selector Card */}
-          <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-xs space-y-3">
+          {/* Venue Selector */}
+          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-3">
             <label className="block text-xs font-bold text-slate-900">Select Venue *</label>
             <select
               value={selectedVenueId}
               onChange={handleVenueChange}
-              className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white cursor-pointer transition-all"
+              className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:border-blue-600 cursor-pointer"
             >
               {venues.length === 0 ? (
                 <option value="">No venues found</option>
@@ -301,19 +280,40 @@ export default function FeeMatrixTab({ officeScope = "All Offices", showMsg }) {
             </select>
           </div>
 
-          {/* 1. Rate Items Configuration & Text Overrides */}
-          <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-xs space-y-4">
-            <div className="border-b border-slate-100 pb-2">
-              <h4 className="font-extrabold text-slate-900 text-xs">1. Rate Items (Enable / Edit Text)</h4>
-              <p className="text-[11px] text-slate-500 font-medium mt-0.5">Toggle visibility and rename labels or rate strings.</p>
+          {/* Document / Fee Schedule Title Configuration */}
+          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-2">
+            <label className="block text-xs font-bold text-slate-900">Document / Fee Schedule Title</label>
+            <input
+              type="text"
+              value={printConfig.title}
+              onChange={(e) => setPrintConfig({ ...printConfig, title: e.target.value })}
+              className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-extrabold text-slate-900 focus:outline-none focus:border-blue-600 shadow-2xs"
+              placeholder="Facility Rental Fee Schedule and Reservation Policy"
+            />
+          </div>
+
+          {/* Rate Items */}
+          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+              <div>
+                <h4 className="font-extrabold text-slate-900 text-xs">Rate Items</h4>
+                <p className="text-[11px] text-slate-500 font-medium">Manage and customize rate items.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAddCustomModal(true)}
+                className="flex items-center gap-1 px-3 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg text-xs font-bold transition-all cursor-pointer"
+              >
+                <Plus size={13} /> Add Rate
+              </button>
             </div>
 
             <div className="space-y-3">
               {renderRateItem(
                 "showInternalRate",
-                "Internal Academic / Dept Rate",
-                "Internal Rate (Academic / Student Dept)",
-                `₱${feeForm.internal_hourly} / hr`,
+                "Internal Academic and Dept Rate",
+                "Internal Academic and Dept Rate",
+                printConfig.internalRateValue || "Free of Charge",
                 "internalRateLabel",
                 "internalRateValue"
               )}
@@ -322,7 +322,7 @@ export default function FeeMatrixTab({ officeScope = "All Offices", showMsg }) {
                 "showExternalHourly",
                 "External Hourly Rate",
                 "External Hourly Rental Rate",
-                `₱${feeForm.external_hourly} / hr`,
+                printConfig.externalHourlyValue || "₱1,500 per hour",
                 "externalHourlyLabel",
                 "externalHourlyValue"
               )}
@@ -331,7 +331,7 @@ export default function FeeMatrixTab({ officeScope = "All Offices", showMsg }) {
                 "showExternalDaily",
                 "External Full Day Rate",
                 "External Full Day Rate",
-                `₱${feeForm.external_daily} / day`,
+                printConfig.externalDailyValue || "₱8,000 per day",
                 "externalDailyLabel",
                 "externalDailyValue"
               )}
@@ -340,321 +340,205 @@ export default function FeeMatrixTab({ officeScope = "All Offices", showMsg }) {
                 "showCleaningFee",
                 "Facility Cleaning Fee",
                 "Facility Cleaning Fee",
-                `₱${feeForm.cleaning_fee}`,
+                printConfig.cleaningFeeValue || "₱200",
                 "cleaningFeeLabel",
                 "cleaningFeeValue"
               )}
 
               {renderRateItem(
                 "showSoundFee",
-                "Sound System Setup Fee",
-                "Sound System & Tech Setup Fee",
-                `₱${feeForm.sound_system_fee}`,
+                "Sound & Tech Setup Fee",
+                "Sound System and Tech Setup Fee",
+                printConfig.soundFeeValue || "₱500",
                 "soundFeeLabel",
                 "soundFeeValue"
               )}
+
+              {/* Custom Rates */}
+              {customRates.map((cr) => (
+                <div key={cr.id} className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setCustomRates(prev => prev.filter(item => item.id !== cr.id))}
+                        className="text-rose-500 hover:text-rose-700 p-1 rounded hover:bg-rose-50 cursor-pointer"
+                        title="Delete rate item"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                      <span className="font-bold text-xs text-slate-800">{cr.label}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-extrabold text-xs text-slate-900">{cr.amount}</span>
+                      <button
+                        type="button"
+                        onClick={() => setCustomRates(prev => prev.map(item => item.id === cr.id ? { ...item, enabled: !item.enabled } : item))}
+                        className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                          cr.enabled ? "bg-emerald-100 text-emerald-800" : "bg-slate-200 text-slate-600"
+                        }`}
+                      >
+                        {cr.enabled ? "Enabled" : "Disabled"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
 
-          {/* 2. Section Toggles & Customization */}
-          <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-xs space-y-4">
-            <h4 className="font-extrabold text-slate-900 text-xs border-b border-slate-100 pb-2">
-              2. Section &amp; Header Customization
-            </h4>
-
-            <div className="space-y-2.5">
-              <div className="flex items-center justify-between p-3.5 bg-white rounded-xl border border-slate-200 shadow-2xs">
-                <span className="text-xs font-bold text-slate-800">Include Venue Policy &amp; Terms Box</span>
-                <button
-                  type="button"
-                  onClick={() => togglePrintOption("showPolicy")}
-                  className={`px-3 py-1 rounded-lg text-xs font-extrabold border transition-all cursor-pointer ${
-                    printConfig.showPolicy
-                      ? "bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100"
-                      : "bg-slate-100 text-slate-400 border-slate-200 hover:bg-slate-200 hover:text-slate-600"
-                  }`}
-                >
-                  {printConfig.showPolicy ? "Enabled" : "Disabled"}
-                </button>
-              </div>
-
-              <div className="flex items-center justify-between p-3.5 bg-white rounded-xl border border-slate-200 shadow-2xs">
-                <span className="text-xs font-bold text-slate-800">Include Authorized Representative Signature Block</span>
-                <button
-                  type="button"
-                  onClick={() => togglePrintOption("showSignatures")}
-                  className={`px-3 py-1 rounded-lg text-xs font-extrabold border transition-all cursor-pointer ${
-                    printConfig.showSignatures
-                      ? "bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100"
-                      : "bg-slate-100 text-slate-400 border-slate-200 hover:bg-slate-200 hover:text-slate-600"
-                  }`}
-                >
-                  {printConfig.showSignatures ? "Enabled" : "Disabled"}
-                </button>
-              </div>
-            </div>
-
-            <div className="space-y-3 pt-3 border-t border-slate-100">
-              <div className="space-y-1">
-                <label className="block text-[11px] font-bold text-slate-700">Document Title</label>
-                <input
-                  type="text"
-                  value={printConfig.title}
-                  onChange={(e) => setPrintConfig({ ...printConfig, title: e.target.value })}
-                  className="w-full p-2 bg-transparent border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 focus:outline-none focus:border-blue-600 focus:bg-white transition-all"
-                  placeholder="e.g., Facility Rental Fee Schedule"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="block text-[11px] font-bold text-slate-700">Signatory Title / Office Role</label>
-                <input
-                  type="text"
-                  value={printConfig.signatoryTitle}
-                  onChange={(e) => setPrintConfig({ ...printConfig, signatoryTitle: e.target.value })}
-                  className="w-full p-2 bg-transparent border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 focus:outline-none focus:border-blue-600 focus:bg-white transition-all"
-                  placeholder="e.g., AVR Center Administrator"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="block text-[11px] font-bold text-slate-700">Signatory Name (Optional)</label>
-                <input
-                  type="text"
-                  value={printConfig.signatoryName}
-                  onChange={(e) => setPrintConfig({ ...printConfig, signatoryName: e.target.value })}
-                  className="w-full p-2 bg-transparent border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 focus:outline-none focus:border-blue-600 focus:bg-white transition-all"
-                  placeholder="e.g., John Doe"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="block text-[11px] font-bold text-slate-700">Venue Terms / Policy Text</label>
-                <textarea
-                  rows={3}
-                  value={feeForm.policy}
-                  onChange={(e) => setFeeForm({ ...feeForm, policy: e.target.value })}
-                  className="w-full p-2 bg-transparent border border-slate-200 rounded-lg text-xs font-medium text-slate-800 focus:outline-none focus:border-blue-600 focus:bg-white transition-all"
-                  placeholder="Specify reservation and downpayment policies..."
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="block text-[11px] font-bold text-slate-700">Additional Custom Memo / Note (Optional)</label>
-                <textarea
-                  rows={2}
-                  value={printConfig.customMemo}
-                  onChange={(e) => setPrintConfig({ ...printConfig, customMemo: e.target.value })}
-                  className="w-full p-2 bg-transparent border border-slate-200 rounded-lg text-xs font-medium text-slate-800 focus:outline-none focus:border-blue-600 focus:bg-white transition-all"
-                  placeholder="Add any specific instructions, payment deadlines, or remarks..."
-                />
-              </div>
-            </div>
-
-            <div className="pt-3 border-t border-slate-100 flex justify-end">
+          {/* Terms & Policy */}
+          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-3">
+            <label className="block text-xs font-bold text-slate-900">Venue Terms and Policy</label>
+            <textarea
+              rows={3}
+              value={feeForm.policy}
+              onChange={(e) => setFeeForm({ ...feeForm, policy: e.target.value })}
+              className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-800 focus:outline-none focus:border-blue-600"
+            />
+            <div className="pt-2 flex justify-end">
               <button
                 type="button"
                 onClick={handleSaveFeeMatrix}
-                className="flex items-center gap-1.5 px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-extrabold text-xs shadow-xs cursor-pointer transition-all"
+                className="flex items-center gap-1.5 px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-extrabold text-xs shadow-sm cursor-pointer transition-all"
               >
                 <Save size={14} />
-                <span>Save Fee Matrix Settings</span>
+                <span>Save</span>
               </button>
             </div>
           </div>
-
         </div>
 
-        {/* Right Column: Live Paper Document Sheet View (Also target for @media print) */}
+        {/* Right Column: Printable Sheet Preview */}
         <div className="lg:col-span-6 sticky top-6">
-          <div id="printable-fee-matrix" className="w-full bg-white rounded-2xl border border-slate-300/80 shadow-md p-7 sm:p-8 space-y-5 text-xs text-slate-900">
-            
-            {/* Document Header */}
+          <div id="printable-fee-matrix" className="w-full bg-white rounded-2xl border border-slate-300 shadow-md p-7 space-y-5 text-xs text-slate-900">
             <div className="text-center border-b-2 border-slate-900 pb-4 space-y-1">
+              <img
+                src="/fsuu_logo.png"
+                alt="University Logo"
+                className="h-14 w-auto mx-auto object-contain mb-1.5"
+                onError={(e) => { e.target.style.display = 'none'; }}
+              />
               <p className="text-[11px] font-extrabold text-slate-600 uppercase tracking-wider">
                 {printConfig.orgName}
               </p>
               <h2 className="text-base font-black text-slate-900 tracking-tight uppercase">
-                {printConfig.title || "Facility Rental Fee Schedule & Reservation Policy"}
+                {printConfig.title}
               </h2>
               <p className="text-xs font-extrabold text-blue-900">
-                Venue: {currentVenue?.name || "All Venues"} {officeScope && officeScope !== "All Offices" ? `(${officeScope})` : ""}
-              </p>
-              <p className="text-[10px] text-slate-500 font-mono">
-                Date Generated: {new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
+                Venue: {currentVenue?.name || "All Venues"}
               </p>
             </div>
 
-            {/* Rate Matrix Table */}
             <table className="w-full text-xs border border-slate-300">
               <thead className="bg-slate-100">
                 <tr>
                   <th className="border border-slate-300 p-2.5 text-left font-bold text-slate-900">Charge Description</th>
-                  <th className="border border-slate-300 p-2.5 text-right font-bold text-slate-900">Applicable Rate (₱)</th>
+                  <th className="border border-slate-300 p-2.5 text-right font-bold text-slate-900">Applicable Rate</th>
                 </tr>
               </thead>
-              <tbody className="font-mono">
+              <tbody>
                 {printConfig.showInternalRate && (
                   <tr>
-                    <td className="border border-slate-300 p-2.5 font-sans">
-                      {printConfig.internalRateLabel || "Internal Rate (Academic / Student Dept)"}
-                    </td>
-                    <td className="border border-slate-300 p-2.5 text-right font-bold text-emerald-700">
-                      {printConfig.internalRateValue || `₱${feeForm.internal_hourly} / hr`}
-                    </td>
+                    <td className="border border-slate-300 p-2.5 font-medium">{printConfig.internalRateLabel}</td>
+                    <td className="border border-slate-300 p-2.5 text-right font-bold text-emerald-700">{printConfig.internalRateValue}</td>
                   </tr>
                 )}
                 {printConfig.showExternalHourly && (
                   <tr>
-                    <td className="border border-slate-300 p-2.5 font-sans">
-                      {printConfig.externalHourlyLabel || "External Hourly Rental Rate"}
-                    </td>
-                    <td className="border border-slate-300 p-2.5 text-right font-bold text-slate-900">
-                      {printConfig.externalHourlyValue || `₱${feeForm.external_hourly} / hr`}
-                    </td>
+                    <td className="border border-slate-300 p-2.5 font-medium">{printConfig.externalHourlyLabel}</td>
+                    <td className="border border-slate-300 p-2.5 text-right font-bold text-slate-900">{printConfig.externalHourlyValue}</td>
                   </tr>
                 )}
                 {printConfig.showExternalDaily && (
                   <tr>
-                    <td className="border border-slate-300 p-2.5 font-sans">
-                      {printConfig.externalDailyLabel || "External Full Day Rate"}
-                    </td>
-                    <td className="border border-slate-300 p-2.5 text-right font-bold text-slate-900">
-                      {printConfig.externalDailyValue || `₱${feeForm.external_daily} / day`}
-                    </td>
+                    <td className="border border-slate-300 p-2.5 font-medium">{printConfig.externalDailyLabel}</td>
+                    <td className="border border-slate-300 p-2.5 text-right font-bold text-slate-900">{printConfig.externalDailyValue}</td>
                   </tr>
                 )}
                 {printConfig.showCleaningFee && (
                   <tr>
-                    <td className="border border-slate-300 p-2.5 font-sans">
-                      {printConfig.cleaningFeeLabel || "Facility Cleaning Fee"}
-                    </td>
-                    <td className="border border-slate-300 p-2.5 text-right font-bold text-slate-900">
-                      {printConfig.cleaningFeeValue || `₱${feeForm.cleaning_fee}`}
-                    </td>
+                    <td className="border border-slate-300 p-2.5 font-medium">{printConfig.cleaningFeeLabel}</td>
+                    <td className="border border-slate-300 p-2.5 text-right font-bold text-slate-900">{printConfig.cleaningFeeValue}</td>
                   </tr>
                 )}
                 {printConfig.showSoundFee && (
                   <tr>
-                    <td className="border border-slate-300 p-2.5 font-sans">
-                      {printConfig.soundFeeLabel || "Sound System & Tech Setup Fee"}
-                    </td>
-                    <td className="border border-slate-300 p-2.5 text-right font-bold text-slate-900">
-                      {printConfig.soundFeeValue || `₱${feeForm.sound_system_fee}`}
-                    </td>
+                    <td className="border border-slate-300 p-2.5 font-medium">{printConfig.soundFeeLabel}</td>
+                    <td className="border border-slate-300 p-2.5 text-right font-bold text-slate-900">{printConfig.soundFeeValue}</td>
                   </tr>
                 )}
-                {!printConfig.showInternalRate && !printConfig.showExternalHourly && !printConfig.showExternalDaily && !printConfig.showCleaningFee && !printConfig.showSoundFee && (
-                  <tr>
-                    <td colSpan={2} className="border border-slate-300 p-3 text-center text-slate-400 italic font-sans">
-                      No charge items selected for print view.
-                    </td>
+                {customRates.filter(cr => cr.enabled).map(cr => (
+                  <tr key={cr.id}>
+                    <td className="border border-slate-300 p-2.5 font-medium">{cr.label}</td>
+                    <td className="border border-slate-300 p-2.5 text-right font-bold text-slate-900">{cr.amount}</td>
                   </tr>
-                )}
+                ))}
               </tbody>
             </table>
 
-            {/* Policy Section */}
-            {printConfig.showPolicy && (
-              <div className="space-y-1.5 bg-slate-50/80 p-4 rounded-xl border border-slate-200">
-                <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wider">
-                  Venue Policy &amp; Terms:
-                </h4>
-                <p className="text-slate-700 leading-relaxed font-sans text-[11.5px]">
-                  {feeForm.policy || "Standard institutional terms apply."}
-                </p>
+            {feeForm.policy && (
+              <div className="pt-2">
+                <h5 className="font-bold text-slate-900 mb-1">Policy and Guidelines:</h5>
+                <p className="text-[11px] text-slate-600 leading-relaxed">{feeForm.policy}</p>
               </div>
             )}
-
-            {/* Custom Memo Section if specified */}
-            {printConfig.customMemo && (
-              <div className="space-y-1.5 bg-blue-50/60 p-3.5 rounded-xl border border-blue-200">
-                <h4 className="font-bold text-blue-900 text-xs uppercase tracking-wider">
-                  Special Instructions / Memo:
-                </h4>
-                <p className="text-blue-950 leading-relaxed font-sans text-[11.5px] whitespace-pre-line">
-                  {printConfig.customMemo}
-                </p>
-              </div>
-            )}
-
-            {/* Signature Section */}
-            {printConfig.showSignatures && (
-              <div className="pt-6 flex justify-between items-end border-t border-slate-200 text-[11px]">
-                <div>
-                  <p className="text-slate-400 font-medium">Approved Official Copy</p>
-                  <p className="font-extrabold text-slate-800">{printConfig.orgName}</p>
-                </div>
-                <div className="text-right space-y-4">
-                  <p className="font-medium text-slate-500">Authorized Office Representative:</p>
-                  <div className="border-t border-slate-900 pt-1 font-bold text-slate-900">
-                    {printConfig.signatoryName && <div className="text-xs uppercase">{printConfig.signatoryName}</div>}
-                    <div>{printConfig.signatoryTitle || "AVR Center Administrator"}</div>
-                  </div>
-                </div>
-              </div>
-            )}
-
           </div>
         </div>
-
       </div>
 
-      {/* ── EMAIL MODAL ── */}
-      {showEmailModal && (
-        <div className="fixed inset-0 z-[2000] bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl w-full max-w-md p-6 space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div className="flex items-center gap-2">
-                <Mail className="text-blue-600" size={18} />
-                <h4 className="font-black text-sm text-slate-900">Email Fee Breakdown</h4>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowEmailModal(false)}
-                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg cursor-pointer"
-              >
+      {/* Add Custom Rate Modal */}
+      {showAddCustomModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-[1500] flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl border border-slate-100 space-y-4 animate-in zoom-in-95">
+            <div className="flex justify-between items-center pb-2 border-b border-slate-100">
+              <h3 className="font-extrabold text-slate-900 text-sm">Add New Rate Item</h3>
+              <button onClick={() => setShowAddCustomModal(false)} className="text-slate-400 hover:text-slate-600 p-1">
                 <X size={16} />
               </button>
             </div>
-
-            <form onSubmit={handleSendEmail} className="space-y-3.5 text-xs">
+            <form onSubmit={handleAddCustomRate} className="space-y-3 text-xs">
               <div>
-                <label className="block font-bold text-slate-700 mb-1">
-                  Recipient Email Address *
-                </label>
+                <label className="block font-bold text-slate-900 mb-1">Rate Item Name *</label>
                 <input
-                  type="email"
+                  type="text"
                   required
-                  placeholder="e.g., client@urios.edu.ph"
-                  value={recipientEmail}
-                  onChange={(e) => setRecipientEmail(e.target.value)}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white"
+                  placeholder="e.g. Projector Rental Fee"
+                  value={newCustomRate.label}
+                  onChange={(e) => setNewCustomRate({ ...newCustomRate, label: e.target.value })}
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-medium focus:outline-none focus:border-blue-600"
                 />
               </div>
-
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+              <div>
+                <label className="block font-bold text-slate-900 mb-1">Amount and Unit *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. ₱300 per hour"
+                  value={newCustomRate.amount}
+                  onChange={(e) => setNewCustomRate({ ...newCustomRate, amount: e.target.value })}
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-emerald-700 focus:outline-none focus:border-blue-600"
+                />
+              </div>
+              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
                 <button
                   type="button"
-                  onClick={() => setShowEmailModal(false)}
-                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold cursor-pointer transition-colors"
+                  onClick={() => setShowAddCustomModal(false)}
+                  className="px-3.5 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-100"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  disabled={sendingEmail}
-                  className="flex items-center gap-1.5 px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-extrabold shadow-md cursor-pointer transition-all disabled:opacity-50"
+                  className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs shadow-md"
                 >
-                  {sendingEmail ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
-                  <span>{sendingEmail ? "Sending..." : "Send Email"}</span>
+                  Add Rate
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
-
     </div>
   );
 }

@@ -1235,28 +1235,67 @@ export default function VenueBookingDetailModal({
 
           {/* Reject Form Drawer */}
           {showRejectForm && (
-            <div className="p-4 bg-white border border-slate-300 rounded-xl space-y-2.5 animate-in fade-in">
+            <div className="p-4 bg-white border border-rose-200 rounded-xl space-y-3 animate-in fade-in shadow-2xs">
               <label className="block text-xs font-bold text-slate-900">Reason for Rejection *</label>
-              <textarea
-                rows={2}
-                value={rejectionComments}
-                onChange={(e) => setRejectionComments(e.target.value)}
-                placeholder="State reason for rejecting reservation..."
-                className="w-full p-2 bg-white border border-slate-300 rounded-lg text-xs font-medium text-slate-800 focus:outline-none focus:border-slate-500"
-              />
+              
+              <select
+                value={selectedViolationType || "Missing Endorsement Letter from Office of Institutional Student Affairs & Activities (OISAA / DSA)"}
+                onChange={(e) => {
+                  setSelectedViolationType(e.target.value);
+                  setRejectionComments(e.target.value);
+                }}
+                className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-semibold text-slate-800 focus:outline-none focus:border-rose-500 cursor-pointer"
+              >
+                <option value="Missing Endorsement Letter from Office of Institutional Student Affairs & Activities (OISAA / DSA)">
+                  🚩 Missing Endorsement Letter from DSA / OISAA (Eligible for Re-Appeal)
+                </option>
+                <option value="Missing Endorsement Letter from Office of the Vice President for Academic Affairs (OVPAA)">
+                  🚩 Missing Endorsement Letter from OVPAA (Eligible for Re-Appeal)
+                </option>
+                <option value="Missing Both DSA / OISAA and OVPAA Endorsements">
+                  🚩 Missing Both DSA / OISAA and OVPAA Endorsements (Eligible for Re-Appeal)
+                </option>
+                <option value="Schedule Conflict / Venue Already Booked">
+                  Schedule Conflict / Venue Already Booked
+                </option>
+                <option value="Exceeded Permitted Operating Hours">
+                  Exceeded Permitted Operating Hours
+                </option>
+                <option value="Incomplete Activity Details / Unsigned Document">
+                  Incomplete Activity Details / Unsigned Document (Eligible for Re-Appeal)
+                </option>
+                <option value="Other Policy Reason">
+                  Other Reason (Specify Below)
+                </option>
+              </select>
+
+              <div>
+                <label className="block text-[11px] font-bold text-slate-600 mb-1">Additional Remarks / Instructions for Applicant (Optional)</label>
+                <textarea
+                  rows={2}
+                  value={rejectionComments}
+                  onChange={(e) => setRejectionComments(e.target.value)}
+                  placeholder="Provide specific notes or document instructions for the applicant..."
+                  className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-medium text-slate-800 focus:outline-none focus:border-rose-500"
+                />
+              </div>
+
               <div className="flex gap-2 justify-end">
                 <button
                   type="button"
                   onClick={() => setShowRejectForm(false)}
-                  className="px-3 py-1.5 bg-white border border-slate-300 text-slate-600 hover:bg-slate-50 rounded-lg text-xs font-bold"
+                  className="px-3.5 py-1.5 bg-white border border-slate-300 text-slate-600 hover:bg-slate-50 rounded-lg text-xs font-bold cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="button"
-                  disabled={!rejectionComments.trim() || !!actionLoading}
-                  onClick={() => handleAction(selected.id, "reject", { remarks: rejectionComments, rejection_reason: rejectionComments })}
-                  className="px-4 py-1.5 bg-white border border-rose-600 text-rose-600 hover:bg-rose-50 rounded-lg text-xs font-bold cursor-pointer"
+                  disabled={!rejectionComments.trim() && !selectedViolationType}
+                  onClick={() => {
+                    const finalReason = rejectionComments.trim() || selectedViolationType || "Missing required documentation";
+                    handleAction(selected.id, "reject", { remarks: finalReason, rejection_reason: finalReason, can_reappeal: true });
+                  }}
+                  className="px-4 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold cursor-pointer transition-colors shadow-xs"
                 >
                   Submit Rejection
                 </button>
@@ -1281,6 +1320,7 @@ export default function VenueBookingDetailModal({
           showRejectForm={showRejectForm}
           rejectionComments={rejectionComments}
           setRejectionComments={setRejectionComments}
+          isStudentAssistant={roleName.includes("student") || roleName.includes("assistant") || user?.role_id === 3}
         />
 
         {/* Lightbox Modal */}

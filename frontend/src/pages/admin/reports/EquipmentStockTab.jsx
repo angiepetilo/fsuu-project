@@ -271,28 +271,18 @@ export default function EquipmentStockTab({
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
           <div>
             <h3 className="font-extrabold text-slate-900 text-sm">
-              Equipment Inventory &amp; Stock Audit Tab
+              Equipment Inventory
             </h3>
             <p className="text-xs text-slate-500 font-medium mt-0.5">
               Real-time tracking of expected units, released equipment, and damaged/lost items.
             </p>
           </div>
-
-          <button
-            type="button"
-            onClick={handleSubmitInventoryReport}
-            disabled={isSubmitting}
-            className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow-xs transition-all cursor-pointer disabled:opacity-50"
-          >
-            {isSubmitting ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
-            <span>Save Stock Report</span>
-          </button>
         </div>
 
         {feedback && (
           <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold flex items-center gap-2 shadow-2xs">
             <CheckCircle2 size={16} className="text-emerald-600" />
-            {feedback}
+            <span>{feedback}</span>
           </div>
         )}
 
@@ -331,23 +321,34 @@ export default function EquipmentStockTab({
                     const key = item.id;
                     const itemCode = `EQ-00${startCategoryIndex + idx + 1}`;
                     const categoryName = item.eq_name || item.name || item.category || item.eq_type || "General";
-                    const realTotal = typeof item.calculated_total === 'number'
-                      ? item.calculated_total
-                      : (typeof item.total_quantity === 'number' ? item.total_quantity : 0);
 
-                    const expectedQty = Math.max(0, realTotal);
-                    const initialReleased = Math.max(0, typeof item.released_count === 'number' ? item.released_count : 0);
-                    const reservedCount = Math.max(0, typeof item.reserved_count === 'number' ? item.reserved_count : 0);
-                    const totalDamaged = Math.max(0, typeof item.damaged_count === 'number' ? item.damaged_count : 0);
-                    const totalLost = Math.max(0, typeof item.lost_count === 'number' ? item.lost_count : 0);
+                    const matchingUnits = (units || []).filter(u => 
+                      String(u.equipment_type_id) === String(item.id) || 
+                      String(u.category || '').trim().toLowerCase() === String(categoryName).trim().toLowerCase()
+                    );
 
-                    const currentReleased = typeof item.released_count === 'number' ? item.released_count : (draft.qty_released ?? initialReleased);
-                    const currentDamaged = typeof item.damaged_count === 'number' ? item.damaged_count : (draft.qty_damaged ?? totalDamaged);
-                    const currentLost = typeof item.lost_count === 'number' ? item.lost_count : (draft.qty_lost ?? totalLost);
+                    let expectedQty, availablePresent, currentReleased, reservedCount, currentDamaged, currentLost;
 
-                    const availablePresent = typeof item.present_count === 'number'
-                      ? item.present_count
-                      : (typeof item.available_count === 'number' ? item.available_count : Math.max(0, expectedQty - currentReleased - currentDamaged - currentLost));
+                    if (matchingUnits.length > 0) {
+                      expectedQty = matchingUnits.length;
+                      currentDamaged = matchingUnits.filter(u => ['damaged', 'under repair', 'worn', 'minor wear'].includes(String(u.condition || '').toLowerCase()) || ['damaged', 'maintenance', 'under_maintenance'].includes(String(u.status || '').toLowerCase())).length;
+                      currentLost = matchingUnits.filter(u => ['lost', 'decommissioned'].includes(String(u.condition || '').toLowerCase()) || ['lost', 'decommissioned'].includes(String(u.status || '').toLowerCase())).length;
+                      currentReleased = matchingUnits.filter(u => ['released', 'in_use', 'in-use'].includes(String(u.status || '').toLowerCase())).length;
+                      reservedCount = matchingUnits.filter(u => String(u.status || '').toLowerCase() === 'reserved').length || Math.max(0, typeof item.reserved_count === 'number' ? item.reserved_count : 0);
+                      availablePresent = Math.max(0, expectedQty - currentReleased - reservedCount - currentDamaged - currentLost);
+                    } else {
+                      const realTotal = typeof item.calculated_total === 'number'
+                        ? item.calculated_total
+                        : (typeof item.total_quantity === 'number' ? item.total_quantity : 0);
+                      expectedQty = Math.max(0, realTotal);
+                      currentReleased = Math.max(0, typeof item.released_count === 'number' ? item.released_count : 0);
+                      reservedCount = Math.max(0, typeof item.reserved_count === 'number' ? item.reserved_count : 0);
+                      currentDamaged = Math.max(0, typeof item.damaged_count === 'number' ? item.damaged_count : 0);
+                      currentLost = Math.max(0, typeof item.lost_count === 'number' ? item.lost_count : 0);
+                      availablePresent = typeof item.present_count === 'number'
+                        ? item.present_count
+                        : (typeof item.available_count === 'number' ? item.available_count : Math.max(0, expectedQty - currentReleased - currentDamaged - currentLost));
+                    }
 
                     const currentDraft = {
                       qty_released: currentReleased,
@@ -515,7 +516,7 @@ export default function EquipmentStockTab({
       <div className="space-y-4 pt-2">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <h4 className="font-extrabold text-slate-900 text-sm">Physical Equipment Units Inventory</h4>
+            <h4 className="font-extrabold text-slate-900 text-sm">Physical Units Inventory</h4>
             <p className="text-xs text-slate-500 font-medium">Individual barcode-tracked units, active conditions, and lifespan statuses.</p>
           </div>
         </div>

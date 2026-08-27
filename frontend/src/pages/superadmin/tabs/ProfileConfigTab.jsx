@@ -27,8 +27,7 @@ export default function ProfileConfigTab({ showMsg }) {
 
   const [profileData, setProfileData] = useState(() => ({
     name: user?.name || "Super Administrator",
-    email: user?.email || "superadmin@fsuu.edu.ph",
-    personal_email: user?.personal_email || "",
+    email: user?.email_address || user?.email || "superadmin@fsuu.edu.ph",
     avatar: user?.avatar || null,
   }));
 
@@ -37,8 +36,7 @@ export default function ProfileConfigTab({ showMsg }) {
     if (user) {
       setProfileData({
         name: user.name || "Super Administrator",
-        email: user.email || "superadmin@fsuu.edu.ph",
-        personal_email: user.personal_email || "",
+        email: user.email_address || user.email || "superadmin@fsuu.edu.ph",
         avatar: user.avatar || null,
       });
       setAvatarPreview(user.avatar || null);
@@ -61,7 +59,7 @@ export default function ProfileConfigTab({ showMsg }) {
     const payload = {
       name: profileData.name,
       email: profileData.email,
-      personal_email: profileData.personal_email,
+      email_address: profileData.email,
       avatar: avatarPreview || profileData.avatar,
     };
     setShowSaveConfirm(false);
@@ -258,23 +256,7 @@ export default function ProfileConfigTab({ showMsg }) {
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Personal / Recovery Email <span className="text-slate-400 font-normal">(Optional)</span>
-                </label>
-                <input
-                  type="email"
-                  disabled={!isEditing}
-                  value={profileData.personal_email || ""}
-                  onChange={(e) => setProfileData({ ...profileData, personal_email: e.target.value })}
-                  placeholder="e.g. personal@gmail.com"
-                  className={`w-full p-2.5 border rounded-lg font-mono font-medium text-xs transition-colors ${
-                    isEditing
-                      ? "bg-white border-slate-300 text-slate-900 focus:outline-none focus:border-blue-600"
-                      : "bg-slate-50 border-slate-200 text-slate-600 cursor-not-allowed"
-                  }`}
-                />
-              </div>
+
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">Account Role</label>

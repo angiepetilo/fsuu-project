@@ -30,7 +30,7 @@
   <p>An Administrator has invited you to access the <strong>FSUU Reserve and Booking System</strong>.</p>
 
   <div class="credentials-block">
-    <strong>Account Email:</strong> {{ $user->email ?? $user->personal_email }}<br>
+    <strong>Account Email:</strong> {{ $user->email_address ?: $user->email }}<br>
     <strong>Temporary Password:</strong> <code style="background: #e2e8f0; padding: 2px 8px; border-radius: 4px; font-weight: bold; color: #1e40af;">{{ $password }}</code><br>
     <strong>Role:</strong> {{ ucfirst(str_replace('_', ' ', $roleNameVal)) }}
   </div>

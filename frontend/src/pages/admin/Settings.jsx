@@ -156,7 +156,7 @@ export default function Settings() {
   const handleResendInvite = async (user) => {
     try {
       await api.post(`/admin/users/${user.id}/resend-invite`);
-      showMsg("Activation invitation resent to " + (user.personal_email || user.email));
+      showMsg("Activation invitation resent to " + (user.email_address || user.email));
     } catch (err) {
       showMsg("❌ Failed to resend invitation: " + (err.response?.data?.message || err.message));
     }

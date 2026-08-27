@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
-import { ShieldCheck, Search, Loader2, FileText } from "lucide-react";
 import { useState, useEffect } from "react";
+import { Loader2, FileText } from "lucide-react";
 import api from "@/lib/axios";
 import Hero from "./components/Hero";
 import FeatureCards from "./components/FeatureCards";
@@ -19,7 +19,9 @@ export default function LandingPage() {
         setRequirements(data);
       })
       .catch(() => {
-        setRequirements([]);
+        api.get("/admin/booking-requirements")
+          .then((res) => setRequirements(Array.isArray(res.data) ? res.data : []))
+          .catch(() => setRequirements([]));
       })
       .finally(() => setLoading(false));
   }, []);
@@ -43,7 +45,7 @@ export default function LandingPage() {
       {/* Choice Cards Grid */}
       <FeatureCards />
 
-      {/* Booking Requirements Segment — Dynamically Connected to Verification PIN Tab (Section 3) */}
+      {/* Booking Requirements Section */}
       <section className="bg-white border border-slate-200 rounded-2xl p-6 sm:p-8 mb-10 shadow-xs relative overflow-hidden">
         <div className="absolute top-0 left-0 w-1.5 h-full bg-gradient-to-b from-blue-600 to-amber-500" />
 

@@ -12,9 +12,13 @@ return new class extends Migration
             $table->id();
             $table->foreignId('role_id')->constrained('roles')->cascadeOnDelete();
             $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
-            $table->string('name');
-            $table->string('email')->unique();
-            $table->string('personal_email')->nullable()->unique();
+            $table->string('first_name')->nullable();
+            $table->string('last_name')->nullable();
+            $table->string('middle_name')->nullable();
+            $table->string('suffix')->nullable();
+            $table->string('name')->nullable();
+            $table->string('email_address')->nullable()->unique();
+            $table->string('email')->nullable()->unique();
             $table->string('google_id')->nullable()->unique();
             $table->longText('avatar')->nullable();
             $table->string('password');

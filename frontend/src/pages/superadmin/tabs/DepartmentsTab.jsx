@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
-import { BookOpen, Plus, Edit2, Trash2, X, Loader2 } from "lucide-react";
+import { BookOpen, Plus, Edit2, Ban, X, Loader2 } from "lucide-react";
 import api from "@/lib/axios";
+import ConfirmModal from "@/components/ui/ConfirmModal";
 
 export default function DepartmentsTab({ showMsg }) {
   const [departments, setDepartments] = useState([]);
@@ -8,10 +9,12 @@ export default function DepartmentsTab({ showMsg }) {
   const [showAddDeptModal, setShowAddDeptModal] = useState(false);
   const [editDept, setEditDept] = useState(null);
   const [formLoading, setFormLoading] = useState(false);
+  const [disableTarget, setDisableTarget] = useState(null);
 
   const [deptForm, setDeptForm] = useState({
     code: "",
     name: "",
+    status: "active",
   });
 
   const fetchData = async () => {
@@ -36,7 +39,12 @@ export default function DepartmentsTab({ showMsg }) {
   const handleSaveDept = async (e) => {
     e.preventDefault();
     setFormLoading(true);
-    const payload = { code: deptForm.code, name: deptForm.name };
+    const payload = { 
+      code: deptForm.code, 
+      name: deptForm.name,
+      department_name: deptForm.name,
+      status: deptForm.status || "active",
+    };
 
     if (editDept) {
       // ── OPTIMISTIC EDIT ─────────────────────────────────────────────────
@@ -59,76 +67,75 @@ export default function DepartmentsTab({ showMsg }) {
       setShowAddDeptModal(false);
       try {
         const res = await api.post("/admin/departments", payload);
-        const saved = res.data;
-        setDepartments(d => d.map(x => x.id === tempId ? { ...saved, _optimistic: false } : x));
+        const actual = res.data?.department || res.data;
+        setDepartments(d => d.map(x => x.id === tempId ? { ...(actual || x), _optimistic: false } : x));
         showMsg(`Department "${payload.code}" created!`);
-        localStorage.setItem("fsuu_departments", JSON.stringify(departments));
-        window.dispatchEvent(new Event("departments_updated"));
       } catch (err) {
-        setDepartments(prev); setShowAddDeptModal(true);
-        showMsg(err.response?.data?.message || "Failed to add — changes reverted.");
+        setDepartments(prev);
+        showMsg(err.response?.data?.message || "Failed to create — changes reverted.");
       } finally { setFormLoading(false); }
     }
   };
 
-  const handleDeleteDept = async (id, code) => {
-    if (!confirm(`Delete department "${code}"? It will be soft-deleted.`)) return;
-    // ── OPTIMISTIC DELETE ─────────────────────────────────────────────────
+  const confirmToggleDisable = async () => {
+    if (!disableTarget) return;
+    const { id, code, status } = disableTarget;
+    const isCurrentlyDisabled = status === "disabled" || status === "inactive";
+    const newStatus = isCurrentlyDisabled ? "active" : "disabled";
+
     const prev = departments;
-    setDepartments(d => d.filter(x => x.id !== id));
+    setDepartments(d => d.map(x => x.id === id ? { ...x, status: newStatus } : x));
+    setDisableTarget(null);
+
     try {
-      await api.delete(`/admin/departments/${id}`);
-      showMsg(`Department "${code}" archived.`);
-    } catch {
+      await api.put(`/admin/departments/${id}`, { status: newStatus });
+      showMsg(`Department "${code}" has been ${isCurrentlyDisabled ? 'enabled' : 'disabled'}.`);
+    } catch (err) {
       setDepartments(prev);
-      showMsg(`Failed to delete "${code}" — changes reverted.`);
+      showMsg(err.response?.data?.message || `Failed to update department "${code}".`);
     }
   };
 
   return (
     <div className="space-y-4">
-      {/* Header bar */}
+      {/* Top Header Card */}
       <div className="flex justify-between items-center bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs">
         <div>
           <h3 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
-
-            Departments &amp; Programs Management
+            Departments
           </h3>
           <p className="text-xs text-slate-500 font-medium">
-            Manage academic colleges and facility departments for requisitions.
+            Manage official university academic and administrative department codes.
           </p>
         </div>
         <button
           onClick={() => {
             setEditDept(null);
-            setDeptForm({
-              code: "",
-              name: "",
-            });
+            setDeptForm({ code: "", name: "", status: "active" });
             setShowAddDeptModal(true);
           }}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-extrabold shadow-sm cursor-pointer"
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-extrabold shadow-sm cursor-pointer transition-all"
         >
           <Plus size={16} /> Add Department
         </button>
       </div>
 
-      {/* Table: [#, Code, Department Name, Actions] */}
+      {/* Table */}
       <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
-        <table className="w-full text-sm">
+        <table className="w-full text-xs text-left">
           <thead>
-            <tr className="bg-slate-50/80 border-b border-slate-100">
-              {["#", "Code", "Department Name", "Actions"].map((h) => (
-                <th key={h} className="px-4 py-3.5 text-left text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                  {h}
-                </th>
-              ))}
+            <tr className="bg-slate-50/80 border-b border-slate-100 text-slate-400 font-bold uppercase text-[10px] tracking-wider">
+              <th className="px-4 py-3.5 w-12">#</th>
+              <th className="px-4 py-3.5 w-32">Code</th>
+              <th className="px-4 py-3.5">Department / Program Name</th>
+              <th className="px-4 py-3.5 w-24">Status</th>
+              <th className="px-4 py-3.5 text-right w-24">Action</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100 text-xs font-semibold">
+          <tbody className="divide-y divide-slate-100 font-semibold">
             {loading ? (
               <tr>
-                <td colSpan={4} className="text-center py-10">
+                <td colSpan={5} className="text-center py-10">
                   <div className="flex items-center justify-center gap-2 text-slate-400">
                     <div className="w-4 h-4 rounded-full border-2 border-slate-200 border-t-blue-500 animate-spin" />
                     <span className="text-xs font-semibold italic">Loading departments...</span>
@@ -137,47 +144,66 @@ export default function DepartmentsTab({ showMsg }) {
               </tr>
             ) : departments.length === 0 ? (
               <tr>
-                <td colSpan={4} className="text-center py-10 text-slate-400 text-xs font-semibold">
+                <td colSpan={5} className="text-center py-10 text-slate-400 text-xs font-semibold">
                   📚 No departments configured yet. Click "Add Department" to create one.
                 </td>
               </tr>
             ) : (
-              departments.map((dept, index) => (
-                <tr key={dept.id || index} className="hover:bg-slate-50/60 transition-colors">
-                  <td className="px-4 py-3.5 font-bold text-slate-400">{index + 1}</td>
-                  <td className="px-4 py-3.5">
-                    <span className="px-2.5 py-1 rounded-lg bg-blue-50 text-blue-700 font-mono font-extrabold text-[11px]">
-                      {dept.code}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3.5 font-extrabold text-slate-900">
-                    {dept.name}
-                  </td>
-                  <td className="px-4 py-3.5 flex items-center gap-2">
-                    <button
-                      onClick={() => {
-                        setEditDept(dept);
-                        setDeptForm({
-                          code: dept.code || "",
-                          name: dept.name || "",
-                        });
-                        setShowAddDeptModal(true);
-                      }}
-                      className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 cursor-pointer"
-                      title="Edit Department"
-                    >
-                      <Edit2 size={14} />
-                    </button>
-                    <button
-                      onClick={() => handleDeleteDept(dept.id, dept.code)}
-                      className="p-1.5 rounded-lg border border-rose-200 text-rose-600 hover:bg-rose-50 cursor-pointer"
-                      title="Delete Department"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </td>
-                </tr>
-              ))
+              departments.map((dept, index) => {
+                const isItemDisabled = dept.status === "disabled" || dept.status === "inactive";
+                return (
+                  <tr key={dept.id || index} className="hover:bg-slate-50/60 transition-colors">
+                    <td className="px-4 py-3.5 font-bold text-slate-400">{index + 1}</td>
+                    <td className="px-4 py-3.5">
+                      <span className="px-2.5 py-1 rounded-lg bg-blue-50 text-blue-700 font-mono font-extrabold text-[11px]">
+                        {dept.code}
+                      </span>
+                    </td>
+                    <td className={`px-4 py-3.5 font-extrabold ${isItemDisabled ? 'text-slate-400 line-through' : 'text-slate-900'}`}>
+                      {dept.name || dept.department_name}
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                        !isItemDisabled
+                          ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                          : "bg-rose-50 text-rose-700 border-rose-200"
+                      }`}>
+                        {!isItemDisabled ? "ACTIVE" : "DISABLED"}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3.5 text-right">
+                      <div className="flex items-center justify-end gap-1.5">
+                        <button
+                          onClick={() => {
+                            setEditDept(dept);
+                            setDeptForm({
+                              code: dept.code || "",
+                              name: dept.name || dept.department_name || "",
+                              status: dept.status || "active",
+                            });
+                            setShowAddDeptModal(true);
+                          }}
+                          className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 cursor-pointer"
+                          title="Edit Department"
+                        >
+                          <Edit2 size={13} />
+                        </button>
+                        <button
+                          onClick={() => setDisableTarget({ id: dept.id, code: dept.code, status: dept.status })}
+                          className={`p-1.5 rounded-lg border cursor-pointer transition-colors ${
+                            isItemDisabled
+                              ? "border-emerald-200 hover:bg-emerald-50 text-emerald-600"
+                              : "border-rose-200 hover:bg-rose-50 text-rose-600"
+                          }`}
+                          title={isItemDisabled ? "Enable Department" : "Disable Department"}
+                        >
+                          <Ban size={13} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>
@@ -189,9 +215,9 @@ export default function DepartmentsTab({ showMsg }) {
           <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl animate-in zoom-in-95 border border-slate-100 space-y-4">
             <div className="flex justify-between items-center pb-3 border-b border-slate-100">
               <h3 className="font-extrabold text-slate-900 text-sm">
-                {editDept ? "Edit Department Record" : "Add New Department"}
+                {editDept ? "Edit Department" : "Add Department"}
               </h3>
-              <button onClick={() => setShowAddDeptModal(false)} className="text-slate-400 hover:text-slate-600 p-1 rounded-lg">
+              <button onClick={() => setShowAddDeptModal(false)} className="text-slate-400 hover:text-slate-600 p-1 rounded-lg cursor-pointer">
                 <X size={18} />
               </button>
             </div>
@@ -225,23 +251,33 @@ export default function DepartmentsTab({ showMsg }) {
                 <button
                   type="button"
                   onClick={() => setShowAddDeptModal(false)}
-                  className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-100"
+                  className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-100 cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={formLoading}
-                  className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs shadow-md flex items-center gap-1.5"
+                  className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs shadow-md flex items-center gap-1.5 cursor-pointer"
                 >
                   {formLoading && <Loader2 size={14} className="animate-spin" />}
-                  <span>Save Department</span>
+                  <span>Save</span>
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        open={!!disableTarget}
+        onClose={() => setDisableTarget(null)}
+        onConfirm={confirmToggleDisable}
+        title={disableTarget?.status === "disabled" ? "Enable Department" : "Disable Department"}
+        message={`Are you sure you want to ${disableTarget?.status === "disabled" ? 'enable' : 'disable'} department "${disableTarget?.code}"?`}
+        confirmText={disableTarget?.status === "disabled" ? "Enable" : "Disable"}
+        variant={disableTarget?.status === "disabled" ? "primary" : "danger"}
+      />
     </div>
   );
 }

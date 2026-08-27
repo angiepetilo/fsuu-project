@@ -452,22 +452,43 @@ export default function AcademicTermsTab({ showMsg }) {
           <div className="bg-white rounded-xl border border-slate-200 shadow-2xl max-w-md w-full p-6 space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <h3 className="text-sm font-bold text-slate-900">
-                Close Semester & Roll Over
+                Close Semester
               </h3>
               <button
                 type="button"
                 onClick={() => setShowCloseModal(false)}
-                className="text-slate-400 hover:text-slate-600 p-1"
+                className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
               >
                 <X size={16} />
               </button>
             </div>
 
-            <div className="text-xs text-slate-600 bg-amber-50 border border-amber-200 p-3 rounded-lg leading-relaxed">
-              This will archive all completed bookings for <strong>{activeTerm?.name}</strong> to TiDB and initialize the next academic semester for all staff portals.
+            <div className="text-xs text-slate-600 bg-amber-50 border border-amber-200 p-3 rounded-lg leading-relaxed font-medium">
+              This will archive all completed bookings for <strong>{activeTerm?.name}</strong> and initialize the next academic semester for all portals.
             </div>
 
-            <form onSubmit={handleCloseTermSubmit} className="space-y-3">
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              if (!closeForm.start_date || !closeForm.end_date) {
+                notify("Please specify both start and end dates for the next term.");
+                return;
+              }
+              if (closeForm.end_date <= closeForm.start_date) {
+                notify("End date must be after start date.");
+                return;
+              }
+              setFormLoading(true);
+              try {
+                const res = await api.post("/admin/academic-terms/close-term", closeForm);
+                notify(res.data.message || "✅ Semester archived and next term launched successfully!");
+                setShowCloseModal(false);
+                fetchTerms();
+              } catch (err) {
+                notify(err.response?.data?.message || "Failed to close semester.");
+              } finally {
+                setFormLoading(false);
+              }
+            }} className="space-y-3">
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">Next Academic Year *</label>
                 <input
@@ -485,7 +506,7 @@ export default function AcademicTermsTab({ showMsg }) {
                 <select
                   value={closeForm.semester}
                   onChange={(e) => setCloseForm({ ...closeForm, semester: e.target.value })}
-                  className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:border-blue-500 bg-white font-medium"
+                  className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:border-blue-500 bg-white font-medium cursor-pointer"
                 >
                   <option value="1st Semester">1st Semester</option>
                   <option value="2nd Semester">2nd Semester</option>
@@ -517,32 +538,21 @@ export default function AcademicTermsTab({ showMsg }) {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Super Admin Password or Master PIN
-                </label>
-                <input
-                  type="password"
-                  placeholder="Enter your account password (e.g. password123)..."
-                  value={closeForm.pin}
-                  onChange={(e) => setCloseForm({ ...closeForm, pin: e.target.value })}
-                  className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:border-blue-500 tracking-wider"
-                />
-              </div>
-
               <div className="flex items-center justify-end gap-2 pt-4 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setShowCloseModal(false)}
-                  className="px-3.5 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-lg"
+                  className="px-3.5 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-lg cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
+                  disabled={formLoading}
                   className="px-4 py-2 bg-amber-600 hover:bg-amber-700 active:bg-amber-800 text-white rounded-lg text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
                 >
-                  <span>Archive & Start Next Term</span>
+                  {formLoading && <Loader2 size={13} className="animate-spin" />}
+                  <span>Close Semester & Launch Term</span>
                 </button>
               </div>
             </form>

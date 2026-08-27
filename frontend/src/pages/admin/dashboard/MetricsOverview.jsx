@@ -1,15 +1,16 @@
 import { MetricCard } from "@/components/ui/app-card";
-import { Building2, PackageOpen, Clock, AlertTriangle, ShieldAlert } from "lucide-react";
+import { Building2, PackageOpen, Clock, AlertTriangle, ShieldAlert, ClipboardCheck } from "lucide-react";
 
 export default function MetricsOverview({
-  totalVenueBookings,
-  pendingApproval,
-  totalEquipBorrows,
-  totalDamaged,
-  totalLost,
+  totalVenueBookings = 0,
+  pendingApproval = 0,
+  totalEquipBorrows = 0,
+  totalDamaged = 0,
+  totalLost = 0,
+  postInspectionPending = 0,
 }) {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3.5">
       {/* 1. Total Venue Bookings */}
       <MetricCard
         icon={Building2}
@@ -30,7 +31,17 @@ export default function MetricsOverview({
         color="amber"
       />
 
-      {/* 3. Total Equipment Borrows */}
+      {/* 3. Post Inspection Pending */}
+      <MetricCard
+        icon={ClipboardCheck}
+        label="POST INSPECTION PENDING"
+        value={postInspectionPending}
+        badge={postInspectionPending > 0 ? "Pending Turnover" : "All Clear"}
+        badgeType={postInspectionPending > 0 ? "warning" : "success"}
+        color="indigo"
+      />
+
+      {/* 4. Total Equipment Borrows */}
       <MetricCard
         icon={PackageOpen}
         label="TOTAL EQUIPMENT BORROWS"
@@ -40,7 +51,7 @@ export default function MetricsOverview({
         color="blue"
       />
 
-      {/* 4. Total Equipment Damages */}
+      {/* 5. Total Equipment Damages */}
       <MetricCard
         icon={AlertTriangle}
         label="TOTAL EQUIPMENT DAMAGES"
@@ -50,7 +61,7 @@ export default function MetricsOverview({
         color="rose"
       />
 
-      {/* 5. Total Equipment Lost */}
+      {/* 6. Total Equipment Lost */}
       <MetricCard
         icon={ShieldAlert}
         label="TOTAL EQUIPMENT LOST"
@@ -62,4 +73,3 @@ export default function MetricsOverview({
     </div>
   );
 }
-

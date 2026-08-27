@@ -58,17 +58,19 @@ export default function ConfirmModal({
         )}
 
         {/* Icon */}
-        <div className={`w-12 h-12 rounded-2xl ${bg} border ${border} flex items-center justify-center mb-4`}>
+        <div className={`w-12 h-12 rounded-2xl ${bg} border ${border} flex items-center justify-center mb-4 mx-auto`}>
           <Icon size={22} className={color} />
         </div>
 
-        {/* Heading */}
-        <h2 className="text-sm font-black text-slate-900 tracking-tight mb-1">{title}</h2>
+        {/* Heading & Content */}
+        <div className="text-center">
+          <h2 className="text-sm font-black text-slate-900 tracking-tight mb-1">{title}</h2>
 
-        {/* Message */}
-        {message && (
-          <p className="text-xs text-slate-500 font-medium leading-relaxed">{message}</p>
-        )}
+          {/* Message */}
+          {message && (
+            <p className="text-xs text-slate-500 font-medium leading-relaxed">{message}</p>
+          )}
+        </div>
 
         {/* Actions */}
         <div className="flex gap-2 mt-5">

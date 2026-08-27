@@ -12,6 +12,7 @@ import Step3Details from "./components/Step3Details";
 import Step4Verification from "./components/Step4Verification";
 
 import { isPastDateTime } from "@/lib/dateTimeUtils";
+import { useAuth } from "@/context/AuthContext";
 
 const BORROW_STEPS = [
   { title: "Identity", subtitle: "Requester role" },
@@ -20,9 +21,20 @@ const BORROW_STEPS = [
   { title: "Review & Submit", subtitle: "Review & submit" },
 ];
 
-export default function EquipmentBorrowing() {
+export default function EquipmentBorrowing({ isPortal: isPortalProp }) {
+  const { user, token } = useAuth();
+  const isAuthenticated = Boolean(user || token);
   const navigate = useNavigate();
   const [activeStep, setActiveStep] = useState(1);
+
+  const isPortal = isAuthenticated && (isPortalProp ?? (
+    typeof window !== "undefined" && (
+      window.location.pathname.startsWith("/interface") ||
+      window.location.pathname.startsWith("/admin") ||
+      window.location.pathname.startsWith("/sysad") ||
+      window.location.search.includes("portal=true")
+    )
+  ));
 
   const [completedSteps, setCompletedSteps] = useState([]);
   const [catalog, setCatalog] = useState([]);
@@ -110,42 +122,39 @@ export default function EquipmentBorrowing() {
   };
 
   useEffect(() => {
-    const startDateStr = startTime ? startTime.split("T")[0] : "";
-    const startTimeStr = startTime && startTime.includes("T") ? startTime.split("T")[1].slice(0, 5) : "";
-    const endDateStr = endTime ? endTime.split("T")[0] : "";
-    const endTimeStr = endTime && endTime.includes("T") ? endTime.split("T")[1].slice(0, 5) : "";
-
-    const selectedOfficeId = (campusBranch || "").toLowerCase().includes("morelos") ? 2 : 1;
-
-    const params = new URLSearchParams();
-    params.append("office_id", selectedOfficeId);
-    if (startDateStr) params.append("date", startDateStr);
-    if (startTimeStr) params.append("time_start", startTimeStr);
-    if (endTimeStr) params.append("time_end", endTimeStr);
-
-    // Only show full-screen spinner on initial empty load
-    if (catalog.length === 0) {
-      setCatalogLoading(true);
-    }
-
-    const timer = setTimeout(() => {
-      api.get(`/public/equipment-types?${params.toString()}`)
+    const fetchEquipment = () => {
+      api.get("/public/equipment-types")
         .then(res => {
-          const data = res.data ?? [];
-          setCatalog(data);
+          let list = Array.isArray(res.data) ? res.data : (res.data?.data || []);
+          setCatalog(list);
+          if (list.length > 0) {
+            try {
+              localStorage.setItem("fsuu_equipment_catalog", JSON.stringify(list));
+            } catch {}
+          }
         })
         .catch(() => {
-          if (catalog.length === 0) setCatalog([]);
+          try {
+            const saved = JSON.parse(localStorage.getItem("fsuu_equipment_catalog") || "[]");
+            setCatalog(saved);
+          } catch {
+            setCatalog([]);
+          }
         })
         .finally(() => setCatalogLoading(false));
-    }, 250);
+    };
 
-    return () => clearTimeout(timer);
-  }, [startTime, endTime, campusBranch]);
+    fetchEquipment();
+    window.addEventListener("equipment_inventory_updated", fetchEquipment);
+    return () => window.removeEventListener("equipment_inventory_updated", fetchEquipment);
+  }, []);
 
-  const uniqueCategories = ["all", ...new Set(catalog.map(c => c.eq_type || c.category).filter(Boolean))];
+  const uniqueCategories = [
+    "all",
+    ...new Set(catalog.map(item => item.eq_type || item.category || "General").filter(Boolean))
+  ];
 
-  const filteredCatalog = catalog.filter((item) => {
+  const filteredCatalog = catalog.filter(item => {
     if (equipmentCategory === "all") return true;
     
     const cat = (item.eq_type || item.category || "").toLowerCase();
@@ -178,21 +187,20 @@ export default function EquipmentBorrowing() {
     const norm = (id || "").toLowerCase();
     setIdentity(norm);
 
-    const isSystemPinActive = pinRules?.isEnabled === true || (pinRules?.isEnabled !== false && pinRules?.isEnabled !== "false");
-    const externalRequiresPin = isSystemPinActive && (pinRules?.enableExternalEquipment === true || (pinRules?.enableExternalEquipment !== false && pinRules?.enableExternalEquipment !== "false")) && norm === "external";
+    if (isPortal) {
+      const isSystemPinActive = pinRules?.isEnabled !== false && pinRules?.isEnabled !== "false";
+      const externalRequiresPin = isSystemPinActive && (pinRules?.enableExternalEquipment !== false && pinRules?.enableExternalEquipment !== "false") && norm === "external";
 
-    if (externalRequiresPin && !isPinVerified) {
-      setPinModalMeta({
-        title: "External Requisition PIN",
-        description: "Requisitions filed under External Identity require AVR Head / Admin authorization PIN to proceed.",
-      });
-      setShowPinModal(true);
-      return;
+      if (externalRequiresPin && !isPinVerified) {
+        setPinModalMeta({
+          title: "Verification Pin",
+          description: "External client reservations required clearance Pin.",
+        });
+        setShowPinModal(true);
+        return;
+      }
     }
 
-    if (norm !== "external") {
-      setIsPinVerified(false);
-    }
     if (!completedSteps.includes(1)) setCompletedSteps([...completedSteps, 1]);
     setActiveStep(2);
   };
@@ -231,7 +239,7 @@ export default function EquipmentBorrowing() {
       return;
     }
 
-    if (endTimeStr <= startTimeStr) {
+    if (endTimeStr <= startTimeStr && (!endDateStr || endDateStr === startDateStr)) {
       alert("Expected return time must be later than the borrow start time.");
       return;
     }
@@ -244,42 +252,53 @@ export default function EquipmentBorrowing() {
     const kioskOpen = opHours?.equipment_open?.substring(0, 5) || "08:00";
     const kioskClose = opHours?.equipment_close?.substring(0, 5) || "17:00";
     const isOutsideHours = startTimeStr < kioskOpen || endTimeStr > kioskClose;
-    
-    let diffDays = 0;
-    if (endDateStr && startDateStr && endDateStr > startDateStr) {
-      const startD = new Date(startDateStr);
-      const endD = new Date(endDateStr);
-      const diffTime = endD - startD;
-      diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    }
-    // More than 1 day (spans 2 or more days)
-    // Evaluate trigger rules accurately based on checked/unchecked settings
-    const isSystemPinActive = pinRules?.isEnabled !== false && pinRules?.isEnabled !== "false";
-    const outsideRequiresPin = (pinRules?.requirePinOutsideHours !== false && pinRules?.requirePinOutsideHours !== "false") && isOutsideHours;
-    const externalRequiresPin = (pinRules?.enableExternalEquipment !== false && pinRules?.enableExternalEquipment !== "false") && identity === "external";
+    const isMultiDay = endDateStr && startDateStr && endDateStr !== startDateStr;
 
-    // Equipment borrowing: PIN ONLY applies if external user (or outside hours)
-    const requiresPin = isSystemPinActive && (
-      externalRequiresPin || outsideRequiresPin
-    );
+    if (isPortal) {
+      // In Portal: Allow extended returns and outside hours WITH Verification PIN
+      const isSystemPinActive = pinRules?.isEnabled !== false && pinRules?.isEnabled !== "false";
+      const outsideRequiresPin = (pinRules?.requirePinOutsideHours !== false && pinRules?.requirePinOutsideHours !== "false") && isOutsideHours;
+      const externalRequiresPin = (pinRules?.enableExternalEquipment !== false && pinRules?.enableExternalEquipment !== "false") && identity === "external";
 
-    if (requiresPin && !isPinVerified) {
-      if (externalRequiresPin) {
-        setPinModalMeta({
-          title: "External Requisition PIN",
-          description: "Requisitions filed under External Identity require AVR Head / Admin authorization PIN.",
-        });
-      } else if (outsideRequiresPin) {
-        setPinModalMeta({
-          title: "Outside Office Hours PIN",
-          description: `Selected borrowing/return time (${formatTime12(startTimeStr)} - ${formatTime12(endTimeStr)}) is outside official campus kiosk hours (${formatTime12(kioskOpen)} - ${formatTime12(kioskClose)}). AVR Head / Admin Verification PIN is required for authorization.`,
-        });
+      const requiresPin = isSystemPinActive && (
+        externalRequiresPin || outsideRequiresPin || isMultiDay
+      );
+
+      if (requiresPin && !isPinVerified) {
+        if (externalRequiresPin) {
+          setPinModalMeta({
+            title: "Verification Pin",
+            description: "External client reservations required clearance Pin.",
+          });
+        } else if (isMultiDay) {
+          setPinModalMeta({
+            title: "Extended Borrowing PIN",
+            description: `This equipment requisition spans multiple days (${startDateStr} to ${endDateStr}). AVR Head / Admin Verification PIN is required for extended returns.`,
+          });
+        } else if (outsideRequiresPin) {
+          setPinModalMeta({
+            title: "Outside Office Hours PIN",
+            description: `Selected borrowing/return time (${formatTime12(startTimeStr)} - ${formatTime12(endTimeStr)}) is outside official campus kiosk hours (${formatTime12(kioskOpen)} - ${formatTime12(kioskClose)}). AVR Head / Admin Verification PIN is required for authorization.`,
+          });
+        }
+
+        setShowPinModal(true);
+        setPinError(false);
+        setPinInput("");
+        return;
+      }
+    } else {
+      // Public Rule: Single-day borrow only (cannot extend across days)
+      if (isMultiDay) {
+        alert("Equipment borrowing in public view is strictly for single-day use only. You cannot extend the borrow or return date across multiple days.");
+        return;
       }
 
-      setShowPinModal(true);
-      setPinError(false);
-      setPinInput("");
-      return;
+      // Public Rule: Must follow operating kiosk hours (no outside-hours extension)
+      if (isOutsideHours) {
+        alert(`Selected borrowing/return time (${formatTime12(startTimeStr)} - ${formatTime12(endTimeStr)}) is outside official campus kiosk hours (${formatTime12(kioskOpen)} - ${formatTime12(kioskClose)}). Please select a time range within operating hours.`);
+        return;
+      }
     }
 
     if (!completedSteps.includes(2)) setCompletedSteps([...completedSteps, 2]);
@@ -403,6 +422,7 @@ export default function EquipmentBorrowing() {
             selectedIdentity={identity}
             onSelectIdentity={handleIdentitySelect}
             onNext={() => handleIdentitySelect(identity)}
+            isPortal={isPortal}
           />
         )}
 
@@ -434,6 +454,7 @@ export default function EquipmentBorrowing() {
             handleEquipmentSubmit={handleEquipmentSubmit}
             onBack={() => setActiveStep(1)}
             catalogLoading={catalogLoading}
+            isPortal={isPortal}
           />
         )}
 

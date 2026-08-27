@@ -221,16 +221,14 @@ export default function VenueEquipmentChecklist({
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 p-4 space-y-4 shadow-xs">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-200 pb-2.5 gap-2">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-200 pb-2.5 gap-2 font-sans">
         <div>
-          <h4 className="text-xs font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
-            <PackageOpen size={15} className="text-slate-600" />
-            {isAssignmentMode ? "Equipment Catalog Checklist (Before)" : "Equipment Catalog Checklist (After)"}
+          <h4 className="text-xs font-bold text-slate-900 tracking-normal flex items-center gap-2">
+            <PackageOpen size={15} className="text-blue-600" />
+            <span>Post Equipment Inspection</span>
           </h4>
           <p className="text-[11px] text-slate-500 font-medium mt-0.5">
-            {isAssignmentMode 
-              ? "Assign physical unit barcodes and inspect unit condition before event." 
-              : "Verify returned equipment unit condition."}
+            Verify returned equipment unit condition.
           </p>
         </div>
 

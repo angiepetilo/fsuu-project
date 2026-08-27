@@ -38,8 +38,8 @@ export default function GoogleCallback() {
       const user = {
         id: params.get("id") ? parseInt(params.get("id"), 10) : undefined,
         name: params.get("name") || "Authenticated User",
-        email: params.get("email") || "",
-        personal_email: params.get("personal_email") || "",
+        email: params.get("email_address") || params.get("email") || "",
+        email_address: params.get("email_address") || params.get("email") || "",
         avatar: params.get("avatar") || null,
         office_id: params.get("office_id") ? parseInt(params.get("office_id"), 10) : null,
         location: params.get("location") || "FSUU Main Campus",

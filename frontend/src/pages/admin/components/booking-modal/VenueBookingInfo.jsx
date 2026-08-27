@@ -36,14 +36,12 @@ export default function VenueBookingInfo({
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Show local preview immediately
     const reader = new FileReader();
     reader.onload = (evt) => {
       setStaffUploadUrl(evt.target.result);
     };
     reader.readAsDataURL(file);
 
-    // Upload to backend if booking exists
     if (selected.id) {
       setIsUploading(true);
       try {
@@ -101,24 +99,30 @@ export default function VenueBookingInfo({
     openFileInNewTab(url);
   };
 
+  const filerFullName = [selected.first_name, selected.middle_name, selected.last_name, selected.suffix]
+    .filter(Boolean)
+    .join(" ")
+    .trim() || selected.filer_name || selected.name || selected.full_name || "Applicant";
+
+  const rawClassification = selected.classification || selected.role || "student";
+  const displayClassification = rawClassification.toLowerCase() === "student" ? "Student" : (rawClassification.toLowerCase().includes("fac") ? "Faculty" : "External");
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-      {/* Left Column (7/12): Requestor & Reservation Details */}
-      <div className="lg:col-span-7 space-y-2 text-xs text-slate-700 font-semibold bg-white p-4 rounded-2xl border border-slate-200">
+      {/* Left Column (7/12): Core Request Details */}
+      <div className="lg:col-span-7 bg-white p-4 rounded-2xl border border-slate-200 space-y-2 text-xs">
         <div className="flex justify-between items-baseline py-1 border-b border-slate-100">
-          <span className="text-slate-500">Requestor :</span>
-          <span className="font-bold text-slate-900 font-mono">{selected.filer_name || selected.requestor_name || "—"}</span>
+          <span className="text-slate-500">Applicant Name :</span>
+          <span className="font-bold text-slate-900">{filerFullName}</span>
         </div>
 
         <div className="flex justify-between items-baseline py-1 border-b border-slate-100">
-          <span className="text-slate-500">Identity / Role :</span>
-          <span className="font-extrabold capitalize text-slate-900">
-            {selected.requestor_identity_type || selected.identity_type || selected.identity || "Student"}
-          </span>
+          <span className="text-slate-500">Identity :</span>
+          <span className="font-mono text-slate-800 uppercase font-bold">{displayClassification}</span>
         </div>
 
         <div className="flex justify-between items-baseline py-1 border-b border-slate-100">
-          <span className="text-slate-500">Personal email :</span>
+          <span className="text-slate-500">Email Address :</span>
           <span className="font-mono text-slate-800">{selected.email_address || selected.email || "—"}</span>
         </div>
 
@@ -159,12 +163,7 @@ export default function VenueBookingInfo({
           <span className="font-mono text-slate-800">{selected.purpose || "Event / Meeting"}</span>
         </div>
 
-        <div className="flex justify-between items-baseline py-1 border-b border-slate-100">
-          <span className="text-slate-500">Date &amp; Time Filed :</span>
-          <span className="font-mono text-slate-800">{formatDateTimeFiled(selected.created_at || selected.date_filed)}</span>
-        </div>
-
-        {/* Requested Equipment Categories Badges */}
+        {/* Requested Equipment Types Badges */}
         {requestedCategories && requestedCategories.length > 0 && (
           <div className="pt-2 border-t border-slate-100">
             <span className="text-slate-500 block mb-1.5 font-bold">Requested Equipment Types :</span>
@@ -174,7 +173,7 @@ export default function VenueBookingInfo({
                   key={idx}
                   className="px-2.5 py-1 bg-slate-100 text-slate-800 border border-slate-200 rounded-lg text-xs font-bold font-mono"
                 >
-                  {cat.name || cat.category} ({cat.quantity || 1} {Number(cat.quantity || 1) === 1 ? 'unit' : 'units'})
+                  {cat.name || cat.category || cat.equipment_types_name} ({cat.quantity || 1} {Number(cat.quantity || 1) === 1 ? 'unit' : 'units'})
                 </span>
               ))}
             </div>
@@ -219,92 +218,80 @@ export default function VenueBookingInfo({
                 <>
                   <img
                     src={docUrl}
-                    alt="Endorsement Letter Preview"
-                    className="w-full h-full object-contain bg-slate-950 p-1 cursor-pointer"
-                    onClick={() => handleOpenDocument(docUrl)}
+                    alt="Endorsement Letter"
+                    className="w-full h-full object-contain p-2 group-hover:scale-105 transition-transform"
                   />
-                  <button
-                    type="button"
-                    onClick={() => handleOpenDocument(docUrl)}
-                    className="absolute inset-0 w-full h-full flex items-center justify-center bg-black/40 hover:bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
-                  >
-                    <span className="text-slate-900 text-xs font-bold flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white border border-slate-200 shadow-xs">
-                      <ExternalLink size={14} /> Open in New Tab
-                    </span>
-                  </button>
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleOpenDocument(docUrl)}
+                      className="px-3 py-1.5 bg-white text-slate-900 rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer"
+                    >
+                      <ExternalLink size={12} /> View Full
+                    </button>
+                  </div>
                 </>
               )
             ) : (
-              <div className="text-center p-4 space-y-1 text-slate-400">
-                <FileText size={28} className="mx-auto" />
-                <p className="text-xs font-medium">No digital document attached</p>
+              <div className="text-center p-4 space-y-1">
+                <FileText size={28} className="mx-auto text-slate-600 mb-1" />
+                <p className="text-xs font-bold text-slate-300">No Endorsement Document</p>
+                <p className="text-[10.5px] text-slate-500 font-mono">Client may submit physical hardcopy at AVR counter</p>
               </div>
             )}
           </div>
         </div>
 
-        {/* Walk-in Hardcopy & Scanned File Attachment */}
-        <div className="pt-2 border-t border-slate-100 text-xs space-y-2">
-          {saveSuccessMsg && (
-            <div className="p-2 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-lg text-xs font-bold flex items-center gap-1.5 animate-in fade-in">
-              <CheckCircle size={13} /> {saveSuccessMsg}
-            </div>
-          )}
+        {/* Walk-in Hardcopy & Staff Upload Actions */}
+        <div className="space-y-2 pt-2 border-t border-slate-100">
+          <div className="flex items-center justify-between">
+            <label className="flex items-center gap-2 text-xs font-bold text-slate-700 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={isHardcopy}
+                onChange={(e) => setIsHardcopy(e.target.checked)}
+                className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300"
+              />
+              <span>Physical Hardcopy Received</span>
+            </label>
+            
+            <label className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 text-[11px] font-bold cursor-pointer transition-colors">
+              <Upload size={12} />
+              <span>{isUploading ? "Uploading..." : "Attach File"}</span>
+              <input
+                type="file"
+                accept="image/*,application/pdf"
+                onChange={handleFileUpload}
+                className="hidden"
+                disabled={isUploading}
+              />
+            </label>
+          </div>
 
-          <div className="space-y-2.5 bg-slate-50 p-3 rounded-xl border border-slate-200">
-            <div className="flex items-center justify-between gap-2">
-              <label className="flex items-center gap-2 font-bold text-slate-800 text-xs cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={isHardcopy}
-                  onChange={(e) => setIsHardcopy(e.target.checked)}
-                  className="rounded border-slate-300 text-slate-900 focus:ring-0"
-                />
-                Mark as Walk-in Physical Hardcopy Filed
-              </label>
-
-              {isHardcopy && (
-                <div>
-                  <input
-                    type="file"
-                    accept="image/*,.pdf"
-                    onChange={handleFileUpload}
-                    disabled={isUploading}
-                    className="hidden"
-                    id={`walkin-upload-${selected.id}`}
-                  />
-                  <label
-                    htmlFor={`walkin-upload-${selected.id}`}
-                    className="px-2.5 py-1 bg-white hover:bg-blue-50 text-blue-600 hover:text-blue-700 border border-blue-200 rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
-                    title="Attach or upload scanned endorsement letter"
-                  >
-                    <Upload size={12} />
-                    <span>{isUploading ? "Uploading..." : "Attach Document"}</span>
-                  </label>
-                </div>
-              )}
-            </div>
-
-            {isHardcopy && (
+          {isHardcopy && (
+            <div className="space-y-1 animate-in fade-in">
               <input
                 type="text"
-                placeholder="e.g. Binder 2026-A, Page 4"
+                placeholder="Receiver note (e.g. Received signed memo by Prof. Santos)"
                 value={hardcopyNotes}
                 onChange={(e) => setHardcopyNotes(e.target.value)}
-                className="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 focus:outline-none focus:border-slate-400"
+                className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-[11px] font-medium text-slate-800 focus:outline-none focus:border-blue-600"
               />
-            )}
-
-            {isHardcopy && (
               <button
                 type="button"
                 onClick={handleSaveHardcopy}
-                className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-lg text-xs font-extrabold cursor-pointer transition-colors shadow-2xs"
+                className="w-full py-1 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-[11px] font-bold cursor-pointer transition-colors"
               >
-                Save Walk-in Status
+                Save Hardcopy Status
               </button>
-            )}
-          </div>
+            </div>
+          )}
+
+          {saveSuccessMsg && (
+            <p className="text-[11px] font-bold text-emerald-600 flex items-center gap-1 animate-in fade-in">
+              <CheckCircle size={12} /> {saveSuccessMsg}
+            </p>
+          )}
         </div>
       </div>
     </div>

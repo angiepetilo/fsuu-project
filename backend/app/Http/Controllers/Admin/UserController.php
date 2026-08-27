@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\Role;
+use App\Services\AuditLogService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -15,6 +16,10 @@ use Illuminate\Validation\Rule;
 
 class UserController extends Controller
 {
+    public function __construct(
+        protected AuditLogService $auditLog
+    ) {}
+
     /**
      * Display a listing of the users.
      */
@@ -38,9 +43,6 @@ class UserController extends Controller
                 $query->where('id', '!=', $userId)
                 ->where(function ($q) use ($userId) {
                     $q->where('created_by', $userId);
-                })
-                ->whereDoesntHave('role', function ($r) {
-                    $r->whereIn('name', ['admin', 'Admin']);
                 });
             }
 
@@ -52,7 +54,7 @@ class UserController extends Controller
     }
 
     /**
-     * Store a newly created user.
+     * Store a newly created user (email-only invitation).
      */
     public function store(Request $request): JsonResponse
     {
@@ -62,9 +64,8 @@ class UserController extends Controller
         }
 
         $validated = $request->validate([
-            'name'           => 'nullable|string|max:255',
-            'email'          => 'nullable|email|max:255|unique:users,email',
-            'personal_email' => 'required_without:email|nullable|email|max:255',
+            'email_address'  => 'nullable|email|max:255|unique:users,email_address',
+            'email'          => 'required_without:email_address|nullable|email|max:255',
             'role'           => 'nullable|string',
             'location'       => 'nullable|string|max:255',
             'image'          => 'nullable|image|max:2048',
@@ -73,13 +74,16 @@ class UserController extends Controller
 
         $isSuperAdmin = $authUser->isSuperAdmin();
 
-        $roleName = $validated['role'] ?? 'staff';
-        // Non-superadmins cannot create high-privilege roles
-        if (!$isSuperAdmin) {
-            $normalizedRole = strtolower(str_replace(['-', '_', ' '], '', $roleName));
-            if (in_array($normalizedRole, ['superadmin', 'sysad', 'admin'])) {
-                return response()->json(['message' => 'Unauthorized to assign administrative roles.'], 403);
-            }
+        $rawRole = strtolower(trim($validated['role'] ?? 'staff'));
+        $roleName = match($rawRole) {
+            'student_assistant', 'student assistant', 'student-assistant', 'sa' => 'student_assistant',
+            'super_admin', 'superadmin', 'sysad' => 'super_admin',
+            default => 'staff'
+        };
+
+        // Non-superadmins cannot create superadmin accounts
+        if (!$isSuperAdmin && $roleName === 'super_admin') {
+            return response()->json(['message' => 'Unauthorized to assign administrative roles.'], 403);
         }
 
         $targetRole = Role::firstOrCreate(['name' => $roleName]);
@@ -89,10 +93,7 @@ class UserController extends Controller
             $permissions = json_decode($permissions, true) ?? [];
         }
 
-        $targetEmail = trim($validated['email'] ?? $validated['personal_email']);
-
-        // Name is only set if explicitly provided, otherwise placeholder for NOT NULL constraint
-        $name = (!empty($validated['name']) && trim($validated['name']) !== '') ? trim($validated['name']) : 'Pending Activation';
+        $targetEmail = trim($validated['email_address'] ?? $validated['email']);
 
         // Auto-generate temporary password: 4 random chars + 4 random digits
         $plainPassword = Str::random(4) . rand(1000, 9999);
@@ -106,9 +107,9 @@ class UserController extends Controller
         }
 
         $user = User::create([
-            'name'           => $name,
+            'name'           => 'Pending Activation',
+            'email_address'  => $targetEmail,
             'email'          => $targetEmail,
-            'personal_email' => $targetEmail,
             'password'       => Hash::make($plainPassword),
             'role_id'        => $targetRole->id,
             'location'       => $validated['location'] ?? null,
@@ -122,6 +123,15 @@ class UserController extends Controller
         ]);
 
         $user->load(['role']);
+
+        // Log to Audit Log
+        $this->auditLog->log(
+            $authUser,
+            'USER_CREATED',
+            'users',
+            $user->id,
+            ['email' => $targetEmail, 'role' => $targetRole->name]
+        );
 
         // Dispatch clean formal credentials email job
         try {
@@ -149,15 +159,19 @@ class UserController extends Controller
 
         // Non-superadmin authorization checks:
         if (!$isSuperAdmin) {
-            if ($targetUser->isSuperAdmin() || $targetUser->isAdmin()) {
+            if ($targetUser->isSuperAdmin()) {
                 return response()->json(['message' => 'Unauthorized to modify administrative accounts.'], 403);
             }
         }
 
         $validated = $request->validate([
             'name'           => 'nullable|string|max:255',
-            'email'          => ['nullable', 'email', 'max:255', Rule::unique('users')->ignore($targetUser->id)],
-            'personal_email' => ['nullable', 'email', 'max:255'],
+            'first_name'     => 'nullable|string|max:255',
+            'middle_name'    => 'nullable|string|max:255',
+            'last_name'      => 'nullable|string|max:255',
+            'suffix'         => 'nullable|string|max:50',
+            'email_address'  => ['nullable', 'email', 'max:255', Rule::unique('users', 'email_address')->ignore($targetUser->id)],
+            'email'          => ['nullable', 'email', 'max:255'],
             'role'           => 'nullable|string',
             'status'         => 'nullable|string',
             'is_active'      => 'nullable',
@@ -166,36 +180,36 @@ class UserController extends Controller
             'permissions'    => 'nullable',
         ]);
 
+        if (array_key_exists('first_name', $validated)) $targetUser->first_name = $validated['first_name'];
+        if (array_key_exists('middle_name', $validated)) $targetUser->middle_name = $validated['middle_name'];
+        if (array_key_exists('last_name', $validated)) $targetUser->last_name = $validated['last_name'];
+        if (array_key_exists('suffix', $validated)) $targetUser->suffix = $validated['suffix'];
+
         if (array_key_exists('name', $validated)) {
             $nameVal = trim((string)$validated['name']);
-            $targetUser->name = ($nameVal !== '') ? $nameVal : ($targetUser->name ?: 'Pending Activation');
-        }
-        if (!empty($validated['email'])) {
-            $targetUser->email = trim($validated['email']);
-            $targetUser->personal_email = trim($validated['email']);
-        }
-        if (!empty($validated['personal_email'])) {
-            $targetUser->personal_email = trim($validated['personal_email']);
-            if (empty($targetUser->email)) {
-                $targetUser->email = trim($validated['personal_email']);
+            if ($nameVal !== '') {
+                $targetUser->name = $nameVal;
             }
         }
+
+        $newEmail = trim($validated['email_address'] ?? $validated['email'] ?? '');
+        if (!empty($newEmail)) {
+            $targetUser->email_address = $newEmail;
+            $targetUser->email = $newEmail;
+        }
+
         if (isset($validated['status'])) $targetUser->status = $validated['status'];
         if (isset($validated['is_active'])) $targetUser->is_active = filter_var($validated['is_active'], FILTER_VALIDATE_BOOLEAN);
 
-        if ($isSuperAdmin) {
-            if (!empty($validated['role'])) {
-                $r = Role::firstOrCreate(['name' => $validated['role']]);
-                $targetUser->role_id = $r->id;
-            }
-        } else {
-            // Non-superadmin cannot elevate role
-            if (!empty($validated['role'])) {
-                $normalizedRole = strtolower(str_replace(['-', '_', ' '], '', $validated['role']));
-                if (in_array($normalizedRole, ['superadmin', 'sysad', 'admin'])) {
-                    return response()->json(['message' => 'Unauthorized to elevate account to administrative roles.'], 403);
-                }
-                $r = Role::firstOrCreate(['name' => $validated['role']]);
+        if (!empty($validated['role'])) {
+            $rawRole = strtolower(trim($validated['role']));
+            $roleName = match($rawRole) {
+                'student_assistant', 'student assistant', 'student-assistant', 'sa' => 'student_assistant',
+                'super_admin', 'superadmin', 'sysad' => 'super_admin',
+                default => 'staff'
+            };
+            if ($isSuperAdmin || $roleName !== 'super_admin') {
+                $r = Role::firstOrCreate(['name' => $roleName]);
                 $targetUser->role_id = $r->id;
             }
         }
@@ -216,6 +230,15 @@ class UserController extends Controller
 
         $targetUser->save();
 
+        // Log to Audit Log
+        $this->auditLog->log(
+            $authUser,
+            'USER_UPDATED',
+            'users',
+            $targetUser->id,
+            ['name' => $targetUser->name, 'email' => $targetUser->email_address ?? $targetUser->email, 'role' => $targetUser->role?->name]
+        );
+
         return response()->json([
             'message' => 'User updated successfully',
             'user'    => $targetUser->load(['role']),
@@ -235,13 +258,20 @@ class UserController extends Controller
             return response()->json(['message' => 'Cannot delete your own account'], 403);
         }
 
-        if (!$isSuperAdmin) {
-            if ($targetUser->isSuperAdmin() || $targetUser->isAdmin()) {
-                return response()->json(['message' => 'Unauthorized to delete administrative accounts.'], 403);
-            }
+        if (!$isSuperAdmin && $targetUser->isSuperAdmin()) {
+            return response()->json(['message' => 'Unauthorized to delete administrative accounts.'], 403);
         }
 
         $targetUser->delete();
+
+        // Log to Audit Log
+        $this->auditLog->log(
+            $authUser,
+            'USER_ARCHIVED',
+            'users',
+            $targetUser->id,
+            ['name' => $targetUser->name, 'email' => $targetUser->email_address ?? $targetUser->email]
+        );
 
         return response()->json(['message' => 'User archived (soft-deleted) successfully']);
     }
@@ -267,8 +297,10 @@ class UserController extends Controller
             // Silently log or handle if mail driver fails
         }
 
+        $destEmail = $targetUser->email_address ?: $targetUser->email;
+
         return response()->json([
-            'message' => 'Invitation email resent successfully to ' . ($targetUser->personal_email ?? $targetUser->email),
+            'message' => 'Invitation email resent successfully to ' . $destEmail,
             'user'    => $targetUser,
         ]);
     }

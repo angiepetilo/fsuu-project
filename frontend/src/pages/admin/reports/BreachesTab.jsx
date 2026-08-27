@@ -227,7 +227,7 @@ export default function BreachesTab({
       <div className="flex items-center justify-between p-4 border-b border-slate-100">
         <div>
           <h3 className="font-black text-slate-900 text-sm">
-            Department Violation Totals Summary
+            Department Violation
           </h3>
           <p className="text-xs text-slate-500 font-semibold mt-0.5">
             Aggregated violation counts per department from verified inspection logs
@@ -239,7 +239,7 @@ export default function BreachesTab({
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-slate-50/80 border-b border-slate-100">
-              {["#", "Department / Program", "Policy Violation", "Equipment Violation"].map((h) => (
+              {["#", "Department", "Policy Violation", "Equipment Violation"].map((h) => (
                 <th key={h} className="px-4 py-3.5 text-left text-[11px] font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap">
                   {h}
                 </th>

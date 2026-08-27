@@ -20,11 +20,34 @@ export default function Step4Verification({
   handleVerifySubmit,
   endorsementFile,
   setEndorsementFile,
+  avrEquipment = [],
+  equipmentCatalog = [],
   onBack,
 }) {
   const fileInputRef = useRef(null);
   const [showTemplateModal, setShowTemplateModal] = useState(false);
   const [templateType, setTemplateType] = useState("organization");
+
+  const [contactPhone, setContactPhone] = useState(() => {
+    try {
+      const saved = localStorage.getItem("fsuu_system_settings");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.contact_phone) return parsed.contact_phone;
+      }
+    } catch {}
+    return "(085) 342-1830";
+  });
+
+  useEffect(() => {
+    api.get("/public/system-settings")
+      .then((res) => {
+        if (res.data?.contact_phone) {
+          setContactPhone(res.data.contact_phone);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const handleFileChange = (e) => {
     const file = e.target.files?.[0];
@@ -61,18 +84,6 @@ export default function Step4Verification({
 
   const isPdf = endorsementFile && endorsementFile.type === "application/pdf";
 
-  const [reqList, setReqList] = useState([]);
-
-  useEffect(() => {
-    api.get("/public/booking-requirements")
-      .then(res => {
-        if (Array.isArray(res.data) && res.data.length > 0) {
-          setReqList(res.data);
-        }
-      })
-      .catch(() => {});
-  }, []);
-
   const formatTime12 = (tStr) => {
     if (!tStr) return "";
     const [h, m] = tStr.split(":").map(Number);
@@ -87,44 +98,12 @@ export default function Step4Verification({
       {/* Side-by-Side Grid Layout */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
 
-        {/* ── Left Column: Required Documents Checklist & Upload ── */}
+        {/* ── Left Column: Booking Requirements ── */}
         <div className="bg-slate-50/70 p-6 rounded-2xl border border-slate-200/80 space-y-4">
-          <h3 className="text-sm font-extrabold text-slate-900 uppercase tracking-wide flex items-center gap-2">
-            1. Booking Requirements Checklist & Upload
-          </h3>
-          
-          {/* Individual Requirement Cards (Distinct, non-merged checklist) */}
-          <div className="space-y-2">
-            <p className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">Required Clearances & Endorsements:</p>
-            {reqList.length > 0 ? (
-              reqList.map((req, idx) => (
-                <div key={req.id || idx} className="p-3 bg-white rounded-xl border border-slate-200/80 shadow-2xs space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="font-extrabold text-slate-900 text-xs flex items-center gap-1.5">
-                      <CheckCircle2 size={14} className="text-blue-600 shrink-0" />
-                      {req.label}
-                    </span>
-                    <span className="text-[9.5px] font-extrabold bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full border border-blue-200/60 uppercase">
-                      {req.classification || 'Required'}
-                    </span>
-                  </div>
-                  {req.description && (
-                    <p className="text-[11px] text-slate-500 font-medium leading-tight pl-5">{req.description}</p>
-                  )}
-                </div>
-              ))
-            ) : (
-              <div className="p-3 bg-white rounded-xl border border-slate-200/80 text-xs font-semibold text-slate-600 flex items-center gap-2">
-                <CheckCircle2 size={15} className="text-emerald-500 shrink-0" />
-                <span>Standard Endorsement Document Clearance</span>
-              </div>
-            )}
-          </div>
-
-          <div className="flex items-center justify-between pt-1">
-            <p className="text-xs text-slate-500 font-semibold leading-relaxed">
-              Attach your signed endorsement letter below:
-            </p>
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-extrabold text-slate-900 uppercase tracking-wide flex items-center gap-2">
+              1. Booking Requirements
+            </h3>
             <button
               type="button"
               onClick={() => setShowTemplateModal(true)}
@@ -135,6 +114,10 @@ export default function Step4Verification({
               <span>View Letter Format</span>
             </button>
           </div>
+
+          <p className="text-xs text-slate-500 font-semibold leading-relaxed">
+            Attach your signed endorsement letter or authorization document below:
+          </p>
 
           <input
             ref={fileInputRef}
@@ -181,10 +164,10 @@ export default function Step4Verification({
           </div>
         </div>
 
-        {/* ── Right Column: Verification Summary & Policy Agreement ── */}
+        {/* ── Right Column: Reservation Review & Policy Agreement ── */}
         <div className="bg-slate-50/70 p-6 rounded-2xl border border-slate-200/80 space-y-5">
           <h3 className="text-sm font-extrabold text-slate-900 uppercase tracking-wide">
-            2. Reservation Verification
+            2. Reservation Review
           </h3>
 
           <div className="bg-white p-4 rounded-xl border border-slate-200/80 space-y-2.5 text-xs">
@@ -214,24 +197,70 @@ export default function Step4Verification({
                 {" "}({formatTime12(timeStart)} - {formatTime12(timeEnd)})
               </span>
             </div>
-            <div className="flex justify-between">
+            <div className="flex justify-between border-b border-slate-100 pb-2">
               <span className="text-slate-400 font-bold">Purpose</span>
               <span className="font-bold text-slate-900 max-w-[200px] text-right truncate">{purpose || "—"}</span>
             </div>
+
+            {/* Equipment Category & Requested Physical Units */}
+            {avrEquipment && avrEquipment.length > 0 && (
+              <div className="pt-2 space-y-1.5">
+                <span className="text-slate-400 font-bold block text-[11px] uppercase tracking-wider">Requested Equipment</span>
+                <div className="space-y-1.5 bg-slate-50 p-3 rounded-xl border border-slate-200/60">
+                  {avrEquipment.map((eq, idx) => {
+                    const catItem = (equipmentCatalog || []).find(c => c.id === eq.equipment_type_id || c.equipment_type_id === eq.equipment_type_id || c.id === eq.id);
+                    const name = eq.name || catItem?.name || eq.equipment_name || `Equipment Item #${idx + 1}`;
+                    const qty = eq.quantity || eq.qty || eq.quantity_requested || 1;
+                    return (
+                      <div key={eq.equipment_type_id || idx} className="flex justify-between items-center text-xs">
+                        <span className="font-bold text-slate-800">{name}</span>
+                        <span className="font-extrabold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200/60">
+                          {qty} {qty === 1 ? 'physical unit' : 'physical units'}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* Terms Agreement Checkbox */}
-          <label className="flex items-start gap-3 p-3.5 bg-white rounded-xl border border-slate-200/80 cursor-pointer hover:bg-slate-50 transition-colors">
-            <input
-              type="checkbox"
-              checked={agreedToPolicy}
-              onChange={(e) => setAgreedToPolicy(e.target.checked)}
-              className="mt-0.5 w-4 h-4 rounded text-blue-600 focus:ring-0 cursor-pointer"
-            />
-            <span className="text-[11px] text-slate-600 font-medium leading-relaxed">
-              I agree to the university facility policies and certify that all provided details and attached endorsements are authentic.
-            </span>
-          </label>
+          {/* Terms Agreement Box */}
+          <div className="bg-white p-4 rounded-xl border border-slate-200/80 space-y-3">
+            <div className="space-y-1.5 text-[11px] text-slate-600 font-medium leading-relaxed">
+              <p className="font-extrabold text-slate-800 text-xs">By confirming, the user agrees to:</p>
+              <ul className="space-y-1.5 pl-0.5 list-none">
+                <li className="flex items-start gap-1.5">
+                  <span className="text-blue-600 font-bold mt-0.5">•</span>
+                  <span>Ensure that all decorations &amp; materials adhere to venue policy and safety regulations.</span>
+                </li>
+                <li className="flex items-start gap-1.5">
+                  <span className="text-blue-600 font-bold mt-0.5">•</span>
+                  <span>Held liable for any physical units used.</span>
+                </li>
+                <li className="flex items-start gap-1.5">
+                  <span className="text-blue-600 font-bold mt-0.5">•</span>
+                  <span>Users granted a grace period 15 - 20 mins past their scheduled booking time; if they don't arrive within that time and doesn't have a valid excuse their booking is automatically cancelled.</span>
+                </li>
+                <li className="flex items-start gap-1.5">
+                  <span className="text-blue-600 font-bold mt-0.5">•</span>
+                  <span>Have the AVR personnel inspect all materials prior to entry and may deny access to any items considered unsafe.</span>
+                </li>
+              </ul>
+            </div>
+
+            <label className="flex items-start gap-3 pt-2 border-t border-slate-100 cursor-pointer hover:bg-slate-50 -mx-1 px-1 py-1 rounded-lg transition-colors">
+              <input
+                type="checkbox"
+                checked={agreedToPolicy}
+                onChange={(e) => setAgreedToPolicy(e.target.checked)}
+                className="mt-0.5 w-4 h-4 rounded text-blue-600 focus:ring-0 cursor-pointer"
+              />
+              <span className="text-[11px] text-slate-900 font-bold leading-relaxed">
+                I have read and agree to all venue policies and safety regulations.
+              </span>
+            </label>
+          </div>
 
           {/* Action Buttons: Back and Submit */}
           <div className="flex gap-2">
@@ -251,6 +280,11 @@ export default function Step4Verification({
               {isSubmitting ? "Submitting..." : "Submit Reservation Request"}
             </Button>
           </div>
+
+          {/* Note Footer */}
+          <p className="text-[11px] text-slate-400 font-medium text-center">
+            Note: Should there be any problem please contact <span className="font-bold text-slate-600">{contactPhone}</span>.
+          </p>
         </div>
 
       </div>
