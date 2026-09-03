@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Mail;
 
 class SystemSetting extends Model
 {
@@ -136,32 +137,61 @@ class SystemSetting extends Model
     public static function configureMailer(): void
     {
         try {
-            $settings = self::first();
             $configuredMailer = env('MAIL_MAILER', config('mail.default', 'smtp'));
 
+            // If explicitly configured for local development log or array, respect it without attempting socket connections
+            if (in_array($configuredMailer, ['log', 'array'])) {
+                Config::set('mail.default', $configuredMailer);
+                return;
+            }
+
+            // If the app is configured with an API transport (brevo, resend), respect it
+            if (in_array($configuredMailer, ['brevo', 'resend'])) {
+                Config::set('mail.default', $configuredMailer);
+                return;
+            }
+
+            $settings = self::first();
+            $envHost = env('MAIL_HOST');
+            $envUser = env('MAIL_USERNAME');
+            $envPass = env('MAIL_PASSWORD');
+            $envPort = env('MAIL_PORT', 587);
+            $envEnc  = env('MAIL_ENCRYPTION', 'tls');
+            $envFrom = env('MAIL_FROM_ADDRESS');
+            $envFromName = env('MAIL_FROM_NAME');
+
             if ($settings) {
-                // If the app is configured with an API transport (brevo, resend), respect it
-                if (in_array($configuredMailer, ['brevo', 'resend'])) {
-                    Config::set('mail.default', $configuredMailer);
-                } elseif (!empty($settings->smtp_host)) {
-                    Config::set('mail.default', 'smtp');
-                    Config::set('mail.mailers.smtp.host', $settings->smtp_host);
-                    Config::set('mail.mailers.smtp.port', $settings->smtp_port ?: 587);
-                    if (!empty($settings->smtp_username)) {
-                        Config::set('mail.mailers.smtp.username', $settings->smtp_username);
-                    }
-                    if (!empty($settings->smtp_password)) {
-                        Config::set('mail.mailers.smtp.password', $settings->smtp_password);
-                    }
-                    Config::set('mail.mailers.smtp.encryption', $settings->smtp_encryption ?: 'tls');
+                // If DB setting is the legacy fallback 'smtp.gmail.com' and .env specifies a configured SMTP host, sync DB
+                if ($envHost && ($settings->smtp_host === 'smtp.gmail.com' || empty($settings->smtp_host) || empty($settings->smtp_username))) {
+                    $settings->update([
+                        'smtp_host'         => $envHost,
+                        'smtp_port'         => (int) $envPort,
+                        'smtp_username'     => $envUser,
+                        'smtp_password'     => $envPass,
+                        'smtp_encryption'   => $envEnc,
+                        'mail_from_address' => $envFrom ?: $settings->mail_from_address,
+                        'mail_from_name'    => $envFromName ?: $settings->mail_from_name,
+                    ]);
+                    $settings->refresh();
                 }
 
-                if (!empty($settings->mail_from_address)) {
-                    Config::set('mail.from.address', $settings->mail_from_address);
+                if (!empty($settings->smtp_host) && !empty($settings->smtp_username)) {
+                    Config::set('mail.default', 'smtp');
+                    Config::set('mail.mailers.smtp.host', $settings->smtp_host);
+                    Config::set('mail.mailers.smtp.port', (int) ($settings->smtp_port ?: 587));
+                    Config::set('mail.mailers.smtp.username', $settings->smtp_username ?: $envUser);
+                    Config::set('mail.mailers.smtp.password', $settings->smtp_password ?: $envPass);
+                    Config::set('mail.mailers.smtp.encryption', $settings->smtp_encryption ?: $envEnc);
                 }
-                if (!empty($settings->mail_from_name)) {
-                    Config::set('mail.from.name', $settings->mail_from_name);
+
+                if (!empty($settings->mail_from_address) || !empty($envFrom)) {
+                    Config::set('mail.from.address', $settings->mail_from_address ?: $envFrom);
                 }
+                if (!empty($settings->mail_from_name) || !empty($envFromName)) {
+                    Config::set('mail.from.name', $settings->mail_from_name ?: $envFromName);
+                }
+
+                Mail::purge('smtp');
             }
         } catch (\Throwable $e) {}
     }

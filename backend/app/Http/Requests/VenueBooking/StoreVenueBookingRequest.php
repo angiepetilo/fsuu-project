@@ -2,6 +2,8 @@
 
 namespace App\Http\Requests\VenueBooking;
 
+use App\Rules\ActiveDeliverableEmail;
+use App\Rules\ValidPhilippineMobileNumber;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreVenueBookingRequest extends FormRequest
@@ -16,8 +18,8 @@ class StoreVenueBookingRequest extends FormRequest
         return [
             'venue_id' => ['required', 'exists:venues,id'],
             'requestor_name' => ['required', 'string', 'max:255'],
-            'requestor_email' => ['required', 'email', 'max:255'],
-            'requestor_contact_number' => ['required', 'string', 'max:20'],
+            'requestor_email' => ['required', 'email', 'max:255', new ActiveDeliverableEmail],
+            'requestor_contact_number' => ['required', 'string', 'max:20', new ValidPhilippineMobileNumber],
             'requestor_program_office' => ['required', 'string', 'max:255'],
             'requestor_identity_type' => ['required', 'in:student,faculty,staff,external'],
             'booking_classification' => ['required', 'in:organization,academic'],

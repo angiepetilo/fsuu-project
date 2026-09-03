@@ -46,10 +46,11 @@ class User extends Authenticatable
     ];
 
     protected $casts = [
-        'is_active'   => 'boolean',
-        'password'    => 'hashed',
-        'permissions' => 'array',
-        'invited_at'  => 'datetime',
+        'is_active'          => 'boolean',
+        'password'           => 'hashed',
+        'permissions'        => 'array',
+        'invited_at'         => 'datetime',
+        'email_verified_at'  => 'datetime',
     ];
 
     protected $appends = ['name', 'full_name', 'role_name', 'email', 'email_address'];
@@ -143,7 +144,7 @@ class User extends Authenticatable
             return false;
         }
         $r = strtolower($this->role?->slug ?? $this->role?->name ?? '');
-        return in_array($r, ['staff', 'admin', 'office_admin']) || $this->role_id === 2;
+        return in_array($r, ['staff', 'admin', 'office_admin', 'general', 'general_operations']) || $this->role_id === 2;
     }
 
     public function isStudentAssistant(): bool
@@ -155,9 +156,41 @@ class User extends Authenticatable
         return in_array($r, ['student_assistant', 'student-assistant', 'student assistant', 'sa']) || $this->role_id === 3;
     }
 
+    public function isGeneral(): bool
+    {
+        return $this->isSuperAdmin() || $this->isStaff() || $this->isStudentAssistant();
+    }
+
     public function isAdmin(): bool
     {
         return $this->isSuperAdmin() || $this->isStaff();
+    }
+
+    public function getPermissionsAttribute($value)
+    {
+        if (!is_null($value)) {
+            $decoded = is_string($value) ? json_decode($value, true) : $value;
+            if (is_array($decoded)) {
+                return $decoded;
+            }
+        }
+
+        // If user has a role, look up permissions saved for that role
+        if (!empty($this->role_id)) {
+            $sampleUser = User::where('role_id', $this->role_id)
+                ->whereNotNull('permissions')
+                ->where('id', '!=', $this->id ?? 0)
+                ->first();
+            if ($sampleUser && !is_null($sampleUser->getRawOriginal('permissions'))) {
+                $p = $sampleUser->getRawOriginal('permissions');
+                $decoded = is_string($p) ? json_decode($p, true) : $p;
+                if (is_array($decoded)) {
+                    return $decoded;
+                }
+            }
+        }
+
+        return is_array($value) ? $value : [];
     }
 
     public function hasPermission($area = null, $action = null): bool
@@ -171,16 +204,21 @@ class User extends Authenticatable
 
         $perms = $this->permissions ?? [];
         if (empty($perms)) {
-            // Default full access for staff, customized for student assistant
-            return $this->isStaff();
+            return false;
         }
 
         if (is_array($perms)) {
             if (in_array('*', $perms) || in_array($areaStr, $perms)) {
                 return true;
             }
-            if ($actionStr && (in_array("{$areaStr}.{$actionStr}", $perms) || in_array("{$areaStr}:{$actionStr}", $perms))) {
-                return true;
+            if ($actionStr) {
+                return in_array("{$areaStr}.{$actionStr}", $perms) || in_array("{$areaStr}:{$actionStr}", $perms);
+            }
+            // Check if user has any action in this area/module
+            foreach ($perms as $p) {
+                if ($p === $areaStr || str_starts_with($p, "{$areaStr}.") || str_starts_with($p, "{$areaStr}:")) {
+                    return true;
+                }
             }
         }
 

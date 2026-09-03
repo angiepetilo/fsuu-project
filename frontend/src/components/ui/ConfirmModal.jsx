@@ -1,9 +1,10 @@
-import { X, AlertTriangle, LogOut, Archive, Trash2, CheckCircle2 } from "lucide-react";
+import { X, AlertTriangle, LogOut, Archive, Ban, CheckCircle2 } from "lucide-react";
 
 const ICONS = {
   archive:  { icon: Archive,       bg: "bg-amber-50",  border: "border-amber-200", color: "text-amber-600",  btn: "bg-amber-600 hover:bg-amber-700" },
   logout:   { icon: LogOut,        bg: "bg-red-50",    border: "border-red-200",   color: "text-red-600",    btn: "bg-red-600 hover:bg-red-700"     },
-  delete:   { icon: Trash2,        bg: "bg-red-50",    border: "border-red-200",   color: "text-red-600",    btn: "bg-red-600 hover:bg-red-700"     },
+  disable:  { icon: Ban,           bg: "bg-red-50",    border: "border-red-200",   color: "text-red-600",    btn: "bg-red-600 hover:bg-red-700"     },
+  delete:   { icon: Ban,           bg: "bg-red-50",    border: "border-red-200",   color: "text-red-600",    btn: "bg-red-600 hover:bg-red-700"     },
   save:     { icon: CheckCircle2,  bg: "bg-blue-50",   border: "border-blue-200",  color: "text-blue-600",   btn: "bg-blue-600 hover:bg-blue-700"   },
   warning:  { icon: AlertTriangle, bg: "bg-amber-50",  border: "border-amber-200", color: "text-amber-600",  btn: "bg-amber-600 hover:bg-amber-700" },
 };

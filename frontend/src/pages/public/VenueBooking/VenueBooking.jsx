@@ -31,6 +31,7 @@ export default function VenueBooking({ isPortal: isPortalProp }) {
 
   const isPortal = isAuthenticated && (isPortalProp ?? (
     typeof window !== "undefined" && (
+      window.location.pathname.startsWith("/general") ||
       window.location.pathname.startsWith("/interface") ||
       window.location.pathname.startsWith("/admin") ||
       window.location.pathname.startsWith("/sysad") ||
@@ -66,6 +67,10 @@ export default function VenueBooking({ isPortal: isPortalProp }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // General Form Fields
+  const [firstName, setFirstName] = useState("");
+  const [middleName, setMiddleName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [suffix, setSuffix] = useState("");
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [department, setDepartment] = useState("");
@@ -78,7 +83,8 @@ export default function VenueBooking({ isPortal: isPortalProp }) {
   const [avrEquipment, setAvrEquipment] = useState({ mic: false, proj: false, sound: false, podium: false });
   const [equipmentRemarks, setEquipmentRemarks] = useState("");
 
-  // PIN Verification State
+  // Email & PIN Verification State
+  const [isEmailVerified, setIsEmailVerified] = useState(false);
   const [showPinModal, setShowPinModal] = useState(false);
   const [pinInput, setPinInput] = useState("");
   const [pinError, setPinError] = useState(false);
@@ -283,11 +289,21 @@ export default function VenueBooking({ isPortal: isPortalProp }) {
       };
       const bStart = b.time_start?.substring(0, 5) || "08:00";
       const bEnd = b.time_end?.substring(0, 5) || "17:00";
-      return Math.max(toMin(startTime), toMin(bStart)) < Math.min(toMin(endTime), toMin(bEnd));
+      
+      const start1 = toMin(startTime);
+      const end1 = toMin(endTime);
+      const start2 = toMin(bStart);
+      const end2 = toMin(bEnd);
+      const graceMins = Number(opHours?.arrival_grace_mins ?? 15);
+
+      const adjustedStart1 = start1 + graceMins;
+      const adjustedStart2 = start2 + graceMins;
+
+      return (start1 < end2 && end1 > adjustedStart2) && (start2 < end1 && end2 > adjustedStart1);
     });
 
     if (conflict) {
-      alert(`Conflict Detected! ${selectedVenue.name} is already booked from ${formatTime12(conflict.time_start?.substring(0, 5))} to ${formatTime12(conflict.time_end?.substring(0, 5))} on ${conflict.date_of_usage?.substring(0, 10) || selectedDate}. You cannot proceed with this schedule.`);
+      alert(`Already Reserved! ${selectedVenue.name} is already booked from ${formatTime12(conflict.time_start?.substring(0, 5))} to ${formatTime12(conflict.time_end?.substring(0, 5))} on ${conflict.date_of_usage?.substring(0, 10) || selectedDate}. You cannot proceed with this schedule.`);
       return;
     }
 
@@ -355,12 +371,6 @@ export default function VenueBooking({ isPortal: isPortalProp }) {
         return;
       }
     } else {
-      // Public Rule: Limit to maximum 3 days duration (start date + 2 additional days max)
-      if (diffDays > 2) {
-        alert(`Public venue bookings are strictly limited to a maximum duration of 3 days. You cannot extend the reservation date beyond 3 days. Please adjust your date range.`);
-        return;
-      }
-
       // Public Rule: Must follow operational hours (no outside-hours extension)
       if (isOutsideHours) {
         alert(`Selected booking time (${formatTime12(startTime)} - ${formatTime12(endTime)}) is outside official campus operating hours (${formatTime12(venueOpen)} - ${formatTime12(venueClose)}). Please select a time range within operating hours.`);
@@ -388,6 +398,10 @@ export default function VenueBooking({ isPortal: isPortalProp }) {
 
   const handleDetailsSubmit = (e) => {
     e.preventDefault();
+    if (!isEmailVerified) {
+      alert("Please verify your personal email address via OTP before proceeding to the next step.");
+      return;
+    }
     if (!completedSteps.includes(3)) setCompletedSteps([...completedSteps, 3]);
     setActiveStep(4);
   };
@@ -398,26 +412,29 @@ export default function VenueBooking({ isPortal: isPortalProp }) {
     try {
       let endpoint = '';
       const targetEndDate = selectedEndDate || selectedDate;
-      const startDt = `${selectedDate} ${startTime}:00`;
-      const endDt = `${targetEndDate} ${endTime}:00`;
+
+      const resolvedFilerName = [firstName, middleName, lastName, suffix].filter(Boolean).join(" ").trim() || fullName;
 
       const payload = {
-        requestor_name: fullName,
+        venue_id: selectedVenue?.id,
+        first_name: firstName,
+        middle_name: middleName,
+        last_name: lastName,
+        suffix: suffix,
+        requestor_name: resolvedFilerName,
         requestor_email: email,
         requestor_contact_number: contactNumber,
         requestor_program_office: department,
         requestor_identity_type: classification === 'external' ? 'external' : 'student',
-        title_of_reservation: purpose,
+        booking_classification: classification || 'academic',
         purpose: purpose,
-        event_type: 'general',
-        start_datetime: startDt,
-        end_datetime: endDt,
+        number_of_persons: parseInt(persons, 10) || 1,
         date_of_usage: selectedDate,
         reservation_end_date: targetEndDate,
         time_start: startTime,
         time_end: endTime,
         contact_preference: 'email',
-        venue_id: selectedVenue?.id,
+        is_pin_verified: isPinVerified ? 1 : 0,
       };
 
       // Format selected equipment with requested quantities and resolved category names
@@ -444,10 +461,6 @@ export default function VenueBooking({ isPortal: isPortalProp }) {
       payload.equipment_items = JSON.stringify(equipItems);
 
       endpoint = '/public/avr-venue-bookings';
-      payload.booking_classification = classification || 'academic';
-      payload.number_of_persons = parseInt(persons, 10) || 1;
-      payload.is_pin_verified = isPinVerified ? 1 : 0;
-      payload.pin_override = isPinVerified ? 1 : 0;
 
       const formData = new FormData();
       Object.keys(payload).forEach(key => {
@@ -550,6 +563,10 @@ export default function VenueBooking({ isPortal: isPortalProp }) {
             selectedDate={selectedDate}
             selectedEndDate={selectedEndDate}
             handleDetailsSubmit={handleDetailsSubmit}
+            firstName={firstName} setFirstName={setFirstName}
+            middleName={middleName} setMiddleName={setMiddleName}
+            lastName={lastName} setLastName={setLastName}
+            suffix={suffix} setSuffix={setSuffix}
             fullName={fullName} setFullName={setFullName}
             email={email} setEmail={setEmail}
             contactNumber={contactNumber} handleContactChange={handleContactChange}
@@ -562,6 +579,8 @@ export default function VenueBooking({ isPortal: isPortalProp }) {
             avrEquipment={avrEquipment} setAvrEquipment={setAvrEquipment}
             equipmentRemarks={equipmentRemarks} setEquipmentRemarks={setEquipmentRemarks}
             equipmentCatalog={equipmentCatalog}
+            isEmailVerified={isEmailVerified}
+            setIsEmailVerified={setIsEmailVerified}
             onBack={() => setActiveStep(2)}
           />
         )}

@@ -12,6 +12,9 @@ export default function TrackBooking() {
   const [loading, setLoading] = useState(false);
   const [booking, setBooking] = useState(null);
   const [trackCode, setTrackCode] = useState("");
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
+  const [cancelLoading, setCancelLoading] = useState(false);
 
   const executeTrack = async (codeToSearch) => {
     const query = (codeToSearch || trackCode).trim().toUpperCase();
@@ -363,8 +366,88 @@ export default function TrackBooking() {
                 </div>
               ) : null}
 
+              {/* Cancellation Option for Pending / Approved Requests */}
+              {['pending', 'approved'].includes((booking.status || '').toLowerCase()) && (
+                <div className="pt-4 mt-4 border-t border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-slate-50/80 p-4 rounded-2xl">
+                  <div>
+                    <h5 className="text-xs font-extrabold text-slate-800">Need to cancel this {isVenue ? 'booking' : 'borrowing'}?</h5>
+                    <p className="text-[11px] text-slate-500 font-medium">You can cancel your reservation before the scheduled start time.</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowCancelModal(true)}
+                    className="px-4 py-2 bg-white hover:bg-rose-50 text-rose-600 border border-rose-200 rounded-xl text-xs font-extrabold transition-all cursor-pointer shadow-2xs"
+                  >
+                    Cancel {isVenue ? 'Venue Booking' : 'Equipment Borrowing'}
+                  </button>
+                </div>
+              )}
+
             </div>
 
+          </div>
+        )}
+
+        {/* Cancellation Confirmation Modal */}
+        {showCancelModal && (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-[1500] flex items-center justify-center p-4">
+            <div className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl border border-slate-100 space-y-4 animate-in zoom-in-95">
+              <div className="flex items-center gap-3 text-rose-600">
+                <div className="w-10 h-10 rounded-2xl bg-rose-50 border border-rose-100 flex items-center justify-center shrink-0">
+                  <AlertCircle size={20} />
+                </div>
+                <div>
+                  <h4 className="font-extrabold text-slate-900 text-sm">Cancel Reservation</h4>
+                  <p className="text-[11px] text-slate-500 font-medium">This action cannot be undone.</p>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-700">Reason for Cancellation (Optional)</label>
+                <textarea
+                  rows={3}
+                  placeholder="e.g. Activity rescheduled, no longer needed..."
+                  value={cancelReason}
+                  onChange={(e) => setCancelReason(e.target.value)}
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 focus:outline-none focus:border-blue-600"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  disabled={cancelLoading}
+                  onClick={() => setShowCancelModal(false)}
+                  className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-100 cursor-pointer"
+                >
+                  Keep Reservation
+                </button>
+                <button
+                  type="button"
+                  disabled={cancelLoading}
+                  onClick={async () => {
+                    setCancelLoading(true);
+                    try {
+                      const ref = booking?.reference_code || trackCode;
+                      await api.post('/public/cancel-booking', {
+                        reference_code: ref,
+                        reason: cancelReason || 'Cancelled by applicant',
+                      });
+                      setShowCancelModal(false);
+                      executeTrack(ref);
+                    } catch (err) {
+                      alert(err?.response?.data?.message || 'Failed to cancel reservation.');
+                    } finally {
+                      setCancelLoading(false);
+                    }
+                  }}
+                  className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs shadow-md flex items-center gap-1.5 cursor-pointer"
+                >
+                  {cancelLoading ? <Loader2 size={13} className="animate-spin" /> : null}
+                  <span>Confirm Cancellation</span>
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>

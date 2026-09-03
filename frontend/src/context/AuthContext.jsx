@@ -106,6 +106,7 @@ export function AuthProvider({ children }) {
       clearAdminCaches();
       setUser(null);
       setToken(null);
+      window.location.replace("/login");
     }
   }, []);
 

@@ -2,9 +2,11 @@
 
 namespace App\Services;
 
-use App\Models\EquipmentBorrowing;
+use App\Models\EquipmentBorrow;
+use App\Mail\BookingStatusUpdateMail;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 
 class SmsService
 {
@@ -167,6 +169,26 @@ class SmsService
             'status'          => $res ? 'sent' : 'queued',
         ]);
 
+        // Dual Dispatch: Simultaneously send Email Reminder to ensure delivery over campus Wi-Fi
+        $email = $borrowing->requestor_email ?? $borrowing->email ?? $borrowing->filer_email ?? null;
+        if ($email) {
+            try {
+                Mail::to($email)->send(new BookingStatusUpdateMail('equipment', $borrowing, 'overdue', $message));
+                \App\Models\CommunicationLog::record([
+                    'channel'         => 'email',
+                    'category'        => 'overdue_reminder',
+                    'recipient_name'  => $requestorName,
+                    'recipient_email' => $email,
+                    'reference_code'  => $refCode,
+                    'subject'         => "Email: Urgent Overdue Reminder [{$refCode}]",
+                    'message_preview' => $message,
+                    'status'          => 'sent',
+                ]);
+            } catch (\Throwable $e) {
+                Log::warning("SmsService: Dual Email dispatch for overdue failed: " . $e->getMessage());
+            }
+        }
+
         return $res;
     }
 
@@ -210,6 +232,26 @@ class SmsService
             'status'          => $res ? 'sent' : 'queued',
         ]);
 
+        // Dual Dispatch: Also send Email Advance Reminder
+        $email = $borrowing->requestor_email ?? $borrowing->email ?? $borrowing->filer_email ?? null;
+        if ($email) {
+            try {
+                Mail::to($email)->send(new BookingStatusUpdateMail('equipment', $borrowing, 'due_soon', $message));
+                \App\Models\CommunicationLog::record([
+                    'channel'         => 'email',
+                    'category'        => 'urgent_reminder',
+                    'recipient_name'  => $requestorName,
+                    'recipient_email' => $email,
+                    'reference_code'  => $refCode,
+                    'subject'         => "Email: Due Time Advance Reminder [{$refCode}]",
+                    'message_preview' => $message,
+                    'status'          => 'sent',
+                ]);
+            } catch (\Throwable $e) {
+                Log::warning("SmsService: Dual Email dispatch for due reminder failed: " . $e->getMessage());
+            }
+        }
+
         return $res;
     }
 
@@ -252,6 +294,26 @@ class SmsService
             'message_preview' => $message,
             'status'          => $res ? 'sent' : 'queued',
         ]);
+
+        // Dual Dispatch: Also send Email Return Notice
+        $email = $borrowing->requestor_email ?? $borrowing->email ?? $borrowing->filer_email ?? null;
+        if ($email) {
+            try {
+                Mail::to($email)->send(new BookingStatusUpdateMail('equipment', $borrowing, 'return_reminder', $message));
+                \App\Models\CommunicationLog::record([
+                    'channel'         => 'email',
+                    'category'        => 'return_reminder',
+                    'recipient_name'  => $requestorName,
+                    'recipient_email' => $email,
+                    'reference_code'  => $refCode,
+                    'subject'         => "Email: Equipment Return Notice [{$refCode}]",
+                    'message_preview' => $message,
+                    'status'          => 'sent',
+                ]);
+            } catch (\Throwable $e) {
+                Log::warning("SmsService: Dual Email dispatch for return reminder failed: " . $e->getMessage());
+            }
+        }
 
         return $res;
     }

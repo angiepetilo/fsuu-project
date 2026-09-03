@@ -23,17 +23,17 @@ const AccountActivation  = lazy(() => import("./pages/auth/AccountActivation"));
 const SysadLayout        = lazy(() => import("./pages/superadmin/SysadLayout"));
 const SysadSettings      = lazy(() => import("./pages/superadmin/SysadSettings"));
 
-// Admin pages
-const AdminLayout        = lazy(() => import("./pages/admin/AdminLayout"));
-const Dashboard          = lazy(() => import("./pages/admin/Dashboard"));
-const VenueBookings      = lazy(() => import("./pages/admin/VenueBookings"));
-const EquipmentBorrowings = lazy(() => import("./pages/admin/EquipmentBorrowings"));
-const ManageEquipments   = lazy(() => import("./pages/admin/ManageEquipments"));
-const ManageVenues       = lazy(() => import("./pages/admin/ManageVenues"));
-const Reports            = lazy(() => import("./pages/admin/Reports"));
-const HistoryLog         = lazy(() => import("./pages/admin/HistoryLog"));
-const Settings           = lazy(() => import("./pages/admin/Settings"));
-const PortalInterface    = lazy(() => import("./pages/admin/PortalInterface"));
+// General Operations (Staff & Student Assistants) pages
+const GeneralLayout      = lazy(() => import("./pages/general/GeneralLayout"));
+const Dashboard          = lazy(() => import("./pages/general/Dashboard"));
+const VenueBookings      = lazy(() => import("./pages/general/VenueBookings"));
+const EquipmentBorrowings = lazy(() => import("./pages/general/EquipmentBorrowings"));
+const ManageEquipments   = lazy(() => import("./pages/general/ManageEquipments"));
+const ManageVenues       = lazy(() => import("./pages/general/ManageVenues"));
+const Reports            = lazy(() => import("./pages/general/Reports"));
+const HistoryLog         = lazy(() => import("./pages/general/HistoryLog"));
+const Settings           = lazy(() => import("./pages/general/Settings"));
+const PortalInterface    = lazy(() => import("./pages/general/PortalInterface"));
 
 import { Toaster } from "@/components/ui/sonner";
 
@@ -89,14 +89,14 @@ function AppContent() {
     if (userRole === "superadmin" || userRole === "super_admin") {
       navigate("/sysad/dashboard");
     } else {
-      navigate("/admin/dashboard");
+      navigate("/general/dashboard");
     }
   };
 
   const isAuthPage     = location.pathname.startsWith("/login") || location.pathname.startsWith("/auth") || location.pathname.startsWith("/activate");
-  const isAdminPage    = location.pathname.startsWith("/admin");
+  const isGeneralPage  = location.pathname.startsWith("/general") || location.pathname.startsWith("/admin");
   const isSysadPage    = location.pathname.startsWith("/sysad");
-  const hideHeaderFooter = isAuthPage || isAdminPage || isSysadPage;
+  const hideHeaderFooter = isAuthPage || isGeneralPage || isSysadPage;
 
   const [publicSettings, setPublicSettings] = useState(() => {
     try {
@@ -130,14 +130,16 @@ function AppContent() {
 
     loadSettings();
 
-    const handleSettingsUpdated = () => {
+    const handleSettingsUpdated = (e) => {
+      // If triggered by a cross-tab storage event, ONLY react if the affected key is fsuu_system_settings
+      if (e?.key && e.key !== "fsuu_system_settings") return;
+
       try {
         const saved = localStorage.getItem("fsuu_system_settings");
         if (saved) {
           setPublicSettings(JSON.parse(saved));
         }
       } catch {}
-      loadSettings();
     };
 
     window.addEventListener("fsuu_system_settings_updated", handleSettingsUpdated);
@@ -205,7 +207,7 @@ function AppContent() {
 
               {(user || token) && (
                 <Link
-                  to={userRole === "superadmin" || userRole === "super_admin" ? "/sysad/dashboard" : "/admin/dashboard"}
+                  to={userRole === "superadmin" || userRole === "super_admin" ? "/sysad/dashboard" : "/general/dashboard"}
                   className="flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-extrabold bg-slate-900 hover:bg-slate-800 text-white transition-all shadow-xs"
                 >
                   <LayoutDashboard size={14} />
@@ -218,7 +220,7 @@ function AppContent() {
       )}
 
       <main className={
-        (isAdminPage || isSysadPage)
+        (isGeneralPage || isSysadPage)
           ? "w-full min-h-screen"
           : isAuthPage
             ? "w-full min-h-screen"
@@ -273,13 +275,13 @@ function AppContent() {
               <Route path="settings"            element={<SysadSettings />} />
             </Route>
 
-            {/* Admin — nested under AdminLayout */}
-            <Route path="/admin" element={
+            {/* General Operations (Staff & Student Assistants) */}
+            <Route path="/general" element={
               <ProtectedInterfaceRoute>
-                <AdminLayout />
+                <GeneralLayout />
               </ProtectedInterfaceRoute>
             }>
-              <Route index              element={<Navigate to="/admin/dashboard" replace />} />
+              <Route index                      element={<Navigate to="/general/dashboard" replace />} />
               <Route path="dashboard"           element={<Dashboard />} />
               <Route path="venue-bookings"      element={<VenueBookings />} />
               <Route path="equipment-borrowing" element={<EquipmentBorrowings />} />
@@ -289,6 +291,24 @@ function AppContent() {
               <Route path="reports"             element={<Reports />} />
               <Route path="history-log"         element={<HistoryLog />} />
               <Route path="settings"            element={<Settings />} />
+            </Route>
+
+            {/* /admin compatibility aliases redirecting to /general */}
+            <Route path="/admin" element={
+              <ProtectedInterfaceRoute>
+                <GeneralLayout />
+              </ProtectedInterfaceRoute>
+            }>
+              <Route index                      element={<Navigate to="/general/dashboard" replace />} />
+              <Route path="dashboard"           element={<Navigate to="/general/dashboard" replace />} />
+              <Route path="venue-bookings"      element={<Navigate to="/general/venue-bookings" replace />} />
+              <Route path="equipment-borrowing" element={<Navigate to="/general/equipment-borrowing" replace />} />
+              <Route path="equipment-borrowings" element={<Navigate to="/general/equipment-borrowing" replace />} />
+              <Route path="manage-equipments"   element={<Navigate to="/general/manage-equipments" replace />} />
+              <Route path="manage-venues"       element={<Navigate to="/general/manage-venues" replace />} />
+              <Route path="reports"             element={<Navigate to="/general/reports" replace />} />
+              <Route path="history-log"         element={<Navigate to="/general/history-log" replace />} />
+              <Route path="settings"            element={<Navigate to="/general/settings" replace />} />
             </Route>
 
             {/* Fallback */}

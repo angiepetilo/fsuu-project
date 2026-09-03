@@ -38,6 +38,12 @@ class AuthController extends Controller
             ], 403);
         }
 
+        if (is_null($user->email_verified_at) && !$user->isSuperAdmin()) {
+            return response()->json([
+                'message' => 'Your email address has not been verified. Please check your inbox or ask your administrator to resend the invitation.'
+            ], 403);
+        }
+
         if ($user->status === 'inactive' || $user->status === 'disabled' || $user->is_active === false || !is_null($user->archived_at)) {
             return response()->json([
                 'message' => 'This account is currently deactivated or disabled. Please contact the system administrator.'
@@ -122,6 +128,7 @@ class AuthController extends Controller
         $user->suffix       = $suffix;
         $user->name         = $fullName;
         $user->password     = \Illuminate\Support\Facades\Hash::make($validated['password']);
+        $user->email_verified_at = now();
         $user->status       = 'active';
         $user->is_active    = true;
         $user->invite_token = null;

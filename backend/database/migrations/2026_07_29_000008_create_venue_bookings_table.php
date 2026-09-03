@@ -15,7 +15,9 @@ return new class extends Migration
             $table->foreignId('venue_id')->constrained('venues')->cascadeOnDelete();
             $table->string('submission_channel')->default('online_self');
             $table->string('first_name')->nullable();
+            $table->string('middle_name')->nullable();
             $table->string('last_name')->nullable();
+            $table->string('suffix')->nullable();
             $table->string('filer_name')->nullable();
             $table->string('email_address');
             $table->foreignId('department_id')->nullable()->constrained('departments')->nullOnDelete();

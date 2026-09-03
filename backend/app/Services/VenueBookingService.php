@@ -55,27 +55,33 @@ class VenueBookingService
                 ->lockForUpdate()
                 ->firstOrFail();
 
+            // SPEC RULE 1 & 5: Pending state does NOT lock the venue/date/timeslot.
+            // Multiple pending requests can coexist. Only approved/ongoing bookings hard-lock the slot against new submissions.
+            // Arrival Grace Period allows the next booker to reserve starting up to arrival_grace_mins before end time.
+            $arrivalGraceMins = (int) (\App\Models\OperatingHour::first()?->arrival_grace_mins ?? 15);
+            $adjustedTimeStart = date('H:i:s', min(strtotime('23:59:59'), strtotime($timeStart) + ($arrivalGraceMins * 60)));
+
             $hasOverlap = DB::table('venue_bookings')
                 ->join('tracking_numbers', 'venue_bookings.tracking_number_id', '=', 'tracking_numbers.id')
                 ->where('venue_bookings.venue_id', $venue->id)
-                ->whereIn('tracking_numbers.status', ['pending', 'approved'])
-                ->where(function ($q) use ($dateOfUsage, $reservationEndDate, $timeStart, $timeEnd) {
-                    $q->where(function ($sub) use ($dateOfUsage, $timeStart, $timeEnd) {
+                ->whereIn('tracking_numbers.status', ['approved', 'ongoing', 'on-going'])
+                ->where(function ($q) use ($dateOfUsage, $reservationEndDate, $timeStart, $timeEnd, $adjustedTimeStart) {
+                    $q->where(function ($sub) use ($dateOfUsage, $timeEnd, $adjustedTimeStart) {
                         $sub->where('venue_bookings.date_of_usage', '<=', $dateOfUsage)
                             ->whereRaw('COALESCE(venue_bookings.reservation_end_date, venue_bookings.date_of_usage) >= ?', [$dateOfUsage])
                             ->where('venue_bookings.time_start', '<', $timeEnd)
-                            ->where('venue_bookings.time_end', '>', $timeStart);
-                    })->orWhere(function ($sub2) use ($dateOfUsage, $reservationEndDate, $timeStart, $timeEnd) {
+                            ->where('venue_bookings.time_end', '>', $adjustedTimeStart);
+                    })->orWhere(function ($sub2) use ($dateOfUsage, $reservationEndDate, $timeEnd, $adjustedTimeStart) {
                         $sub2->where('venue_bookings.date_of_usage', '<=', $reservationEndDate)
                             ->whereRaw('COALESCE(venue_bookings.reservation_end_date, venue_bookings.date_of_usage) >= ?', [$dateOfUsage])
                             ->where('venue_bookings.time_start', '<', $timeEnd)
-                            ->where('venue_bookings.time_end', '>', $timeStart);
+                            ->where('venue_bookings.time_end', '>', $adjustedTimeStart);
                     });
                 })
                 ->exists();
 
             if ($hasOverlap) {
-                throw new VenueOverlapException('This venue is already booked for the selected date and time range.');
+                throw new VenueOverlapException('This venue has already been confirmed and locked for another approved reservation on the selected date and time range.');
             }
 
             // Anti-Spam Duplicate Prevention (15-Minute Buffer)
@@ -131,6 +137,10 @@ class VenueBookingService
                 'tracking_number_id'   => $trackingId,
                 'venue_id'             => $venue->id,
                 'submission_channel'   => 'online_self',
+                'first_name'           => $data['first_name'] ?? null,
+                'middle_name'          => $data['middle_name'] ?? null,
+                'last_name'            => $data['last_name'] ?? null,
+                'suffix'               => $data['suffix'] ?? null,
                 'filer_name'           => $filerName,
                 'email_address'        => $email,
                 'program_office'       => $office,
@@ -145,6 +155,8 @@ class VenueBookingService
                 'time_end'             => $timeEnd,
                 'equipment_notes'      => $data['equipment_notes'] ?? null,
                 'agreed_to_policy'     => true,
+                'claim_timestamp'      => isset($data['claim_timestamp']) ? $data['claim_timestamp'] : (isset($data['is_complete']) && !$data['is_complete'] ? null : now()),
+                'is_complete'          => isset($data['is_complete']) ? (bool)$data['is_complete'] : true,
                 'created_at'           => now(),
                 'updated_at'           => now(),
             ];
@@ -270,6 +282,52 @@ class VenueBookingService
     public function approve(VenueBooking $booking, User $actor, ?string $remarks = null): VenueBooking
     {
         return DB::transaction(function () use ($booking, $actor, $remarks) {
+            $venueId = $booking->venue_id;
+            $rawDate = $booking->date_of_usage ? (is_string($booking->date_of_usage) ? substr($booking->date_of_usage, 0, 10) : $booking->date_of_usage->format('Y-m-d')) : date('Y-m-d');
+            $rawEndDate = $booking->reservation_end_date ? (is_string($booking->reservation_end_date) ? substr($booking->reservation_end_date, 0, 10) : $booking->reservation_end_date->format('Y-m-d')) : $rawDate;
+            $timeStart = $booking->time_start ?: '08:00:00';
+            $timeEnd = $booking->time_end ?: '17:00:00';
+            $myClaim = $booking->claim_timestamp ?: $booking->created_at ?: now();
+
+            // SPEC RULE 3: APPROVAL RESOLUTION — EARLIEST COMPLETE CLAIM WINS
+            // Check if another competing pending request is COMPLETE and has an EARLIER claim timestamp.
+            $earlierCompleteClaim = VenueBooking::query()
+                ->join('tracking_numbers', 'venue_bookings.tracking_number_id', '=', 'tracking_numbers.id')
+                ->where('venue_bookings.venue_id', $venueId)
+                ->where('venue_bookings.id', '!=', $booking->id)
+                ->where('tracking_numbers.status', 'pending')
+                ->where('venue_bookings.is_complete', true)
+                ->where(function ($q) use ($rawDate, $rawEndDate, $timeStart, $timeEnd) {
+                    $q->where(function ($sub) use ($rawDate, $timeStart, $timeEnd) {
+                        $sub->where('venue_bookings.date_of_usage', '<=', $rawDate)
+                            ->whereRaw('COALESCE(venue_bookings.reservation_end_date, venue_bookings.date_of_usage) >= ?', [$rawDate])
+                            ->where('venue_bookings.time_start', '<', $timeEnd)
+                            ->where('venue_bookings.time_end', '>', $timeStart);
+                    })->orWhere(function ($sub2) use ($rawDate, $rawEndDate, $timeStart, $timeEnd) {
+                        $sub2->where('venue_bookings.date_of_usage', '<=', $rawEndDate)
+                            ->whereRaw('COALESCE(venue_bookings.reservation_end_date, venue_bookings.date_of_usage) >= ?', [$rawDate])
+                            ->where('venue_bookings.time_start', '<', $timeEnd)
+                            ->where('venue_bookings.time_end', '>', $timeStart);
+                    });
+                })
+                ->where(function ($q) use ($myClaim, $booking) {
+                    $q->where('venue_bookings.claim_timestamp', '<', $myClaim)
+                      ->orWhere(function($sub) use ($myClaim, $booking) {
+                          $sub->where('venue_bookings.claim_timestamp', '=', $myClaim)
+                              ->where('venue_bookings.id', '<', $booking->id); // Tie-break by submission sequence
+                      });
+                })
+                ->select('venue_bookings.*', 'tracking_numbers.reference_code as tracking_ref')
+                ->first();
+
+            if ($earlierCompleteClaim) {
+                $earlierRef = $earlierCompleteClaim->tracking_ref ?: "TRK-AVR-{$earlierCompleteClaim->id}";
+                throw new BookingActionNotAllowedException(
+                    "Cannot approve: An earlier complete reservation request ({$earlierRef}) with priority claim timestamp exists for this venue and timeslot. Earliest complete claim must be resolved first."
+                );
+            }
+
+            // Approve current booking
             if (\Illuminate\Support\Facades\Schema::hasColumn('venue_bookings', 'status')) {
                 $booking->forceFill(['status' => 'approved'])->save();
             }
@@ -331,6 +389,84 @@ class VenueBookingService
                 $ref = $booking->reference_code ?? $booking->trackingNumber?->reference_code ?? ('TRK-VB-' . $booking->id);
                 event(new \App\Events\BookingStatusUpdated('venue_booking', $ref, 'approved', $booking->id, $remarks));
             } catch (\Throwable $e) {}
+
+            // SPEC RULE 4: AUTO-REJECTION OF COMPETING PENDING REQUESTS
+            // Automatically reject all other pending requests (complete or incomplete) for the SAME date/venue/timeslot.
+            $competingPendingBookings = VenueBooking::query()
+                ->join('tracking_numbers', 'venue_bookings.tracking_number_id', '=', 'tracking_numbers.id')
+                ->where('venue_bookings.venue_id', $venueId)
+                ->where('venue_bookings.id', '!=', $booking->id)
+                ->where('tracking_numbers.status', 'pending')
+                ->where(function ($q) use ($rawDate, $rawEndDate, $timeStart, $timeEnd) {
+                    $q->where(function ($sub) use ($rawDate, $timeStart, $timeEnd) {
+                        $sub->where('venue_bookings.date_of_usage', '<=', $rawDate)
+                            ->whereRaw('COALESCE(venue_bookings.reservation_end_date, venue_bookings.date_of_usage) >= ?', [$rawDate])
+                            ->where('venue_bookings.time_start', '<', $timeEnd)
+                            ->where('venue_bookings.time_end', '>', $timeStart);
+                    })->orWhere(function ($sub2) use ($rawDate, $rawEndDate, $timeStart, $timeEnd) {
+                        $sub2->where('venue_bookings.date_of_usage', '<=', $rawEndDate)
+                            ->whereRaw('COALESCE(venue_bookings.reservation_end_date, venue_bookings.date_of_usage) >= ?', [$rawDate])
+                            ->where('venue_bookings.time_start', '<', $timeEnd)
+                            ->where('venue_bookings.time_end', '>', $timeStart);
+                    });
+                })
+                ->select('venue_bookings.*')
+                ->get();
+
+            $autoRejectReason = "This date and timeslot was already confirmed and occupied by another reservation. Please re-book by selecting a different date and/or timeslot.";
+
+            foreach ($competingPendingBookings as $competing) {
+                if (\Illuminate\Support\Facades\Schema::hasColumn('venue_bookings', 'status')) {
+                    $competing->forceFill(['status' => 'rejected'])->save();
+                }
+
+                DB::table('tracking_numbers')
+                    ->where('id', $competing->tracking_number_id)
+                    ->orWhere('reference_code', $competing->reference_code)
+                    ->orWhere(function($q) use ($competing) {
+                        $q->where('reservation_type', 'venue_booking')->where('reservation_id', $competing->id);
+                    })
+                    ->update([
+                        'status'      => 'rejected',
+                        'rejected_by' => $actor->id,
+                        'approved_by' => null,
+                    ]);
+
+                if (\Illuminate\Support\Facades\Schema::hasTable('approvals')) {
+                    DB::table('approvals')->insert([
+                        'reference_type' => 'avr_venue_booking',
+                        'reference_id'   => $competing->id,
+                        'action'         => 'rejected',
+                        'remarks'        => $autoRejectReason,
+                        'approved_by'    => $actor->id,
+                        'created_at'     => now(),
+                        'updated_at'     => now(),
+                    ]);
+                }
+
+                $this->auditLog->log(
+                    $actor,
+                    'VENUE_BOOKING_AUTO_REJECTED_DUE_TO_CONFLICT',
+                    'venue_bookings',
+                    $competing->id,
+                    [
+                        'remarks'         => $autoRejectReason,
+                        'reference_code'  => $competing->reference_code ?? $competing->trackingNumber?->reference_code,
+                        'winning_booking' => $booking->reference_code ?? $booking->trackingNumber?->reference_code,
+                    ]
+                );
+
+                $this->notification->log(
+                    'avr_venue_booking',
+                    $competing->id,
+                    'booking_rejected',
+                    $competing->contact_preference ?? 'email',
+                    $competing->email_address ?? $competing->requestor_email
+                );
+
+                // Dispatch rejection email/SMS update to auto-rejected applicant with re-booking prompt
+                SendBookingStatusUpdateJob::dispatch('venue', $competing->fresh(), 'rejected', $autoRejectReason);
+            }
 
             return $booking->fresh();
         });

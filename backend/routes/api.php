@@ -12,19 +12,24 @@ use App\Http\Controllers\SuperAdmin\DepartmentController;
 use App\Http\Controllers\SuperAdmin\OperatingHoursController;
 use App\Http\Controllers\SuperAdmin\VerificationPinController;
 use App\Http\Controllers\SuperAdmin\BookingRequirementController;
-use App\Http\Controllers\SuperAdmin\NotificationController as SuperAdminNotificationController;
+use App\Http\Controllers\SuperAdmin\RoleController;
 
-// ─── Admin Controllers ────────────────────────────────────────────────────────
-use App\Http\Controllers\Admin\UserController;
-use App\Http\Controllers\Admin\VenueController;
-use App\Http\Controllers\Admin\EquipmentTypeController;
-use App\Http\Controllers\Admin\EquipmentUnitController;
-use App\Http\Controllers\Admin\EquipmentDamageController;
-use App\Http\Controllers\Admin\DepartmentAnalyticsController;
-use App\Http\Controllers\Admin\HistoryLogController;
-use App\Http\Controllers\Admin\NotificationController as AdminNotificationController;
-use App\Http\Controllers\Admin\DashboardStatsController;
-use App\Http\Controllers\Admin\VenueAvailabilityController;
+// ─── General Controllers ───────────────────────────────────────────────────────
+use App\Http\Controllers\General\UserController;
+use App\Http\Controllers\General\VenueController;
+use App\Http\Controllers\General\EquipmentTypeController;
+use App\Http\Controllers\General\EquipmentUnitController;
+use App\Http\Controllers\General\EquipmentDamageController;
+use App\Http\Controllers\General\DepartmentAnalyticsController;
+use App\Http\Controllers\General\HistoryLogController;
+use App\Http\Controllers\General\NotificationController;
+use App\Http\Controllers\General\DashboardStatsController;
+use App\Http\Controllers\General\VenueAvailabilityController;
+use App\Http\Controllers\General\CategoryRequestController;
+use App\Http\Controllers\General\SystemSettingController;
+use App\Http\Controllers\General\ViolationCategoryController;
+use App\Http\Controllers\General\CommunicationLogController;
+use App\Http\Controllers\General\EmailVerificationController;
 
 // ─── Bookings & Borrowings (Internal) ─────────────────────────────────────────
 use App\Http\Controllers\VenueBookingController;
@@ -38,6 +43,7 @@ use App\Http\Controllers\Public\VenueBookingController as PublicVenueBookingCont
 use App\Http\Controllers\Public\EquipmentBorrowingController as PublicEquipmentBorrowingController;
 use App\Http\Controllers\Public\TrackingController;
 use App\Http\Controllers\Public\OtpController;
+use App\Http\Controllers\Public\PhoneOtpController;
 
 // ─── Lightweight Health Check / Keep-Alive for Render Uptime ──────────────────
 Route::get('/health', function () {
@@ -51,7 +57,10 @@ Route::get('/health', function () {
 // ─── Public Operating Hours, Overrides & System Settings ────────────────────
 Route::get('/public/operating-hours', [OperatingHoursController::class, 'publicShow']);
 Route::get('/public/venue-overrides', [VenueAvailabilityController::class, 'publicOverrides']);
-Route::get('/public/system-settings', [\App\Http\Controllers\Admin\SystemSettingController::class, 'publicShow']);
+Route::get('/public/system-settings', [SystemSettingController::class, 'publicShow']);
+Route::post('/public/verify-email-active', [EmailVerificationController::class, 'verifyActive'])->middleware('throttle:60,1');
+Route::post('/public/track', [TrackingController::class, 'track'])->middleware('throttle:60,1');
+Route::post('/public/cancel-booking', [TrackingController::class, 'cancel'])->middleware('throttle:20,1');
 
 // ─── Authentication ────────────────────────────────────────────────────────────
 Route::get('/auth/google/redirect', [GoogleAuthController::class, 'redirect']);
@@ -60,7 +69,7 @@ Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:lo
 Route::get('/auth/invite/{token}', [AuthController::class, 'getInviteDetails']);
 Route::post('/auth/activate', [AuthController::class, 'activateAccount'])->middleware('throttle:auth-activate');
 
-// ─── Authenticated Routes (Staff & Admin) ─────────────────────────────────────
+// ─── Authenticated Routes (Staff & General Operations) ────────────────────────
 Route::middleware('auth:sanctum')->group(function () {
 
     Route::post('/logout', [AuthController::class, 'logout']);
@@ -69,38 +78,70 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/user/profile', [AuthController::class, 'updateProfile']);
     Route::get('/dashboard/stats', [DashboardStatsController::class, 'index']);
 
-    // ── Admin: Users ───────────────────────────────────────────────────────────
+    // ── General: Users ─────────────────────────────────────────────────────────
+    Route::post('/general/users/{id}/resend-invite', [UserController::class, 'resendInvite']);
+    Route::apiResource('general/users', UserController::class)->except(['show']);
     Route::post('/admin/users/{id}/resend-invite', [UserController::class, 'resendInvite']);
     Route::apiResource('admin/users', UserController::class)->except(['show']);
 
-    // ── Admin: Venues ──────────────────────────────────────────────────────────
-    Route::get('/admin/venues',         [VenueController::class, 'index']);
-    Route::get('/admin/venues/{id}',    [VenueController::class, 'show']);
-    Route::post('/admin/venues',        [VenueController::class, 'store']);
-    Route::put('/admin/venues/{id}',    [VenueController::class, 'update']);
-    Route::delete('/admin/venues/{id}', [VenueController::class, 'destroy']);
+    // ── General: Venues ────────────────────────────────────────────────────────
+    Route::get('/general/venues',         [VenueController::class, 'index']);
+    Route::get('/general/venues/{id}',    [VenueController::class, 'show']);
+    Route::post('/general/venues',        [VenueController::class, 'store']);
+    Route::put('/general/venues/{id}',    [VenueController::class, 'update']);
+    Route::delete('/general/venues/{id}', [VenueController::class, 'destroy']);
+    Route::get('/admin/venues',           [VenueController::class, 'index']);
+    Route::get('/admin/venues/{id}',      [VenueController::class, 'show']);
+    Route::post('/admin/venues',          [VenueController::class, 'store']);
+    Route::put('/admin/venues/{id}',      [VenueController::class, 'update']);
+    Route::delete('/admin/venues/{id}',   [VenueController::class, 'destroy']);
 
-    // ── Admin: Venue Availability Calendar ────────────────────────────────────
-    Route::get('/admin/venue-availability',         [VenueAvailabilityController::class, 'index']);
-    Route::get('/admin/venues-list',                [VenueAvailabilityController::class, 'venuesList']);
-    Route::post('/admin/venue-availability',        [VenueAvailabilityController::class, 'store']);
-    Route::delete('/admin/venue-availability/{id}', [VenueAvailabilityController::class, 'destroy']);
+    // ── General: Venue Availability Calendar ──────────────────────────────────
+    Route::get('/general/venue-availability',         [VenueAvailabilityController::class, 'index']);
+    Route::get('/general/venues-list',                [VenueAvailabilityController::class, 'venuesList']);
+    Route::post('/general/venue-availability',        [VenueAvailabilityController::class, 'store']);
+    Route::delete('/general/venue-availability/{id}', [VenueAvailabilityController::class, 'destroy']);
+    Route::get('/admin/venue-availability',           [VenueAvailabilityController::class, 'index']);
+    Route::get('/admin/venues-list',                  [VenueAvailabilityController::class, 'venuesList']);
+    Route::post('/admin/venue-availability',          [VenueAvailabilityController::class, 'store']);
+    Route::delete('/admin/venue-availability/{id}',   [VenueAvailabilityController::class, 'destroy']);
 
-    // ── Admin: Equipment Types & Units ─────────────────────────────────────────
-    Route::get('/admin/equipment-types',         [EquipmentTypeController::class, 'index']);
-    Route::post('/admin/equipment-types',        [EquipmentTypeController::class, 'store']);
-    Route::put('/admin/equipment-types/{id}',    [EquipmentTypeController::class, 'update']);
-    Route::delete('/admin/equipment-types/{id}', [EquipmentTypeController::class, 'destroy']);
+    // ── General: Equipment Types & Units ───────────────────────────────────────
+    Route::get('/general/equipment-types',         [EquipmentTypeController::class, 'index']);
+    Route::post('/general/equipment-types',        [EquipmentTypeController::class, 'store']);
+    Route::put('/general/equipment-types/{id}',    [EquipmentTypeController::class, 'update']);
+    Route::delete('/general/equipment-types/{id}', [EquipmentTypeController::class, 'destroy']);
+    Route::get('/admin/equipment-types',           [EquipmentTypeController::class, 'index']);
+    Route::post('/admin/equipment-types',          [EquipmentTypeController::class, 'store']);
+    Route::put('/admin/equipment-types/{id}',      [EquipmentTypeController::class, 'update']);
+    Route::delete('/admin/equipment-types/{id}',   [EquipmentTypeController::class, 'destroy']);
 
-    Route::get('/admin/equipment-units',         [EquipmentUnitController::class, 'index']);
-    Route::post('/admin/equipment-units',        [EquipmentUnitController::class, 'store']);
-    Route::put('/admin/equipment-units/{id}',    [EquipmentUnitController::class, 'update']);
-    Route::delete('/admin/equipment-units/{id}', [EquipmentUnitController::class, 'destroy']);
+    Route::get('/general/equipment-units',         [EquipmentUnitController::class, 'index']);
+    Route::post('/general/equipment-units',        [EquipmentUnitController::class, 'store']);
+    Route::put('/general/equipment-units/{id}',    [EquipmentUnitController::class, 'update']);
+    Route::delete('/general/equipment-units/{id}', [EquipmentUnitController::class, 'destroy']);
+    Route::get('/admin/equipment-units',           [EquipmentUnitController::class, 'index']);
+    Route::post('/admin/equipment-units',          [EquipmentUnitController::class, 'store']);
+    Route::put('/admin/equipment-units/{id}',      [EquipmentUnitController::class, 'update']);
+    Route::delete('/admin/equipment-units/{id}',   [EquipmentUnitController::class, 'destroy']);
 
-    // ── Admin: Analytics & Reports ────────────────────────────────────────────
-    Route::get('/admin/equipment-damages',    [EquipmentDamageController::class, 'index']);
-    Route::get('/admin/department-analytics', [DepartmentAnalyticsController::class, 'index']);
-    Route::post('/admin/send-report-email', function (Request $request) {
+    // ── General: Equipment Category Requests (Student Assistant Proposals) ─────
+    Route::get('/general/category-requests',             [CategoryRequestController::class, 'index']);
+    Route::post('/general/category-requests',            [CategoryRequestController::class, 'store']);
+    Route::post('/general/category-requests/{id}/approve', [CategoryRequestController::class, 'approve']);
+    Route::post('/general/category-requests/{id}/reject',  [CategoryRequestController::class, 'reject']);
+    Route::get('/admin/category-requests',               [CategoryRequestController::class, 'index']);
+    Route::post('/admin/category-requests',              [CategoryRequestController::class, 'store']);
+    Route::post('/admin/category-requests/{id}/approve', [CategoryRequestController::class, 'approve']);
+    Route::post('/admin/category-requests/{id}/reject',  [CategoryRequestController::class, 'reject']);
+
+    // ── General: Analytics & Reports ──────────────────────────────────────────
+    Route::get('/general/equipment-damages',    [EquipmentDamageController::class, 'index']);
+    Route::get('/general/department-analytics', [DepartmentAnalyticsController::class, 'index']);
+    Route::get('/admin/equipment-damages',      [EquipmentDamageController::class, 'index']);
+    Route::get('/admin/department-analytics',   [DepartmentAnalyticsController::class, 'index']);
+
+    $sendReportHandler = function (Request $request) {
         $validated = $request->validate([
             'recipient' => 'required|email',
             'subject'   => 'nullable|string',
@@ -225,61 +266,118 @@ Route::middleware('auth:sanctum')->group(function () {
             'message' => "Email sending failed: " . ($errorMessage ?: "Could not connect to configured mail server. Please check SMTP settings."),
             'error'   => $errorMessage,
         ], 500);
-    });
+    };
 
-    // ── Admin: History Log (with type filter + soft-delete) ───────────────────
-    Route::get('/admin/history-log',                        [HistoryLogController::class, 'index']);
-    Route::post('/admin/history-log/undo',                 [HistoryLogController::class, 'undo']);
-    Route::delete('/admin/history-log/venue/{id}',      [HistoryLogController::class, 'destroyVenue']);
-    Route::delete('/admin/history-log/equipment/{id}',  [HistoryLogController::class, 'destroyEquipment']);
+    Route::post('/general/send-report-email', $sendReportHandler);
+    Route::post('/admin/send-report-email',   $sendReportHandler);
 
-    // ── Admin & SysAd: Notifications (office-scoped & global) ───────────────────
-    Route::get('/admin/notifications',                 [AdminNotificationController::class, 'index']);
-    Route::post('/admin/notifications/mark-as-read',   [AdminNotificationController::class, 'markAsRead']);
-    Route::post('/admin/notifications/mark-all-read',  [AdminNotificationController::class, 'markAllRead']);
+    // ── General: History Log (with type filter + soft-delete) ───────────────────
+    Route::get('/general/history-log',                        [HistoryLogController::class, 'index']);
+    Route::post('/general/history-log/undo',                  [HistoryLogController::class, 'undo']);
+    Route::delete('/general/history-log/venue/{id}',          [HistoryLogController::class, 'destroyVenue']);
+    Route::delete('/general/history-log/equipment/{id}',      [HistoryLogController::class, 'destroyEquipment']);
+    Route::get('/admin/history-log',                          [HistoryLogController::class, 'index']);
+    Route::post('/admin/history-log/undo',                    [HistoryLogController::class, 'undo']);
+    Route::delete('/admin/history-log/venue/{id}',            [HistoryLogController::class, 'destroyVenue']);
+    Route::delete('/admin/history-log/equipment/{id}',        [HistoryLogController::class, 'destroyEquipment']);
 
-    Route::get('/sysad/notifications',                 [SuperAdminNotificationController::class, 'index']);
-    Route::post('/sysad/notifications/mark-as-read',   [SuperAdminNotificationController::class, 'markAsRead']);
-    Route::post('/sysad/notifications/mark-all-read',  [SuperAdminNotificationController::class, 'markAllRead']);
-    Route::get('/sysad/audit-logs',                     [\App\Http\Controllers\SuperAdmin\AuditLogController::class, 'index']);
+    // ── General & SysAd: Notifications (office-scoped & global) ────────────────
+    Route::get('/general/notifications',                 [NotificationController::class, 'index']);
+    Route::post('/general/notifications/mark-as-read',   [NotificationController::class, 'markAsRead']);
+    Route::post('/general/notifications/mark-all-read',  [NotificationController::class, 'markAllRead']);
+    Route::get('/admin/notifications',                   [NotificationController::class, 'index']);
+    Route::post('/admin/notifications/mark-as-read',     [NotificationController::class, 'markAsRead']);
+    Route::post('/admin/notifications/mark-all-read',    [NotificationController::class, 'markAllRead']);
 
-    // ── Admin: Departments ────────────────────────────────────────────────────
-    Route::get('/admin/departments',         [DepartmentController::class, 'index']);
-    Route::post('/admin/departments',        [DepartmentController::class, 'store']);
-    Route::put('/admin/departments/{id}',    [DepartmentController::class, 'update']);
-    Route::delete('/admin/departments/{id}', [DepartmentController::class, 'destroy']);
+    Route::get('/sysad/notifications',                   [NotificationController::class, 'index']);
+    Route::post('/sysad/notifications/mark-as-read',     [NotificationController::class, 'markAsRead']);
+    Route::post('/sysad/notifications/mark-all-read',    [NotificationController::class, 'markAllRead']);
+    Route::get('/sysad/audit-logs',                      [\App\Http\Controllers\SuperAdmin\AuditLogController::class, 'index']);
 
-    // ── Admin: Operating Hours & Verification PIN ────────────────────────────
-    Route::get('/admin/operating-hours',       [OperatingHoursController::class, 'show']);
-    Route::put('/admin/operating-hours',       [OperatingHoursController::class, 'update']);
-    Route::get('/admin/verification-pin',      [VerificationPinController::class, 'show']);
-    Route::put('/admin/verification-pin',      [VerificationPinController::class, 'update']);
+    // ── SuperAdmin: Role Management & Permission Sync ─────────────────────────
+    Route::get('/sysad/roles',                              [RoleController::class, 'index']);
+    Route::get('/general/roles',                            [RoleController::class, 'index']);
+    Route::get('/admin/roles',                              [RoleController::class, 'index']);
+    Route::post('/sysad/roles',                             [RoleController::class, 'store']);
+    Route::put('/sysad/roles/{id}',                         [RoleController::class, 'update']);
+    Route::delete('/sysad/roles/{id}',                      [RoleController::class, 'destroy']);
+    Route::get('/sysad/roles/{id}/permissions',             [RoleController::class, 'getPermissions']);
+    Route::post('/sysad/roles/{id}/permissions',            [RoleController::class, 'savePermissions']);
 
-    // ── Admin: Booking Requirements & Fee Matrix ──────────────────────────────
-    Route::get('/admin/booking-requirements',         [BookingRequirementController::class, 'index']);
-    Route::post('/admin/booking-requirements',        [BookingRequirementController::class, 'store']);
-    Route::put('/admin/booking-requirements/{id}',    [BookingRequirementController::class, 'update']);
-    Route::delete('/admin/booking-requirements/{id}', [BookingRequirementController::class, 'destroy']);
+    // ── General: Departments ──────────────────────────────────────────────────
+    Route::get('/general/departments',         [DepartmentController::class, 'index']);
+    Route::post('/general/departments',        [DepartmentController::class, 'store']);
+    Route::put('/general/departments/{id}',    [DepartmentController::class, 'update']);
+    Route::delete('/general/departments/{id}', [DepartmentController::class, 'destroy']);
+    Route::get('/admin/departments',           [DepartmentController::class, 'index']);
+    Route::post('/admin/departments',          [DepartmentController::class, 'store']);
+    Route::put('/admin/departments/{id}',      [DepartmentController::class, 'update']);
+    Route::delete('/admin/departments/{id}',   [DepartmentController::class, 'destroy']);
 
-    Route::get('/admin/fee-matrix',         [\App\Http\Controllers\SuperAdmin\FeeMatrixController::class, 'index']);
-    Route::post('/admin/fee-matrix',        [\App\Http\Controllers\SuperAdmin\FeeMatrixController::class, 'store']);
-    Route::put('/admin/fee-matrix/{id}',    [\App\Http\Controllers\SuperAdmin\FeeMatrixController::class, 'update']);
-    Route::delete('/admin/fee-matrix/{id}', [\App\Http\Controllers\SuperAdmin\FeeMatrixController::class, 'destroy']);
+    // ── General: Operating Hours & Verification PIN ───────────────────────────
+    Route::get('/general/operating-hours',       [OperatingHoursController::class, 'show']);
+    Route::put('/general/operating-hours',       [OperatingHoursController::class, 'update']);
+    Route::get('/general/verification-pin',      [VerificationPinController::class, 'show']);
+    Route::put('/general/verification-pin',      [VerificationPinController::class, 'update']);
+    Route::get('/admin/operating-hours',         [OperatingHoursController::class, 'show']);
+    Route::put('/admin/operating-hours',         [OperatingHoursController::class, 'update']);
+    Route::get('/admin/verification-pin',        [VerificationPinController::class, 'show']);
+    Route::put('/admin/verification-pin',        [VerificationPinController::class, 'update']);
 
-    // ── Admin: Academic Terms & Archiving (TiDB) ──────────────────────────────
-    Route::get('/admin/academic-terms',                   [\App\Http\Controllers\SuperAdmin\AcademicTermController::class, 'index']);
-    Route::post('/admin/academic-terms',                  [\App\Http\Controllers\SuperAdmin\AcademicTermController::class, 'store']);
-    Route::get('/admin/academic-terms/active',            [\App\Http\Controllers\SuperAdmin\AcademicTermController::class, 'active']);
-    Route::put('/admin/academic-terms/{id}',              [\App\Http\Controllers\SuperAdmin\AcademicTermController::class, 'update']);
-    Route::post('/admin/academic-terms/{id}/activate',     [\App\Http\Controllers\SuperAdmin\AcademicTermController::class, 'activate']);
-    Route::delete('/admin/academic-terms/{id}',           [\App\Http\Controllers\SuperAdmin\AcademicTermController::class, 'destroy']);
-    Route::post('/admin/academic-terms/close-term',       [\App\Http\Controllers\SuperAdmin\AcademicTermController::class, 'closeTerm']);
+    // ── General: Booking Requirements & Fee Matrix ────────────────────────────
+    Route::get('/general/booking-requirements',         [BookingRequirementController::class, 'index']);
+    Route::post('/general/booking-requirements',        [BookingRequirementController::class, 'store']);
+    Route::put('/general/booking-requirements/{id}',    [BookingRequirementController::class, 'update']);
+    Route::delete('/general/booking-requirements/{id}', [BookingRequirementController::class, 'destroy']);
+    Route::get('/admin/booking-requirements',           [BookingRequirementController::class, 'index']);
+    Route::post('/admin/booking-requirements',          [BookingRequirementController::class, 'store']);
+    Route::put('/admin/booking-requirements/{id}',      [BookingRequirementController::class, 'update']);
+    Route::delete('/admin/booking-requirements/{id}',   [BookingRequirementController::class, 'destroy']);
 
-    // ── Admin & SuperAdmin: System Settings, Dynamic SMTP & Communication Logs ───
-    Route::get('/admin/system-settings',             [\App\Http\Controllers\Admin\SystemSettingController::class, 'show']);
-    Route::put('/admin/system-settings',             [\App\Http\Controllers\Admin\SystemSettingController::class, 'update']);
-    Route::post('/admin/system-settings/test-smtp',  [\App\Http\Controllers\Admin\SystemSettingController::class, 'testSmtp']);
-    Route::get('/admin/communication-logs',          [\App\Http\Controllers\Admin\CommunicationLogController::class, 'index']);
+    Route::get('/general/fee-matrix',         [\App\Http\Controllers\SuperAdmin\FeeMatrixController::class, 'index']);
+    Route::post('/general/fee-matrix',        [\App\Http\Controllers\SuperAdmin\FeeMatrixController::class, 'store']);
+    Route::put('/general/fee-matrix/{id}',    [\App\Http\Controllers\SuperAdmin\FeeMatrixController::class, 'update']);
+    Route::delete('/general/fee-matrix/{id}', [\App\Http\Controllers\SuperAdmin\FeeMatrixController::class, 'destroy']);
+    Route::get('/admin/fee-matrix',           [\App\Http\Controllers\SuperAdmin\FeeMatrixController::class, 'index']);
+    Route::post('/admin/fee-matrix',          [\App\Http\Controllers\SuperAdmin\FeeMatrixController::class, 'store']);
+    Route::put('/admin/fee-matrix/{id}',      [\App\Http\Controllers\SuperAdmin\FeeMatrixController::class, 'update']);
+    Route::delete('/admin/fee-matrix/{id}',   [\App\Http\Controllers\SuperAdmin\FeeMatrixController::class, 'destroy']);
+
+    // ── General: Dynamic Violation Categories ─────────────────────────────────
+    Route::get('/general/violation-categories',         [ViolationCategoryController::class, 'index']);
+    Route::post('/general/violation-categories',        [ViolationCategoryController::class, 'store']);
+    Route::put('/general/violation-categories/{id}',    [ViolationCategoryController::class, 'update']);
+    Route::delete('/general/violation-categories/{id}', [ViolationCategoryController::class, 'destroy']);
+    Route::get('/admin/violation-categories',           [ViolationCategoryController::class, 'index']);
+    Route::post('/admin/violation-categories',          [ViolationCategoryController::class, 'store']);
+    Route::put('/admin/violation-categories/{id}',      [ViolationCategoryController::class, 'update']);
+    Route::delete('/admin/violation-categories/{id}',   [ViolationCategoryController::class, 'destroy']);
+
+    // ── General: Academic Terms & Archiving (TiDB) ────────────────────────────
+    Route::get('/general/academic-terms',                   [\App\Http\Controllers\SuperAdmin\AcademicTermController::class, 'index']);
+    Route::post('/general/academic-terms',                  [\App\Http\Controllers\SuperAdmin\AcademicTermController::class, 'store']);
+    Route::get('/general/academic-terms/active',            [\App\Http\Controllers\SuperAdmin\AcademicTermController::class, 'active']);
+    Route::put('/general/academic-terms/{id}',              [\App\Http\Controllers\SuperAdmin\AcademicTermController::class, 'update']);
+    Route::post('/general/academic-terms/{id}/activate',     [\App\Http\Controllers\SuperAdmin\AcademicTermController::class, 'activate']);
+    Route::delete('/general/academic-terms/{id}',           [\App\Http\Controllers\SuperAdmin\AcademicTermController::class, 'destroy']);
+    Route::post('/general/academic-terms/close-term',       [\App\Http\Controllers\SuperAdmin\AcademicTermController::class, 'closeTerm']);
+    Route::get('/admin/academic-terms',                     [\App\Http\Controllers\SuperAdmin\AcademicTermController::class, 'index']);
+    Route::post('/admin/academic-terms',                    [\App\Http\Controllers\SuperAdmin\AcademicTermController::class, 'store']);
+    Route::get('/admin/academic-terms/active',              [\App\Http\Controllers\SuperAdmin\AcademicTermController::class, 'active']);
+    Route::put('/admin/academic-terms/{id}',                [\App\Http\Controllers\SuperAdmin\AcademicTermController::class, 'update']);
+    Route::post('/admin/academic-terms/{id}/activate',       [\App\Http\Controllers\SuperAdmin\AcademicTermController::class, 'activate']);
+    Route::delete('/admin/academic-terms/{id}',             [\App\Http\Controllers\SuperAdmin\AcademicTermController::class, 'destroy']);
+    Route::post('/admin/academic-terms/close-term',         [\App\Http\Controllers\SuperAdmin\AcademicTermController::class, 'closeTerm']);
+
+    // ── General & SuperAdmin: System Settings, Dynamic SMTP & Communication Logs ─
+    Route::get('/general/system-settings',             [SystemSettingController::class, 'show']);
+    Route::put('/general/system-settings',             [SystemSettingController::class, 'update']);
+    Route::post('/general/system-settings/test-smtp',  [SystemSettingController::class, 'testSmtp']);
+    Route::get('/general/communication-logs',          [CommunicationLogController::class, 'index']);
+    Route::get('/admin/system-settings',               [SystemSettingController::class, 'show']);
+    Route::put('/admin/system-settings',               [SystemSettingController::class, 'update']);
+    Route::post('/admin/system-settings/test-smtp',    [SystemSettingController::class, 'testSmtp']);
+    Route::get('/admin/communication-logs',            [CommunicationLogController::class, 'index']);
 
     // ── Venue Bookings ─────────────────────────────────────────────────────────
     Route::get('/avr-venue-bookings',                              [VenueBookingController::class, 'index']);
@@ -290,7 +388,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/avr-venue-bookings/{avrVenueBooking}/ongoing',           [VenueBookingController::class, 'ongoing']);
     Route::post('/avr-venue-bookings/{avrVenueBooking}/post-inspection',   [VenueBookingController::class, 'postInspection']);
     Route::post('/avr-venue-bookings/{avrVenueBooking}/complete',          [VenueBookingController::class, 'complete']);
-    Route::post('/avr-venue-bookings/{avrVenueBooking}/undo',      [VenueBookingController::class, 'undo']);
+    Route::post('/avr-venue-bookings/{avrVenueBooking}/notify-urgent',      [VenueBookingController::class, 'notifyUrgent']);
+    Route::post('/avr-venue-bookings/{avrVenueBooking}/undo',              [VenueBookingController::class, 'undo']);
     Route::post('/avr-venue-bookings/{avrVenueBooking}/cancel',    [VenueBookingController::class, 'cancel']);
     Route::post('/avr-venue-bookings/{avrVenueBooking}/upload-document', [VenueBookingController::class, 'uploadDocument']);
     Route::put('/avr-venue-bookings/{avrVenueBooking}/assign-units', [VenueBookingController::class, 'assignUnits']);
@@ -302,6 +401,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/avr-equipment-borrowings',                              [EquipmentBorrowingController::class, 'store']);
     Route::post('/avr-equipment-borrowings/{equipmentBorrowing}/approve', [EquipmentBorrowingController::class, 'approve']);
     Route::post('/avr-equipment-borrowings/{equipmentBorrowing}/reject',  [EquipmentBorrowingController::class, 'reject']);
+    Route::post('/avr-equipment-borrowings/{equipmentBorrowing}/notify-urgent', [EquipmentBorrowingController::class, 'notifyUrgent']);
     Route::post('/avr-equipment-borrowings/{equipmentBorrowing}/ongoing', [EquipmentBorrowingController::class, 'ongoing']);
     Route::post('/avr-equipment-borrowings/{equipmentBorrowing}/complete',[EquipmentBorrowingController::class, 'complete']);
     Route::post('/avr-equipment-borrowings/{equipmentBorrowing}/undo',    [EquipmentBorrowingController::class, 'undo']);
@@ -377,6 +477,11 @@ Route::prefix('public')->group(function () {
     Route::post('/track',                     [TrackingController::class, 'track'])->middleware('throttle:tracking');
     Route::post('/send-otp',                  [OtpController::class, 'send'])->middleware('throttle:otp');
     Route::post('/verify-otp',                [OtpController::class, 'verify'])->middleware('throttle:otp');
+    Route::post('/send-phone-otp',            [PhoneOtpController::class, 'send'])->middleware('throttle:otp');
+    Route::post('/verify-phone-otp',          [PhoneOtpController::class, 'verify'])->middleware('throttle:otp');
+    Route::get('/operating-hours',           [\App\Http\Controllers\SuperAdmin\OperatingHoursController::class, 'publicShow']);
+    Route::get('/system-settings',           [\App\Http\Controllers\General\SystemSettingController::class, 'publicShow']);
     Route::get('/verification-pin-settings',  [VerificationPinController::class, 'publicSettings']);
     Route::post('/verify-pin',                [VerificationPinController::class, 'verifyPin'])->middleware('throttle:otp');
+    Route::post('/verify-email-active',       [EmailVerificationController::class, 'verifyActive'])->middleware('throttle:60,1');
 });

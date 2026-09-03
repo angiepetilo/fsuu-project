@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { ClipboardList, Building2, PackageOpen, ClipboardCheck, ChevronRight } from "lucide-react";
 import api from "@/lib/axios";
+import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 
-export default function PendingTasksIndicator({ isSysad = false }) {
+export default function PendingTasksIndicator({ isSysad = false, basePath: propBasePath }) {
   const [counts, setCounts] = useState({
     pendingVenue: 0,
     pendingEquip: 0,
@@ -18,28 +19,20 @@ export default function PendingTasksIndicator({ isSysad = false }) {
       const data = res.data?.quick_stats || res.data || {};
       
       setCounts({
-        pendingVenue: Number(data.pending_approval_count || data.pendingApproval || data.pending_venue_count || 0),
-        pendingEquip: Number(data.pending_equipment_count || data.pendingEquipBorrowings || data.pending_borrow_count || 0),
-        pendingPostVenue: Number(data.post_inspection_pending_venue || data.pending_venue_post_inspection || 0),
-        pendingPostEquip: Number(data.post_inspection_pending_equip || data.pending_equip_post_inspection || 0),
+        pendingVenue: Number(data.pending_venue_count ?? data.pending_bookings ?? data.pending_approval_count ?? data.pendingApproval ?? 0),
+        pendingEquip: Number(data.pending_equipment_count ?? data.pending_borrowings ?? data.pending_borrow_count ?? data.pendingEquipBorrowings ?? 0),
+        pendingPostVenue: Number(data.post_inspection_pending_venue ?? data.pending_venue_post_inspection ?? 0),
+        pendingPostEquip: Number(data.post_inspection_pending_equip ?? data.pending_equip_post_inspection ?? 0),
       });
     } catch {
       // Fallback
     }
   };
 
-  useEffect(() => {
-    fetchPendingCounts();
-    const interval = setInterval(fetchPendingCounts, 30000);
-    window.addEventListener("equipment_inventory_updated", fetchPendingCounts);
-    return () => {
-      clearInterval(interval);
-      window.removeEventListener("equipment_inventory_updated", fetchPendingCounts);
-    };
-  }, []);
+  useRealtimeSync(fetchPendingCounts, { interval: 30000 });
 
   const totalPending = counts.pendingVenue + counts.pendingEquip + counts.pendingPostVenue + counts.pendingPostEquip;
-  const basePath = isSysad ? "/sysad" : "/admin";
+  const basePath = propBasePath || (isSysad ? "/sysad" : "/general");
 
   return (
     <div className="relative">

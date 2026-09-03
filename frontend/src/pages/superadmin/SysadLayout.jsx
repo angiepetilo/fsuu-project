@@ -1,6 +1,8 @@
-import { useState, useEffect } from "react";
-import { Link, useLocation, useNavigate, Outlet } from "react-router-dom";
+import { useState, useEffect, useCallback } from "react";
+import { Link, useLocation, useNavigate, Navigate, Outlet } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
+import { usePermissions } from "@/hooks/usePermissions";
+import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 import api from "@/lib/axios";
 import {
   LayoutDashboard, CalendarCheck, PackageOpen, Settings,
@@ -15,10 +17,15 @@ import ConfirmModal from "@/components/ui/ConfirmModal";
 
 const SYSAD_NAV_GROUPS = [
   {
+    title: "INTERFACE",
+    items: [
+      { label: "Interface", icon: Monitor, path: "/interface/venue" },
+    ],
+  },
+  {
     title: "GLOBAL OVERVIEW",
     items: [
       { label: "Dashboard", icon: LayoutDashboard, path: "/sysad/dashboard" },
-      { label: "Interface", icon: Monitor, path: "/interface/venue" },
       { label: "Venue Booking", icon: Building2, path: "/sysad/venue-bookings" },
       { label: "Equipment Borrowing", icon: PackageOpen, path: "/sysad/equipment-borrowing" },
     ],
@@ -41,7 +48,8 @@ const SYSAD_NAV_GROUPS = [
 ];
 
 export default function SysadLayout() {
-  const { user, logout } = useAuth();
+  const { logout } = useAuth();
+  const { user } = usePermissions();
   const navigate = useNavigate();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -106,12 +114,7 @@ export default function SysadLayout() {
       .catch(() => setSysadNotifications([]));
   };
 
-  useEffect(() => {
-    if (!user) return;
-    fetchNotifs();
-    const interval = setInterval(fetchNotifs, 20000);
-    return () => clearInterval(interval);
-  }, [user]);
+  useRealtimeSync(fetchNotifs, { interval: 30000, enabled: !!user });
 
   const markAsRead = async (notifId) => {
     setReadNotifIds(prev => {
@@ -141,7 +144,7 @@ export default function SysadLayout() {
 
   const filteredNotifications = sysadNotifications;
 
-  if (!user) return null;
+  if (!user) return <Navigate to="/login" replace />;
 
   const getFeatureDetails = (path) => {
     if (path.includes("/dashboard")) {
@@ -380,9 +383,6 @@ export default function SysadLayout() {
                   <h1 className="font-extrabold text-slate-900 text-base sm:text-lg tracking-tight">
                     {currentFeature.title}
                   </h1>
-                  <span className="text-[11px] font-semibold bg-slate-100 text-slate-700 border border-slate-200 px-2.5 py-0.5 rounded-md">
-                    Super Admin
-                  </span>
                 </div>
                 <p className="text-xs text-slate-500 font-normal mt-0.5 hidden sm:block">
                   {currentFeature.subtitle}
@@ -423,11 +423,6 @@ export default function SysadLayout() {
             onClose={() => setSelectedIncident(null)}
           />
         )}
-
-        {/* Footer */}
-        <footer className="text-center py-4 text-xs text-slate-400 font-semibold border-t border-slate-200/80 bg-white">
-          © {new Date().getFullYear()} Father Saturnino Urios University — Super Administrator System Portal
-        </footer>
       </div>
     </div>
   );

@@ -53,7 +53,7 @@ export default function GoogleCallback() {
       if (role === "superadmin" || role === "super_admin") {
         navigate("/sysad/dashboard", { replace: true });
       } else {
-        navigate("/admin/dashboard", { replace: true });
+        navigate("/general/dashboard", { replace: true });
       }
       return;
     }
@@ -71,7 +71,7 @@ export default function GoogleCallback() {
         if (isSuper) {
           navigate("/sysad/dashboard", { replace: true });
         } else {
-          navigate("/admin/dashboard", { replace: true });
+          navigate("/general/dashboard", { replace: true });
         }
       })
       .catch((err) => {

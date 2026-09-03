@@ -63,6 +63,11 @@ export const formatTime12 = (timeStr) => {
 };
 
 /**
+ * Alias for formatTime12
+ */
+export const formatRealTime = formatTime12;
+
+/**
  * Formats a start/end time pair as "08:00 AM – 05:00 PM".
  * @param {string|null} start
  * @param {string|null} end
@@ -111,4 +116,23 @@ export const formatDateRange = (start, end) => {
   }
   return `${formattedStart} — ${formattedEnd}`;
 };
+
+/**
+ * Formats date and time as "Aug 26, 2026 | 02:30 PM".
+ * @param {string|null} dateStr
+ * @returns {string}
+ */
+export const formatDateTime = (dateStr) => {
+  if (!dateStr) return "—";
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return String(dateStr);
+    const datePart = d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+    const timePart = d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
+    return `${datePart} | ${timePart}`;
+  } catch {
+    return String(dateStr);
+  }
+};
+
 

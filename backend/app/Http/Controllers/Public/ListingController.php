@@ -220,10 +220,9 @@ class ListingController extends Controller
         }
 
         $equipmentTypes = $allTypes->map(function ($e) use ($borrowCommittedMap, $venueCommittedMap, $dateStr, $startTimeStr, $endTimeStr) {
-            $hasRegisteredUnits = $e->calculated_total > 0;
-            $total = (int)($hasRegisteredUnits ? $e->calculated_total : ($e->total_quantity ?? 0));
-            $operational = (int)($hasRegisteredUnits ? $e->calculated_operational : ($e->total_quantity ?? 0));
-            $availableNow = (int)($hasRegisteredUnits ? $e->calculated_available : $operational);
+            $total = (int)($e->calculated_total ?? 0);
+            $operational = (int)($e->calculated_operational ?? 0);
+            $availableNow = (int)($e->calculated_available ?? 0);
 
             $typeKey = strtoupper(trim((string)$e->id));
             $typeNameKey = strtoupper(trim((string)($e->name ?? $e->eq_name ?? '')));

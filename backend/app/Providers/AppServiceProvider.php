@@ -5,7 +5,7 @@ namespace App\Providers;
 use Illuminate\Support\ServiceProvider;
 use App\Models\VenueBooking;
 use App\Policies\VenueBookingPolicy;
-use App\Models\EquipmentBorrowing;
+use App\Models\EquipmentBorrow;
 use App\Policies\EquipmentBorrowingPolicy;
 use Illuminate\Support\Facades\Gate;
 
@@ -29,7 +29,7 @@ class AppServiceProvider extends ServiceProvider
         });
 
         Gate::policy(VenueBooking::class, VenueBookingPolicy::class);
-        Gate::policy(EquipmentBorrowing::class, EquipmentBorrowingPolicy::class);
+        Gate::policy(EquipmentBorrow::class, EquipmentBorrowingPolicy::class);
 
         \Illuminate\Database\Eloquent\Relations\Relation::morphMap([
             'venue_booking' => \App\Models\VenueBooking::class,
@@ -40,7 +40,7 @@ class AppServiceProvider extends ServiceProvider
 
         \Illuminate\Support\Facades\Route::model('avrVenueBooking', \App\Models\VenueBooking::class);
         \Illuminate\Support\Facades\Route::model('venueBooking', \App\Models\VenueBooking::class);
-        \Illuminate\Support\Facades\Route::model('equipmentBorrowing', \App\Models\EquipmentBorrowing::class);
+        \Illuminate\Support\Facades\Route::model('equipmentBorrowing', \App\Models\EquipmentBorrow::class);
 
         // ─── Application Firewall & Rate Limiters ─────────────────────────────
         \Illuminate\Support\Facades\RateLimiter::for('login', function (\Illuminate\Http\Request $request) {

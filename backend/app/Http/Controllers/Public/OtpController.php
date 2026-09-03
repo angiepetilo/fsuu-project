@@ -3,10 +3,12 @@
 namespace App\Http\Controllers\Public;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
+use App\Jobs\SendOtpEmailJob;
+use App\Models\EmailVerification;
+use App\Rules\ActiveDeliverableEmail;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Mail;
 
 class OtpController extends Controller
 {
@@ -17,119 +19,101 @@ class OtpController extends Controller
     public function send(Request $request): JsonResponse
     {
         $request->validate([
-            'email' => 'required|email|max:255',
+            'email' => ['required', 'string', 'email', 'max:255', new ActiveDeliverableEmail],
         ]);
 
-        $email = $request->input('email');
+        $email = strtolower(trim($request->input('email')));
+        $cooldownKey = 'otp_cooldown_' . hash('sha256', $email);
 
-        // Generate a 6-digit code
-        $code = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+        // Cooldown check (60 seconds)
+        if (Cache::has($cooldownKey)) {
+            $remaining = Cache::get($cooldownKey) - time();
+            if ($remaining > 0) {
+                return response()->json([
+                    'message' => "Please wait {$remaining} seconds before requesting a new verification code.",
+                    'cooldown_remaining' => $remaining,
+                ], 429);
+            }
+        }
 
-        // Store in cache keyed by email — expires in 10 minutes
-        $cacheKey = 'otp_' . hash('sha256', $email);
-        Cache::put($cacheKey, $code, now()->addMinutes(10));
+        // Generate a cryptographically strong 6-digit numeric OTP code
+        $code = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+        $expiresAt = now()->addMinutes(10);
 
-        // Send the email
-        Mail::send([], [], function ($message) use ($email, $code) {
-            $message->to($email)
-                ->subject('FSUU Booking System — Your Verification Code')
-                ->html($this->buildEmailHtml($code, $email));
-        });
+        // Save to email_verifications table
+        $verification = EmailVerification::create([
+            'email'      => $email,
+            'otp_code'   => $code,
+            'expires_at' => $expiresAt,
+            'ip_address' => $request->ip(),
+        ]);
+
+        // Also cache OTP for fast lookup
+        $cacheKey = 'otp_email_' . hash('sha256', $email);
+        Cache::put($cacheKey, [
+            'code'       => $code,
+            'expires_at' => $expiresAt->timestamp,
+            'id'         => $verification->id,
+        ], $expiresAt);
+
+        // Set 60-second cooldown
+        Cache::put($cooldownKey, time() + 60, 60);
+
+        // Dispatch async email job
+        SendOtpEmailJob::dispatch($email, $code);
 
         return response()->json([
-            'message' => 'Verification code sent successfully. Please check your inbox.',
+            'message'    => 'Verification code sent successfully. Please check your inbox.',
+            'expires_in' => 600,
+            'cooldown'   => 60,
         ]);
     }
 
     /**
-     * Verify the submitted code against the cached one.
+     * Verify the submitted 6-digit code against the recorded email OTP.
      * POST /api/public/verify-otp
      */
     public function verify(Request $request): JsonResponse
     {
         $request->validate([
-            'email' => 'required|email',
-            'code'  => 'required|string|size:6',
+            'email' => ['required', 'string', 'email'],
+            'code'  => ['required', 'string', 'size:6'],
         ]);
 
-        $email    = $request->input('email');
-        $code     = $request->input('code');
-        $cacheKey = 'otp_' . hash('sha256', $email);
+        $email = strtolower(trim($request->input('email')));
+        $code  = trim($request->input('code'));
 
-        $stored = Cache::get($cacheKey);
+        // Query active pending verification record
+        $record = EmailVerification::where('email', $email)
+            ->whereNull('verified_at')
+            ->where('expires_at', '>', now())
+            ->latest('id')
+            ->first();
 
-        if (! $stored) {
+        if (! $record) {
             return response()->json([
-                'message' => 'Verification code has expired. Please request a new one.',
+                'message' => 'Verification code has expired or was not requested. Please request a new one.',
             ], 422);
         }
 
-        if ($stored !== $code) {
+        if ($record->otp_code !== $code) {
             return response()->json([
-                'message' => 'Incorrect verification code. Please try again.',
+                'message' => 'Incorrect verification code. Please check your email and try again.',
             ], 422);
         }
 
-        // Consume the code — one-time use
+        // Mark verified and invalidate single-use OTP
+        $record->update([
+            'verified_at' => now(),
+            'otp_code'    => 'CONSUMED',
+        ]);
+
+        $cacheKey = 'otp_email_' . hash('sha256', $email);
         Cache::forget($cacheKey);
 
         return response()->json([
-            'message'  => 'Email verified successfully.',
             'verified' => true,
+            'message'  => 'Email verified successfully.',
         ]);
-    }
-
-    private function buildEmailHtml(string $code, string $email): string
-    {
-        return <<<HTML
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Verification Code — FSUU</title>
-  <style>
-    body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f4ff; margin: 0; padding: 0; }
-    .wrap { max-width: 520px; margin: 40px auto; background: #fff; border-radius: 20px; overflow: hidden; box-shadow: 0 8px 30px rgba(0,0,0,0.08); }
-    .header { background: linear-gradient(135deg, #0f1c3f, #1e3a8a); padding: 32px; text-align: center; }
-    .header h1 { color: #fff; font-size: 20px; margin: 0 0 4px; font-weight: 800; }
-    .header p { color: rgba(255,255,255,0.6); font-size: 12px; margin: 0; }
-    .body { padding: 36px; text-align: center; }
-    .greeting { font-size: 16px; font-weight: 700; color: #0f172a; margin-bottom: 12px; }
-    .sub { font-size: 13px; color: #475569; margin-bottom: 28px; line-height: 1.7; }
-    .code-box { background: #eff6ff; border: 2px dashed #93c5fd; border-radius: 16px; padding: 24px; margin-bottom: 24px; }
-    .code { font-size: 40px; font-weight: 900; color: #1d4ed8; letter-spacing: 10px; font-family: 'Courier New', monospace; }
-    .expires { font-size: 11px; color: #94a3b8; margin-top: 8px; }
-    .warning { background: #fef9c3; border: 1px solid #fde68a; border-radius: 10px; padding: 12px 16px; font-size: 12px; color: #713f12; margin-bottom: 20px; text-align: left; }
-    .footer { background: #f8faff; border-top: 1px solid #e8edf5; padding: 16px; text-align: center; font-size: 10px; color: #94a3b8; }
-  </style>
-</head>
-<body>
-  <div class="wrap">
-    <div class="header">
-      <h1>🎓 FSUU Reserve &amp; Booking System</h1>
-      <p>Father Saturnino Urios University, Butuan City</p>
-    </div>
-    <div class="body">
-      <p class="greeting">Email Verification</p>
-      <p class="sub">
-        You requested a verification code for your booking submission.<br>
-        Enter the code below in the booking form to proceed.
-      </p>
-      <div class="code-box">
-        <div class="code">{$code}</div>
-        <div class="expires">⏱ Expires in 10 minutes</div>
-      </div>
-      <div class="warning">
-        ⚠ <strong>Do not share this code</strong> with anyone. FSUU staff will never ask for your verification code.
-      </div>
-      <p style="font-size:12px;color:#94a3b8;">Sent to: {$email}</p>
-    </div>
-    <div class="footer">
-      © FSUU Reserve and Booking System — Father Saturnino Urios University, Butuan City
-    </div>
-  </div>
-</body>
-</html>
-HTML;
     }
 }
