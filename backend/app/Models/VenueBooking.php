@@ -44,14 +44,18 @@ class VenueBooking extends Model
         'assigned_units',
         'endorsement_url',
         'endorsement_letter',
+        'claim_timestamp',
+        'is_complete',
     ];
 
     protected $casts = [
         'agreed_to_policy' => 'boolean',
+        'is_complete'      => 'boolean',
         'no_of_person'     => 'integer',
         'date_of_usage'    => 'date',
         'reservation_end_date' => 'date',
         'extend_reservation_end_date' => 'date',
+        'claim_timestamp'  => 'datetime',
         'assigned_units'   => 'array',
     ];
 

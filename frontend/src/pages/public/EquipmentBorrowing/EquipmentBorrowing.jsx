@@ -29,6 +29,7 @@ export default function EquipmentBorrowing({ isPortal: isPortalProp }) {
 
   const isPortal = isAuthenticated && (isPortalProp ?? (
     typeof window !== "undefined" && (
+      window.location.pathname.startsWith("/general") ||
       window.location.pathname.startsWith("/interface") ||
       window.location.pathname.startsWith("/admin") ||
       window.location.pathname.startsWith("/sysad") ||
@@ -79,15 +80,18 @@ export default function EquipmentBorrowing({ isPortal: isPortalProp }) {
   const [showSuccess, setShowSuccess] = useState(false);
 
   // General Form Fields
+  const [firstName, setFirstName] = useState("");
+  const [middleName, setMiddleName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [suffix, setSuffix] = useState("");
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [department, setDepartment] = useState("");
   const [purpose, setPurpose] = useState("");
   const [placeOfUse, setPlaceOfUse] = useState("");
   const [handlerName, setHandlerName] = useState("");
-  const [otp, setOtp] = useState("");
-  const [isOtpSent, setIsOtpSent] = useState(false);
   const [endorsementFile, setEndorsementFile] = useState(null);
+  const [isPhoneVerified, setIsPhoneVerified] = useState(false);
   const [referenceCode, setReferenceCode] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [contactNumber, setContactNumber] = useState("");
@@ -307,6 +311,10 @@ export default function EquipmentBorrowing({ isPortal: isPortalProp }) {
 
   const handleDetailsSubmit = (e) => {
     e.preventDefault();
+    if (!isPhoneVerified) {
+      alert("Please verify your contact phone number via SMS OTP before proceeding to the next step.");
+      return;
+    }
     if (!completedSteps.includes(3)) setCompletedSteps([...completedSteps, 3]);
     setActiveStep(4);
   };
@@ -333,29 +341,28 @@ export default function EquipmentBorrowing({ isPortal: isPortalProp }) {
         quantity_requested: itemQuantities[id] || 1,
       }));
 
+      const resolvedBorrowerName = [firstName, middleName, lastName, suffix].filter(Boolean).join(" ").trim() || fullName;
+
       const payload = {
         office_id: selectedOfficeId,
-        requestor_name: fullName,
+        first_name: firstName,
+        middle_name: middleName,
+        last_name: lastName,
+        suffix: suffix,
+        requestor_name: resolvedBorrowerName,
         requestor_email: email,
         requestor_contact_number: contactNumber,
         requestor_program_office: department,
         requestor_identity_type: identity || 'student',
         purpose: purpose,
-        purpose_description: purpose,
         place_of_use: placeOfUse || "Campus Facility",
         handler_name: handlerName || fullName,
         start_datetime: startDT,
         end_datetime: endDT,
-        expected_return_datetime: endDT,
-        borrow_date: startDT.split(" ")[0],
-        intended_return_date: endDT.split(" ")[0],
-        borrow_time: startDT.split(" ")[1]?.substring(0, 5) || "08:00",
-        intended_return_time: endDT.split(" ")[1]?.substring(0, 5) || "17:00",
         used_inside_campus: 1,
         contact_preference: notificationChannel || "email",
         equipment_items: JSON.stringify(itemsList),
         is_pin_verified: isPinVerified ? 1 : 0,
-        pin_override: isPinVerified ? 1 : 0,
       };
 
       const formData = new FormData();
@@ -464,6 +471,10 @@ export default function EquipmentBorrowing({ isPortal: isPortalProp }) {
             primaryDept={primaryDept}
             selectedItems={selectedItems}
             handleDetailsSubmit={handleDetailsSubmit}
+            firstName={firstName} setFirstName={setFirstName}
+            middleName={middleName} setMiddleName={setMiddleName}
+            lastName={lastName} setLastName={setLastName}
+            suffix={suffix} setSuffix={setSuffix}
             fullName={fullName} setFullName={setFullName}
             email={email} setEmail={setEmail}
             contactNumber={contactNumber} handleContactChange={handleContactChange}
@@ -475,6 +486,8 @@ export default function EquipmentBorrowing({ isPortal: isPortalProp }) {
             purpose={purpose} setPurpose={setPurpose}
             notificationChannel={notificationChannel} setNotificationChannel={setNotificationChannel}
             campusBranch={campusBranch} setCampusBranch={setCampusBranch}
+            isPhoneVerified={isPhoneVerified}
+            setIsPhoneVerified={setIsPhoneVerified}
             onBack={() => setActiveStep(2)}
           />
         )}

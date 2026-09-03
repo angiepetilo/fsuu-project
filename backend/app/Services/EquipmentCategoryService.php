@@ -135,18 +135,18 @@ class EquipmentCategoryService
             $bookingReleased = $b['released'] + $venueReleased;
             $bookingReserved = $b['reserved'] + $venueReserved;
 
-            if ($u['total'] > 0) {
+            if (isset($unitsStats[$e->id])) {
                 $releasedTotal = max($u['released'], $bookingReleased);
                 $reservedTotal = max($u['reserved'], $bookingReserved);
                 $damagedCount = $u['damaged'];
                 $lostCount = $u['lost'];
                 $totalQty = $u['total'];
             } else {
-                $releasedTotal = max($bookingReleased, (int) ($e->released_count ?? 0));
-                $reservedTotal = max($u['reserved'], $bookingReserved);
-                $damagedCount = (int) ($e->damaged_count ?? 0);
-                $lostCount = (int) ($e->lost_count ?? 0);
-                $totalQty = (int) ($e->total_quantity ?? 0);
+                $releasedTotal = 0;
+                $reservedTotal = 0;
+                $damagedCount = 0;
+                $lostCount = 0;
+                $totalQty = 0;
             }
 
             $presentCount = max(0, $totalQty - $releasedTotal - $damagedCount - $lostCount);
@@ -215,11 +215,11 @@ class EquipmentCategoryService
                     ->whereNull('archived_at')
                     ->where(function($q) {
                         $q->where(function($sub) {
-                            $sub->whereIn(DB::raw('LOWER(status)'), ['damaged', 'maintenance', 'unavailable'])
-                                ->orWhereIn(DB::raw('LOWER(condition)'), ['damaged', 'maintenance', 'worn', 'under repair']);
+                            $sub->whereIn(DB::raw('LOWER(`status`)'), ['damaged', 'maintenance', 'unavailable'])
+                                ->orWhereIn(DB::raw('LOWER(`condition`)'), ['damaged', 'maintenance', 'worn', 'under repair']);
                         })
-                        ->whereNotIn(DB::raw("LOWER(COALESCE(condition, 'good'))"), ['lost', 'decommissioned'])
-                        ->whereNotIn(DB::raw("LOWER(COALESCE(status, 'available'))"), ['lost', 'decommissioned']);
+                        ->whereNotIn(DB::raw("LOWER(COALESCE(`condition`, 'good'))"), ['lost', 'decommissioned'])
+                        ->whereNotIn(DB::raw("LOWER(COALESCE(`status`, 'available'))"), ['lost', 'decommissioned']);
                     })
                     ->count();
 
@@ -321,16 +321,14 @@ class EquipmentCategoryService
         if ($registeredUnitsCount > 0) {
             $releasedTotal = max($physicalReleased, $bookingReleased);
             $reservedTotal = max($reservedCount, $bookingReserved);
+            $totalQty = $registeredUnitsCount;
         } else {
-            $releasedTotal = max($bookingReleased, (int) ($e->released_count ?? 0));
-            $reservedTotal = max($reservedCount, $bookingReserved);
-            $damagedCount = (int) ($e->damaged_count ?? 0);
-            $lostCount = (int) ($e->lost_count ?? 0);
+            $releasedTotal = 0;
+            $reservedTotal = 0;
+            $damagedCount = 0;
+            $lostCount = 0;
+            $totalQty = 0;
         }
-
-        $totalQty = $registeredUnitsCount > 0
-            ? $registeredUnitsCount
-            : (int) ($e->total_quantity ?? 0);
 
         // Physical units currently sitting on the shelf (Total - Checked Out/Released - Damaged - Lost)
         $presentCount = max(0, $totalQty - $releasedTotal - $damagedCount - $lostCount);

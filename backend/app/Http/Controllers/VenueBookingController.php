@@ -107,11 +107,18 @@ class VenueBookingController extends Controller
     {
         $this->authorize('approve', $avrVenueBooking);
 
-        $booking = $this->service->approve(
-            $avrVenueBooking,
-            auth()->user(),
-            $request->validated('remarks')
-        );
+        try {
+            $booking = $this->service->approve(
+                $avrVenueBooking,
+                auth()->user(),
+                $request->validated('remarks')
+            );
+        } catch (\App\Exceptions\BookingActionNotAllowedException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Venue Booking Approve Error: ' . $e->getMessage());
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
 
         return response()->json($booking);
     }
@@ -131,7 +138,7 @@ class VenueBookingController extends Controller
 
     public function ongoing(\Illuminate\Http\Request $request, VenueBooking $avrVenueBooking): JsonResponse
     {
-        $this->authorize('approve', $avrVenueBooking);
+        $this->authorize('ongoing', $avrVenueBooking);
 
         try {
             if ($request->has('assigned_units')) {
@@ -153,7 +160,7 @@ class VenueBookingController extends Controller
 
     public function postInspection(\Illuminate\Http\Request $request, VenueBooking $avrVenueBooking): JsonResponse
     {
-        $this->authorize('approve', $avrVenueBooking);
+        $this->authorize('postInspection', $avrVenueBooking);
         $user = auth()->user() ?? $request->user();
         $booking = $this->service->postInspection($avrVenueBooking, $user);
         return response()->json($booking);
@@ -161,7 +168,7 @@ class VenueBookingController extends Controller
 
     public function complete(\Illuminate\Http\Request $request, VenueBooking $avrVenueBooking): JsonResponse
     {
-        $this->authorize('approve', $avrVenueBooking);
+        $this->authorize('complete', $avrVenueBooking);
         $user = auth()->user() ?? $request->user();
         $booking = $this->service->complete($avrVenueBooking, $user, $request->all());
         return response()->json($booking);
@@ -169,7 +176,7 @@ class VenueBookingController extends Controller
 
     public function undo(\Illuminate\Http\Request $request, VenueBooking $avrVenueBooking): JsonResponse
     {
-        $this->authorize('approve', $avrVenueBooking);
+        $this->authorize('undo', $avrVenueBooking);
         $user = auth()->user() ?? $request->user();
         $booking = $this->service->undo($avrVenueBooking, $user);
         return response()->json($booking);
@@ -386,5 +393,30 @@ class VenueBookingController extends Controller
         $this->authorize('approve', $avrVenueBooking);
         $booking = $this->service->override($avrVenueBooking, auth()->user(), $request->all());
         return response()->json($booking);
+    }
+
+    public function notifyUrgent(Request $request, VenueBooking $avrVenueBooking): JsonResponse
+    {
+        $user = auth()->user() ?? $request->user();
+        $ref = $avrVenueBooking->trackingNumber?->reference_code ?? "TRK-AVR{$avrVenueBooking->id}";
+        $filer = $avrVenueBooking->filer_name ?? 'FSUU Filer';
+        $venueName = $avrVenueBooking->venue?->name ?? 'AVR Facility';
+        $reason = $request->input('reason', 'Immediate operational verification requested.');
+
+        if (\Illuminate\Support\Facades\Schema::hasTable('notifications')) {
+            \Illuminate\Support\Facades\DB::table('notifications')->insert([
+                'title'      => "🚨 Urgent Venue Approval: {$ref}",
+                'message'    => "Student Assistant " . ($user->name ?? 'Operations') . " marked {$ref} for {$filer} ({$venueName}) as URGENT. Reason: {$reason}",
+                'type'       => 'urgent_approval',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+
+        return response()->json([
+            'message' => "Urgent approval notification dispatched to Staff & Super Admin for {$ref}.",
+            'booking_id' => $avrVenueBooking->id,
+            'is_urgent' => true
+        ]);
     }
 }

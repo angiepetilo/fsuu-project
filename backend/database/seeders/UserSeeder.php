@@ -11,21 +11,20 @@ class UserSeeder extends Seeder
 {
     public function run(): void
     {
-        // ── 1. Ensure Standard Roles Exist ──────────────────────────────────
-        $superAdminRole = Role::firstOrCreate(['name' => 'super_admin']);
-        // ── 2. Primary Super Admin Account ───────────────────────────────────
-        $superAdminEmail    = env('INITIAL_SUPERADMIN_EMAIL') ?: 'superadmin@fsuu.edu.ph';
-        $superAdminPassword = env('INITIAL_SUPERADMIN_PASSWORD') ?: 'password123';
+        // Ensure standard roles exist
+        $superAdminRole       = Role::firstOrCreate(['name' => 'super_admin']);
+        $defaultPassword = Hash::make(env('INITIAL_SUPERADMIN_PASSWORD', 'password123'));
 
+        // 1. Super Administrator
         User::withTrashed()->updateOrCreate(
-            ['email' => $superAdminEmail],
+            ['email' => 'superadmin@fsuu.edu.ph'],
             [
                 'name'           => 'Super Administrator',
                 'first_name'     => 'Super',
                 'last_name'      => 'Administrator',
-                'email_address'  => $superAdminEmail,
-                'email'          => $superAdminEmail,
-                'password'       => Hash::make($superAdminPassword),
+                'email_address'  => 'superadmin@fsuu.edu.ph',
+                'email'          => 'superadmin@fsuu.edu.ph',
+                'password'       => $defaultPassword,
                 'role_id'        => $superAdminRole->id,
                 'created_by'     => null,
                 'is_active'      => true,

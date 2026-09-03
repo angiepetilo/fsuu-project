@@ -26,7 +26,7 @@ class VenueBookingPolicy
 
     public function approve(User $user, VenueBooking $booking): bool
     {
-        if ($user->isSuperAdmin() || $user->isAdmin()) {
+        if ($user->isSuperAdmin() || $user->isStaff() || $user->isAdmin() || $user->isGeneral()) {
             return true;
         }
 
@@ -34,12 +34,12 @@ class VenueBookingPolicy
             return $user->hasPermission(PermissionArea::VenueBooking, PermissionAction::Approve);
         }
 
-        return true;
+        return false;
     }
 
     public function reject(User $user, VenueBooking $booking): bool
     {
-        if ($user->isSuperAdmin() || $user->isAdmin()) {
+        if ($user->isSuperAdmin() || $user->isStaff() || $user->isAdmin() || $user->isGeneral()) {
             return true;
         }
 
@@ -47,12 +47,32 @@ class VenueBookingPolicy
             return $user->hasPermission(PermissionArea::VenueBooking, PermissionAction::Approve);
         }
 
-        return true;
+        return false;
+    }
+
+    public function ongoing(User $user, VenueBooking $booking): bool
+    {
+        return $user->isSuperAdmin() || $user->isStaff() || $user->isStudentAssistant() || $user->isAdmin() || $user->isGeneral();
+    }
+
+    public function postInspection(User $user, VenueBooking $booking): bool
+    {
+        return $user->isSuperAdmin() || $user->isStaff() || $user->isStudentAssistant() || $user->isAdmin() || $user->isGeneral();
+    }
+
+    public function complete(User $user, VenueBooking $booking): bool
+    {
+        return $user->isSuperAdmin() || $user->isStaff() || $user->isStudentAssistant() || $user->isAdmin() || $user->isGeneral();
+    }
+
+    public function undo(User $user, VenueBooking $booking): bool
+    {
+        return $user->isSuperAdmin() || $user->isStaff() || $user->isStudentAssistant() || $user->isAdmin() || $user->isGeneral();
     }
 
     public function cancel(User $user, VenueBooking $booking): bool
     {
-        if ($user->isSuperAdmin() || $user->isAdmin()) {
+        if ($user->isSuperAdmin() || $user->isAdmin() || $user->isGeneral()) {
             return true;
         }
 
@@ -71,6 +91,6 @@ class VenueBookingPolicy
 
     public function assignUnit(User $user, VenueBooking $booking): bool
     {
-        return true;
+        return $user->isSuperAdmin() || $user->isStaff() || $user->isStudentAssistant() || $user->isAdmin() || $user->isGeneral();
     }
 }

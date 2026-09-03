@@ -362,7 +362,7 @@ export default function Step2Equipment({
                   className={`flex-1 py-1.5 rounded-lg text-xs font-extrabold transition-all ${borrowDateMode === "today"
                     ? "bg-white text-blue-600 shadow-2xs"
                     : isPastClosingToday
-                      ? "text-slate-400 cursor-not-allowed opacity-60"
+                      ? "text-slate-400 cursor-not-allowed opacity-50"
                       : "text-slate-600 hover:text-slate-900 cursor-pointer"
                     }`}
                 >
@@ -370,12 +370,22 @@ export default function Step2Equipment({
                 </button>
                 <button
                   type="button"
-                  onClick={() => setBorrowDateMode("tomorrow")}
+                  onClick={() => {
+                    if (!isPortal && !isPastClosingToday) return;
+                    setBorrowDateMode("tomorrow");
+                  }}
+                  disabled={!isPortal && !isPastClosingToday}
                   className={`flex-1 py-1.5 rounded-lg text-xs font-extrabold transition-all ${borrowDateMode === "tomorrow"
                     ? "bg-white text-blue-600 shadow-2xs"
-                    : "text-slate-600 hover:text-slate-900 cursor-pointer"
+                    : (!isPortal && !isPastClosingToday)
+                      ? "text-slate-400 cursor-not-allowed opacity-50"
+                      : "text-slate-600 hover:text-slate-900 cursor-pointer"
                     }`}
-                  title="Next-Day Borrowing"
+                  title={
+                    !isPortal && !isPastClosingToday
+                      ? `Tomorrow's borrowing is only available after operating hours end (${formatTime12(kioskClose)})`
+                      : "Next-Day Borrowing"
+                  }
                 >
                   Tomorrow
                 </button>
@@ -384,12 +394,15 @@ export default function Step2Equipment({
               {isPastClosingToday ? (
                 <div className="p-3 bg-amber-50/80 border border-amber-200/80 rounded-xl flex items-start gap-2 text-xs text-amber-900 font-bold leading-relaxed">
                   <AlertCircle size={15} className="text-amber-600 shrink-0 mt-0.5" />
-                  <span>Sorry, the equipment borrowing is closed for now. You can reserve for tomorrow</span>
+                  <span>Today borrowing is closed. Reservation is automatically set for tomorrow ({formattedDisplayDate}).</span>
                 </div>
               ) : (
-                <p className="text-[10px] text-slate-400 font-medium text-center">
-                  Tomorrow's schedule opens after today's operating hours end ({formatTime12(kioskClose)}).
-                </p>
+                <div className="p-2.5 bg-blue-50/60 border border-blue-100 rounded-xl text-[11px] text-blue-900 font-medium leading-relaxed flex items-center justify-between">
+                  <span>📅 Today walk-in borrowing active</span>
+                  <span className="text-[10px] font-bold text-blue-700 bg-white px-2 py-0.5 rounded-md border border-blue-200" title="Next-day reservation unlocks once today's operating hours end">
+                    Next-day unlocks at {formatTime12(kioskClose)}
+                  </span>
+                </div>
               )}
             </div>
 

@@ -236,8 +236,7 @@ export default function NotificationDropdown({
                       </p>
 
                       <div className="flex flex-wrap items-center gap-2 mt-2 text-[10.5px]">
-                        <span className="text-slate-500 font-medium">{n.office || "Main Campus"}</span>
-                        {n.ref && <span className="font-mono text-blue-600 font-bold">• {n.ref}</span>}
+                        {n.ref && <span className="font-mono text-blue-600 font-bold">{n.ref}</span>}
                         {activeTab === "archive" && (
                           <span className="text-amber-700 font-bold bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200/60">
                             Auto-purges in {getDaysRemainingInArchive(n.id)}d

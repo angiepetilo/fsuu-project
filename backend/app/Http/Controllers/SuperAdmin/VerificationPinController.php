@@ -48,7 +48,7 @@ class VerificationPinController extends Controller
     public function update(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'masterPin'                   => 'nullable|string|min:4|max:10',
+            'masterPin'                   => 'nullable|string|min:4|max:100',
             'isEnabled'                   => 'nullable|boolean',
             'requirePinOutsideHours'      => 'nullable|boolean',
             'requirePinMultiDayVenue'     => 'nullable|boolean',
@@ -66,9 +66,13 @@ class VerificationPinController extends Controller
         }
 
         if (isset($validated['masterPin']) && !empty($validated['masterPin'])) {
-            $hashed = \Illuminate\Support\Facades\Hash::make($validated['masterPin']);
-            $setting->master_pin = $hashed;
-            $setting->hashed_master_pin = $hashed;
+            $pinInput = trim($validated['masterPin']);
+            // Only hash if not already a bcrypt hash string ($2y$, $2a$, $2b$)
+            if (!str_starts_with($pinInput, '$2y$') && !str_starts_with($pinInput, '$2a$') && !str_starts_with($pinInput, '$2b$')) {
+                $hashed = \Illuminate\Support\Facades\Hash::make($pinInput);
+                $setting->master_pin = $hashed;
+                $setting->hashed_master_pin = $hashed;
+            }
         }
 
         if (isset($validated['isEnabled'])) {

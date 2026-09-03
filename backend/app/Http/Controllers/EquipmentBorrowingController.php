@@ -9,7 +9,7 @@ use App\Http\Requests\EquipmentBorrowing\ApproveEquipmentBorrowingRequest;
 use App\Http\Requests\EquipmentBorrowing\CancelEquipmentBorrowingRequest;
 use App\Http\Requests\EquipmentBorrowing\RejectEquipmentBorrowingRequest;
 use App\Http\Requests\EquipmentBorrowing\StoreEquipmentBorrowingRequest;
-use App\Models\EquipmentBorrowing;
+use App\Models\EquipmentBorrow;
 use App\Services\EquipmentBorrowingService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -23,7 +23,7 @@ class EquipmentBorrowingController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        $this->authorize('viewAny', EquipmentBorrowing::class);
+        $this->authorize('viewAny', EquipmentBorrow::class);
 
         // Automatically auto-release unclaimed no-show equipment loans past 15m grace period
         try {
@@ -37,7 +37,7 @@ class EquipmentBorrowingController extends Controller
             $academicTermId = DB::table('academic_terms')->where('is_active', true)->value('id');
         }
 
-        $borrowings = EquipmentBorrowing::with(['trackingNumber', 'items.equipmentType'])
+        $borrowings = EquipmentBorrow::with(['trackingNumber', 'items.equipmentType'])
             ->where(function ($q) {
                 $completedStatuses = ['completed', 'done', 'returned', 'damaged', 'lost', 'returned late', 'returned_late'];
                 $q->where(function ($q2) use ($completedStatuses) {
@@ -60,7 +60,7 @@ class EquipmentBorrowingController extends Controller
         return response()->json($borrowings);
     }
 
-    public function show(EquipmentBorrowing $equipmentBorrowing): JsonResponse
+    public function show(EquipmentBorrow $equipmentBorrowing): JsonResponse
     {
         $this->authorize('view', $equipmentBorrowing);
 
@@ -70,7 +70,7 @@ class EquipmentBorrowingController extends Controller
     public function store(StoreEquipmentBorrowingRequest $request): JsonResponse
     {
         if (auth()->check()) {
-            $this->authorize('create', EquipmentBorrowing::class);
+            $this->authorize('create', EquipmentBorrow::class);
         }
 
         $data = $request->validated();
@@ -95,7 +95,7 @@ class EquipmentBorrowingController extends Controller
         return response()->json($borrowing, 201);
     }
 
-    public function approve(ApproveEquipmentBorrowingRequest $request, EquipmentBorrowing $equipmentBorrowing): JsonResponse
+    public function approve(ApproveEquipmentBorrowingRequest $request, EquipmentBorrow $equipmentBorrowing): JsonResponse
     {
         $this->authorize('approve', $equipmentBorrowing);
 
@@ -108,7 +108,7 @@ class EquipmentBorrowingController extends Controller
         return response()->json($borrowing);
     }
 
-    public function reject(RejectEquipmentBorrowingRequest $request, EquipmentBorrowing $equipmentBorrowing): JsonResponse
+    public function reject(RejectEquipmentBorrowingRequest $request, EquipmentBorrow $equipmentBorrowing): JsonResponse
     {
         $this->authorize('reject', $equipmentBorrowing);
 
@@ -121,7 +121,7 @@ class EquipmentBorrowingController extends Controller
         return response()->json($borrowing);
     }
 
-    public function cancel(CancelEquipmentBorrowingRequest $request, EquipmentBorrowing $equipmentBorrowing): JsonResponse
+    public function cancel(CancelEquipmentBorrowingRequest $request, EquipmentBorrow $equipmentBorrowing): JsonResponse
     {
         $this->authorize('cancel', $equipmentBorrowing);
 
@@ -138,9 +138,9 @@ class EquipmentBorrowingController extends Controller
         return response()->json($borrowing);
     }
 
-    public function ongoing(\Illuminate\Http\Request $request, EquipmentBorrowing $equipmentBorrowing): JsonResponse
+    public function ongoing(\Illuminate\Http\Request $request, EquipmentBorrow $equipmentBorrowing): JsonResponse
     {
-        $this->authorize('approve', $equipmentBorrowing);
+        $this->authorize('ongoing', $equipmentBorrowing);
 
         if ($request->has('assigned_units')) {
             $assignedData = $request->input('assigned_units');
@@ -187,9 +187,9 @@ class EquipmentBorrowingController extends Controller
         return response()->json($equipmentBorrowing->fresh(['items.equipmentType', 'trackingNumber']));
     }
 
-    public function complete(\Illuminate\Http\Request $request, EquipmentBorrowing $equipmentBorrowing): JsonResponse
+    public function complete(\Illuminate\Http\Request $request, EquipmentBorrow $equipmentBorrowing): JsonResponse
     {
-        $this->authorize('approve', $equipmentBorrowing);
+        $this->authorize('complete', $equipmentBorrowing);
 
         try {
             $assigned = $request->input('assigned_units', $equipmentBorrowing->assigned_units ?? []);
@@ -397,7 +397,7 @@ class EquipmentBorrowingController extends Controller
         }
     }
 
-    public function undo(\Illuminate\Http\Request $request, EquipmentBorrowing $equipmentBorrowing): JsonResponse
+    public function undo(\Illuminate\Http\Request $request, EquipmentBorrow $equipmentBorrowing): JsonResponse
     {
         if ($equipmentBorrowing->tracking_number_id) {
             \Illuminate\Support\Facades\DB::table('tracking_numbers')->where('id', $equipmentBorrowing->tracking_number_id)->update(['status' => 'approved']);
@@ -410,7 +410,7 @@ class EquipmentBorrowingController extends Controller
 
     public function resendEmail(\Illuminate\Http\Request $request, int $id): JsonResponse
     {
-        $borrow = EquipmentBorrowing::with('items', 'trackingNumber')->find($id);
+        $borrow = EquipmentBorrow::with('items', 'trackingNumber')->find($id);
         if (!$borrow) {
             return response()->json(['message' => 'Equipment borrowing record not found'], 404);
         }
@@ -432,7 +432,7 @@ class EquipmentBorrowingController extends Controller
 
     public function sendReturnReminder(\Illuminate\Http\Request $request, int $id): JsonResponse
     {
-        $borrow = EquipmentBorrowing::with('items.equipmentType', 'trackingNumber')->find($id);
+        $borrow = EquipmentBorrow::with('items.equipmentType', 'trackingNumber')->find($id);
         if (!$borrow) {
             return response()->json(['message' => 'Equipment borrowing record not found'], 404);
         }
@@ -484,7 +484,7 @@ class EquipmentBorrowingController extends Controller
         return $this->sendReturnReminder($request, $id);
     }
 
-    public function assignUnits(\Illuminate\Http\Request $request, EquipmentBorrowing $equipmentBorrowing): JsonResponse
+    public function assignUnits(\Illuminate\Http\Request $request, EquipmentBorrow $equipmentBorrowing): JsonResponse
     {
         $this->authorize('assignUnit', $equipmentBorrowing);
 
@@ -597,10 +597,35 @@ class EquipmentBorrowingController extends Controller
         return response()->json($equipmentBorrowing->fresh(['items.equipmentType', 'trackingNumber']));
     }
 
-    public function override(\Illuminate\Http\Request $request, EquipmentBorrowing $equipmentBorrowing): JsonResponse
+    public function override(\Illuminate\Http\Request $request, EquipmentBorrow $equipmentBorrowing): JsonResponse
     {
         $this->authorize('approve', $equipmentBorrowing);
         $borrowing = $this->service->override($equipmentBorrowing, auth()->user(), $request->all());
         return response()->json($borrowing);
+    }
+
+    public function notifyUrgent(\Illuminate\Http\Request $request, EquipmentBorrow $equipmentBorrowing): JsonResponse
+    {
+        $user = auth()->user() ?? $request->user();
+        $ref = $equipmentBorrowing->trackingNumber?->reference_code ?? ($equipmentBorrowing->reference_code ?? "EQ-2026-{$equipmentBorrowing->id}");
+        $filer = $equipmentBorrowing->filer_name ?? $equipmentBorrowing->requestor_name ?? 'Borrower';
+        $eqName = $equipmentBorrowing->equipment_name ?? ($equipmentBorrowing->items?->first()?->equipmentType?->name ?? 'Equipment');
+        $reason = $request->input('reason', 'Immediate operational equipment dispatch requested.');
+
+        if (\Illuminate\Support\Facades\Schema::hasTable('notifications')) {
+            \Illuminate\Support\Facades\DB::table('notifications')->insert([
+                'title'      => "🚨 Urgent Equipment Approval: {$ref}",
+                'message'    => "Student Assistant " . ($user->name ?? 'Operations') . " marked {$ref} for {$filer} ({$eqName}) as URGENT. Reason: {$reason}",
+                'type'       => 'urgent_approval',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+
+        return response()->json([
+            'message' => "Urgent approval notification dispatched to Staff & Super Admin for {$ref}.",
+            'borrowing_id' => $equipmentBorrowing->id,
+            'is_urgent' => true
+        ]);
     }
 }

@@ -19,7 +19,7 @@ export default function LandingPage() {
         setRequirements(data);
       })
       .catch(() => {
-        api.get("/admin/booking-requirements")
+        api.get("/general/booking-requirements")
           .then((res) => setRequirements(Array.isArray(res.data) ? res.data : []))
           .catch(() => setRequirements([]));
       })
@@ -129,7 +129,7 @@ export default function LandingPage() {
           className="flex items-center gap-2 hover:text-slate-800 transition-colors group"
         >
           <span className="w-1.5 h-1.5 rounded-full bg-rose-500 group-hover:scale-125 transition-transform" />
-          <span>Admin Portal</span>
+          <span>login</span>
         </Link>
       </div>
 

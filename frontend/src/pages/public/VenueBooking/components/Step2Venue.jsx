@@ -1,9 +1,11 @@
-import { MapPin, ChevronLeft, ChevronRight, Clock, Calendar as CalendarIcon, CheckCircle2, AlertTriangle, Building2, DollarSign, Search, Loader2 } from "lucide-react";
+import { MapPin, ChevronLeft, ChevronRight, Clock, Calendar as CalendarIcon, CalendarDays, CheckCircle2, AlertTriangle, Building2, DollarSign, Search, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
 import { useState, useEffect } from "react";
 import api from "@/lib/axios";
 import { getTodayISO, isPastDate, isPastTimeToday, isPastDateTime } from "@/lib/dateTimeUtils";
+
+const BLOCKING_STATUSES = ["approved", "ongoing", "on-going"];
 
 export default function Step2Venue({
   identity,
@@ -37,6 +39,13 @@ export default function Step2Venue({
   const [opHours, setOpHours] = useState(propOpHours || null);
   const [pinRules, setPinRules] = useState(propPinRules || null);
   const [dbOverrides, setDbOverrides] = useState([]);
+  const [isMultiDay, setIsMultiDay] = useState(() => Boolean(selectedEndDate && selectedEndDate !== selectedDate));
+
+  useEffect(() => {
+    if (selectedEndDate && selectedEndDate !== selectedDate) {
+      setIsMultiDay(true);
+    }
+  }, [selectedEndDate, selectedDate]);
 
   useEffect(() => {
     if (propOpHours) setOpHours(propOpHours);
@@ -47,7 +56,12 @@ export default function Step2Venue({
   }, [propPinRules]);
 
   useEffect(() => {
-    const handleUpdate = () => setVersion(v => v + 1);
+    const handleUpdate = (e) => {
+      if (e?.type === "storage" && e.key && e.key !== "fsuu_venue_overrides" && e.key !== "fsuu_venue_maintenance") {
+        return;
+      }
+      setVersion(v => v + 1);
+    };
     window.addEventListener("venue_availability_updated", handleUpdate);
     window.addEventListener("storage", handleUpdate);
     return () => {
@@ -126,6 +140,17 @@ export default function Step2Venue({
   const monthLabel = new Date(calYear, calMonth).toLocaleString("default", { month: "long", year: "numeric" });
   const firstDayOfWeek = new Date(calYear, calMonth, 1).getDay();
   const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+
+  // Automatically pre-select earliest valid booking date if none is selected
+  useEffect(() => {
+    if (!selectedDate) {
+      const defaultDate = isPortal ? getTodayISO() : minDateStr;
+      handleDateSelect(defaultDate);
+      if (setSelectedEndDate) {
+        setSelectedEndDate(defaultDate);
+      }
+    }
+  }, [selectedDate, minDateStr, isPortal]);
 
   const isDayDisabled = (day) => {
     const dateStr = `${calYear}-${pad(calMonth + 1)}-${pad(day)}`;
@@ -214,11 +239,10 @@ export default function Step2Venue({
     }
 
     // 2. Filter bookings strictly for the SELECTED venue & date (including multi-day spans)
-    // Exclude completed/done/cancelled/rejected — these slots are free again.
-    const INACTIVE_STATUSES = ["completed", "done", "returned", "rejected", "cancelled", "cancelled_by_user", "cancelled_by_admin", "solved", "damaged", "lost"];
+    // Per SPEC: Pending requests do NOT lock the calendar. Only approved/ongoing bookings block availability.
     const dayBookings = existingBookings.filter(b => {
       const bStatus = String(b.status || b.tracking_number?.status || "").toLowerCase();
-      if (INACTIVE_STATUSES.includes(bStatus)) return false; // slot is free
+      if (!BLOCKING_STATUSES.includes(bStatus)) return false; // Pending/inactive slots remain available
       const bVenueName = (b.venue?.name || b.venue_name || "").toLowerCase();
       const matchVenue = String(b.venue_id) === String(selectedVenue.id) ||
         (bVenueName && (bVenueName.includes(vName) || vName.includes(bVenueName)));
@@ -280,24 +304,33 @@ export default function Step2Venue({
     };
   };
 
-  const checkOverlap = (s1, e1, s2, e2) => {
+  const arrivalGraceMins = Number(opHours?.arrival_grace_mins ?? 15);
+
+  const checkOverlap = (s1, e1, s2, e2, graceMins = arrivalGraceMins) => {
     const toMin = (t) => {
       if (!t) return 0;
       const [h, m] = t.split(":").map(Number);
       return (h || 0) * 60 + (m || 0);
     };
-    return Math.max(toMin(s1), toMin(s2)) < Math.min(toMin(e1), toMin(e2));
+    const start1 = toMin(s1);
+    const end1 = toMin(e1);
+    const start2 = toMin(s2);
+    const end2 = toMin(e2);
+
+    // Apply Arrival Grace Period: Next booking can start up to graceMins before end of previous booking
+    const adjustedStart1 = start1 + graceMins;
+    const adjustedStart2 = start2 + graceMins;
+
+    return (start1 < end2 && end1 > adjustedStart2) && (start2 < end1 && end2 > adjustedStart1);
   };
 
   const targetEndDate = selectedEndDate && selectedEndDate >= selectedDate ? selectedEndDate : selectedDate;
 
-  const CONFLICT_INACTIVE = ["completed", "done", "returned", "rejected", "cancelled", "cancelled_by_user", "cancelled_by_admin", "solved", "damaged", "lost"];
-
   const conflictingBooking = (selectedVenue && selectedDate && timeStart && timeEnd)
     ? existingBookings.find(b => {
-      // Skip bookings that are already completed/done — their time slot is free
+      // Per SPEC: Only approved or ongoing bookings block the slot and generate a hard conflict
       const bStatus = String(b.status || b.tracking_number?.status || "").toLowerCase();
-      if (CONFLICT_INACTIVE.includes(bStatus)) return false;
+      if (!BLOCKING_STATUSES.includes(bStatus)) return false;
 
       const bVenueName = (b.venue?.name || b.venue_name || "").toLowerCase();
       const vName = (selectedVenue.name || "").toLowerCase();
@@ -378,6 +411,18 @@ export default function Step2Venue({
                 const isSelected = selectedVenue?.id === v.id;
                 const campusName = v.office?.location || v.office?.name || v.location || "Main Campus";
 
+                const formatVenueLocation = (venue) => {
+                  const loc = (venue.location || "").trim();
+                  const campus = (venue.office?.location || venue.office?.name || "").trim();
+                  if (loc && campus) {
+                    if (loc.toLowerCase() === campus.toLowerCase()) return loc;
+                    if (loc.toLowerCase().includes(campus.toLowerCase())) return loc;
+                    if (campus.toLowerCase().includes(loc.toLowerCase())) return campus;
+                    return `${loc} [ ${campus} ]`;
+                  }
+                  return loc || campus || "Main Campus";
+                };
+
                 const getVenueData = (v) => {
                   let photo = v.photo || v.image || v.avatar || v.avatar_url || v.photo_url || null;
                   let status = v.status || "Available";
@@ -424,7 +469,7 @@ export default function Step2Venue({
                       <div className="mt-4 space-y-1">
                         <h4 className="font-extrabold text-slate-900 text-sm leading-tight line-clamp-1">{v.name}</h4>
                         <p className="text-xs text-slate-600 font-semibold line-clamp-1">
-                          {v.location ? `${v.location} [ ${campusName} ]` : `[ ${campusName} ]`}
+                          {formatVenueLocation(v)}
                         </p>
                         <p className="text-xs text-slate-600 font-semibold">
                           {v.capacity || venueInfo.capacity || 80} seats
@@ -533,6 +578,39 @@ export default function Step2Venue({
               </p>
             </div>
 
+            {/* Multi-Day Booking Toggle Switch */}
+            <div className="flex items-center justify-between p-3.5 bg-slate-50 border border-slate-200/90 rounded-2xl shadow-2xs">
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-1.5">
+                  <CalendarDays size={14} className={isMultiDay ? "text-blue-600" : "text-slate-500"} />
+                  <span className="text-xs font-bold text-slate-900">Multi-Day Reservation</span>
+                </div>
+                <p className="text-[10.5px] text-slate-500 font-medium">
+                  {isMultiDay ? "Enabled: Click a start date then an end date" : "Off: Single-day reservation only"}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  const next = !isMultiDay;
+                  setIsMultiDay(next);
+                  if (!next && selectedDate && setSelectedEndDate) {
+                    setSelectedEndDate(selectedDate);
+                  }
+                }}
+                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                  isMultiDay ? "bg-blue-600" : "bg-slate-300"
+                }`}
+                title={isMultiDay ? "Switch to single-day mode" : "Switch to multi-day mode"}
+              >
+                <span
+                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                    isMultiDay ? "translate-x-5" : "translate-x-0"
+                  }`}
+                />
+              </button>
+            </div>
+
             {/* Interactive Preline Style Calendar Container */}
             <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs space-y-3">
               {/* Header: < Month / Year > */}
@@ -589,8 +667,12 @@ export default function Step2Venue({
                   const hasRange = Boolean(selectedEndDate && selectedEndDate > selectedDate);
                   const isInBetween = hasRange && dateStr > selectedDate && dateStr < selectedEndDate;
 
+                  const isFullyBooked = info.status === "fully";
+                  const isPartialBooked = info.status === "partial";
+                  const isMaintenanceOrClosed = info.status === "maintenance" || info.status === "closed";
+
                   // Disabled state for past dates, short notice (in public view), or maintenance/full
-                  const isDisabled = isPast || isPublicBlockedNotice || info.status === "maintenance" || info.status === "closed" || info.status === "fully";
+                  const isDisabled = isPast || isPublicBlockedNotice || isMaintenanceOrClosed || isFullyBooked;
 
                   return (
                     <div
@@ -610,30 +692,12 @@ export default function Step2Venue({
                         onClick={() => {
                           if (isDisabled) return;
 
-                          if (isPortal) {
-                            // Portal Interface: Full multi-day selection & tomorrow short notice allowed with PIN prompt
-                            if (!selectedDate || (selectedDate && selectedEndDate && selectedEndDate !== selectedDate)) {
-                              handleDateSelect(dateStr);
-                              if (setSelectedEndDate) setSelectedEndDate(dateStr);
-                            } else if (selectedDate && (!selectedEndDate || selectedEndDate === selectedDate)) {
-                              if (dateStr < selectedDate) {
-                                handleDateSelect(dateStr);
-                                if (setSelectedEndDate) setSelectedEndDate(dateStr);
-                              } else {
-                                if (setSelectedEndDate) setSelectedEndDate(dateStr);
-                              }
-                            }
-
-                            // Trigger verification pin modal prompt for short notice (within 3 days / tomorrow)
-                            if (isShortNotice && !isPinVerified) {
-                              setPinModalMeta && setPinModalMeta({
-                                title: "Short-Notice Booking Verification PIN",
-                                description: `Selected date (${dateStr}) is within the 3-day notice window (tomorrow / short-notice booking). AVR Head / Administrative clearance PIN is required to authorize this slot.`,
-                              });
-                              setShowPinModal && setShowPinModal(true);
-                            }
+                          if (!isMultiDay) {
+                            // Single-Day Mode: Set start and end to the same clicked date
+                            handleDateSelect(dateStr);
+                            if (setSelectedEndDate) setSelectedEndDate(dateStr);
                           } else {
-                            // Public View: Limited to maximum 3 days duration, strictly >= 3 days advance
+                            // Multi-Day Mode: Start/End range with NO limit
                             if (!selectedDate || (selectedDate && selectedEndDate && selectedEndDate !== selectedDate)) {
                               handleDateSelect(dateStr);
                               if (setSelectedEndDate) setSelectedEndDate(dateStr);
@@ -642,51 +706,89 @@ export default function Step2Venue({
                                 handleDateSelect(dateStr);
                                 if (setSelectedEndDate) setSelectedEndDate(dateStr);
                               } else {
-                                const startD = new Date(selectedDate);
-                                const targetD = new Date(dateStr);
-                                const diffDays = Math.ceil((targetD - startD) / (1000 * 60 * 60 * 24));
-                                if (diffDays > 2) {
-                                  const maxEnd = new Date(startD);
-                                  maxEnd.setDate(maxEnd.getDate() + 2);
-                                  const maxEndStr = `${maxEnd.getFullYear()}-${pad(maxEnd.getMonth() + 1)}-${pad(maxEnd.getDate())}`;
-                                  if (setSelectedEndDate) setSelectedEndDate(maxEndStr);
-                                  alert("Public venue bookings are limited to a maximum of 3 days. Your reservation has been set to 3 days (" + selectedDate + " to " + maxEndStr + ").");
-                                } else {
-                                  if (setSelectedEndDate) setSelectedEndDate(dateStr);
-                                }
+                                if (setSelectedEndDate) setSelectedEndDate(dateStr);
                               }
                             }
                           }
+
+                          // Trigger verification pin modal prompt for short notice (within 3 days / tomorrow) in portal mode
+                          if (isPortal && isShortNotice && !isPinVerified) {
+                            setPinModalMeta && setPinModalMeta({
+                              title: "Short-Notice Booking Verification PIN",
+                              description: `Selected date (${dateStr}) is within the 3-day notice window (tomorrow / short-notice booking). AVR Head / Administrative clearance PIN is required to authorize this slot.`,
+                            });
+                            setShowPinModal && setShowPinModal(true);
+                          }
                         }}
-                        className={`w-8 h-8 rounded-full text-xs font-extrabold flex items-center justify-center mx-auto transition-all relative z-10 ${isStart || isEnd
-                            ? "bg-blue-600 text-white font-black shadow-sm scale-105 cursor-pointer"
-                            : isPast
-                              ? "text-slate-300 cursor-not-allowed pointer-events-none select-none"
-                              : isPublicBlockedNotice
-                                ? "text-slate-300 bg-slate-50 cursor-not-allowed line-through select-none"
-                                : isDisabled
-                                  ? "text-slate-300 bg-slate-100/60 cursor-not-allowed"
-                                  : isToday
-                                    ? "text-blue-600 border border-blue-500 font-black hover:bg-blue-50 cursor-pointer"
-                                    : isShortNotice
-                                      ? "text-amber-700 bg-amber-50/60 hover:bg-amber-100 cursor-pointer"
-                                      : "text-slate-700 hover:bg-slate-100 cursor-pointer"
-                          }`}
+                        className={`w-8 h-8 rounded-full text-xs font-extrabold flex flex-col items-center justify-center mx-auto transition-all relative z-10 ${
+                          isStart || isEnd
+                            ? "bg-blue-600 text-white font-black shadow-md scale-105 ring-2 ring-blue-300 cursor-pointer"
+                            : isToday
+                              ? "bg-blue-100 text-blue-700 border-2 border-blue-600 font-black shadow-2xs hover:bg-blue-200 cursor-pointer"
+                              : isPast
+                                ? "text-slate-300 cursor-not-allowed pointer-events-none select-none"
+                                : isPublicBlockedNotice
+                                  ? "text-slate-300 bg-slate-50 cursor-not-allowed line-through select-none"
+                                  : isMaintenanceOrClosed
+                                    ? "text-slate-800 bg-slate-200 border border-slate-300 cursor-not-allowed"
+                                    : isFullyBooked
+                                      ? "text-rose-700 bg-rose-100 border border-rose-300 font-black cursor-not-allowed"
+                                      : isPartialBooked
+                                        ? "text-amber-900 bg-amber-100 border border-amber-300 font-bold hover:bg-amber-200 cursor-pointer"
+                                        : isShortNotice
+                                          ? "text-amber-700 bg-amber-50/60 hover:bg-amber-100 cursor-pointer"
+                                          : "text-slate-700 hover:bg-slate-100 cursor-pointer"
+                        }`}
                         title={
-                          isPast
-                            ? "Date already passed"
-                            : isPublicBlockedNotice
-                              ? `${dateStr} (Requires at least 3 days advance booking)`
-                              : isShortNotice
-                                ? `${dateStr} (Short-Notice: PIN Authorization Required)`
-                                : `${dateStr} (Available)`
+                          isToday
+                            ? `Today (${dateStr})${isPublicBlockedNotice ? ' - Min. 3 days advance notice required for venue booking' : ''}`
+                            : isPast
+                              ? "Date already passed"
+                              : isPublicBlockedNotice
+                                ? `${dateStr} (Requires at least 3 days advance booking)`
+                                : isMaintenanceOrClosed
+                                  ? `${dateStr} (${info.box?.status || 'Maintenance / Closed'})`
+                                  : isFullyBooked
+                                    ? `${dateStr} (Fully Booked)`
+                                    : isPartialBooked
+                                      ? `${dateStr} (Partially Booked: ${info.box?.time || 'Reserved slots'})`
+                                      : isShortNotice
+                                        ? `${dateStr} (Short-Notice: PIN Authorization Required)`
+                                        : `${dateStr} (Available)`
                         }
                       >
-                        {day}
+                        <span>{day}</span>
+                        {!isStart && !isEnd && (
+                          <>
+                            {isFullyBooked && <span className="w-1 h-1 rounded-full bg-rose-600 mt-0.5"></span>}
+                            {isPartialBooked && <span className="w-1 h-1 rounded-full bg-amber-500 mt-0.5"></span>}
+                            {isMaintenanceOrClosed && <span className="w-1 h-1 rounded-full bg-slate-700 mt-0.5"></span>}
+                          </>
+                        )}
                       </button>
                     </div>
                   );
                 })}
+              </div>
+
+              {/* Calendar Quick Legend */}
+              <div className="flex flex-wrap items-center justify-between gap-y-1 text-[10px] font-semibold text-slate-500 pt-2 border-t border-slate-100">
+                <span className="flex items-center gap-1">
+                  <span className="w-2.5 h-2.5 rounded-full bg-blue-600 inline-block"></span>
+                  <span>Selected</span>
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="w-2.5 h-2.5 rounded-full bg-amber-100 border border-amber-400 inline-block"></span>
+                  <span>Partially Booked</span>
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="w-2.5 h-2.5 rounded-full bg-rose-100 border border-rose-400 inline-block"></span>
+                  <span>Fully Booked</span>
+                </span>
+                <span className="flex items-center gap-1 text-slate-400">
+                  <span className="w-2.5 h-2.5 rounded-full bg-slate-100 border border-slate-300 inline-block"></span>
+                  <span>3-day notice</span>
+                </span>
               </div>
             </div>
 
@@ -751,13 +853,10 @@ export default function Step2Venue({
                     <div className="p-3.5 bg-rose-50 border-2 border-rose-300 rounded-2xl text-xs font-bold text-rose-800 space-y-1.5 shadow-sm">
                       <div className="flex items-center gap-1.5 text-rose-700 font-extrabold">
                         <AlertTriangle size={16} className="text-rose-600 shrink-0" />
-                        <span>Time Slot Blocked / Already Reserved!</span>
+                        <span>Already Reserved!</span>
                       </div>
                       <p className="text-[11px] font-semibold text-rose-700 leading-snug">
                         <strong>{selectedVenue?.name}</strong> is already booked on <strong>{conflictingBooking.date_of_usage ? conflictingBooking.date_of_usage.substring(0, 10) : selectedDate}</strong> from <strong>{formatTime12(conflictingBooking.time_start?.substring(0, 5))} to {formatTime12(conflictingBooking.time_end?.substring(0, 5))}</strong>.
-                      </p>
-                      <p className="text-[11px] font-bold text-rose-900 leading-snug bg-rose-100/70 p-2 rounded-xl border border-rose-200">
-                        You cannot proceed to fill details for an overlapping schedule. Please choose a different date, time, or venue.
                       </p>
                     </div>
                   ) : null}

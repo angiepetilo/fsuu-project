@@ -1,5 +1,5 @@
-import React, { useRef, useState } from "react";
-import { Camera, UploadCloud, Trash2, ZoomIn, Plus } from "lucide-react";
+import React, { useState, useRef } from "react";
+import { Camera, UploadCloud, X, ZoomIn, Plus } from "lucide-react";
 import { resolveStorageUrl } from "@/lib/utils";
 
 /**
@@ -11,7 +11,7 @@ export default function InspectionPhotoUploader({
   setPhotos,
   isReadOnly = false,
   onPreview = null,
-  title = "Inspection Evidence & Condition Photos",
+  title = null,
   subtitle = "Attach photos of room setup, facility state, damages, or equipment barcodes (optional, multiple allowed).",
 }) {
   const fileInputRef = useRef(null);
@@ -84,26 +84,32 @@ export default function InspectionPhotoUploader({
   return (
     <div className="space-y-2 pt-1">
       {/* Header & Photo Count Badge */}
-      <div className="flex items-center justify-between">
-        <label className="text-[11px] font-bold text-slate-700 flex items-center gap-1.5 uppercase">
-          <Camera size={13} className="text-slate-500" />
-          <span>{title}</span>
-          {normalizedPhotos.length > 0 && (
-            <span className="ml-1 text-[10px] font-mono font-extrabold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
-              {normalizedPhotos.length} {normalizedPhotos.length === 1 ? "Photo" : "Photos"}
-            </span>
+      {(title || normalizedPhotos.length > 0) && (
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5">
+            {title && (
+              <label className="text-[11px] font-bold text-slate-700 flex items-center gap-1.5 uppercase">
+                <Camera size={13} className="text-slate-500" />
+                <span>{title}</span>
+              </label>
+            )}
+            {normalizedPhotos.length > 0 && (
+              <span className="text-[10px] font-mono font-extrabold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
+                {normalizedPhotos.length} {normalizedPhotos.length === 1 ? "Photo" : "Photos"}
+              </span>
+            )}
+          </div>
+          {!isReadOnly && normalizedPhotos.length > 0 && (
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="text-[10px] font-bold text-blue-600 hover:text-blue-700 hover:underline flex items-center gap-1 cursor-pointer"
+            >
+              <Plus size={11} /> Add More
+            </button>
           )}
-        </label>
-        {!isReadOnly && normalizedPhotos.length > 0 && (
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            className="text-[10px] font-bold text-blue-600 hover:text-blue-700 hover:underline flex items-center gap-1 cursor-pointer"
-          >
-            <Plus size={11} /> Add More
-          </button>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Subtitle / Instructions */}
       {!isReadOnly && normalizedPhotos.length === 0 && (
@@ -156,7 +162,7 @@ export default function InspectionPhotoUploader({
                       }}
                       className="p-1 rounded-md bg-rose-600/90 text-white hover:bg-rose-600 hover:scale-110 transition-all cursor-pointer shadow-xs"
                     >
-                      <Trash2 size={12} />
+                      <X size={12} />
                     </button>
                   )}
                 </div>

@@ -87,7 +87,7 @@ api.interceptors.response.use(
   (error) => {
     const status = error.response?.status;
     const msg = error.response?.data?.message || '';
-    const isAdminRoute = window.location.pathname.startsWith('/admin') || window.location.pathname.startsWith('/sysad');
+    const isAdminRoute = window.location.pathname.startsWith('/general') || window.location.pathname.startsWith('/admin') || window.location.pathname.startsWith('/sysad');
 
     if (status === 401 || (status === 500 && typeof msg === 'string' && (msg.includes('Unauthenticated') || msg.includes('encryption key')))) {
       if (isAdminRoute) {

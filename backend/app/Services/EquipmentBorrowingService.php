@@ -9,7 +9,7 @@ use App\Jobs\SendBookingConfirmationJob;
 use App\Jobs\SendBookingStatusUpdateJob;
 use App\Models\Approval;
 use App\Models\VenueBooking;
-use App\Models\EquipmentBorrowing;
+use App\Models\EquipmentBorrow;
 use App\Models\EquipmentBorrowItem as EquipmentBorrowingItem;
 use App\Models\EquipmentType;
 use App\Models\User;
@@ -23,7 +23,7 @@ class EquipmentBorrowingService
         private NotificationService $notification
     ) {}
 
-    public function create(array $data): EquipmentBorrowing
+    public function create(array $data): EquipmentBorrow
     {
         return DB::transaction(function () use ($data) {
             $this->assertExternalHasVenueBooking($data);
@@ -102,6 +102,10 @@ class EquipmentBorrowingService
             $name = $data['requestor_name'] ?? $data['filer_name'] ?? 'Filer';
             if ($hasCol('requestor_name')) $insertData['requestor_name'] = $name;
             if ($hasCol('filer_name')) $insertData['filer_name'] = $name;
+            if ($hasCol('first_name')) $insertData['first_name'] = $data['first_name'] ?? null;
+            if ($hasCol('middle_name')) $insertData['middle_name'] = $data['middle_name'] ?? null;
+            if ($hasCol('last_name')) $insertData['last_name'] = $data['last_name'] ?? null;
+            if ($hasCol('suffix')) $insertData['suffix'] = $data['suffix'] ?? null;
 
             $email = $data['requestor_email'] ?? $data['email_address'] ?? 'requestor@urios.edu.ph';
             if ($hasCol('requestor_email')) $insertData['requestor_email'] = $email;
@@ -201,7 +205,7 @@ class EquipmentBorrowingService
         });
     }
 
-    public function approve(EquipmentBorrowing $borrowing, User $actor, ?string $remarks = null): EquipmentBorrowing
+    public function approve(EquipmentBorrow $borrowing, User $actor, ?string $remarks = null): EquipmentBorrow
     {
         return DB::transaction(function () use ($borrowing, $actor, $remarks) {
             if (\Illuminate\Support\Facades\Schema::hasColumn('equipment_borrows', 'status')) {
@@ -263,7 +267,7 @@ class EquipmentBorrowingService
         });
     }
 
-    public function reject(EquipmentBorrowing $borrowing, User $actor, string $remarks): EquipmentBorrowing
+    public function reject(EquipmentBorrow $borrowing, User $actor, string $remarks): EquipmentBorrow
     {
         return DB::transaction(function () use ($borrowing, $actor, $remarks) {
             if (\Illuminate\Support\Facades\Schema::hasColumn('equipment_borrows', 'status')) {
@@ -319,7 +323,7 @@ class EquipmentBorrowingService
         });
     }
 
-    public function cancel(EquipmentBorrowing $borrowing, User $actor, ?string $remarks = null): EquipmentBorrowing
+    public function cancel(EquipmentBorrow $borrowing, User $actor, ?string $remarks = null): EquipmentBorrow
     {
         $this->assertCancelAllowed($borrowing, $actor);
 
@@ -363,7 +367,7 @@ class EquipmentBorrowingService
         });
     }
 
-    private function assertCancelAllowed(EquipmentBorrowing $borrowing, User $actor): void
+    private function assertCancelAllowed(EquipmentBorrow $borrowing, User $actor): void
     {
         $isWithinFinalWindow = now()->diffInHours($borrowing->start_datetime, false) < 24;
 
@@ -478,7 +482,7 @@ class EquipmentBorrowingService
         return $assignment;
     }
 
-    public function override(EquipmentBorrowing $borrowing, User $actor, array $data): EquipmentBorrowing
+    public function override(EquipmentBorrow $borrowing, User $actor, array $data): EquipmentBorrow
     {
         return DB::transaction(function () use ($borrowing, $actor, $data) {
             $updateData = array_filter([

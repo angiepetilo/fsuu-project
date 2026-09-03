@@ -2,7 +2,7 @@
 
 namespace App\Console\Commands;
 
-use App\Models\EquipmentBorrowing;
+use App\Models\EquipmentBorrow;
 use App\Services\SmsService;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
@@ -19,7 +19,7 @@ class CheckOverdueEquipmentCommand extends Command
 
         $now = Carbon::now();
 
-        $ongoingBorrowings = EquipmentBorrowing::with('trackingNumber')
+        $ongoingBorrowings = EquipmentBorrow::with('trackingNumber')
             ->where(function ($q) {
                 $q->whereHas('trackingNumber', function ($t) {
                     $t->whereIn('status', ['ongoing', 'on-going']);
