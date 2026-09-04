@@ -22,7 +22,7 @@ export default function VenueScheduleCalendar({
     : new Date(currentYear, currentMonth).toLocaleString("default", { month: "long" });
 
   return (
-    <div className="bg-white p-5 sm:p-6 rounded-[28px] border border-slate-200/90 shadow-sm space-y-4">
+    <div className="bg-white p-5 sm:p-6 rounded-[28px] border border-slate-200/90 shadow-sm h-full flex flex-col justify-between space-y-4">
       {/* Header: < Month / Year > matching book-venue */}
       <div className="flex items-center justify-between px-1">
         <button
@@ -48,62 +48,65 @@ export default function VenueScheduleCalendar({
         </button>
       </div>
 
-      {/* Day of Week Headers (Mon - Sun) */}
-      <div className="grid grid-cols-7 gap-1 text-center text-xs font-extrabold text-slate-400 py-1">
-        {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
-          <div key={d}>{d}</div>
-        ))}
-      </div>
+      {/* Days & Grid Container - centered vertically in the expanded height */}
+      <div className="flex-1 flex flex-col justify-center space-y-3 py-2">
+        {/* Day of Week Headers (Mon - Sun) */}
+        <div className="grid grid-cols-7 gap-1 text-center text-xs font-extrabold text-slate-400 py-1">
+          {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
+            <div key={d}>{d}</div>
+          ))}
+        </div>
 
-      {/* Calendar Grid with Monday-First Week Alignment */}
-      <div className="grid grid-cols-7 gap-y-2 text-center text-xs">
-        {/* Empty slots before the 1st day of the month (Monday-first) */}
-        {Array.from({ length: (firstDayOfWeek + 6) % 7 }).map((_, i) => (
-          <div key={`empty-${i}`} className="h-9" />
-        ))}
+        {/* Calendar Grid with Monday-First Week Alignment */}
+        <div className="grid grid-cols-7 gap-y-3 sm:gap-y-4 text-center text-xs">
+          {/* Empty slots before the 1st day of the month (Monday-first) */}
+          {Array.from({ length: (firstDayOfWeek + 6) % 7 }).map((_, i) => (
+            <div key={`empty-${i}`} className="h-9" />
+          ))}
 
-        {Array.from({ length: daysInMonth }).map((_, i) => {
-          const day = i + 1;
-          const dateStr = `${currentYear}-${pad(currentMonth + 1)}-${pad(day)}`;
-          const isSelected = setupForm.startDate === dateStr;
-          const isToday = dateStr === todayStr;
-          const dayStatus = getVenueDayStatus(dateStr);
-          const isMaintenanceOrClosed = ["maintenance", "closed", "damaged"].includes(dayStatus.status);
-          const isFully = dayStatus.status === "fully";
-          const isPartial = dayStatus.status === "partial";
+          {Array.from({ length: daysInMonth }).map((_, i) => {
+            const day = i + 1;
+            const dateStr = `${currentYear}-${pad(currentMonth + 1)}-${pad(day)}`;
+            const isSelected = setupForm.startDate === dateStr;
+            const isToday = dateStr === todayStr;
+            const dayStatus = getVenueDayStatus(dateStr);
+            const isMaintenanceOrClosed = ["maintenance", "closed", "damaged"].includes(dayStatus.status);
+            const isFully = dayStatus.status === "fully";
+            const isPartial = dayStatus.status === "partial";
 
-          return (
-            <div
-              key={day}
-              className="relative h-9 flex items-center justify-center"
-            >
-              <button
-                type="button"
-                onClick={() => setSetupForm((prev) => ({ ...prev, startDate: dateStr }))}
-                className={`w-9 h-9 rounded-full text-xs font-extrabold flex items-center justify-center mx-auto transition-all relative z-10 ${
-                  isSelected
-                    ? "bg-blue-600 text-white font-black shadow-sm scale-105 cursor-pointer"
-                    : isToday
-                    ? "border-2 border-blue-600 text-blue-700 font-extrabold bg-blue-50/40 cursor-pointer"
-                    : isMaintenanceOrClosed
-                    ? "text-slate-800 bg-slate-100 border border-slate-300 font-bold hover:bg-slate-200 cursor-pointer"
-                    : isFully
-                    ? "text-rose-700 bg-rose-50 border border-rose-200 font-bold hover:bg-rose-100 cursor-pointer"
-                    : isPartial
-                    ? "text-amber-900 font-bold hover:bg-amber-100 cursor-pointer"
-                    : "text-slate-800 font-bold hover:bg-slate-100 cursor-pointer"
-                }`}
-                title={`${dateStr} - ${dayStatus.reason || dayStatus.status}`}
+            return (
+              <div
+                key={day}
+                className="relative h-9 flex items-center justify-center"
               >
-                <span>{day}</span>
-              </button>
-            </div>
-          );
-        })}
+                <button
+                  type="button"
+                  onClick={() => setSetupForm((prev) => ({ ...prev, startDate: dateStr }))}
+                  className={`w-9 h-9 rounded-full text-xs font-extrabold flex items-center justify-center mx-auto transition-all relative z-10 ${
+                    isSelected
+                      ? "bg-blue-600 text-white font-black shadow-sm scale-105 cursor-pointer"
+                      : isToday
+                      ? "border-2 border-blue-600 text-blue-700 font-extrabold bg-blue-50/40 cursor-pointer"
+                      : isMaintenanceOrClosed
+                      ? "text-slate-800 bg-slate-100 border border-slate-300 font-bold hover:bg-slate-200 cursor-pointer"
+                      : isFully
+                      ? "text-rose-700 bg-rose-50 border border-rose-200 font-bold hover:bg-rose-100 cursor-pointer"
+                      : isPartial
+                      ? "text-amber-900 font-bold hover:bg-amber-100 cursor-pointer"
+                      : "text-slate-800 font-bold hover:bg-slate-100 cursor-pointer"
+                  }`}
+                  title={`${dateStr} - ${dayStatus.reason || dayStatus.status}`}
+                >
+                  <span>{day}</span>
+                </button>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {/* Calendar Quick Legend matching book-venue */}
-      <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] font-extrabold text-slate-500 pt-3 border-t border-slate-100/60">
+      <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] font-extrabold text-slate-500 pt-4 border-t border-slate-100/80 mt-auto">
         <span className="flex items-center gap-1.5">
           <span className="w-2.5 h-2.5 rounded-full bg-blue-600 inline-block"></span>
           <span>Selected</span>
@@ -124,3 +127,4 @@ export default function VenueScheduleCalendar({
     </div>
   );
 }
+
