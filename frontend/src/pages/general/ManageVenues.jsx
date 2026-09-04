@@ -42,7 +42,9 @@ export default function ManageVenues() {
   // Side-by-side Embedded Status Setup Form State (Item 21)
   const [setupForm, setSetupForm] = useState({
     venueId: 1,
+    isMultiDay: false,
     startDate: new Date().toISOString().substring(0, 10),
+    endDate: "",
     startTime: "07:30",
     endTime: "17:00",
     status: "Maintenance", // "Available" | "Maintenance" | "Closed"
