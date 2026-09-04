@@ -37,6 +37,8 @@ return new class extends Migration
             $table->time('time_end');
             $table->boolean('agreed_to_policy')->default(false);
             $table->string('status')->default('pending');
+            $table->dateTime('claim_timestamp')->nullable()->index();
+            $table->boolean('is_complete')->default(true);
             $table->longText('assigned_units')->nullable();
             $table->string('endorsement_url')->nullable();
             $table->string('endorsement_letter')->nullable();
