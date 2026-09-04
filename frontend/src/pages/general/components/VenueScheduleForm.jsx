@@ -28,9 +28,9 @@ export default function VenueScheduleForm({
   };
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-4">
-      <div>
-        <h3 className="font-extrabold text-slate-900 text-sm sm:text-base tracking-tight flex items-center gap-2">
+    <div className="bg-white rounded-[28px] border border-slate-200/90 shadow-sm p-6 space-y-4">
+      <div className="border-b border-slate-100 pb-3">
+        <h3 className="font-extrabold text-slate-900 text-xs uppercase tracking-wider flex items-center gap-2">
           Venue Selection &amp; Availability Control
         </h3>
       </div>

@@ -14,124 +14,112 @@ export default function VenueScheduleCalendar({
   hoveredDayData,
   setHoveredDayData,
 }) {
-  const daysOfWeek = ["S", "M", "T", "W", "T", "F", "S"];
-
-  // Calculate previous month dates to fill the first row
-  const prevMonthDaysCount = new Date(currentYear, currentMonth, 0).getDate();
-  const prevMonthDays = [];
-  for (let i = firstDayOfWeek - 1; i >= 0; i--) {
-    prevMonthDays.push(prevMonthDaysCount - i);
-  }
-
-  // Calculate next month days to complete the 6 rows (42 total cells)
-  const totalRendered = prevMonthDays.length + daysInMonth;
-  const nextMonthDaysCount = 42 - totalRendered <= 7 ? 42 - totalRendered : 35 - totalRendered;
-  const nextMonthDays = [];
-  for (let i = 1; i <= Math.max(0, nextMonthDaysCount); i++) {
-    nextMonthDays.push(i);
-  }
-
   const pad = (n) => String(n).padStart(2, "0");
+  const todayStr = new Date().toISOString().substring(0, 10);
+
+  const monthName = monthNames && monthNames[currentMonth] 
+    ? monthNames[currentMonth] 
+    : new Date(currentYear, currentMonth).toLocaleString("default", { month: "long" });
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-6">
-      {/* Month & Nav Controls (Screenshot 2) */}
-      <div className="flex items-center justify-between">
-        <h2 className="font-extrabold text-slate-900 text-2xl tracking-tight">
-          {monthNames[currentMonth]} {currentYear}
-        </h2>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={prevMonth}
-            className="p-1 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
-          >
-            <ChevronLeft size={22} />
-          </button>
-          <button
-            type="button"
-            onClick={nextMonth}
-            className="p-1 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
-          >
-            <ChevronRight size={22} />
-          </button>
-        </div>
+    <div className="bg-white p-5 sm:p-6 rounded-[28px] border border-slate-200/90 shadow-sm space-y-4">
+      {/* Header: < Month / Year > matching book-venue */}
+      <div className="flex items-center justify-between px-1">
+        <button
+          type="button"
+          onClick={prevMonth}
+          className="w-9 h-9 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 flex items-center justify-center transition-colors cursor-pointer"
+          title="Previous Month"
+        >
+          <ChevronLeft size={16} />
+        </button>
+
+        <span className="text-base font-extrabold text-slate-900 tracking-tight">
+          {monthName} / {currentYear}
+        </span>
+
+        <button
+          type="button"
+          onClick={nextMonth}
+          className="w-9 h-9 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 flex items-center justify-center transition-colors cursor-pointer"
+          title="Next Month"
+        >
+          <ChevronRight size={16} />
+        </button>
       </div>
 
-      {/* Days of Week Row: S M T W T F S (Screenshot 2) */}
-      <div className="grid grid-cols-7 gap-y-4 text-center">
-        {daysOfWeek.map((day, idx) => (
-          <div key={`dow-${idx}`} className="text-sm font-extrabold text-slate-700">
-            {day}
-          </div>
+      {/* Day of Week Headers (Mon - Sun) */}
+      <div className="grid grid-cols-7 gap-1 text-center text-xs font-extrabold text-slate-400 py-1">
+        {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
+          <div key={d}>{d}</div>
+        ))}
+      </div>
+
+      {/* Calendar Grid with Monday-First Week Alignment */}
+      <div className="grid grid-cols-7 gap-y-2 text-center text-xs">
+        {/* Empty slots before the 1st day of the month (Monday-first) */}
+        {Array.from({ length: (firstDayOfWeek + 6) % 7 }).map((_, i) => (
+          <div key={`empty-${i}`} className="h-9" />
         ))}
 
-        {/* Previous Month Inactive Days */}
-        {prevMonthDays.map((dayNum, i) => (
-          <div
-            key={`prev-${i}`}
-            className="w-10 h-10 mx-auto flex items-center justify-center text-sm font-semibold text-slate-400 opacity-60"
-          >
-            {dayNum}
-          </div>
-        ))}
-
-        {/* Current Month Active Days */}
         {Array.from({ length: daysInMonth }).map((_, i) => {
-          const dayNum = i + 1;
-          const dateStr = `${currentYear}-${pad(currentMonth + 1)}-${pad(dayNum)}`;
+          const day = i + 1;
+          const dateStr = `${currentYear}-${pad(currentMonth + 1)}-${pad(day)}`;
           const isSelected = setupForm.startDate === dateStr;
-          const isFirstDay = dayNum === 1;
+          const isToday = dateStr === todayStr;
           const dayStatus = getVenueDayStatus(dateStr);
+          const isMaintenanceOrClosed = ["maintenance", "closed", "damaged"].includes(dayStatus.status);
+          const isFully = dayStatus.status === "fully";
+          const isPartial = dayStatus.status === "partial";
 
           return (
             <div
-              key={`curr-${dayNum}`}
-              onClick={() => setSetupForm({ ...setupForm, startDate: dateStr })}
-              className="relative w-10 h-10 mx-auto flex items-center justify-center cursor-pointer transition-all"
+              key={day}
+              className="relative h-9 flex items-center justify-center"
             >
-              <div
-                className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-extrabold transition-all ${
+              <button
+                type="button"
+                onClick={() => setSetupForm((prev) => ({ ...prev, startDate: dateStr }))}
+                className={`w-9 h-9 rounded-full text-xs font-extrabold flex items-center justify-center mx-auto transition-all relative z-10 ${
                   isSelected
-                    ? "bg-blue-600 text-white shadow-md scale-105"
-                    : isFirstDay
-                    ? "bg-blue-100/80 text-blue-900 font-black"
-                    : "text-slate-800 hover:bg-slate-100"
+                    ? "bg-blue-600 text-white font-black shadow-sm scale-105 cursor-pointer"
+                    : isToday
+                    ? "border-2 border-blue-600 text-blue-700 font-extrabold bg-blue-50/40 cursor-pointer"
+                    : isMaintenanceOrClosed
+                    ? "text-slate-800 bg-slate-100 border border-slate-300 font-bold hover:bg-slate-200 cursor-pointer"
+                    : isFully
+                    ? "text-rose-700 bg-rose-50 border border-rose-200 font-bold hover:bg-rose-100 cursor-pointer"
+                    : isPartial
+                    ? "text-amber-900 font-bold hover:bg-amber-100 cursor-pointer"
+                    : "text-slate-800 font-bold hover:bg-slate-100 cursor-pointer"
                 }`}
+                title={`${dateStr} - ${dayStatus.reason || dayStatus.status}`}
               >
-                {dayNum}
-              </div>
-              
-              {/* Status Indicator Dot */}
-              {dayStatus.status !== "available" && (
-                <div
-                  title={dayStatus.reason}
-                  className={`absolute bottom-0 w-1.5 h-1.5 rounded-full border border-white ${
-                    dayStatus.status === "ongoing"
-                      ? "bg-blue-600"
-                      : dayStatus.status === "reserved"
-                      ? "bg-indigo-600"
-                      : dayStatus.status === "pending" || dayStatus.status === "partial"
-                      ? "bg-amber-500"
-                      : ["maintenance", "closed", "damaged"].includes(dayStatus.status)
-                      ? "bg-slate-700"
-                      : "bg-emerald-500"
-                  }`}
-                />
-              )}
+                <span>{day}</span>
+              </button>
             </div>
           );
         })}
+      </div>
 
-        {/* Next Month Inactive Days */}
-        {nextMonthDays.map((dayNum, i) => (
-          <div
-            key={`next-${i}`}
-            className="w-10 h-10 mx-auto flex items-center justify-center text-sm font-semibold text-slate-400 opacity-60"
-          >
-            {dayNum}
-          </div>
-        ))}
+      {/* Calendar Quick Legend matching book-venue */}
+      <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] font-extrabold text-slate-500 pt-3 border-t border-slate-100/60">
+        <span className="flex items-center gap-1.5">
+          <span className="w-2.5 h-2.5 rounded-full bg-blue-600 inline-block"></span>
+          <span>Selected</span>
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="w-2.5 h-2.5 rounded-full border-2 border-amber-400 bg-transparent inline-block"></span>
+          <span>Partially Booked</span>
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="w-2.5 h-2.5 rounded-full border-2 border-rose-400 bg-transparent inline-block"></span>
+          <span>Fully Booked</span>
+        </span>
+        <span className="flex items-center gap-1.5 text-slate-500">
+          <span className="w-2.5 h-2.5 rounded-full border-2 border-slate-400 bg-transparent inline-block"></span>
+          <span>Maintenance / Closed</span>
+        </span>
       </div>
     </div>
   );
