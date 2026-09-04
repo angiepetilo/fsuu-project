@@ -377,10 +377,27 @@ export default function Step2Venue({
   return (
     <div className="p-6 sm:p-8 animate-in slide-in-from-top-2 duration-300">
 
-      {/* Header Section */}
-      <div className="mb-6 pb-4 border-b border-slate-100">
-        <h3 className="font-black text-slate-900 text-xl tracking-tight mb-1">1. Select Venue</h3>
-        <p className="text-xs text-slate-500 font-medium">Choose from available university venues</p>
+      {/* Header Section with Search Bar aligned to the right */}
+      <div className="mb-6 pb-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h3 className="font-black text-slate-900 text-xl tracking-tight mb-1">Select Venue</h3>
+          <p className="text-xs text-slate-500 font-medium">Choose from available university venues</p>
+        </div>
+
+        {/* Venue Search Bar aligned to the right side */}
+        <div className="relative w-full sm:w-80 md:w-96">
+          <Search size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+          <input
+            type="text"
+            placeholder="Search venue name, campus, capacity..."
+            value={venueSearch}
+            onChange={(e) => {
+              setVenueSearch(e.target.value);
+              setVenuePage(0);
+            }}
+            className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200/90 rounded-full text-xs font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all shadow-xs"
+          />
+        </div>
       </div>
 
       {/* 2-Column Main Grid Layout: Left 2x2 Venue Catalog + Right Sticky Apple iOS Calendar Panel */}
@@ -542,53 +559,30 @@ export default function Step2Venue({
           )}
         </div>
 
-        {/* Right Column: Venue Search + Preline Single-Calendar Preset Ranges & Time Panel */}
-        <div className="lg:col-span-5 sm:col-span-12 space-y-4">
-          {/* Venue Search Bar */}
-          <div className="relative">
-            <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Search venue name, campus, capacity..."
-              value={venueSearch}
-              onChange={(e) => {
-                setVenueSearch(e.target.value);
-                setVenuePage(0);
-              }}
-              className="w-full pl-9.5 pr-4 py-2.5 bg-white border border-slate-200/90 rounded-2xl text-xs font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-blue-500 focus:bg-white transition-all shadow-xs"
-            />
-          </div>
+        {/* Right Column: Date & Time Selection Panel as per Screenshot 1 */}
+        <div className="lg:col-span-5 sm:col-span-12 space-y-2">
+          {/* Operating Schedule Notice - Green text matching Screenshot 1 */}
+          <p className="text-center text-xs font-semibold text-emerald-600 mb-2">
+            Operating Schedule: {dynamicSchedule}
+          </p>
 
-          <div className="bg-white/95 backdrop-blur-md p-5 rounded-[28px] border border-slate-200/90 shadow-md space-y-4 sticky top-4">
+          <div className="bg-white p-5 sm:p-6 rounded-[28px] border border-slate-200/90 shadow-sm space-y-4 sticky top-4">
 
             {/* Panel Header */}
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h4 className="font-extrabold text-slate-900 text-xs uppercase tracking-wider">
+              <h4 className="font-bold text-slate-900 text-base tracking-tight">
                 Date & Time Selection
               </h4>
+              <span className="text-xs font-semibold text-slate-500 truncate max-w-[180px] sm:max-w-xs text-right">
+                {selectedVenue ? selectedVenue.name : "No Venue Selected"}
+              </span>
             </div>
 
-            {/* Operating Schedule Notice */}
-            <div className="p-3.5 rounded-2xl bg-blue-50/70 border border-blue-200/80 space-y-1">
-              <p className="text-xs font-extrabold text-slate-900">
-                {selectedVenue ? selectedVenue.name : "No venue selected"}
-              </p>
-              <p className="text-[11px] text-blue-700 font-semibold italic">
-                Operating Schedule: {dynamicSchedule}
-              </p>
-            </div>
-
-            {/* Multi-Day Booking Toggle Switch */}
-            <div className="flex items-center justify-between p-3.5 bg-slate-50 border border-slate-200/90 rounded-2xl shadow-2xs">
-              <div className="space-y-0.5">
-                <div className="flex items-center gap-1.5">
-                  <CalendarDays size={14} className={isMultiDay ? "text-blue-600" : "text-slate-500"} />
-                  <span className="text-xs font-bold text-slate-900">Multi-Day Reservation</span>
-                </div>
-                <p className="text-[10.5px] text-slate-500 font-medium">
-                  {isMultiDay ? "Enabled: Click a start date then an end date" : "Off: Single-day reservation only"}
-                </p>
-              </div>
+            {/* Multi-Day Reservation Toggle Switch */}
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-900">
+                Multi-Day Reservation <span className="text-slate-500 font-normal">[{isMultiDay ? "on : multi-day" : "off : single day"}]</span>
+              </span>
               <button
                 type="button"
                 onClick={() => {
@@ -611,27 +605,27 @@ export default function Step2Venue({
               </button>
             </div>
 
-            {/* Interactive Preline Style Calendar Container */}
-            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs space-y-3">
+            {/* Interactive Calendar Container */}
+            <div className="bg-white p-4 sm:p-5 rounded-3xl border border-slate-200/80 shadow-xs space-y-4">
               {/* Header: < Month / Year > */}
               <div className="flex items-center justify-between px-1">
                 <button
                   type="button"
                   onClick={prevMonth}
-                  className="w-8 h-8 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-700 flex items-center justify-center transition-colors cursor-pointer"
+                  className="w-9 h-9 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 flex items-center justify-center transition-colors cursor-pointer"
                   title="Previous Month"
                 >
                   <ChevronLeft size={16} />
                 </button>
 
-                <span className="text-sm font-extrabold text-slate-900 tracking-tight">
+                <span className="text-base font-bold text-slate-900 tracking-tight">
                   {new Date(calYear, calMonth).toLocaleString("default", { month: "long" })} / {calYear}
                 </span>
 
                 <button
                   type="button"
                   onClick={nextMonth}
-                  className="w-8 h-8 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-700 flex items-center justify-center transition-colors cursor-pointer"
+                  className="w-9 h-9 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 flex items-center justify-center transition-colors cursor-pointer"
                   title="Next Month"
                 >
                   <ChevronRight size={16} />
@@ -639,14 +633,14 @@ export default function Step2Venue({
               </div>
 
               {/* Day of Week Headers (Mon - Sun) */}
-              <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-semibold text-slate-500">
+              <div className="grid grid-cols-7 gap-1 text-center text-xs font-semibold text-slate-400">
                 {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map(d => (
                   <div key={d} className="py-1">{d}</div>
                 ))}
               </div>
 
               {/* Calendar Grid with Multi-Day Range Highlights */}
-              <div className="grid grid-cols-7 gap-y-1 text-center text-xs">
+              <div className="grid grid-cols-7 gap-y-2 text-center text-xs">
                 {/* Adjust starting empty slots for Monday-first week */}
                 {Array.from({ length: (firstDayOfWeek + 6) % 7 }).map((_, i) => (
                   <div key={`empty-${i}`} className="h-9" />
@@ -720,24 +714,18 @@ export default function Step2Venue({
                             setShowPinModal && setShowPinModal(true);
                           }
                         }}
-                        className={`w-8 h-8 rounded-full text-xs font-extrabold flex flex-col items-center justify-center mx-auto transition-all relative z-10 ${
+                        className={`w-9 h-9 rounded-full text-xs font-extrabold flex items-center justify-center mx-auto transition-all relative z-10 ${
                           isStart || isEnd
-                            ? "bg-blue-600 text-white font-black shadow-md scale-105 ring-2 ring-blue-300 cursor-pointer"
+                            ? "bg-blue-600 text-white font-black shadow-sm scale-105 cursor-pointer"
                             : isToday
-                              ? "bg-blue-100 text-blue-700 border-2 border-blue-600 font-black shadow-2xs hover:bg-blue-200 cursor-pointer"
-                              : isPast
-                                ? "text-slate-300 cursor-not-allowed pointer-events-none select-none"
-                                : isPublicBlockedNotice
-                                  ? "text-slate-300 bg-slate-50 cursor-not-allowed line-through select-none"
-                                  : isMaintenanceOrClosed
-                                    ? "text-slate-800 bg-slate-200 border border-slate-300 cursor-not-allowed"
-                                    : isFullyBooked
-                                      ? "text-rose-700 bg-rose-100 border border-rose-300 font-black cursor-not-allowed"
-                                      : isPartialBooked
-                                        ? "text-amber-900 bg-amber-100 border border-amber-300 font-bold hover:bg-amber-200 cursor-pointer"
-                                        : isShortNotice
-                                          ? "text-amber-700 bg-amber-50/60 hover:bg-amber-100 cursor-pointer"
-                                          : "text-slate-700 hover:bg-slate-100 cursor-pointer"
+                              ? "border-2 border-blue-600 text-blue-700 font-extrabold bg-blue-50/40 cursor-pointer"
+                              : isDisabled
+                                ? "text-slate-300 font-semibold cursor-not-allowed select-none"
+                                : isPartialBooked
+                                  ? "text-amber-900 font-bold hover:bg-amber-100 cursor-pointer"
+                                  : isShortNotice
+                                    ? "text-amber-700 bg-amber-50/60 hover:bg-amber-100 cursor-pointer"
+                                    : "text-slate-800 font-bold hover:bg-slate-100 cursor-pointer"
                         }`}
                         title={
                           isToday
@@ -758,64 +746,69 @@ export default function Step2Venue({
                         }
                       >
                         <span>{day}</span>
-                        {!isStart && !isEnd && (
-                          <>
-                            {isFullyBooked && <span className="w-1 h-1 rounded-full bg-rose-600 mt-0.5"></span>}
-                            {isPartialBooked && <span className="w-1 h-1 rounded-full bg-amber-500 mt-0.5"></span>}
-                            {isMaintenanceOrClosed && <span className="w-1 h-1 rounded-full bg-slate-700 mt-0.5"></span>}
-                          </>
-                        )}
                       </button>
                     </div>
                   );
                 })}
               </div>
 
-              {/* Calendar Quick Legend */}
-              <div className="flex flex-wrap items-center justify-between gap-y-1 text-[10px] font-semibold text-slate-500 pt-2 border-t border-slate-100">
-                <span className="flex items-center gap-1">
+              {/* Calendar Quick Legend matching Screenshot 1 */}
+              <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] font-semibold text-slate-500 pt-3 border-t border-slate-100/60">
+                <span className="flex items-center gap-1.5">
                   <span className="w-2.5 h-2.5 rounded-full bg-blue-600 inline-block"></span>
                   <span>Selected</span>
                 </span>
-                <span className="flex items-center gap-1">
-                  <span className="w-2.5 h-2.5 rounded-full bg-amber-100 border border-amber-400 inline-block"></span>
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full border-2 border-amber-400 bg-transparent inline-block"></span>
                   <span>Partially Booked</span>
                 </span>
-                <span className="flex items-center gap-1">
-                  <span className="w-2.5 h-2.5 rounded-full bg-rose-100 border border-rose-400 inline-block"></span>
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full border-2 border-rose-400 bg-transparent inline-block"></span>
                   <span>Fully Booked</span>
                 </span>
-                <span className="flex items-center gap-1 text-slate-400">
-                  <span className="w-2.5 h-2.5 rounded-full bg-slate-100 border border-slate-300 inline-block"></span>
+                <span className="flex items-center gap-1.5 text-slate-400">
+                  <span className="w-2.5 h-2.5 rounded-full border-2 border-slate-300 bg-transparent inline-block"></span>
                   <span>3-day notice</span>
                 </span>
               </div>
             </div>
 
-            {/* Time Picker Controls & Overlap Conflict Detection */}
-            <div className="space-y-3 pt-1">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="flex flex-col gap-1">
-                  <label className="text-xs font-extrabold text-slate-800">Time Start *</label>
+            {/* Time Controls: Time Start * | Time End * with formatted display and Clock icon */}
+            <div className="grid grid-cols-2 gap-3 pt-1">
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-900 block">Time Start *</label>
+                <div className="relative flex items-center justify-between px-4 py-2.5 bg-slate-100/80 hover:bg-slate-100 border border-slate-200/80 rounded-full cursor-pointer transition-colors group">
+                  <span className="font-extrabold text-xs text-slate-900 font-mono tracking-tight">
+                    {timeStart ? formatTime12(timeStart) : "08:00 AM"}
+                  </span>
+                  <Clock size={15} className="text-slate-500 group-hover:text-slate-700 transition-colors pointer-events-none" />
                   <input
                     type="time"
                     step="300"
-                    value={timeStart}
+                    value={timeStart || "08:00"}
                     onChange={e => setTimeStart(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-100/80 border border-slate-200 rounded-2xl text-xs font-extrabold text-slate-900 focus:bg-white focus:border-blue-600 focus:outline-none transition-all shadow-inner"
-                  />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label className="text-xs font-extrabold text-slate-800">Time End *</label>
-                  <input
-                    type="time"
-                    step="300"
-                    value={timeEnd}
-                    onChange={e => setTimeEnd(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-100/80 border border-slate-200 rounded-2xl text-xs font-extrabold text-slate-900 focus:bg-white focus:border-blue-600 focus:outline-none transition-all shadow-inner"
+                    className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
                   />
                 </div>
               </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-900 block">Time End *</label>
+                <div className="relative flex items-center justify-between px-4 py-2.5 bg-slate-100/80 hover:bg-slate-100 border border-slate-200/80 rounded-full cursor-pointer transition-colors group">
+                  <span className="font-extrabold text-xs text-slate-900 font-mono tracking-tight">
+                    {timeEnd ? formatTime12(timeEnd) : "10:00 AM"}
+                  </span>
+                  <Clock size={15} className="text-slate-500 group-hover:text-slate-700 transition-colors pointer-events-none" />
+                  <input
+                    type="time"
+                    step="300"
+                    value={timeEnd || "10:00"}
+                    onChange={e => setTimeEnd(e.target.value)}
+                    className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
+                  />
+                </div>
+              </div>
+            </div>
 
               {selectedDate && timeStart && timeEnd && (
                 <div className="space-y-2 pt-1">
@@ -921,7 +914,6 @@ export default function Step2Venue({
                   })()}
                 </div>
               )}
-            </div>
 
           </div>
         </div>
