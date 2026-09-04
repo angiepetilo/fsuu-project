@@ -64,12 +64,19 @@ export default function VenueScheduleForm({
           </div>
 
           {/* Multi-Day Reservation Toggle */}
-          <div className="flex items-center justify-between p-3 bg-slate-50 border border-slate-200/80 rounded-xl">
+          <label className="flex items-center justify-between p-3.5 bg-slate-50 hover:bg-slate-100/80 border border-slate-200 rounded-2xl cursor-pointer transition-colors select-none">
             <div className="flex flex-col">
-              <span className="text-xs font-extrabold text-slate-800">Multi-Day Block</span>
-              <span className="text-[10.5px] text-slate-500 font-medium">Apply status across consecutive days</span>
+              <span className="text-xs font-black text-slate-900 flex items-center gap-2">
+                Multi-Day Block
+                {Boolean(setupForm.isMultiDay) && (
+                  <span className="bg-blue-600 text-white text-[9.5px] font-black px-1.5 py-0.5 rounded-md uppercase tracking-wider">
+                    Active
+                  </span>
+                )}
+              </span>
+              <span className="text-[11px] text-slate-600 font-semibold">Apply status across consecutive days</span>
             </div>
-            <label className="relative inline-flex items-center cursor-pointer">
+            <div className="relative inline-flex items-center">
               <input
                 type="checkbox"
                 checked={Boolean(setupForm.isMultiDay)}
@@ -83,44 +90,61 @@ export default function VenueScheduleForm({
                 }}
                 className="sr-only peer"
               />
-              <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
-            </label>
-          </div>
+              <div className="w-10 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+            </div>
+          </label>
 
           {/* Target Date(s) */}
           {setupForm.isMultiDay ? (
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="block text-xs font-bold text-slate-900 mb-1">Start Date *</label>
-                <input
-                  type="date"
-                  required
-                  value={setupForm.startDate}
-                  onChange={e => setSetupForm({ ...setupForm, startDate: e.target.value })}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:outline-none focus:border-blue-600 text-xs"
-                />
+            <div className="space-y-1.5">
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs font-black text-slate-900 mb-1">Start Date *</label>
+                  <input
+                    type="date"
+                    required
+                    value={setupForm.startDate}
+                    onChange={e => {
+                      const newStart = e.target.value;
+                      setSetupForm(prev => ({
+                        ...prev,
+                        startDate: newStart,
+                        endDate: (prev.endDate && prev.endDate < newStart) ? newStart : prev.endDate,
+                      }));
+                    }}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:outline-none focus:border-blue-600 text-xs cursor-pointer"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-black text-slate-900 mb-1">End Date *</label>
+                  <input
+                    type="date"
+                    required
+                    min={setupForm.startDate}
+                    value={setupForm.endDate || setupForm.startDate}
+                    onChange={e => setSetupForm(prev => ({ ...prev, endDate: e.target.value }))}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:outline-none focus:border-blue-600 text-xs cursor-pointer"
+                  />
+                </div>
               </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-900 mb-1">End Date *</label>
-                <input
-                  type="date"
-                  required
-                  min={setupForm.startDate}
-                  value={setupForm.endDate || setupForm.startDate}
-                  onChange={e => setSetupForm({ ...setupForm, endDate: e.target.value })}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:outline-none focus:border-blue-600 text-xs"
-                />
+              <div className="text-[11px] font-bold text-blue-700 bg-blue-50/70 border border-blue-200/60 px-2.5 py-1 rounded-lg flex items-center justify-between">
+                <span>Multi-day range</span>
+                <span>
+                  {setupForm.startDate && setupForm.endDate && setupForm.endDate >= setupForm.startDate
+                    ? `${Math.max(1, Math.round((new Date(setupForm.endDate) - new Date(setupForm.startDate)) / (1000 * 60 * 60 * 24)) + 1)} Day(s)`
+                    : "1 Day"}
+                </span>
               </div>
             </div>
           ) : (
             <div>
-              <label className="block text-xs font-bold text-slate-900 mb-1">Target Date *</label>
+              <label className="block text-xs font-black text-slate-900 mb-1">Target Date *</label>
               <input
                 type="date"
                 required
                 value={setupForm.startDate}
                 onChange={e => setSetupForm({ ...setupForm, startDate: e.target.value })}
-                className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:outline-none focus:border-blue-600 text-xs"
+                className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:outline-none focus:border-blue-600 text-xs cursor-pointer"
               />
             </div>
           )}
@@ -129,7 +153,7 @@ export default function VenueScheduleForm({
           <div>
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="block text-xs font-bold text-slate-900 mb-1">Start Time *</label>
+                <label className="block text-xs font-black text-slate-900 mb-1">Start Time *</label>
                 <input
                   type="time"
                   required
@@ -141,7 +165,7 @@ export default function VenueScheduleForm({
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-900 mb-1">End Time *</label>
+                <label className="block text-xs font-black text-slate-900 mb-1">End Time *</label>
                 <input
                   type="time"
                   required
@@ -154,22 +178,37 @@ export default function VenueScheduleForm({
               </div>
             </div>
 
-            <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-500 bg-slate-50 border border-slate-200 px-2.5 py-1.5 rounded-xl mt-2">
+            <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-600 bg-slate-50 border border-slate-200 px-2.5 py-1.5 rounded-xl mt-2">
               <Clock size={13} className="text-blue-600 shrink-0" />
               <span>
-                Venue Reservation Operating Window: <strong className="text-slate-800">{formatTime12h(venueOpen)} – {formatTime12h(venueClose)}</strong>
+                Venue Reservation Operating Window: <strong className="text-slate-900">{formatTime12h(venueOpen)} – {formatTime12h(venueClose)}</strong>
               </span>
             </div>
           </div>
 
           {/* Operating Status Control Buttons */}
           <div>
-            <label className="block text-xs font-bold text-slate-900 mb-1">Operating Status *</label>
+            <label className="block text-xs font-black text-slate-900 mb-1.5">Operating Status *</label>
             <div className="grid grid-cols-3 gap-2">
               {[
-                { id: "Available",   label: "Available",   activeClass: "bg-emerald-100 border-emerald-500 text-emerald-900 font-extrabold" },
-                { id: "Maintenance", label: "Maintenance", activeClass: "bg-slate-300 border-slate-500 text-slate-900 font-extrabold" },
-                { id: "Closed",      label: "Closed",      activeClass: "bg-orange-100 border-orange-400 text-orange-900 font-extrabold" },
+                { 
+                  id: "Available",   
+                  label: "Available",   
+                  activeClass: "bg-emerald-600 border-emerald-600 text-white font-black shadow-sm",
+                  inactiveClass: "border-slate-200 bg-slate-50 text-slate-700 hover:bg-emerald-50 hover:text-emerald-800 font-bold",
+                },
+                { 
+                  id: "Maintenance", 
+                  label: "Maintenance", 
+                  activeClass: "bg-amber-500 border-amber-500 text-white font-black shadow-sm",
+                  inactiveClass: "border-slate-200 bg-slate-50 text-slate-700 hover:bg-amber-50 hover:text-amber-800 font-bold",
+                },
+                { 
+                  id: "Closed",      
+                  label: "Closed",      
+                  activeClass: "bg-rose-600 border-rose-600 text-white font-black shadow-sm",
+                  inactiveClass: "border-slate-200 bg-slate-50 text-slate-700 hover:bg-rose-50 hover:text-rose-800 font-bold",
+                },
               ].map(st => {
                 const isSelected = setupForm.status === st.id;
                 return (
@@ -177,10 +216,8 @@ export default function VenueScheduleForm({
                     key={st.id}
                     type="button"
                     onClick={() => setSetupForm({ ...setupForm, status: st.id })}
-                    className={`py-2 px-2 rounded-xl border text-center text-xs transition-all cursor-pointer flex items-center justify-center shadow-2xs ${
-                      isSelected
-                        ? st.activeClass
-                        : "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 font-bold"
+                    className={`py-2.5 px-2 rounded-xl border text-center text-xs transition-all cursor-pointer flex items-center justify-center shadow-2xs ${
+                      isSelected ? st.activeClass : st.inactiveClass
                     }`}
                   >
                     <span>{st.label}</span>
@@ -192,7 +229,7 @@ export default function VenueScheduleForm({
 
           {/* Remarks */}
           <div>
-            <label className="block text-xs font-bold text-slate-900 mb-1">Remarks</label>
+            <label className="block text-xs font-black text-slate-900 mb-1">Remarks</label>
             <textarea
               rows={3}
               placeholder="e.g. Scheduled holiday closure, regular maintenance, AV calibration..."
