@@ -414,11 +414,11 @@ export default function ManageVenues() {
         </div>
       )}
 
-      {/* Main Grid: Left Calendar & Right Availability Control Form (Plain Border, No Heavy Shadow) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      {/* Main Grid: Left Calendar & Right Availability Control Form with Equal Height Stretching */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
         
         {/* Left Side: Color-Coded Venue Schedule Calendar (7 cols) */}
-        <div className="lg:col-span-7">
+        <div className="lg:col-span-7 flex flex-col">
           <VenueScheduleCalendar
             currentMonth={currentMonth}
             currentYear={currentYear}
@@ -435,21 +435,19 @@ export default function ManageVenues() {
           />
         </div>
 
-        {/* Right Side: Embedded Availability Control Form (5 cols / ~3/4 proportioned container) */}
-        <div className="lg:col-span-5 flex justify-end">
-          <div className="w-full">
-            <VenueScheduleForm
-              VENUES={filteredVenues}
-              selectedVenue={selectedVenue}
-              setSelectedVenue={setSelectedVenue}
-              setupForm={setupForm}
-              setSetupForm={setSetupForm}
-              handleSaveStatus={handleSaveStatus}
-              saveLoading={saveLoading}
-              venueOpen={operatingHours.venue_open}
-              venueClose={operatingHours.venue_close}
-            />
-          </div>
+        {/* Right Side: Embedded Availability Control Form (5 cols) */}
+        <div className="lg:col-span-5 flex flex-col">
+          <VenueScheduleForm
+            VENUES={filteredVenues}
+            selectedVenue={selectedVenue}
+            setSelectedVenue={setSelectedVenue}
+            setupForm={setupForm}
+            setSetupForm={setSetupForm}
+            handleSaveStatus={handleSaveStatus}
+            saveLoading={saveLoading}
+            venueOpen={operatingHours.venue_open}
+            venueClose={operatingHours.venue_close}
+          />
         </div>
 
       </div>
