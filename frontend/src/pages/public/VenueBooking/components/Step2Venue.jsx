@@ -570,7 +570,7 @@ export default function Step2Venue({
 
             {/* Panel Header */}
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h4 className="font-bold text-slate-900 text-base tracking-tight">
+              <h4 className="font-extrabold text-slate-900 text-xs uppercase tracking-wider">
                 Date & Time Selection
               </h4>
               <span className="text-xs font-semibold text-slate-500 truncate max-w-[180px] sm:max-w-xs text-right">
@@ -776,9 +776,9 @@ export default function Step2Venue({
             {/* Time Controls: Time Start * | Time End * with formatted display and Clock icon */}
             <div className="grid grid-cols-2 gap-3 pt-1">
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-900 block">Time Start *</label>
+                <label className="text-xs font-extrabold text-slate-800 block">Time Start *</label>
                 <div className="relative flex items-center justify-between px-4 py-2.5 bg-slate-100/80 hover:bg-slate-100 border border-slate-200/80 rounded-full cursor-pointer transition-colors group">
-                  <span className="font-extrabold text-xs text-slate-900 font-mono tracking-tight">
+                  <span className="font-extrabold text-xs text-slate-900 tracking-tight">
                     {timeStart ? formatTime12(timeStart) : "08:00 AM"}
                   </span>
                   <Clock size={15} className="text-slate-500 group-hover:text-slate-700 transition-colors pointer-events-none" />
@@ -793,9 +793,9 @@ export default function Step2Venue({
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-900 block">Time End *</label>
+                <label className="text-xs font-extrabold text-slate-800 block">Time End *</label>
                 <div className="relative flex items-center justify-between px-4 py-2.5 bg-slate-100/80 hover:bg-slate-100 border border-slate-200/80 rounded-full cursor-pointer transition-colors group">
-                  <span className="font-extrabold text-xs text-slate-900 font-mono tracking-tight">
+                  <span className="font-extrabold text-xs text-slate-900 tracking-tight">
                     {timeEnd ? formatTime12(timeEnd) : "10:00 AM"}
                   </span>
                   <Clock size={15} className="text-slate-500 group-hover:text-slate-700 transition-colors pointer-events-none" />
