@@ -3,17 +3,39 @@
  * Import from here instead of redefining in each page/component.
  */
 
+const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
 /**
  * Formats a raw date string to "Aug 12, 2026" display format.
+ * Accurately handles YYYY-MM-DD strings and ISO strings without UTC day shifts.
  * @param {string|null} rawDate
  * @returns {string}
  */
 export const formatDate = (rawDate) => {
   if (!rawDate) return "—";
+  const str = String(rawDate).trim();
+
+  // If it's a date-only string like "2026-09-10" or starts with "2026-09-10" without time
+  const ymdMatch = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:$|\s)/);
+  if (ymdMatch && !str.includes("T")) {
+    const year = parseInt(ymdMatch[1], 10);
+    const month = parseInt(ymdMatch[2], 10) - 1;
+    const day = parseInt(ymdMatch[3], 10);
+    if (month >= 0 && month < 12 && day >= 1 && day <= 31) {
+      return `${MONTH_NAMES[month]} ${day}, ${year}`;
+    }
+  }
+
   try {
-    const d = new Date(rawDate);
+    const d = new Date(str);
     if (isNaN(d.getTime())) return String(rawDate);
-    return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+    // Use Asia/Manila or system local timezone for ISO strings containing UTC offset
+    return d.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      timeZone: "Asia/Manila",
+    });
   } catch {
     return String(rawDate);
   }
@@ -105,13 +127,11 @@ export const formatTimeRange12 = (start, end) => {
  */
 export const formatDateRange = (start, end) => {
   if (!start && !end) return "—";
-  const startClean = start ? String(start).split("T")[0].split(" ")[0] : null;
-  const endClean = end ? String(end).split("T")[0].split(" ")[0] : null;
 
-  const formattedStart = formatDate(startClean || start);
-  const formattedEnd = endClean ? formatDate(endClean || end) : null;
+  const formattedStart = formatDate(start);
+  const formattedEnd = end ? formatDate(end) : null;
 
-  if (!formattedEnd || formattedEnd === "—" || formattedStart === formattedEnd || (startClean && endClean && startClean === endClean)) {
+  if (!formattedEnd || formattedEnd === "—" || formattedStart === formattedEnd) {
     return formattedStart;
   }
   return `${formattedStart} — ${formattedEnd}`;

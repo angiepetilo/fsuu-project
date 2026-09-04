@@ -663,7 +663,7 @@ export default function VenueBookingDetailModal({
         return false;
       }
 
-      const bCode = String(unit.unit_code || unit.barcode || unit.serial_number || unit.code || unit.id || "").trim().toUpperCase();
+      const bCode = String(unit.barcode || unit.serial_number || unit.code || unit.id || "").trim().toUpperCase();
 
       // If this unit's barcode is explicitly assigned in another overlapping booking, exclude it
       if (bCode && overlappingReservedBarcodes.has(bCode)) {
@@ -685,7 +685,7 @@ export default function VenueBookingDetailModal({
       if (totalOverlappingQty > 0) {
         // Count how many units were already excluded via the barcode check (to avoid double-subtracting)
         const alreadyExcludedByBarcode = matched.filter((u) => {
-          const bCode = String(u.unit_code || u.barcode || u.serial_number || u.code || u.id || "").trim().toUpperCase();
+          const bCode = String(u.barcode || u.serial_number || u.code || u.id || "").trim().toUpperCase();
           return bCode && overlappingReservedBarcodes.has(bCode);
         }).length;
         const additionalSoftReserved = Math.max(0, totalOverlappingQty - alreadyExcludedByBarcode);
@@ -763,7 +763,7 @@ export default function VenueBookingDetailModal({
             const newStatus = condChoice === "Damaged" ? "damaged" : (condChoice === "Lost" ? "decommissioned" : "available");
             const newCondition = condChoice === "Good" ? "Good" : condChoice;
 
-            const dbUnit = physicalUnits.find(u => String(u.unit_code || u.barcode || u.id).trim() === bCode);
+            const dbUnit = physicalUnits.find(u => String(u.barcode || u.id).trim() === bCode);
             const unitDbId = dbUnit?.id && Number.isFinite(Number(dbUnit.id)) ? Number(dbUnit.id) : null;
 
             if (unitDbId) {
@@ -779,7 +779,7 @@ export default function VenueBookingDetailModal({
               dbUpdatePromises.push(
                 api.get("/general/equipment-units").then(res => {
                   const units = Array.isArray(res.data) ? res.data : [];
-                  const fresh = units.find(u => String(u.unit_code || u.barcode || "").trim() === bCode);
+                  const fresh = units.find(u => String(u.barcode || "").trim() === bCode);
                   if (fresh?.id) {
                     return api.put(`/general/equipment-units/${fresh.id}`, {
                       status: newStatus,

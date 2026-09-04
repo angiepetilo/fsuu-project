@@ -100,7 +100,7 @@ class InspectionService
 
             if ($overallCondition === 'good') {
                 \App\Models\EquipmentUnit::where(function ($q) use ($uCodes, $numIds) {
-                    $q->whereIn('unit_code', $uCodes);
+                    $q->whereIn('barcode', $uCodes);
                     if (!empty($numIds)) {
                         $q->orWhereIn('id', array_map('intval', $numIds));
                     }
@@ -109,7 +109,7 @@ class InspectionService
                 $status = $overallCondition === 'lost' ? 'lost' : 'damaged';
                 $cond = $overallCondition === 'lost' ? 'Lost' : 'Damaged';
                 \App\Models\EquipmentUnit::where(function ($q) use ($uCodes, $numIds) {
-                    $q->whereIn('unit_code', $uCodes);
+                    $q->whereIn('barcode', $uCodes);
                     if (!empty($numIds)) {
                         $q->orWhereIn('id', array_map('intval', $numIds));
                     }
@@ -132,7 +132,7 @@ class InspectionService
                     $uCodes = array_values(array_filter($lookupKeys, fn($v) => !empty($v)));
 
                     \App\Models\EquipmentUnit::where(function ($q) use ($uCodes, $nIds) {
-                        $q->whereIn('unit_code', $uCodes);
+                        $q->whereIn('barcode', $uCodes);
                         if (!empty($nIds)) {
                             $q->orWhereIn('id', array_map('intval', $nIds));
                         }

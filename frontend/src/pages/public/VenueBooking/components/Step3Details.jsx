@@ -107,6 +107,7 @@ export default function Step3Details({
   const [otpSuccess, setOtpSuccess] = useState("");
   const [otpCooldown, setOtpCooldown] = useState(0);
   const [otpExpiresIn, setOtpExpiresIn] = useState(0);
+  const [duplicateRef, setDuplicateRef] = useState(null);
 
   // OTP Cooldown & Expiration Timers
   useEffect(() => {
@@ -177,6 +178,8 @@ export default function Step3Details({
       setOtpError("");
       setOtpSuccess("");
     }
+    setDuplicateRef(null);
+    setOtpError("");
     setEmailCheckStatus("idle");
     setEmailCheckMessage("");
   };
@@ -188,13 +191,28 @@ export default function Step3Details({
     setIsSendingOtp(true);
     setOtpError("");
     setOtpSuccess("");
+    setDuplicateRef(null);
     try {
-      const res = await api.post("/public/send-otp", { email: trimmed });
+      const res = await api.post("/public/send-otp", {
+        email: trimmed,
+        venue_id: selectedVenue?.id,
+        date_of_usage: selectedDate,
+        reservation_end_date: selectedEndDate || selectedDate,
+        time_start: startTime,
+        time_end: endTime,
+        first_name: firstName,
+        last_name: lastName,
+      });
       setIsOtpRequested(true);
       setOtpCooldown(60);
       setOtpExpiresIn(600);
       setOtpSuccess(res.data?.message || "6-digit verification code sent to your inbox.");
     } catch (err) {
+      if (err.response?.data?.duplicate) {
+        setDuplicateRef(err.response.data.reference_code || null);
+      } else {
+        setDuplicateRef(null);
+      }
       setOtpError(err.response?.data?.message || "Failed to send verification code. Please try again.");
     } finally {
       setIsSendingOtp(false);
@@ -433,6 +451,27 @@ export default function Step3Details({
                   Enter your email address and click outside the box to run domain check.
                 </p>
               )}
+            </div>
+          )}
+
+          {/* Duplicate / OTP Error Alert Banner */}
+          {otpError && !isOtpRequested && (
+            <div className="mt-2.5 p-3.5 bg-rose-50 border-2 border-rose-300 rounded-2xl text-xs font-bold text-rose-800 flex items-start gap-2.5 shadow-sm animate-in fade-in">
+              <AlertCircle size={16} className="text-rose-600 shrink-0 mt-0.5" />
+              <div className="flex-1 space-y-1">
+                <p className="leading-snug">{otpError}</p>
+                {duplicateRef && (
+                  <a
+                    href={`/track?ref=${encodeURIComponent(duplicateRef)}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 text-blue-700 hover:text-blue-900 font-extrabold text-xs underline mt-1"
+                  >
+                    <span>Track existing reservation ({duplicateRef})</span>
+                    <span>→</span>
+                  </a>
+                )}
+              </div>
             </div>
           )}
 

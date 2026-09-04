@@ -23,6 +23,69 @@ class OtpController extends Controller
         ]);
 
         $email = strtolower(trim($request->input('email')));
+
+        // Upfront Duplicate Reservation Check (prevents duplicate submission & unnecessary OTP sending)
+        $venueId = $request->input('venue_id');
+        $dateOfUsage = $request->input('date_of_usage');
+        $timeStart = $request->input('time_start');
+        $timeEnd = $request->input('time_end');
+        $endDate = $request->input('reservation_end_date', $dateOfUsage);
+
+        if ($venueId && $dateOfUsage) {
+            $existingVenueBooking = \Illuminate\Support\Facades\DB::table('venue_bookings')
+                ->join('tracking_numbers', 'venue_bookings.tracking_number_id', '=', 'tracking_numbers.id')
+                ->where('venue_bookings.venue_id', $venueId)
+                ->whereIn('tracking_numbers.status', ['pending', 'approved', 'ongoing', 'on-going'])
+                ->where('venue_bookings.email_address', $email)
+                ->where(function ($q) use ($dateOfUsage, $endDate, $timeStart, $timeEnd) {
+                    $q->where(function ($sub) use ($dateOfUsage, $timeStart, $timeEnd) {
+                        $sub->where('venue_bookings.date_of_usage', '<=', $dateOfUsage)
+                            ->whereRaw('COALESCE(venue_bookings.reservation_end_date, venue_bookings.date_of_usage) >= ?', [$dateOfUsage]);
+                        if ($timeStart && $timeEnd) {
+                            $sub->where('venue_bookings.time_start', '<', $timeEnd)
+                                ->where('venue_bookings.time_end', '>', $timeStart);
+                        }
+                    })->orWhere(function ($sub2) use ($dateOfUsage, $endDate, $timeStart, $timeEnd) {
+                        $sub2->where('venue_bookings.date_of_usage', '<=', $endDate)
+                            ->whereRaw('COALESCE(venue_bookings.reservation_end_date, venue_bookings.date_of_usage) >= ?', [$dateOfUsage]);
+                        if ($timeStart && $timeEnd) {
+                            $sub2->where('venue_bookings.time_start', '<', $timeEnd)
+                                ->where('venue_bookings.time_end', '>', $timeStart);
+                        }
+                    });
+                })
+                ->select('tracking_numbers.reference_code', 'tracking_numbers.status')
+                ->first();
+
+            if ($existingVenueBooking) {
+                $statusUpper = strtoupper($existingVenueBooking->status);
+                return response()->json([
+                    'message' => "You already have an active {$statusUpper} reservation ({$existingVenueBooking->reference_code}) for this venue and schedule. Please track your existing reservation instead of submitting a duplicate.",
+                    'duplicate' => true,
+                    'reference_code' => $existingVenueBooking->reference_code,
+                ], 422);
+            }
+        }
+
+        if ($request->input('reservation_type') === 'equipment' && $request->input('borrow_date')) {
+            $existingEq = \Illuminate\Support\Facades\DB::table('equipment_borrows')
+                ->join('tracking_numbers', 'equipment_borrows.tracking_number_id', '=', 'tracking_numbers.id')
+                ->whereIn('tracking_numbers.status', ['pending', 'approved', 'ongoing', 'on-going'])
+                ->where('equipment_borrows.email_address', $email)
+                ->where('equipment_borrows.borrow_date', $request->input('borrow_date'))
+                ->select('tracking_numbers.reference_code', 'tracking_numbers.status')
+                ->first();
+
+            if ($existingEq) {
+                $statusUpper = strtoupper($existingEq->status);
+                return response()->json([
+                    'message' => "You already have an active {$statusUpper} equipment borrowing request ({$existingEq->reference_code}) for this borrow date. Please track your existing request instead of submitting a duplicate.",
+                    'duplicate' => true,
+                    'reference_code' => $existingEq->reference_code,
+                ], 422);
+            }
+        }
+
         $cooldownKey = 'otp_cooldown_' . hash('sha256', $email);
 
         // Cooldown check (60 seconds)

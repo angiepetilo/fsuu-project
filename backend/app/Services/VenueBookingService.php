@@ -84,12 +84,51 @@ class VenueBookingService
                 throw new VenueOverlapException('This venue has already been confirmed and locked for another approved reservation on the selected date and time range.');
             }
 
-            // Anti-Spam Duplicate Prevention (15-Minute Buffer)
+            // Permanent Active / Pending Duplicate Reservation Check
+            // A requestor cannot submit another booking for the same venue and overlapping timeslot
+            // if they already have an active (pending, approved, ongoing) reservation under their email or name.
             $applicantEmail = $data['email_address'] ?? $data['email'] ?? null;
             $firstName = $data['first_name'] ?? null;
             $lastName = $data['last_name'] ?? null;
 
             if (!empty($applicantEmail) || (!empty($firstName) && !empty($lastName))) {
+                $existingActiveBooking = DB::table('venue_bookings')
+                    ->join('tracking_numbers', 'venue_bookings.tracking_number_id', '=', 'tracking_numbers.id')
+                    ->where('venue_bookings.venue_id', $venue->id)
+                    ->whereIn('tracking_numbers.status', ['pending', 'approved', 'ongoing', 'on-going'])
+                    ->where(function ($q) use ($applicantEmail, $firstName, $lastName) {
+                        if ($applicantEmail) {
+                            $q->where('venue_bookings.email_address', $applicantEmail);
+                        }
+                        if ($firstName && $lastName) {
+                            $q->orWhere(function ($sub) use ($firstName, $lastName) {
+                                $sub->where('venue_bookings.first_name', $firstName)
+                                    ->where('venue_bookings.last_name', $lastName);
+                            });
+                        }
+                    })
+                    ->where(function ($q) use ($dateOfUsage, $reservationEndDate, $timeStart, $timeEnd) {
+                        $q->where(function ($sub) use ($dateOfUsage, $timeStart, $timeEnd) {
+                            $sub->where('venue_bookings.date_of_usage', '<=', $dateOfUsage)
+                                ->whereRaw('COALESCE(venue_bookings.reservation_end_date, venue_bookings.date_of_usage) >= ?', [$dateOfUsage])
+                                ->where('venue_bookings.time_start', '<', $timeEnd)
+                                ->where('venue_bookings.time_end', '>', $timeStart);
+                        })->orWhere(function ($sub2) use ($dateOfUsage, $reservationEndDate, $timeStart, $timeEnd) {
+                            $sub2->where('venue_bookings.date_of_usage', '<=', $reservationEndDate)
+                                ->whereRaw('COALESCE(venue_bookings.reservation_end_date, venue_bookings.date_of_usage) >= ?', [$dateOfUsage])
+                                ->where('venue_bookings.time_start', '<', $timeEnd)
+                                ->where('venue_bookings.time_end', '>', $timeStart);
+                        });
+                    })
+                    ->select('tracking_numbers.reference_code', 'tracking_numbers.status')
+                    ->first();
+
+                if ($existingActiveBooking) {
+                    $statusLabel = strtoupper($existingActiveBooking->status);
+                    throw new \InvalidArgumentException("You already have an active {$statusLabel} reservation ({$existingActiveBooking->reference_code}) for {$venue->name} on this date and timeslot. You cannot submit duplicate reservations for the same schedule.");
+                }
+
+                // Anti-Spam Duplicate Prevention (15-Minute Buffer for rapid repeated attempts)
                 $recentDuplicate = DB::table('venue_bookings')
                     ->where('venue_id', $venue->id)
                     ->where('created_at', '>=', now()->subMinutes(15))
@@ -604,7 +643,7 @@ class VenueBookingService
                 $unitCodes = array_values(array_filter($barcodes, fn($v) => !empty($v)));
 
                 \App\Models\EquipmentUnit::where(function($q) use ($unitCodes, $numericIds) {
-                    $q->whereIn('unit_code', $unitCodes);
+                    $q->whereIn('barcode', $unitCodes);
                     if (!empty($numericIds)) {
                         $q->orWhereIn('id', array_map('intval', $numericIds));
                     }
@@ -805,7 +844,7 @@ class VenueBookingService
                     $unitCodes = array_values(array_filter($codes, fn($v) => !empty($v)));
 
                     \App\Models\EquipmentUnit::where(function($q) use ($unitCodes, $numericIds) {
-                        $q->whereIn('unit_code', $unitCodes);
+                        $q->whereIn('barcode', $unitCodes);
                         if (!empty($numericIds)) {
                             $q->orWhereIn('id', array_map('intval', $numericIds));
                         }

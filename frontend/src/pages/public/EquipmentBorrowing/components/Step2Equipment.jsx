@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Check, PackageOpen, ChevronLeft, ChevronRight, XCircle, Clock, CalendarDays, AlertTriangle, AlertCircle, Search, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import CustomTimePicker from "@/components/ui/custom-time-picker";
 import api from "@/lib/axios";
 import { getTodayISO, isPastTimeToday, isPastDateTime } from "@/lib/dateTimeUtils";
 
@@ -415,12 +416,9 @@ export default function Step2Equipment({
                   <span>Borrow Release Start Time</span>
                   <span className="text-rose-500">*</span>
                 </label>
-                <input
-                  type="time"
-                  required
+                <CustomTimePicker
                   value={startTimeVal}
-                  onChange={(e) => {
-                    const newStartTime = e.target.value;
+                  onChange={(newStartTime) => {
                     setStartTime && setStartTime(`${activeBorrowDate}T${newStartTime}`);
                     // Ensure end time is at least 1 hour after start time
                     const [sh, sm] = (newStartTime || "08:00").split(":").map(Number);
@@ -434,7 +432,7 @@ export default function Step2Equipment({
                       setEndTime && setEndTime(`${activeBorrowDate}T${nH}:${nM}`);
                     }
                   }}
-                  className="w-full px-3.5 py-2.5 bg-slate-100/80 border border-slate-200 rounded-2xl text-xs font-extrabold text-slate-900 focus:bg-white focus:border-blue-600 focus:ring-4 focus:ring-blue-50 focus:outline-none transition-all shadow-inner"
+                  minuteStep={5}
                 />
               </div>
 
@@ -443,15 +441,12 @@ export default function Step2Equipment({
                   <span>Expected Return Time</span>
                   <span className="text-rose-500">*</span>
                 </label>
-                <input
-                  type="time"
-                  required
+                <CustomTimePicker
                   value={endTimeVal}
-                  onChange={(e) => {
-                    const newEndTime = e.target.value;
+                  onChange={(newEndTime) => {
                     setEndTime && setEndTime(`${activeBorrowDate}T${newEndTime}`);
                   }}
-                  className="w-full px-3.5 py-2.5 bg-slate-100/80 border border-slate-200 rounded-2xl text-xs font-extrabold text-slate-900 focus:bg-white focus:border-blue-600 focus:ring-4 focus:ring-blue-50 focus:outline-none transition-all shadow-inner"
+                  minuteStep={5}
                 />
               </div>
 

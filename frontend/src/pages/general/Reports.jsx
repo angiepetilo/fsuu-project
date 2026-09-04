@@ -8,12 +8,11 @@ import BookingBorrowingReportTab from "./reports/BookingBorrowingReportTab";
 import BreachesTab from "./reports/BreachesTab";
 import EquipmentStockTab from "./reports/EquipmentStockTab";
 import EquipmentOutTab from "./reports/EquipmentOutTab";
-import SendEmailModal from "./reports/SendEmailModal";
 import PdfPreviewModal from "./reports/PdfPreviewModal";
 import { downloadReportAsPdf } from "./reports/exportPdfHelper";
 import {
   FileBarChart2, FileText, Download, ShieldAlert, PackageOpen, CheckCircle2,
-  Building2, Mail, Printer, X, Send, Loader2
+  Building2, Printer, X, Loader2
 } from "lucide-react";
 
 export default function Reports() {
@@ -82,11 +81,6 @@ export default function Reports() {
   };
   const [feedback, setFeedback] = useState(null);
   const [showPdfModal, setShowPdfModal] = useState(false);
-  const [showEmailModal, setShowEmailModal] = useState(false);
-  const [recipientEmail, setRecipientEmail] = useState("");
-  const [emailSubject, setEmailSubject] = useState("");
-  const [emailNotes, setEmailNotes] = useState("");
-  const [sendingEmail, setSendingEmail] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
 
   const [venueBookings, setVenueBookings] = useState([]);
@@ -201,7 +195,7 @@ export default function Reports() {
   const filteredUnits = useMemo(() => {
     const rawList = Array.isArray(equipmentUnits) ? equipmentUnits : (equipmentUnits?.data || []);
     return rawList.map((u, idx) => {
-      const bCode = String(u.unit_code || u.barcode || `BC-EQP-2026-00${idx + 1}`).trim();
+      const bCode = String(u.barcode || `BC-EQP-2026-00${idx + 1}`).trim();
       const dbStatusRaw = (u.status || 'available').toLowerCase();
       const dbCondition = u.condition || '';
       const condLower = dbCondition.toLowerCase();
@@ -280,89 +274,7 @@ export default function Reports() {
     inventory: "Inventory and Stock",
   };
 
-  // ── 1. OPEN EMAIL MODAL (Pre-fill with user typed report notes & table summary) ──
-  const handleOpenEmailModal = () => {
-    const venueNotes = localStorage.getItem("fsuu_report_venue_notes") || "";
-    const equipNotes = localStorage.getItem("fsuu_report_equipment_notes") || "";
-    const breachesNotes = localStorage.getItem("fsuu_report_breaches_notes") || "";
-
-    let initialNotes = "";
-    if (activeTab === "booking_borrowing") {
-      initialNotes = `VENUE BOOKING REPORT NOTES:\n${venueNotes || "None"}\n\nEQUIPMENT BORROWING REPORT NOTES:\n${equipNotes || "None"}`;
-    } else if (activeTab === "breaches") {
-      initialNotes = `RULE & LATE RETURN VIOLATIONS REPORT NOTES:\n${breachesNotes || "None"}`;
-    } else {
-      initialNotes = `Official Equipment Stock Audit Report for ${officeScope}.`;
-    }
-
-    setEmailSubject(`[FSUU AVR Audit] ${tabLabels[activeTab]} - ${new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`);
-    setEmailNotes(initialNotes);
-    setShowEmailModal(true);
-  };
-
-  // ── 2. SEND REPORT EMAIL (Itemized text payload) ──
-  const handleSendEmailSubmit = async (e) => {
-    e.preventDefault();
-    if (!recipientEmail.trim()) {
-      alert("Please enter a recipient email address.");
-      return;
-    }
-    setSendingEmail(true);
-
-    let contentData = "";
-    if (activeTab === "booking_borrowing") {
-      contentData += `=== VENUE BOOKINGS (${filteredVenueBookings.length} records) ===\n`;
-      filteredVenueBookings.forEach((b, i) => {
-        const track = b.tracking_number?.reference_code || b.reference_code || `TRK-VB-${b.id}`;
-        contentData += `${i + 1}. [${track}] ${b.filer_name || "Filer"} | ${b.venue_name || "AVR"} | ${b.date_of_usage || "—"} | ${b.status || "CLEAN"}\n`;
-      });
-      contentData += `\n=== EQUIPMENT BORROWINGS (${filteredEquipmentBorrowings.length} records) ===\n`;
-      filteredEquipmentBorrowings.forEach((eb, i) => {
-        const track = eb.tracking_number?.reference_code || eb.reference_code || `TRK-EB-${eb.id}`;
-        const eq = eb.equipment_name || eb.equipment?.name || "Equipment";
-        contentData += `${i + 1}. [${track}] ${eb.filer_name || "Borrower"} | ${eq} (Qty: ${eb.quantity || 1}) | ${eb.date_of_usage || "—"} | ${eb.status || "CLEAN"}\n`;
-      });
-    } else if (activeTab === "breaches") {
-      contentData += `=== DEPARTMENT VIOLATION TOTALS ===\n`;
-      filteredRuleViolations.forEach((v, i) => {
-        contentData += `${i + 1}. ${v.department || "Academic Dept"}: ${v.venue_violations || 0} Venue Breaches, ${v.late_returns || 0} Late Returns, ${v.equipment_damages || 0} Damaged, ${v.equipment_lost || 0} Lost\n`;
-      });
-    } else if (activeTab === "inventory") {
-      contentData += `=== MASTER EQUIPMENT STOCK INVENTORY (${filteredInventoryItems.length} categories) ===\n`;
-      filteredInventoryItems.forEach((it, i) => {
-        contentData += `${i + 1}. ${it.eq_name || it.name}: Expected: ${it.total_quantity || 0}, Available: ${it.available_count || 0}, Released: ${it.released_count || 0}, Damaged: ${it.damaged_count || 0}, Lost: ${it.lost_count || 0}\n`;
-      });
-      contentData += `\n=== PHYSICAL EQUIPMENT UNITS (${filteredUnits.length} units) ===\n`;
-      filteredUnits.forEach((u, i) => {
-        contentData += `${i + 1}. [${u.barcode}] ${u.name} | Category: ${u.category} | Status: ${u.status} | Condition: ${u.condition} | Purchased: ${u.date_purchased}\n`;
-      });
-    }
-
-    try {
-      const res = await api.post("/general/send-report-email", {
-        recipient: recipientEmail.trim(),
-        subject: emailSubject,
-        notes: emailNotes,
-        content: contentData,
-        tab: activeTab,
-        scope: officeScope,
-      });
-
-      setShowEmailModal(false);
-      setFeedback(`✅ ${res.data?.message || `${tabLabels[activeTab]} successfully delivered to ${recipientEmail.trim()}`}`);
-      setRecipientEmail("");
-      setTimeout(() => setFeedback(null), 5000);
-    } catch (err) {
-      setShowEmailModal(false);
-      const errMsg = err.response?.data?.message || err.response?.data?.error || "Failed to send email. Please verify SMTP settings in System Settings.";
-      setFeedback(`❌ ${errMsg}`);
-      setTimeout(() => setFeedback(null), 6000);
-    } finally {
-      setSendingEmail(false);
-    }
-  };
-
-  // ── 3. DIRECT PDF DOWNLOAD (Generates and saves .pdf file to user's device) ──
+  // ── DIRECT PDF DOWNLOAD (Generates and saves .pdf file to user's device) ──
   const handleDownloadPDF = async () => {
     const cleanTab = (tabLabels[activeTab] || "Report").replace(/[^a-zA-Z0-9]/g, "_");
     const filename = `FSUU_${cleanTab}_${new Date().toISOString().slice(0, 10)}.pdf`;
@@ -384,7 +296,7 @@ export default function Reports() {
     });
   };
 
-  // ── 4. PRINT PREVIEW ──
+  // ── PRINT PREVIEW ──
   const handlePrintPDF = () => {
     window.print();
   };
@@ -409,18 +321,6 @@ export default function Reports() {
             <span>Export PDF</span>
           </button>
         )}
-
-        {(isSuperAdmin || hasPermission("reports.send_email") || hasPermission("reports")) && (
-          <button
-            type="button"
-            onClick={handleOpenEmailModal}
-            className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-extrabold shadow-xs transition-colors cursor-pointer"
-            title={`Send ${tabLabels[activeTab]} via Email`}
-          >
-            <Mail size={14} />
-            <span>Send via Email</span>
-          </button>
-        )}
       </div>
 
       {feedback && (
@@ -430,45 +330,49 @@ export default function Reports() {
         </div>
       )}
 
-      {/* Tabs */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 pb-3">
-        {visibleReportTabs.map((tab) => {
-          const active = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => switchTab(tab.id)}
-              className={`px-4 py-2.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
-                active
-                  ? "bg-blue-700 text-white shadow-xs"
-                  : "bg-white text-slate-700 border border-slate-200/80 hover:bg-blue-700 hover:text-white hover:border-blue-700"
-              }`}
+      {/* Tabs Bar with Semester Filter Aligned to the Right */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-200 pb-3">
+        <div className="flex flex-wrap items-center gap-2">
+          {visibleReportTabs.map((tab) => {
+            const active = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => switchTab(tab.id)}
+                className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+                  active
+                    ? "bg-blue-700 text-white shadow-xs"
+                    : "bg-white text-slate-700 border border-slate-200/80 hover:bg-blue-700 hover:text-white hover:border-blue-700"
+                }`}
+              >
+                <span>{tab.label}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Semester filter aligned in the 4 tabs on the right side */}
+        {academicTerms.length > 0 && (
+          <div className="flex items-center gap-1.5 bg-white border border-slate-200 px-3 py-1.5 rounded-xl shadow-2xs self-end md:self-auto shrink-0">
+            <label className="text-xs font-bold text-slate-600 whitespace-nowrap">Semester :</label>
+            <select
+              value={selectedTermId}
+              onChange={(e) => setSelectedTermId(e.target.value)}
+              className="p-1 bg-transparent border-0 font-bold text-slate-900 text-xs focus:outline-none cursor-pointer"
             >
-              <span>{tab.label}</span>
-            </button>
-          );
-        })}
+              <option value="">All Terms (TiDB Archive)</option>
+              {academicTerms.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name} {t.is_active ? "(Active)" : "(Archived)"}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
       {/* Render Active Tab Component */}
-      {academicTerms.length > 0 && (
-        <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl mb-4 w-fit">
-          <label className="text-xs font-bold text-slate-600 whitespace-nowrap">Semester :</label>
-          <select
-            value={selectedTermId}
-            onChange={(e) => setSelectedTermId(e.target.value)}
-            className="p-1 bg-transparent border-0 font-bold text-slate-900 text-xs focus:outline-none cursor-pointer"
-          >
-            <option value="">All Terms (TiDB Archive)</option>
-            {academicTerms.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name} {t.is_active ? "(Active)" : "(Archived)"}
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
       {mountedTabs.has("booking_borrowing") && (
         <div className={activeTab === "booking_borrowing" ? "block" : "hidden"}>
           <BookingBorrowingReportTab
@@ -511,22 +415,6 @@ export default function Reports() {
           />
         </div>
       )}
-
-      {/* ── EMAIL DISPATCH MODAL ── */}
-      <SendEmailModal
-        open={showEmailModal}
-        onClose={() => setShowEmailModal(false)}
-        tabLabel={tabLabels[activeTab]}
-        officeScope={officeScope}
-        recipientEmail={recipientEmail}
-        setRecipientEmail={setRecipientEmail}
-        emailSubject={emailSubject}
-        setEmailSubject={setEmailSubject}
-        emailNotes={emailNotes}
-        setEmailNotes={setEmailNotes}
-        sendingEmail={sendingEmail}
-        onSubmit={handleSendEmailSubmit}
-      />
 
       {/* ── PDF PRINT PREVIEW MODAL ── */}
       <PdfPreviewModal

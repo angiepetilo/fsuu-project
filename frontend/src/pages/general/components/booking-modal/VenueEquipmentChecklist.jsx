@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { PackageOpen, Wrench, Check, Search, ChevronDown, X, CheckCircle2, Plus, Minus } from "lucide-react";
+import { usePermissions } from "@/hooks/usePermissions";
 
 /**
  * Typeable & Selectable Combobox for Physical Barcode Slot
@@ -42,14 +43,14 @@ function SlotBarcodeSelector({
 
   // Filter available units based on slot uniqueness
   const slotEligibleUnits = availableUnits.filter((u) => {
-    const bCode = String(u.unit_code || u.barcode || u.serial_number || u.code || `UNIT-${u.id}`).trim().toUpperCase();
+    const bCode = String(u.barcode || u.serial_number || u.code || `UNIT-${u.id}`).trim().toUpperCase();
     const isCurrent = bCode === String(currentBarcode).trim().toUpperCase();
     return isCurrent || !otherSelectedBarcodes.includes(bCode);
   });
 
   // Search filtered options
   const searchFiltered = slotEligibleUnits.filter((u) => {
-    const bCode = String(u.unit_code || u.barcode || u.serial_number || u.code || `UNIT-${u.id}`).toLowerCase();
+    const bCode = String(u.barcode || u.serial_number || u.code || `UNIT-${u.id}`).toLowerCase();
     const uName = String(u.name || categoryName || "").toLowerCase();
     const q = searchTerm.toLowerCase().trim();
     if (!q) return true;
@@ -76,12 +77,12 @@ function SlotBarcodeSelector({
 
     // Auto-match if exact barcode typed
     const exactMatch = slotEligibleUnits.find((u) => {
-      const bCode = String(u.unit_code || u.barcode || u.serial_number || u.code || `UNIT-${u.id}`).trim().toUpperCase();
+      const bCode = String(u.barcode || u.serial_number || u.code || `UNIT-${u.id}`).trim().toUpperCase();
       return bCode === val.trim().toUpperCase();
     });
 
     if (exactMatch) {
-      const exactCode = exactMatch.unit_code || exactMatch.barcode || exactMatch.serial_number || exactMatch.code || `UNIT-${exactMatch.id}`;
+      const exactCode = exactMatch.barcode || exactMatch.serial_number || exactMatch.code || `UNIT-${exactMatch.id}`;
       onSelectBarcode(exactCode);
     } else if (!val) {
       onSelectBarcode("");
@@ -93,7 +94,7 @@ function SlotBarcodeSelector({
       e.preventDefault();
       if (searchFiltered.length > 0) {
         const top = searchFiltered[0];
-        const topCode = top.unit_code || top.barcode || top.serial_number || top.code || `UNIT-${top.id}`;
+        const topCode = top.barcode || top.serial_number || top.code || `UNIT-${top.id}`;
         handleChoose(topCode);
       }
     } else if (e.key === "Escape") {
@@ -159,7 +160,7 @@ function SlotBarcodeSelector({
             </div>
           ) : (
             searchFiltered.map((unit, uIdx) => {
-              const bCode = unit.unit_code || unit.barcode || unit.serial_number || unit.code || `UNIT-${unit.id}`;
+              const bCode = unit.barcode || unit.serial_number || unit.code || `UNIT-${unit.id}`;
               const displayName = unit.name || categoryName;
               const isSelected = bCode === currentBarcode;
 
@@ -220,6 +221,9 @@ export default function VenueEquipmentChecklist({
 }) {
   const isAssignmentMode = isApproved || isPreEvent || !isSideBySide;
 
+  const { isSuperAdmin, isStaff } = usePermissions();
+  const canOverride = isSuperAdmin || isStaff;
+
   // Fallback to single category mode if multi array not provided
   const activeOverrideList = Array.isArray(overrideCategories) && overrideCategories.length > 0
     ? overrideCategories
@@ -232,27 +236,41 @@ export default function VenueEquipmentChecklist({
         if (value === "NONE") {
           updated[index] = { ...updated[index], category: "NONE", quantity: 0 };
         } else {
-          const prevQty = updated[index]?.quantity;
-          updated[index] = { ...updated[index], category: value, quantity: prevQty && prevQty > 0 ? prevQty : 1 };
+          const avail = getAvailableUnitsForCategory ? getAvailableUnitsForCategory(value).length : 0;
+          const currentQty = updated[index]?.quantity || 1;
+          const clampedQty = avail > 0 ? Math.min(Math.max(1, currentQty), avail) : 0;
+          updated[index] = { ...updated[index], category: value, quantity: clampedQty };
         }
+      } else if (field === "quantity") {
+        const cat = updated[index]?.category;
+        const typeId = updated[index]?.equipment_type_id;
+        const avail = cat === "NONE" ? 0 : (getAvailableUnitsForCategory ? getAvailableUnitsForCategory(cat, typeId).length : 0);
+        const clampedVal = avail > 0 ? Math.min(Math.max(1, value), avail) : 0;
+        updated[index] = { ...updated[index], quantity: clampedVal };
       } else {
         updated[index] = { ...updated[index], [field]: value };
       }
       setOverrideCategories(updated);
     } else {
       if (field === "category") {
+        const avail = value === "NONE" ? 0 : (getAvailableUnitsForCategory ? getAvailableUnitsForCategory(value).length : 0);
         if (setOverrideCategory) setOverrideCategory(value);
         if (value === "NONE" && setOverrideQuantity) setOverrideQuantity(0);
-        else if (value !== "NONE" && (!overrideQuantity || overrideQuantity === 0) && setOverrideQuantity) setOverrideQuantity(1);
+        else if (setOverrideQuantity) setOverrideQuantity(avail > 0 ? Math.min(Math.max(1, overrideQuantity || 1), avail) : 0);
       }
-      if (field === "quantity" && setOverrideQuantity) setOverrideQuantity(value);
+      if (field === "quantity") {
+        const avail = overrideCategory === "NONE" ? 0 : (getAvailableUnitsForCategory ? getAvailableUnitsForCategory(overrideCategory).length : 0);
+        const clampedVal = avail > 0 ? Math.min(Math.max(1, value), avail) : 0;
+        if (setOverrideQuantity) setOverrideQuantity(clampedVal);
+      }
     }
   };
 
   const handleAddOverrideCategory = () => {
     const defaultCat = dbEquipmentTypes[0]?.eq_name || dbEquipmentTypes[0]?.name || "Wired Microphone";
+    const avail = getAvailableUnitsForCategory ? getAvailableUnitsForCategory(defaultCat, dbEquipmentTypes[0]?.id).length : 0;
     if (setOverrideCategories) {
-      setOverrideCategories([...activeOverrideList, { category: defaultCat, quantity: 1 }]);
+      setOverrideCategories([...activeOverrideList, { category: defaultCat, quantity: avail > 0 ? 1 : 0, equipment_type_id: dbEquipmentTypes[0]?.id || null }]);
     }
   };
 
@@ -277,7 +295,7 @@ export default function VenueEquipmentChecklist({
             </p>
           </div>
 
-          {!isHistoryView && !isSideBySide && (
+          {!isHistoryView && !isSideBySide && canOverride && (
             <div className="flex items-center gap-2">
               <button
                 type="button"
@@ -295,8 +313,8 @@ export default function VenueEquipmentChecklist({
         </div>
       )}
 
-      {/* Admin Override Controls - Multi-Category with Add/Minus Physical Units */}
-      {(isOverrideActive || isApproved) && !isSideBySide && (
+      {/* Admin Override Controls - Multi-Category with Add/Minus Physical Units (Super Admin & Staff Only) */}
+      {canOverride && (isOverrideActive || isApproved) && !isSideBySide && (
         <div className="p-3.5 bg-slate-50/80 border border-slate-200 rounded-xl space-y-3 text-xs animate-in fade-in">
           <div className="flex items-center justify-between border-b border-slate-200 pb-2">
             <span className="font-extrabold text-slate-900 text-[11px] uppercase tracking-wide flex items-center gap-1.5">
@@ -307,7 +325,11 @@ export default function VenueEquipmentChecklist({
           </div>
 
           <div className="space-y-2.5">
-            {activeOverrideList.map((item, idx) => (
+            {activeOverrideList.map((item, idx) => {
+              const availableUnits = getAvailableUnitsForCategory ? getAvailableUnitsForCategory(item.category, item.equipment_type_id) : [];
+              const maxAvailable = availableUnits.length;
+
+              return (
               <div
                 key={`override-row-${idx}`}
                 className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 p-2.5 bg-white rounded-xl border border-slate-200 shadow-2xs"
@@ -343,16 +365,33 @@ export default function VenueEquipmentChecklist({
                   </select>
                 </div>
 
-                {/* Quantity Controls (Add / Minus physical units) */}
+                {/* Quantity Controls (Add / Minus physical units limited by category stock) */}
                 <div className="shrink-0">
-                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
-                    Physical Units
-                  </label>
-                  {item.category === "NONE" || item.quantity === 0 ? (
+                  <div className="flex items-center justify-between mb-1 gap-2">
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase">
+                      Physical Units
+                    </label>
+                    {item.category !== "NONE" && (
+                      <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded ${maxAvailable > 0 ? "text-emerald-700 bg-emerald-50 border border-emerald-200" : "text-rose-600 bg-rose-50 border border-rose-200"}`}>
+                        Max: {maxAvailable}
+                      </span>
+                    )}
+                  </div>
+                  {item.category === "NONE" || maxAvailable === 0 ? (
                     <div className="flex items-center gap-1.5">
                       <span className="min-w-[4.5rem] text-center font-mono font-bold text-xs text-slate-400 bg-slate-100 py-1.5 px-2 rounded-lg border border-slate-200">
                         0 Units
                       </span>
+                      {activeOverrideList.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveOverrideCategory(idx)}
+                          className="w-8 h-8 rounded-lg border border-red-200 bg-white hover:bg-red-50 flex items-center justify-center text-red-600 cursor-pointer transition-colors ml-1 shadow-2xs"
+                          title="Remove this category"
+                        >
+                          <X size={13} />
+                        </button>
+                      )}
                     </div>
                   ) : (
                     <div className="flex items-center gap-1.5">
@@ -360,7 +399,7 @@ export default function VenueEquipmentChecklist({
                         type="button"
                         onClick={() => handleUpdateOverrideItem(idx, "quantity", Math.max(1, (item.quantity || 1) - 1))}
                         disabled={item.quantity <= 1}
-                        className="w-8 h-8 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 disabled:opacity-40 flex items-center justify-center text-slate-700 cursor-pointer transition-colors shadow-2xs"
+                        className="w-8 h-8 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center text-slate-700 cursor-pointer transition-colors shadow-2xs"
                         title="Decrease units (-1)"
                       >
                         <Minus size={13} />
@@ -373,8 +412,9 @@ export default function VenueEquipmentChecklist({
                       <button
                         type="button"
                         onClick={() => handleUpdateOverrideItem(idx, "quantity", (item.quantity || 1) + 1)}
-                        className="w-8 h-8 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-slate-700 cursor-pointer transition-colors shadow-2xs"
-                        title="Increase units (+1)"
+                        disabled={item.quantity >= maxAvailable}
+                        className="w-8 h-8 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center text-slate-700 cursor-pointer transition-colors shadow-2xs"
+                        title={item.quantity >= maxAvailable ? `Maximum available units reached (${maxAvailable})` : "Increase units (+1)"}
                       >
                         <Plus size={13} />
                       </button>
@@ -393,7 +433,7 @@ export default function VenueEquipmentChecklist({
                   )}
                 </div>
               </div>
-            ))}
+            );})}
 
             {/* Add More Category Dropdown Button */}
             {setOverrideCategories && (

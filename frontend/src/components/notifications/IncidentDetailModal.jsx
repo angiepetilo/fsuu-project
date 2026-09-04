@@ -120,7 +120,7 @@ export default function IncidentDetailModal({ incident, onClose }) {
               <div className="flex items-center gap-2">
                 <Tag size={13} className="text-slate-400 shrink-0" />
                 <span className="font-mono text-slate-700 truncate">
-                  Barcode: <span className="font-semibold">{incident.unit_code || "N/A"}</span>
+                  Barcode: <span className="font-semibold">{incident.barcode || incident.unit_code || "N/A"}</span>
                 </span>
               </div>
             </div>

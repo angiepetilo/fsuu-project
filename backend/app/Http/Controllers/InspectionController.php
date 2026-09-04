@@ -217,7 +217,7 @@ class InspectionController extends Controller
                         $uCodes = array_values(array_filter($lookupKeys, fn($v) => !empty($v)));
 
                         EquipmentUnit::where(function($q) use ($uCodes, $nIds) {
-                            $q->whereIn('unit_code', $uCodes);
+                            $q->whereIn('barcode', $uCodes);
                             if (!empty($nIds)) {
                                 $q->orWhereIn('id', array_map('intval', $nIds));
                             }

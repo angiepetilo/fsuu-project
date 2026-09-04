@@ -111,10 +111,11 @@ export default function TimeSlotMatrix({
             <div className="divide-y divide-slate-100">
               {items.map((item) => {
                 // Find all schedules matching this specific row/item (by ID or Barcode)
-                const rowSchedules = schedules.filter(
+                const rowSchedules = (Array.isArray(schedules) ? schedules : []).filter(
                   (s) =>
-                    String(s.itemId) === String(item.id) ||
-                    (item.code && (String(s.barcode) === String(item.code) || String(s.itemBarcode) === String(item.code)))
+                    s &&
+                    (String(s.itemId || s.item_id || "") === String(item.id || "") ||
+                    (item.code && (String(s.barcode || "") === String(item.code) || String(s.itemBarcode || "") === String(item.code))))
                 );
 
                 return (
@@ -195,7 +196,9 @@ export default function TimeSlotMatrix({
                           statusBadgeLabel = "BLOCKED";
                         }
 
-                        const formattedTimeRange = `${formatTime12h(sched.startTime)} - ${formatTime12h(sched.endTime)}`;
+                        const sStart = sched?.startTime || sched?.time_start || sched?.start_time || sched?.start || "08:00";
+                        const sEnd = sched?.endTime || sched?.time_end || sched?.end_time || sched?.end || "17:00";
+                        const formattedTimeRange = `${formatTime12h(sStart)} - ${formatTime12h(sEnd)}`;
 
                         return (
                           <div

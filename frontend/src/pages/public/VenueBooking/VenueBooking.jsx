@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { KioskTimeline } from "@/components/ui/kiosk-timeline";
 import { PinModal } from "@/components/ui/pin-modal";
 import api from "@/lib/axios";
+import { notify } from "@/lib/notify";
 
 import Step1Identity from "./components/Step1Identity";
 import Step2Venue from "./components/Step2Venue";
@@ -53,7 +54,7 @@ export default function VenueBooking({ isPortal: isPortalProp }) {
       localStorage.removeItem("fsuu_cache_public_venues");
       localStorage.removeItem("fsuu_venue_availability");
       localStorage.removeItem("fsuu_venue_bookings");
-    } catch {}
+    } catch { }
   }, []);
 
   // Form & Selection States
@@ -103,14 +104,14 @@ export default function VenueBooking({ isPortal: isPortalProp }) {
       .then(res => {
         if (res?.data) setOpHours(res.data);
       })
-      .catch(() => {});
+      .catch(() => { });
 
     // Fetch verification pin rules
     api.get("/public/verification-pin-settings")
       .then(res => {
         if (res?.data) setPinRules(res.data);
       })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   useEffect(() => {
@@ -171,7 +172,7 @@ export default function VenueBooking({ isPortal: isPortalProp }) {
           if (formatted.length > 0) {
             try {
               localStorage.setItem("fsuu_venues_catalog", JSON.stringify(formatted));
-            } catch {}
+            } catch { }
           }
         })
         .catch(() => {
@@ -244,33 +245,35 @@ export default function VenueBooking({ isPortal: isPortalProp }) {
 
   const handleStep2Next = () => {
     if (!selectedVenue) {
-      alert("Please select a venue first.");
+      notify.warning("Venue Required", "Please select a venue first.");
       return;
     }
     if (!selectedDate) {
-      alert("Please select a reservation date.");
+      notify.warning("Date Required", "Please select a reservation date.");
       return;
     }
     if (isPastDateTime(selectedDate, startTime)) {
-      alert("Selected booking date or time has already passed. Please select a future date and time.");
+      notify.warning("Past Date/Time", "Selected booking date or time has already passed. Please select a future date and time.");
       return;
     }
     if (selectedEndDate && selectedEndDate < selectedDate) {
-      alert("Reservation end date cannot be earlier than the start date.");
+      notify.warning("Invalid Date Range", "Reservation end date cannot be earlier than the start date.");
       return;
     }
     if (endTime <= startTime) {
-      alert("Time End must be later than Time Start.");
+      notify.warning("Invalid Time Range", "Time End must be later than Time Start.");
       return;
     }
 
     // Hard block if conflicting booking exists
+    // Under Option A: Only APPROVED or ONGOING bookings block availability.
+    // Competing pending requests remain allowed so applicants can submit complete requirements.
     const targetEndDate = selectedEndDate && selectedEndDate >= selectedDate ? selectedEndDate : selectedDate;
     const vName = (selectedVenue.name || "").toLowerCase();
-    const INACTIVE = ["completed", "done", "returned", "rejected", "cancelled", "cancelled_by_user", "cancelled_by_admin", "solved", "damaged", "lost"];
+    const BLOCKING_STATUSES = ["approved", "ongoing", "on-going"];
     const conflict = existingBookings.find(b => {
       const bStatus = String(b.status || b.tracking_number?.status || "").toLowerCase();
-      if (INACTIVE.includes(bStatus)) return false;
+      if (!BLOCKING_STATUSES.includes(bStatus)) return false;
 
       const bVenueName = (b.venue?.name || b.venue_name || "").toLowerCase();
       const matchVenue = String(b.venue_id) === String(selectedVenue.id) ||
@@ -289,7 +292,7 @@ export default function VenueBooking({ isPortal: isPortalProp }) {
       };
       const bStart = b.time_start?.substring(0, 5) || "08:00";
       const bEnd = b.time_end?.substring(0, 5) || "17:00";
-      
+
       const start1 = toMin(startTime);
       const end1 = toMin(endTime);
       const start2 = toMin(bStart);
@@ -303,14 +306,17 @@ export default function VenueBooking({ isPortal: isPortalProp }) {
     });
 
     if (conflict) {
-      alert(`Already Reserved! ${selectedVenue.name} is already booked from ${formatTime12(conflict.time_start?.substring(0, 5))} to ${formatTime12(conflict.time_end?.substring(0, 5))} on ${conflict.date_of_usage?.substring(0, 10) || selectedDate}. You cannot proceed with this schedule.`);
+      notify.error(
+        "Time Slot Already Reserved",
+        `${selectedVenue.name} is already booked from ${formatTime12(conflict.time_start?.substring(0, 5))} to ${formatTime12(conflict.time_end?.substring(0, 5))} on ${conflict.date_of_usage?.substring(0, 10) || selectedDate}. You cannot proceed with this schedule.`
+      );
       return;
     }
 
     const venueOpen = opHours?.venue_open?.substring(0, 5) || "07:30";
     const venueClose = opHours?.venue_close?.substring(0, 5) || "17:00";
     const isOutsideHours = (startTime && startTime < venueOpen) || (endTime && endTime > venueClose);
-    
+
     let diffDays = 0;
     if (selectedEndDate && selectedEndDate > selectedDate) {
       const startD = new Date(selectedDate);
@@ -634,7 +640,7 @@ export default function VenueBooking({ isPortal: isPortalProp }) {
             <div className="w-18 h-18 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto border-4 border-emerald-500/20 shadow-inner">
               <ShieldCheck size={38} />
             </div>
-            
+
             <div>
               <h2 className="text-2xl font-black text-slate-900 tracking-tight">Venue Reservation Submitted!</h2>
               <p className="text-xs text-slate-500 font-semibold mt-1">

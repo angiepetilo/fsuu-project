@@ -34,39 +34,6 @@ export default function StudentStaffDashboard({
 
   return (
     <div className="space-y-6">
-      {/* Top Banner & Refresh Toolbar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900 text-white rounded-3xl border border-slate-800 shadow-sm">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black tracking-wider uppercase bg-blue-500 text-white shadow-xs">
-              Operational Shift Desk
-            </span>
-            <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-300">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              Active Shift Mode
-            </span>
-          </div>
-          <h2 className="text-lg sm:text-xl font-extrabold tracking-tight text-white">
-            Student Staff Duty Dashboard
-          </h2>
-          <p className="text-xs text-slate-300 font-medium">
-            Walk-in terminal dispatch, rapid room reservations, equipment release, and pending clearance queue.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2 shrink-0">
-          <button
-            type="button"
-            onClick={onRefresh}
-            disabled={loading}
-            className="flex items-center gap-2 px-4 py-2.5 bg-white/10 hover:bg-white/20 border border-white/15 rounded-xl text-white font-bold text-xs shadow-xs transition-colors cursor-pointer disabled:opacity-50"
-          >
-            <RefreshCw size={13} className={loading ? "animate-spin" : ""} />
-            <span>{loading ? "Syncing..." : "Refresh Queue"}</span>
-          </button>
-        </div>
-      </div>
-
       {error && (
         <div className="py-3 px-4 rounded-2xl border border-rose-200 text-rose-700 text-xs font-bold flex items-center gap-2.5 bg-rose-50 shadow-2xs">
           <AlertCircle size={16} className="shrink-0" />
@@ -75,21 +42,16 @@ export default function StudentStaffDashboard({
       )}
 
       {/* ────────────────────────────────────────────────────────────────────────── */}
-      {/* 6 QUICK SHIFT ACTIONS */}
+      {/* QUICK SHIFT ACTIONS */}
       {/* ────────────────────────────────────────────────────────────────────────── */}
       <div className="space-y-3.5">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-xs sm:text-sm font-extrabold text-slate-900 uppercase tracking-wider">
-              Quick Shift Actions
-            </h3>
-            <p className="text-[11px] text-slate-500 font-medium">
-              Primary walk-in booking terminals & rapid operational desk shortcuts
-            </p>
-          </div>
-          <span className="text-[11px] font-bold text-blue-700 bg-blue-50 border border-blue-200 px-3 py-1 rounded-full">
-            6 Duty Desks Available
-          </span>
+        <div>
+          <h3 className="text-xs sm:text-sm font-extrabold text-slate-900 uppercase tracking-wider">
+            Quick Shift Actions
+          </h3>
+          <p className="text-[11px] text-slate-500 font-medium">
+            Walk-in booking terminals and operational shortcuts
+          </p>
         </div>
 
         {/* 1 & 2: HERO ACTION BUTTONS (Walk-in Booking Terminals) */}
@@ -97,44 +59,44 @@ export default function StudentStaffDashboard({
           {/* Hero 1: Book Venue Interface */}
           <Link
             to="/interface/venue"
-            className="group relative overflow-hidden p-5 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white shadow-md hover:shadow-lg transition-all border border-blue-500 cursor-pointer flex items-center justify-between"
+            className="group p-4 sm:p-5 rounded-2xl bg-white border border-slate-200 hover:border-blue-400 hover:shadow-sm transition-all cursor-pointer flex items-center justify-between"
           >
-            <div className="space-y-1.5 z-10">
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-white/20 text-white border border-white/20">
+            <div className="space-y-1.5">
+              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-blue-50 text-blue-700 border border-blue-200">
                 Primary Action 01
               </span>
-              <h4 className="text-base sm:text-lg font-black tracking-tight text-white flex items-center gap-2">
+              <h4 className="text-base font-bold text-slate-900 flex items-center gap-1.5 group-hover:text-blue-600 transition-colors">
                 Book Venue Interface
-                <ArrowUpRight size={18} className="opacity-70 group-hover:opacity-100 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                <ArrowUpRight size={16} className="text-slate-400 group-hover:text-blue-600 transition-colors" />
               </h4>
-              <p className="text-xs text-blue-100 font-medium max-w-sm">
-                Walk-in classroom & AVR room reservations with real-time schedule conflict validation.
+              <p className="text-xs text-slate-500 font-medium">
+                Reserve classrooms and AVRs.
               </p>
             </div>
-            <div className="p-3.5 bg-white/15 rounded-2xl text-white backdrop-blur-xs group-hover:scale-110 transition-transform shadow-inner shrink-0 ml-3">
-              <Building2 size={28} />
+            <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 border border-blue-100 group-hover:bg-blue-600 group-hover:text-white transition-colors ml-3">
+              <Building2 size={24} />
             </div>
           </Link>
 
           {/* Hero 2: Borrow Equipment Interface */}
           <Link
             to="/interface/equipment"
-            className="group relative overflow-hidden p-5 rounded-2xl bg-gradient-to-br from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white shadow-md hover:shadow-lg transition-all border border-emerald-500 cursor-pointer flex items-center justify-between"
+            className="group p-4 sm:p-5 rounded-2xl bg-white border border-slate-200 hover:border-emerald-400 hover:shadow-sm transition-all cursor-pointer flex items-center justify-between"
           >
-            <div className="space-y-1.5 z-10">
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-white/20 text-white border border-white/20">
+            <div className="space-y-1.5">
+              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200">
                 Primary Action 02
               </span>
-              <h4 className="text-base sm:text-lg font-black tracking-tight text-white flex items-center gap-2">
+              <h4 className="text-base font-bold text-slate-900 flex items-center gap-1.5 group-hover:text-emerald-600 transition-colors">
                 Borrow Equipment Interface
-                <ArrowUpRight size={18} className="opacity-70 group-hover:opacity-100 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                <ArrowUpRight size={16} className="text-slate-400 group-hover:text-emerald-600 transition-colors" />
               </h4>
-              <p className="text-xs text-emerald-100 font-medium max-w-sm">
-                Walk-in equipment borrowing for projectors, microphones, audio systems, and cables.
+              <p className="text-xs text-slate-500 font-medium">
+                Borrow AV equipment and accessories.
               </p>
             </div>
-            <div className="p-3.5 bg-white/15 rounded-2xl text-white backdrop-blur-xs group-hover:scale-110 transition-transform shadow-inner shrink-0 ml-3">
-              <PackageOpen size={28} />
+            <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-100 group-hover:bg-emerald-600 group-hover:text-white transition-colors ml-3">
+              <PackageOpen size={24} />
             </div>
           </Link>
         </div>

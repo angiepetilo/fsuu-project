@@ -13,6 +13,7 @@ export default function EquipmentModal({
   handleEditEquipmentSubmit,
   isSubmitting,
   categories = ["Projector", "Sound System", "Camera", "Microphone", "Lighting", "Switchers/Mixers", "AV Equipment"],
+  existingUnits = [],
 }) {
   if (!showAddModal && !editingItem) return null;
 
@@ -23,6 +24,17 @@ export default function EquipmentModal({
       // Keep input captured
     }
   };
+
+  // Real-time duplicate barcode detection
+  const editBarcodeClean = (editFormData?.barcode || "").trim().toLowerCase();
+  const editDuplicate = editingItem && editBarcodeClean ? existingUnits.find(u =>
+    u.id !== editingItem.id && (u.barcode || "").trim().toLowerCase() === editBarcodeClean
+  ) : null;
+
+  const addBarcodeClean = (formData?.barcode || "").trim().toLowerCase();
+  const addDuplicate = showAddModal && addBarcodeClean ? existingUnits.find(u =>
+    (u.barcode || "").trim().toLowerCase() === addBarcodeClean
+  ) : null;
 
   const inputClasses = "w-full h-10 px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-normal text-slate-800 focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-400 transition-colors placeholder:text-slate-400";
   const labelClasses = "block text-xs font-medium text-slate-700 mb-1.5";
@@ -68,7 +80,12 @@ export default function EquipmentModal({
                 </div>
 
                 <div>
-                  <label className={labelClasses}>Barcode *</label>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs font-medium text-slate-700">Barcode *</label>
+                    {editDuplicate && (
+                      <span className="text-[10px] font-bold text-rose-600 uppercase tracking-tight">Already in use</span>
+                    )}
+                  </div>
                   <input
                     type="text"
                     required
@@ -76,8 +93,13 @@ export default function EquipmentModal({
                     value={editFormData.barcode}
                     onKeyDown={handleBarcodeKeyDown}
                     onChange={e => setEditFormData({ ...editFormData, barcode: e.target.value })}
-                    className={inputClasses}
+                    className={`${inputClasses} ${editDuplicate ? 'border-rose-400 focus:border-rose-500 focus:ring-rose-200 bg-rose-50/20' : ''}`}
                   />
+                  {editDuplicate && (
+                    <p className="mt-1 text-[11px] font-medium text-rose-600 leading-tight">
+                      ⚠️ Assigned to: <strong>{editDuplicate.name || editDuplicate.model || 'another unit'}</strong>. Each unit requires a unique barcode.
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -188,8 +210,8 @@ export default function EquipmentModal({
                 </button>
                 <button
                   type="submit"
-                  disabled={isSubmitting}
-                  className="px-5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold transition-colors shadow-xs flex items-center justify-center cursor-pointer disabled:opacity-50"
+                  disabled={isSubmitting || !!editDuplicate}
+                  className="px-5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold transition-colors shadow-xs flex items-center justify-center cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isSubmitting ? (
                     <span className="flex items-center gap-1.5">
@@ -245,7 +267,12 @@ export default function EquipmentModal({
                 </div>
 
                 <div>
-                  <label className={labelClasses}>Barcode *</label>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs font-medium text-slate-700">Barcode *</label>
+                    {addDuplicate && (
+                      <span className="text-[10px] font-bold text-rose-600 uppercase tracking-tight">Already in use</span>
+                    )}
+                  </div>
                   <input
                     type="text"
                     required
@@ -253,8 +280,13 @@ export default function EquipmentModal({
                     value={formData.barcode}
                     onKeyDown={handleBarcodeKeyDown}
                     onChange={e => setFormData({ ...formData, barcode: e.target.value })}
-                    className={inputClasses}
+                    className={`${inputClasses} ${addDuplicate ? 'border-rose-400 focus:border-rose-500 focus:ring-rose-200 bg-rose-50/20' : ''}`}
                   />
+                  {addDuplicate && (
+                    <p className="mt-1 text-[11px] font-medium text-rose-600 leading-tight">
+                      ⚠️ Assigned to: <strong>{addDuplicate.name || addDuplicate.model || 'another unit'}</strong>. Each unit requires a unique barcode.
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -356,8 +388,8 @@ export default function EquipmentModal({
                 </button>
                 <button
                   type="submit"
-                  disabled={isSubmitting}
-                  className="px-5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold transition-colors shadow-xs flex items-center justify-center cursor-pointer disabled:opacity-50"
+                  disabled={isSubmitting || !!addDuplicate}
+                  className="px-5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold transition-colors shadow-xs flex items-center justify-center cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isSubmitting ? (
                     <span className="flex items-center gap-1.5">

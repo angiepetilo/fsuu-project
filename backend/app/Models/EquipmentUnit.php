@@ -17,7 +17,7 @@ class EquipmentUnit extends Model
         'equipment_type_id',
         'brand',
         'model',
-        'unit_code',
+        'barcode',
         'purchased_at',
         'eq_lifespan',
         'status',

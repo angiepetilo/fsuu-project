@@ -52,11 +52,11 @@ class VenueBooking extends Model
         'agreed_to_policy' => 'boolean',
         'is_complete'      => 'boolean',
         'no_of_person'     => 'integer',
-        'date_of_usage'    => 'date',
-        'reservation_end_date' => 'date',
-        'extend_reservation_end_date' => 'date',
-        'claim_timestamp'  => 'datetime',
-        'assigned_units'   => 'array',
+        'date_of_usage'               => 'date:Y-m-d',
+        'reservation_end_date'        => 'date:Y-m-d',
+        'extend_reservation_end_date' => 'date:Y-m-d',
+        'claim_timestamp'             => 'datetime',
+        'assigned_units'              => 'array',
     ];
 
     protected $appends = ['reference_code', 'status', 'endorsement_url', 'filer_name', 'extend_reservation_end_date'];

@@ -38,13 +38,13 @@ function BorrowSlotBarcodeSelector({
     .map(([_, v]) => String(v).trim().toUpperCase());
 
   const slotEligibleUnits = availableUnits.filter((u) => {
-    const bCode = String(u.unit_code || u.barcode || u.serial_number || u.code || `UNIT-${u.id}`).trim().toUpperCase();
+    const bCode = String(u.barcode || u.serial_number || u.code || `UNIT-${u.id}`).trim().toUpperCase();
     const isCurrent = bCode === String(currentBarcode).trim().toUpperCase();
     return isCurrent || !otherSelectedBarcodes.includes(bCode);
   });
 
   const searchFiltered = slotEligibleUnits.filter((u) => {
-    const bCode = String(u.unit_code || u.barcode || u.serial_number || u.code || `UNIT-${u.id}`).toLowerCase();
+    const bCode = String(u.barcode || u.serial_number || u.code || `UNIT-${u.id}`).toLowerCase();
     const uName = String(u.name || categoryName || "").toLowerCase();
     const q = searchTerm.toLowerCase().trim();
     if (!q) return true;
@@ -69,11 +69,11 @@ function BorrowSlotBarcodeSelector({
     setSearchTerm(val);
     setIsOpen(true);
     const exactMatch = slotEligibleUnits.find((u) => {
-      const bCode = String(u.unit_code || u.barcode || u.serial_number || u.code || `UNIT-${u.id}`).trim().toUpperCase();
+      const bCode = String(u.barcode || u.serial_number || u.code || `UNIT-${u.id}`).trim().toUpperCase();
       return bCode === val.trim().toUpperCase();
     });
     if (exactMatch) {
-      const exactCode = exactMatch.unit_code || exactMatch.barcode || exactMatch.serial_number || exactMatch.code || `UNIT-${exactMatch.id}`;
+      const exactCode = exactMatch.barcode || exactMatch.serial_number || exactMatch.code || `UNIT-${exactMatch.id}`;
       onSelectBarcode(exactCode);
     } else if (!val) {
       onSelectBarcode("");
@@ -85,7 +85,7 @@ function BorrowSlotBarcodeSelector({
       e.preventDefault();
       if (searchFiltered.length > 0) {
         const top = searchFiltered[0];
-        const topCode = top.unit_code || top.barcode || top.serial_number || top.code || `UNIT-${top.id}`;
+        const topCode = top.barcode || top.serial_number || top.code || `UNIT-${top.id}`;
         handleChoose(topCode);
       }
     } else if (e.key === "Escape") {
@@ -144,7 +144,7 @@ function BorrowSlotBarcodeSelector({
             </div>
           ) : (
             searchFiltered.map((unit, idx) => {
-              const bCode = unit.unit_code || unit.barcode || unit.serial_number || unit.code || `UNIT-${unit.id}`;
+              const bCode = unit.barcode || unit.serial_number || unit.code || `UNIT-${unit.id}`;
               const uName = unit.name || categoryName;
               const isSelected = bCode === currentBarcode;
 
@@ -352,7 +352,7 @@ export default function EquipBorrowUnitAssignment({
                         .map(([_, v]) => String(v).trim().toUpperCase());
 
                       const filteredUnits = availableUnits.filter((unit) => {
-                        const bCode = String(unit.unit_code || unit.barcode || unit.serial_number || unit.code || unit.id || "").trim().toUpperCase();
+                        const bCode = String(unit.barcode || unit.serial_number || unit.code || unit.id || "").trim().toUpperCase();
                         const uName = String(unit.name || "").trim().toUpperCase();
                         return !otherSelectedBarcodes.includes(bCode) && (!uName || !otherSelectedBarcodes.includes(uName));
                       });
@@ -378,7 +378,7 @@ export default function EquipBorrowUnitAssignment({
                               -- Assign Barcode (Unit {uIdx + 1} of {reqCat.quantity}) --
                             </option>
                             {filteredUnits.map((unit) => {
-                              const displayCode = unit.unit_code || unit.barcode || unit.serial_number || unit.code || `UNIT-${unit.id}`;
+                              const displayCode = unit.barcode || unit.serial_number || unit.code || `UNIT-${unit.id}`;
                               return (
                                 <option key={unit.id} value={displayCode}>
                                   {displayCode} — {unit.name || reqCat.category}
