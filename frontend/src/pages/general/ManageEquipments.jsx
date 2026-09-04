@@ -107,7 +107,7 @@ export default function ManageEquipments() {
       setCategories(catList);
 
       setUnits(unitData.map((u, idx) => {
-        const bCode = String(u.unit_code || u.barcode || `BC-EQP-2026-00${idx + 1}`).trim();
+        const bCode = String(u.barcode || `BC-EQP-2026-00${idx + 1}`).trim();
         const dbStatusRaw = (u.status || 'available').toLowerCase();
         const dbCondition = u.condition || '';
         const condLower = dbCondition.toLowerCase();
@@ -224,11 +224,31 @@ export default function ManageEquipments() {
       return;
     }
 
+    const enteredBarcode = (formData.barcode || "").trim();
+    if (enteredBarcode) {
+      const duplicateUnit = units.find(u =>
+        (u.barcode || "").trim().toLowerCase() === enteredBarcode.toLowerCase()
+      );
+      if (duplicateUnit) {
+        notify.error(
+          "Duplicate Barcode",
+          `Barcode "${enteredBarcode}" is already assigned to "${duplicateUnit.name || duplicateUnit.brand || 'another unit'}". Every unit must have a unique barcode.`
+        );
+        return;
+      }
+    }
+
     setIsSubmitting(true);
 
     const matchedCat = categories.find(c =>
       (c.eq_name || c.name || "").toLowerCase() === (formData.category || "").toLowerCase()
     ) || categories[0];
+
+    if (!matchedCat || !matchedCat.id) {
+      setIsSubmitting(false);
+      notify.error("Category Error", "Please select or create an Equipment Category before adding units.");
+      return;
+    }
 
     const brandModel = [formData.brand, formData.model].filter(Boolean).join(' ');
     const unitDisplayName = brandModel || matchedCat.eq_name || matchedCat.name || 'Unit';
@@ -262,7 +282,7 @@ export default function ManageEquipments() {
         equipment_type_id: matchedCat.id,
         brand: formData.brand || undefined,
         model: formData.model || undefined,
-        unit_code: formData.barcode || optimisticUnit.barcode,
+        barcode: formData.barcode || optimisticUnit.barcode,
         purchased_at: formData.date_purchased || undefined,
         eq_lifespan: parseInt(formData.lifespan_years, 10) || 5,
         status: formData.status || "available",
@@ -276,7 +296,7 @@ export default function ManageEquipments() {
       // Replace temp row with real data from server
       setUnits(prev => prev.map(u =>
         u.id === tempId
-          ? { ...optimisticUnit, id: saved.id, barcode: saved.unit_code || saved.barcode || optimisticUnit.barcode, _optimistic: false }
+          ? { ...optimisticUnit, id: saved.id, barcode: saved.barcode || optimisticUnit.barcode, _optimistic: false }
           : u
       ));
 
@@ -286,7 +306,10 @@ export default function ManageEquipments() {
       // Rollback
       setUnits(prevUnits);
       setShowAddModal(true);
-      notify.error("Failed to Save Unit", err.response?.data?.message ?? "An error occurred. Changes were reverted.");
+      const errDetails = err.response?.data?.errors
+        ? Object.values(err.response.data.errors).flat().join(" ")
+        : (err.response?.data?.message ?? "An error occurred. Changes were reverted.");
+      notify.error("Failed to Save Unit", errDetails);
     } finally {
       setIsSubmitting(false);
     }
@@ -295,6 +318,21 @@ export default function ManageEquipments() {
   const handleEditEquipmentSubmit = async (e) => {
     e.preventDefault();
     if (!editingItem) return;
+
+    const enteredBarcode = (editFormData.barcode || "").trim();
+    if (enteredBarcode) {
+      const duplicateUnit = units.find(u =>
+        u.id !== editingItem.id && (u.barcode || "").trim().toLowerCase() === enteredBarcode.toLowerCase()
+      );
+      if (duplicateUnit) {
+        notify.error(
+          "Duplicate Barcode",
+          `Barcode "${enteredBarcode}" is already assigned to "${duplicateUnit.name || duplicateUnit.brand || 'another unit'}". Every unit must have a unique barcode.`
+        );
+        return;
+      }
+    }
+
     setIsSubmitting(true);
 
     const matchedCat = categories.find(c =>
@@ -328,7 +366,7 @@ export default function ManageEquipments() {
         equipment_type_id: matchedCat.id,
         brand: editFormData.brand || undefined,
         model: editFormData.model || undefined,
-        unit_code: editFormData.barcode,
+        barcode: editFormData.barcode,
         purchased_at: editFormData.date_purchased,
         eq_lifespan: parseInt(editFormData.lifespan_years, 10) || 5,
         status: editFormData.status || "available",
@@ -342,8 +380,10 @@ export default function ManageEquipments() {
     } catch (err) {
       // Rollback
       setUnits(prevUnits);
-      setEditingItem(editingItem);
-      notify.error("Update Failed", err.response?.data?.message ?? "Changes were reverted.");
+      const errDetails = err.response?.data?.errors
+        ? Object.values(err.response.data.errors).flat().join(" ")
+        : (err.response?.data?.message ?? "Changes were reverted.");
+      notify.error("Update Failed", errDetails);
     } finally {
       setIsSubmitting(false);
     }
@@ -681,6 +721,7 @@ export default function ManageEquipments() {
         handleEditEquipmentSubmit={handleEditEquipmentSubmit}
         isSubmitting={isSubmitting}
         categories={categories.length > 0 ? categories : categoryNames}
+        existingUnits={units}
       />
 
       {/* Detail Modal */}

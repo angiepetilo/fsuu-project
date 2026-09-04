@@ -462,7 +462,7 @@ class EquipmentCategoryService
 
                                 DB::table('equipment_units')
                                     ->where(function($q) use ($uCodes, $nIds) {
-                                        $q->whereIn('unit_code', $uCodes);
+                                        $q->whereIn('barcode', $uCodes);
                                         if (!empty($nIds)) {
                                             $q->orWhereIn('id', array_map('intval', $nIds));
                                         }
@@ -552,7 +552,7 @@ class EquipmentCategoryService
 
                 DB::table('equipment_units')
                     ->where(function($q) use ($relCodes, $relNumIds) {
-                        $q->whereIn('unit_code', $relCodes);
+                        $q->whereIn('barcode', $relCodes);
                         if (!empty($relNumIds)) {
                             $q->orWhereIn('id', array_map('intval', $relNumIds));
                         }
@@ -570,7 +570,7 @@ class EquipmentCategoryService
 
                 DB::table('equipment_units')
                     ->where(function($q) use ($resCodes, $resNumIds) {
-                        $q->whereIn('unit_code', $resCodes);
+                        $q->whereIn('barcode', $resCodes);
                         if (!empty($resNumIds)) {
                             $q->orWhereIn('id', array_map('intval', $resNumIds));
                         }
@@ -590,7 +590,7 @@ class EquipmentCategoryService
                 ->whereIn('status', ['reserved', 'released'])
                 ->whereNotIn(DB::raw("LOWER(COALESCE(condition, 'good'))"), ['lost', 'damaged'])
                 ->when(!empty($occupiedBarcodes), function($q) use ($occCodes, $occNumIds) {
-                    $q->whereNotIn('unit_code', $occCodes);
+                    $q->whereNotIn('barcode', $occCodes);
                     if (!empty($occNumIds)) {
                         $q->whereNotIn('id', array_map('intval', $occNumIds));
                     }

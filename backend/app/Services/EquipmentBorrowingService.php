@@ -37,12 +37,36 @@ class EquipmentBorrowingService
                 );
             }
 
-            // Anti-Spam Duplicate Prevention (15-Minute Buffer)
+            // Permanent Active / Pending Duplicate Borrowing Request Check
             $applicantEmail = $data['email_address'] ?? $data['email'] ?? null;
             $firstName = $data['first_name'] ?? null;
             $lastName = $data['last_name'] ?? null;
 
             if (!empty($applicantEmail) || (!empty($firstName) && !empty($lastName))) {
+                $existingActiveBorrow = DB::table('equipment_borrows')
+                    ->join('tracking_numbers', 'equipment_borrows.tracking_number_id', '=', 'tracking_numbers.id')
+                    ->whereIn('tracking_numbers.status', ['pending', 'approved', 'ongoing', 'on-going'])
+                    ->where(function ($q) use ($applicantEmail, $firstName, $lastName) {
+                        if ($applicantEmail) {
+                            $q->where('equipment_borrows.email_address', $applicantEmail);
+                        }
+                        if ($firstName && $lastName) {
+                            $q->orWhere(function ($sub) use ($firstName, $lastName) {
+                                $sub->where('equipment_borrows.first_name', $firstName)
+                                    ->where('equipment_borrows.last_name', $lastName);
+                            });
+                        }
+                    })
+                    ->where('equipment_borrows.borrow_date', $borrowDate)
+                    ->select('tracking_numbers.reference_code', 'tracking_numbers.status')
+                    ->first();
+
+                if ($existingActiveBorrow) {
+                    $statusLabel = strtoupper($existingActiveBorrow->status);
+                    throw new \InvalidArgumentException("You already have an active {$statusLabel} equipment borrowing request ({$existingActiveBorrow->reference_code}) for this borrow date. You cannot submit duplicate requests.");
+                }
+
+                // Anti-Spam Duplicate Prevention (15-Minute Buffer)
                 $recentDuplicate = DB::table('equipment_borrows')
                     ->where('created_at', '>=', now()->subMinutes(15))
                     ->where(function ($q) use ($applicantEmail, $firstName, $lastName) {

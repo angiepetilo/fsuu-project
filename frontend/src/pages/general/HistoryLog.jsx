@@ -5,7 +5,7 @@ import api from "@/lib/axios";
 import {
   History, RefreshCw, CheckCircle, Building2, PackageOpen, Search, Loader2,
   Eye, Pencil, CheckCircle2, X, AlertTriangle, ChevronLeft, ChevronRight, RotateCcw, MoreVertical,
-  Calendar, ArrowUpDown
+  ArrowUpDown
 } from "lucide-react";
 import { PageLoader } from "@/components/ui/page-loader";
 import { formatDate, formatTime, formatTimeRange } from "@/lib/dateUtils";
@@ -76,11 +76,8 @@ export default function HistoryLog() {
   const [selectedTermId, setSelectedTermId] = useState("");
   const [loading, setLoading] = useState(true);
 
-  // New Filters & Sorting
-  const [outcomeFilter, setOutcomeFilter] = useState("all"); // "all" | "completed" | "late" | "damaged_lost" | "solved"
-  const [customDateFrom, setCustomDateFrom] = useState("");
-  const [customDateTo, setCustomDateTo] = useState("");
-  const [sortBy, setSortBy] = useState("completed_desc"); // "completed_desc" | "completed_asc"
+  // Sorting: "completed_desc" = Newest, "completed_asc" = Oldest
+  const [sortBy, setSortBy] = useState("completed_desc");
 
   if (!hasPermission("history_log")) {
     return (
@@ -313,30 +310,11 @@ export default function HistoryLog() {
 
   const activeStatuses = ["pending", "approved", "ongoing", "on-going", "post-inspection", "reserved"];
 
-  const rawList = historyType === "venue" ? venueHistory : equipmentHistory;
-  const countCompleted = rawList.filter(b => (b.status || "").toLowerCase() === "completed").length;
-  const countLate = rawList.filter(b => ["late return", "returned late"].includes((b.status || "").toLowerCase()) || b.is_late).length;
-  const countDamagedLost = rawList.filter(b => ["damaged", "lost"].includes((b.status || "").toLowerCase())).length;
-  const countSolved = rawList.filter(b => (b.status || "").toLowerCase() === "solved").length;
-
-  // Search, outcome, and date filtering
+  // Search and historical status filtering
   const filterRecord = (b, isVenue) => {
     const s = (b.status || b.tracking_number?.status || "").toLowerCase();
     const isHistorical = !activeStatuses.includes(s);
     if (!isHistorical) return false;
-
-    // Outcome Filter
-    if (outcomeFilter !== "all") {
-      if (outcomeFilter === "completed" && s !== "completed") return false;
-      if (outcomeFilter === "late" && !["late return", "returned late"].includes(s) && !b.is_late) return false;
-      if (outcomeFilter === "damaged_lost" && !["damaged", "lost"].includes(s)) return false;
-      if (outcomeFilter === "solved" && s !== "solved") return false;
-    }
-
-    // Date Range Filter
-    const eventDate = (isVenue ? (b.date_of_usage || b.date_of_use) : (b.borrow_date || b.date_of_usage)) || b.created_at?.substring(0, 10) || "";
-    if (customDateFrom && eventDate < customDateFrom) return false;
-    if (customDateTo && eventDate > customDateTo) return false;
 
     // Search Query
     if (searchQuery.trim()) {
@@ -369,7 +347,7 @@ export default function HistoryLog() {
   
   useEffect(() => {
     setCurrentPage(1);
-  }, [historyType, searchQuery, outcomeFilter, customDateFrom, customDateTo, sortBy, itemsPerPage]);
+  }, [historyType, searchQuery, sortBy, itemsPerPage]);
 
   const activeList = historyType === "venue" ? filteredVenues : filteredEquipment;
   const ITEMS_PER_PAGE = itemsPerPage;
@@ -404,7 +382,7 @@ export default function HistoryLog() {
         </div>
       )}
 
-      {/* Category Dropdown, Semester Filter, Outcome Tabs, Date Range & Search Bar */}
+      {/* Category Dropdown, Semester Filter, Sort & Search Bar */}
       <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs space-y-3.5">
         {/* Row 1: Category & Academic Term & Sort */}
         <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
@@ -443,103 +421,37 @@ export default function HistoryLog() {
           {/* Sort Dropdown */}
           <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
             <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
-              <ArrowUpDown size={12} /> Sort:
+              <ArrowUpDown size={12} /> SORT:
             </span>
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
-              className="px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:border-blue-500 cursor-pointer"
+              className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:border-blue-500 cursor-pointer shadow-2xs"
             >
-              <option value="completed_desc">Completed Date (Newest First)</option>
-              <option value="completed_asc">Completed Date (Oldest First)</option>
+              <option value="completed_desc">Newest</option>
+              <option value="completed_asc">Oldest</option>
             </select>
           </div>
         </div>
 
-        {/* Row 2: Outcome Status Pills */}
-        <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-slate-100">
-          {[
-            { id: "all", label: "All Outcomes", count: rawList.length },
-            { id: "completed", label: "Completed Clean", count: countCompleted },
-            { id: "late", label: "Returned Late", count: countLate },
-            { id: "damaged_lost", label: "Damaged / Lost", count: countDamagedLost },
-            { id: "solved", label: "Resolved / Solved", count: countSolved },
-          ].map(tab => (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setOutcomeFilter(tab.id)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
-                outcomeFilter === tab.id
-                  ? "bg-slate-900 text-white shadow-xs"
-                  : "bg-slate-50 text-slate-600 hover:bg-slate-100 hover:text-slate-900 border border-slate-200/70"
-              }`}
-            >
-              <span>{tab.label}</span>
-              <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
-                outcomeFilter === tab.id ? "bg-white/20 text-white" : "bg-slate-200/70 text-slate-700"
-              }`}>
-                {tab.count}
-              </span>
-            </button>
-          ))}
-        </div>
-
-        {/* Row 3: Search Input & Date Range Picker */}
-        <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 pt-2 border-t border-slate-100">
-          <div className="relative flex-1 max-w-md">
-            <Search size={14} className="absolute left-3 top-2.5 text-slate-400" />
+        {/* Row 2: Search Input */}
+        <div className="pt-2 border-t border-slate-100">
+          <div className="relative w-full">
+            <Search size={14} className="absolute left-3.5 top-3 text-slate-400" />
             <input
               type="text"
               placeholder="Search ref # or requestor..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-8 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:border-blue-500 focus:bg-white transition-all placeholder:text-slate-400"
+              className="w-full pl-9 pr-9 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:border-blue-500 focus:bg-white transition-all placeholder:text-slate-400"
             />
             {searchQuery && (
               <button
                 type="button"
                 onClick={() => setSearchQuery("")}
-                className="absolute right-2.5 top-2 text-slate-400 hover:text-slate-600"
+                className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 cursor-pointer"
               >
-                <X size={13} />
-              </button>
-            )}
-          </div>
-
-          {/* Date Range Inputs */}
-          <div className="flex flex-wrap items-center gap-2 text-xs font-bold text-slate-600">
-            <span className="text-[11px] font-bold text-slate-400 flex items-center gap-1">
-              <Calendar size={12} /> Date Range:
-            </span>
-            <span>From:</span>
-            <input
-              type="date"
-              value={customDateFrom}
-              onChange={(e) => setCustomDateFrom(e.target.value)}
-              className="px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium focus:outline-none focus:border-blue-500"
-            />
-            <span>To:</span>
-            <input
-              type="date"
-              value={customDateTo}
-              onChange={(e) => setCustomDateTo(e.target.value)}
-              className="px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium focus:outline-none focus:border-blue-500"
-            />
-
-            {(outcomeFilter !== "all" || customDateFrom || customDateTo || searchQuery) && (
-              <button
-                type="button"
-                onClick={() => {
-                  setOutcomeFilter("all");
-                  setCustomDateFrom("");
-                  setCustomDateTo("");
-                  setSearchQuery("");
-                  setSortBy("completed_desc");
-                }}
-                className="text-[11px] font-bold text-rose-600 hover:text-rose-700 underline ml-2 cursor-pointer"
-              >
-                Reset
+                <X size={14} />
               </button>
             )}
           </div>

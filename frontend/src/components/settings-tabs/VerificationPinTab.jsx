@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import api from "@/lib/axios";
-import { toast } from "sonner";
+import { notify } from "@/lib/notify";
 import EndorsementLetterTemplateModal from "@/components/ui/EndorsementLetterTemplateModal";
 
 export default function VerificationPinTab({
@@ -155,7 +155,7 @@ export default function VerificationPinTab({
       if (externalShowMsg) {
         externalShowMsg(msg);
       } else {
-        toast.success(msg);
+        notify.success("Settings Saved", msg);
       }
 
       if (setExternalPinConfig) {
@@ -166,7 +166,7 @@ export default function VerificationPinTab({
       if (externalShowMsg) {
         externalShowMsg(errMsg, true);
       } else {
-        toast.error(errMsg);
+        notify.error("Error", errMsg);
       }
     } finally {
       setSaveLoading(false);
@@ -190,12 +190,12 @@ export default function VerificationPinTab({
       setEditReq(null);
       try {
         await api.put(`/general/booking-requirements/${editReq.id}`, payload);
-        toast.success("Requirement updated.");
+        notify.success("Requirement updated.");
       } catch {
         setRequirements(prev);
         setEditReq(editReq);
         setShowReqModal(true);
-        toast.error("Failed to update requirement.");
+        notify.error("Failed to update requirement.");
       } finally {
         setReqFormLoading(false);
       }
@@ -208,11 +208,11 @@ export default function VerificationPinTab({
         const res = await api.post("/general/booking-requirements", payload);
         const saved = res.data;
         setRequirements(r => r.map(x => x.id === tempId ? saved : x));
-        toast.success("Requirement added.");
+        notify.success("Requirement added.");
       } catch {
         setRequirements(prev);
         setShowReqModal(true);
-        toast.error("Failed to add requirement.");
+        notify.error("Failed to add requirement.");
       } finally {
         setReqFormLoading(false);
       }
@@ -225,10 +225,10 @@ export default function VerificationPinTab({
     setRequirements(r => r.filter(x => x.id !== id));
     try {
       await api.delete(`/general/booking-requirements/${id}`);
-      toast.success("Requirement removed.");
+      notify.success("Requirement removed.");
     } catch {
       setRequirements(prev);
-      toast.error("Failed to remove requirement.");
+      notify.error("Failed to remove requirement.");
     }
   };
 

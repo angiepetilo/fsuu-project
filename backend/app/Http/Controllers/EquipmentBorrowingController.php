@@ -173,7 +173,7 @@ class EquipmentBorrowingController extends Controller
             $unitCodes = array_values(array_filter($barcodes, fn($v) => !empty($v)));
 
             \App\Models\EquipmentUnit::where(function($q) use ($unitCodes, $numericIds) {
-                $q->whereIn('unit_code', $unitCodes);
+                $q->whereIn('barcode', $unitCodes);
                 if (!empty($numericIds)) {
                     $q->orWhereIn('id', array_map('intval', $numericIds));
                 }
@@ -300,13 +300,13 @@ class EquipmentBorrowingController extends Controller
             if (!empty($barcodes) && \Illuminate\Support\Facades\Schema::hasTable('equipment_units')) {
                 if ($condition === 'good') {
                     \App\Models\EquipmentUnit::where(function($q) use ($barcodes) {
-                        $q->whereIn('unit_code', $barcodes)->orWhereIn('id', $barcodes);
+                        $q->whereIn('barcode', $barcodes)->orWhereIn('id', $barcodes);
                     })->update(['status' => 'available', 'condition' => 'Good']);
                 } else {
                     $uStatus = ($condition === 'lost' || $condition === 'damaged') ? 'unavailable' : 'available';
                     $uCond = $condition === 'lost' ? 'Lost' : 'Damaged';
                     \App\Models\EquipmentUnit::where(function($q) use ($barcodes) {
-                        $q->whereIn('unit_code', $barcodes)->orWhereIn('id', $barcodes);
+                        $q->whereIn('barcode', $barcodes)->orWhereIn('id', $barcodes);
                     })->update(['status' => $uStatus, 'condition' => $uCond]);
                 }
             }
@@ -331,7 +331,7 @@ class EquipmentBorrowingController extends Controller
                         $uCodes = array_values(array_filter($lookupKeys, fn($v) => !empty($v)));
 
                         \App\Models\EquipmentUnit::where(function($q) use ($uCodes, $nIds) {
-                            $q->whereIn('unit_code', $uCodes);
+                            $q->whereIn('barcode', $uCodes);
                             if (!empty($nIds)) {
                                 $q->orWhereIn('id', array_map('intval', $nIds));
                             }
@@ -589,7 +589,7 @@ class EquipmentBorrowingController extends Controller
         if (!empty($barcodes)) {
             $newUnitStatus = in_array($currentStatus, ['ongoing', 'on-going', 'borrowed']) ? 'released' : 'reserved';
             \App\Models\EquipmentUnit::where(function($q) use ($barcodes) {
-                $q->whereIn('unit_code', $barcodes)->orWhereIn('id', $barcodes);
+                $q->whereIn('barcode', $barcodes)->orWhereIn('id', $barcodes);
             })
             ->update(['status' => $newUnitStatus]);
         }

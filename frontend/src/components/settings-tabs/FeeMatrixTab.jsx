@@ -1,90 +1,60 @@
-import React, { useState, useEffect } from "react";
-import { Save, Printer, Mail, X, Send, Loader2, CheckCircle2, Building, DollarSign, FileText, Pencil, Check, Plus, Ban } from "lucide-react";
+import React, { useState, useEffect, useMemo } from "react";
+import { Printer, Save, PlusCircle, Trash2, Loader2 } from "lucide-react";
 import api from "@/lib/axios";
+import { downloadReportAsPdf } from "@/pages/general/reports/exportPdfHelper";
 
 export default function FeeMatrixTab({ officeScope = "All Offices", showMsg }) {
   const [venues, setVenues] = useState([]);
   const [selectedVenueId, setSelectedVenueId] = useState("");
-  const [feeForm, setFeeForm] = useState({
-    internal_hourly: "0",
-    external_hourly: "1500",
-    external_daily: "8000",
-    cleaning_fee: "200",
-    sound_system_fee: "500",
-    policy: "Internal FSUU events and official academic activities are free of charge. External rentals require prior fee matrix approval. A 50% downpayment is required to confirm and lock the reservation schedule.",
-  });
+  const [title, setTitle] = useState("Facility Rental Fee Schedule and Reservation Policy");
+  
+  // Toggles
+  const [showSignatures, setShowSignatures] = useState(true);
+  const [showRateItems, setShowRateItems] = useState(true);
+  const [notesEnabled, setNotesEnabled] = useState(true);
+
+  // Signatories list
+  const [signatories, setSignatories] = useState([
+    { id: "sig-1", name: "Dr. Maria Angela Santos", title: "AVR Operations Head" },
+  ]);
+
+  // Rate items list
+  const [rateItems, setRateItems] = useState([
+    { id: "rate-1", description: "Internal Academic and Dept Rate", rate: "Free of Charge", enabled: true },
+    { id: "rate-2", description: "External Hourly Rental Rate", rate: "₱1,500 per hour", enabled: true },
+    { id: "rate-3", description: "External Full Day Rate", rate: "₱8,000 per day", enabled: true },
+    { id: "rate-4", description: "Facility Cleaning Fee", rate: "₱200", enabled: true },
+    { id: "rate-5", description: "Sound System & Tech Setup Fee", rate: "₱500", enabled: true },
+  ]);
+
+  // Notes
+  const [notes, setNotes] = useState(
+    "Internal FSUU events and official academic activities are free of charge. External rentals require prior fee matrix approval. A 50% downpayment is required to confirm and lock the reservation schedule."
+  );
+
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
+  const [editingField, setEditingField] = useState({});
 
-  // Email Modal State
-  const [showEmailModal, setShowEmailModal] = useState(false);
-  const [recipientEmail, setRecipientEmail] = useState("");
-  const [sendingEmail, setSendingEmail] = useState(false);
-  const [emailFeedback, setEmailFeedback] = useState(null);
-
-  // Print & Live Preview Configuration
-  const [printConfig, setPrintConfig] = useState({
-    title: "Facility Rental Fee Schedule and Reservation Policy",
-    orgName: "Father Saturnino Urios University",
-    signatoryTitle: "AVR Center Administrator",
-    signatoryName: "",
-    showInternalRate: true,
-    showExternalHourly: true,
-    showExternalDaily: true,
-    showCleaningFee: true,
-    showSoundFee: true,
-    showPolicy: true,
-    showSignatures: true,
-    customMemo: "",
-    internalRateLabel: "Internal Academic and Dept Rate",
-    internalRateValue: "Free of Charge",
-    externalHourlyLabel: "External Hourly Rental Rate",
-    externalHourlyValue: "₱1,500 per hour",
-    externalDailyLabel: "External Full Day Rate",
-    externalDailyValue: "₱8,000 per day",
-    cleaningFeeLabel: "Facility Cleaning Fee",
-    cleaningFeeValue: "₱200",
-    soundFeeLabel: "Sound System and Tech Setup Fee",
-    soundFeeValue: "₱500",
-  });
-
-  const [customRates, setCustomRates] = useState([]);
-  const [showAddCustomModal, setShowAddCustomModal] = useState(false);
-  const [newCustomRate, setNewCustomRate] = useState({ label: "", amount: "", enabled: true });
-
-  const [editingRates, setEditingRates] = useState({});
-
-  const toggleEditRate = (key) => {
-    setEditingRates(prev => ({ ...prev, [key]: !prev[key] }));
-  };
-
-  const togglePrintOption = (key) => {
-    setPrintConfig((prev) => ({
-      ...prev,
-      [key]: !prev[key],
-    }));
-  };
-
-  const handlePrint = () => {
-    window.print();
-  };
-
+  // 1. Fetch live venues from database
   useEffect(() => {
     const fetchVenues = async () => {
       setLoading(true);
       try {
         const res = await api.get("/general/venues").catch(() => ({ data: [] }));
         const list = Array.isArray(res.data) ? res.data : [];
-        const saved = JSON.parse(localStorage.getItem("fsuu_venue_availability") || "[]");
-        const combined = list.length > 0 ? list : saved;
+        setVenues(list);
 
-        setVenues(combined);
-        if (combined.length > 0) {
-          const firstVenueId = combined[0].id;
-          setSelectedVenueId(firstVenueId);
-          loadVenueFeeSettings(firstVenueId, combined[0]);
+        if (list.length > 0) {
+          const firstId = String(list[0].id);
+          setSelectedVenueId(firstId);
+          loadFeeMatrix(firstId);
+        } else {
+          loadFeeMatrix(null);
         }
-      } catch {
-        setVenues([]);
+      } catch (err) {
+        console.error("Failed to load venues in FeeMatrixTab:", err);
       } finally {
         setLoading(false);
       }
@@ -93,512 +63,532 @@ export default function FeeMatrixTab({ officeScope = "All Offices", showMsg }) {
     fetchVenues();
   }, []);
 
-  const loadVenueFeeSettings = (venueId, venueObj = null) => {
+  // 2. Load fee matrix for chosen venue from DB (with fallback to default)
+  const loadFeeMatrix = async (venueId) => {
     try {
-      const stored = localStorage.getItem(`fsuu_fee_matrix_${venueId}`);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        setFeeForm(prev => ({ ...prev, ...parsed.form }));
-        setPrintConfig(prev => ({ ...prev, ...parsed.printConfig }));
-        if (parsed.customRates) setCustomRates(parsed.customRates);
-        return;
-      }
-    } catch {}
+      const url = venueId ? `/general/fee-matrix?venue_id=${venueId}` : `/general/fee-matrix`;
+      const res = await api.get(url).catch(() => null);
+      const data = res?.data;
 
-    const v = venueObj || venues.find((x) => String(x.id) === String(venueId));
-    if (v) {
-      setFeeForm({
-        internal_hourly: "0",
-        external_hourly: "1500",
-        external_daily: "8000",
-        cleaning_fee: "200",
-        sound_system_fee: "500",
-        policy: `Official FSUU internal academic events held at ${v.name} are free of charge. External reservations are subject to university fee guidelines.`,
-      });
-      setPrintConfig(prev => ({
-        ...prev,
-        internalRateValue: "Free of Charge",
-        externalHourlyValue: "₱1,500 per hour",
-        externalDailyValue: "₱8,000 per day",
-      }));
+      if (data && data.title) {
+        setTitle(data.title);
+        setShowSignatures(data.show_signatures !== false);
+        setShowRateItems(data.show_rate_items !== false);
+        setNotesEnabled(data.notes_enabled !== false);
+        if (data.notes !== undefined) setNotes(data.notes || "");
+        if (Array.isArray(data.signatories) && data.signatories.length > 0) {
+          setSignatories(data.signatories);
+        }
+        if (Array.isArray(data.rate_items) && data.rate_items.length > 0) {
+          setRateItems(data.rate_items);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to load fee matrix from server:", err);
     }
   };
 
   const handleVenueChange = (e) => {
     const vId = e.target.value;
     setSelectedVenueId(vId);
-    loadVenueFeeSettings(vId);
+    loadFeeMatrix(vId);
   };
 
-  const handleSaveFeeMatrix = async () => {
+  // 3. Save changes end-to-end to database
+  const handleSaveChanges = async () => {
+    setSaving(true);
     try {
-      localStorage.setItem(
-        `fsuu_fee_matrix_${selectedVenueId || "global"}`,
-        JSON.stringify({ form: feeForm, printConfig, customRates })
-      );
+      const payload = {
+        venue_id: selectedVenueId ? parseInt(selectedVenueId, 10) : null,
+        title,
+        show_signatures: showSignatures,
+        show_rate_items: showRateItems,
+        notes_enabled: notesEnabled,
+        notes,
+        signatories,
+        rate_items: rateItems,
+      };
+
+      const res = await api.post("/general/fee-matrix", payload);
       if (typeof showMsg === "function") {
-        showMsg("Fee Matrix settings saved successfully.");
+        showMsg("Fee Matrix settings saved successfully to the database.");
       }
-    } catch {
+    } catch (err) {
+      console.error("Failed to save fee matrix to DB:", err);
       if (typeof showMsg === "function") {
-        showMsg("Fee Matrix settings saved locally.");
+        showMsg(err.response?.data?.message || "Failed to save Fee Matrix settings.");
       }
+    } finally {
+      setSaving(false);
     }
   };
 
-  const handleAddCustomRate = (e) => {
-    e.preventDefault();
-    if (!newCustomRate.label.trim() || !newCustomRate.amount.trim()) return;
-    setCustomRates(prev => [...prev, { id: Date.now(), ...newCustomRate }]);
-    setNewCustomRate({ label: "", amount: "", enabled: true });
-    setShowAddCustomModal(false);
+  // 4. Signatories Management
+  const handleAddSignature = () => {
+    setSignatories((prev) => [
+      ...prev,
+      { id: `sig-${Date.now()}`, name: "", title: "" },
+    ]);
   };
 
-  const currentVenue = venues.find((v) => String(v.id) === String(selectedVenueId));
+  const handleUpdateSignature = (index, field, value) => {
+    setSignatories((prev) => {
+      const next = [...prev];
+      next[index] = { ...next[index], [field]: value };
+      return next;
+    });
+  };
 
-  const renderRateItem = (key, title, defaultLabel, defaultValue, labelKey, valueKey) => {
-    const isEnabled = Boolean(printConfig[key]);
-    const isEditing = Boolean(editingRates[key]);
-    const currentLabel = printConfig[labelKey] !== undefined ? printConfig[labelKey] : defaultLabel;
-    const currentValue = printConfig[valueKey] !== undefined ? printConfig[valueKey] : defaultValue;
+  const handleRemoveSignature = (index) => {
+    if (signatories.length <= 1) return;
+    setSignatories((prev) => prev.filter((_, i) => i !== index));
+  };
 
-    return (
-      <div className={`p-3.5 rounded-xl border transition-all ${isEnabled ? "bg-white border-slate-200 shadow-2xs" : "bg-slate-50 border-slate-200/60 opacity-75"}`}>
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex-1 min-w-0">
-            <span className="text-xs font-bold text-slate-800 block truncate">{title}</span>
-            {!isEditing && isEnabled && (
-              <p className="text-[11px] text-slate-500 font-medium truncate mt-0.5">
-                {currentLabel} • <span className="font-bold text-emerald-700">{currentValue}</span>
-              </p>
-            )}
-          </div>
+  // 5. Rate Items Management
+  const handleAddRateItem = () => {
+    setRateItems((prev) => [
+      ...prev,
+      { id: `rate-${Date.now()}`, description: "", rate: "", enabled: true },
+    ]);
+  };
 
-          <div className="flex items-center gap-2 shrink-0">
-            {isEnabled && (
-              <button
-                type="button"
-                onClick={() => toggleEditRate(key)}
-                className={`px-2.5 py-1 rounded-lg text-xs font-extrabold flex items-center gap-1 border transition-all cursor-pointer ${
-                  isEditing
-                    ? "bg-blue-50 text-blue-700 border-blue-200"
-                    : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
-                }`}
-              >
-                {isEditing ? <><Check size={12} /> Done</> : <><Pencil size={12} /> Edit</>}
-              </button>
-            )}
+  const handleUpdateRateItem = (index, field, value) => {
+    setRateItems((prev) => {
+      const next = [...prev];
+      next[index] = { ...next[index], [field]: value };
+      return next;
+    });
+  };
 
-            <button
-              type="button"
-              onClick={() => togglePrintOption(key)}
-              className={`px-3 py-1 rounded-lg text-xs font-extrabold border transition-all cursor-pointer ${
-                isEnabled
-                  ? "bg-emerald-50 text-emerald-700 border-emerald-300"
-                  : "bg-rose-50 text-rose-600 border-rose-200"
-              }`}
-            >
-              {isEnabled ? "Enabled" : "Disabled"}
-            </button>
-          </div>
-        </div>
+  const handleToggleRateItem = (index) => {
+    setRateItems((prev) => {
+      const next = [...prev];
+      next[index] = { ...next[index], enabled: !next[index].enabled };
+      return next;
+    });
+  };
 
-        {isEnabled && isEditing && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-3 pt-3 border-t border-slate-100">
-            <div>
-              <label className="block text-[10px] font-bold text-slate-500 mb-1">Item Title</label>
-              <input
-                type="text"
-                value={currentLabel}
-                onChange={(e) => setPrintConfig({ ...printConfig, [labelKey]: e.target.value })}
-                className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-800 focus:outline-none focus:border-blue-600"
-              />
-            </div>
-            <div>
-              <label className="block text-[10px] font-bold text-slate-500 mb-1">Rate and Amount</label>
-              <input
-                type="text"
-                value={currentValue}
-                onChange={(e) => setPrintConfig({ ...printConfig, [valueKey]: e.target.value })}
-                className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-emerald-700 focus:outline-none focus:border-blue-600"
-              />
-            </div>
-          </div>
-        )}
-      </div>
-    );
+  const handleRemoveRateItem = (index) => {
+    setRateItems((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  // 6. Print to PDF Export
+  const currentVenue = useMemo(() => {
+    return venues.find((v) => String(v.id) === String(selectedVenueId));
+  }, [venues, selectedVenueId]);
+
+  const activeRates = useMemo(() => {
+    if (!showRateItems) return [];
+    return rateItems.filter((it) => it.enabled && (it.description || it.rate));
+  }, [showRateItems, rateItems]);
+
+  const calculateTotal = (items) => {
+    let sum = 0;
+    let hasNumeric = false;
+    items.forEach((it) => {
+      const raw = String(it.rate || "");
+      const match = raw.match(/[\d,]+(\.\d+)?/);
+      if (match) {
+        const val = parseFloat(match[0].replace(/,/g, ""));
+        if (!isNaN(val)) {
+          sum += val;
+          hasNumeric = true;
+        }
+      }
+    });
+    if (!hasNumeric || sum === 0) return "—";
+    return `₱${sum.toLocaleString()}`;
+  };
+
+  const handlePrintToPdf = async () => {
+    const venueName = currentVenue?.name ? currentVenue.name.replace(/[^a-zA-Z0-9]/g, "_") : "General";
+    const filename = `FSUU_Fee_Matrix_${venueName}_${new Date().toISOString().slice(0, 10)}.pdf`;
+
+    await downloadReportAsPdf({
+      elementId: "printable-fee-matrix",
+      filename,
+      onStart: () => setIsExportingPdf(true),
+      onComplete: () => {
+        setIsExportingPdf(false);
+        if (typeof showMsg === "function") showMsg("Fee Matrix PDF downloaded successfully.");
+      },
+      onError: () => {
+        setIsExportingPdf(false);
+        window.print();
+      },
+    });
   };
 
   return (
     <div className="space-y-6">
-      {/* Header Bar */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
-        <div>
-          <h3 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
-            Fee Matrix
-          </h3>
-          <p className="text-xs text-slate-500 font-medium mt-0.5">
-            Configure standard venue rates, equipment fees, and terms for internal and external bookings.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={handlePrint}
-            className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-extrabold shadow-sm transition-all cursor-pointer"
-          >
-            <Printer size={14} />
-            <span>Print to PDF</span>
-          </button>
-        </div>
+      {/* Top Header Bar */}
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-black text-slate-900 tracking-tight">Fee Matrix</h2>
+        <button
+          type="button"
+          onClick={handlePrintToPdf}
+          disabled={isExportingPdf}
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer disabled:opacity-60"
+        >
+          {isExportingPdf ? <Loader2 size={14} className="animate-spin" /> : <Printer size={15} />}
+          <span>{isExportingPdf ? "Exporting..." : "Print to PDF"}</span>
+        </button>
       </div>
 
-      {/* Main Form and Live Preview Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        
-        {/* Left Column */}
+      {/* Main Two-Column Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        {/* Left Column: Form Controls */}
         <div className="lg:col-span-6 space-y-5 text-xs">
-          
-          {/* Venue Selector */}
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-3">
-            <label className="block text-xs font-bold text-slate-900">Select Venue *</label>
+          {/* 1. Select Venue */}
+          <div>
+            <label className="text-xs font-bold text-slate-800 block mb-1.5">Select Venue</label>
             <select
               value={selectedVenueId}
               onChange={handleVenueChange}
-              className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:border-blue-600 cursor-pointer"
+              className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white transition-all shadow-2xs cursor-pointer"
             >
               {venues.length === 0 ? (
-                <option value="">No venues found</option>
+                <option value="">No venues available</option>
               ) : (
                 venues.map((v) => (
                   <option key={v.id} value={v.id}>
-                    {v.name} ({v.location || "FSUU Campus"})
+                    {v.name}
                   </option>
                 ))
               )}
             </select>
           </div>
 
-          {/* Title Configuration */}
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-2">
-            <label className="block text-xs font-bold text-slate-900">Title</label>
+          {/* 2. Title */}
+          <div>
+            <label className="text-xs font-bold text-slate-800 block mb-1.5">Title</label>
             <input
               type="text"
-              value={printConfig.title}
-              onChange={(e) => setPrintConfig({ ...printConfig, title: e.target.value })}
-              className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-extrabold text-slate-900 focus:outline-none focus:border-blue-600 shadow-2xs"
-              placeholder="Facility Rental Fee Schedule and Reservation Policy"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Title"
+              className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white transition-all shadow-2xs"
             />
           </div>
 
-          {/* Dynamic Signatory Section */}
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-3">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-              <div>
-                <h4 className="font-extrabold text-slate-900 text-xs">Signatory & Authority</h4>
-                <p className="text-[11px] text-slate-500 font-medium">Configure the official authorized signatory.</p>
-              </div>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={printConfig.showSignatures !== false}
-                  onChange={(e) => setPrintConfig({ ...printConfig, showSignatures: e.target.checked })}
-                  className="sr-only peer"
+          {/* 3. Signature Section */}
+          <div className="space-y-3 pt-1">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold text-slate-900">Signature</h3>
+              <button
+                type="button"
+                onClick={() => setShowSignatures(!showSignatures)}
+                className={`w-11 h-6 flex items-center rounded-full p-0.5 transition-colors cursor-pointer ${
+                  showSignatures ? "bg-blue-600" : "bg-slate-300"
+                }`}
+                title="Toggle Signature on/off"
+              >
+                <div
+                  className={`bg-white w-5 h-5 rounded-full shadow-md transform transition-transform ${
+                    showSignatures ? "translate-x-5" : "translate-x-0"
+                  }`}
                 />
-                <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
-              </label>
+              </button>
             </div>
 
-            {printConfig.showSignatures !== false && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">Signatory Full Name</label>
-                  <input
-                    type="text"
-                    value={printConfig.signatoryName || ""}
-                    onChange={(e) => setPrintConfig({ ...printConfig, signatoryName: e.target.value })}
-                    placeholder="e.g. Dr. Maria Angela Santos, Ph.D."
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:border-blue-600"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">Title / Designation</label>
-                  <input
-                    type="text"
-                    value={printConfig.signatoryTitle || ""}
-                    onChange={(e) => setPrintConfig({ ...printConfig, signatoryTitle: e.target.value })}
-                    placeholder="e.g. AVR Center Director / PMO Head"
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:border-blue-600"
-                  />
-                </div>
+            {showSignatures && (
+              <div className="space-y-3">
+                {signatories.map((sig, sIdx) => (
+                  <div key={sig.id || sIdx} className="space-y-2 p-3 bg-white border border-slate-200 rounded-2xl shadow-2xs relative">
+                    {/* Full Name */}
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-xs font-medium text-slate-700">Full Name</label>
+                        {signatories.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveSignature(sIdx)}
+                            className="text-slate-400 hover:text-rose-600 transition-colors"
+                            title="Remove signatory"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        )}
+                      </div>
+                      <input
+                        type="text"
+                        value={sig.name}
+                        onChange={(e) => handleUpdateSignature(sIdx, "name", e.target.value)}
+                        placeholder="Full Name"
+                        className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white transition-all"
+                      />
+                    </div>
+
+                    {/* Title */}
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-xs font-medium text-slate-700">Title</label>
+                      </div>
+                      <input
+                        type="text"
+                        value={sig.title}
+                        onChange={(e) => handleUpdateSignature(sIdx, "title", e.target.value)}
+                        placeholder="Title / Designation"
+                        className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white transition-all"
+                      />
+                    </div>
+                  </div>
+                ))}
+
+                <button
+                  type="button"
+                  onClick={handleAddSignature}
+                  className="flex items-center gap-1.5 text-xs font-bold text-slate-800 hover:text-blue-600 transition-colors cursor-pointer pt-1"
+                >
+                  <PlusCircle size={15} className="text-slate-700" />
+                  <span>Add other signature</span>
+                </button>
               </div>
             )}
           </div>
 
-          {/* Rate Items */}
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-              <div>
-                <h4 className="font-extrabold text-slate-900 text-xs">Rate Items</h4>
-                <p className="text-[11px] text-slate-500 font-medium">Customize active rate categories and fees.</p>
-              </div>
+          {/* 4. Rate item Section */}
+          <div className="space-y-3 pt-1">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold text-slate-900">Rate item</h3>
               <button
                 type="button"
-                onClick={() => setShowAddCustomModal(true)}
-                className="flex items-center gap-1 px-3 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg text-xs font-bold transition-all cursor-pointer"
+                onClick={() => setShowRateItems(!showRateItems)}
+                className={`w-11 h-6 flex items-center rounded-full p-0.5 transition-colors cursor-pointer ${
+                  showRateItems ? "bg-blue-600" : "bg-slate-300"
+                }`}
+                title="Toggle Rate Items on/off"
               >
-                <Plus size={13} /> Add Rate
+                <div
+                  className={`bg-white w-5 h-5 rounded-full shadow-md transform transition-transform ${
+                    showRateItems ? "translate-x-5" : "translate-x-0"
+                  }`}
+                />
               </button>
             </div>
 
-            <div className="space-y-3">
-              {renderRateItem(
-                "showInternalRate",
-                "Internal Academic and Dept Rate",
-                "Internal Academic and Dept Rate",
-                printConfig.internalRateValue || "Free of Charge",
-                "internalRateLabel",
-                "internalRateValue"
-              )}
-
-              {renderRateItem(
-                "showExternalHourly",
-                "External Hourly Rate",
-                "External Hourly Rental Rate",
-                printConfig.externalHourlyValue || "₱1,500 per hour",
-                "externalHourlyLabel",
-                "externalHourlyValue"
-              )}
-
-              {renderRateItem(
-                "showExternalDaily",
-                "External Full Day Rate",
-                "External Full Day Rate",
-                printConfig.externalDailyValue || "₱8,000 per day",
-                "externalDailyLabel",
-                "externalDailyValue"
-              )}
-
-              {renderRateItem(
-                "showCleaningFee",
-                "Facility Cleaning Fee",
-                "Facility Cleaning Fee",
-                printConfig.cleaningFeeValue || "₱200",
-                "cleaningFeeLabel",
-                "cleaningFeeValue"
-              )}
-
-              {renderRateItem(
-                "showSoundFee",
-                "Sound & Tech Setup Fee",
-                "Sound System and Tech Setup Fee",
-                printConfig.soundFeeValue || "₱500",
-                "soundFeeLabel",
-                "soundFeeValue"
-              )}
-
-              {/* Custom Rates */}
-              {customRates.map((cr) => (
-                <div key={cr.id} className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setCustomRates(prev => prev.filter(item => item.id !== cr.id))}
-                        className="text-rose-500 hover:text-rose-700 p-1 rounded hover:bg-rose-50 cursor-pointer"
-                        title="Remove rate item"
-                      >
-                        <Ban size={13} />
-                      </button>
-                      <span className="font-bold text-xs text-slate-800">{cr.label}</span>
+            {showRateItems && (
+              <div className="space-y-3">
+                {rateItems.map((item, rIdx) => (
+                  <div
+                    key={item.id || rIdx}
+                    className={`space-y-2 p-3 rounded-2xl border transition-all ${
+                      item.enabled
+                        ? "bg-white border-slate-200 shadow-2xs"
+                        : "bg-slate-50/70 border-slate-200/60 opacity-60"
+                    }`}
+                  >
+                    {/* Description */}
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-xs font-medium text-slate-700">Description</label>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleToggleRateItem(rIdx)}
+                            className="text-[11px] font-semibold text-slate-500 hover:text-blue-600 cursor-pointer"
+                          >
+                            {item.enabled ? "disable" : "enable"}
+                          </button>
+                          {rateItems.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveRateItem(rIdx)}
+                              className="text-slate-400 hover:text-rose-600 transition-colors"
+                              title="Remove item"
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      <input
+                        type="text"
+                        value={item.description}
+                        disabled={!item.enabled}
+                        onChange={(e) => handleUpdateRateItem(rIdx, "description", e.target.value)}
+                        placeholder="Description"
+                        className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white transition-all disabled:opacity-50"
+                      />
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-extrabold text-xs text-slate-900">{cr.amount}</span>
-                      <button
-                        type="button"
-                        onClick={() => setCustomRates(prev => prev.map(item => item.id === cr.id ? { ...item, enabled: !item.enabled } : item))}
-                        className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                          cr.enabled ? "bg-emerald-100 text-emerald-800" : "bg-slate-200 text-slate-600"
-                        }`}
-                      >
-                        {cr.enabled ? "Enabled" : "Disabled"}
-                      </button>
+
+                    {/* rate item */}
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-xs font-medium text-slate-700">rate item</label>
+                        <button
+                          type="button"
+                          onClick={() => handleToggleRateItem(rIdx)}
+                          className="text-[11px] font-semibold text-slate-500 hover:text-blue-600 cursor-pointer"
+                        >
+                          {item.enabled ? "disable" : "enable"}
+                        </button>
+                      </div>
+                      <input
+                        type="text"
+                        value={item.rate}
+                        disabled={!item.enabled}
+                        onChange={(e) => handleUpdateRateItem(rIdx, "rate", e.target.value)}
+                        placeholder="rate item (e.g. ₱1,500 / hr)"
+                        className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white transition-all disabled:opacity-50"
+                      />
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+
+                <button
+                  type="button"
+                  onClick={handleAddRateItem}
+                  className="flex items-center gap-1.5 text-xs font-bold text-slate-800 hover:text-blue-600 transition-colors cursor-pointer pt-1"
+                >
+                  <PlusCircle size={15} className="text-slate-700" />
+                  <span>Add other description</span>
+                </button>
+              </div>
+            )}
           </div>
 
-          {/* Terms & Policy */}
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-3">
-            <label className="block text-xs font-bold text-slate-900">Venue Terms and Policy</label>
-            <textarea
-              rows={3}
-              value={feeForm.policy}
-              onChange={(e) => setFeeForm({ ...feeForm, policy: e.target.value })}
-              className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-800 focus:outline-none focus:border-blue-600"
-            />
-            <div className="pt-2 flex justify-end">
+          {/* 5. Notes Section */}
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-xs font-bold text-slate-800">Notes</label>
               <button
                 type="button"
-                onClick={handleSaveFeeMatrix}
-                className="flex items-center gap-1.5 px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-extrabold text-xs shadow-sm cursor-pointer transition-all"
+                onClick={() => setNotesEnabled(!notesEnabled)}
+                className="text-[11px] font-semibold text-slate-500 hover:text-blue-600 cursor-pointer"
               >
-                <Save size={14} />
-                <span>Save</span>
+                {notesEnabled ? "disable" : "enable"}
               </button>
             </div>
+            <textarea
+              rows={3}
+              value={notes}
+              disabled={!notesEnabled}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Notes..."
+              className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 focus:outline-none focus:border-blue-600 focus:bg-white transition-all disabled:opacity-50"
+            />
+          </div>
+
+          {/* 6. Save Changes Button */}
+          <div className="pt-2">
+            <button
+              type="button"
+              onClick={handleSaveChanges}
+              disabled={saving}
+              className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white rounded-xl text-xs font-bold shadow-xs transition-all cursor-pointer flex items-center gap-2 disabled:opacity-60"
+            >
+              {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+              <span>Save Changes</span>
+            </button>
           </div>
         </div>
 
         {/* Right Column: Printable Sheet Preview */}
         <div className="lg:col-span-6 sticky top-6">
-          <div id="printable-fee-matrix" className="w-full bg-white rounded-2xl border border-slate-300 shadow-md p-7 space-y-5 text-xs text-slate-900">
-            <div className="text-center border-b-2 border-slate-900 pb-4 space-y-1">
-              <img
-                src="/fsuu_logo.png"
-                alt="University Logo"
-                className="h-14 w-auto mx-auto object-contain mb-1.5"
-                onError={(e) => { e.target.style.display = 'none'; }}
-              />
-              <p className="text-[11px] font-extrabold text-slate-600 uppercase tracking-wider">
-                {printConfig.orgName}
+          <div
+            id="printable-fee-matrix"
+            className="w-full bg-white rounded-2xl border border-slate-300 shadow-xs p-8 sm:p-10 space-y-6 text-xs text-slate-900 font-sans min-h-[580px] flex flex-col justify-between"
+          >
+            {/* Top Area */}
+            <div className="space-y-4">
+              {/* Header with Logo and Title */}
+              <div className="flex items-center justify-between relative pb-2">
+                <img
+                  src="/fsuu_logo.png"
+                  alt="University Shield"
+                  className="h-12 w-auto object-contain shrink-0"
+                  onError={(e) => {
+                    e.target.style.visibility = "hidden";
+                  }}
+                />
+                <h2 className="text-sm font-bold text-slate-900 tracking-tight uppercase text-center flex-1 pr-10">
+                  {title || "Title"}
+                </h2>
+              </div>
+
+              {/* Horizontal Divider */}
+              <hr className="border-slate-300" />
+
+              {/* Selected Venue */}
+              <p className="text-xs font-bold text-slate-800">
+                {currentVenue?.name || "Select Venue"}
               </p>
-              <h2 className="text-base font-black text-slate-900 tracking-tight uppercase">
-                {printConfig.title}
-              </h2>
-              <p className="text-xs font-extrabold text-blue-900">
-                Venue: {currentVenue?.name || "All Venues"}
-              </p>
+
+              {/* 2-Column Fee Table */}
+              <div className="border border-slate-300 rounded-lg overflow-hidden">
+                <table className="w-full text-xs border-collapse">
+                  <thead>
+                    <tr className="bg-slate-100 text-slate-800 border-b border-slate-300">
+                      <th className="p-3 text-left font-bold border-r border-slate-300 w-3/5">
+                        Charge Description
+                      </th>
+                      <th className="p-3 text-right font-bold w-2/5">Rate</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200">
+                    {activeRates.length === 0 ? (
+                      <tr>
+                        <td colSpan={2} className="p-4 text-center text-slate-400 italic">
+                          No active rate items.
+                        </td>
+                      </tr>
+                    ) : (
+                      activeRates.map((item, idx) => (
+                        <tr key={item.id || idx}>
+                          <td className="p-3 font-medium text-slate-800 border-r border-slate-300">
+                            {item.description}
+                          </td>
+                          <td className="p-3 text-right font-semibold text-slate-900 font-mono">
+                            {item.rate}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Total Row */}
+              <div className="flex justify-between items-center px-1 text-xs font-bold text-slate-900 pt-1">
+                <span>Total</span>
+                <span className="font-mono">{calculateTotal(activeRates)}</span>
+              </div>
+
+              {/* Notes */}
+              {notesEnabled && notes && (
+                <div className="space-y-1 text-xs pt-2">
+                  <span className="font-bold text-slate-800">Notes :</span>
+                  <p className="text-slate-600 leading-relaxed font-normal whitespace-pre-wrap">
+                    {notes}
+                  </p>
+                </div>
+              )}
             </div>
 
-            <table className="w-full text-xs border border-slate-300">
-              <thead className="bg-slate-100">
-                <tr>
-                  <th className="border border-slate-300 p-2.5 text-left font-bold text-slate-900">Charge Description</th>
-                  <th className="border border-slate-300 p-2.5 text-right font-bold text-slate-900">Applicable Rate</th>
-                </tr>
-              </thead>
-              <tbody>
-                {printConfig.showInternalRate && (
-                  <tr>
-                    <td className="border border-slate-300 p-2.5 font-medium">{printConfig.internalRateLabel}</td>
-                    <td className="border border-slate-300 p-2.5 text-right font-bold text-emerald-700">{printConfig.internalRateValue}</td>
-                  </tr>
-                )}
-                {printConfig.showExternalHourly && (
-                  <tr>
-                    <td className="border border-slate-300 p-2.5 font-medium">{printConfig.externalHourlyLabel}</td>
-                    <td className="border border-slate-300 p-2.5 text-right font-bold text-slate-900">{printConfig.externalHourlyValue}</td>
-                  </tr>
-                )}
-                {printConfig.showExternalDaily && (
-                  <tr>
-                    <td className="border border-slate-300 p-2.5 font-medium">{printConfig.externalDailyLabel}</td>
-                    <td className="border border-slate-300 p-2.5 text-right font-bold text-slate-900">{printConfig.externalDailyValue}</td>
-                  </tr>
-                )}
-                {printConfig.showCleaningFee && (
-                  <tr>
-                    <td className="border border-slate-300 p-2.5 font-medium">{printConfig.cleaningFeeLabel}</td>
-                    <td className="border border-slate-300 p-2.5 text-right font-bold text-slate-900">{printConfig.cleaningFeeValue}</td>
-                  </tr>
-                )}
-                {printConfig.showSoundFee && (
-                  <tr>
-                    <td className="border border-slate-300 p-2.5 font-medium">{printConfig.soundFeeLabel}</td>
-                    <td className="border border-slate-300 p-2.5 text-right font-bold text-slate-900">{printConfig.soundFeeValue}</td>
-                  </tr>
-                )}
-                {customRates.filter(cr => cr.enabled).map(cr => (
-                  <tr key={cr.id}>
-                    <td className="border border-slate-300 p-2.5 font-medium">{cr.label}</td>
-                    <td className="border border-slate-300 p-2.5 text-right font-bold text-slate-900">{cr.amount}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-
-            {feeForm.policy && (
-              <div className="pt-2">
-                <h5 className="font-bold text-slate-900 mb-1">Policy and Guidelines:</h5>
-                <p className="text-[11px] text-slate-600 leading-relaxed">{feeForm.policy}</p>
-              </div>
-            )}
-
-            {printConfig.showSignatures !== false && (
-              <div className="pt-6 mt-4 border-t border-slate-200 flex justify-end">
-                <div className="text-center w-64 space-y-1">
-                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-8">Approved by:</p>
-                  <div className="border-b-2 border-slate-900 pb-1">
-                    <p className="font-black text-xs text-slate-900 uppercase">
-                      {printConfig.signatoryName || "Authorized Administrator"}
-                    </p>
-                  </div>
-                  <p className="text-[10px] font-bold text-slate-600">
-                    {printConfig.signatoryTitle || "AVR Operations Head"}
-                  </p>
+            {/* Bottom Signature Area */}
+            {showSignatures && (
+              <div className="pt-8 mt-auto space-y-4">
+                <hr className="border-slate-300" />
+                <div className="flex flex-wrap items-end justify-end gap-6 pt-2">
+                  {signatories.map((sig, sIdx) => (
+                    <div key={sig.id || sIdx} className="w-48 text-center space-y-1 ml-auto">
+                      <div className="border-t border-slate-400 pt-1">
+                        <p className="text-xs font-bold text-slate-900 uppercase">
+                          {sig.name || "Fullname"}
+                        </p>
+                        <p className="text-[11px] text-slate-500 font-medium">
+                          {sig.title || "title"}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
           </div>
         </div>
       </div>
-
-      {/* Add Custom Rate Modal */}
-      {showAddCustomModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-[1500] flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl border border-slate-100 space-y-4 animate-in zoom-in-95">
-            <div className="flex justify-between items-center pb-2 border-b border-slate-100">
-              <h3 className="font-extrabold text-slate-900 text-sm">Add New Rate Item</h3>
-              <button onClick={() => setShowAddCustomModal(false)} className="text-slate-400 hover:text-slate-600 p-1">
-                <X size={16} />
-              </button>
-            </div>
-            <form onSubmit={handleAddCustomRate} className="space-y-3 text-xs">
-              <div>
-                <label className="block font-bold text-slate-900 mb-1">Rate Item Name *</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Projector Rental Fee"
-                  value={newCustomRate.label}
-                  onChange={(e) => setNewCustomRate({ ...newCustomRate, label: e.target.value })}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-medium focus:outline-none focus:border-blue-600"
-                />
-              </div>
-              <div>
-                <label className="block font-bold text-slate-900 mb-1">Amount and Unit *</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. ₱300 per hour"
-                  value={newCustomRate.amount}
-                  onChange={(e) => setNewCustomRate({ ...newCustomRate, amount: e.target.value })}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-emerald-700 focus:outline-none focus:border-blue-600"
-                />
-              </div>
-              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setShowAddCustomModal(false)}
-                  className="px-3.5 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-100"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs shadow-md"
-                >
-                  Add Rate
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

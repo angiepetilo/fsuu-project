@@ -171,18 +171,18 @@ export default function EquipBorrowInspectionForm({
                       "";
 
                     const matched = (physicalUnits || []).find((u) => {
-                      const code = String(u.unit_code || u.barcode || u.serial_number || "").trim().toUpperCase();
+                      const code = String(u.barcode || u.serial_number || "").trim().toUpperCase();
                       const target = String(val).trim().toUpperCase();
                       return code && target && code === target;
                     });
 
                     const displayLabel = matched
-                      ? `${matched.unit_code || matched.barcode} — ${matched.name || reqCat.category}`
+                      ? `${matched.barcode} — ${matched.name || reqCat.category}`
                       : val
                       ? `${val} — ${reqCat.category}`
                       : `${reqCat.category} Unit ${uIdx + 1} (Unassigned)`;
 
-                    const resolvedCode = matched?.unit_code || val || idxKey;
+                    const resolvedCode = matched?.barcode || val || idxKey;
 
                     // Condition / Checklist state
                     const currentCond =

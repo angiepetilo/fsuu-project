@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Loader2, Play, FileCheck, Check, ShieldAlert, BellRing } from "lucide-react";
 import api from "@/lib/axios";
-import { toast } from "sonner";
+import { notify } from "@/lib/notify";
 
 /**
  * VenueModalFooter — Action buttons at the bottom of the venue booking form modal.
@@ -35,9 +35,12 @@ export default function VenueModalFooter({
       const res = await api.post(`/avr-venue-bookings/${selected.id}/notify-urgent`, {
         reason: "Urgent approval requested by Student Assistant for event release."
       });
-      toast.success(res.data?.message || "Urgent approval notification dispatched to Staff & Super Admin!");
+      notify.success(
+        "Urgent Notification Sent",
+        res.data?.message || "Urgent approval notification dispatched to Staff & Super Admin."
+      );
     } catch (err) {
-      toast.error(err.response?.data?.message || "Failed to dispatch urgent notification.");
+      notify.error("Notification Failed", err.response?.data?.message || "Failed to dispatch urgent notification.");
     } finally {
       setNotifyingUrgent(false);
     }
@@ -57,7 +60,7 @@ export default function VenueModalFooter({
                 title="Notify Staff and Super Admin for urgent approval"
               >
                 {notifyingUrgent ? <Loader2 size={14} className="animate-spin" /> : <BellRing size={14} />}
-                <span>Notify Staff (Urgent Approval)</span>
+                <span>Notify Staff &amp; Super Admin (Urgent Approval)</span>
               </button>
             </div>
           ) : (

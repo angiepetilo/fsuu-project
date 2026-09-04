@@ -348,7 +348,7 @@ class VenueBookingController extends Controller
                 $uCodes = array_values(array_filter($barcodes, fn($v) => !empty($v)));
 
                 \App\Models\EquipmentUnit::where(function($q) use ($uCodes, $numIds) {
-                    $q->whereIn('unit_code', $uCodes);
+                    $q->whereIn('barcode', $uCodes);
                     if (!empty($numIds)) {
                         $q->orWhereIn('id', array_map('intval', $numIds));
                     }

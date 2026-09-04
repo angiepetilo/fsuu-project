@@ -148,7 +148,7 @@ export default function EquipmentStockTab({
       setCategories(catList);
 
       setUnits(unitData.map((u, idx) => {
-        const bCode = String(u.unit_code || u.barcode || `BC-EQP-2026-00${idx + 1}`).trim();
+        const bCode = String(u.barcode || `BC-EQP-2026-00${idx + 1}`).trim();
         const dbStatusRaw = (u.status || 'available').toLowerCase();
         const dbCondition = u.condition || '';
         const condLower = dbCondition.toLowerCase();

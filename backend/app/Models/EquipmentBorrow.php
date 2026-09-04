@@ -40,8 +40,8 @@ class EquipmentBorrow extends Model
     ];
 
     protected $casts = [
-        'date_of_usage'           => 'date',
-        'extend_of_date_returned' => 'date',
+        'date_of_usage'           => 'date:Y-m-d',
+        'extend_of_date_returned' => 'date:Y-m-d',
         'assigned_units'          => 'array',
     ];
 

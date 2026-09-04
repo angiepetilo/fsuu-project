@@ -1,0 +1,2 @@
+# Trigger for force fresh migrate on deployment
+force_fresh_migrate=true

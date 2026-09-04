@@ -4,7 +4,7 @@ import api from "@/lib/axios";
 import notify from "@/lib/notify";
 import {
   Loader2, RefreshCw, AlertCircle, Eye, Building2, ChevronLeft, ChevronRight,
-  Search, Calendar, Filter, ArrowUpDown, X
+  Search, Calendar, X
 } from "lucide-react";
 import { PageLoader } from "@/components/ui/page-loader";
 import { StatusBadge, OverdueBadge } from "@/components/ui/status-badge";
@@ -24,6 +24,14 @@ const getTomorrowStr = () => {
   const d = new Date();
   d.setDate(d.getDate() + 1);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
+
+const getStartOfWeekStr = () => {
+  const d = new Date();
+  const day = d.getDay();
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+  const monday = new Date(d.setDate(diff));
+  return `${monday.getFullYear()}-${String(monday.getMonth() + 1).padStart(2, "0")}-${String(monday.getDate()).padStart(2, "0")}`;
 };
 
 const getEndOfWeekStr = () => {
@@ -181,13 +189,13 @@ export default function VenueBookings() {
     const todayStr = getTodayStr();
     if (dateFilter === "today") {
       if (eventDate !== todayStr) return false;
-    } else if (dateFilter === "tomorrow") {
-      if (eventDate !== getTomorrowStr()) return false;
     } else if (dateFilter === "this_week") {
-      if (!eventDate || eventDate < todayStr || eventDate > getEndOfWeekStr()) return false;
-    } else if (dateFilter === "custom") {
-      if (customDateFrom && eventDate < customDateFrom) return false;
-      if (customDateTo && eventDate > customDateTo) return false;
+      const startOfWeek = getStartOfWeekStr();
+      const endOfWeek = getEndOfWeekStr();
+      if (!eventDate || eventDate < startOfWeek || eventDate > endOfWeek) return false;
+    } else if (dateFilter === "this_month") {
+      const currentYearMonth = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}`;
+      if (!eventDate || !eventDate.startsWith(currentYearMonth)) return false;
     }
 
     // Search Query
@@ -313,56 +321,9 @@ export default function VenueBookings() {
 
 
 
-      {/* Comprehensive Filter & Search Controls Bar */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 p-4 space-y-3.5 shadow-xs">
-        {/* Row 1: Status Pills & Sorting */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          {/* Status Pills */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
-            {[
-              { id: "all", label: "All Bookings", count: activeBookings.length },
-              { id: "pending", label: "Pending", count: countPending, color: "text-amber-700 bg-amber-50 border-amber-200" },
-              { id: "approved", label: "Approved", count: countApproved, color: "text-blue-700 bg-blue-50 border-blue-200" },
-              { id: "ongoing", label: "Ongoing", count: countOngoing, color: "text-emerald-700 bg-emerald-50 border-emerald-200" },
-            ].map(tab => (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setStatusFilter(tab.id)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
-                  statusFilter === tab.id
-                    ? "bg-slate-900 text-white shadow-xs"
-                    : "bg-slate-50 text-slate-600 hover:bg-slate-100 hover:text-slate-900 border border-slate-200/70"
-                }`}
-              >
-                <span>{tab.label}</span>
-                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
-                  statusFilter === tab.id ? "bg-white/20 text-white" : "bg-slate-200/70 text-slate-700"
-                }`}>
-                  {tab.count}
-                </span>
-              </button>
-            ))}
-          </div>
-
-          {/* Sort By Dropdown */}
-          <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
-              <ArrowUpDown size={12} /> Sort:
-            </span>
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              className="px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:border-blue-500 cursor-pointer"
-            >
-              <option value="event_asc">Event Date (Soonest First)</option>
-              <option value="created_desc">Date Submitted (Newest First)</option>
-            </select>
-          </div>
-        </div>
-
-        {/* Row 2: Search Input & Date Filters */}
-        <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 pt-2 border-t border-slate-100">
+      {/* Search & Date Controls Bar */}
+      <div className="bg-white rounded-2xl border border-slate-200/80 p-3.5 shadow-xs">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
           {/* Search Input */}
           <div className="relative flex-1 max-w-md">
             <Search size={14} className="absolute left-3 top-2.5 text-slate-400" />
@@ -377,77 +338,42 @@ export default function VenueBookings() {
               <button
                 type="button"
                 onClick={() => setSearchQuery("")}
-                className="absolute right-2.5 top-2 text-slate-400 hover:text-slate-600"
+                className="absolute right-2.5 top-2 text-slate-400 hover:text-slate-600 cursor-pointer"
               >
                 <X size={13} />
               </button>
             )}
           </div>
 
-          {/* Date Presets */}
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-[11px] font-bold text-slate-400 flex items-center gap-1 mr-1">
-              <Calendar size={12} /> Date:
+          {/* Date Dropdown */}
+          <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+              <Calendar size={13} /> Date:
             </span>
-            {[
-              { id: "all", label: "All Dates" },
-              { id: "today", label: "Today" },
-              { id: "tomorrow", label: "Tomorrow" },
-              { id: "this_week", label: "This Week" },
-              { id: "custom", label: "Custom..." },
-            ].map(df => (
-              <button
-                key={df.id}
-                type="button"
-                onClick={() => setDateFilter(df.id)}
-                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                  dateFilter === df.id
-                    ? "bg-blue-600 text-white shadow-2xs"
-                    : "bg-slate-100 hover:bg-slate-200 text-slate-600"
-                }`}
-              >
-                {df.label}
-              </button>
-            ))}
-
-            {(statusFilter !== "all" || dateFilter !== "all" || searchQuery || customDateFrom || customDateTo) && (
+            <select
+              value={dateFilter}
+              onChange={(e) => setDateFilter(e.target.value)}
+              className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:border-blue-500 cursor-pointer shadow-2xs"
+            >
+              <option value="all">All Dates</option>
+              <option value="today">Today</option>
+              <option value="this_week">This Week</option>
+              <option value="this_month">This Month</option>
+            </select>
+            {(dateFilter !== "all" || searchQuery) && (
               <button
                 type="button"
                 onClick={() => {
-                  setStatusFilter("all");
                   setDateFilter("all");
                   setSearchQuery("");
-                  setCustomDateFrom("");
-                  setCustomDateTo("");
-                  setSortBy("event_asc");
                 }}
-                className="text-[11px] font-bold text-rose-600 hover:text-rose-700 underline ml-2 cursor-pointer"
+                className="text-[11px] font-bold text-rose-600 hover:text-rose-700 underline ml-1 cursor-pointer"
               >
                 Reset
               </button>
             )}
           </div>
         </div>
-
-        {/* Custom Date Range Pickers (conditional) */}
-        {dateFilter === "custom" && (
-          <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100 text-xs font-bold text-slate-600">
-            <span>From:</span>
-            <input
-              type="date"
-              value={customDateFrom}
-              onChange={(e) => setCustomDateFrom(e.target.value)}
-              className="px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium focus:outline-none focus:border-blue-500"
-            />
-            <span>To:</span>
-            <input
-              type="date"
-              value={customDateTo}
-              onChange={(e) => setCustomDateTo(e.target.value)}
-              className="px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium focus:outline-none focus:border-blue-500"
-            />
-          </div>
-        )}
       </div>
 
       {/* Table & Mobile Cards Container */}
@@ -477,7 +403,7 @@ export default function VenueBookings() {
               ) : filteredBookings.length === 0 ? (
                 <tr>
                   <td colSpan={9} className="text-center py-12 text-slate-400 font-semibold">
-                    No venue bookings found under status filter "{statusFilter}".
+                    No venue bookings found.
                   </td>
                 </tr>
               ) : (
@@ -537,7 +463,7 @@ export default function VenueBookings() {
             </div>
           ) : filteredBookings.length === 0 ? (
             <div className="text-center py-10 text-slate-400 text-xs font-semibold">
-              No venue bookings found under "{statusFilter}".
+              No venue bookings found.
             </div>
           ) : (
             paginatedBookings.map((b) => {

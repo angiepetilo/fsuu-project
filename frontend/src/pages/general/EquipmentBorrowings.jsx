@@ -4,7 +4,7 @@ import api from "@/lib/axios";
 import notify from "@/lib/notify";
 import {
   Loader2, RefreshCw, AlertCircle, Eye, PackageOpen, ChevronLeft, ChevronRight,
-  Search, Calendar, Filter, ArrowUpDown, X, Clock
+  Search, Calendar, X, Clock
 } from "lucide-react";
 import { PageLoader } from "@/components/ui/page-loader";
 import { StatusBadge, OverdueBadge } from "@/components/ui/status-badge";
@@ -18,6 +18,14 @@ const EquipmentBorrowDetailModal = lazy(() => import("./components/EquipmentBorr
 const getTodayStr = () => {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
+
+const getStartOfWeekStr = () => {
+  const d = new Date();
+  const day = d.getDay();
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+  const monday = new Date(d.setDate(diff));
+  return `${monday.getFullYear()}-${String(monday.getMonth() + 1).padStart(2, "0")}-${String(monday.getDate()).padStart(2, "0")}`;
 };
 
 const getEndOfWeekStr = () => {
@@ -166,15 +174,19 @@ export default function EquipmentBorrowings() {
     const borrowDate = (b.borrow_date || b.date_of_usage || b.date || "").substring(0, 10);
     const dueDate = (b.return_due_date || b.expected_return_date || b.reservation_end_date || borrowDate).substring(0, 10);
 
-    if (dateFilter === "borrow_today") {
-      if (borrowDate !== todayStr) return false;
-    } else if (dateFilter === "due_today") {
-      if (dueDate !== todayStr) return false;
+    if (dateFilter === "today") {
+      if (borrowDate !== todayStr && dueDate !== todayStr) return false;
     } else if (dateFilter === "this_week") {
-      if (!borrowDate || borrowDate < todayStr || borrowDate > getEndOfWeekStr()) return false;
-    } else if (dateFilter === "custom") {
-      if (customDateFrom && borrowDate < customDateFrom) return false;
-      if (customDateTo && borrowDate > customDateTo) return false;
+      const startOfWeek = getStartOfWeekStr();
+      const endOfWeek = getEndOfWeekStr();
+      const inBorrowWeek = borrowDate && borrowDate >= startOfWeek && borrowDate <= endOfWeek;
+      const inDueWeek = dueDate && dueDate >= startOfWeek && dueDate <= endOfWeek;
+      if (!inBorrowWeek && !inDueWeek) return false;
+    } else if (dateFilter === "this_month") {
+      const currentYearMonth = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}`;
+      const inBorrowMonth = borrowDate && borrowDate.startsWith(currentYearMonth);
+      const inDueMonth = dueDate && dueDate.startsWith(currentYearMonth);
+      if (!inBorrowMonth && !inDueMonth) return false;
     }
 
     // Search Query
@@ -318,57 +330,9 @@ export default function EquipmentBorrowings() {
 
 
 
-      {/* Comprehensive Filter & Search Controls Bar */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 p-4 space-y-3.5 shadow-xs">
-        {/* Row 1: Status Pills & Sorting */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          {/* Status Pills */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
-            {[
-              { id: "all", label: "All Borrowings", count: activeBorrowings.length },
-              { id: "pending", label: "Pending", count: countPending, color: "text-amber-700 bg-amber-50 border-amber-200" },
-              { id: "approved", label: "Approved / To Release", count: countApproved, color: "text-blue-700 bg-blue-50 border-blue-200" },
-              { id: "ongoing", label: "Released / In Use", count: countOngoing, color: "text-emerald-700 bg-emerald-50 border-emerald-200" },
-            ].map(tab => (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setStatusFilter(tab.id)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
-                  statusFilter === tab.id
-                    ? "bg-slate-900 text-white shadow-xs"
-                    : "bg-slate-50 text-slate-600 hover:bg-slate-100 hover:text-slate-900 border border-slate-200/70"
-                }`}
-              >
-                <span>{tab.label}</span>
-                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
-                  statusFilter === tab.id ? "bg-white/20 text-white" : "bg-slate-200/70 text-slate-700"
-                }`}>
-                  {tab.count}
-                </span>
-              </button>
-            ))}
-          </div>
-
-          {/* Sort By Dropdown */}
-          <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
-              <ArrowUpDown size={12} /> Sort:
-            </span>
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              className="px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:border-blue-500 cursor-pointer"
-            >
-              <option value="due_asc">Due Date (Most Urgent Return First)</option>
-              <option value="borrow_asc">Borrow Date (Soonest First)</option>
-              <option value="created_desc">Date Submitted (Newest First)</option>
-            </select>
-          </div>
-        </div>
-
-        {/* Row 2: Search Input & Date Filters */}
-        <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 pt-2 border-t border-slate-100">
+      {/* Search & Date Controls Bar */}
+      <div className="bg-white rounded-2xl border border-slate-200/80 p-3.5 shadow-xs">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
           {/* Search Input */}
           <div className="relative flex-1 max-w-md">
             <Search size={14} className="absolute left-3 top-2.5 text-slate-400" />
@@ -383,77 +347,42 @@ export default function EquipmentBorrowings() {
               <button
                 type="button"
                 onClick={() => setSearchQuery("")}
-                className="absolute right-2.5 top-2 text-slate-400 hover:text-slate-600"
+                className="absolute right-2.5 top-2 text-slate-400 hover:text-slate-600 cursor-pointer"
               >
                 <X size={13} />
               </button>
             )}
           </div>
 
-          {/* Date Presets */}
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-[11px] font-bold text-slate-400 flex items-center gap-1 mr-1">
-              <Calendar size={12} /> Date:
+          {/* Date Dropdown */}
+          <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+              <Calendar size={13} /> Date:
             </span>
-            {[
-              { id: "all", label: "All Dates" },
-              { id: "borrow_today", label: "Borrow Today" },
-              { id: "due_today", label: "Due Today" },
-              { id: "this_week", label: "This Week" },
-              { id: "custom", label: "Custom..." },
-            ].map(df => (
-              <button
-                key={df.id}
-                type="button"
-                onClick={() => setDateFilter(df.id)}
-                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                  dateFilter === df.id
-                    ? "bg-blue-600 text-white shadow-2xs"
-                    : "bg-slate-100 hover:bg-slate-200 text-slate-600"
-                }`}
-              >
-                {df.label}
-              </button>
-            ))}
-
-            {(statusFilter !== "all" || dateFilter !== "all" || searchQuery || customDateFrom || customDateTo) && (
+            <select
+              value={dateFilter}
+              onChange={(e) => setDateFilter(e.target.value)}
+              className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:border-blue-500 cursor-pointer shadow-2xs"
+            >
+              <option value="all">All Dates</option>
+              <option value="today">Today</option>
+              <option value="this_week">This Week</option>
+              <option value="this_month">This Month</option>
+            </select>
+            {(dateFilter !== "all" || searchQuery) && (
               <button
                 type="button"
                 onClick={() => {
-                  setStatusFilter("all");
                   setDateFilter("all");
                   setSearchQuery("");
-                  setCustomDateFrom("");
-                  setCustomDateTo("");
-                  setSortBy("due_asc");
                 }}
-                className="text-[11px] font-bold text-rose-600 hover:text-rose-700 underline ml-2 cursor-pointer"
+                className="text-[11px] font-bold text-rose-600 hover:text-rose-700 underline ml-1 cursor-pointer"
               >
                 Reset
               </button>
             )}
           </div>
         </div>
-
-        {/* Custom Date Range Pickers (conditional) */}
-        {dateFilter === "custom" && (
-          <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100 text-xs font-bold text-slate-600">
-            <span>From:</span>
-            <input
-              type="date"
-              value={customDateFrom}
-              onChange={(e) => setCustomDateFrom(e.target.value)}
-              className="px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium focus:outline-none focus:border-blue-500"
-            />
-            <span>To:</span>
-            <input
-              type="date"
-              value={customDateTo}
-              onChange={(e) => setCustomDateTo(e.target.value)}
-              className="px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium focus:outline-none focus:border-blue-500"
-            />
-          </div>
-        )}
       </div>
 
       {/* Table & Mobile Cards Container */}
@@ -481,7 +410,7 @@ export default function EquipmentBorrowings() {
               ) : filteredBorrowings.length === 0 ? (
                 <tr>
                   <td colSpan={9} className="text-center py-12 text-slate-400 font-semibold">
-                    No equipment borrowings found under status filter "{statusFilter}".
+                    No equipment borrowings found.
                   </td>
                 </tr>
               ) : paginatedBorrowings.map((b, idx) => {
@@ -538,7 +467,7 @@ export default function EquipmentBorrowings() {
             </div>
           ) : filteredBorrowings.length === 0 ? (
             <div className="text-center py-10 text-slate-400 text-xs font-semibold">
-              No equipment borrowings found under "{statusFilter}".
+              No equipment borrowings found.
             </div>
           ) : (
             paginatedBorrowings.map((b) => {

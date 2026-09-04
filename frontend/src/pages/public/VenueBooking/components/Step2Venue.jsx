@@ -1,6 +1,7 @@
 import { MapPin, ChevronLeft, ChevronRight, Clock, Calendar as CalendarIcon, CalendarDays, CheckCircle2, AlertTriangle, Building2, DollarSign, Search, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
+import CustomTimePicker from "@/components/ui/custom-time-picker";
 import { useState, useEffect } from "react";
 import api from "@/lib/axios";
 import { getTodayISO, isPastDate, isPastTimeToday, isPastDateTime } from "@/lib/dateTimeUtils";
@@ -719,13 +720,15 @@ export default function Step2Venue({
                             ? "bg-blue-600 text-white font-black shadow-sm scale-105 cursor-pointer"
                             : isToday
                               ? "border-2 border-blue-600 text-blue-700 font-extrabold bg-blue-50/40 cursor-pointer"
-                              : isDisabled
-                                ? "text-slate-300 font-semibold cursor-not-allowed select-none"
+                              : isFullyBooked
+                                ? "border-2 border-rose-400 text-rose-600 font-bold bg-rose-50/40 cursor-not-allowed"
                                 : isPartialBooked
-                                  ? "text-amber-900 font-bold hover:bg-amber-100 cursor-pointer"
+                                  ? "border-2 border-amber-400 text-amber-700 font-bold bg-amber-50/40 hover:bg-amber-100 cursor-pointer"
                                   : isShortNotice
-                                    ? "text-amber-700 bg-amber-50/60 hover:bg-amber-100 cursor-pointer"
-                                    : "text-slate-800 font-bold hover:bg-slate-100 cursor-pointer"
+                                    ? `border-2 border-slate-300 text-slate-500 font-bold bg-slate-50/50 ${isPublicBlockedNotice ? "cursor-not-allowed opacity-80" : "hover:bg-slate-100 cursor-pointer"}`
+                                    : isPast || isMaintenanceOrClosed
+                                      ? "text-slate-300 font-semibold cursor-not-allowed select-none"
+                                      : "text-slate-800 font-bold hover:bg-slate-100 cursor-pointer"
                         }`}
                         title={
                           isToday
@@ -773,40 +776,24 @@ export default function Step2Venue({
               </div>
             </div>
 
-            {/* Time Controls: Time Start * | Time End * with formatted display and Clock icon */}
+            {/* Time Controls: Time Start * | Time End * with Custom 5-Minute TimePicker */}
             <div className="grid grid-cols-2 gap-3 pt-1">
               <div className="space-y-1.5">
                 <label className="text-xs font-extrabold text-slate-800 block">Time Start *</label>
-                <div className="relative flex items-center justify-between px-4 py-2.5 bg-slate-100/80 hover:bg-slate-100 border border-slate-200/80 rounded-full cursor-pointer transition-colors group">
-                  <span className="font-extrabold text-xs text-slate-900 tracking-tight">
-                    {timeStart ? formatTime12(timeStart) : "08:00 AM"}
-                  </span>
-                  <Clock size={15} className="text-slate-500 group-hover:text-slate-700 transition-colors pointer-events-none" />
-                  <input
-                    type="time"
-                    step="300"
-                    value={timeStart || "08:00"}
-                    onChange={e => setTimeStart(e.target.value)}
-                    className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
-                  />
-                </div>
+                <CustomTimePicker
+                  value={timeStart || "08:00"}
+                  onChange={(val) => setTimeStart(val)}
+                  minuteStep={5}
+                />
               </div>
 
               <div className="space-y-1.5">
                 <label className="text-xs font-extrabold text-slate-800 block">Time End *</label>
-                <div className="relative flex items-center justify-between px-4 py-2.5 bg-slate-100/80 hover:bg-slate-100 border border-slate-200/80 rounded-full cursor-pointer transition-colors group">
-                  <span className="font-extrabold text-xs text-slate-900 tracking-tight">
-                    {timeEnd ? formatTime12(timeEnd) : "10:00 AM"}
-                  </span>
-                  <Clock size={15} className="text-slate-500 group-hover:text-slate-700 transition-colors pointer-events-none" />
-                  <input
-                    type="time"
-                    step="300"
-                    value={timeEnd || "10:00"}
-                    onChange={e => setTimeEnd(e.target.value)}
-                    className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
-                  />
-                </div>
+                <CustomTimePicker
+                  value={timeEnd || "10:00"}
+                  onChange={(val) => setTimeEnd(val)}
+                  minuteStep={5}
+                />
               </div>
             </div>
 

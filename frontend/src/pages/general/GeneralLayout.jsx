@@ -5,7 +5,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 import api from "@/lib/axios";
 import echoInstance from "@/lib/echo";
-import { toast } from "sonner";
+import { notify } from "@/lib/notify";
 import {
   LayoutDashboard, Building2, PackageOpen, Box, CalendarCheck,
   FileBarChart2, Settings, ShieldCheck, ChevronRight,
@@ -108,9 +108,10 @@ export default function GeneralLayout() {
     if (notifChannel?.listen) {
       notifChannel.listen(".booking.created", (data) => {
         const title = data.type === "venue_booking" ? "New Venue Reservation" : "New Equipment Borrow";
-        toast.info(`${title} • ${data.reference_code || ''}`, {
-          description: `${data.filer_name || 'Applicant'} (${data.program_office || 'Department'}) - ${data.place_of_use || 'Campus'}`,
-        });
+        notify.info(
+          `${title} • ${data.reference_code || ''}`,
+          `${data.filer_name || 'Applicant'} (${data.program_office || 'Department'}) - ${data.place_of_use || 'Campus'}`
+        );
         fetchNotifs();
         window.dispatchEvent(new Event("equipment_inventory_updated"));
       });

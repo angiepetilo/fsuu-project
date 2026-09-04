@@ -1,6 +1,7 @@
 import React from "react";
 import { Loader2, Calendar, Clock } from "lucide-react";
 import { formatTime12 as formatTime12h } from "../../../lib/dateUtils";
+import CustomTimePicker from "@/components/ui/custom-time-picker";
 
 export default function VenueScheduleForm({
   VENUES = [],
@@ -154,26 +155,20 @@ export default function VenueScheduleForm({
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className="block text-xs font-black text-slate-900 mb-1">Start Time *</label>
-                <input
-                  type="time"
-                  required
-                  min={venueOpen}
-                  max={venueClose}
-                  value={setupForm.startTime}
-                  onChange={e => handleStartTimeChange(e.target.value)}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:outline-none focus:border-blue-600 text-xs"
+                <CustomTimePicker
+                  value={setupForm.startTime || venueOpen}
+                  onChange={val => handleStartTimeChange(val)}
+                  minuteStep={5}
+                  triggerClassName="w-full flex items-center justify-between p-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl font-bold text-slate-900 text-xs transition-colors cursor-pointer"
                 />
               </div>
               <div>
                 <label className="block text-xs font-black text-slate-900 mb-1">End Time *</label>
-                <input
-                  type="time"
-                  required
-                  min={venueOpen}
-                  max={venueClose}
-                  value={setupForm.endTime}
-                  onChange={e => handleEndTimeChange(e.target.value)}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:outline-none focus:border-blue-600 text-xs"
+                <CustomTimePicker
+                  value={setupForm.endTime || venueClose}
+                  onChange={val => handleEndTimeChange(val)}
+                  minuteStep={5}
+                  triggerClassName="w-full flex items-center justify-between p-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl font-bold text-slate-900 text-xs transition-colors cursor-pointer"
                 />
               </div>
             </div>

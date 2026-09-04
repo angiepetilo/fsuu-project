@@ -4,7 +4,7 @@ import {
   FileText, Mail, FileCheck, BellRing
 } from "lucide-react";
 import api from "@/lib/axios";
-import { toast } from "sonner";
+import { notify } from "@/lib/notify";
 import { usePermissions } from "@/hooks/usePermissions";
 import { formatTime12, formatTimeRange12, formatDateTime } from "@/lib/dateUtils";
 import { getOverdueMinutes } from "@/lib/dateTimeUtils";
@@ -44,9 +44,12 @@ export default function EquipmentBorrowDetailModal({
       const res = await api.post(`/avr-equipment-borrowings/${selected.id}/notify-urgent`, {
         reason: "Urgent approval requested by Student Assistant for equipment dispatch."
       });
-      toast.success(res.data?.message || "Urgent approval notification dispatched to Staff & Super Admin!");
+      notify.success(
+        "Urgent Notification Sent",
+        res.data?.message || "Urgent approval notification dispatched to Staff & Super Admin."
+      );
     } catch (err) {
-      toast.error(err.response?.data?.message || "Failed to dispatch urgent notification.");
+      notify.error("Notification Failed", err.response?.data?.message || "Failed to dispatch urgent notification.");
     } finally {
       setNotifyingUrgent(false);
     }
@@ -542,7 +545,7 @@ export default function EquipmentBorrowDetailModal({
       const uStat = String(unit.status || "available").toLowerCase();
       if (uStat === "damaged" || uStat === "lost" || uStat === "decommissioned" || uStat === "under_maintenance") return false;
 
-      const bCode = String(unit.unit_code || unit.barcode || unit.serial_number || unit.code || unit.id || "").trim().toUpperCase();
+      const bCode = String(unit.barcode || unit.serial_number || unit.code || unit.id || "").trim().toUpperCase();
       if (bCode && overlappingReservedBarcodes.has(bCode)) {
         // Allow if it's already assigned to a slot in this modal
         const isCurrentSlotAssignment = Object.values(assignedUnitSelections || {}).some(
@@ -559,7 +562,7 @@ export default function EquipmentBorrowDetailModal({
       const totalOverlappingQty = overlappingCategoryQtyMap[String(eqTypeId)] || 0;
       if (totalOverlappingQty > 0) {
         const alreadyExcludedByBarcode = matched.filter((u) => {
-          const bCode = String(u.unit_code || u.barcode || u.serial_number || u.code || u.id || "").trim().toUpperCase();
+          const bCode = String(u.barcode || u.serial_number || u.code || u.id || "").trim().toUpperCase();
           return bCode && overlappingReservedBarcodes.has(bCode);
         }).length;
         const additionalSoftReserved = Math.max(0, totalOverlappingQty - alreadyExcludedByBarcode);
@@ -696,7 +699,7 @@ export default function EquipmentBorrowDetailModal({
           const newCondition = isLost ? "Lost" : (isDamaged ? "Damaged" : "Good");
 
           const matchedUnit = (physicalUnits || []).find(u => 
-            String(u.unit_code || u.barcode || u.id).trim().toUpperCase() === String(bCode).trim().toUpperCase()
+            String(u.barcode || u.id).trim().toUpperCase() === String(bCode).trim().toUpperCase()
           );
 
           if (matchedUnit?.id) {
@@ -774,7 +777,7 @@ export default function EquipmentBorrowDetailModal({
             const newStatus = condNormalized === "Lost" ? "lost" : (condNormalized === "Damaged" ? "damaged" : "available");
             const newCondition = condNormalized;
 
-            const dbUnit = (physicalUnits || []).find(u => String(u.unit_code || u.barcode || u.id).trim() === bCode);
+            const dbUnit = (physicalUnits || []).find(u => String(u.barcode || u.id).trim() === bCode);
             const unitDbId = dbUnit?.id && Number.isFinite(Number(dbUnit.id)) ? Number(dbUnit.id) : null;
 
             if (unitDbId) {
@@ -790,7 +793,7 @@ export default function EquipmentBorrowDetailModal({
               dbUpdatePromises.push(
                 api.get("/general/equipment-units").then(res => {
                   const units = Array.isArray(res.data) ? res.data : [];
-                  const fresh = units.find(u => String(u.unit_code || u.barcode || "").trim() === bCode);
+                  const fresh = units.find(u => String(u.barcode || "").trim() === bCode);
                   if (fresh?.id) {
                     return api.put(`/general/equipment-units/${fresh.id}`, {
                       status: newStatus,
@@ -1068,7 +1071,7 @@ export default function EquipmentBorrowDetailModal({
                     title="Notify Staff and Super Admin for urgent approval"
                   >
                     {notifyingUrgent ? <Loader2 size={14} className="animate-spin" /> : <BellRing size={14} />}
-                    <span>Notify Staff (Urgent Approval)</span>
+                    <span>Notify Staff &amp; Super Admin (Urgent Approval)</span>
                   </button>
                 </div>
               ) : (
