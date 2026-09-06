@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Search, Hash, CheckCircle2, Loader2, AlertCircle, Building2, PackageOpen, AlertTriangle, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { StatusBadge } from "@/components/ui/status-badge";
 import api from "@/lib/axios";
 import echoInstance from "@/lib/echo";
 
@@ -224,9 +225,7 @@ export default function TrackBooking() {
                 </div>
               </div>
 
-              <span className="px-3.5 py-1 rounded-full text-xs font-extrabold capitalize bg-blue-50 text-blue-800 border border-blue-200">
-                {activeStatus}
-              </span>
+              <StatusBadge status={activeStatus} className="px-3.5 py-1 text-xs font-extrabold" />
             </div>
 
             {/* Details Grid */}

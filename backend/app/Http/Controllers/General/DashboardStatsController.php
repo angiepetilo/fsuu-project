@@ -63,25 +63,25 @@ class DashboardStatsController extends Controller
         $pendingVb = DB::table('venue_bookings')
             ->join('tracking_numbers', 'venue_bookings.tracking_number_id', '=', 'tracking_numbers.id')
             ->whereNull('venue_bookings.archived_at')
-            ->where(DB::raw('LOWER(tracking_numbers.status)'), 'pending')
+            ->where(DB::raw('LOWER(TRIM(tracking_numbers.status))'), 'pending')
             ->count();
 
         $pendingEb = DB::table('equipment_borrows')
             ->join('tracking_numbers', 'equipment_borrows.tracking_number_id', '=', 'tracking_numbers.id')
             ->whereNull('equipment_borrows.archived_at')
-            ->where(DB::raw('LOWER(tracking_numbers.status)'), 'pending')
+            ->where(DB::raw('LOWER(TRIM(tracking_numbers.status))'), 'pending')
             ->count();
 
         $postInspectionPendingVenue = DB::table('venue_bookings')
             ->join('tracking_numbers', 'venue_bookings.tracking_number_id', '=', 'tracking_numbers.id')
             ->whereNull('venue_bookings.archived_at')
-            ->whereIn(DB::raw('LOWER(tracking_numbers.status)'), ['ongoing', 'on-going', 'post-inspection'])
+            ->whereIn(DB::raw('LOWER(TRIM(tracking_numbers.status))'), ['ongoing', 'on-going', 'post-inspection'])
             ->count();
 
         $postInspectionPendingEquip = DB::table('equipment_borrows')
             ->join('tracking_numbers', 'equipment_borrows.tracking_number_id', '=', 'tracking_numbers.id')
             ->whereNull('equipment_borrows.archived_at')
-            ->whereIn(DB::raw('LOWER(tracking_numbers.status)'), ['ongoing', 'on-going', 'borrowed', 'post-inspection'])
+            ->whereIn(DB::raw('LOWER(TRIM(tracking_numbers.status))'), ['ongoing', 'on-going', 'borrowed', 'post-inspection'])
             ->count();
 
         $pendingApproval = $pendingVb + $pendingEb;
@@ -90,9 +90,9 @@ class DashboardStatsController extends Controller
         $unitCounts = DB::table('equipment_units')
             ->whereNull('archived_at')
             ->select(
-                DB::raw("SUM(CASE WHEN LOWER(COALESCE(`condition`, 'good')) = 'good' AND LOWER(`status`) NOT IN ('damaged', 'maintenance', 'unavailable', 'lost', 'decommissioned') THEN 1 ELSE 0 END) as available_count"),
-                DB::raw("SUM(CASE WHEN LOWER(COALESCE(`condition`, 'good')) IN ('damaged', 'maintenance', 'worn', 'under repair') OR (LOWER(`status`) IN ('damaged', 'maintenance') AND LOWER(COALESCE(`condition`, '')) != 'lost') THEN 1 ELSE 0 END) as damage_count"),
-                DB::raw("SUM(CASE WHEN LOWER(COALESCE(`condition`, '')) = 'lost' OR LOWER(`status`) IN ('lost', 'decommissioned') THEN 1 ELSE 0 END) as lost_count")
+                DB::raw("SUM(CASE WHEN LOWER(COALESCE(equipment_units.condition, 'good')) = 'good' AND LOWER(equipment_units.status) NOT IN ('damaged', 'maintenance', 'unavailable', 'lost', 'decommissioned') THEN 1 ELSE 0 END) as available_count"),
+                DB::raw("SUM(CASE WHEN LOWER(COALESCE(equipment_units.condition, 'good')) IN ('damaged', 'maintenance', 'worn', 'under repair') OR (LOWER(equipment_units.status) IN ('damaged', 'maintenance') AND LOWER(COALESCE(equipment_units.condition, '')) != 'lost') THEN 1 ELSE 0 END) as damage_count"),
+                DB::raw("SUM(CASE WHEN LOWER(COALESCE(equipment_units.condition, '')) = 'lost' OR LOWER(equipment_units.status) IN ('lost', 'decommissioned') THEN 1 ELSE 0 END) as lost_count")
             )
             ->first();
 
@@ -103,14 +103,14 @@ class DashboardStatsController extends Controller
         // 6. Inspection-based Lost and Damaged counts
         $inspectionDamages = DB::table('inspections')
             ->where(function($q) {
-                $q->where(DB::raw('LOWER(`condition`)'), 'damaged')
+                $q->where(DB::raw('LOWER(inspections.condition)'), 'damaged')
                   ->orWhere('violation_type', 'LIKE', '%damage%');
             })
             ->count();
 
         $inspectionLost = DB::table('inspections')
             ->where(function($q) {
-                $q->where(DB::raw('LOWER(`condition`)'), 'lost')
+                $q->where(DB::raw('LOWER(inspections.condition)'), 'lost')
                   ->orWhere('violation_type', 'LIKE', '%lost%');
             })
             ->count();
@@ -122,14 +122,14 @@ class DashboardStatsController extends Controller
         $overdueReturns = DB::table('equipment_borrows')
             ->join('tracking_numbers', 'equipment_borrows.tracking_number_id', '=', 'tracking_numbers.id')
             ->whereNull('equipment_borrows.archived_at')
-            ->whereIn(DB::raw('LOWER(tracking_numbers.status)'), ['on-going', 'ongoing'])
+            ->whereIn(DB::raw('LOWER(TRIM(tracking_numbers.status))'), ['on-going', 'ongoing'])
             ->where('equipment_borrows.date_of_usage', '<', $now->toDateString())
             ->count();
 
         $completedToday = DB::table('equipment_borrows')
             ->join('tracking_numbers', 'equipment_borrows.tracking_number_id', '=', 'tracking_numbers.id')
             ->whereNull('equipment_borrows.archived_at')
-            ->whereIn(DB::raw('LOWER(tracking_numbers.status)'), ['completed', 'late return', 'returned late', 'damaged', 'lost'])
+            ->whereIn(DB::raw('LOWER(TRIM(tracking_numbers.status))'), ['completed', 'late return', 'returned late', 'damaged', 'lost'])
             ->whereDate('tracking_numbers.updated_at', $now->toDateString())
             ->count();
 
@@ -348,7 +348,7 @@ class DashboardStatsController extends Controller
             ->join('tracking_numbers', 'venue_bookings.tracking_number_id', '=', 'tracking_numbers.id')
             ->leftJoin('venues', 'venue_bookings.venue_id', '=', 'venues.id')
             ->whereNull('venue_bookings.archived_at')
-            ->whereIn(DB::raw('LOWER(tracking_numbers.status)'), ['pending', 'approved', 'ongoing', 'on-going', 'post-inspection', 'completed', 'late return', 'returned late', 'damaged', 'lost'])
+            ->whereIn(DB::raw('LOWER(TRIM(tracking_numbers.status))'), ['pending', 'approved', 'ongoing', 'on-going', 'post-inspection', 'completed', 'late return', 'returned late', 'damaged', 'lost'])
             ->select(
                 'venue_bookings.id',
                 'venue_bookings.filer_name',
@@ -370,7 +370,7 @@ class DashboardStatsController extends Controller
         $calendarEquipBorrowings = DB::table('equipment_borrows')
             ->join('tracking_numbers', 'equipment_borrows.tracking_number_id', '=', 'tracking_numbers.id')
             ->whereNull('equipment_borrows.archived_at')
-            ->whereIn(DB::raw('LOWER(tracking_numbers.status)'), ['pending', 'approved', 'ongoing', 'on-going', 'completed', 'late return', 'returned late', 'damaged', 'lost'])
+            ->whereIn(DB::raw('LOWER(TRIM(tracking_numbers.status))'), ['pending', 'approved', 'ongoing', 'on-going', 'completed', 'late return', 'returned late', 'damaged', 'lost'])
             ->select(
                 'equipment_borrows.id',
                 'equipment_borrows.filer_name',
