@@ -28,6 +28,7 @@ export default function EquipBorrowInspectionForm({
   handleSaveInspection,
   inspectionSuccessMsg,
   readOnly = false,
+  hasChanges = true,
   scheduledDate,
   scheduledTime,
   minutesLate = 0,
@@ -326,7 +327,7 @@ export default function EquipBorrowInspectionForm({
       />
 
       {/* Save Button */}
-      {!readOnly && (
+      {!readOnly && hasChanges && (
         <div className="pt-1 flex justify-end">
           <button
             type="submit"
