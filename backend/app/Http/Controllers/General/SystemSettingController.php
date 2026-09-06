@@ -29,7 +29,7 @@ class SystemSettingController extends Controller
             'auto_shift_tomorrow_after_hours'=> $settings->auto_shift_tomorrow_after_hours,
             'allow_advance_equipment_booking'=> $settings->allow_advance_equipment_booking,
             'max_items_per_borrow'           => $settings->max_items_per_borrow,
-            'facebook_url'                   => $settings->facebook_url,
+            'facebook_url'                   => $settings->facebook_url ?: 'https://www.facebook.com/fsuubutuan',
         ]);
     }
 
