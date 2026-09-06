@@ -329,20 +329,42 @@ function AppContent() {
               </span>
             </div>
 
-            <div className="flex flex-wrap items-center justify-center gap-6 font-semibold text-slate-600">
-              {publicSettings.contact_phone && (
+            <div className="flex flex-wrap items-center justify-center gap-5 font-semibold text-slate-600">
+              {/* Facebook */}
+              {publicSettings.facebook_url && (
+                <a
+                  href={publicSettings.facebook_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title="Visit our Facebook page"
+                  className="hover:opacity-75 transition-opacity"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="#1877F2">
+                    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                  </svg>
+                </a>
+              )}
+              {/* Email */}
+              {publicSettings.contact_email && (
                 <div className="flex items-center gap-1.5">
-                  <span className="text-slate-400">Tel:</span>
-                  <a href={`tel:${publicSettings.contact_phone}`} className="hover:text-blue-600 transition-colors">
-                    {publicSettings.contact_phone}
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 48 48">
+                    <rect x="2" y="8" width="44" height="32" rx="4" fill="#EA4335"/>
+                    <path d="M2 12l22 14 22-14" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round"/>
+                  </svg>
+                  <a href={`mailto:${publicSettings.contact_email}`} className="hover:text-blue-600 transition-colors text-xs">
+                    {publicSettings.contact_email}
                   </a>
                 </div>
               )}
-              {publicSettings.contact_email && (
+              {/* Phone */}
+              {publicSettings.contact_phone && (
                 <div className="flex items-center gap-1.5">
-                  <span className="text-slate-400">Email:</span>
-                  <a href={`mailto:${publicSettings.contact_email}`} className="hover:text-blue-600 transition-colors">
-                    {publicSettings.contact_email}
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 48 48">
+                    <circle cx="24" cy="24" r="22" fill="#25D366"/>
+                    <path d="M33.4 28.9c-.4-.2-2.4-1.2-2.8-1.3-.4-.2-.6-.2-.9.2-.2.4-.9 1.3-1.1 1.5-.2.2-.4.3-.8.1s-1.6-.6-3-1.9c-1.1-1-1.9-2.2-2.1-2.6-.2-.4 0-.6.2-.8l.6-.7c.2-.2.2-.4.4-.6.1-.2 0-.5 0-.7-.1-.2-.9-2.2-1.2-3-.3-.8-.7-.6-.9-.7H20c-.3 0-.7.1-1 .5-.4.4-1.4 1.3-1.4 3.2s1.4 3.7 1.6 4c.2.2 2.8 4.3 6.8 6 .9.4 1.7.6 2.2.8.9.3 1.8.2 2.4.1.7-.1 2.2-.9 2.5-1.8.3-.9.3-1.6.2-1.8-.1-.2-.3-.3-.7-.5z" fill="#fff"/>
+                  </svg>
+                  <a href={`tel:${publicSettings.contact_phone}`} className="hover:text-blue-600 transition-colors text-xs">
+                    {publicSettings.contact_phone}
                   </a>
                 </div>
               )}

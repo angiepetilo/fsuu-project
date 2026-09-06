@@ -30,6 +30,9 @@ class SystemSetting extends Model
         'smtp_encryption',
         'mail_from_address',
         'mail_from_name',
+        'sms_api_key',
+        'sms_api_url',
+        'facebook_url',
     ];
 
     protected $casts = [
