@@ -95,13 +95,19 @@ export default function BookingBorrowingReportTab({
   };
 
   const renderStatusAndInspectionNote = (record, defaultStatus) => {
-    const rawNote =
+    let rawNote =
       record.inspection_notes ||
       record.notes ||
       record.violation ||
       record.violation_type ||
       record.inspection?.notes ||
       "";
+
+    if (typeof rawNote === "string") {
+      rawNote = rawNote.replace(/Physical Facility \/ Furniture Damage/gi, "Property Damaged");
+      rawNote = rawNote.replace(/Facility or Property Damage/gi, "Property Damaged");
+      rawNote = rawNote.replace(/Property Damaged,\s*Property Damaged/gi, "Property Damaged");
+    }
     const condition = (record.inspection_condition || record.condition || "").toLowerCase();
 
     return (

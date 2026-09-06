@@ -24,10 +24,16 @@ export default function Step3Details({
   purpose, setPurpose,
   notificationChannel = "email", setNotificationChannel,
   campusBranch = "FSUU Main (AVR Center)", setCampusBranch,
-  isPhoneVerified = false,
-  setIsPhoneVerified,
+  isEmailVerified = false,
+  setIsEmailVerified,
+  pinRules,
   onBack,
 }) {
+  const isSystemEnabled = pinRules ? pinRules.isEnabled !== false : false;
+  const requireEmailVerify = pinRules ? (pinRules.isEnabled !== false && pinRules.equipmentVerifyEmail === true) : false;
+  // Note: Phone verify is currently not implemented in the frontend. It is just a placeholder setting.
+  const requirePhoneVerify = pinRules ? (pinRules.isEnabled !== false && pinRules.equipmentVerifyPhone === true) : false;
+
   const [departmentsList, setDepartmentsList] = useState([]);
 
   // Non-blocking Email Domain Check States
@@ -35,7 +41,6 @@ export default function Step3Details({
   const [emailCheckMessage, setEmailCheckMessage] = useState("");
   const [lastCheckedEmail, setLastCheckedEmail] = useState("");
 
-  // Phone SMS OTP States (Hard-Gated for Equipment Borrowing)
   const [isOtpRequested, setIsOtpRequested] = useState(false);
   const [isSendingOtp, setIsSendingOtp] = useState(false);
   const [otpCode, setOtpCode] = useState("");
@@ -44,6 +49,7 @@ export default function Step3Details({
   const [otpSuccess, setOtpSuccess] = useState("");
   const [otpCooldown, setOtpCooldown] = useState(0);
   const [otpExpiresIn, setOtpExpiresIn] = useState(0);
+  const [duplicateRef, setDuplicateRef] = useState(null);
 
   useEffect(() => {
     const fetchDepts = async () => {
@@ -76,13 +82,13 @@ export default function Step3Details({
 
   useEffect(() => {
     let interval = null;
-    if (otpExpiresIn > 0 && isOtpRequested && !isPhoneVerified) {
+    if (otpExpiresIn > 0 && isOtpRequested && !isEmailVerified) {
       interval = setInterval(() => {
         setOtpExpiresIn((prev) => (prev > 0 ? prev - 1 : 0));
       }, 1000);
     }
     return () => clearInterval(interval);
-  }, [otpExpiresIn, isOtpRequested, isPhoneVerified]);
+  }, [otpExpiresIn, isOtpRequested, isEmailVerified]);
 
   // Non-blocking Email Check Handler
   const handleEmailBlur = async () => {
@@ -121,13 +127,11 @@ export default function Step3Details({
     }
   };
 
-  // Phone Input & Verification Handlers
-  const phoneInfo = validatePhilippineMobile(contactNumber);
-
-  const handlePhoneInputChange = (e) => {
-    handleContactChange(e);
-    if (isPhoneVerified && setIsPhoneVerified) {
-      setIsPhoneVerified(false);
+  const handleEmailChange = (e) => {
+    const val = e.target.value;
+    setEmail(val);
+    if (isEmailVerified && setIsEmailVerified) {
+      setIsEmailVerified(false);
     }
     if (isOtpRequested) {
       setIsOtpRequested(false);
@@ -135,28 +139,44 @@ export default function Step3Details({
       setOtpError("");
       setOtpSuccess("");
     }
+    setDuplicateRef(null);
+    setOtpError("");
+    setEmailCheckStatus("idle");
+    setEmailCheckMessage("");
   };
 
-  const handleRequestPhoneOtp = async () => {
-    if (!phoneInfo.isValid) return;
+  const handleRequestOtp = async () => {
+    const trimmed = (email || "").trim().toLowerCase();
+    if (!trimmed || emailCheckStatus !== "valid") return;
 
     setIsSendingOtp(true);
     setOtpError("");
     setOtpSuccess("");
+    setDuplicateRef(null);
     try {
-      const res = await api.post("/public/send-phone-otp", { phone_number: contactNumber });
+      const res = await api.post("/public/send-otp", {
+        email: trimmed,
+        reservation_type: "equipment",
+        borrow_date: startTime ? startTime.split("T")[0] : null,
+      });
       setIsOtpRequested(true);
       setOtpCooldown(60);
       setOtpExpiresIn(600);
-      setOtpSuccess(res.data?.message || "Verification code sent via SMS to your mobile number.");
+      setOtpSuccess(res.data?.message || "6-digit verification code sent to your inbox.");
     } catch (err) {
-      setOtpError(err.response?.data?.message || "Failed to send verification SMS. Please try again.");
+      if (err.response?.data?.duplicate) {
+        setDuplicateRef(err.response.data.reference_code || null);
+      } else {
+        setDuplicateRef(null);
+      }
+      setOtpError(err.response?.data?.message || "Failed to send verification code. Please try again.");
     } finally {
       setIsSendingOtp(false);
     }
   };
 
-  const handleVerifyPhoneOtp = async () => {
+  const handleVerifyOtp = async () => {
+    const trimmedEmail = (email || "").trim().toLowerCase();
     const trimmedCode = (otpCode || "").trim();
     if (trimmedCode.length !== 6) {
       setOtpError("Please enter the complete 6-digit code.");
@@ -166,23 +186,23 @@ export default function Step3Details({
     setIsVerifyingOtp(true);
     setOtpError("");
     try {
-      const res = await api.post("/public/verify-phone-otp", {
-        phone_number: contactNumber,
-        code: trimmedCode,
-      });
+      const res = await api.post("/public/verify-otp", { email: trimmedEmail, code: trimmedCode });
       if (res.data?.verified) {
-        if (setIsPhoneVerified) setIsPhoneVerified(true);
+        if (setIsEmailVerified) setIsEmailVerified(true);
         setIsOtpRequested(false);
-        setOtpSuccess("Phone number verified successfully!");
+        setOtpSuccess("Email verified successfully!");
       } else {
         setOtpError("Verification failed. Please try again.");
       }
     } catch (err) {
-      setOtpError(err.response?.data?.message || "Incorrect or expired SMS verification code.");
+      setOtpError(err.response?.data?.message || "Incorrect or expired verification code.");
     } finally {
       setIsVerifyingOtp(false);
     }
   };
+
+  // Phone Input & Verification Handlers
+  const phoneInfo = validatePhilippineMobile(contactNumber);
 
   const formatTimer = (seconds) => {
     const mins = Math.floor(seconds / 60);
@@ -304,162 +324,147 @@ export default function Step3Details({
           </div>
         </div>
 
-        {/* EMAIL FIELD: LIGHTWEIGHT NON-BLOCKING DOMAIN CHECK ONLY (NO VERIFY BUTTON, NO OTP GATING) */}
-        <div className="flex flex-col gap-1.5">
+        {/* EMAIL FIELD WITH INLINE DOMAIN CHECK & ATTACHED OTP VERIFY BUTTON */}
+        <div className="flex flex-col gap-1.5 sm:col-span-2">
           <div className="flex items-center justify-between">
-            <label className="text-xs font-bold text-slate-900">Personal Email <span className="text-red-500">*</span></label>
-            {emailCheckStatus === "valid" ? (
+            <label className="text-xs font-bold text-slate-900">
+              Personal Email <span className="text-red-500">*</span>
+            </label>
+            {isEmailVerified ? (
+              <span className="inline-flex items-center gap-1 text-[11px] font-extrabold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
+                <Check size={12} className="stroke-[3]" />
+                Verified
+              </span>
+            ) : emailCheckStatus === "valid" ? (
               <span className="text-[10.5px] font-bold text-blue-600 flex items-center gap-1">
                 <Check size={12} />
                 Domain Active
               </span>
             ) : null}
           </div>
-          <input 
-            type="email" 
-            required 
-            value={email} 
-            onChange={e => {
-              setEmail(e.target.value);
-              setEmailCheckStatus("idle");
-              setEmailCheckMessage("");
-            }} 
-            onBlur={handleEmailBlur}
-            placeholder="example@gmail.com" 
-            className={`w-full p-3 border rounded-xl text-sm transition-all focus:outline-none ${
-              emailCheckStatus === "invalid"
-                ? "bg-white border-rose-300 focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10 text-slate-900"
-                : emailCheckStatus === "valid"
-                  ? "bg-white border-blue-300 focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 text-slate-900"
-                  : "bg-white border-slate-200 focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 text-slate-900"
-            }`}
-          />
-          {/* Inline Domain Feedback matching Venue Booking */}
-          <div className="min-h-[16px]">
-            {emailCheckStatus === "checking" && (
-              <p className="text-[11px] text-blue-600 font-medium flex items-center gap-1 animate-pulse">
-                <Loader2 size={11} className="animate-spin shrink-0" />
-                <span>Checking email deliverability...</span>
-              </p>
-            )}
-            {emailCheckStatus === "valid" && (
-              <p className="text-[11px] text-emerald-600 font-semibold flex items-center gap-1">
-                <CheckCircle2 size={12} className="shrink-0" />
-                <span>{emailCheckMessage || "Email domain is deliverable."}</span>
-              </p>
-            )}
-            {emailCheckStatus === "invalid" && (
-              <p className="text-[11px] text-rose-600 font-semibold flex items-start gap-1">
-                <AlertCircle size={12} className="shrink-0 mt-0.5" />
-                <span>{emailCheckMessage}</span>
-              </p>
-            )}
-            {emailCheckStatus === "idle" && (
-              <p className="text-[10.5px] text-slate-400">
-                Booking updates will be sent via SMS and Email to this contact.
-              </p>
-            )}
-          </div>
-        </div>
-
-        {/* PHONE NUMBER FIELD: HARD-GATED WITH SMS OTP & ATTACHED VERIFY BUTTON */}
-        <div className="flex flex-col gap-1.5">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <label className="text-xs font-bold text-slate-900">
-                Contact Phone Number <span className="text-red-500">*</span>
-              </label>
-              {phoneInfo.isValid && phoneInfo.telco && (
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200">
-                  {phoneInfo.telco}
-                </span>
-              )}
-            </div>
-
-            {isPhoneVerified ? (
-              <span className="inline-flex items-center gap-1 text-[11px] font-extrabold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
-                <Check size={12} className="stroke-[3]" />
-                Verified
-              </span>
-            ) : contactNumber && contactNumber.length >= 4 && !phoneInfo.isValid ? (
-              <span className="text-[10px] font-semibold text-amber-600">
-                {phoneInfo.message}
-              </span>
-            ) : null}
-          </div>
 
           <div className="relative flex items-center">
             <input 
-              type="tel" 
+              type="email" 
               required 
-              readOnly={isPhoneVerified}
-              value={contactNumber}
-              onChange={handlePhoneInputChange}
-              pattern="[0-9]{11}"
-              title="Please enter an active 11-digit Philippine mobile number"
-              placeholder="0917 123 4567" 
-              className={`w-full p-3 pr-24 border rounded-xl text-sm font-mono transition-all focus:outline-none ${
-                isPhoneVerified 
+              readOnly={requireEmailVerify && isEmailVerified}
+              value={email} 
+              onChange={handleEmailChange}
+              onBlur={handleEmailBlur}
+              placeholder="example@gmail.com" 
+              className={`w-full p-3 ${requireEmailVerify ? 'pr-24' : ''} border rounded-xl text-sm transition-all focus:outline-none ${
+                (requireEmailVerify && isEmailVerified)
                   ? "bg-emerald-50/40 border-emerald-300 text-slate-800 font-semibold cursor-not-allowed" 
-                  : !phoneInfo.isValid && contactNumber.length >= 4
-                    ? "bg-white border-amber-300 focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 text-slate-900"
-                    : phoneInfo.isValid
+                  : emailCheckStatus === "invalid"
+                    ? "bg-white border-rose-300 focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10 text-slate-900"
+                    : emailCheckStatus === "valid"
                       ? "bg-white border-blue-400 focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 text-slate-900"
                       : "bg-white border-slate-200 focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 text-slate-900"
               }`} 
             />
 
             {/* Attached Action Button inside field */}
-            <div className="absolute right-1.5 flex items-center gap-1">
-              {isPhoneVerified ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (setIsPhoneVerified) setIsPhoneVerified(false);
-                    setIsOtpRequested(false);
-                  }}
-                  className="px-2.5 py-1.5 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg text-[11px] font-bold text-slate-600 transition-colors shadow-2xs cursor-pointer flex items-center gap-1"
-                  title="Unlock and change contact number"
-                >
-                  <Edit3 size={11} />
-                  Change
-                </button>
-              ) : (
-                <Button
-                  type="button"
-                  size="sm"
-                  disabled={!phoneInfo.isValid || isSendingOtp}
-                  onClick={handleRequestPhoneOtp}
-                  className={`h-8 px-3 rounded-lg text-xs font-black shadow-xs transition-all cursor-pointer ${
-                    phoneInfo.isValid
-                      ? primaryDept === "sco"
-                        ? "bg-purple-600 hover:bg-purple-700 text-white shadow-purple-600/20"
-                        : "bg-blue-600 hover:bg-blue-700 text-white shadow-blue-600/20"
-                      : "bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed shadow-none"
-                  }`}
-                >
-                  {isSendingOtp ? (
-                    <span className="flex items-center gap-1">
-                      <Loader2 size={12} className="animate-spin" />
-                      Sending...
-                    </span>
-                  ) : isOtpRequested ? (
-                    "Resend"
-                  ) : (
-                    "Verify"
-                  )}
-                </Button>
-              )}
-            </div>
+            {requireEmailVerify && (
+              <div className="absolute right-1.5 flex items-center gap-1">
+                {isEmailVerified ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (setIsEmailVerified) setIsEmailVerified(false);
+                      setEmailCheckStatus("idle");
+                      setEmailCheckMessage("");
+                    }}
+                    className="px-2.5 py-1.5 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg text-[11px] font-bold text-slate-600 transition-colors shadow-2xs cursor-pointer flex items-center gap-1"
+                    title="Unlock and change email address"
+                  >
+                    <Edit3 size={11} />
+                    Change
+                  </button>
+                ) : (
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={emailCheckStatus !== "valid" || isSendingOtp}
+                    onClick={handleRequestOtp}
+                    className={`h-8 px-3 rounded-lg text-xs font-black shadow-xs transition-all cursor-pointer ${
+                      emailCheckStatus === "valid"
+                        ? "bg-blue-600 hover:bg-blue-700 text-white shadow-blue-600/20"
+                        : "bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed shadow-none"
+                    }`}
+                  >
+                    {isSendingOtp ? (
+                      <span className="flex items-center gap-1">
+                        <Loader2 size={12} className="animate-spin" />
+                        Sending...
+                      </span>
+                    ) : isOtpRequested ? (
+                      "Resend"
+                    ) : (
+                      "Verify"
+                    )}
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
 
-          {/* Inline SMS OTP Card (Rendered directly under phone field, NOT in a modal) */}
-          {isOtpRequested && !isPhoneVerified && (
+          {/* Part 1 Inline Domain Feedback */}
+          {requireEmailVerify && !isEmailVerified && (
+            <div className="min-h-[18px]">
+              {emailCheckStatus === "checking" && (
+                <p className="text-[11px] text-blue-600 font-medium flex items-center gap-1 animate-pulse">
+                  <Loader2 size={11} className="animate-spin shrink-0" />
+                  <span>Checking email deliverability...</span>
+                </p>
+              )}
+              {emailCheckStatus === "valid" && !isOtpRequested && (
+                <p className="text-[11px] text-emerald-600 font-semibold flex items-center gap-1">
+                  <CheckCircle2 size={12} className="shrink-0" />
+                  <span>{emailCheckMessage || "Email domain is deliverable. Click 'Verify' to receive OTP code."}</span>
+                </p>
+              )}
+              {emailCheckStatus === "invalid" && (
+                <p className="text-[11px] text-rose-600 font-semibold flex items-start gap-1">
+                  <AlertCircle size={12} className="shrink-0 mt-0.5" />
+                  <span>{emailCheckMessage}</span>
+                </p>
+              )}
+              {emailCheckStatus === "idle" && !email && (
+                <p className="text-[10.5px] text-slate-400">
+                  Enter your email address and click outside the box to run domain check.
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Duplicate / OTP Error Alert Banner */}
+          {requireEmailVerify && otpError && !isOtpRequested && (
+            <div className="mt-2.5 p-3.5 bg-rose-50 border-2 border-rose-300 rounded-2xl text-xs font-bold text-rose-800 flex items-start gap-2.5 shadow-sm animate-in fade-in">
+              <AlertCircle size={16} className="text-rose-600 shrink-0 mt-0.5" />
+              <div className="flex-1 space-y-1">
+                <p className="leading-snug">{otpError}</p>
+                {duplicateRef && (
+                  <a
+                    href={`/track?ref=${encodeURIComponent(duplicateRef)}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 text-blue-700 hover:text-blue-900 font-extrabold text-xs underline mt-1"
+                  >
+                    <span>Track existing reservation ({duplicateRef})</span>
+                    <span>→</span>
+                  </a>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Part 2 Inline OTP Card (Rendered directly under field, NOT in a modal) */}
+          {requireEmailVerify && isOtpRequested && !isEmailVerified && (
             <div className="mt-2 p-4 bg-blue-50/70 border border-blue-200 rounded-2xl space-y-3 animate-in fade-in zoom-in-95 duration-200 shadow-sm">
               <div className="flex items-center justify-between">
                 <label className="text-xs font-black text-blue-950 flex items-center gap-1.5">
                   <KeyRound size={14} className="text-blue-600" />
-                  <span>Enter 6-Digit SMS OTP</span>
+                  <span>Enter 6-Digit Email OTP</span>
                 </label>
                 {otpExpiresIn > 0 ? (
                   <span className="text-[11px] font-mono font-bold text-amber-700 bg-amber-50 border border-amber-200/80 px-2 py-0.5 rounded-md">
@@ -484,7 +489,7 @@ export default function Step3Details({
                 <Button
                   type="button"
                   disabled={otpCode.length !== 6 || isVerifyingOtp || otpExpiresIn <= 0}
-                  onClick={handleVerifyPhoneOtp}
+                  onClick={handleVerifyOtp}
                   className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black shadow-md shadow-blue-600/20 disabled:opacity-50 transition-all cursor-pointer shrink-0"
                 >
                   {isVerifyingOtp ? (
@@ -522,17 +527,56 @@ export default function Step3Details({
                   ) : (
                     <button
                       type="button"
-                      onClick={handleRequestPhoneOtp}
+                      onClick={handleRequestOtp}
                       disabled={isSendingOtp}
                       className="text-[11px] font-extrabold text-blue-700 hover:text-blue-800 underline cursor-pointer"
                     >
-                      Resend SMS OTP
+                      Resend OTP Code
                     </button>
                   )}
                 </div>
               </div>
             </div>
           )}
+        </div>
+
+        {/* CONTACT NUMBER FIELD (NON-OTP GATED, FORMAT VALIDATION ONLY) */}
+        <div className="flex flex-col gap-1.5 sm:col-span-2 mt-4">
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-bold text-slate-900">
+              Contact Number <span className="text-red-500">*</span>
+            </label>
+            {(() => {
+              if (phoneInfo.isValid && phoneInfo.telco) {
+                return (
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    {phoneInfo.telco}
+                  </span>
+                );
+              }
+              if (contactNumber && contactNumber.length >= 4 && !phoneInfo.isValid) {
+                return (
+                  <span className="text-[10px] font-semibold text-amber-600">
+                    {phoneInfo.message}
+                  </span>
+                );
+              }
+              return null;
+            })()}
+          </div>
+          <input 
+            type="tel" 
+            required 
+            value={contactNumber}
+            onChange={handleContactChange}
+            pattern="[0-9]{11}"
+            title="Please enter an active 11-digit Philippine mobile number"
+            placeholder="0917 123 4567" 
+            className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm font-mono focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all" 
+          />
+          <p className="text-[10.5px] text-slate-400">
+            Booking notifications and reminders will be sent via SMS and Email to this contact.
+          </p>
         </div>
 
         <div className="flex flex-col gap-1.5">
@@ -608,21 +652,21 @@ export default function Step3Details({
           </Button>
 
           <div className="flex items-center gap-3">
-            {!isPhoneVerified && (
+            {requireEmailVerify && !isEmailVerified && (
               <span className="text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-xl hidden sm:inline-flex items-center gap-1.5">
                 <AlertCircle size={13} />
-                SMS OTP verification required to proceed
+                Email OTP verification required to proceed
               </span>
             )}
             <Button 
               type="submit" 
-              disabled={!isPhoneVerified}
+              disabled={requireEmailVerify && !isEmailVerified}
               className={`px-8 py-5 rounded-xl font-extrabold text-white text-xs shadow-lg transition-all ${
-                !isPhoneVerified
-                  ? "bg-slate-300 text-slate-500 cursor-not-allowed shadow-none"
-                  : primaryDept === "sco"
+                (!requireEmailVerify || isEmailVerified)
+                  ? primaryDept === "sco"
                     ? 'bg-purple-600 hover:bg-purple-700 shadow-purple-600/20 cursor-pointer'
                     : 'bg-blue-600 hover:bg-blue-700 shadow-blue-600/20 cursor-pointer'
+                  : "bg-slate-300 text-slate-500 cursor-not-allowed shadow-none"
               }`}
             >
               Next: Review →

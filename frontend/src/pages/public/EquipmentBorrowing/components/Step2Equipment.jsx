@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { Check, PackageOpen, ChevronLeft, ChevronRight, XCircle, Clock, CalendarDays, AlertTriangle, AlertCircle, Search, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import CustomTimePicker from "@/components/ui/custom-time-picker";
 import api from "@/lib/axios";
 import { getTodayISO, isPastTimeToday, isPastDateTime } from "@/lib/dateTimeUtils";
 
@@ -346,8 +345,8 @@ export default function Step2Equipment({
         </div>
 
         {/* Right Column: Walk-In / Same-Day & Next-Day Schedule Controls */}
-        <div className="lg:col-span-5 sm:col-span-12 space-y-4">
-          <div className="bg-white/95 backdrop-blur-md p-5 rounded-[28px] border border-slate-200/90 shadow-md space-y-4 sticky top-4">
+        <div className="lg:col-span-5 sm:col-span-12 space-y-4 relative z-50">
+          <div className="bg-white/95 backdrop-blur-md p-5 rounded-[28px] border border-slate-200/90 shadow-md space-y-4 sticky top-4 z-40">
             {/* Header */}
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h4 className="font-extrabold text-slate-900 text-xs uppercase tracking-wider">
@@ -416,9 +415,11 @@ export default function Step2Equipment({
                   <span>Borrow Release Start Time</span>
                   <span className="text-rose-500">*</span>
                 </label>
-                <CustomTimePicker
+                <input
+                  type="time"
                   value={startTimeVal}
-                  onChange={(newStartTime) => {
+                  onChange={(e) => {
+                    const newStartTime = e.target.value;
                     setStartTime && setStartTime(`${activeBorrowDate}T${newStartTime}`);
                     // Ensure end time is at least 1 hour after start time
                     const [sh, sm] = (newStartTime || "08:00").split(":").map(Number);
@@ -432,7 +433,7 @@ export default function Step2Equipment({
                       setEndTime && setEndTime(`${activeBorrowDate}T${nH}:${nM}`);
                     }
                   }}
-                  minuteStep={5}
+                  className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-sm font-extrabold text-slate-800 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 shadow-sm transition-all"
                 />
               </div>
 
@@ -441,12 +442,13 @@ export default function Step2Equipment({
                   <span>Expected Return Time</span>
                   <span className="text-rose-500">*</span>
                 </label>
-                <CustomTimePicker
+                <input
+                  type="time"
                   value={endTimeVal}
-                  onChange={(newEndTime) => {
-                    setEndTime && setEndTime(`${activeBorrowDate}T${newEndTime}`);
+                  onChange={(e) => {
+                    setEndTime && setEndTime(`${activeBorrowDate}T${e.target.value}`);
                   }}
-                  minuteStep={5}
+                  className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-sm font-extrabold text-slate-800 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 shadow-sm transition-all"
                 />
               </div>
 

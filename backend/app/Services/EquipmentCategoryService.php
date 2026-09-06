@@ -430,49 +430,9 @@ class EquipmentCategoryService
                 return;
             }
 
-            // 1. Sync damaged / lost statuses from inspections
-            if (Schema::hasTable('inspections')) {
-                $inspections = DB::table('inspections')
-                    ->whereNotNull('unit_conditions')
-                    ->select('unit_conditions', 'assigned_units', 'condition')
-                    ->get();
-
-                foreach ($inspections as $insp) {
-                    $rawConds = $insp->unit_conditions;
-                    if (is_string($rawConds)) {
-                        $rawConds = json_decode($rawConds, true);
-                    }
-                    $assigned = $insp->assigned_units;
-                    if (is_string($assigned)) {
-                        $assigned = json_decode($assigned, true);
-                    }
-                    if (!is_array($rawConds)) continue;
-
-                    foreach ($rawConds as $k => $cVal) {
-                        $cStr = strtolower(is_array($cVal) ? ($cVal['condition'] ?? $cVal['status'] ?? '') : (string)$cVal);
-                        if ($cStr === 'lost' || $cStr === 'damaged') {
-                            $uStatus = 'unavailable';
-                            $uCond = $cStr === 'lost' ? 'Lost' : 'Damaged';
-                            $uBar = is_array($assigned) ? ($assigned[$k] ?? null) : null;
-                            $keys = array_filter(array_unique([$k, $uBar]));
-
-                            if (!empty($keys)) {
-                                $nIds = array_values(array_filter($keys, fn($v) => is_numeric($v) && (int)$v > 0));
-                                $uCodes = array_values(array_filter($keys, fn($v) => !empty($v)));
-
-                                DB::table('equipment_units')
-                                    ->where(function($q) use ($uCodes, $nIds) {
-                                        $q->whereIn('barcode', $uCodes);
-                                        if (!empty($nIds)) {
-                                            $q->orWhereIn('id', array_map('intval', $nIds));
-                                        }
-                                    })
-                                    ->update(['status' => $uStatus, 'condition' => $uCond, 'updated_at' => now()]);
-                            }
-                        }
-                    }
-                }
-            }
+            // 1. Sync damaged / lost statuses from inspections has been removed 
+            // because InspectionController already updates the physical unit when the inspection is saved.
+            // Retroactively syncing all past inspections overwrites any manual administrative repairs/updates made afterwards.
 
             // 2. Collect all active assigned barcodes from equipment borrows and venue bookings
             $releasedBarcodes = [];

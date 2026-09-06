@@ -222,8 +222,8 @@ export default function SysadSettings() {
             <AcademicTermsTab showMsg={showMsg} />
           </div>
         )}
-        {mountedTabs.has("pin") && (
-          <div className={activeTab === "pin" ? "block" : "hidden"}>
+        {activeTab === "pin" && (
+          <div className="block">
             <VerificationPinTab showMsg={showMsg} />
           </div>
         )}

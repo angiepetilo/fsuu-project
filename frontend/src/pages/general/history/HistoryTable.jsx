@@ -65,11 +65,20 @@ export default function HistoryTable({
                   const timeRange = formatTimeRange(b.time_start, b.time_end);
                   const displayIndex = startIndex + idx + 1;
                   const st = (b.status || b.tracking_number?.status || "").toLowerCase();
+                  const noteStr = String(b.notes || b.inspection_notes || "").toLowerCase();
                   const isRejected = st === "rejected";
                   const isCancelled = st.includes("cancel");
+                  const hasDamage = b.has_damage === true || b.has_damage === 1 || b.has_damage === "1" || String(b.has_damage).toLowerCase() === "true";
+                  const hasViolation = b.violation === true || b.violation === 1 || b.violation === "1" || String(b.violation).toLowerCase() === "true" || (typeof b.violation === 'string' && b.violation.length > 0 && b.violation !== "null");
                   const isSolved = st === "solved";
-                  const isLate = Boolean(b.is_late) || b.is_late === 1 || b.is_late === "1" || b.is_late === true || st.includes("late") || (b.timeliness || "").toLowerCase().includes("late") || String(b.violation_type || "").toLowerCase().includes("late") || String(b.violation || "").toLowerCase().includes("late") || String(b.inspection_notes || "").toLowerCase().includes("late");
-                  const isBreach = st === "damaged" || Boolean(b.has_damage) || Boolean(b.violation) || (b.inspection_condition === "damaged");
+                  const isLate = Boolean(b.is_late) || b.is_late === 1 || b.is_late === "1" || b.is_late === true || st.includes("late") || (b.timeliness || "").toLowerCase().includes("late") || noteStr.includes("late return") || (b.violation_type || "").toLowerCase().includes("late");
+                  
+                  const isStrictlyLateOnly = isLate && (!hasDamage) && (!noteStr.includes("policy violation")) && (!noteStr.includes("damaged")) && (!noteStr.includes("lost")) && (b.inspection_condition !== "damaged");
+
+                  // Also check if notes contain 'satisfactory' or 'good condition' to strictly override breach unless explicit damage exists
+                  const isExplicitGood = noteStr.includes("satisfactory") || noteStr.includes("good condition");
+                  
+                  const isBreach = (!isExplicitGood) && (st === "damaged" || hasDamage || (hasViolation && !isStrictlyLateOnly) || (b.inspection_condition === "damaged") || (b.inspection_status === "violation") || noteStr.includes("policy violation") || noteStr.includes("damaged") || noteStr.includes("lost"));
 
                   return (
                     <tr key={`history-log-venue-${b.id || idx}-${idx}`} className="hover:bg-slate-50/60 transition-colors">
@@ -93,17 +102,17 @@ export default function HistoryTable({
                           <span className="font-mono text-xs font-bold text-blue-600 uppercase">
                             ● Solved
                           </span>
-                        ) : isLate ? (
-                          <span className="font-mono text-xs font-bold text-amber-600 uppercase">
-                            ● Late Return
-                          </span>
                         ) : isBreach ? (
-                          <span className="font-mono text-xs font-bold text-rose-600 uppercase">
+                          <span className="font-mono text-xs font-bold text-rose-600 uppercase" title={b.notes || b.inspection_notes}>
                             ● Policy Violation
                           </span>
+                        ) : isLate ? (
+                          <span className="font-mono text-xs font-bold text-amber-600 uppercase" title={b.notes || b.inspection_notes}>
+                            ● Late Return
+                          </span>
                         ) : (
-                          <span className="font-mono text-xs font-bold text-emerald-600 uppercase">
-                            ● Good
+                          <span className="font-mono text-xs font-bold text-emerald-600 uppercase" title={b.notes || b.inspection_notes}>
+                            ● Satisfactory
                           </span>
                         )}
                       </td>
@@ -180,11 +189,18 @@ export default function HistoryTable({
               const usageDate = formatDate(b.date_of_usage || b.date);
               const timeRange = formatTimeRange(b.time_start, b.time_end);
               const st = (b.status || b.tracking_number?.status || "").toLowerCase();
+              const noteStr = String(b.notes || b.inspection_notes || "").toLowerCase();
               const isRejected = st === "rejected";
               const isCancelled = st.includes("cancel");
+              const hasDamage = b.has_damage === true || b.has_damage === 1 || b.has_damage === "1" || String(b.has_damage).toLowerCase() === "true";
+              const hasViolation = b.violation === true || b.violation === 1 || b.violation === "1" || String(b.violation).toLowerCase() === "true";
               const isSolved = st === "solved";
-              const isLate = Boolean(b.is_late) || b.is_late === 1 || b.is_late === "1" || b.is_late === true || st.includes("late") || (b.timeliness || "").toLowerCase().includes("late") || String(b.violation_type || "").toLowerCase().includes("late") || String(b.violation || "").toLowerCase().includes("late") || String(b.inspection_notes || "").toLowerCase().includes("late");
-              const isBreach = st === "damaged" || Boolean(b.has_damage) || Boolean(b.violation) || (b.inspection_condition === "damaged");
+              
+              const isLate = Boolean(b.is_late) || b.is_late === 1 || b.is_late === "1" || b.is_late === true || st.includes("late") || (b.timeliness || "").toLowerCase().includes("late") || noteStr.includes("late return") || (b.violation_type || "").toLowerCase().includes("late");
+              
+              const isStrictlyLateOnly = isLate && (!hasDamage) && (!noteStr.includes("policy violation")) && (!noteStr.includes("damaged")) && (!noteStr.includes("lost")) && (b.inspection_condition !== "damaged");
+
+              const isBreach = st === "damaged" || hasDamage || (hasViolation && !isStrictlyLateOnly) || (b.inspection_condition === "damaged") || (b.inspection_status === "violation") || noteStr.includes("policy violation") || noteStr.includes("damaged") || noteStr.includes("lost");
 
               return (
                 <div key={`mob-v-${b.id || idx}`} className="p-4 space-y-2.5">
@@ -202,17 +218,17 @@ export default function HistoryTable({
                       <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-blue-50 text-blue-700 border border-blue-200">
                         Solved
                       </span>
-                    ) : isLate ? (
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-50 text-amber-800 border border-amber-200">
-                        Late Return
-                      </span>
                     ) : isBreach ? (
                       <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-50 text-rose-700 border border-rose-200">
                         Violation
                       </span>
+                    ) : isLate ? (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-50 text-amber-800 border border-amber-200">
+                        Late Return
+                      </span>
                     ) : (
                       <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                        Good
+                        Satisfactory
                       </span>
                     )}
                   </div>

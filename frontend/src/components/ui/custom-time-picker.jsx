@@ -120,8 +120,7 @@ export default function CustomTimePicker({
         onClick={() => !disabled && setIsOpen(!isOpen)}
         className={
           triggerClassName ||
-          `w-full flex items-center justify-between px-4 py-2.5 bg-slate-100/80 hover:bg-slate-100 border border-slate-200/80 rounded-full cursor-pointer transition-all text-left group ${
-            isOpen ? "ring-2 ring-blue-500 border-blue-400 bg-white" : ""
+          `w-full flex items-center justify-between px-4 py-2.5 bg-slate-100/80 hover:bg-slate-100 border border-slate-200/80 rounded-full cursor-pointer transition-all text-left group ${isOpen ? "ring-2 ring-blue-500 border-blue-400 bg-white" : ""
           } ${disabled ? "opacity-50 cursor-not-allowed" : ""}`
         }
       >
@@ -130,9 +129,8 @@ export default function CustomTimePicker({
         </span>
         <Clock
           size={15}
-          className={`transition-colors ${
-            isOpen ? "text-blue-600" : "text-slate-500 group-hover:text-slate-700"
-          }`}
+          className={`transition-colors ${isOpen ? "text-blue-600" : "text-slate-500 group-hover:text-slate-700"
+            }`}
         />
       </button>
 
@@ -165,11 +163,10 @@ export default function CustomTimePicker({
                       key={`h-${h}`}
                       type="button"
                       onClick={() => handleSelectHour(h)}
-                      className={`w-full py-1.5 rounded-lg text-xs font-mono font-extrabold transition-colors cursor-pointer ${
-                        isSelected
+                      className={`w-full py-1.5 rounded-lg text-xs font-mono font-extrabold transition-colors cursor-pointer ${isSelected
                           ? "bg-blue-600 text-white shadow-xs"
                           : "text-slate-700 hover:bg-slate-100"
-                      }`}
+                        }`}
                     >
                       {h}
                     </button>
@@ -191,11 +188,10 @@ export default function CustomTimePicker({
                       key={`m-${m}`}
                       type="button"
                       onClick={() => handleSelectMinute(m)}
-                      className={`w-full py-1.5 rounded-lg text-xs font-mono font-extrabold transition-colors cursor-pointer ${
-                        isSelected
+                      className={`w-full py-1.5 rounded-lg text-xs font-mono font-extrabold transition-colors cursor-pointer ${isSelected
                           ? "bg-blue-600 text-white shadow-xs"
                           : "text-slate-700 hover:bg-slate-100"
-                      }`}
+                        }`}
                     >
                       {m}
                     </button>
@@ -217,11 +213,10 @@ export default function CustomTimePicker({
                       key={`p-${p}`}
                       type="button"
                       onClick={() => handleSelectPeriod(p)}
-                      className={`w-full py-2.5 rounded-xl text-xs font-extrabold transition-colors cursor-pointer ${
-                        isSelected
+                      className={`w-full py-2.5 rounded-xl text-xs font-extrabold transition-colors cursor-pointer ${isSelected
                           ? "bg-blue-600 text-white shadow-xs"
                           : "text-slate-700 bg-slate-50 hover:bg-slate-100 border border-slate-100"
-                      }`}
+                        }`}
                     >
                       {p}
                     </button>

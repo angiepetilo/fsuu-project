@@ -63,6 +63,9 @@ class HistoryLogService
                 'inspections.condition as inspection_condition',
                 'inspections.notes as inspection_notes',
                 'inspections.evidence_photo as evidence_photo',
+                'inspections.is_late as is_late',
+                'inspections.timeliness as timeliness',
+                'inspections.minutes_late as minutes_late',
                 'inspections.violation_type as violation_type',
                 'inspections.assigned_units as assigned_units',
                 'inspections.unit_conditions as unit_conditions',
@@ -80,7 +83,13 @@ class HistoryLogService
             ->values()
             ->map(function ($b) {
                 $item = (array) $b;
-                $hasDamage = ($b->inspection_condition ?? '') === 'damaged' || strtolower($b->status ?? '') === 'damaged' || !empty($b->violation_type);
+                $isLate = !empty($b->is_late) || str_contains(strtolower($b->timeliness ?? ''), 'late') || str_contains(strtolower($b->violation_type ?? ''), 'late');
+                
+                // If violation_type is strictly "Late Return / Extension", do not treat it as physical damage unless condition is damaged.
+                $isStrictlyLate = $isLate && (strtolower($b->violation_type ?? '') === 'late return / extension' || strtolower($b->violation_type ?? '') === 'late return');
+                
+                $hasDamage = ($b->inspection_condition ?? '') === 'damaged' || strtolower($b->status ?? '') === 'damaged' || (!empty($b->violation_type) && !$isStrictlyLate);
+                
                 $violationText = $b->violation_type ?? ($hasDamage ? ($b->inspection_notes ?? 'Rule Violation / Damage Reported') : null);
 
                 $assignedUnits = $b->assigned_units ? (is_string($b->assigned_units) ? json_decode($b->assigned_units, true) : $b->assigned_units) : null;
@@ -98,10 +107,11 @@ class HistoryLogService
                 return array_merge($item, [
                     'record_type'        => 'venue',
                     'equipment_notes'    => $b->equipment_notes ?? '',
+                    'is_late'            => $isLate,
                     'has_damage'         => $hasDamage,
                     'has_violation'      => !empty($violationText),
                     'violation'          => $violationText,
-                    'violation_type'     => $b->violation_type ?? ($hasDamage ? 'Policy Breach Identified' : null),
+                    'violation_type'     => $b->violation_type ?? ($hasDamage ? 'Policy Breach Identified' : ($isLate ? 'Late Return' : null)),
                     'evidence_photo'     => $photoList[0] ?? null,
                     'evidence_photos'    => $photoList,
                     'endorsement_letter' => $b->endorsement_letter ?? null,

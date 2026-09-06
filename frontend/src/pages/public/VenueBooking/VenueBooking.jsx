@@ -404,7 +404,9 @@ export default function VenueBooking({ isPortal: isPortalProp }) {
 
   const handleDetailsSubmit = (e) => {
     e.preventDefault();
-    if (!isEmailVerified) {
+    const requireEmailVerify = pinRules ? (pinRules.isEnabled !== false && pinRules.venueVerifyEmail === true) : false;
+
+    if (requireEmailVerify && !isEmailVerified) {
       alert("Please verify your personal email address via OTP before proceeding to the next step.");
       return;
     }
@@ -587,6 +589,7 @@ export default function VenueBooking({ isPortal: isPortalProp }) {
             equipmentCatalog={equipmentCatalog}
             isEmailVerified={isEmailVerified}
             setIsEmailVerified={setIsEmailVerified}
+            pinRules={pinRules}
             onBack={() => setActiveStep(2)}
           />
         )}

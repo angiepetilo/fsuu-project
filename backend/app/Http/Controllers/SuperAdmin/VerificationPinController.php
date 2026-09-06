@@ -39,6 +39,10 @@ class VerificationPinController extends Controller
             'enableExternalEquipment'     => (bool) $setting->require_external,
             'requirePinForStudent'        => $setting->pin_mode === 'required',
             'pinMode'                     => $setting->pin_mode,
+            'venueVerifyEmail'            => (bool) $setting->venue_verify_email,
+            'venueVerifyPhone'            => (bool) $setting->venue_verify_phone,
+            'equipmentVerifyEmail'        => (bool) $setting->equipment_verify_email,
+            'equipmentVerifyPhone'        => (bool) $setting->equipment_verify_phone,
         ]);
     }
 
@@ -57,6 +61,10 @@ class VerificationPinController extends Controller
             'enableExternalEquipment'     => 'nullable|boolean',
             'requirePinForStudent'        => 'nullable|boolean',
             'pinMode'                     => 'nullable|string',
+            'venueVerifyEmail'            => 'nullable|boolean',
+            'venueVerifyPhone'            => 'nullable|boolean',
+            'equipmentVerifyEmail'        => 'nullable|boolean',
+            'equipmentVerifyPhone'        => 'nullable|boolean',
         ]);
 
         $setting = VerificationPinSetting::first();
@@ -101,6 +109,22 @@ class VerificationPinController extends Controller
             $setting->pin_mode = $validated['pinMode'];
         }
 
+        if (isset($validated['venueVerifyEmail'])) {
+            $setting->venue_verify_email = (bool) $validated['venueVerifyEmail'];
+        }
+
+        if (isset($validated['venueVerifyPhone'])) {
+            $setting->venue_verify_phone = (bool) $validated['venueVerifyPhone'];
+        }
+
+        if (isset($validated['equipmentVerifyEmail'])) {
+            $setting->equipment_verify_email = (bool) $validated['equipmentVerifyEmail'];
+        }
+
+        if (isset($validated['equipmentVerifyPhone'])) {
+            $setting->equipment_verify_phone = (bool) $validated['equipmentVerifyPhone'];
+        }
+
         $setting->save();
 
         return response()->json([
@@ -115,6 +139,10 @@ class VerificationPinController extends Controller
             'enableExternalEquipment'     => (bool) $setting->require_external,
             'requirePinForStudent'        => $setting->pin_mode === 'required',
             'pinMode'                     => $setting->pin_mode,
+            'venueVerifyEmail'            => (bool) $setting->venue_verify_email,
+            'venueVerifyPhone'            => (bool) $setting->venue_verify_phone,
+            'equipmentVerifyEmail'        => (bool) $setting->equipment_verify_email,
+            'equipmentVerifyPhone'        => (bool) $setting->equipment_verify_phone,
         ]);
     }
 
@@ -135,6 +163,10 @@ class VerificationPinController extends Controller
                 'enableExternalEquipment'     => true,
                 'requirePinForStudent'        => false,
                 'pinMode'                     => 'optional',
+                'venueVerifyEmail'            => true,
+                'venueVerifyPhone'            => false,
+                'equipmentVerifyEmail'        => true,
+                'equipmentVerifyPhone'        => false,
             ]);
         }
 
@@ -147,6 +179,10 @@ class VerificationPinController extends Controller
             'enableExternalEquipment'     => (bool) $setting->require_external,
             'requirePinForStudent'        => $setting->pin_mode === 'required',
             'pinMode'                     => $setting->pin_mode,
+            'venueVerifyEmail'            => (bool) $setting->venue_verify_email,
+            'venueVerifyPhone'            => (bool) $setting->venue_verify_phone,
+            'equipmentVerifyEmail'        => (bool) $setting->equipment_verify_email,
+            'equipmentVerifyPhone'        => (bool) $setting->equipment_verify_phone,
         ]);
     }
 

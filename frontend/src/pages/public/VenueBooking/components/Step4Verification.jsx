@@ -262,31 +262,33 @@ export default function Step4Verification({
             </label>
           </div>
 
-          {/* Action Buttons: Back and Submit */}
-          <div className="flex gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onBack && onBack()}
-              className="flex-1 border-slate-200 text-slate-700 hover:bg-slate-50 py-3.5 rounded-xl text-xs font-bold"
-            >
-              ← Back to Details
-            </Button>
-            <Button
-              onClick={handleVerifySubmit}
-              disabled={isSubmitting || !agreedToPolicy}
-              className="flex-[2] bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-3.5 rounded-xl text-xs shadow-md disabled:opacity-60 transition-all"
-            >
-              {isSubmitting ? "Submitting..." : "Submit Reservation Request"}
-            </Button>
-          </div>
-
           {/* Note Footer */}
           <p className="text-[11px] text-slate-400 font-medium text-center">
             Note: Should there be any problem please contact <span className="font-bold text-slate-600">{contactPhone}</span>.
           </p>
         </div>
 
+      </div>
+
+      {/* Action Buttons */}
+      <div className="pt-6 mt-6 border-t border-slate-100 flex items-center justify-between flex-wrap gap-4">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => onBack && onBack()}
+          className="border-slate-200 text-slate-700 hover:bg-slate-50 px-6 py-5 rounded-xl font-bold text-xs cursor-pointer"
+        >
+          ← Back to Details
+        </Button>
+
+        <Button
+          onClick={handleVerifySubmit}
+          disabled={isSubmitting || !agreedToPolicy}
+          className="bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-5 rounded-xl font-extrabold text-xs shadow-xl shadow-emerald-600/20 transition-all hover:scale-105 disabled:opacity-50 disabled:hover:scale-100 flex items-center gap-2 cursor-pointer"
+        >
+          <ShieldCheck size={18} />
+          <span>{isSubmitting ? "Submitting Request…" : "Submit Reservation Request"}</span>
+        </Button>
       </div>
 
       {/* Official Endorsement Letter Template Preview Modal */}

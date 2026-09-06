@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import api from "@/lib/axios";
 import { notify } from "@/lib/notify";
 import EndorsementLetterTemplateModal from "@/components/ui/EndorsementLetterTemplateModal";
+import ConfirmModal from "@/components/ui/ConfirmModal";
 
 export default function VerificationPinTab({
   pinConfig: externalPinConfig,
@@ -20,6 +21,10 @@ export default function VerificationPinTab({
     enableExternalEquipment: true,
     requirePinForStudent: false,
     pinMode: "optional",
+    venueVerifyEmail: true,
+    venueVerifyPhone: false,
+    equipmentVerifyEmail: true,
+    equipmentVerifyPhone: false,
   });
 
   const [pinLoading, setPinLoading] = useState(true);
@@ -28,6 +33,9 @@ export default function VerificationPinTab({
   const [showTemplateModal, setShowTemplateModal] = useState(false);
   const [selectedTemplateType, setSelectedTemplateType] = useState("organization");
   const [feedbackMsg, setFeedbackMsg] = useState(null);
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [originalPinSettings, setOriginalPinSettings] = useState(null);
 
   // Requirements state
   const [requirements, setRequirements] = useState([]);
@@ -41,6 +49,8 @@ export default function VerificationPinTab({
     label: "",
     description: "",
   });
+
+  const [confirmModalState, setConfirmModalState] = useState({ open: false, field: null });
 
   const fetchPinSettings = async () => {
     setPinLoading(true);
@@ -58,8 +68,13 @@ export default function VerificationPinTab({
           enableExternalEquipment: res.data.enableExternalEquipment !== false,
           requirePinForStudent: !!res.data.requirePinForStudent,
           pinMode: res.data.pinMode || "optional",
+          venueVerifyEmail: res.data.venueVerifyEmail !== false,
+          venueVerifyPhone: res.data.venueVerifyPhone === true,
+          equipmentVerifyEmail: res.data.equipmentVerifyEmail !== false,
+          equipmentVerifyPhone: res.data.equipmentVerifyPhone === true,
         };
         setPinSettings(loaded);
+        setOriginalPinSettings(loaded);
         if (setExternalPinConfig) {
           setExternalPinConfig(loaded);
         }
@@ -81,6 +96,14 @@ export default function VerificationPinTab({
         if (saved) {
           const parsed = JSON.parse(saved);
           setPinSettings(prev => ({
+            ...prev,
+            masterPin: parsed.pin || prev.masterPin,
+            requirePinOutsideHours: parsed.requireOutsideHours !== false,
+            requirePinMultiDayVenue: parsed.requireMultiDayVenue !== false,
+            enableExternalVenue: parsed.enableExternal !== false,
+            enableExternalEquipment: parsed.enableExternal !== false,
+          }));
+          setOriginalPinSettings(prev => ({
             ...prev,
             masterPin: parsed.pin || prev.masterPin,
             requirePinOutsideHours: parsed.requireOutsideHours !== false,
@@ -127,6 +150,10 @@ export default function VerificationPinTab({
         enableExternalEquipment: !!pinSettings.enableExternalEquipment,
         requirePinForStudent: false,
         pinMode: "optional",
+        venueVerifyEmail: !!pinSettings.venueVerifyEmail,
+        venueVerifyPhone: !!pinSettings.venueVerifyPhone,
+        equipmentVerifyEmail: !!pinSettings.equipmentVerifyEmail,
+        equipmentVerifyPhone: !!pinSettings.equipmentVerifyPhone,
       };
       if (pinSettings.masterPin && !pinSettings.masterPin.startsWith('$2y$')) {
         payload.masterPin = pinSettings.masterPin;
@@ -134,8 +161,13 @@ export default function VerificationPinTab({
 
       const res = await api.put("/general/verification-pin", payload);
       if (res.data) {
-        setPinSettings(prev => ({ ...prev, ...res.data, masterPin: payload.masterPin || prev.masterPin }));
+        const updated = { ...pinSettings, ...res.data, masterPin: payload.masterPin || pinSettings.masterPin };
+        setPinSettings(updated);
+        setOriginalPinSettings(updated);
+      } else {
+        setOriginalPinSettings(payload);
       }
+      setIsEditing(false);
 
       // Save local storage for instant sync across tabs
       try {
@@ -232,6 +264,14 @@ export default function VerificationPinTab({
     }
   };
 
+  const handleOtpSettingChange = (field, newValue) => {
+    if (newValue === false) {
+      setConfirmModalState({ open: true, field });
+      return;
+    }
+    setPinSettings(prev => ({ ...prev, [field]: newValue }));
+  };
+
   return (
     <div className="space-y-6">
       {/* Top Section: Verification PIN Settings & Trigger Checklist */}
@@ -244,11 +284,12 @@ export default function VerificationPinTab({
             </h3>
           </div>
 
-          <label className="inline-flex items-center gap-2 cursor-pointer text-xs font-medium text-slate-700">
+          <label className={`inline-flex items-center gap-2 text-xs font-medium text-slate-700 ${isEditing ? 'cursor-pointer' : 'cursor-default pointer-events-none'}`}>
             <input
               type="checkbox"
+              readOnly={!isEditing}
               checked={pinSettings.isEnabled !== false}
-              onChange={(e) => setPinSettings({ ...pinSettings, isEnabled: e.target.checked })}
+              onChange={(e) => { if (isEditing) setPinSettings({ ...pinSettings, isEnabled: e.target.checked }) }}
               className="w-4 h-4 text-blue-600 rounded border-slate-300"
             />
           </label>
@@ -272,7 +313,7 @@ export default function VerificationPinTab({
               type={showPin ? "text" : "password"}
               maxLength={6}
               value={pinSettings.masterPin || ""}
-              disabled={!pinSettings.isEnabled}
+              disabled={!isEditing || !pinSettings.isEnabled}
               onChange={(e) => {
                 const val = e.target.value.replace(/\D/g, "").slice(0, 6);
                 setPinSettings({ ...pinSettings, masterPin: val });
@@ -307,7 +348,7 @@ export default function VerificationPinTab({
 
           <div className="space-y-2.5">
             {/* Rule 1: External Users (Mandatory) */}
-            <label className="flex items-start justify-between p-3.5 bg-slate-50 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-100/70 transition-colors">
+            <label className={`flex items-start justify-between p-3.5 bg-slate-50 rounded-lg border border-slate-200 transition-colors ${isEditing ? 'cursor-pointer hover:bg-slate-100/70' : 'cursor-default'}`}>
               <div className="space-y-1 pr-4">
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-semibold text-slate-900">
@@ -320,18 +361,24 @@ export default function VerificationPinTab({
               </div>
               <input
                 type="checkbox"
+                readOnly={!isEditing}
                 checked={pinSettings.enableExternalVenue !== false && pinSettings.enableExternalEquipment !== false}
-                onChange={(e) => setPinSettings({
-                  ...pinSettings,
-                  enableExternalVenue: e.target.checked,
-                  enableExternalEquipment: e.target.checked,
-                })}
+                onClick={(e) => { if (!isEditing) e.preventDefault(); }}
+                onChange={(e) => {
+                  if (isEditing) {
+                    setPinSettings({
+                      ...pinSettings,
+                      enableExternalVenue: e.target.checked,
+                      enableExternalEquipment: e.target.checked,
+                    });
+                  }
+                }}
                 className="w-4 h-4 text-blue-600 rounded border-slate-300 mt-0.5"
               />
             </label>
 
             {/* Rule 2: Multi-Day Venue Bookings for Faculty & Students (Mandatory) */}
-            <label className="flex items-start justify-between p-3.5 bg-slate-50 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-100/70 transition-colors">
+            <label className={`flex items-start justify-between p-3.5 bg-slate-50 rounded-lg border border-slate-200 transition-colors ${isEditing ? 'cursor-pointer hover:bg-slate-100/70' : 'cursor-default'}`}>
               <div className="space-y-1 pr-4">
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-semibold text-slate-900">
@@ -344,14 +391,16 @@ export default function VerificationPinTab({
               </div>
               <input
                 type="checkbox"
+                readOnly={!isEditing}
                 checked={pinSettings.requirePinMultiDayVenue !== false}
-                onChange={(e) => setPinSettings({ ...pinSettings, requirePinMultiDayVenue: e.target.checked })}
+                onClick={(e) => { if (!isEditing) e.preventDefault(); }}
+                onChange={(e) => { if (isEditing) setPinSettings({ ...pinSettings, requirePinMultiDayVenue: e.target.checked }) }}
                 className="w-4 h-4 text-blue-600 rounded border-slate-300 mt-0.5"
               />
             </label>
 
             {/* Rule 3: Outside Campus Office Hours (Configurable) */}
-            <label className="flex items-start justify-between p-3.5 bg-slate-50 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-100/70 transition-colors">
+            <label className={`flex items-start justify-between p-3.5 bg-slate-50 rounded-lg border border-slate-200 transition-colors ${isEditing ? 'cursor-pointer hover:bg-slate-100/70' : 'cursor-default'}`}>
               <div className="space-y-1 pr-4">
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-semibold text-slate-900">
@@ -364,8 +413,104 @@ export default function VerificationPinTab({
               </div>
               <input
                 type="checkbox"
+                readOnly={!isEditing}
                 checked={pinSettings.requirePinOutsideHours !== false}
-                onChange={(e) => setPinSettings({ ...pinSettings, requirePinOutsideHours: e.target.checked })}
+                onClick={(e) => { if (!isEditing) e.preventDefault(); }}
+                onChange={(e) => { if (isEditing) setPinSettings({ ...pinSettings, requirePinOutsideHours: e.target.checked }) }}
+                className="w-4 h-4 text-blue-600 rounded border-slate-300 mt-0.5"
+              />
+            </label>
+          </div>
+        </div>
+
+        {/* Section 3: OTP Verification Settings */}
+        <div className={`space-y-3 pt-3 border-t border-slate-100 transition-opacity ${!pinSettings.isEnabled ? "opacity-40 pointer-events-none select-none" : ""}`}>
+          <div>
+            <h4 className="text-xs font-semibold text-slate-900">
+              OTP Verification Settings
+            </h4>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Enable or disable one-time password verification for email and phone numbers.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {/* Venue Email */}
+            <label className={`flex items-start justify-between p-3.5 bg-slate-50 rounded-lg border border-slate-200 transition-colors ${isEditing ? 'cursor-pointer hover:bg-slate-100/70' : 'cursor-default'}`}>
+              <div className="space-y-1 pr-4">
+                <span className="text-xs font-semibold text-slate-900 block">
+                  Venue Booking: Verify Email
+                </span>
+                <span className="text-[10px] text-slate-500 block">
+                  Requires 6-digit OTP code sent via email
+                </span>
+              </div>
+              <input
+                type="checkbox"
+                readOnly={!isEditing}
+                checked={pinSettings.venueVerifyEmail !== false}
+                onClick={(e) => { if (!isEditing) e.preventDefault(); }}
+                onChange={(e) => { if (isEditing) handleOtpSettingChange('venueVerifyEmail', e.target.checked) }}
+                className="w-4 h-4 text-blue-600 rounded border-slate-300 mt-0.5"
+              />
+            </label>
+            
+            {/* Venue Phone */}
+            <label className={`flex items-start justify-between p-3.5 bg-slate-50 rounded-lg border border-slate-200 transition-colors ${isEditing ? 'cursor-pointer hover:bg-slate-100/70' : 'cursor-default'}`}>
+              <div className="space-y-1 pr-4">
+                <span className="text-xs font-semibold text-slate-900 block">
+                  Venue Booking: Verify Phone
+                </span>
+                <span className="text-[10px] text-slate-500 block">
+                  Requires 6-digit OTP code sent via SMS
+                </span>
+              </div>
+              <input
+                type="checkbox"
+                readOnly={!isEditing}
+                checked={pinSettings.venueVerifyPhone === true}
+                onClick={(e) => { if (!isEditing) e.preventDefault(); }}
+                onChange={(e) => { if (isEditing) handleOtpSettingChange('venueVerifyPhone', e.target.checked) }}
+                className="w-4 h-4 text-blue-600 rounded border-slate-300 mt-0.5"
+              />
+            </label>
+
+            {/* Equipment Email */}
+            <label className={`flex items-start justify-between p-3.5 bg-slate-50 rounded-lg border border-slate-200 transition-colors ${isEditing ? 'cursor-pointer hover:bg-slate-100/70' : 'cursor-default'}`}>
+              <div className="space-y-1 pr-4">
+                <span className="text-xs font-semibold text-slate-900 block">
+                  Equipment Borrowing: Verify Email
+                </span>
+                <span className="text-[10px] text-slate-500 block">
+                  Requires 6-digit OTP code sent via email
+                </span>
+              </div>
+              <input
+                type="checkbox"
+                readOnly={!isEditing}
+                checked={pinSettings.equipmentVerifyEmail !== false}
+                onClick={(e) => { if (!isEditing) e.preventDefault(); }}
+                onChange={(e) => { if (isEditing) handleOtpSettingChange('equipmentVerifyEmail', e.target.checked) }}
+                className="w-4 h-4 text-blue-600 rounded border-slate-300 mt-0.5"
+              />
+            </label>
+            
+            {/* Equipment Phone */}
+            <label className={`flex items-start justify-between p-3.5 bg-slate-50 rounded-lg border border-slate-200 transition-colors ${isEditing ? 'cursor-pointer hover:bg-slate-100/70' : 'cursor-default'}`}>
+              <div className="space-y-1 pr-4">
+                <span className="text-xs font-semibold text-slate-900 block">
+                  Equipment Borrowing: Verify Phone
+                </span>
+                <span className="text-[10px] text-slate-500 block">
+                  Requires 6-digit OTP code sent via SMS
+                </span>
+              </div>
+              <input
+                type="checkbox"
+                readOnly={!isEditing}
+                checked={pinSettings.equipmentVerifyPhone === true}
+                onClick={(e) => { if (!isEditing) e.preventDefault(); }}
+                onChange={(e) => { if (isEditing) handleOtpSettingChange('equipmentVerifyPhone', e.target.checked) }}
                 className="w-4 h-4 text-blue-600 rounded border-slate-300 mt-0.5"
               />
             </label>
@@ -412,14 +557,36 @@ export default function VerificationPinTab({
         </div>
 
         {/* Save Settings Action */}
-        <div className="flex justify-end pt-3 border-t border-slate-100">
-          <button
-            type="submit"
-            disabled={saveLoading || pinLoading}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold transition-colors disabled:opacity-50"
-          >
-            {saveLoading ? "Saving..." : "Save Settings"}
-          </button>
+        <div className="flex justify-end pt-3 border-t border-slate-100 gap-2">
+          {!isEditing ? (
+            <button
+              type="button"
+              onClick={() => setIsEditing(true)}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold transition-colors"
+            >
+              Edit Settings
+            </button>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsEditing(false);
+                  if (originalPinSettings) setPinSettings(originalPinSettings);
+                }}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={saveLoading || pinLoading}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold transition-colors disabled:opacity-50"
+              >
+                {saveLoading ? "Saving..." : "Save Settings"}
+              </button>
+            </>
+          )}
         </div>
       </form>
 
@@ -618,6 +785,23 @@ export default function VerificationPinTab({
         initialType={selectedTemplateType}
         allowEdit={true}
         showTypeTabs={true}
+      />
+
+      <ConfirmModal
+        open={confirmModalState.open}
+        onClose={() => setConfirmModalState({ open: false, field: null })}
+        onConfirm={() => {
+          if (confirmModalState.field) {
+            setPinSettings(prev => ({ ...prev, [confirmModalState.field]: false }));
+          }
+          setConfirmModalState({ open: false, field: null });
+        }}
+        variant="warning"
+        title="Disable OTP Verification"
+        message={`Are you sure you want to disable OTP Verification for ${
+          confirmModalState.field?.startsWith('venue') ? 'Venue Booking' : 'Equipment Borrowing'
+        }?`}
+        confirmLabel="Yes, Disable"
       />
     </div>
   );

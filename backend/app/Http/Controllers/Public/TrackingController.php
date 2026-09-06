@@ -50,7 +50,7 @@ class TrackingController extends Controller
                 if (in_array($tracking->reservation_type, ['venue_booking'])) {
                     $booking = VenueBooking::with('venue', 'trackingNumber')->where('id', $tracking->reservation_id)->first();
                 } elseif (in_array($tracking->reservation_type, ['equipment_borrow', 'equipment_borrowing'])) {
-                    $booking = EquipmentBorrowing::with('items.equipmentType', 'trackingNumber')->find($tracking->reservation_id);
+                    $booking = EquipmentBorrow::with('items.equipmentType', 'trackingNumber')->find($tracking->reservation_id);
                 }
             }
         }
