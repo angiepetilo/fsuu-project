@@ -47,8 +47,20 @@ class StorePublicVenueBookingRequest extends FormRequest
     public function withValidator(Validator $validator): void
     {
         $validator->after(function ($validator) {
+            $settings = \App\Models\VerificationPinSetting::first();
+            $requirePhone = $settings ? $settings->venue_verify_phone : false;
+            $requireEmail = $settings ? $settings->venue_verify_email : true;
+
+            $phone = $this->input('requestor_contact_number');
+            if ($requirePhone && $phone && !\App\Models\PhoneVerification::isPhoneVerified($phone)) {
+                $validator->errors()->add(
+                    'requestor_contact_number',
+                    'The contact phone number provided has not been verified via SMS OTP. Please complete mobile verification before submitting.'
+                );
+            }
+
             $email = $this->input('requestor_email');
-            if ($email && !EmailVerification::isEmailVerified($email)) {
+            if ($requireEmail && $email && !\App\Models\EmailVerification::isEmailVerified($email)) {
                 $validator->errors()->add(
                     'requestor_email',
                     'The email address provided has not been verified via OTP. Please complete email verification before submitting.'

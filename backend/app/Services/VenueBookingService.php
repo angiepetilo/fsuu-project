@@ -328,43 +328,7 @@ class VenueBookingService
             $timeEnd = $booking->time_end ?: '17:00:00';
             $myClaim = $booking->claim_timestamp ?: $booking->created_at ?: now();
 
-            // SPEC RULE 3: APPROVAL RESOLUTION — EARLIEST COMPLETE CLAIM WINS
-            // Check if another competing pending request is COMPLETE and has an EARLIER claim timestamp.
-            $earlierCompleteClaim = VenueBooking::query()
-                ->join('tracking_numbers', 'venue_bookings.tracking_number_id', '=', 'tracking_numbers.id')
-                ->where('venue_bookings.venue_id', $venueId)
-                ->where('venue_bookings.id', '!=', $booking->id)
-                ->where('tracking_numbers.status', 'pending')
-                ->where('venue_bookings.is_complete', true)
-                ->where(function ($q) use ($rawDate, $rawEndDate, $timeStart, $timeEnd) {
-                    $q->where(function ($sub) use ($rawDate, $timeStart, $timeEnd) {
-                        $sub->where('venue_bookings.date_of_usage', '<=', $rawDate)
-                            ->whereRaw('COALESCE(venue_bookings.reservation_end_date, venue_bookings.date_of_usage) >= ?', [$rawDate])
-                            ->where('venue_bookings.time_start', '<', $timeEnd)
-                            ->where('venue_bookings.time_end', '>', $timeStart);
-                    })->orWhere(function ($sub2) use ($rawDate, $rawEndDate, $timeStart, $timeEnd) {
-                        $sub2->where('venue_bookings.date_of_usage', '<=', $rawEndDate)
-                            ->whereRaw('COALESCE(venue_bookings.reservation_end_date, venue_bookings.date_of_usage) >= ?', [$rawDate])
-                            ->where('venue_bookings.time_start', '<', $timeEnd)
-                            ->where('venue_bookings.time_end', '>', $timeStart);
-                    });
-                })
-                ->where(function ($q) use ($myClaim, $booking) {
-                    $q->where('venue_bookings.claim_timestamp', '<', $myClaim)
-                      ->orWhere(function($sub) use ($myClaim, $booking) {
-                          $sub->where('venue_bookings.claim_timestamp', '=', $myClaim)
-                              ->where('venue_bookings.id', '<', $booking->id); // Tie-break by submission sequence
-                      });
-                })
-                ->select('venue_bookings.*', 'tracking_numbers.reference_code as tracking_ref')
-                ->first();
-
-            if ($earlierCompleteClaim) {
-                $earlierRef = $earlierCompleteClaim->tracking_ref ?: "TRK-AVR-{$earlierCompleteClaim->id}";
-                throw new BookingActionNotAllowedException(
-                    "Cannot approve: An earlier complete reservation request ({$earlierRef}) with priority claim timestamp exists for this venue and timeslot. Earliest complete claim must be resolved first."
-                );
-            }
+            // SPEC RULE 3 (FCFS block) removed: Admin is allowed to choose which pending request to approve.
 
             // Approve current booking
             if (\Illuminate\Support\Facades\Schema::hasColumn('venue_bookings', 'status')) {
@@ -485,7 +449,7 @@ class VenueBookingService
 
                 $this->auditLog->log(
                     $actor,
-                    'VENUE_BOOKING_AUTO_REJECTED_DUE_TO_CONFLICT',
+                    'VENUE_BOOKING_REJECTED',
                     'venue_bookings',
                     $competing->id,
                     [
@@ -693,10 +657,16 @@ class VenueBookingService
                 try { $unitConditions = json_decode($unitConditions, true); } catch (\Throwable $t) { $unitConditions = []; }
             }
 
+            $explicitClean = ($data['inspection_status'] ?? '') === 'clean';
+
             // Determine overall room booking outcome (damaged if violation reported, else completed)
-            $newStatus = (!empty($data['has_damage']) || ($data['status'] ?? '') === 'damaged' || ($data['inspection_status'] ?? '') === 'violation' || ($data['condition'] ?? '') === 'damaged')
-                ? 'damaged'
-                : 'completed';
+            if ($explicitClean) {
+                $newStatus = 'completed';
+            } else {
+                $newStatus = (!empty($data['has_damage']) || ($data['status'] ?? '') === 'damaged' || ($data['inspection_status'] ?? '') === 'violation' || ($data['condition'] ?? '') === 'damaged')
+                    ? 'damaged'
+                    : 'completed';
+            }
 
             if (\Illuminate\Support\Facades\Schema::hasColumn('venue_bookings', 'status')) {
                 $booking->forceFill(['status' => $newStatus])->save();
@@ -729,13 +699,17 @@ class VenueBookingService
                 }
             } catch (\Throwable $e) {}
 
+            // If the user explicitly clicked "Good Condition" on the frontend, they want to override any automatic violation or late return.
+            $explicitClean = ($data['inspection_status'] ?? '') === 'clean';
+
             if (isset($data['is_late'])) {
                 $isLate = filter_var($data['is_late'], FILTER_VALIDATE_BOOLEAN);
             } else if (isset($data['timeliness'])) {
                 $isLate = ($data['timeliness'] === 'late');
             } else {
-                $isLate = $isLateCalculated;
+                $isLate = $explicitClean ? false : $isLateCalculated;
             }
+            
             $timeliness = $isLate ? 'late' : 'on_time';
             if (!$isLate) {
                 $minutesLate = 0;
@@ -752,9 +726,19 @@ class VenueBookingService
                     })
                     ->first();
 
-                $condition = ($newStatus === 'damaged' || !empty($data['has_damage'])) ? 'damaged' : ($data['condition'] ?? 'good');
+                if ($explicitClean) {
+                    $condition = 'good';
+                } else {
+                    $condition = ($newStatus === 'damaged' || !empty($data['has_damage'])) ? 'damaged' : ($data['condition'] ?? 'good');
+                }
                 $photo = $data['evidence_photo'] ?? $data['evidence_image'] ?? null;
-                $violationType = $data['violation_type'] ?? ($isLate ? 'Late Return / Extension' : ($condition === 'damaged' ? 'Physical Facility / Equipment Damage' : null));
+                
+                // Fix for violationType when explicit clean is chosen:
+                if ($explicitClean) {
+                    $violationType = null;
+                } else {
+                    $violationType = array_key_exists('violation_type', $data) ? $data['violation_type'] : ($isLate ? 'Late Return / Extension' : ($condition === 'damaged' ? 'Physical Facility / Equipment Damage' : null));
+                }
                 $notes = $data['notes'] ?? $data['remarks'] ?? ($isLate ? "Completed {$minutesLate} minutes after scheduled end." : ($condition === 'damaged' ? 'Venue equipment damage reported.' : 'Inspection completed on time.'));
 
                 $actorId = $actor->id ?? null;

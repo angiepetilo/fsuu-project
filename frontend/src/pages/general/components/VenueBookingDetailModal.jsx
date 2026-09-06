@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { X, CheckCircle, Clock, Play, FileCheck, Check, Loader2, ShieldAlert } from "lucide-react";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { useAuth } from "@/context/AuthContext";
@@ -42,13 +42,22 @@ export default function VenueBookingDetailModal({
 
   const [savingInspection, setSavingInspection] = useState(false);
   const [inspectionSuccessMsg, setInspectionSuccessMsg] = useState(null);
-  const [selectedViolationType, setSelectedViolationType] = useState("Facility or Property Damage");
+  const [selectedViolationType, setSelectedViolationType] = useState("");
   const [fullImageModal, setFullImageModal] = useState(null);
+
+  const rejectFormRef = useRef(null);
+  useEffect(() => {
+    if (showRejectForm && rejectFormRef.current) {
+      setTimeout(() => {
+        rejectFormRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+      }, 100);
+    }
+  }, [showRejectForm]);
 
   // Pre-Event Inspection State
   const [preInspectionStatus, setPreInspectionStatus] = useState("clean");
   const [preViolationNotes, setPreViolationNotes] = useState("");
-  const [preSelectedViolationType, setPreSelectedViolationType] = useState("Facility or Property Damage");
+  const [preSelectedViolationType, setPreSelectedViolationType] = useState("");
   const [preEvidencePhoto, setPreEvidencePhoto] = useState([]);
   const [preEquipmentInspectionNotes, setPreEquipmentInspectionNotes] = useState("");
   const [equipmentInspectionNotes, setEquipmentInspectionNotes] = useState("");
@@ -108,7 +117,7 @@ export default function VenueBookingDetailModal({
     setViolationOptions(updated);
     localStorage.setItem("fsuu_violation_types", JSON.stringify(updated));
     if (selectedViolationType === optionToDelete) {
-      setSelectedViolationType(updated[0] || "Facility or Property Damage");
+      setSelectedViolationType(updated[0] || "");
     }
   };
 
@@ -144,6 +153,14 @@ export default function VenueBookingDetailModal({
 
   // Fetch existing persisted inspection record, full booking details, & unit selections when modal opens
   useEffect(() => {
+    const sanitizeViolation = (val) => {
+      if (!val) return "";
+      let str = val;
+      str = str.replace(/Physical Facility \/ Furniture Damage/gi, "Property Damaged");
+      str = str.replace(/Facility or Property Damage/gi, "Property Damaged");
+      return Array.from(new Set(str.split(",").map(s => s.trim()).filter(Boolean))).join(", ");
+    };
+
     if (selected && selected.id) {
       const statusLower = (selected.status || selected.tracking_number?.status || "").toLowerCase();
       const isDamagedStatus = statusLower === "damaged" || statusLower === "violation" || Boolean(selected.has_damage) || Boolean(selected.violation);
@@ -151,7 +168,7 @@ export default function VenueBookingDetailModal({
       
       setInspectionStatus(isDamagedStatus ? "violation" : "clean");
       setViolationNotes(cleanNotes);
-      setSelectedViolationType(selected.violation_type || selected.violation || "Physical Facility / Furniture Damage");
+      setSelectedViolationType(sanitizeViolation(selected.violation_type || selected.violation || ""));
       setEvidencePhoto(selected.evidence_photo || selected.evidence_image || null);
       setDamagedUnitBarcodes({});
       setDamagedEqQty(1);
@@ -219,7 +236,7 @@ export default function VenueBookingDetailModal({
               const match = existingNotes.match(/^\[(.*?)\](.*)/);
               if (match) {
                 if (!postUse.violation_type && match[1]) {
-                  setSelectedViolationType(match[1]);
+                  setSelectedViolationType(sanitizeViolation(match[1]));
                 }
                 existingNotes = match[2].trim();
                 if (existingNotes === "Post-event inspection breach.") {
@@ -227,7 +244,7 @@ export default function VenueBookingDetailModal({
                 }
               }
             } else if (postUse.violation_type) {
-              setSelectedViolationType(postUse.violation_type);
+              setSelectedViolationType(sanitizeViolation(postUse.violation_type));
             }
             
             setViolationNotes(existingNotes);
@@ -874,7 +891,44 @@ export default function VenueBookingDetailModal({
     // 1. Trigger final reconciliation (Good -> Released -1, Available +1; Damaged -> Released -1, Damaged +1; Lost -> Released -1, Lost +1)
     syncInspectedUnitsToInventory(true);
 
-    const hasDamagedOrLost = Object.values(unitReturnedConditions || {}).some(c => c === "Damaged" || c === "Lost");
+    const hasDamagedOrLost = Object.values(unitReturnedConditions || {}).some(c => {
+      const val = typeof c === 'object' ? c.condition : c;
+      return val === "Damaged" || val === "Lost";
+    });
+
+    // Build smart note for accurate reporting
+    const defaultNotes = [
+      "Satisfactory Condition (Clean Room)",
+      "Satisfactory",
+      "Satisfactory condition recorded. No policy breach notes.",
+      `[${selectedViolationType}] Post-event inspection breach.`
+    ];
+    
+    let venuePart = inspectionStatus === "violation" ? `Policy Violation: ${selectedViolationType}` : "Satisfactory";
+    let eqPart = "";
+    if (Object.keys(unitReturnedConditions || {}).length > 0) {
+      let eqCounts = { Good: 0, Damaged: 0, Lost: 0 };
+      Object.values(unitReturnedConditions).forEach(cond => {
+         let c = typeof cond === 'object' ? cond.condition : cond;
+         c = c ? (c.charAt(0).toUpperCase() + c.slice(1).toLowerCase()) : "Good";
+         if (eqCounts[c] !== undefined) eqCounts[c]++;
+         else eqCounts[c] = 1;
+      });
+      let eqDetails = [];
+      if (eqCounts.Good > 0) eqDetails.push(`${eqCounts.Good} Good`);
+      if (eqCounts.Damaged > 0) eqDetails.push(`${eqCounts.Damaged} Damaged`);
+      if (eqCounts.Lost > 0) eqDetails.push(`${eqCounts.Lost} Lost`);
+      if (eqDetails.length > 0) {
+         eqPart = ` | Eq: ${eqDetails.join(", ")}`;
+      }
+    }
+    
+    let remarksPart = "";
+    if (violationNotes && !defaultNotes.includes(violationNotes)) {
+       remarksPart = ` - Remarks: ${violationNotes}`;
+    }
+    
+    let smartNote = venuePart + eqPart + remarksPart;
 
     // 2. Persist the final inspection outcome silently in background
     if (isPostInspection) {
@@ -886,7 +940,7 @@ export default function VenueBookingDetailModal({
         inspection_type: "post_event",
         condition: hasDamagedOrLost ? "damaged" : "good",
         violation_type: inspectionStatus === "violation" ? selectedViolationType : null,
-        notes: violationNotes || (inspectionStatus === "clean" ? "Satisfactory Condition (Clean Room)" : `[${selectedViolationType}] Post-event inspection breach.`),
+        notes: smartNote,
         equipment_notes: equipmentInspectionNotes,
         evidence_photos: evidencePhoto,
         evidence_photo: evidencePhoto,
@@ -904,7 +958,7 @@ export default function VenueBookingDetailModal({
       violation_type: inspectionStatus === "violation" ? selectedViolationType : null,
       evidence_photos: evidencePhoto,
       evidence_photo: evidencePhoto,
-      notes: violationNotes || (inspectionStatus === "clean" ? "Satisfactory Condition (Clean Room)" : `[${selectedViolationType}] Post-event inspection breach.`),
+      notes: smartNote,
       equipment_notes: equipmentInspectionNotes,
       assigned_units: assignedUnitSelections,
       unit_conditions: normalizeUnitConditions(unitReturnedConditions, assignedUnitSelections)
@@ -1086,7 +1140,7 @@ export default function VenueBookingDetailModal({
 
           {/* Reject Form Drawer */}
           {showRejectForm && (
-            <div className="p-4 bg-white border border-rose-200 rounded-xl space-y-3 animate-in fade-in shadow-2xs">
+            <div ref={rejectFormRef} className="p-4 bg-white border border-rose-200 rounded-xl space-y-3 animate-in fade-in shadow-2xs">
               <label className="block text-xs font-bold text-slate-900">Reason for Rejection *</label>
               
               <select

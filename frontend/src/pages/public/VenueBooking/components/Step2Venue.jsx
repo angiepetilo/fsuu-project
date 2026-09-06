@@ -1,7 +1,6 @@
 import { MapPin, ChevronLeft, ChevronRight, Clock, Calendar as CalendarIcon, CalendarDays, CheckCircle2, AlertTriangle, Building2, DollarSign, Search, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
-import CustomTimePicker from "@/components/ui/custom-time-picker";
 import { useState, useEffect } from "react";
 import api from "@/lib/axios";
 import { getTodayISO, isPastDate, isPastTimeToday, isPastDateTime } from "@/lib/dateTimeUtils";
@@ -561,13 +560,13 @@ export default function Step2Venue({
         </div>
 
         {/* Right Column: Date & Time Selection Panel as per Screenshot 1 */}
-        <div className="lg:col-span-5 sm:col-span-12 space-y-2">
+        <div className="lg:col-span-5 sm:col-span-12 space-y-2 relative z-50">
           {/* Operating Schedule Notice - Green text matching Screenshot 1 */}
           <p className="text-center text-xs font-semibold text-emerald-600 mb-2">
             Operating Schedule: {dynamicSchedule}
           </p>
 
-          <div className="bg-white p-5 sm:p-6 rounded-[28px] border border-slate-200/90 shadow-sm space-y-4 sticky top-4">
+          <div className="bg-white p-5 sm:p-6 rounded-[28px] border border-slate-200/90 shadow-sm space-y-4 sticky top-4 z-40">
 
             {/* Panel Header */}
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
@@ -780,19 +779,21 @@ export default function Step2Venue({
             <div className="grid grid-cols-2 gap-3 pt-1">
               <div className="space-y-1.5">
                 <label className="text-xs font-extrabold text-slate-800 block">Time Start *</label>
-                <CustomTimePicker
+                <input
+                  type="time"
                   value={timeStart || "08:00"}
-                  onChange={(val) => setTimeStart(val)}
-                  minuteStep={5}
+                  onChange={(e) => setTimeStart(e.target.value)}
+                  className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-sm font-extrabold text-slate-800 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 shadow-sm transition-all"
                 />
               </div>
 
               <div className="space-y-1.5">
                 <label className="text-xs font-extrabold text-slate-800 block">Time End *</label>
-                <CustomTimePicker
+                <input
+                  type="time"
                   value={timeEnd || "10:00"}
-                  onChange={(val) => setTimeEnd(val)}
-                  minuteStep={5}
+                  onChange={(e) => setTimeEnd(e.target.value)}
+                  className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-sm font-extrabold text-slate-800 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 shadow-sm transition-all"
                 />
               </div>
             </div>

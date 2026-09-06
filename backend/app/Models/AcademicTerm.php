@@ -42,7 +42,7 @@ class AcademicTerm extends Model
 
     public function equipmentBorrowings(): HasMany
     {
-        return $this->hasMany(EquipmentBorrowing::class, 'academic_term_id');
+        return $this->hasMany(EquipmentBorrow::class, 'academic_term_id');
     }
 
     public function closedByUser(): BelongsTo

@@ -95,7 +95,7 @@ export default function EquipmentBorrowings() {
     if (!isSilent) setIsSyncing(true);
     setError(null);
     try {
-      const res = await api.get("/admin/equipment-borrows");
+      const res = await api.get("/avr-equipment-borrowings");
       const data = res.data?.data ?? (Array.isArray(res.data) ? res.data : []);
       setBorrowings(data);
     } catch {

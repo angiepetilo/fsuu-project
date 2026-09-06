@@ -28,8 +28,14 @@ export default function Step3Details({
   equipmentRemarks, setEquipmentRemarks,
   isEmailVerified = false,
   setIsEmailVerified,
+  pinRules,
   onBack,
 }) {
+  const isSystemEnabled = pinRules ? pinRules.isEnabled !== false : false;
+  const requireEmailVerify = pinRules ? (pinRules.isEnabled !== false && pinRules.venueVerifyEmail === true) : false;
+  // Note: Phone verify is currently not implemented in the frontend. It is just a placeholder setting.
+  const requirePhoneVerify = pinRules ? (pinRules.isEnabled !== false && pinRules.venueVerifyPhone === true) : false;
+
   const [requirements, setRequirements] = useState([]);
   const [departmentsList, setDepartmentsList] = useState([]);
   const [equipmentCatalog, setEquipmentCatalog] = useState([]);
@@ -366,13 +372,13 @@ export default function Step3Details({
             <input 
               type="email" 
               required 
-              readOnly={isEmailVerified}
+              readOnly={requireEmailVerify && isEmailVerified}
               value={email} 
               onChange={handleEmailChange}
               onBlur={handleEmailBlur}
               placeholder="example@gmail.com" 
-              className={`w-full p-3 pr-24 border rounded-xl text-sm transition-all focus:outline-none ${
-                isEmailVerified 
+              className={`w-full p-3 ${requireEmailVerify ? 'pr-24' : ''} border rounded-xl text-sm transition-all focus:outline-none ${
+                (requireEmailVerify && isEmailVerified)
                   ? "bg-emerald-50/40 border-emerald-300 text-slate-800 font-semibold cursor-not-allowed" 
                   : emailCheckStatus === "invalid"
                     ? "bg-white border-rose-300 focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10 text-slate-900"
@@ -383,46 +389,48 @@ export default function Step3Details({
             />
 
             {/* Attached Action Button inside field */}
-            <div className="absolute right-1.5 flex items-center gap-1">
-              {isEmailVerified ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (setIsEmailVerified) setIsEmailVerified(false);
-                    setEmailCheckStatus("idle");
-                    setEmailCheckMessage("");
-                  }}
-                  className="px-2.5 py-1.5 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg text-[11px] font-bold text-slate-600 transition-colors shadow-2xs cursor-pointer flex items-center gap-1"
-                  title="Unlock and change email address"
-                >
-                  <Edit3 size={11} />
-                  Change
-                </button>
-              ) : (
-                <Button
-                  type="button"
-                  size="sm"
-                  disabled={emailCheckStatus !== "valid" || isSendingOtp}
-                  onClick={handleRequestOtp}
-                  className={`h-8 px-3 rounded-lg text-xs font-black shadow-xs transition-all cursor-pointer ${
-                    emailCheckStatus === "valid"
-                      ? "bg-blue-600 hover:bg-blue-700 text-white shadow-blue-600/20"
-                      : "bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed shadow-none"
-                  }`}
-                >
-                  {isSendingOtp ? (
-                    <span className="flex items-center gap-1">
-                      <Loader2 size={12} className="animate-spin" />
-                      Sending...
-                    </span>
-                  ) : isOtpRequested ? (
-                    "Resend"
-                  ) : (
-                    "Verify"
-                  )}
-                </Button>
-              )}
-            </div>
+            {requireEmailVerify && (
+              <div className="absolute right-1.5 flex items-center gap-1">
+                {isEmailVerified ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (setIsEmailVerified) setIsEmailVerified(false);
+                      setEmailCheckStatus("idle");
+                      setEmailCheckMessage("");
+                    }}
+                    className="px-2.5 py-1.5 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg text-[11px] font-bold text-slate-600 transition-colors shadow-2xs cursor-pointer flex items-center gap-1"
+                    title="Unlock and change email address"
+                  >
+                    <Edit3 size={11} />
+                    Change
+                  </button>
+                ) : (
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={emailCheckStatus !== "valid" || isSendingOtp}
+                    onClick={handleRequestOtp}
+                    className={`h-8 px-3 rounded-lg text-xs font-black shadow-xs transition-all cursor-pointer ${
+                      emailCheckStatus === "valid"
+                        ? "bg-blue-600 hover:bg-blue-700 text-white shadow-blue-600/20"
+                        : "bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed shadow-none"
+                    }`}
+                  >
+                    {isSendingOtp ? (
+                      <span className="flex items-center gap-1">
+                        <Loader2 size={12} className="animate-spin" />
+                        Sending...
+                      </span>
+                    ) : isOtpRequested ? (
+                      "Resend"
+                    ) : (
+                      "Verify"
+                    )}
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Part 1 Inline Domain Feedback */}
@@ -870,7 +878,7 @@ export default function Step3Details({
           </Button>
 
           <div className="flex items-center gap-3">
-            {!isEmailVerified && (
+            {requireEmailVerify && !isEmailVerified && (
               <span className="text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-xl hidden sm:inline-flex items-center gap-1.5">
                 <AlertCircle size={13} />
                 Email OTP verification required to proceed
@@ -878,9 +886,9 @@ export default function Step3Details({
             )}
             <Button 
               type="submit" 
-              disabled={!isEmailVerified}
+              disabled={requireEmailVerify && !isEmailVerified}
               className={`px-8 py-5 rounded-xl font-extrabold text-white text-xs shadow-lg transition-all ${
-                isEmailVerified 
+                (!requireEmailVerify || isEmailVerified) 
                   ? "bg-blue-600 hover:bg-blue-700 shadow-blue-600/20 cursor-pointer" 
                   : "bg-slate-300 text-slate-500 cursor-not-allowed shadow-none"
               }`}

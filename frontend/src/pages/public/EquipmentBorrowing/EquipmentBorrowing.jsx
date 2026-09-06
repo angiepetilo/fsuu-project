@@ -91,7 +91,7 @@ export default function EquipmentBorrowing({ isPortal: isPortalProp }) {
   const [placeOfUse, setPlaceOfUse] = useState("");
   const [handlerName, setHandlerName] = useState("");
   const [endorsementFile, setEndorsementFile] = useState(null);
-  const [isPhoneVerified, setIsPhoneVerified] = useState(false);
+  const [isEmailVerified, setIsEmailVerified] = useState(false);
   const [referenceCode, setReferenceCode] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [contactNumber, setContactNumber] = useState("");
@@ -311,8 +311,10 @@ export default function EquipmentBorrowing({ isPortal: isPortalProp }) {
 
   const handleDetailsSubmit = (e) => {
     e.preventDefault();
-    if (!isPhoneVerified) {
-      alert("Please verify your contact phone number via SMS OTP before proceeding to the next step.");
+    const requireEmailVerify = pinRules ? (pinRules.isEnabled !== false && pinRules.equipmentVerifyEmail === true) : false;
+
+    if (requireEmailVerify && !isEmailVerified) {
+      alert("Please verify your email address via OTP before proceeding to the next step.");
       return;
     }
     if (!completedSteps.includes(3)) setCompletedSteps([...completedSteps, 3]);
@@ -486,8 +488,9 @@ export default function EquipmentBorrowing({ isPortal: isPortalProp }) {
             purpose={purpose} setPurpose={setPurpose}
             notificationChannel={notificationChannel} setNotificationChannel={setNotificationChannel}
             campusBranch={campusBranch} setCampusBranch={setCampusBranch}
-            isPhoneVerified={isPhoneVerified}
-            setIsPhoneVerified={setIsPhoneVerified}
+            isEmailVerified={isEmailVerified}
+            setIsEmailVerified={setIsEmailVerified}
+            pinRules={pinRules}
             onBack={() => setActiveStep(2)}
           />
         )}

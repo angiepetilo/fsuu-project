@@ -42,6 +42,8 @@ class EquipmentBorrowingService
             $firstName = $data['first_name'] ?? null;
             $lastName = $data['last_name'] ?? null;
 
+            $borrowDate = isset($data['start_datetime']) ? substr($data['start_datetime'], 0, 10) : (isset($data['date_of_usage']) ? $data['date_of_usage'] : now()->toDateString());
+
             if (!empty($applicantEmail) || (!empty($firstName) && !empty($lastName))) {
                 $existingActiveBorrow = DB::table('equipment_borrows')
                     ->join('tracking_numbers', 'equipment_borrows.tracking_number_id', '=', 'tracking_numbers.id')
@@ -57,7 +59,7 @@ class EquipmentBorrowingService
                             });
                         }
                     })
-                    ->where('equipment_borrows.borrow_date', $borrowDate)
+                    ->where('equipment_borrows.date_of_usage', $borrowDate)
                     ->select('tracking_numbers.reference_code', 'tracking_numbers.status')
                     ->first();
 
@@ -172,7 +174,7 @@ class EquipmentBorrowingService
                 if ($hasCol('attachment')) $insertData['attachment'] = $data['endorsement_url'];
             }
 
-            $borrowing = EquipmentBorrowing::forceCreate($insertData);
+            $borrowing = EquipmentBorrow::forceCreate($insertData);
 
             if ($trackingId) {
                 DB::table('tracking_numbers')->where('id', $trackingId)->update(['reservation_id' => $borrowing->id]);

@@ -72,7 +72,7 @@ class OtpController extends Controller
                 ->join('tracking_numbers', 'equipment_borrows.tracking_number_id', '=', 'tracking_numbers.id')
                 ->whereIn('tracking_numbers.status', ['pending', 'approved', 'ongoing', 'on-going'])
                 ->where('equipment_borrows.email_address', $email)
-                ->where('equipment_borrows.borrow_date', $request->input('borrow_date'))
+                ->where('equipment_borrows.date_of_usage', $request->input('borrow_date'))
                 ->select('tracking_numbers.reference_code', 'tracking_numbers.status')
                 ->first();
 

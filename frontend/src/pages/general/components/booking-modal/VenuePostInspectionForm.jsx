@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { CheckCircle2, AlertTriangle, ShieldCheck, FileCheck, Loader2, Plus, X } from "lucide-react";
+import { CheckCircle2, AlertTriangle, ShieldCheck, FileCheck, Loader2, Plus, X, Edit, Trash2 } from "lucide-react";
 import InspectionPhotoUploader from "@/components/ui/InspectionPhotoUploader";
 import { getOverdueMinutes, formatOverdueDuration } from "@/lib/dateTimeUtils";
 import api from "@/lib/axios";
@@ -34,6 +34,7 @@ export default function VenuePostInspectionForm({
   minutesLate = 0,
 }) {
   const [categories, setCategories] = useState(violationTypesList);
+  const [dbCategories, setDbCategories] = useState([]);
   const [showAddCustom, setShowAddCustom] = useState(false);
   const [newCatInput, setNewCatInput] = useState("");
   const [savingNewCat, setSavingNewCat] = useState(false);
@@ -44,10 +45,12 @@ export default function VenuePostInspectionForm({
     api.get("/general/violation-categories")
       .then((res) => {
         if (!isMounted) return;
-        const fetched = Array.isArray(res.data) ? res.data.map(c => c.name) : [];
-        if (fetched.length > 0) {
+        const fetchedList = Array.isArray(res.data) ? res.data : [];
+        setDbCategories(fetchedList);
+        const fetchedNames = fetchedList.map(c => c.name);
+        if (fetchedNames.length > 0) {
           // Merge unique categories with defaults
-          const merged = Array.from(new Set([...DEFAULT_VIOLATION_TYPES, ...fetched]));
+          const merged = Array.from(new Set([...DEFAULT_VIOLATION_TYPES, ...fetchedNames]));
           setCategories(merged);
         }
       })
@@ -70,21 +73,62 @@ export default function VenuePostInspectionForm({
 
     setSavingNewCat(true);
     try {
-      await api.post("/general/violation-categories", { name: cleanName });
+      const res = await api.post("/general/violation-categories", { name: cleanName });
+      setDbCategories(prev => [...prev, res.data]);
       setCategories((prev) => Array.from(new Set([...prev, cleanName])));
-      if (setSelectedViolationType) setSelectedViolationType(cleanName);
       setNewCatInput("");
-      setShowAddCustom(false);
     } catch {
       // If already exists or error, still set locally
       setCategories((prev) => Array.from(new Set([...prev, cleanName])));
-      if (setSelectedViolationType) setSelectedViolationType(cleanName);
       setNewCatInput("");
-      setShowAddCustom(false);
     } finally {
       setSavingNewCat(false);
     }
   };
+
+  const handleDeleteCategory = async (catName) => {
+    const catObj = dbCategories.find(c => c.name === catName);
+    try {
+      if (catObj && catObj.id) {
+        await api.delete(`/general/violation-categories/${catObj.id}`);
+        setDbCategories(prev => prev.filter(c => c.id !== catObj.id));
+      }
+      setCategories(prev => prev.filter(c => c !== catName));
+      
+      // Remove from selection if present
+      if (selectedViolationType && selectedViolationType.includes(catName)) {
+        const arr = selectedViolationType.split(",").map(s => s.trim()).filter(c => c !== catName && c !== "");
+        if (setSelectedViolationType) setSelectedViolationType(arr.join(", "));
+      }
+    } catch (e) {
+      console.error("Failed to delete category", e);
+      // Even if API fails (e.g. for a hardcoded default), remove it from the UI
+      setCategories(prev => prev.filter(c => c !== catName));
+      if (selectedViolationType && selectedViolationType.includes(catName)) {
+        const arr = selectedViolationType.split(",").map(s => s.trim()).filter(c => c !== catName && c !== "");
+        if (setSelectedViolationType) setSelectedViolationType(arr.join(", "));
+      }
+    }
+  };
+
+  // Checkbox state helper
+  const selectedCatsArray = selectedViolationType ? selectedViolationType.split(",").map(s => s.trim()).filter(Boolean) : [];
+  
+  const handleToggleCategory = (catName) => {
+    if (isHistoryView) return;
+    let newArr;
+    if (selectedCatsArray.includes(catName)) {
+      newArr = selectedCatsArray.filter(c => c !== catName);
+    } else {
+      newArr = [...selectedCatsArray, catName];
+    }
+    if (setSelectedViolationType) {
+      setSelectedViolationType(newArr.join(", "));
+    }
+  };
+
+  // Determine if remarks should be shown
+  const showRemarks = inspectionStatus === "clean" || selectedCatsArray.some(c => c.toLowerCase().includes("other"));
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 p-4 space-y-4 shadow-xs font-sans">
@@ -128,7 +172,7 @@ export default function VenuePostInspectionForm({
             onClick={() => {
               if (setInspectionStatus) setInspectionStatus("clean");
               if (setViolationNotes && (!violationNotes || violationNotes.toLowerCase().includes("breach") || violationNotes.toLowerCase().includes("damage") || violationNotes.toLowerCase().includes("violation"))) {
-                setViolationNotes("Good Condition (Clean Room)");
+                setViolationNotes("Satisfactory Condition (Clean Room)");
               }
             }}
             className={`p-2.5 rounded-xl border text-xs font-bold transition-all cursor-pointer flex items-center justify-center ${
@@ -137,7 +181,7 @@ export default function VenuePostInspectionForm({
                 : "border-slate-200 bg-white text-slate-500 hover:text-slate-700 hover:border-slate-300"
             } ${isHistoryView ? "cursor-not-allowed opacity-80" : ""}`}
           >
-            <span className="font-bold">Good Condition</span>
+            <span className="font-bold">Satisfactory</span>
           </button>
 
           <button
@@ -145,7 +189,7 @@ export default function VenuePostInspectionForm({
             disabled={isHistoryView}
             onClick={() => {
               if (setInspectionStatus) setInspectionStatus("violation");
-              if (setViolationNotes && (violationNotes === "Good Condition (Clean Room)" || violationNotes === "Satisfactory condition recorded. No policy breach notes.")) {
+              if (setViolationNotes && (violationNotes === "Satisfactory Condition (Clean Room)" || violationNotes === "Satisfactory condition recorded. No policy breach notes.")) {
                 setViolationNotes("");
               }
               if (!selectedViolationType && setSelectedViolationType) {
@@ -165,7 +209,7 @@ export default function VenuePostInspectionForm({
 
       {/* Violation Type Section */}
       {inspectionStatus === "violation" && (
-        <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2.5 text-xs">
+        <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2.5 text-xs transition-all">
           <div className="flex items-center justify-between">
             <label className="block text-[11px] font-bold text-slate-700">
               Violation Category *
@@ -174,31 +218,49 @@ export default function VenuePostInspectionForm({
               <button
                 type="button"
                 onClick={() => setShowAddCustom(!showAddCustom)}
-                className="text-[11px] font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 cursor-pointer"
+                className="text-[11px] font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 cursor-pointer transition-colors"
               >
-                {showAddCustom ? <X size={12} /> : <Plus size={12} />}
-                <span>{showAddCustom ? "Cancel" : "Add Category"}</span>
+                {showAddCustom ? <X size={12} /> : <Edit size={12} />}
+                <span>{showAddCustom ? "Done Editing" : "Edit Category"}</span>
               </button>
             )}
           </div>
 
           {showAddCustom && !isHistoryView && (
-            <div className="flex items-center gap-2 p-2 bg-white rounded-lg border border-blue-200 shadow-2xs">
-              <input
-                type="text"
-                placeholder="Enter custom violation name..."
-                value={newCatInput}
-                onChange={(e) => setNewCatInput(e.target.value)}
-                className="flex-1 px-2.5 py-1 text-xs border border-slate-200 rounded focus:outline-none focus:border-blue-600"
-              />
-              <button
-                type="button"
-                disabled={savingNewCat || !newCatInput.trim()}
-                onClick={handleAddCustomCategory}
-                className="px-3 py-1 bg-blue-600 text-white rounded text-xs font-bold hover:bg-blue-700 disabled:opacity-50 cursor-pointer"
-              >
-                {savingNewCat ? "Saving..." : "Add"}
-              </button>
+            <div className="p-3 bg-white rounded-lg border border-blue-200 shadow-2xs space-y-3 mb-2 animate-in fade-in zoom-in-95 duration-200">
+              <div className="space-y-1 max-h-40 overflow-y-auto pr-1">
+                {categories.map((cat, idx) => (
+                   <div key={`edit-cat-${idx}`} className="flex justify-between items-center text-xs p-1.5 hover:bg-slate-50 rounded border border-transparent hover:border-slate-200 transition-colors">
+                      <span className="font-semibold text-slate-600">{cat}</span>
+                      <button 
+                        type="button" 
+                        onClick={() => handleDeleteCategory(cat)} 
+                        className="text-slate-500 hover:text-rose-600 cursor-pointer p-1 rounded hover:bg-rose-50 transition-colors flex items-center gap-1 font-bold"
+                        title="Remove Category"
+                      >
+                          <Trash2 size={12} />
+                          <span>Remove</span>
+                      </button>
+                   </div>
+                ))}
+              </div>
+              <div className="flex items-center gap-2 border-t border-slate-100 pt-3">
+                <input
+                  type="text"
+                  placeholder="Enter custom violation name..."
+                  value={newCatInput}
+                  onChange={(e) => setNewCatInput(e.target.value)}
+                  className="flex-1 px-2.5 py-1.5 text-xs border border-slate-200 rounded focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
+                />
+                <button
+                  type="button"
+                  disabled={savingNewCat || !newCatInput.trim()}
+                  onClick={handleAddCustomCategory}
+                  className="px-3 py-1.5 bg-blue-600 text-white rounded text-xs font-bold hover:bg-blue-700 disabled:opacity-50 cursor-pointer flex items-center gap-1 transition-colors shadow-xs"
+                >
+                  {savingNewCat ? "..." : <><Plus size={12}/> Add</>}
+                </button>
+              </div>
             </div>
           )}
 
@@ -207,40 +269,50 @@ export default function VenuePostInspectionForm({
               {selectedViolationType || "Policy Violation Identified"}
             </div>
           ) : (
-            <select
-              value={selectedViolationType || "Property Damaged"}
-              onChange={(e) => setSelectedViolationType && setSelectedViolationType(e.target.value)}
-              className="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 focus:outline-none focus:border-blue-600 cursor-pointer"
-            >
-              {categories.map((vType, idx) => (
-                <option key={`v-opt-${idx}`} value={vType}>
-                  {vType}
-                </option>
-              ))}
-            </select>
+            <div className="space-y-2 mt-2 max-h-48 overflow-y-auto">
+              {categories.map((vType, idx) => {
+                const isChecked = selectedCatsArray.includes(vType);
+                return (
+                  <label key={`v-opt-${idx}`} className="flex items-center gap-2.5 cursor-pointer p-2 hover:bg-white rounded-lg border border-transparent hover:border-slate-200 hover:shadow-2xs transition-all">
+                    <input 
+                      type="checkbox" 
+                      checked={isChecked}
+                      onChange={() => handleToggleCategory(vType)}
+                      className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer"
+                    />
+                    <span className={`text-xs font-semibold ${isChecked ? 'text-blue-700' : 'text-slate-700'}`}>{vType}</span>
+                  </label>
+                );
+              })}
+            </div>
           )}
         </div>
       )}
 
-      {/* Notes */}
-      <div className="space-y-1.5">
-        <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider">
-          Remarks
-        </label>
-        {isHistoryView ? (
-          <div className="p-3 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-800 min-h-[60px]">
-            {violationNotes || "Good condition recorded. No policy violation notes."}
-          </div>
-        ) : (
-          <textarea
-            rows={3}
-            placeholder="Provide additional details regarding facility turnover or policy notes..."
-            value={violationNotes || ""}
-            onChange={(e) => setViolationNotes && setViolationNotes(e.target.value)}
-            className="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-800 focus:outline-none focus:border-blue-600 transition-all"
-          />
-        )}
-      </div>
+      {/* Notes (Conditional when violation) */}
+      {showRemarks && (
+        <div className="space-y-1.5 animate-in fade-in slide-in-from-top-2 duration-300">
+          <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider">
+            Remarks
+          </label>
+          {isHistoryView ? (
+            <div className="p-3 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-800 min-h-[60px]">
+              <span className="font-bold">Inspection Result Notes:</span>
+              <p className="text-emerald-700 italic mt-0.5">
+                {violationNotes || "Satisfactory condition recorded. No policy violation notes."}
+              </p>
+            </div>
+          ) : (
+            <textarea
+              rows={3}
+              placeholder="Provide additional details regarding facility turnover or policy notes..."
+              value={violationNotes || ""}
+              onChange={(e) => setViolationNotes && setViolationNotes(e.target.value)}
+              className="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-800 focus:outline-none focus:border-blue-600 transition-all"
+            />
+          )}
+        </div>
+      )}
 
       {/* Evidence Photos */}
       <div className="space-y-1.5">
@@ -274,3 +346,4 @@ export default function VenuePostInspectionForm({
     </div>
   );
 }
+
