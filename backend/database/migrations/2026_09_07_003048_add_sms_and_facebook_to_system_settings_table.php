@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::table('system_settings', function (Blueprint $table) {
             $table->string('sms_api_key')->nullable();
             $table->string('sms_api_url')->nullable();
-            $table->string('facebook_url')->nullable();
+            $table->string('facebook_url')->nullable()->default('https://www.facebook.com/fsuubutuan');
         });
     }
 

@@ -102,6 +102,7 @@ class SystemSetting extends Model
                             'smtp_encryption'                => env('MAIL_ENCRYPTION', 'tls'),
                             'mail_from_address'              => env('MAIL_FROM_ADDRESS', 'support.booking@fsuu.edu.ph'),
                             'mail_from_name'                 => env('MAIL_FROM_NAME', 'FSUU Facilities & Equipment Booking'),
+                            'facebook_url'                   => 'https://www.facebook.com/fsuubutuan',
                         ]);
                     }
                 } catch (\Throwable $e) {
@@ -115,6 +116,7 @@ class SystemSetting extends Model
                         'auto_shift_tomorrow_after_hours'=> true,
                         'allow_advance_equipment_booking'=> true,
                         'max_items_per_borrow'           => 5,
+                        'facebook_url'                   => 'https://www.facebook.com/fsuubutuan',
                     ]);
                 }
                 return $settings;
@@ -130,6 +132,7 @@ class SystemSetting extends Model
                 'auto_shift_tomorrow_after_hours'=> true,
                 'allow_advance_equipment_booking'=> true,
                 'max_items_per_borrow'           => 5,
+                'facebook_url'                   => 'https://www.facebook.com/fsuubutuan',
             ]);
         }
     }
