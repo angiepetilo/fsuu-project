@@ -10,6 +10,7 @@ import {
 import { PageLoader } from "@/components/ui/page-loader";
 import { formatDate, formatTime, formatTimeRange } from "@/lib/dateUtils";
 import HistoryTable from "./history/HistoryTable";
+import ConfirmModal from "@/components/ui/ConfirmModal";
 
 const VenueBookingDetailModal = lazy(() => import("./components/VenueBookingDetailModal"));
 const EquipmentBorrowDetailModal = lazy(() => import("./components/EquipmentBorrowDetailModal"));
@@ -96,6 +97,7 @@ export default function HistoryLog() {
   const [feedback, setFeedback] = useState(null);
   const [activeMenuId, setActiveMenuId] = useState(null);
   const [activeMenuEl, setActiveMenuEl] = useState(null);
+  const [confirmModal, setConfirmModal] = useState({ open: false, action: null, payload: null, title: "", message: "", variant: "warning", confirmLabel: "Confirm" });
 
   // Fetch academic terms list once
   useEffect(() => {
@@ -209,25 +211,49 @@ export default function HistoryLog() {
     }
   }, [location.search, location.state, venueHistory, equipmentHistory]);
 
-  const handleUndoHistory = async (id, refCode, type) => {
-    if (confirm(`Restore record "${refCode}" back to active ON-GOING status?`)) {
-      try {
-        await api.post(`/general/history-log/undo`, { id, type });
-        if (type === "venue") {
-          setVenueHistory((prev) => prev.filter((v) => v.id !== id));
-        } else {
-          setEquipmentHistory((prev) => prev.filter((e) => e.id !== id));
-        }
-        setFeedback(`Record "${refCode}" restored back to ON-GOING status.`);
-        setTimeout(() => setFeedback(null), 3000);
-      } catch {
-        alert("Failed to restore history record.");
+  const handleUndoHistory = (id, refCode, type, currentStatus) => {
+    const isCancelledOrRejected = ["rejected", "cancelled", "cancelled_by_user"].includes(currentStatus || "");
+    const targetStatus = isCancelledOrRejected ? "PENDING" : "ON-GOING";
+
+    setConfirmModal({
+      open: true,
+      action: "undo",
+      payload: { id, refCode, type, targetStatus },
+      title: "Undo History Record",
+      message: `Restore record "${refCode}" back to active ${targetStatus} status?`,
+      variant: "save",
+      confirmLabel: "Yes, Undo"
+    });
+  };
+
+  const processUndoHistory = async ({ id, refCode, type, targetStatus }) => {
+    try {
+      await api.post(`/general/history-log/undo`, { id, type });
+      if (type === "venue") {
+        setVenueHistory((prev) => prev.filter((v) => v.id !== id));
+      } else {
+        setEquipmentHistory((prev) => prev.filter((e) => e.id !== id));
       }
+      setFeedback(`Record "${refCode}" restored back to ${targetStatus} status.`);
+      setTimeout(() => setFeedback(null), 3000);
+    } catch {
+      alert("Failed to restore history record.");
     }
   };
 
-  const handleDeleteHistory = async (id, refCode, type) => {
-    if (!confirm(`Disable history record "${refCode}"? It will be hidden from the list.`)) return;
+  const handleDeleteHistory = (id, refCode, type) => {
+    setConfirmModal({
+      open: true,
+      action: "disable",
+      payload: { id, refCode, type },
+      title: "Disable History Record",
+      message: `Disable history record "${refCode}"? It will be hidden from the list.`,
+      variant: "delete",
+      confirmLabel: "Yes, Disable"
+    });
+  };
+
+  const processDeleteHistory = async ({ id, refCode, type }) => {
     // ── OPTIMISTIC UPDATE ────────────────────────────────────────────────────────────────────────────────
     const prevVenue = venueHistory;
     const prevEquip = equipmentHistory;
@@ -541,6 +567,20 @@ export default function HistoryLog() {
           />
         )}
       </Suspense>
+
+      <ConfirmModal
+        open={confirmModal.open}
+        onClose={() => setConfirmModal({ ...confirmModal, open: false })}
+        onConfirm={() => {
+          setConfirmModal({ ...confirmModal, open: false });
+          if (confirmModal.action === "undo") processUndoHistory(confirmModal.payload);
+          if (confirmModal.action === "disable") processDeleteHistory(confirmModal.payload);
+        }}
+        variant={confirmModal.variant}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        confirmLabel={confirmModal.confirmLabel}
+      />
     </div>
   );
 }

@@ -148,7 +148,7 @@ export default function HistoryTable({
                           </button>
                           <button
                             type="button"
-                            onClick={() => { handleUndoHistory(b.id, refCode, "venue"); setActiveMenuId(null); setActiveMenuEl(null); }}
+                            onClick={() => { handleUndoHistory(b.id, refCode, "venue", st); setActiveMenuId(null); setActiveMenuEl(null); }}
                             className="w-full text-left px-3 py-1.5 rounded-lg hover:bg-slate-100 text-slate-700 flex items-center gap-2 cursor-pointer font-bold"
                           >
                             <RotateCcw size={13} className="text-slate-600" /> Undo
@@ -253,7 +253,7 @@ export default function HistoryTable({
 
                     <button
                       type="button"
-                      onClick={() => handleUndoHistory(b.id, refCode, "venue")}
+                      onClick={() => handleUndoHistory(b.id, refCode, "venue", st)}
                       className="min-h-[40px] px-3 py-2 border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-bold flex items-center justify-center gap-1 shadow-2xs cursor-pointer"
                       title="Undo"
                     >
@@ -442,7 +442,7 @@ export default function HistoryTable({
 
                           <button
                             type="button"
-                            onClick={() => { handleUndoHistory(b.id, refCode, "equipment"); setActiveMenuId(null); setActiveMenuEl(null); }}
+                            onClick={() => { handleUndoHistory(b.id, refCode, "equipment", st); setActiveMenuId(null); setActiveMenuEl(null); }}
                             className="w-full text-left px-3 py-1.5 rounded-lg hover:bg-slate-100 text-slate-700 flex items-center gap-2 cursor-pointer font-bold"
                           >
                             <RotateCcw size={13} className="text-slate-600" /> Undo
@@ -546,7 +546,7 @@ export default function HistoryTable({
 
                     <button
                       type="button"
-                      onClick={() => handleUndoHistory(b.id, refCode, "equipment")}
+                      onClick={() => handleUndoHistory(b.id, refCode, "equipment", st)}
                       className="min-h-[40px] px-3 py-2 border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-bold flex items-center justify-center gap-1 shadow-2xs cursor-pointer"
                       title="Undo"
                     >

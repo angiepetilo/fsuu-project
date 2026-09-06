@@ -25,7 +25,7 @@ const STATUS_CONFIGS = {
   under_repair:      "bg-amber-50 text-amber-700 border-amber-300 font-extrabold hover:bg-amber-100",
   
   rejected:          "bg-rose-50 text-rose-700 border-rose-300 font-extrabold hover:bg-rose-100",
-  cancelled:         "bg-slate-100 text-slate-600 border-slate-300 font-medium hover:bg-slate-200",
+  cancelled:         "bg-rose-50 text-rose-700 border-rose-300 font-extrabold hover:bg-rose-100",
   damaged:           "bg-rose-100 text-rose-800 border-rose-300 font-extrabold hover:bg-rose-200",
   unavailable:       "bg-slate-100 text-slate-700 border-slate-300 font-extrabold hover:bg-slate-200",
   lost:              "bg-red-900 text-white border-red-950 font-black hover:bg-red-950",

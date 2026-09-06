@@ -215,11 +215,11 @@ class EquipmentCategoryService
                     ->whereNull('archived_at')
                     ->where(function($q) {
                         $q->where(function($sub) {
-                            $sub->whereIn(DB::raw('LOWER(`status`)'), ['damaged', 'maintenance', 'unavailable'])
-                                ->orWhereIn(DB::raw('LOWER(`condition`)'), ['damaged', 'maintenance', 'worn', 'under repair']);
+                            $sub->whereIn(DB::raw('LOWER(status)'), ['damaged', 'maintenance', 'unavailable'])
+                                ->orWhereIn(DB::raw('LOWER(condition)'), ['damaged', 'maintenance', 'worn', 'under repair']);
                         })
-                        ->whereNotIn(DB::raw("LOWER(COALESCE(`condition`, 'good'))"), ['lost', 'decommissioned'])
-                        ->whereNotIn(DB::raw("LOWER(COALESCE(`status`, 'available'))"), ['lost', 'decommissioned']);
+                        ->whereNotIn(DB::raw("LOWER(COALESCE(condition, 'good'))"), ['lost', 'decommissioned'])
+                        ->whereNotIn(DB::raw("LOWER(COALESCE(status, 'available'))"), ['lost', 'decommissioned']);
                     })
                     ->count();
 
