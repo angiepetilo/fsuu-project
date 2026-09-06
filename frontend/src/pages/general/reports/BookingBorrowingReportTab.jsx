@@ -95,6 +95,24 @@ export default function BookingBorrowingReportTab({
   };
 
   const renderStatusAndInspectionNote = (record, defaultStatus) => {
+    const s = String(defaultStatus || record.status || "").toUpperCase();
+    
+    if (s === "REJECTED" || s === "CANCELLED") {
+      const reason = record.rejection_reason || record.remarks || record.notes || "";
+      return (
+        <div className="flex flex-col items-center justify-center gap-1 max-w-[220px] mx-auto text-center py-1">
+          <span className={`text-[11px] font-bold ${s === "REJECTED" ? "text-rose-600" : "text-amber-600"}`}>
+            {s === "REJECTED" ? "Rejected" : "Cancelled"}
+          </span>
+          {reason && (
+             <span className="text-[10px] text-slate-500 font-medium italic leading-tight" title={reason}>
+               {reason.length > 50 ? reason.substring(0, 50) + "..." : reason}
+             </span>
+          )}
+        </div>
+      );
+    }
+
     let rawNote =
       record.inspection_notes ||
       record.notes ||

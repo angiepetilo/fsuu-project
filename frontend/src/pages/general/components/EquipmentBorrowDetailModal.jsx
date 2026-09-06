@@ -58,11 +58,12 @@ export default function EquipmentBorrowDetailModal({
   // Post-Use Inspection State
   const [inspectionStatus, setInspectionStatus] = useState("clean");
   const [unitReturnedConditions, setUnitReturnedConditions] = useState({});
-  const [timeliness, setTimeliness] = useState("on_time");
   const [violationNotes, setViolationNotes] = useState("");
   const [evidencePhoto, setEvidencePhoto] = useState([]);
+  const [timeliness, setTimeliness] = useState("on_time"); // "on_time", "late"
   const [savingInspection, setSavingInspection] = useState(false);
   const [inspectionSuccessMsg, setInspectionSuccessMsg] = useState(null);
+  const [initialPostState, setInitialPostState] = useState(null);
 
   // Pre-Use Inspection State
   const [preInspectionStatus, setPreInspectionStatus] = useState("clean");
@@ -212,6 +213,7 @@ export default function EquipmentBorrowDetailModal({
       setUnitReturnedConditions({});
       setPreEvidencePhoto([]);
       setEvidencePhoto([]);
+      setInitialPostState(null);
 
       const overdueMins = getOverdueMinutes(
         selected.date_of_usage || selected.start_datetime,
@@ -314,6 +316,14 @@ export default function EquipmentBorrowDetailModal({
               photoList = [rawPhoto];
             }
             setEvidencePhoto(photoList);
+
+            setInitialPostState({
+              status: postUse.condition === "damaged" || postUse.condition === "violation" ? "violation" : "clean",
+              timeliness: postUse.timeliness || "on_time",
+              notes: postUse.notes || "",
+              conditions: JSON.stringify(ucData || {}),
+              photos: JSON.stringify(photoList || [])
+            });
           }
 
           if (preUse) {
@@ -1000,36 +1010,50 @@ export default function EquipmentBorrowDetailModal({
               <div className="flex items-center justify-between border-b border-slate-100 pb-2">
                 <span className="text-xs font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
                   <FileText size={15} className="text-blue-600" />
-                  Post-Equipment Return Inspection
                 </span>
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                   Check item condition &amp; return timeliness
                 </span>
               </div>
-              <EquipBorrowInspectionForm
-                isPreRelease={false}
-                inspectionStatus={inspectionStatus}
-                setInspectionStatus={setInspectionStatus}
-                timeliness={timeliness}
-                setTimeliness={setTimeliness}
-                categoriesToRender={categoriesToRender}
-                assignedUnitSelections={assignedUnitSelections}
-                physicalUnits={physicalUnits}
-                unitReturnedConditions={unitReturnedConditions}
-                setUnitReturnedConditions={setUnitReturnedConditions}
-                violationNotes={violationNotes}
-                setViolationNotes={setViolationNotes}
-                evidencePhoto={evidencePhoto}
-                setEvidencePhoto={setEvidencePhoto}
-                onPreviewPhoto={(url) => setFullImageModal(url)}
-                savingInspection={savingInspection}
-                handleSaveInspection={(e) => handleSaveInspection(e, "post_use")}
-                inspectionSuccessMsg={inspectionSuccessMsg}
-                readOnly={isCompleted}
-                scheduledDate={selected.date_of_usage || selected.start_datetime}
-                scheduledTime={selected.time_end || selected.end_datetime}
-                minutesLate={selected.minutes_late || selected.inspection?.minutes_late || 0}
-              />
+              
+              {(() => {
+                const currentConditionsStr = JSON.stringify(unitReturnedConditions);
+                const currentPhotosStr = JSON.stringify(evidencePhoto);
+                const hasInspectionChanges = !initialPostState || (
+                   inspectionStatus !== initialPostState.status ||
+                   timeliness !== initialPostState.timeliness ||
+                   violationNotes !== initialPostState.notes ||
+                   currentConditionsStr !== initialPostState.conditions ||
+                   currentPhotosStr !== initialPostState.photos
+                );
+                return (
+                  <EquipBorrowInspectionForm
+                    isPreRelease={false}
+                    inspectionStatus={inspectionStatus}
+                    setInspectionStatus={setInspectionStatus}
+                    timeliness={timeliness}
+                    setTimeliness={setTimeliness}
+                    categoriesToRender={categoriesToRender}
+                    assignedUnitSelections={assignedUnitSelections}
+                    physicalUnits={physicalUnits}
+                    unitReturnedConditions={unitReturnedConditions}
+                    setUnitReturnedConditions={setUnitReturnedConditions}
+                    violationNotes={violationNotes}
+                    setViolationNotes={setViolationNotes}
+                    evidencePhoto={evidencePhoto}
+                    setEvidencePhoto={setEvidencePhoto}
+                    onPreviewPhoto={(url) => setFullImageModal(url)}
+                    savingInspection={savingInspection}
+                    handleSaveInspection={(e) => handleSaveInspection(e, "post_use")}
+                    inspectionSuccessMsg={inspectionSuccessMsg}
+                    readOnly={isCompleted}
+                    hasChanges={hasInspectionChanges}
+                    scheduledDate={selected.date_of_usage || selected.start_datetime}
+                    scheduledTime={selected.time_end || selected.end_datetime}
+                    minutesLate={selected.minutes_late || selected.inspection?.minutes_late || 0}
+                  />
+                );
+              })()}
             </div>
           ) : isOngoing ? (
             <div className="pt-2 border-t border-slate-200">

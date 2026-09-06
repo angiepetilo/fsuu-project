@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { X, CheckCircle, Clock, Play, FileCheck, Check, Loader2, ShieldAlert } from "lucide-react";
+import { X, CheckCircle, Clock, Play, FileCheck, Check, Loader2, ShieldAlert, Edit, Trash2, Plus } from "lucide-react";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { useAuth } from "@/context/AuthContext";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -44,6 +44,7 @@ export default function VenueBookingDetailModal({
   const [inspectionSuccessMsg, setInspectionSuccessMsg] = useState(null);
   const [selectedViolationType, setSelectedViolationType] = useState("");
   const [fullImageModal, setFullImageModal] = useState(null);
+  const [initialInspectionState, setInitialInspectionState] = useState(null);
 
   const rejectFormRef = useRef(null);
   useEffect(() => {
@@ -58,7 +59,74 @@ export default function VenueBookingDetailModal({
   const [preInspectionStatus, setPreInspectionStatus] = useState("clean");
   const [preViolationNotes, setPreViolationNotes] = useState("");
   const [preSelectedViolationType, setPreSelectedViolationType] = useState("");
-  const [preEvidencePhoto, setPreEvidencePhoto] = useState([]);
+  
+  // Dynamic Rejection Reasons State
+  const [rejectionReasons, setRejectionReasons] = useState([]);
+  const [dbRejectionReasons, setDbRejectionReasons] = useState([]);
+  const [showAddRejection, setShowAddRejection] = useState(false);
+  const [newRejectionInput, setNewRejectionInput] = useState("");
+  const [savingNewRejection, setSavingNewRejection] = useState(false);
+
+  // Fetch dynamic rejection reasons
+  useEffect(() => {
+    let isMounted = true;
+    api.get("/general/rejection-reasons")
+      .then((res) => {
+        if (!isMounted) return;
+        const fetchedList = Array.isArray(res.data) ? res.data : [];
+        setDbRejectionReasons(fetchedList);
+        const fetchedNames = fetchedList.map(c => c.name);
+        setRejectionReasons(fetchedNames);
+        if (fetchedNames.length > 0 && !selectedViolationType) {
+          // If no type is selected, select the first one by default if opening reject form
+        }
+      })
+      .catch(() => {});
+    return () => { isMounted = false; };
+  }, []);
+
+  const handleAddRejection = async (e) => {
+    e.preventDefault();
+    const cleanName = newRejectionInput.trim();
+    if (!cleanName) return;
+
+    setSavingNewRejection(true);
+    try {
+      const res = await api.post("/general/rejection-reasons", { name: cleanName });
+      setDbRejectionReasons(prev => [...prev, res.data]);
+      setRejectionReasons(prev => Array.from(new Set([...prev, cleanName])));
+      setNewRejectionInput("");
+    } catch {
+      setRejectionReasons(prev => Array.from(new Set([...prev, cleanName])));
+      setNewRejectionInput("");
+    } finally {
+      setSavingNewRejection(false);
+    }
+  };
+
+  const handleDeleteRejection = async (catName) => {
+    const catObj = dbRejectionReasons.find(c => c.name === catName);
+    try {
+      if (catObj && catObj.id) {
+        await api.delete(`/general/rejection-reasons/${catObj.id}`);
+        setDbRejectionReasons(prev => prev.filter(c => c.id !== catObj.id));
+      }
+      setRejectionReasons(prev => prev.filter(c => c !== catName));
+      if (selectedViolationType === catName) {
+        const nextOpt = rejectionReasons.find(c => c !== catName);
+        setSelectedViolationType(nextOpt || "");
+        setRejectionComments(nextOpt || "");
+      }
+    } catch (e) {
+      setRejectionReasons(prev => prev.filter(c => c !== catName));
+      if (selectedViolationType === catName) {
+        const nextOpt = rejectionReasons.find(c => c !== catName);
+        setSelectedViolationType(nextOpt || "");
+        setRejectionComments(nextOpt || "");
+      }
+    }
+  };
+
   const [preEquipmentInspectionNotes, setPreEquipmentInspectionNotes] = useState("");
   const [equipmentInspectionNotes, setEquipmentInspectionNotes] = useState("");
 
@@ -172,6 +240,13 @@ export default function VenueBookingDetailModal({
       setEvidencePhoto(selected.evidence_photo || selected.evidence_image || null);
       setDamagedUnitBarcodes({});
       setDamagedEqQty(1);
+
+      setInitialInspectionState({
+        status: isDamagedStatus ? "violation" : "clean",
+        notes: cleanNotes,
+        type: sanitizeViolation(selected.violation_type || selected.violation || ""),
+        photos: JSON.stringify(selected.evidence_photo || selected.evidence_image || null)
+      });
 
       // Hydrate equipment notes if already on selected or empty
       if (selected.equipment_notes) {
@@ -972,6 +1047,14 @@ export default function VenueBookingDetailModal({
     return `http://localhost:8000/storage/${photo}`;
   };
 
+  const currentPhotosStr = JSON.stringify(evidencePhoto);
+  const hasInspectionChanges = !initialInspectionState || (
+    inspectionStatus !== initialInspectionState.status ||
+    violationNotes !== initialInspectionState.notes ||
+    selectedViolationType !== initialInspectionState.type ||
+    currentPhotosStr !== initialInspectionState.photos
+  );
+
   return (
     <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 overflow-y-auto animate-in fade-in duration-200">
       <div className="bg-white rounded-2xl max-w-5xl w-full border border-slate-200 shadow-2xl flex flex-col max-h-[92vh] overflow-hidden my-auto animate-in zoom-in-95 duration-150 font-sans">
@@ -1127,6 +1210,7 @@ export default function VenueBookingDetailModal({
                     isHistoryView={isHistoryView}
                     isAdminOrSuperAdmin={isAdminOrSuperAdmin}
                     user={user}
+                    hasChanges={hasInspectionChanges}
                     isOngoing={false}
                     isPreEvent={false}
                     scheduledDate={selected.reservation_end_date || selected.date_of_usage || selected.start_datetime}
@@ -1141,49 +1225,103 @@ export default function VenueBookingDetailModal({
           {/* Reject Form Drawer */}
           {showRejectForm && (
             <div ref={rejectFormRef} className="p-4 bg-white border border-rose-200 rounded-xl space-y-3 animate-in fade-in shadow-2xs">
-              <label className="block text-xs font-bold text-slate-900">Reason for Rejection *</label>
               
-              <select
-                value={selectedViolationType || "Missing Endorsement Letter from Office of Institutional Student Affairs & Activities (OISAA / DSA)"}
-                onChange={(e) => {
-                  setSelectedViolationType(e.target.value);
-                  setRejectionComments(e.target.value);
-                }}
-                className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-semibold text-slate-800 focus:outline-none focus:border-rose-500 cursor-pointer"
-              >
-                <option value="Missing Endorsement Letter from Office of Institutional Student Affairs & Activities (OISAA / DSA)">
-                  🚩 Missing Endorsement Letter from DSA / OISAA (Eligible for Re-Appeal)
-                </option>
-                <option value="Missing Endorsement Letter from Office of the Vice President for Academic Affairs (OVPAA)">
-                  🚩 Missing Endorsement Letter from OVPAA (Eligible for Re-Appeal)
-                </option>
-                <option value="Missing Both DSA / OISAA and OVPAA Endorsements">
-                  🚩 Missing Both DSA / OISAA and OVPAA Endorsements (Eligible for Re-Appeal)
-                </option>
-                <option value="Schedule Conflict / Venue Already Booked">
-                  Schedule Conflict / Venue Already Booked
-                </option>
-                <option value="Exceeded Permitted Operating Hours">
-                  Exceeded Permitted Operating Hours
-                </option>
-                <option value="Incomplete Activity Details / Unsigned Document">
-                  Incomplete Activity Details / Unsigned Document (Eligible for Re-Appeal)
-                </option>
-                <option value="Other Policy Reason">
-                  Other Reason (Specify Below)
-                </option>
-              </select>
-
-              <div>
-                <label className="block text-[11px] font-bold text-slate-600 mb-1">Additional Remarks / Instructions for Applicant (Optional)</label>
-                <textarea
-                  rows={2}
-                  value={rejectionComments}
-                  onChange={(e) => setRejectionComments(e.target.value)}
-                  placeholder="Provide specific notes or document instructions for the applicant..."
-                  className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-medium text-slate-800 focus:outline-none focus:border-rose-500"
-                />
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-bold text-slate-900">Reason for Rejection *</label>
+                {!isHistoryView && (
+                  <button
+                    type="button"
+                    onClick={() => setShowAddRejection(!showAddRejection)}
+                    className="text-[11px] font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 cursor-pointer transition-colors"
+                  >
+                    {showAddRejection ? <X size={12} /> : <Edit size={12} />}
+                    <span>{showAddRejection ? "Save Editing" : "Edit Category"}</span>
+                  </button>
+                )}
               </div>
+
+              {showAddRejection && !isHistoryView ? (
+                <div className="p-3 bg-white rounded-lg border border-blue-200 shadow-2xs space-y-3 mb-2 animate-in fade-in zoom-in-95 duration-200">
+                  <div className="space-y-1 max-h-40 overflow-y-auto pr-1">
+                    {rejectionReasons.length === 0 && (
+                      <p className="text-xs text-slate-400 font-medium p-2 text-center">No rejection reasons added yet.</p>
+                    )}
+                    {rejectionReasons.map((cat, idx) => (
+                      <div key={`rej-cat-${idx}`} className="flex justify-between items-center text-xs p-1.5 hover:bg-slate-50 rounded border border-transparent hover:border-slate-200 transition-colors">
+                        <span className="font-semibold text-slate-600">{cat}</span>
+                        <button 
+                          type="button" 
+                          onClick={() => handleDeleteRejection(cat)} 
+                          className="text-slate-500 hover:text-rose-600 cursor-pointer p-1 rounded hover:bg-rose-50 transition-colors flex items-center gap-1 font-bold"
+                          title="Remove Category"
+                        >
+                          <Trash2 size={12} />
+                          <span>Remove</span>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex items-center gap-2 border-t border-slate-100 pt-3">
+                    <input
+                      type="text"
+                      placeholder="Enter custom rejection reason..."
+                      value={newRejectionInput}
+                      onChange={(e) => setNewRejectionInput(e.target.value)}
+                      className="flex-1 px-2.5 py-1.5 text-xs border border-slate-200 rounded focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
+                    />
+                    <button
+                      type="button"
+                      disabled={savingNewRejection || !newRejectionInput.trim()}
+                      onClick={handleAddRejection}
+                      className="px-3 py-1.5 bg-blue-600 text-white rounded text-xs font-bold hover:bg-blue-700 disabled:opacity-50 cursor-pointer flex items-center gap-1 transition-colors shadow-xs"
+                    >
+                      {savingNewRejection ? "..." : <><Plus size={12}/> Add</>}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-2 mt-2 max-h-48 overflow-y-auto">
+                  {rejectionReasons.length === 0 && (
+                    <p className="text-xs text-slate-400 font-medium p-2">No rejection reasons available. Please add some.</p>
+                  )}
+                  {rejectionReasons.map((reason, idx) => {
+                    const selectedRejectionCatsArray = selectedViolationType ? selectedViolationType.split(", ").filter(Boolean) : [];
+                    const isChecked = selectedRejectionCatsArray.includes(reason);
+                    return (
+                      <label key={`rej-opt-${idx}`} className="flex items-center gap-2.5 cursor-pointer p-2 hover:bg-slate-50 rounded-lg border border-transparent hover:border-slate-200 hover:shadow-2xs transition-all">
+                        <input 
+                          type="checkbox" 
+                          checked={isChecked}
+                          onChange={() => {
+                            let newArr = [...selectedRejectionCatsArray];
+                            if (newArr.includes(reason)) {
+                              newArr = newArr.filter(c => c !== reason);
+                            } else {
+                              newArr.push(reason);
+                            }
+                            setSelectedViolationType(newArr.join(", "));
+                          }}
+                          className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer"
+                        />
+                        <span className={`text-xs font-semibold ${isChecked ? 'text-blue-700' : 'text-slate-700'}`}>{reason}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
+
+              {selectedViolationType && selectedViolationType.toLowerCase().includes("other") && (
+                <div className="animate-in fade-in slide-in-from-top-2 duration-300">
+                  <label className="block text-[11px] font-bold text-slate-600 mb-1">Additional Remarks / Instructions for Applicant (Optional)</label>
+                  <textarea
+                    rows={2}
+                    value={rejectionComments}
+                    onChange={(e) => setRejectionComments(e.target.value)}
+                    placeholder="Provide specific notes or document instructions for the applicant..."
+                    className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-medium text-slate-800 focus:outline-none focus:border-rose-500"
+                  />
+                </div>
+              )}
 
               <div className="flex gap-2 justify-end">
                 <button

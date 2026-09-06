@@ -4,12 +4,7 @@ import InspectionPhotoUploader from "@/components/ui/InspectionPhotoUploader";
 import { getOverdueMinutes, formatOverdueDuration } from "@/lib/dateTimeUtils";
 import api from "@/lib/axios";
 
-const DEFAULT_VIOLATION_TYPES = [
-  "Property Damaged",
-  "Overtime",
-  "Waste Disposal",
-  "Other Policy Violation",
-];
+const DEFAULT_VIOLATION_TYPES = [];
 
 export default function VenuePostInspectionForm({
   inspectionStatus,
@@ -23,6 +18,9 @@ export default function VenuePostInspectionForm({
   setEvidencePhoto,
   setFullImageModal,
   isHistoryView = false,
+  isAdminOrSuperAdmin = false,
+  user = null,
+  hasChanges = true,
   handleSavePostInspection,
   savingInspection = false,
   inspectionSuccessMsg = null,
@@ -221,7 +219,7 @@ export default function VenuePostInspectionForm({
                 className="text-[11px] font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 cursor-pointer transition-colors"
               >
                 {showAddCustom ? <X size={12} /> : <Edit size={12} />}
-                <span>{showAddCustom ? "Done Editing" : "Edit Category"}</span>
+                <span>{showAddCustom ? "Save Editing" : "Edit Category"}</span>
               </button>
             )}
           </div>
@@ -328,7 +326,7 @@ export default function VenuePostInspectionForm({
       </div>
 
       {/* Save Action Button */}
-      {!isHistoryView && (
+      {!isHistoryView && hasChanges && (
         <div className="flex flex-wrap items-center justify-end gap-2 pt-2 border-t border-slate-200">
           {handleSavePostInspection && (
             <button

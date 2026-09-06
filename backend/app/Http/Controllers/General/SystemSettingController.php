@@ -29,6 +29,7 @@ class SystemSettingController extends Controller
             'auto_shift_tomorrow_after_hours'=> $settings->auto_shift_tomorrow_after_hours,
             'allow_advance_equipment_booking'=> $settings->allow_advance_equipment_booking,
             'max_items_per_borrow'           => $settings->max_items_per_borrow,
+            'facebook_url'                   => $settings->facebook_url,
         ]);
     }
 
@@ -68,6 +69,8 @@ class SystemSettingController extends Controller
             'smtp_encryption'                => 'nullable|string|in:tls,ssl,none,null',
             'mail_from_address'              => 'nullable|email|max:255',
             'mail_from_name'                 => 'nullable|string|max:255',
+            'sms_api_key'                    => 'nullable|string|max:500',
+            'sms_api_url'                    => 'nullable|url|max:500',
         ]);
 
         if (!empty($validated['university_name']) && empty($validated['organization_name'])) {
