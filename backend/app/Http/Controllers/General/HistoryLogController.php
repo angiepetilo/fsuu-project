@@ -23,11 +23,15 @@ class HistoryLogController extends Controller
     {
         try {
             $type = $request->query('type', 'all'); // 'venue' | 'equipment' | 'all'
-            $academicTermId = $request->query('academic_term_id') ?: $request->query('term_id');
-            if (empty($academicTermId)) {
+            $termParam = $request->query('academic_term_id', $request->query('term_id'));
+            if ($termParam === 'all' || $termParam === '' || $termParam === '0') {
+                $academicTermId = null; // Show all terms (archived + active)
+            } elseif (is_numeric($termParam)) {
+                $academicTermId = (int)$termParam;
+            } else {
                 $academicTermId = DB::table('academic_terms')->where('is_active', true)->value('id');
+                $academicTermId = $academicTermId ? (int)$academicTermId : null;
             }
-            $academicTermId = $academicTermId && is_numeric($academicTermId) ? (int)$academicTermId : null;
 
             $venueBookings       = in_array($type, ['venue', 'all']) 
                 ? $this->historyService->getVenueBookingsHistory(null, true, $academicTermId) 
@@ -37,21 +41,30 @@ class HistoryLogController extends Controller
                 ? $this->historyService->getEquipmentBorrowingsHistory(null, true, $academicTermId) 
                 : collect();
 
+            $incidents           = in_array($type, ['incidents', 'all'])
+                ? $this->historyService->getIncidentsHistory(null, true, $academicTermId)
+                : collect();
+
             if ($type === 'venue') {
-                return response()->json(['venue_bookings' => $venueBookings, 'equipment_borrowings' => []]);
+                return response()->json(['venue_bookings' => $venueBookings, 'equipment_borrowings' => [], 'incidents' => []]);
             }
             if ($type === 'equipment') {
-                return response()->json(['venue_bookings' => [], 'equipment_borrowings' => $equipmentBorrowings]);
+                return response()->json(['venue_bookings' => [], 'equipment_borrowings' => $equipmentBorrowings, 'incidents' => []]);
+            }
+            if ($type === 'incidents') {
+                return response()->json(['venue_bookings' => [], 'equipment_borrowings' => [], 'incidents' => $incidents]);
             }
 
             return response()->json([
                 'venue_bookings'       => $venueBookings,
                 'equipment_borrowings' => $equipmentBorrowings,
+                'incidents'            => $incidents,
             ]);
         } catch (\Throwable $e) {
             return response()->json([
                 'venue_bookings'       => [],
                 'equipment_borrowings' => [],
+                'incidents'            => [],
                 'error'                => $e->getMessage()
             ], 200);
         }

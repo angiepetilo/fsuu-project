@@ -32,9 +32,14 @@ class EquipmentBorrowingController extends Controller
 
         $user = $request->user();
         
-        $academicTermId = $request->query('academic_term_id') ?: $request->query('term_id');
-        if (empty($academicTermId)) {
+        $termParam = $request->query('academic_term_id', $request->query('term_id'));
+        if ($termParam === 'all' || $termParam === '' || $termParam === '0') {
+            $academicTermId = null;
+        } elseif (is_numeric($termParam)) {
+            $academicTermId = (int)$termParam;
+        } else {
             $academicTermId = DB::table('academic_terms')->where('is_active', true)->value('id');
+            $academicTermId = $academicTermId ? (int)$academicTermId : null;
         }
 
         $borrowingsQuery = EquipmentBorrow::with(['trackingNumber', 'items.equipmentType'])

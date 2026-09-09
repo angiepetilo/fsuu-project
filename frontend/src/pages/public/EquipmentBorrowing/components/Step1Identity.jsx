@@ -31,8 +31,8 @@ export function Step1Identity({
             <div className="w-14 h-14 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform shrink-0">
               <GraduationCap size={30} />
             </div>
-            <h3 className="font-extrabold text-slate-900 text-base mb-1">Student</h3>
-            <p className="text-xs font-semibold text-slate-500">Enrolled FSUU Student</p>
+            <h3 className="font-extrabold text-slate-900 dark:text-[#F8FAFC] text-base mb-1">Student</h3>
+            <p className="text-xs font-semibold text-slate-500 dark:text-[#CBD5E1]">Enrolled FSUU Student</p>
           </div>
 
           <div
@@ -46,8 +46,8 @@ export function Step1Identity({
             <div className="w-14 h-14 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform shrink-0">
               <Users size={30} />
             </div>
-            <h3 className="font-extrabold text-slate-900 text-base mb-1">Faculty</h3>
-            <p className="text-xs font-semibold text-slate-500">Academic or Administrative Dept</p>
+            <h3 className="font-extrabold text-slate-900 dark:text-[#F8FAFC] text-base mb-1">Faculty</h3>
+            <p className="text-xs font-semibold text-slate-500 dark:text-[#CBD5E1]">Academic or Administrative Dept</p>
           </div>
 
           {/* Role 3: External User (Only in Portal Interface) */}
@@ -63,23 +63,25 @@ export function Step1Identity({
               <div className="w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform shrink-0">
                 <User size={30} />
               </div>
-              <h3 className="font-extrabold text-slate-900 text-base mb-1">External User</h3>
-              <p className="text-xs font-semibold text-slate-500">Guest or Partner Entity</p>
+              <h3 className="font-extrabold text-slate-900 dark:text-[#F8FAFC] text-base mb-1">External User</h3>
+              <p className="text-xs font-semibold text-slate-500 dark:text-[#CBD5E1]">Guest or Partner Entity</p>
             </div>
           )}
         </div>
       </div>
 
-      <div className="flex items-center justify-between pt-4 border-t border-slate-100">
+      <div className="flex items-center justify-between pt-4 border-t border-slate-100 dark:border-[#1E2D56]">
         {!isPortal ? (
           <a
             href="/"
-            className="px-6 py-3 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-extrabold text-xs flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer no-underline"
+            className="px-6 py-3 rounded-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 text-slate-700 dark:text-slate-200 font-extrabold text-xs flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer no-underline"
           >
             <span>← Back to Homepage</span>
           </a>
         ) : (
-          <span className="text-xs font-semibold text-slate-400">Step 1 of 4: Select Requestor Identity</span>
+          <span className="text-xs font-semibold text-slate-500 dark:text-[#CBD5E1]">
+            Step 1 of 4: <span className="text-slate-900 dark:text-[#F8FAFC]">Select Requestor Identity</span>
+          </span>
         )}
 
         <Button

@@ -118,11 +118,22 @@ export default function Step2Venue({
     return name.includes(q) || loc.includes(q) || cap.includes(q);
   });
 
-  // 4-card venue pagination state
+  // Responsive venue pagination: 1 card on mobile, 4 cards on desktop/tablet
+  const [isMobile, setIsMobile] = useState(() => typeof window !== "undefined" ? window.innerWidth < 640 : false);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 640);
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   const [venuePage, setVenuePage] = useState(0);
-  const pageSize = 4;
+  const pageSize = isMobile ? 1 : 4;
   const totalPages = Math.ceil(searchedVenues.length / pageSize) || 1;
-  const paginatedVenues = searchedVenues.slice(venuePage * pageSize, (venuePage + 1) * pageSize);
+  const safeVenuePage = Math.min(venuePage, totalPages - 1);
+  const paginatedVenues = searchedVenues.slice(safeVenuePage * pageSize, (safeVenuePage + 1) * pageSize);
 
   // Calendar navigation state
   const [calYear, setCalYear] = useState(today.getFullYear());
@@ -536,7 +547,7 @@ export default function Step2Venue({
               <button
                 type="button"
                 onClick={() => setVenuePage(p => Math.max(0, p - 1))}
-                disabled={venuePage === 0}
+                disabled={safeVenuePage === 0}
                 className="px-4 py-1.5 rounded-full bg-white border border-slate-200 text-xs font-extrabold text-slate-700 hover:bg-slate-50 disabled:opacity-40 flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
               >
                 <ChevronLeft size={14} />
@@ -544,13 +555,13 @@ export default function Step2Venue({
               </button>
 
               <span className="text-xs font-black text-slate-700 px-2">
-                {venuePage + 1} / {totalPages}
+                {safeVenuePage + 1} / {totalPages}
               </span>
 
               <button
                 type="button"
                 onClick={() => setVenuePage(p => Math.min(totalPages - 1, p + 1))}
-                disabled={venuePage >= totalPages - 1}
+                disabled={safeVenuePage >= totalPages - 1}
                 className="px-4 py-1.5 rounded-full bg-white border border-slate-200 text-xs font-extrabold text-slate-700 hover:bg-slate-50 disabled:opacity-40 flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
               >
                 <span>Next</span>
@@ -560,29 +571,29 @@ export default function Step2Venue({
           )}
         </div>
 
-        {/* Right Column: Date & Time Selection Panel as per Screenshot 1 */}
-        <div className="lg:col-span-5 sm:col-span-12 space-y-2 relative z-50">
-          {/* Operating Schedule Notice - Green text matching Screenshot 1 */}
-          <p className="text-center text-xs font-semibold text-emerald-600 mb-2">
+        {/* Right Column: Date & Time Selection Panel */}
+        <div className="lg:col-span-5 sm:col-span-12 space-y-2 relative z-10 mt-4 lg:mt-0">
+          {/* Operating Schedule Notice */}
+          <p className="text-center text-xs font-semibold text-emerald-600 dark:text-[#6ee7b7] mb-2">
             Operating Schedule: {dynamicSchedule}
           </p>
 
-          <div className="bg-white p-5 sm:p-6 rounded-[28px] border border-slate-200/90 shadow-sm space-y-4 sticky top-4 z-40">
+          <div className="bg-white dark:bg-[#111c38] p-5 sm:p-6 rounded-[28px] border border-slate-200/90 dark:border-[#1e2d56] shadow-sm space-y-4 static lg:sticky lg:top-24 z-10">
 
             {/* Panel Header */}
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h4 className="font-extrabold text-slate-900 text-xs uppercase tracking-wider">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-[#1e2d56] pb-3">
+              <h4 className="font-extrabold text-slate-900 dark:text-[#f8fafc] text-xs uppercase tracking-wider">
                 Date & Time Selection
               </h4>
-              <span className="text-xs font-semibold text-slate-500 truncate max-w-[180px] sm:max-w-xs text-right">
+              <span className="text-xs font-semibold text-slate-500 dark:text-[#94a3b8] truncate max-w-[180px] sm:max-w-xs text-right">
                 {selectedVenue ? selectedVenue.name : "No Venue Selected"}
               </span>
             </div>
 
             {/* Multi-Day Reservation Toggle Switch */}
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-900">
-                Multi-Day Reservation <span className="text-slate-500 font-normal">[{isMultiDay ? "on : multi-day" : "off : single day"}]</span>
+              <span className="text-xs font-bold text-slate-900 dark:text-[#f8fafc]">
+                Multi-Day Reservation <span className="text-slate-500 dark:text-[#94a3b8] font-normal">[{isMultiDay ? "on : multi-day" : "off : single day"}]</span>
               </span>
               <button
                 type="button"
@@ -594,7 +605,7 @@ export default function Step2Venue({
                   }
                 }}
                 className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                  isMultiDay ? "bg-blue-600" : "bg-slate-300"
+                  isMultiDay ? "bg-blue-600" : "bg-slate-300 dark:bg-slate-700"
                 }`}
                 title={isMultiDay ? "Switch to single-day mode" : "Switch to multi-day mode"}
               >
@@ -607,26 +618,26 @@ export default function Step2Venue({
             </div>
 
             {/* Interactive Calendar Container */}
-            <div className="bg-white p-4 sm:p-5 rounded-3xl border border-slate-200/80 shadow-xs space-y-4">
+            <div className="bg-white dark:bg-[#0e1738] p-4 sm:p-5 rounded-3xl border border-slate-200/80 dark:border-[#1e2d56] shadow-xs space-y-4">
               {/* Header: < Month / Year > */}
               <div className="flex items-center justify-between px-1">
                 <button
                   type="button"
                   onClick={prevMonth}
-                  className="w-9 h-9 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 flex items-center justify-center transition-colors cursor-pointer"
+                  className="w-9 h-9 rounded-xl border border-slate-200 dark:border-[#1e2d56] hover:bg-slate-50 dark:hover:bg-[#172447] text-slate-700 dark:text-[#cbd5e1] flex items-center justify-center transition-colors cursor-pointer"
                   title="Previous Month"
                 >
                   <ChevronLeft size={16} />
                 </button>
 
-                <span className="text-base font-bold text-slate-900 tracking-tight">
+                <span className="text-base font-bold text-slate-900 dark:text-[#f8fafc] tracking-tight">
                   {new Date(calYear, calMonth).toLocaleString("default", { month: "long" })} / {calYear}
                 </span>
 
                 <button
                   type="button"
                   onClick={nextMonth}
-                  className="w-9 h-9 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 flex items-center justify-center transition-colors cursor-pointer"
+                  className="w-9 h-9 rounded-xl border border-slate-200 dark:border-[#1e2d56] hover:bg-slate-50 dark:hover:bg-[#172447] text-slate-700 dark:text-[#cbd5e1] flex items-center justify-center transition-colors cursor-pointer"
                   title="Next Month"
                 >
                   <ChevronRight size={16} />
@@ -634,7 +645,7 @@ export default function Step2Venue({
               </div>
 
               {/* Day of Week Headers (Mon - Sun) */}
-              <div className="grid grid-cols-7 gap-1 text-center text-xs font-semibold text-slate-400">
+              <div className="grid grid-cols-7 gap-1 text-center text-xs font-semibold text-slate-400 dark:text-[#94a3b8]">
                 {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map(d => (
                   <div key={d} className="py-1">{d}</div>
                 ))}
@@ -673,11 +684,11 @@ export default function Step2Venue({
                     <div
                       key={day}
                       className={`relative h-9 flex items-center justify-center ${hasRange && isInBetween
-                          ? "bg-blue-50"
+                          ? "bg-blue-50 dark:bg-blue-950/40"
                           : hasRange && isStart
-                            ? "bg-gradient-to-r from-transparent 50% to-blue-50 50%"
+                            ? "bg-gradient-to-r from-transparent 50% to-blue-50 dark:to-blue-950/40 50%"
                             : hasRange && isEnd
-                              ? "bg-gradient-to-l from-transparent 50% to-blue-50 50%"
+                              ? "bg-gradient-to-l from-transparent 50% to-blue-50 dark:to-blue-950/40 50%"
                               : ""
                         }`}
                     >
@@ -719,16 +730,16 @@ export default function Step2Venue({
                           isStart || isEnd
                             ? "bg-blue-600 text-white font-black shadow-sm scale-105 cursor-pointer"
                             : isToday
-                              ? "border-2 border-blue-600 text-blue-700 font-extrabold bg-blue-50/40 cursor-pointer"
+                              ? "border-2 border-blue-600 text-blue-700 dark:text-[#93c5fd] font-extrabold bg-blue-50/40 dark:bg-blue-500/10 cursor-pointer"
                               : isFullyBooked
-                                ? "border-2 border-rose-400 text-rose-600 font-bold bg-rose-50/40 cursor-not-allowed"
+                                ? "border-2 border-rose-400 dark:border-rose-500/50 text-rose-600 dark:text-[#fca5a5] font-bold bg-rose-50/40 dark:bg-rose-500/15 cursor-not-allowed"
                                 : isPartialBooked
-                                  ? "border-2 border-amber-400 text-amber-700 font-bold bg-amber-50/40 hover:bg-amber-100 cursor-pointer"
+                                  ? "border-2 border-amber-400 dark:border-amber-500/50 text-amber-700 dark:text-[#fcd34d] font-bold bg-amber-50/40 dark:bg-amber-500/15 hover:bg-amber-100 dark:hover:bg-amber-500/25 cursor-pointer"
                                   : isShortNotice
-                                    ? `border-2 border-slate-300 text-slate-500 font-bold bg-slate-50/50 ${isPublicBlockedNotice ? "cursor-not-allowed opacity-80" : "hover:bg-slate-100 cursor-pointer"}`
+                                    ? `border-2 border-slate-300 dark:border-slate-600 text-slate-500 dark:text-slate-400 font-bold bg-slate-50/50 dark:bg-slate-800/40 ${isPublicBlockedNotice ? "cursor-not-allowed opacity-80" : "hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"}`
                                     : isPast || isMaintenanceOrClosed
-                                      ? "text-slate-300 font-semibold cursor-not-allowed select-none"
-                                      : "text-slate-800 font-bold hover:bg-slate-100 cursor-pointer"
+                                      ? "text-slate-300 dark:text-slate-600 font-semibold cursor-not-allowed select-none"
+                                      : "text-slate-800 dark:text-[#cbd5e1] font-bold hover:bg-slate-100 dark:hover:bg-[#172447] cursor-pointer"
                         }`}
                         title={
                           isToday

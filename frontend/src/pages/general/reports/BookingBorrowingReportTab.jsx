@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Eye, ChevronLeft, ChevronRight, Loader2, Info, ImageIcon, X } from "lucide-react";
+import { Eye, ChevronLeft, ChevronRight, Loader2, Info, ImageIcon, X, Clock } from "lucide-react";
 import { formatDate, formatTimeRange12 } from "@/lib/dateUtils";
 
 export default function BookingBorrowingReportTab({
@@ -153,41 +153,37 @@ export default function BookingBorrowingReportTab({
   return (
     <div className="space-y-8">
       {/* ── 1. VENUE BOOKING REPORTS TABLE ── */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-        <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between">
-          <div>
-            <h3 className="text-base font-extrabold text-slate-900 tracking-tight">Venue Booking Reports</h3>
-          </div>
+      <div className="space-y-2">
+        <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
+          <span className="text-sm font-bold text-slate-900">Venue Booking Reports</span>
+          <span className="text-xs font-semibold text-slate-400">{reportVenueBookings.length} records</span>
         </div>
 
-        {/* Table layout matching Screenshot 1 */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
+        <div className="overflow-x-auto rounded-xl border border-slate-100">
+          <table className="w-full text-left text-xs">
             <thead>
-              <tr className="border-b border-slate-100 bg-slate-50/50 text-[11px] font-black text-slate-400 uppercase tracking-wider">
-                <th className="py-4 px-4 w-12 text-center">#</th>
-                <th className="py-4 px-4">TRACK NUMBER</th>
-                <th className="py-4 px-4">REQUESTOR</th>
-                <th className="py-4 px-4">DEPARTMENT</th>
-                <th className="py-4 px-4">VENUE</th>
-                <th className="py-4 px-4">DATE</th>
-                <th className="py-4 px-4">TIME</th>
-                <th className="py-4 px-4 text-center">INSPECTION NOTE</th>
+              <tr className="border-b border-slate-100 text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider">
+                <th className="py-3 px-4 w-10">#</th>
+                <th className="py-3 px-4">TRACK NO.</th>
+                <th className="py-3 px-4">REQUESTOR</th>
+                <th className="py-3 px-4">DEPARTMENT</th>
+                <th className="py-3 px-4">VENUE</th>
+                <th className="py-3 px-4">DATE</th>
+                <th className="py-3 px-4">TIME</th>
+                <th className="py-3 px-4">NOTE</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 text-xs font-semibold">
+            <tbody className="divide-y divide-slate-100 font-semibold">
               {loading ? (
                 <tr>
-                  <td colSpan={8} className="text-center py-12 text-slate-400">
-                    <Loader2 size={20} className="animate-spin inline mr-2 text-blue-600" />
-                    <span>Loading venue booking reports...</span>
+                  <td colSpan={8} className="text-center py-10 text-slate-400">
+                    <Loader2 size={16} className="animate-spin inline mr-1.5 text-blue-600" />
+                    Loading...
                   </td>
                 </tr>
               ) : reportVenueBookings.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="text-center py-10 text-slate-400">
-                    No venue booking report records found.
-                  </td>
+                  <td colSpan={8} className="text-center py-10 text-slate-400">No venue booking records found.</td>
                 </tr>
               ) : (
                 paginatedVenueRecords.map((b, idx) => {
@@ -205,14 +201,14 @@ export default function BookingBorrowingReportTab({
 
                   return (
                     <tr key={`rpt-venue-${b.id || idx}`} className="hover:bg-slate-50/60 transition-colors">
-                      <td className="py-4 px-4 text-slate-400 font-bold text-center">{venueStartIndex + idx + 1}</td>
-                      <td className="py-4 px-4 font-black text-blue-600 font-mono tracking-tight">{trackNo}</td>
-                      <td className="py-4 px-4 font-black text-slate-900">{b.filer_name || b.requestor || "Filer"}</td>
-                      <td className="py-4 px-4 text-slate-700 font-bold">{b.program_office || b.dept || b.office || "CAS"}</td>
-                      <td className="py-4 px-4 font-bold text-blue-700">{b.venue_name || b.venue?.name || b.venue || "Audio Visual Room"}</td>
-                      <td className="py-4 px-4 text-slate-600 whitespace-nowrap font-medium">{formatDate(b.date_of_usage || b.date)}</td>
-                      <td className="py-4 px-4 text-slate-600 whitespace-nowrap font-medium">{timeFormatted || "08:00 AM – 04:00 PM"}</td>
-                      <td className="py-4 px-4 text-center">{renderStatusAndInspectionNote(b, status)}</td>
+                      <td className="py-3 px-4 text-slate-400">{venueStartIndex + idx + 1}</td>
+                      <td className="py-3 px-4 font-bold text-slate-700 font-mono">{trackNo}</td>
+                      <td className="py-3 px-4 font-bold text-slate-900">{b.filer_name || b.requestor || "Filer"}</td>
+                      <td className="py-3 px-4 text-slate-500">{b.program_office || b.dept || b.office || "CAS"}</td>
+                      <td className="py-3 px-4 text-slate-700">{b.venue_name || b.venue?.name || b.venue || "Audio Visual Room"}</td>
+                      <td className="py-3 px-4 text-slate-500 whitespace-nowrap">{formatDate(b.date_of_usage || b.date)}</td>
+                      <td className="py-3 px-4 text-slate-500 whitespace-nowrap">{timeFormatted || "08:00 AM – 04:00 PM"}</td>
+                      <td className="py-3 px-4">{renderStatusAndInspectionNote(b, status)}</td>
                     </tr>
                   );
                 })
@@ -221,94 +217,71 @@ export default function BookingBorrowingReportTab({
           </table>
         </div>
 
-        {/* Pagination Footer */}
+        {/* Pagination */}
         {reportVenueBookings.length > 0 && (
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-6 py-4 bg-white border-t border-slate-100 text-xs font-semibold text-slate-600">
-            <div>
-              Showing <span className="font-extrabold text-slate-900">{venueStartIndex + 1}</span> to{" "}
-              <span className="font-extrabold text-slate-900">{Math.min(venueStartIndex + ITEMS_PER_PAGE, reportVenueBookings.length)}</span> of{" "}
-              <span className="font-extrabold text-slate-900">{reportVenueBookings.length}</span> venue bookings
-            </div>
-
-            <div className="flex items-center gap-3">
-              <span className="text-slate-500 font-bold">
-                Page {venuePage} of {venueTotalPages}
-              </span>
-              <button
-                type="button"
-                disabled={venuePage === 1}
-                onClick={() => setVenuePage(prev => Math.max(prev - 1, 1))}
-                className="flex items-center gap-1 px-3.5 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all shadow-2xs font-bold text-xs"
-              >
-                <ChevronLeft size={14} /> Previous
+          <div className="flex items-center justify-between text-xs text-slate-500 font-semibold pt-1">
+            <span>{venueStartIndex + 1}–{Math.min(venueStartIndex + ITEMS_PER_PAGE, reportVenueBookings.length)} of {reportVenueBookings.length}</span>
+            <div className="flex items-center gap-1">
+              <button type="button" disabled={venuePage === 1} onClick={() => setVenuePage(prev => Math.max(prev - 1, 1))}
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors">
+                <ChevronLeft size={13} /> Prev
               </button>
-
-              <button
-                type="button"
-                disabled={venuePage >= venueTotalPages}
-                onClick={() => setVenuePage(prev => Math.min(prev + 1, venueTotalPages))}
-                className="flex items-center gap-1 px-3.5 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all shadow-2xs font-bold text-xs"
-              >
-                Next <ChevronRight size={14} />
+              <span className="px-2">{venuePage} / {venueTotalPages}</span>
+              <button type="button" disabled={venuePage >= venueTotalPages} onClick={() => setVenuePage(prev => Math.min(prev + 1, venueTotalPages))}
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors">
+                Next <ChevronRight size={13} />
               </button>
             </div>
           </div>
         )}
 
-        {/* User Venue Report Typing Box */}
-        <div className="p-4 sm:p-5 bg-slate-50/70 border-t border-slate-100 space-y-2">
-          <label className="block text-xs font-extrabold text-slate-800">
-            Venue Booking Report Summary &amp; Notes
-          </label>
+        {/* Notes */}
+        <div className="space-y-1.5">
+          <label className="block text-xs font-semibold text-slate-600">Report Notes</label>
           <textarea
-            rows={3}
+            rows={2}
             value={venueReportNotes}
-            onChange={(e) => {
-              setVenueReportNotes(e.target.value);
-              localStorage.setItem("fsuu_report_venue_notes", e.target.value);
-            }}
-            placeholder="Type your venue booking report observations, audit summary, or executive notes here..."
-            className="w-full p-3 bg-white border border-slate-200 rounded-2xl text-xs font-medium text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 shadow-2xs transition-all"
+            onChange={(e) => { setVenueReportNotes(e.target.value); localStorage.setItem("fsuu_report_venue_notes", e.target.value); }}
+            placeholder="Add venue booking observations or audit summary..."
+            className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-900 focus:outline-none focus:border-blue-400 transition-colors"
           />
         </div>
       </div>
 
       {/* ── 2. EQUIPMENT BORROWING REPORTS TABLE ── */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-        <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between">
-          <div>
-            <h3 className="text-base font-extrabold text-slate-900 tracking-tight">Equipment Borrowing Reports</h3>
-          </div>
+      <div className="space-y-2">
+        <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
+          <span className="text-sm font-bold text-slate-900">Equipment Borrowing Reports</span>
+          <span className="text-xs font-semibold text-slate-400">{reportEquipmentBorrowings.length} records</span>
         </div>
 
-        {/* Table layout matching Screenshot 1 */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
+        <div className="overflow-x-auto rounded-xl border border-slate-100">
+          <table className="w-full text-left text-xs">
             <thead>
-              <tr className="border-b border-slate-100 bg-slate-50/50 text-[11px] font-black text-slate-400 uppercase tracking-wider">
-                <th className="py-4 px-4 w-12 text-center">#</th>
-                <th className="py-4 px-4">TRACK NUMBER</th>
-                <th className="py-4 px-4">REQUESTOR</th>
-                <th className="py-4 px-4">DEPARTMENT</th>
-                <th className="py-4 px-4">EQUIPMENT</th>
-                <th className="py-4 px-4">DATE</th>
-                <th className="py-4 px-4">TIME</th>
-                <th className="py-4 px-4 text-center">INSPECTION NOTE</th>
+              <tr className="border-b border-slate-100 text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider">
+                <th className="py-3 px-4 w-10">#</th>
+                <th className="py-3 px-4">TRACK NO.</th>
+                <th className="py-3 px-4">REQUESTOR</th>
+                <th className="py-3 px-4">DEPARTMENT</th>
+                <th className="py-3 px-4">EQUIPMENT</th>
+                <th className="py-3 px-4">DATE</th>
+                <th className="py-3 px-4">TIME</th>
+                <th className="py-3 px-4">LATE RETURN</th>
+                <th className="py-3 px-4">MINS LATE</th>
+                <th className="py-3 px-4">NOTE</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 text-xs font-semibold">
+            <tbody className="divide-y divide-slate-100 font-semibold">
               {loading ? (
                 <tr>
-                  <td colSpan={8} className="text-center py-12 text-slate-400">
-                    <Loader2 size={20} className="animate-spin inline mr-2 text-blue-600" />
-                    <span>Loading equipment reports...</span>
+                  <td colSpan={10} className="text-center py-10 text-slate-400">
+                    <Loader2 size={16} className="animate-spin inline mr-1.5 text-blue-600" />
+                    Loading...
                   </td>
                 </tr>
               ) : reportEquipmentBorrowings.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="text-center py-10 text-slate-400">
-                    No equipment borrowing report records found.
-                  </td>
+                  <td colSpan={10} className="text-center py-10 text-slate-400">No equipment borrowing records found.</td>
                 </tr>
               ) : (
                 paginatedEquipRecords.map((eb, idx) => {
@@ -339,16 +312,37 @@ export default function BookingBorrowingReportTab({
                     eb.items?.[0]?.equipment_type?.name ||
                     "Audio Visual Gear";
 
+                  const isLate =
+                    Boolean(eb.is_late) ||
+                    String(status).toUpperCase() === 'LATE RETURN' ||
+                    String(status).toUpperCase() === 'RETURNED LATE' ||
+                    String(eb.timeliness || "").toLowerCase().includes("late") ||
+                    String(eb.violation_type || "").toLowerCase().includes("late") ||
+                    String(eb.violation_type || "").toLowerCase().includes("overdue") ||
+                    Number(eb.minutes_late) > 0;
+
+                  const minutesLate = Number(eb.minutes_late || eb.inspection?.minutes_late || 0);
+
                   return (
                     <tr key={`rpt-equip-${eb.id || idx}`} className="hover:bg-slate-50/60 transition-colors">
-                      <td className="py-4 px-4 text-slate-400 font-bold text-center">{equipStartIndex + idx + 1}</td>
-                      <td className="py-4 px-4 font-black text-blue-600 font-mono tracking-tight">{trackNo}</td>
-                      <td className="py-4 px-4 font-black text-slate-900">{eb.filer_name || eb.requestor || "Filer"}</td>
-                      <td className="py-4 px-4 text-slate-700 font-bold">{eb.program_office || eb.dept || eb.office || "CAS"}</td>
-                      <td className="py-4 px-4 font-bold text-blue-700">{equipLabel}</td>
-                      <td className="py-4 px-4 text-slate-600 whitespace-nowrap font-medium">{formatDate(eb.date_of_usage || eb.date)}</td>
-                      <td className="py-4 px-4 text-slate-600 whitespace-nowrap font-medium">{timeFormatted || "08:00 AM – 04:00 PM"}</td>
-                      <td className="py-4 px-4 text-center">{renderStatusAndInspectionNote(eb, status)}</td>
+                      <td className="py-3 px-4 text-slate-400">{equipStartIndex + idx + 1}</td>
+                      <td className="py-3 px-4 font-bold text-slate-700 font-mono">{trackNo}</td>
+                      <td className="py-3 px-4 font-bold text-slate-900">{eb.filer_name || eb.requestor || "Filer"}</td>
+                      <td className="py-3 px-4 text-slate-500">{eb.program_office || eb.dept || eb.office || "CAS"}</td>
+                      <td className="py-3 px-4 text-slate-700">{equipLabel}</td>
+                      <td className="py-3 px-4 text-slate-500 whitespace-nowrap">{formatDate(eb.date_of_usage || eb.date)}</td>
+                      <td className="py-3 px-4 text-slate-500 whitespace-nowrap">{timeFormatted || "08:00 AM – 04:00 PM"}</td>
+                      <td className="py-3 px-4">
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                          isLate ? "bg-rose-50 text-rose-700 border border-rose-200" : "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                        }`}>
+                          {isLate ? "Late" : "On Time"}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 text-slate-500 font-mono">
+                        {isLate ? (minutesLate > 0 ? `${minutesLate}m` : "—") : "—"}
+                      </td>
+                      <td className="py-3 px-4">{renderStatusAndInspectionNote(eb, status)}</td>
                     </tr>
                   );
                 })
@@ -357,54 +351,33 @@ export default function BookingBorrowingReportTab({
           </table>
         </div>
 
-        {/* Pagination Footer */}
+        {/* Pagination */}
         {reportEquipmentBorrowings.length > 0 && (
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-6 py-4 bg-white border-t border-slate-100 text-xs font-semibold text-slate-600">
-            <div>
-              Showing <span className="font-extrabold text-slate-900">{equipStartIndex + 1}</span> to{" "}
-              <span className="font-extrabold text-slate-900">{Math.min(equipStartIndex + ITEMS_PER_PAGE, reportEquipmentBorrowings.length)}</span> of{" "}
-              <span className="font-extrabold text-slate-900">{reportEquipmentBorrowings.length}</span> equipment borrowings
-            </div>
-
-            <div className="flex items-center gap-3">
-              <span className="text-slate-500 font-bold">
-                Page {equipPage} of {equipTotalPages}
-              </span>
-              <button
-                type="button"
-                disabled={equipPage === 1}
-                onClick={() => setEquipPage(prev => Math.max(prev - 1, 1))}
-                className="flex items-center gap-1 px-3.5 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all shadow-2xs font-bold text-xs"
-              >
-                <ChevronLeft size={14} /> Previous
+          <div className="flex items-center justify-between text-xs text-slate-500 font-semibold pt-1">
+            <span>{equipStartIndex + 1}–{Math.min(equipStartIndex + ITEMS_PER_PAGE, reportEquipmentBorrowings.length)} of {reportEquipmentBorrowings.length}</span>
+            <div className="flex items-center gap-1">
+              <button type="button" disabled={equipPage === 1} onClick={() => setEquipPage(prev => Math.max(prev - 1, 1))}
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors">
+                <ChevronLeft size={13} /> Prev
               </button>
-
-              <button
-                type="button"
-                disabled={equipPage >= equipTotalPages}
-                onClick={() => setEquipPage(prev => Math.min(prev + 1, equipTotalPages))}
-                className="flex items-center gap-1 px-3.5 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all shadow-2xs font-bold text-xs"
-              >
-                Next <ChevronRight size={14} />
+              <span className="px-2">{equipPage} / {equipTotalPages}</span>
+              <button type="button" disabled={equipPage >= equipTotalPages} onClick={() => setEquipPage(prev => Math.min(prev + 1, equipTotalPages))}
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors">
+                Next <ChevronRight size={13} />
               </button>
             </div>
           </div>
         )}
 
-        {/* User Equipment Report Typing Box */}
-        <div className="p-4 sm:p-5 bg-slate-50/70 border-t border-slate-100 space-y-2">
-          <label className="block text-xs font-extrabold text-slate-800">
-            Equipment Borrowing Report Summary &amp; Notes
-          </label>
+        {/* Notes */}
+        <div className="space-y-1.5">
+          <label className="block text-xs font-semibold text-slate-600">Report Notes</label>
           <textarea
-            rows={3}
+            rows={2}
             value={equipReportNotes}
-            onChange={(e) => {
-              setEquipReportNotes(e.target.value);
-              localStorage.setItem("fsuu_report_equipment_notes", e.target.value);
-            }}
-            placeholder="Type your equipment borrowing report observations, utilization remarks, or audit notes here..."
-            className="w-full p-3 bg-white border border-slate-200 rounded-2xl text-xs font-medium text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 shadow-2xs transition-all"
+            onChange={(e) => { setEquipReportNotes(e.target.value); localStorage.setItem("fsuu_report_equipment_notes", e.target.value); }}
+            placeholder="Add equipment borrowing observations or audit notes..."
+            className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-900 focus:outline-none focus:border-blue-400 transition-colors"
           />
         </div>
       </div>
@@ -448,6 +421,28 @@ export default function BookingBorrowingReportTab({
                 <span className="text-slate-500 font-semibold">Purpose:</span>
                 <span className="font-bold text-slate-900 max-w-[240px] text-right">{selectedRecord.data.purpose || selectedRecord.data.event || "—"}</span>
               </div>
+              {selectedRecord.type === "equipment" && (
+                <>
+                  <div className="flex justify-between py-1.5 border-b border-slate-100">
+                    <span className="text-slate-500 font-semibold">Late Return Status:</span>
+                    <span className="font-bold text-slate-900">
+                      {selectedRecord.data.is_late || Number(selectedRecord.data.minutes_late) > 0 ? (
+                        <span className="text-rose-600 font-extrabold">Late Return</span>
+                      ) : (
+                        <span className="text-emerald-600 font-bold">On Time</span>
+                      )}
+                    </span>
+                  </div>
+                  <div className="flex justify-between py-1.5 border-b border-slate-100">
+                    <span className="text-slate-500 font-semibold">Mins of Late Return:</span>
+                    <span className="font-bold text-slate-900 font-mono">
+                      {Number(selectedRecord.data.minutes_late || 0) > 0
+                        ? `${selectedRecord.data.minutes_late} mins`
+                        : "0 mins"}
+                    </span>
+                  </div>
+                </>
+              )}
               <div className="flex justify-between py-1.5">
                 <span className="text-slate-500 font-semibold">Status:</span>
                 <div>{getStatusBadge(selectedRecord.data.tracking_number?.status || selectedRecord.data.status)}</div>

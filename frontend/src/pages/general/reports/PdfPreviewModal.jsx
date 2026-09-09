@@ -224,40 +224,74 @@ export default function PdfPreviewModal({
                         <th className="border border-slate-300 p-2.5 text-left">Department</th>
                         <th className="border border-slate-300 p-2.5 text-left">Equipment Details</th>
                         <th className="border border-slate-300 p-2.5 text-left">Date</th>
+                        <th className="border border-slate-300 p-2.5 text-center">Late Return</th>
+                        <th className="border border-slate-300 p-2.5 text-center">Mins Late</th>
                         <th className="border border-slate-300 p-2.5 text-center">Status</th>
                       </tr>
                     </thead>
                     <tbody>
                       {filteredEquipmentBorrowings.length === 0 ? (
                         <tr>
-                          <td colSpan={7} className="border border-slate-300 p-4 text-center text-slate-400 italic">
+                          <td colSpan={9} className="border border-slate-300 p-4 text-center text-slate-400 italic">
                             No equipment borrowing records found.
                           </td>
                         </tr>
                       ) : (
-                        filteredEquipmentBorrowings.map((b, i) => (
-                          <tr key={i} className="hover:bg-slate-50/50">
-                            <td className="border border-slate-300 p-2.5 text-center text-slate-500 font-bold">{i + 1}</td>
-                            <td className="border border-slate-300 p-2.5 font-mono font-bold text-blue-700 whitespace-nowrap">
-                              {b.tracking_number?.reference_code || b.reference_code || `TRK-EQP${b.id}`}
-                            </td>
-                            <td className="border border-slate-300 p-2.5 font-extrabold text-slate-900">{b.filer_name || b.requestor_name || "—"}</td>
-                            <td className="border border-slate-300 p-2.5 text-slate-700">{b.department || b.program_office || "—"}</td>
-                            <td className="border border-slate-300 p-2.5 font-semibold text-slate-800">
-                              {b.items && b.items.length > 0
-                                ? b.items.map(it => `${it.quantity_requested || 1}x ${it.equipmentType?.name || it.equipment_type?.name || 'Item'}`).join(', ')
-                                : (b.equipment_name || "AV Equipment")}
-                            </td>
-                            <td className="border border-slate-300 p-2.5 font-mono text-[11px] text-slate-700 whitespace-nowrap">
-                              {b.start_datetime ? new Date(b.start_datetime).toLocaleDateString() : (b.date_of_usage || "—")}
-                            </td>
-                            <td className="border border-slate-300 p-2.5 text-center font-bold uppercase text-[10.5px]">
-                              <span className="px-2 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-800">
-                                {b.status || b.tracking_number?.status || "PENDING"}
-                              </span>
-                            </td>
-                          </tr>
-                        ))
+                        filteredEquipmentBorrowings.map((b, i) => {
+                          const isLate =
+                            Boolean(b.is_late) ||
+                            String(b.status || b.tracking_number?.status || "").toUpperCase() === 'LATE RETURN' ||
+                            String(b.status || b.tracking_number?.status || "").toUpperCase() === 'RETURNED LATE' ||
+                            String(b.timeliness || "").toLowerCase().includes("late") ||
+                            String(b.violation_type || "").toLowerCase().includes("late") ||
+                            String(b.violation_type || "").toLowerCase().includes("overdue") ||
+                            Number(b.minutes_late) > 0;
+                          const minutesLate = Number(b.minutes_late || b.inspection?.minutes_late || 0);
+
+                          return (
+                            <tr key={i} className="hover:bg-slate-50/50">
+                              <td className="border border-slate-300 p-2.5 text-center text-slate-500 font-bold">{i + 1}</td>
+                              <td className="border border-slate-300 p-2.5 font-mono font-bold text-blue-700 whitespace-nowrap">
+                                {b.tracking_number?.reference_code || b.reference_code || `TRK-EQP${b.id}`}
+                              </td>
+                              <td className="border border-slate-300 p-2.5 font-extrabold text-slate-900">{b.filer_name || b.requestor_name || "—"}</td>
+                              <td className="border border-slate-300 p-2.5 text-slate-700">{b.department || b.program_office || "—"}</td>
+                              <td className="border border-slate-300 p-2.5 font-semibold text-slate-800">
+                                {b.items && b.items.length > 0
+                                  ? b.items.map(it => `${it.quantity_requested || 1}x ${it.equipmentType?.name || it.equipment_type?.name || 'Item'}`).join(', ')
+                                  : (b.equipment_name || "AV Equipment")}
+                              </td>
+                              <td className="border border-slate-300 p-2.5 font-mono text-[11px] text-slate-700 whitespace-nowrap">
+                                {b.start_datetime ? new Date(b.start_datetime).toLocaleDateString() : (b.date_of_usage || "—")}
+                              </td>
+                              <td className="border border-slate-300 p-2.5 text-center font-bold text-[10.5px]">
+                                {isLate ? (
+                                  <span className="px-1.5 py-0.5 rounded bg-rose-50 text-rose-700 border border-rose-200 font-extrabold">
+                                    LATE RETURN
+                                  </span>
+                                ) : (
+                                  <span className="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                    ON TIME
+                                  </span>
+                                )}
+                              </td>
+                              <td className="border border-slate-300 p-2.5 text-center font-mono font-bold text-[11px]">
+                                {isLate ? (
+                                  <span className="text-rose-700 font-black">
+                                    {minutesLate > 0 ? `${minutesLate} mins` : "Late"}
+                                  </span>
+                                ) : (
+                                  <span className="text-slate-400">0 mins</span>
+                                )}
+                              </td>
+                              <td className="border border-slate-300 p-2.5 text-center font-bold uppercase text-[10.5px]">
+                                <span className="px-2 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-800">
+                                  {b.status || b.tracking_number?.status || "PENDING"}
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        })
                       )}
                     </tbody>
                   </table>

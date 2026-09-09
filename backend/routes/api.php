@@ -294,6 +294,32 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/sysad/notifications/mark-as-read',     [NotificationController::class, 'markAsRead']);
     Route::post('/sysad/notifications/mark-all-read',    [NotificationController::class, 'markAllRead']);
     Route::get('/sysad/audit-logs',                      [\App\Http\Controllers\SuperAdmin\AuditLogController::class, 'index']);
+    Route::get('/general/audit-logs',                    [\App\Http\Controllers\SuperAdmin\AuditLogController::class, 'index']);
+
+    // ── Brands Management ──────────────────────────────────────────────────
+    Route::get('/general/brands',                         [\App\Http\Controllers\BrandController::class, 'index']);
+    Route::post('/general/brands',                        [\App\Http\Controllers\BrandController::class, 'store']);
+    Route::put('/general/brands/{brand}',                 [\App\Http\Controllers\BrandController::class, 'update']);
+    Route::delete('/general/brands/{brand}',              [\App\Http\Controllers\BrandController::class, 'destroy']);
+    Route::patch('/general/brands/{brand}/toggle-status', [\App\Http\Controllers\BrandController::class, 'toggleStatus']);
+    Route::get('/sysad/brands',                           [\App\Http\Controllers\BrandController::class, 'index']);
+    Route::post('/sysad/brands',                          [\App\Http\Controllers\BrandController::class, 'store']);
+    Route::put('/sysad/brands/{brand}',                   [\App\Http\Controllers\BrandController::class, 'update']);
+    Route::delete('/sysad/brands/{brand}',                [\App\Http\Controllers\BrandController::class, 'destroy']);
+    Route::patch('/sysad/brands/{brand}/toggle-status',   [\App\Http\Controllers\BrandController::class, 'toggleStatus']);
+
+    // ── Active Sessions & Remote Terminal Management ─────────────────────────
+    Route::get('/sysad/active-sessions',                  [\App\Http\Controllers\ActiveSessionController::class, 'index']);
+    Route::post('/sysad/active-sessions/{id}/terminate',  [\App\Http\Controllers\ActiveSessionController::class, 'terminate']);
+    Route::get('/general/active-sessions',                [\App\Http\Controllers\ActiveSessionController::class, 'index']);
+    Route::post('/general/active-sessions/{id}/terminate', [\App\Http\Controllers\ActiveSessionController::class, 'terminate']);
+
+    // ── Security Alerts & Incident Tracking ─────────────────────────────────
+    Route::get('/sysad/security-alerts',                  [\App\Http\Controllers\SecurityAlertController::class, 'index']);
+    Route::patch('/sysad/security-alerts/{securityAlert}/resolve', [\App\Http\Controllers\SecurityAlertController::class, 'resolve']);
+    Route::delete('/sysad/security-alerts/{securityAlert}', [\App\Http\Controllers\SecurityAlertController::class, 'destroy']);
+    Route::get('/general/security-alerts',                [\App\Http\Controllers\SecurityAlertController::class, 'index']);
+    Route::patch('/general/security-alerts/{securityAlert}/resolve', [\App\Http\Controllers\SecurityAlertController::class, 'resolve']);
 
     // ── SuperAdmin: Role Management & Permission Sync ─────────────────────────
     Route::get('/sysad/roles',                              [RoleController::class, 'index']);

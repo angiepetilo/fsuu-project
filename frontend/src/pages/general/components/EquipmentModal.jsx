@@ -1,4 +1,6 @@
+import { useState, useEffect } from "react";
 import { X, Loader2 } from "lucide-react";
+import api from "@/lib/axios";
 
 export default function EquipmentModal({
   showAddModal,
@@ -15,6 +17,20 @@ export default function EquipmentModal({
   categories = ["Projector", "Sound System", "Camera", "Microphone", "Lighting", "Switchers/Mixers", "AV Equipment"],
   existingUnits = [],
 }) {
+  const [brands, setBrands] = useState([]);
+
+  useEffect(() => {
+    let isMounted = true;
+    api.get("/general/brands", { params: { all: 1, active_only: 1 } })
+      .then(res => {
+        if (!isMounted) return;
+        const list = res.data?.brands?.data || (Array.isArray(res.data?.brands) ? res.data.brands : []);
+        setBrands(list);
+      })
+      .catch(() => {});
+    return () => { isMounted = false; };
+  }, []);
+
   if (!showAddModal && !editingItem) return null;
 
   const handleBarcodeKeyDown = (e) => {
@@ -106,13 +122,19 @@ export default function EquipmentModal({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className={labelClasses}>Brand</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Epson, Sony, Acer"
+                  <select
                     value={editFormData.brand || ""}
                     onChange={e => setEditFormData({ ...editFormData, brand: e.target.value })}
                     className={inputClasses}
-                  />
+                  >
+                    <option value="">-- Select Brand --</option>
+                    {brands.map(b => (
+                      <option key={b.id || b.name} value={b.name}>{b.name}</option>
+                    ))}
+                    {editFormData.brand && !brands.some(b => b.name?.toUpperCase() === editFormData.brand?.toUpperCase()) && (
+                      <option value={editFormData.brand}>{editFormData.brand}</option>
+                    )}
+                  </select>
                 </div>
 
                 <div>
@@ -293,13 +315,19 @@ export default function EquipmentModal({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className={labelClasses}>Brand</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Epson, Sony, Acer"
+                  <select
                     value={formData.brand || ""}
                     onChange={e => setFormData({ ...formData, brand: e.target.value })}
                     className={inputClasses}
-                  />
+                  >
+                    <option value="">-- Select Brand --</option>
+                    {brands.map(b => (
+                      <option key={b.id || b.name} value={b.name}>{b.name}</option>
+                    ))}
+                    {formData.brand && !brands.some(b => b.name?.toUpperCase() === formData.brand?.toUpperCase()) && (
+                      <option value={formData.brand}>{formData.brand}</option>
+                    )}
+                  </select>
                 </div>
 
                 <div>

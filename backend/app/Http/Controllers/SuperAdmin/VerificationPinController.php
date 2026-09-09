@@ -43,6 +43,11 @@ class VerificationPinController extends Controller
             'venueVerifyPhone'            => (bool) $setting->venue_verify_phone,
             'equipmentVerifyEmail'        => (bool) $setting->equipment_verify_email,
             'equipmentVerifyPhone'        => (bool) $setting->equipment_verify_phone,
+            'applicabilityMatrix'         => $setting->applicability_matrix ?: [
+                'student'  => ['venue_single' => false, 'venue_multiday' => true, 'equipment' => false],
+                'faculty'  => ['venue_single' => false, 'venue_multiday' => true, 'equipment' => false],
+                'external' => ['venue_single' => true,  'venue_multiday' => true, 'equipment' => true],
+            ],
         ]);
     }
 
@@ -65,6 +70,7 @@ class VerificationPinController extends Controller
             'venueVerifyPhone'            => 'nullable|boolean',
             'equipmentVerifyEmail'        => 'nullable|boolean',
             'equipmentVerifyPhone'        => 'nullable|boolean',
+            'applicabilityMatrix'         => 'nullable|array',
         ]);
 
         $setting = VerificationPinSetting::first();
@@ -125,7 +131,21 @@ class VerificationPinController extends Controller
             $setting->equipment_verify_phone = (bool) $validated['equipmentVerifyPhone'];
         }
 
+        if (isset($validated['applicabilityMatrix'])) {
+            $setting->applicability_matrix = $validated['applicabilityMatrix'];
+        }
+
         $setting->save();
+
+        try {
+            app(\App\Services\AuditLogService::class)->log(
+                $request->user(),
+                'VERIFICATION_PIN_UPDATED',
+                'verification_pin_settings',
+                $setting->id,
+                ['description' => "Verification PIN trigger rules & applicability matrix updated."]
+            );
+        } catch (\Throwable $e) {}
 
         return response()->json([
             'message'                     => 'Verification PIN & trigger rules saved successfully.',
@@ -143,6 +163,11 @@ class VerificationPinController extends Controller
             'venueVerifyPhone'            => (bool) $setting->venue_verify_phone,
             'equipmentVerifyEmail'        => (bool) $setting->equipment_verify_email,
             'equipmentVerifyPhone'        => (bool) $setting->equipment_verify_phone,
+            'applicabilityMatrix'         => $setting->applicability_matrix ?: [
+                'student'  => ['venue_single' => false, 'venue_multiday' => true, 'equipment' => false],
+                'faculty'  => ['venue_single' => false, 'venue_multiday' => true, 'equipment' => false],
+                'external' => ['venue_single' => true,  'venue_multiday' => true, 'equipment' => true],
+            ],
         ]);
     }
 

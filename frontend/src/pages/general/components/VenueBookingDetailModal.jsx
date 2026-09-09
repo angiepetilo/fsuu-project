@@ -295,7 +295,16 @@ export default function VenueBookingDetailModal({
         }
       }
 
-      // 3. Hydrate from Backend Persisted Inspection Records
+      // 3. Hydrate from Backend Persisted Inspection Records (strictly skip if cancelled or rejected)
+      const stLower = String(selected.status || selected.tracking_number?.status || "").toLowerCase();
+      if (stLower === "cancelled" || stLower === "rejected" || stLower === "cancelled_by_user") {
+        setInspectionStatus("clean");
+        setViolationNotes("");
+        setSelectedViolationType("");
+        if (setEvidencePhoto) setEvidencePhoto([]);
+        return;
+      }
+
       api.get(`/inspections?reference_id=${selected.id}&reference_type=avr_venue_booking`)
         .then((res) => {
           const list = Array.isArray(res.data) ? res.data : (res.data?.data ?? []);
@@ -671,6 +680,7 @@ export default function VenueBookingDetailModal({
   if (!selected) return null;
 
   const currentStatus = (selected.status || selected.tracking_number?.status || "").toLowerCase();
+  const isCancelledOrRejected = currentStatus === "cancelled" || currentStatus === "rejected" || currentStatus === "cancelled_by_user";
   const isPending = currentStatus === "pending";
   const isApproved = currentStatus === "approved";
   const isOngoing = currentStatus === "ongoing" || currentStatus === "on-going";
@@ -1070,7 +1080,43 @@ export default function VenueBookingDetailModal({
         {/* Modal Body Scroll Area */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 bg-slate-50/50">
           {/* Conditional Layout Rendering */}
-          {isPending ? (
+          {isCancelledOrRejected ? (
+            /* CANCELLED / REJECTED STATUS: No Inspection Form or Checklist */
+            <div className="space-y-4">
+              <VenueBookingInfo
+                selected={selected}
+                formatRealTime={formatRealTime}
+                formatDateTimeFiled={formatDateTimeFiled}
+                formatDate={formatDate}
+                requestedCategories={requestedCategories}
+                setFullImageModal={setFullImageModal}
+              />
+              <div className={`p-4 rounded-xl border flex items-start gap-3.5 ${
+                currentStatus.includes("reject")
+                  ? "bg-rose-50/80 border-rose-200 text-rose-900"
+                  : "bg-slate-100/80 border-slate-200 text-slate-800"
+              }`}>
+                <div className={`p-2 rounded-lg shrink-0 ${
+                  currentStatus.includes("reject") ? "bg-rose-100 text-rose-600" : "bg-slate-200 text-slate-600"
+                }`}>
+                  <ShieldAlert size={20} />
+                </div>
+                <div className="space-y-1">
+                  <div className="text-xs font-black uppercase tracking-wider">
+                    {currentStatus.includes("reject") ? "Reservation Rejected" : "Reservation Cancelled"}
+                  </div>
+                  <p className="text-xs font-medium text-slate-600 leading-relaxed">
+                    This venue reservation was {currentStatus.includes("reject") ? "rejected" : "cancelled"}. Under university facility policies, no facility or equipment inspection is conducted on cancelled or rejected reservations.
+                  </p>
+                  {(selected.rejection_reason || selected.comments) && (
+                    <div className="mt-2 text-xs font-bold text-rose-700 bg-white/90 p-2.5 rounded-lg border border-rose-200">
+                      Reason: <span className="font-normal text-slate-800">{selected.rejection_reason || selected.comments}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          ) : isPending ? (
             <div className="space-y-4">
               <VenueBookingInfo
                 selected={selected}

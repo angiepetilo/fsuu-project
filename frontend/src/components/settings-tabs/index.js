@@ -14,3 +14,6 @@ export { default as OperatingHoursTab } from "./OperatingHoursTab";
 export { default as AcademicTermsTab } from "./AcademicTermsTab";
 export { default as FeeMatrixTab } from "./FeeMatrixTab";
 export { default as AuditLogsTab } from "./AuditLogsTab";
+export { default as BrandsTab } from "./BrandsTab";
+export { default as ActiveSessionsTab } from "./ActiveSessionsTab";
+export { default as SecurityAlertsTab } from "./SecurityAlertsTab";

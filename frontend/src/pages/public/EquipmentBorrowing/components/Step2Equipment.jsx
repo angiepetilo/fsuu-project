@@ -26,9 +26,20 @@ export default function Step2Equipment({
   catalogLoading = false,
   isPortal = false,
 }) {
+  // Responsive equipment pagination: 1 item on mobile, 4 items on desktop/tablet
+  const [isMobile, setIsMobile] = useState(() => typeof window !== "undefined" ? window.innerWidth < 640 : false);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 640);
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   const [equipSearch, setEquipSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 4;
+  const itemsPerPage = isMobile ? 1 : 4;
 
   const rawCatalogList = filteredCatalog || [];
   const catalogList = rawCatalogList.filter(item => {
@@ -42,7 +53,8 @@ export default function Step2Equipment({
   });
 
   const totalPages = Math.ceil(catalogList.length / itemsPerPage) || 1;
-  const startIndex = (currentPage - 1) * itemsPerPage;
+  const safeCurrentPage = Math.min(Math.max(1, currentPage), totalPages);
+  const startIndex = (safeCurrentPage - 1) * itemsPerPage;
   const currentGridItems = catalogList.slice(startIndex, startIndex + itemsPerPage);
   const totalSelectedCount = (selectedItems || []).reduce((sum, id) => sum + (itemQuantities[id] || 1), 0);
 
@@ -154,7 +166,7 @@ export default function Step2Equipment({
   };
 
   return (
-    <div className="p-6 sm:p-8 animate-in slide-in-from-top-2 duration-300">
+    <div className="p-3 sm:p-6 md:p-8 animate-in slide-in-from-top-2 duration-300">
       {/* Section Header with Search Bar aligned to the right */}
       <div className="mb-6 pb-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -245,10 +257,17 @@ export default function Step2Equipment({
 
                     {/* Equipment Metadata */}
                     <div className="mt-4 space-y-1">
-                      <h4 className="font-extrabold text-slate-900 text-sm leading-tight truncate" title={item.name}>{item.name}</h4>
-                      <p className={`text-xs font-bold ${remainingAvailable === 0 ? "text-amber-600" : "text-emerald-600"}`}>
-                        {remainingAvailable} Available Now
-                      </p>
+                      <h4 className="font-extrabold text-slate-900 dark:text-[#F8FAFC] text-sm leading-tight truncate" title={item.name}>{item.name}</h4>
+                      <div className="pt-1">
+                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold ${
+                          remainingAvailable === 0
+                            ? "bg-amber-500/15 border border-amber-400/30 text-amber-700 dark:text-[#FCD34D]"
+                            : "bg-emerald-500/15 border border-emerald-400/30 text-emerald-700 dark:text-[#6EE7B7]"
+                        }`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${remainingAvailable === 0 ? "bg-amber-400" : "bg-emerald-400 animate-pulse"}`} />
+                          {remainingAvailable} Available Now
+                        </span>
+                      </div>
                     </div>
                   </div>
 
@@ -321,7 +340,7 @@ export default function Step2Equipment({
               <button
                 type="button"
                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
+                disabled={safeCurrentPage <= 1}
                 className="px-4 py-1.5 rounded-full bg-white border border-slate-200 text-xs font-extrabold text-slate-700 hover:bg-slate-50 disabled:opacity-40 flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
               >
                 <ChevronLeft size={14} />
@@ -329,13 +348,13 @@ export default function Step2Equipment({
               </button>
 
               <span className="text-xs font-black text-slate-700 px-2">
-                {currentPage} / {totalPages}
+                {safeCurrentPage} / {totalPages}
               </span>
 
               <button
                 type="button"
                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                disabled={currentPage === totalPages}
+                disabled={safeCurrentPage >= totalPages}
                 className="px-4 py-1.5 rounded-full bg-white border border-slate-200 text-xs font-extrabold text-slate-700 hover:bg-slate-50 disabled:opacity-40 flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
               >
                 <span>Next</span>
@@ -346,27 +365,27 @@ export default function Step2Equipment({
         </div>
 
         {/* Right Column: Walk-In / Same-Day & Next-Day Schedule Controls */}
-        <div className="lg:col-span-5 sm:col-span-12 space-y-4 relative z-50">
-          <div className="bg-white/95 backdrop-blur-md p-5 rounded-[28px] border border-slate-200/90 shadow-md space-y-4 sticky top-4 z-40">
+        <div className="lg:col-span-5 sm:col-span-12 space-y-4 relative z-10 mt-4 lg:mt-0">
+          <div className="bg-white dark:bg-[#111C38] p-5 rounded-[28px] border border-slate-200/90 dark:border-[#1E2D56] shadow-md space-y-4 static lg:sticky lg:top-24 z-10">
             {/* Header */}
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h4 className="font-extrabold text-slate-900 text-xs uppercase tracking-wider">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <h4 className="font-extrabold text-slate-900 dark:text-[#F8FAFC] text-xs uppercase tracking-wider">
                 Borrow Schedule
               </h4>
             </div>
 
             {/* Date Selection Mode (Today vs Tomorrow) */}
             <div className="space-y-1.5">
-              <div className="flex items-center bg-slate-100 p-1 rounded-xl gap-1">
+              <div className="flex items-center bg-slate-100 dark:bg-slate-900 p-1 rounded-xl gap-1">
                 <button
                   type="button"
                   onClick={() => setBorrowDateMode("today")}
                   disabled={isPastClosingToday}
                   className={`flex-1 py-1.5 rounded-lg text-xs font-extrabold transition-all ${borrowDateMode === "today"
-                    ? "bg-white text-blue-600 shadow-2xs"
+                    ? "bg-white dark:bg-[#18264B] text-blue-600 dark:text-[#93C5FD] shadow-2xs"
                     : isPastClosingToday
-                      ? "text-slate-400 cursor-not-allowed opacity-50"
-                      : "text-slate-600 hover:text-slate-900 cursor-pointer"
+                      ? "text-slate-400 dark:text-slate-600 cursor-not-allowed opacity-50"
+                      : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-[#F8FAFC] cursor-pointer"
                     }`}
                 >
                   Today
@@ -379,10 +398,10 @@ export default function Step2Equipment({
                   }}
                   disabled={!isPortal && !isPastClosingToday}
                   className={`flex-1 py-1.5 rounded-lg text-xs font-extrabold transition-all ${borrowDateMode === "tomorrow"
-                    ? "bg-white text-blue-600 shadow-2xs"
+                    ? "bg-white dark:bg-[#18264B] text-blue-600 dark:text-[#93C5FD] shadow-2xs"
                     : (!isPortal && !isPastClosingToday)
-                      ? "text-slate-400 cursor-not-allowed opacity-50"
-                      : "text-slate-600 hover:text-slate-900 cursor-pointer"
+                      ? "text-slate-400 dark:text-slate-600 cursor-not-allowed opacity-50"
+                      : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-[#F8FAFC] cursor-pointer"
                     }`}
                   title={
                     !isPortal && !isPastClosingToday
@@ -395,14 +414,14 @@ export default function Step2Equipment({
               </div>
 
               {isPastClosingToday ? (
-                <div className="p-3 bg-amber-50/80 border border-amber-200/80 rounded-xl flex items-start gap-2 text-xs text-amber-900 font-bold leading-relaxed">
-                  <AlertCircle size={15} className="text-amber-600 shrink-0 mt-0.5" />
+                <div className="p-3 bg-amber-50/80 dark:bg-amber-950/40 border border-amber-200/80 dark:border-amber-700/60 rounded-xl flex items-start gap-2 text-xs text-amber-900 dark:text-[#FCD34D] font-bold leading-relaxed">
+                  <AlertCircle size={15} className="text-amber-600 dark:text-[#FCD34D] shrink-0 mt-0.5" />
                   <span>Today borrowing is closed. Reservation is automatically set for tomorrow ({formattedDisplayDate}).</span>
                 </div>
               ) : (
-                <div className="p-2.5 bg-blue-50/60 border border-blue-100 rounded-xl text-[11px] text-blue-900 font-medium leading-relaxed flex items-center justify-between">
+                <div className="p-2.5 bg-blue-50/60 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900/60 rounded-xl text-[11px] text-blue-900 dark:text-[#93C5FD] font-medium leading-relaxed flex items-center justify-between">
                   <span>📅 Today walk-in borrowing active</span>
-                  <span className="text-[10px] font-bold text-blue-700 bg-white px-2 py-0.5 rounded-md border border-blue-200" title="Next-day reservation unlocks once today's operating hours end">
+                  <span className="text-[10px] font-bold text-blue-700 dark:text-[#93C5FD] bg-white dark:bg-[#111C38] px-2 py-0.5 rounded-md border border-blue-200 dark:border-blue-800" title="Next-day reservation unlocks once today's operating hours end">
                     Next-day unlocks at {formatTime12(kioskClose)}
                   </span>
                 </div>
@@ -412,7 +431,7 @@ export default function Step2Equipment({
             {/* Time Settings */}
             <div className="space-y-3 pt-1">
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-extrabold text-slate-800 flex items-center gap-1.5">
+                <label className="text-xs font-extrabold text-slate-800 dark:text-[#CBD5E1] flex items-center gap-1.5">
                   <span>Borrow Release Start Time</span>
                   <span className="text-rose-500">*</span>
                 </label>
@@ -438,7 +457,7 @@ export default function Step2Equipment({
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-extrabold text-slate-800 flex items-center gap-1.5">
+                <label className="text-xs font-extrabold text-slate-800 dark:text-[#CBD5E1] flex items-center gap-1.5">
                   <span>Expected Return Time</span>
                   <span className="text-rose-500">*</span>
                 </label>
@@ -453,24 +472,24 @@ export default function Step2Equipment({
               </div>
 
               {endTimeVal <= startTimeVal && (
-                <div className="p-3 bg-rose-50 border border-rose-200 rounded-2xl text-xs font-bold text-rose-800 flex items-center gap-2">
-                  <AlertTriangle size={15} className="text-rose-600 shrink-0" />
+                <div className="p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/60 rounded-2xl text-xs font-bold text-rose-800 dark:text-[#FCA5A5] flex items-center gap-2">
+                  <AlertTriangle size={15} className="text-rose-600 dark:text-[#FCA5A5] shrink-0" />
                   <span>Expected return time ({formatTime12(endTimeVal)}) cannot be earlier than or equal to start time ({formatTime12(startTimeVal)}).</span>
                 </div>
               )}
 
               {borrowDateMode === "today" && isPastTimeToday(todayISO, startTimeVal) && (
-                <div className="p-3 bg-rose-50 border border-rose-200 rounded-2xl text-xs font-bold text-rose-800 flex items-center gap-2">
-                  <AlertTriangle size={15} className="text-rose-600 shrink-0" />
+                <div className="p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/60 rounded-2xl text-xs font-bold text-rose-800 dark:text-[#FCA5A5] flex items-center gap-2">
+                  <AlertTriangle size={15} className="text-rose-600 dark:text-[#FCA5A5] shrink-0" />
                   <span>Selected start time ({formatTime12(startTimeVal)}) has already passed for today. Please select a future time slot or reserve for tomorrow.</span>
                 </div>
               )}
 
               {/* Extended Multi-day Return for Portal Mode */}
               {isPortal && (
-                <div className="p-3 bg-blue-50/70 border border-blue-200 rounded-2xl space-y-2">
+                <div className="p-3 bg-blue-50/70 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900/60 rounded-2xl space-y-2">
                   <div className="flex items-center justify-between">
-                    <label className="text-xs font-extrabold text-slate-900 flex items-center gap-2 cursor-pointer">
+                    <label className="text-xs font-extrabold text-slate-900 dark:text-[#CBD5E1] flex items-center gap-2 cursor-pointer">
                       <input
                         type="checkbox"
                         checked={wishesToExtend}
@@ -484,13 +503,13 @@ export default function Step2Equipment({
                       />
                       <span>Allow Extended Multi-Day Return</span>
                     </label>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-blue-200 text-blue-900">
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-blue-200 dark:bg-blue-900/60 text-blue-900 dark:text-blue-200">
                       Portal Mode
                     </span>
                   </div>
                   {wishesToExtend && (
                     <div className="flex flex-col gap-1.5 pt-1">
-                      <label className="text-xs font-bold text-slate-700">Target Return Date</label>
+                      <label className="text-xs font-bold text-slate-700 dark:text-[#CBD5E1]">Target Return Date</label>
                       <input
                         type="date"
                         min={activeBorrowDate}
@@ -499,7 +518,7 @@ export default function Step2Equipment({
                           const newEndDate = e.target.value;
                           setEndTime && setEndTime(`${newEndDate}T${endTimeVal}`);
                         }}
-                        className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-2xl text-xs font-bold text-slate-900 focus:border-blue-600 focus:outline-none shadow-inner"
+                        className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs font-bold text-slate-900 dark:text-[#F8FAFC] focus:border-blue-600 focus:outline-none shadow-inner"
                       />
                     </div>
                   )}

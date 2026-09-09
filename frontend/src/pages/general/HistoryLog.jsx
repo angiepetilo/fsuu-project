@@ -70,9 +70,10 @@ export default function HistoryLog() {
   const location = useLocation();
   const officeScope = context?.adminOffice || context?.selectedOffice || "All Offices";
 
-  const [historyType, setHistoryType] = useState("venue"); // "venue" | "equipment"
+  const [historyType, setHistoryType] = useState("venue"); // "venue" | "equipment" | "incidents"
   const [venueHistory, setVenueHistory] = useState([]);
   const [equipmentHistory, setEquipmentHistory] = useState([]);
+  const [incidentsHistory, setIncidentsHistory] = useState([]);
   const [academicTerms, setAcademicTerms] = useState([]);
   const [selectedTermId, setSelectedTermId] = useState("");
   const [loading, setLoading] = useState(true);
@@ -138,6 +139,7 @@ export default function HistoryLog() {
       const res = await api.get(`/general/history-log?type=all${termParam}`);
       const vb = res.data?.venue_bookings || [];
       const eb = res.data?.equipment_borrowings || [];
+      const inc = res.data?.incidents || [];
 
       // Include locally saved solved items
       const savedSolved = JSON.parse(localStorage.getItem("fsuu_solved_history_ids") || "[]");
@@ -151,18 +153,23 @@ export default function HistoryLog() {
 
       if (mappedVb.length > 0) localStorage.setItem("fsuu_history_venue_bookings", JSON.stringify(mappedVb));
       if (mappedEb.length > 0) localStorage.setItem("fsuu_history_equipment_borrowings", JSON.stringify(mappedEb));
+      if (inc.length > 0) localStorage.setItem("fsuu_history_incidents", JSON.stringify(inc));
 
       setVenueHistory(mappedVb);
       setEquipmentHistory(mappedEb);
+      setIncidentsHistory(inc);
     } catch {
       try {
         const localVb = JSON.parse(localStorage.getItem("fsuu_history_venue_bookings") || "[]");
         const localEb = JSON.parse(localStorage.getItem("fsuu_history_equipment_borrowings") || "[]");
+        const localInc = JSON.parse(localStorage.getItem("fsuu_history_incidents") || "[]");
         setVenueHistory(localVb);
         setEquipmentHistory(localEb);
+        setIncidentsHistory(localInc);
       } catch {
         setVenueHistory([]);
         setEquipmentHistory([]);
+        setIncidentsHistory([]);
       }
     } finally {
       setLoading(false);
@@ -190,7 +197,9 @@ export default function HistoryLog() {
     const targetType = params.get("type") || location.state?.targetType;
     const targetRef = params.get("trk") || params.get("ref");
 
-    if (targetType === "equipment" || targetType === "equipment_borrow") {
+    if (targetType === "incident" || targetType === "incidents" || targetType === "damaged_unit" || targetType === "lost_unit" || targetType === "policy_violation") {
+      setHistoryType("incidents");
+    } else if (targetType === "equipment" || targetType === "equipment_borrow") {
       setHistoryType("equipment");
       if ((targetId || targetRef) && equipmentHistory.length > 0) {
         const match = equipmentHistory.find(e => 
@@ -365,8 +374,37 @@ export default function HistoryLog() {
     });
   };
 
+  const filterIncidentRecord = (inc) => {
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      const ref = (inc.reference_code || "").toLowerCase();
+      const filer = (inc.filer_name || "").toLowerCase();
+      const dept = (inc.department || inc.program_office || "").toLowerCase();
+      const item = (inc.facility_or_item || "").toLowerCase();
+      const label = (inc.incident_label || "").toLowerCase();
+      const notes = (inc.notes || "").toLowerCase();
+      const barcodes = Array.isArray(inc.flagged_units) ? inc.flagged_units.join(" ").toLowerCase() : "";
+      if (!ref.includes(q) && !filer.includes(q) && !dept.includes(q) && !item.includes(q) && !label.includes(q) && !notes.includes(q) && !barcodes.includes(q)) {
+        return false;
+      }
+    }
+    return true;
+  };
+
+  const sortIncidentRecords = (list) => {
+    return [...list].sort((a, b) => {
+      const dateA = a.date || "";
+      const dateB = b.date || "";
+      if (sortBy === "completed_asc") {
+        return dateA.localeCompare(dateB);
+      }
+      return dateB.localeCompare(dateA); // Default: newest first
+    });
+  };
+
   const filteredVenues = sortRecords(venueHistory.filter((b) => filterRecord(b, true)), true);
   const filteredEquipment = sortRecords(equipmentHistory.filter((b) => filterRecord(b, false)), false);
+  const filteredIncidents = sortIncidentRecords(incidentsHistory.filter(filterIncidentRecord));
 
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(25);
@@ -375,7 +413,11 @@ export default function HistoryLog() {
     setCurrentPage(1);
   }, [historyType, searchQuery, sortBy, itemsPerPage]);
 
-  const activeList = historyType === "venue" ? filteredVenues : filteredEquipment;
+  const activeList = historyType === "venue"
+    ? filteredVenues
+    : historyType === "equipment"
+    ? filteredEquipment
+    : filteredIncidents;
   const ITEMS_PER_PAGE = itemsPerPage;
 
   const totalPages = Math.ceil(activeList.length / ITEMS_PER_PAGE) || 1;
@@ -422,6 +464,7 @@ export default function HistoryLog() {
               >
                 <option value="venue">Venue Bookings History</option>
                 <option value="equipment">Equipment Borrowings History</option>
+                <option value="incidents">Incidents &amp; Damage View</option>
               </select>
             </div>
 
@@ -488,7 +531,7 @@ export default function HistoryLog() {
       <HistoryTable
         historyType={historyType}
         loading={loading}
-        filteredRecords={historyType === "venue" ? filteredVenues : filteredEquipment}
+        filteredRecords={historyType === "venue" ? filteredVenues : historyType === "equipment" ? filteredEquipment : filteredIncidents}
         paginatedList={paginatedList}
         startIndex={startIndex}
         ITEMS_PER_PAGE={ITEMS_PER_PAGE}
@@ -508,6 +551,13 @@ export default function HistoryLog() {
         handleOpenEdit={handleOpenEdit}
         handleUndoHistory={handleUndoHistory}
         handleDeleteHistory={handleDeleteHistory}
+        onViewIncident={(inc) => {
+          if (inc.source_type === "venue" || inc.source_record?.record_type === "venue") {
+            setSelectedVenueModal(inc.source_record);
+          } else {
+            setSelectedEquipModal(inc.source_record);
+          }
+        }}
       />
 
       <Suspense fallback={null}>

@@ -285,8 +285,9 @@ class DashboardStatsController extends Controller
                 $rawInspStudents = DB::table('inspections')
                     ->where(function ($q) {
                         $q->where('inspections.is_late', 1)
-                          ->orWhereIn(DB::raw('LOWER(inspections.condition)'), ['damaged', 'lost'])
-                          ->orWhereNotNull('inspections.violation_type');
+                          ->orWhere(DB::raw('LOWER(inspections.timeliness)'), 'like', '%late%')
+                          ->orWhere(DB::raw('LOWER(inspections.violation_type)'), 'like', '%late%')
+                          ->orWhere('inspections.minutes_late', '>', 0);
                     })
                     ->leftJoin('equipment_borrows', function ($join) {
                         $join->on('inspections.inspectable_id', '=', 'equipment_borrows.id')

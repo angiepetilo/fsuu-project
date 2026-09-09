@@ -180,19 +180,19 @@ export default function StudentStaffDashboard({
       {/* ────────────────────────────────────────────────────────────────────────── */}
       {/* PENDING SHIFT TASKS & REQUISITIONS TABLE */}
       {/* ────────────────────────────────────────────────────────────────────────── */}
-      <div className="bg-white rounded-3xl border border-slate-200 p-5 space-y-4 shadow-xs">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+      <div className="space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               <h3 className="font-black text-slate-900 text-sm sm:text-base">
                 Today's Pending Shift Tasks
               </h3>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-blue-100 text-blue-700 border border-blue-200">
-                {staffTasks.length} Active
+              <span className="text-sm font-black text-slate-400">
+                {staffTasks.length}
               </span>
             </div>
             <p className="text-[11px] text-slate-500 font-medium mt-0.5">
-              Latest pending venue bookings and equipment borrow requests requiring student assistant clearance.
+              Pending venue bookings and equipment borrow requests requiring clearance.
             </p>
           </div>
 
@@ -251,7 +251,7 @@ export default function StudentStaffDashboard({
         </div>
 
         {/* Table */}
-        <div className="overflow-x-auto rounded-2xl border border-slate-100">
+        <div className="overflow-x-auto rounded-xl border border-slate-100">
           <table className="w-full text-xs">
             <thead>
               <tr className="bg-slate-50/90 border-b border-slate-100 text-left text-[10px] font-mono font-bold text-slate-500 uppercase tracking-wider">

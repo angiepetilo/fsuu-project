@@ -1,6 +1,3 @@
-import { MetricCard } from "@/components/ui/app-card";
-import { Building2, PackageOpen, Clock, AlertTriangle, ShieldAlert, ClipboardCheck } from "lucide-react";
-
 export default function MetricsOverview({
   totalVenueBookings = 0,
   pendingApproval = 0,
@@ -9,67 +6,32 @@ export default function MetricsOverview({
   totalLost = 0,
   postInspectionPending = 0,
 }) {
+  const stats = [
+    { label: "Venue Bookings", value: totalVenueBookings },
+    { label: "Pending Approval", value: pendingApproval, warn: pendingApproval > 0 },
+    { label: "Post Inspection", value: postInspectionPending, warn: postInspectionPending > 0 },
+    { label: "Equipment Borrows", value: totalEquipBorrows },
+    { label: "Equipment Damaged", value: totalDamaged, danger: totalDamaged > 0 },
+    { label: "Equipment Lost", value: totalLost, danger: totalLost > 0 },
+  ];
+
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3.5">
-      {/* 1. Total Venue Bookings */}
-      <MetricCard
-        icon={Building2}
-        label="TOTAL VENUE BOOKINGS"
-        value={totalVenueBookings}
-        badge="Completed in History"
-        badgeType="success"
-        color="blue"
-      />
-
-      {/* 2. Pending Approval */}
-      <MetricCard
-        icon={Clock}
-        label="PENDING APPROVAL"
-        value={pendingApproval}
-        badge={pendingApproval > 0 ? "Action Required" : "Up to date"}
-        badgeType={pendingApproval > 0 ? "warning" : "success"}
-        color="amber"
-      />
-
-      {/* 3. Post Inspection Pending */}
-      <MetricCard
-        icon={ClipboardCheck}
-        label="POST INSPECTION PENDING"
-        value={postInspectionPending}
-        badge={postInspectionPending > 0 ? "Pending Turnover" : "All Clear"}
-        badgeType={postInspectionPending > 0 ? "warning" : "success"}
-        color="indigo"
-      />
-
-      {/* 4. Total Equipment Borrows */}
-      <MetricCard
-        icon={PackageOpen}
-        label="TOTAL EQUIPMENT BORROWS"
-        value={totalEquipBorrows}
-        badge="Completed in History"
-        badgeType="success"
-        color="blue"
-      />
-
-      {/* 5. Total Equipment Damages */}
-      <MetricCard
-        icon={AlertTriangle}
-        label="TOTAL EQUIPMENT DAMAGES"
-        value={totalDamaged}
-        badge={totalDamaged > 0 ? "Damaged gear" : "Clean Stock"}
-        badgeType={totalDamaged > 0 ? "danger" : "success"}
-        color="rose"
-      />
-
-      {/* 6. Total Equipment Lost */}
-      <MetricCard
-        icon={ShieldAlert}
-        label="TOTAL EQUIPMENT LOST"
-        value={totalLost}
-        badge={totalLost > 0 ? "Unreturned items" : "All Accounts"}
-        badgeType={totalLost > 0 ? "danger" : "success"}
-        color="rose"
-      />
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+      {stats.map((s, i) => (
+        <div
+          key={i}
+          className="bg-white rounded-2xl border border-slate-200/80 shadow-2xs p-4 space-y-1"
+        >
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{s.label}</p>
+          <p
+            className={`text-2xl font-black tracking-tight ${
+              s.danger ? "text-rose-600" : s.warn ? "text-amber-600" : "text-slate-900"
+            }`}
+          >
+            {s.value}
+          </p>
+        </div>
+      ))}
     </div>
   );
 }

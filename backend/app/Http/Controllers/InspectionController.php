@@ -28,6 +28,12 @@ class InspectionController extends Controller
             $refType = $request->query('reference_type') ?? $request->query('inspectable_type');
             if ($refType) {
                 if (in_array($refType, ['avr_venue_booking', 'venue_booking', VenueBooking::class, 'App\Models\VenueBooking'])) {
+                    if ($refId) {
+                        $vb = VenueBooking::find($refId);
+                        if ($vb && in_array(strtolower($vb->status), ['cancelled', 'rejected', 'cancelled_by_user'])) {
+                            return response()->json([]);
+                        }
+                    }
                     $query->whereIn('inspectable_type', ['avr_venue_booking', 'venue_booking', VenueBooking::class, 'App\Models\VenueBooking']);
                 } elseif (in_array($refType, ['equipment_borrow', EquipmentBorrow::class, 'App\Models\EquipmentBorrow', 'avr_equipment_borrowing'])) {
                     $query->whereIn('inspectable_type', ['equipment_borrow', EquipmentBorrow::class, 'App\Models\EquipmentBorrow', 'avr_equipment_borrowing']);
@@ -48,6 +54,16 @@ class InspectionController extends Controller
         try {
             $refId = $request->input('reference_id') ?? $request->input('inspectable_id');
             $refType = $request->input('reference_type') ?? $request->input('inspectable_type') ?? 'avr_venue_booking';
+
+            // Cancelled or rejected venue bookings strictly have NO inspection
+            if (in_array($refType, ['avr_venue_booking', 'venue_booking', VenueBooking::class, 'App\Models\VenueBooking']) && $refId) {
+                $vb = VenueBooking::find($refId);
+                if ($vb && in_array(strtolower($vb->status), ['cancelled', 'rejected', 'cancelled_by_user'])) {
+                    return response()->json([
+                        'message' => 'Inspections are not permitted on cancelled or rejected venue reservations.'
+                    ], 422);
+                }
+            }
             
             // Process Multiple Photos or Single Photo
             $photos = [];
@@ -225,6 +241,11 @@ class InspectionController extends Controller
                     }
                 }
             }
+
+            // Synchronize incident audit trail
+            try {
+                \App\Http\Controllers\SuperAdmin\AuditLogController::syncIncidentAuditLogs();
+            } catch (\Throwable $e) {}
 
             // Broadcast live inventory update event
             try {

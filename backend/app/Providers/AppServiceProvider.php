@@ -44,7 +44,25 @@ class AppServiceProvider extends ServiceProvider
 
         // ─── Application Firewall & Rate Limiters ─────────────────────────────
         \Illuminate\Support\Facades\RateLimiter::for('login', function (\Illuminate\Http\Request $request) {
-            return \Illuminate\Cache\RateLimiting\Limit::perMinute(5)->by($request->ip())->response(function () {
+            return \Illuminate\Cache\RateLimiting\Limit::perMinute(5)->by($request->ip())->response(function () use ($request) {
+                try {
+                    \App\Models\SecurityAlert::create([
+                        'event_type' => 'login_lockout',
+                        'severity' => 'high',
+                        'title' => '1-Minute Login Lockout Triggered',
+                        'description' => "Automated 60-second login lockout activated for IP {$request->ip()} after exceeding 5 login attempts per minute.",
+                        'ip_address' => $request->ip(),
+                        'user_agent' => $request->userAgent(),
+                        'metadata' => [
+                            'endpoint' => $request->path(),
+                            'attempted_email' => $request->input('email'),
+                            'limit' => 5,
+                            'duration' => '60 seconds',
+                        ],
+                        'status' => 'unresolved',
+                    ]);
+                } catch (\Throwable $e) {}
+
                 return response()->json([
                     'message' => 'Too many login attempts. Please wait 60 seconds before trying again.'
                 ], 429);
@@ -52,7 +70,20 @@ class AppServiceProvider extends ServiceProvider
         });
 
         \Illuminate\Support\Facades\RateLimiter::for('auth-activate', function (\Illuminate\Http\Request $request) {
-            return \Illuminate\Cache\RateLimiting\Limit::perMinute(10)->by($request->ip())->response(function () {
+            return \Illuminate\Cache\RateLimiting\Limit::perMinute(10)->by($request->ip())->response(function () use ($request) {
+                try {
+                    \App\Models\SecurityAlert::create([
+                        'event_type' => 'rate_limit_breach',
+                        'severity' => 'medium',
+                        'title' => 'Account Activation Rate Limit Exceeded',
+                        'description' => "Repeated activation attempts exceeded threshold (10/min) from IP {$request->ip()}.",
+                        'ip_address' => $request->ip(),
+                        'user_agent' => $request->userAgent(),
+                        'metadata' => ['endpoint' => $request->path()],
+                        'status' => 'unresolved',
+                    ]);
+                } catch (\Throwable $e) {}
+
                 return response()->json([
                     'message' => 'Too many account activation attempts. Please wait before trying again.'
                 ], 429);
@@ -60,7 +91,20 @@ class AppServiceProvider extends ServiceProvider
         });
 
         \Illuminate\Support\Facades\RateLimiter::for('otp', function (\Illuminate\Http\Request $request) {
-            return \Illuminate\Cache\RateLimiting\Limit::perMinute(5)->by($request->ip())->response(function () {
+            return \Illuminate\Cache\RateLimiting\Limit::perMinute(5)->by($request->ip())->response(function () use ($request) {
+                try {
+                    \App\Models\SecurityAlert::create([
+                        'event_type' => 'rate_limit_breach',
+                        'severity' => 'medium',
+                        'title' => 'OTP Verification Rate Limit Exceeded',
+                        'description' => "Automated tracking: Too many OTP dispatch/verify requests from IP {$request->ip()}.",
+                        'ip_address' => $request->ip(),
+                        'user_agent' => $request->userAgent(),
+                        'metadata' => ['endpoint' => $request->path()],
+                        'status' => 'unresolved',
+                    ]);
+                } catch (\Throwable $e) {}
+
                 return response()->json([
                     'message' => 'Too many OTP requests. Please wait 1 minute before requesting another code.'
                 ], 429);
@@ -68,7 +112,20 @@ class AppServiceProvider extends ServiceProvider
         });
 
         \Illuminate\Support\Facades\RateLimiter::for('public-submissions', function (\Illuminate\Http\Request $request) {
-            return \Illuminate\Cache\RateLimiting\Limit::perMinute(10)->by($request->ip())->response(function () {
+            return \Illuminate\Cache\RateLimiting\Limit::perMinute(10)->by($request->ip())->response(function () use ($request) {
+                try {
+                    \App\Models\SecurityAlert::create([
+                        'event_type' => 'rate_limit_breach',
+                        'severity' => 'low',
+                        'title' => 'Public Submission Rate Limit Triggered',
+                        'description' => "Excessive submission rate detected from IP {$request->ip()}.",
+                        'ip_address' => $request->ip(),
+                        'user_agent' => $request->userAgent(),
+                        'metadata' => ['endpoint' => $request->path()],
+                        'status' => 'unresolved',
+                    ]);
+                } catch (\Throwable $e) {}
+
                 return response()->json([
                     'message' => 'Submission rate limit exceeded. Please wait a moment before submitting another reservation.'
                 ], 429);

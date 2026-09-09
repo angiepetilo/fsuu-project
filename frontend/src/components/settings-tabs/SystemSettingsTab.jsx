@@ -2,10 +2,11 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import {
   Loader2, CheckCircle2, Globe, Phone, Mail, RotateCcw, AlertCircle,
   Edit3, Save, X, Lock, Eye, EyeOff, MessageSquare, Server, Shield,
-  Send
+  Send, Sun, Moon, Check
 } from "lucide-react";
 import api from "@/lib/axios";
 import notify from "@/lib/notify";
+import { useTheme } from "@/context/ThemeContext";
 
 const inputCls = (editing) =>
   `w-full px-3.5 py-2.5 border rounded-xl text-xs font-semibold text-slate-900 transition-colors shadow-2xs ${
@@ -17,6 +18,7 @@ const inputCls = (editing) =>
 const labelCls = "block text-xs font-bold text-slate-700 mb-1";
 
 export default function SystemSettingsTab() {
+  const { theme, setTheme } = useTheme();
   const [settings, setSettings] = useState({
     system_name: "FSUU Facilities & Equipment Booking System",
     organization_name: "Father Saturnino Urios University",
@@ -215,6 +217,44 @@ export default function SystemSettingsTab() {
                 </button>
               </>
             )}
+          </div>
+        </div>
+      </div>
+
+      {/* ── 0. Theme & Appearance ── */}
+      <div className="bg-white rounded-2xl border border-slate-200/90 shadow-xs p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h4 className="text-sm font-black text-slate-900">Theme & Appearance</h4>
+            <p className="text-[11px] text-slate-500 font-medium mt-0.5">
+              Choose between light and dark mode for the application interface.
+            </p>
+          </div>
+          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200 shrink-0">
+            <button
+              type="button"
+              onClick={() => setTheme("light")}
+              className={`flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                theme === "light"
+                  ? "bg-white text-slate-900 shadow-2xs"
+                  : "text-slate-500 hover:text-slate-800"
+              }`}
+            >
+              <Sun size={13} />
+              Light
+            </button>
+            <button
+              type="button"
+              onClick={() => setTheme("dark")}
+              className={`flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                theme === "dark"
+                  ? "bg-slate-800 text-white shadow-2xs"
+                  : "text-slate-500 hover:text-slate-800"
+              }`}
+            >
+              <Moon size={13} />
+              Dark
+            </button>
           </div>
         </div>
       </div>

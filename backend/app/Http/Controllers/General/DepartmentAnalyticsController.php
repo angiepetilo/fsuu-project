@@ -10,9 +10,14 @@ class DepartmentAnalyticsController extends Controller
 {
     public function index(): JsonResponse
     {
-        $academicTermId = request('academic_term_id') ?: request('term_id');
-        if (empty($academicTermId)) {
+        $termParam = request('academic_term_id', request('term_id'));
+        if ($termParam === 'all' || $termParam === '' || $termParam === '0') {
+            $academicTermId = null;
+        } elseif (is_numeric($termParam)) {
+            $academicTermId = (int)$termParam;
+        } else {
             $academicTermId = DB::table('academic_terms')->where('is_active', true)->value('id');
+            $academicTermId = $academicTermId ? (int)$academicTermId : null;
         }
 
         // 1. Real Venue Violations & Damages

@@ -72,6 +72,16 @@ class EquipmentTypeController extends Controller
 
         $type = EquipmentType::create($validated);
 
+        try {
+            app(\App\Services\AuditLogService::class)->log(
+                $request->user(),
+                'EQUIPMENT_CATEGORY_CREATED',
+                'equipment_types',
+                $type->id,
+                ['description' => "Equipment category '{$type->eq_name}' created."]
+            );
+        } catch (\Throwable $t) {}
+
         return response()->json($type, 201);
     }
 
@@ -100,13 +110,35 @@ class EquipmentTypeController extends Controller
 
         $type->update($updateData);
 
+        try {
+            app(\App\Services\AuditLogService::class)->log(
+                $request->user(),
+                'EQUIPMENT_CATEGORY_UPDATED',
+                'equipment_types',
+                $type->id,
+                ['description' => "Equipment category '{$type->eq_name}' updated."]
+            );
+        } catch (\Throwable $t) {}
+
         return response()->json($type);
     }
 
     public function destroy(Request $request, $id): JsonResponse
     {
         $type = EquipmentType::findOrFail($id);
+        $name = $type->eq_name;
         $type->delete();
+
+        try {
+            app(\App\Services\AuditLogService::class)->log(
+                $request->user(),
+                'EQUIPMENT_CATEGORY_DELETED',
+                'equipment_types',
+                $id,
+                ['description' => "Equipment category '{$name}' deleted."]
+            );
+        } catch (\Throwable $t) {}
+
         return response()->json(['message' => 'Equipment category deleted successfully']);
     }
 }

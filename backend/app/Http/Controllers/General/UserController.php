@@ -106,9 +106,13 @@ class UserController extends Controller
 
         // Inherit permissions configured for this role if not explicitly provided
         if (empty($permissions) && $targetRole) {
-            $sampleUser = User::where('role_id', $targetRole->id)->whereNotNull('permissions')->first();
-            if ($sampleUser && !empty($sampleUser->permissions)) {
-                $permissions = $sampleUser->permissions;
+            if (!empty($targetRole->permissions) && is_array($targetRole->permissions)) {
+                $permissions = $targetRole->permissions;
+            } else {
+                $sampleUser = User::where('role_id', $targetRole->id)->whereNotNull('permissions')->first();
+                if ($sampleUser && !empty($sampleUser->permissions)) {
+                    $permissions = $sampleUser->permissions;
+                }
             }
         }
 

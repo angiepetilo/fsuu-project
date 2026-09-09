@@ -83,25 +83,36 @@ class HistoryLogService
             ->values()
             ->map(function ($b) {
                 $item = (array) $b;
-                $isLate = !empty($b->is_late) || str_contains(strtolower($b->timeliness ?? ''), 'late') || str_contains(strtolower($b->violation_type ?? ''), 'late');
+                $isCancelledOrRejected = in_array(strtolower($b->status ?? ''), ['cancelled', 'rejected', 'cancelled_by_user']);
+                
+                $isLate = !$isCancelledOrRejected && (!empty($b->is_late) || str_contains(strtolower($b->timeliness ?? ''), 'late') || str_contains(strtolower($b->violation_type ?? ''), 'late'));
                 
                 // If violation_type is strictly "Late Return / Extension", do not treat it as physical damage unless condition is damaged.
                 $isStrictlyLate = $isLate && (strtolower($b->violation_type ?? '') === 'late return / extension' || strtolower($b->violation_type ?? '') === 'late return');
                 
-                $hasDamage = ($b->inspection_condition ?? '') === 'damaged' || strtolower($b->status ?? '') === 'damaged' || (!empty($b->violation_type) && !$isStrictlyLate);
+                $hasDamage = !$isCancelledOrRejected && (($b->inspection_condition ?? '') === 'damaged' || strtolower($b->status ?? '') === 'damaged' || (!empty($b->violation_type) && !$isStrictlyLate));
                 
-                $violationText = $b->violation_type ?? ($hasDamage ? ($b->inspection_notes ?? 'Rule Violation / Damage Reported') : null);
+                $violationText = !$isCancelledOrRejected ? ($b->violation_type ?? ($hasDamage ? ($b->inspection_notes ?? 'Rule Violation / Damage Reported') : null)) : null;
 
-                $assignedUnits = $b->assigned_units ? (is_string($b->assigned_units) ? json_decode($b->assigned_units, true) : $b->assigned_units) : null;
-                $unitConditions = $b->unit_conditions ? (is_string($b->unit_conditions) ? json_decode($b->unit_conditions, true) : $b->unit_conditions) : null;
+                $assignedUnits = !$isCancelledOrRejected && $b->assigned_units ? (is_string($b->assigned_units) ? json_decode($b->assigned_units, true) : $b->assigned_units) : null;
+                $unitConditions = !$isCancelledOrRejected && $b->unit_conditions ? (is_string($b->unit_conditions) ? json_decode($b->unit_conditions, true) : $b->unit_conditions) : null;
 
-                $rawPhoto = $b->evidence_photo ?? null;
+                $rawPhoto = !$isCancelledOrRejected ? ($b->evidence_photo ?? null) : null;
                 $photoList = [];
                 if (is_string($rawPhoto) && (str_starts_with(trim($rawPhoto), '[') || str_starts_with(trim($rawPhoto), '{'))) {
                     $decoded = json_decode($rawPhoto, true);
                     $photoList = is_array($decoded) ? array_values(array_filter($decoded)) : [$rawPhoto];
                 } elseif (!empty($rawPhoto)) {
                     $photoList = [$rawPhoto];
+                }
+
+                if ($isCancelledOrRejected) {
+                    $item['inspection_condition'] = null;
+                    $item['inspection_notes'] = null;
+                    $item['evidence_photo'] = null;
+                    $item['violation_type'] = null;
+                    $item['assigned_units'] = null;
+                    $item['unit_conditions'] = null;
                 }
 
                 return array_merge($item, [
@@ -247,5 +258,215 @@ class HistoryLogService
                     'violations'      => $hasViolation ? 1 : 0,
                 ]);
             });
+    }
+
+    /**
+     * Fetch and format all incident, damages, lost units, and policy violation history records
+     */
+    public function getIncidentsHistory(?int $officeId = null, bool $isSuperAdmin = true, ?int $academicTermId = null): Collection
+    {
+        $venues = $this->getVenueBookingsHistory($officeId, $isSuperAdmin, $academicTermId);
+        $equipment = $this->getEquipmentBorrowingsHistory($officeId, $isSuperAdmin, $academicTermId);
+
+        $incidents = collect();
+
+        // 1. Process Venue Bookings
+        foreach ($venues as $v) {
+            $status = strtolower($v['status'] ?? '');
+            if (in_array($status, ['cancelled', 'rejected', 'cancelled_by_user'])) {
+                continue;
+            }
+
+            $hasDamage = !empty($v['has_damage']) || ($v['inspection_condition'] ?? '') === 'damaged';
+            $hasViolation = !empty($v['has_violation']) || !empty($v['violation_type']);
+            $unitConditions = $v['unit_conditions'] ?? [];
+
+            $damagedUnits = [];
+            $lostUnits = [];
+            if (is_array($unitConditions)) {
+                foreach ($unitConditions as $barcode => $val) {
+                    $cond = strtolower(is_array($val) ? ($val['condition'] ?? '') : (string)$val);
+                    if ($cond === 'damaged') $damagedUnits[] = $barcode;
+                    if ($cond === 'lost') $lostUnits[] = $barcode;
+                }
+            }
+
+            // Case A: Venue Physical Unit Damaged
+            if (!empty($damagedUnits) || ($hasDamage && empty($lostUnits) && !$hasViolation)) {
+                $incidents->push([
+                    'id'                     => 'inc_venue_dmg_' . $v['id'],
+                    'source_id'              => $v['id'],
+                    'source_type'            => 'venue',
+                    'reference_code'         => $v['reference_code'] ?? ('TRK-AVR' . $v['id']),
+                    'filer_name'             => $v['filer_name'] ?? 'Requestor',
+                    'program_office'         => $v['program_office'] ?? 'Department',
+                    'department'             => $v['program_office'] ?? 'Department',
+                    'facility_or_item'       => $v['venue_name'] ?? 'AVR Facility',
+                    'incident_category'      => 'venue_unit_damaged',
+                    'incident_label'         => 'Physical Unit Damaged',
+                    'category_color'         => 'rose',
+                    'flagged_units'          => $damagedUnits,
+                    'violation_type'         => $v['violation_type'] ?? 'Physical Damage',
+                    'notes'                  => $v['inspection_notes'] ?? ($v['purpose'] ?? 'Unit damaged during reservation'),
+                    'date'                   => $v['date_of_usage'] ?? $v['created_at'],
+                    'time_start'             => $v['time_start'] ?? '08:00',
+                    'time_end'               => $v['time_end'] ?? '17:00',
+                    'evidence_photos'        => $v['evidence_photos'] ?? [],
+                    'evidence_photo'         => $v['evidence_photo'] ?? null,
+                    'source_record'          => $v,
+                ]);
+            }
+
+            // Case B: Venue Physical Unit Lost
+            if (!empty($lostUnits)) {
+                $incidents->push([
+                    'id'                     => 'inc_venue_lost_' . $v['id'],
+                    'source_id'              => $v['id'],
+                    'source_type'            => 'venue',
+                    'reference_code'         => $v['reference_code'] ?? ('TRK-AVR' . $v['id']),
+                    'filer_name'             => $v['filer_name'] ?? 'Requestor',
+                    'program_office'         => $v['program_office'] ?? 'Department',
+                    'department'             => $v['program_office'] ?? 'Department',
+                    'facility_or_item'       => $v['venue_name'] ?? 'AVR Facility',
+                    'incident_category'      => 'venue_unit_lost',
+                    'incident_label'         => 'Physical Unit Lost',
+                    'category_color'         => 'amber',
+                    'flagged_units'          => $lostUnits,
+                    'violation_type'         => 'Lost Equipment Unit',
+                    'notes'                  => $v['inspection_notes'] ?? 'Physical unit reported lost during booking.',
+                    'date'                   => $v['date_of_usage'] ?? $v['created_at'],
+                    'time_start'             => $v['time_start'] ?? '08:00',
+                    'time_end'               => $v['time_end'] ?? '17:00',
+                    'evidence_photos'        => $v['evidence_photos'] ?? [],
+                    'evidence_photo'         => $v['evidence_photo'] ?? null,
+                    'source_record'          => $v,
+                ]);
+            }
+
+            // Case C: Venue Policy Violation
+            if ($hasViolation) {
+                $incidents->push([
+                    'id'                     => 'inc_venue_viol_' . $v['id'],
+                    'source_id'              => $v['id'],
+                    'source_type'            => 'venue',
+                    'reference_code'         => $v['reference_code'] ?? ('TRK-AVR' . $v['id']),
+                    'filer_name'             => $v['filer_name'] ?? 'Requestor',
+                    'program_office'         => $v['program_office'] ?? 'Department',
+                    'department'             => $v['program_office'] ?? 'Department',
+                    'facility_or_item'       => $v['venue_name'] ?? 'AVR Facility',
+                    'incident_category'      => 'venue_policy_violation',
+                    'incident_label'         => 'Venue Policy Violation',
+                    'category_color'         => 'purple',
+                    'flagged_units'          => [],
+                    'violation_type'         => $v['violation_type'] ?? 'Facility Policy Violation',
+                    'notes'                  => $v['inspection_notes'] ?? ($v['violation_type'] ?? 'Policy violation recorded'),
+                    'date'                   => $v['date_of_usage'] ?? $v['created_at'],
+                    'time_start'             => $v['time_start'] ?? '08:00',
+                    'time_end'               => $v['time_end'] ?? '17:00',
+                    'evidence_photos'        => $v['evidence_photos'] ?? [],
+                    'evidence_photo'         => $v['evidence_photo'] ?? null,
+                    'source_record'          => $v,
+                ]);
+            }
+        }
+
+        // 2. Process Equipment Borrowings
+        foreach ($equipment as $e) {
+            $isDamaged = !empty($e['has_damage']) || ($e['inspection_condition'] ?? '') === 'damaged';
+            $isLost = !empty($e['is_lost']) || ($e['inspection_condition'] ?? '') === 'lost';
+            $isLate = !empty($e['is_late']);
+            $hasViolation = !empty($e['has_violation']) || !empty($e['violation_type']);
+            $unitConditions = $e['unit_conditions'] ?? [];
+
+            $damagedUnits = [];
+            $lostUnits = [];
+            if (is_array($unitConditions)) {
+                foreach ($unitConditions as $barcode => $val) {
+                    $cond = strtolower(is_array($val) ? ($val['condition'] ?? '') : (string)$val);
+                    if ($cond === 'damaged') $damagedUnits[] = $barcode;
+                    if ($cond === 'lost') $lostUnits[] = $barcode;
+                }
+            }
+
+            // Case A: Equipment Unit Damaged
+            if ($isDamaged || !empty($damagedUnits)) {
+                $incidents->push([
+                    'id'                     => 'inc_equip_dmg_' . $e['id'],
+                    'source_id'              => $e['id'],
+                    'source_type'            => 'equipment',
+                    'reference_code'         => $e['reference_code'] ?? ('EQ-' . $e['id']),
+                    'filer_name'             => $e['filer_name'] ?? 'Borrower',
+                    'program_office'         => $e['program_office'] ?? 'Department',
+                    'department'             => $e['program_office'] ?? 'Department',
+                    'facility_or_item'       => $e['equipment_name'] ?? 'Equipment',
+                    'incident_category'      => 'equipment_unit_damaged',
+                    'incident_label'         => 'Physical Unit Damaged',
+                    'category_color'         => 'rose',
+                    'flagged_units'          => $damagedUnits,
+                    'violation_type'         => $e['violation_type'] ?? 'Unit Damaged',
+                    'notes'                  => $e['inspection_notes'] ?? ($e['purpose'] ?? 'Equipment damaged upon return'),
+                    'date'                   => $e['date_of_usage'] ?? $e['created_at'],
+                    'time_start'             => $e['time_start'] ?? '08:00',
+                    'time_end'               => $e['time_end'] ?? '17:00',
+                    'evidence_photos'        => $e['evidence_photos'] ?? [],
+                    'evidence_photo'         => $e['evidence_photo'] ?? null,
+                    'source_record'          => $e,
+                ]);
+            }
+
+            // Case B: Equipment Unit Lost
+            if ($isLost || !empty($lostUnits)) {
+                $incidents->push([
+                    'id'                     => 'inc_equip_lost_' . $e['id'],
+                    'source_id'              => $e['id'],
+                    'source_type'            => 'equipment',
+                    'reference_code'         => $e['reference_code'] ?? ('EQ-' . $e['id']),
+                    'filer_name'             => $e['filer_name'] ?? 'Borrower',
+                    'program_office'         => $e['program_office'] ?? 'Department',
+                    'department'             => $e['program_office'] ?? 'Department',
+                    'facility_or_item'       => $e['equipment_name'] ?? 'Equipment',
+                    'incident_category'      => 'equipment_unit_lost',
+                    'incident_label'         => 'Physical Unit Lost',
+                    'category_color'         => 'amber',
+                    'flagged_units'          => $lostUnits,
+                    'violation_type'         => 'Lost Equipment Unit',
+                    'notes'                  => $e['inspection_notes'] ?? 'Equipment unit not returned / lost.',
+                    'date'                   => $e['date_of_usage'] ?? $e['created_at'],
+                    'time_start'             => $e['time_start'] ?? '08:00',
+                    'time_end'               => $e['time_end'] ?? '17:00',
+                    'evidence_photos'        => $e['evidence_photos'] ?? [],
+                    'evidence_photo'         => $e['evidence_photo'] ?? null,
+                    'source_record'          => $e,
+                ]);
+            }
+
+            // Case C: Equipment Policy Violation or Late Return
+            if (($hasViolation || $isLate) && !$isDamaged && !$isLost) {
+                $incidents->push([
+                    'id'                     => 'inc_equip_viol_' . $e['id'],
+                    'source_id'              => $e['id'],
+                    'source_type'            => 'equipment',
+                    'reference_code'         => $e['reference_code'] ?? ('EQ-' . $e['id']),
+                    'filer_name'             => $e['filer_name'] ?? 'Borrower',
+                    'program_office'         => $e['program_office'] ?? 'Department',
+                    'department'             => $e['program_office'] ?? 'Department',
+                    'facility_or_item'       => $e['equipment_name'] ?? 'Equipment',
+                    'incident_category'      => $isLate ? 'equipment_late_return' : 'equipment_policy_violation',
+                    'incident_label'         => $isLate ? 'Late Return' : 'Equipment Policy Violation',
+                    'category_color'         => $isLate ? 'orange' : 'purple',
+                    'flagged_units'          => [],
+                    'violation_type'         => $e['violation_type'] ?? ($isLate ? 'Late Return' : 'Policy Violation'),
+                    'notes'                  => $e['inspection_notes'] ?? ($e['violation_type'] ?? 'Policy breach recorded'),
+                    'date'                   => $e['date_of_usage'] ?? $e['created_at'],
+                    'time_start'             => $e['time_start'] ?? '08:00',
+                    'time_end'               => $e['time_end'] ?? '17:00',
+                    'evidence_photos'        => $e['evidence_photos'] ?? [],
+                    'evidence_photo'         => $e['evidence_photo'] ?? null,
+                    'source_record'          => $e,
+                ]);
+            }
+        }
+
+        return $incidents->sortByDesc('date')->values();
     }
 }

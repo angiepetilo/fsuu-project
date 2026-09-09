@@ -118,14 +118,16 @@ class NotificationController extends Controller
                             ->select('venue_bookings.*', 'venues.name as venue_name', 'tracking_numbers.reference_code')
                             ->first();
 
-                        if ($booking) {
-                            $personName = $booking->filer_name ?? 'Requestor';
-                            $personContact = $booking->contact_number ?? 'N/A';
-                            $personOffice = $booking->program_office ?? 'Department';
-                            $personEmail = $booking->email_address ?? 'N/A';
-                            $refCode = $booking->reference_code ?? 'TRK-VENUE';
-                            $itemName = $booking->venue_name ?? 'Venue Facility';
+                        if (!$booking || in_array(strtolower($booking->status ?? ''), ['cancelled', 'rejected', 'cancelled_by_user'])) {
+                            continue;
                         }
+
+                        $personName = $booking->filer_name ?? 'Requestor';
+                        $personContact = $booking->contact_number ?? 'N/A';
+                        $personOffice = $booking->program_office ?? 'Department';
+                        $personEmail = $booking->email_address ?? 'N/A';
+                        $refCode = $booking->reference_code ?? 'TRK-VENUE';
+                        $itemName = $booking->venue_name ?? 'Venue Facility';
                     }
 
                     $rawDate = $ins->inspected_at ?? $ins->created_at ?? now();

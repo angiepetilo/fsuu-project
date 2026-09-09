@@ -13,6 +13,11 @@ class Role extends Model
     protected $fillable = [
         'name',
         'description',
+        'permissions',
+    ];
+
+    protected $casts = [
+        'permissions' => 'array',
     ];
 
     public function users(): HasMany

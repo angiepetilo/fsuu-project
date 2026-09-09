@@ -5,7 +5,8 @@ import api from "@/lib/axios";
 import {
   Users, Building2, Package, BookOpen, Clock,
   DollarSign, Key, User, Sliders, Building, GraduationCap,
-  Lock, Eye, EyeOff, ShieldAlert, Loader2, X, ChevronRight
+  Lock, Eye, EyeOff, ShieldAlert, Loader2, X, ChevronRight, ChevronDown,
+  Tag, Laptop, Activity, ShieldCheck
 } from "lucide-react";
 
 import {
@@ -21,25 +22,68 @@ import {
   SystemSettingsTab,
   CommunicationLogsTab,
   AuditLogsTab,
+  BrandsTab,
+  ActiveSessionsTab,
+  SecurityAlertsTab,
 } from "@/components/settings-tabs";
 
 // Tabs that require password confirmation before viewing
 const PROTECTED_TABS = ["pin", "system_settings"];
 
-const SYSAD_TABS = [
-  { id: "users",             label: "User Management",            desc: "Staff accounts & RBAC permissions", icon: Users },
-  { id: "audit_logs",        label: "Audit Logs",                 desc: "System transactions & security log", icon: ShieldAlert },
-  { id: "equipment",         label: "Equipment Category",         desc: "Physical item types & groupings", icon: Package },
-  { id: "venues",            label: "Venue Creation",             desc: "Campus rooms & capacity setup",   icon: Building },
-  { id: "fee_matrix",        label: "Fee Matrix",                  desc: "Facility rental rates & policy",  icon: DollarSign },
-  { id: "departments",       label: "Departments",                 desc: "Colleges & academic departments", icon: BookOpen },
-  { id: "operating_hours",   label: "Operating Hours",             desc: "Reservation hours & campus cutoff", icon: Clock },
-  { id: "academic_terms",    label: "Academic Terms",              desc: "Semester archiving & terms",      icon: GraduationCap },
-  { id: "pin",               label: "Verification PIN",            desc: "6-digit emergency overrides",     icon: Key,     protected: true },
-  { id: "communication_logs",label: "SMS and Email Log",           desc: "Brevo & iProg SMS dispatch log",  icon: Building2 },
-  { id: "system_settings",   label: "System Settings",             desc: "Brevo SMTP & portal branding",    icon: Sliders, protected: true },
-  { id: "profile",           label: "Profile",                     desc: "Super Admin credentials",         icon: User },
+const SYSAD_CATEGORIES = [
+  {
+    id: "user_access",
+    label: "User & Access Management",
+    icon: Users,
+    items: [
+      { id: "users",             label: "User Management",            desc: "Staff accounts & RBAC permissions", icon: Users },
+      { id: "active_sessions",   label: "Active Sessions",            desc: "Monitor and remotely terminate terminals", icon: Laptop },
+      { id: "pin",               label: "Verification PIN",            desc: "6-digit emergency overrides",     icon: Key,     protected: true },
+    ]
+  },
+  {
+    id: "system_security",
+    label: "System & Security Logs",
+    icon: ShieldAlert,
+    items: [
+      { id: "security_alerts",   label: "Security Alerts",            desc: "Rate limits, lockouts & terminations", icon: ShieldAlert },
+      { id: "audit_logs",        label: "Activity Audit Trail",       desc: "System transactions & action trail", icon: Activity },
+      { id: "communication_logs",label: "SMS and Email Log",           desc: "Brevo & iProg SMS dispatch log",  icon: Building2 },
+    ]
+  },
+  {
+    id: "organization",
+    label: "Organization Setup",
+    icon: Building2,
+    items: [
+      { id: "brands",            label: "Brands",                     desc: "Equipment manufacturer brands",   icon: Tag },
+      { id: "equipment",         label: "Equipment Category",         desc: "Physical item types & groupings", icon: Package },
+      { id: "venues",            label: "Venue Creation",             desc: "Campus rooms & capacity setup",   icon: Building },
+      { id: "departments",       label: "Departments",                 desc: "Colleges & academic departments", icon: BookOpen },
+    ]
+  },
+  {
+    id: "operations",
+    label: "Operations & Billing",
+    icon: Clock,
+    items: [
+      { id: "fee_matrix",        label: "Fee Matrix",                  desc: "Facility rental rates & policy",  icon: DollarSign },
+      { id: "operating_hours",   label: "Operating Hours",             desc: "Reservation hours & campus cutoff", icon: Clock },
+      { id: "academic_terms",    label: "Academic Terms",              desc: "Semester archiving & terms",      icon: GraduationCap },
+    ]
+  },
+  {
+    id: "account",
+    label: "Account",
+    icon: Sliders,
+    items: [
+      { id: "system_settings",   label: "System Settings",             desc: "Brevo SMTP & portal branding",    icon: Sliders, protected: true },
+      { id: "profile",           label: "Profile",                     desc: "Super Admin credentials",         icon: User },
+    ]
+  }
 ];
+
+const SYSAD_TABS = SYSAD_CATEGORIES.flatMap((c) => c.items);
 
 const PROTECTED_TAB_NAMES = {
   pin:             "Verification PIN",
@@ -60,6 +104,18 @@ export default function SysadSettings() {
 
   const [activeTab, setActiveTab] = useState(getInitialTab);
   const [mountedTabs, setMountedTabs] = useState(() => new Set([getInitialTab()]));
+
+  // Find parent category for a tab
+  const getCategoryForTab = (tabId) => {
+    return SYSAD_CATEGORIES.find((cat) => cat.items.some((it) => it.id === tabId))?.id || SYSAD_CATEGORIES[0].id;
+  };
+
+  const [activeParentCategory, setActiveParentCategory] = useState(() => getCategoryForTab(getInitialTab()));
+
+  useEffect(() => {
+    const parentId = getCategoryForTab(activeTab);
+    setActiveParentCategory(parentId);
+  }, [activeTab]);
 
   // When user navigates from other features to /sysad/settings, always reset to default tab if no ?tab= in URL
   useEffect(() => {
@@ -143,53 +199,104 @@ export default function SysadSettings() {
     setPwError("");
   };
 
-  return (
-    <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs flex flex-col lg:flex-row overflow-visible font-sans">
-      {/* ── Left Sidebar: Integrated Vertical Navigation ── */}
-      <aside className="w-full lg:w-60 xl:w-64 shrink-0 bg-slate-50/70 border-b lg:border-b-0 lg:border-r border-slate-200/80 p-3 flex flex-col justify-between">
-        <nav className="space-y-1 pr-0.5">
-          {SYSAD_TABS.map((tab) => {
-            const IconComp = tab.icon;
-            const active = activeTab === tab.id;
-            const isProtected = tab.protected && !unlockedTabs.has(tab.id);
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => handleTabClick(tab.id)}
-                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-left text-xs font-bold transition-all cursor-pointer ${
-                  active
-                    ? "bg-blue-600 text-white shadow-xs"
-                    : "text-slate-600 hover:bg-white hover:text-slate-900"
-                }`}
-              >
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <IconComp size={15} className={`shrink-0 ${active ? "text-white" : "text-slate-400"}`} />
-                  <span className="truncate">{tab.label}</span>
-                </div>
-                <div className="flex items-center gap-1.5 shrink-0">
-                  {isProtected && (
-                    <Lock size={12} className={active ? "text-blue-200" : "text-slate-400"} />
-                  )}
-                  <ChevronRight size={13} className={`shrink-0 transition-transform ${active ? "text-white" : "text-slate-300 opacity-0 group-hover:opacity-100"}`} />
-                </div>
-              </button>
-            );
-          })}
-        </nav>
-      </aside>
+  const currentCategory = SYSAD_CATEGORIES.find((c) => c.id === activeParentCategory) || SYSAD_CATEGORIES[0];
 
-      {/* ── Right Content Canvas: Inlined & Aligned ── */}
-      <main className="flex-1 min-w-0 p-6 lg:p-7 bg-white">
+  return (
+    <div className="space-y-3 font-sans">
+      {/* ── Top Horizontal Parent Category Navigation ── */}
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 border-b border-slate-200">
+        {SYSAD_CATEGORIES.map((cat) => {
+          const isParentActive = activeParentCategory === cat.id;
+          return (
+            <button
+              key={cat.id}
+              type="button"
+              onClick={() => {
+                setActiveParentCategory(cat.id);
+                if (!cat.items.some((it) => it.id === activeTab)) {
+                  handleTabClick(cat.items[0].id);
+                }
+              }}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap cursor-pointer select-none ${
+                isParentActive
+                  ? "bg-blue-600 text-white font-semibold"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+              }`}
+            >
+              {cat.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* ── Main Container: Left Sub-Menu + Right Content Canvas ── */}
+      <div className="bg-white rounded-xl border border-slate-200 flex flex-col md:flex-row overflow-hidden min-h-[580px]">
+        {/* Left Sub-Menu Navigation */}
+        <aside className="w-full md:w-56 shrink-0 bg-white border-b md:border-b-0 md:border-r border-slate-100 py-3 px-2">
+          <div className="px-2.5 pb-2 mb-1.5 border-b border-slate-100">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+              {currentCategory.label}
+            </span>
+          </div>
+          <nav className="space-y-0.5">
+            {currentCategory.items.map((item) => {
+              const ItemIcon = item.icon;
+              const isActive = activeTab === item.id;
+              const isProtected = item.protected && !unlockedTabs.has(item.id);
+
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => handleTabClick(item.id)}
+                  className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-left text-xs transition-colors cursor-pointer select-none ${
+                    isActive
+                      ? "border-l-2 border-blue-600 bg-blue-50/70 text-blue-600 font-semibold"
+                      : "border-l-2 border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-50 font-normal"
+                  }`}
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <ItemIcon
+                      size={14}
+                      className={`shrink-0 ${isActive ? "text-blue-600" : "text-slate-400"}`}
+                    />
+                    <span className="truncate">{item.label}</span>
+                  </div>
+                  {isProtected && (
+                    <Lock size={11} className={isActive ? "text-blue-500" : "text-slate-400"} />
+                  )}
+                </button>
+              );
+            })}
+          </nav>
+        </aside>
+
+        {/* ── Right Content Canvas: Inlined & Aligned ── */}
+        <main className="flex-1 min-w-0 p-5 lg:p-6 bg-white">
         {/* Active Tab Content Render — persistent tab states to prevent reload/unmount */}
         {mountedTabs.has("users") && (
           <div className={activeTab === "users" ? "block" : "hidden"}>
             <UserManagementTab showMsg={showMsg} />
           </div>
         )}
+        {mountedTabs.has("active_sessions") && (
+          <div className={activeTab === "active_sessions" ? "block" : "hidden"}>
+            <ActiveSessionsTab />
+          </div>
+        )}
+        {mountedTabs.has("security_alerts") && (
+          <div className={activeTab === "security_alerts" ? "block" : "hidden"}>
+            <SecurityAlertsTab />
+          </div>
+        )}
         {mountedTabs.has("audit_logs") && (
           <div className={activeTab === "audit_logs" ? "block" : "hidden"}>
             <AuditLogsTab />
+          </div>
+        )}
+        {mountedTabs.has("brands") && (
+          <div className={activeTab === "brands" ? "block" : "hidden"}>
+            <BrandsTab />
           </div>
         )}
         {mountedTabs.has("equipment") && (
@@ -243,6 +350,7 @@ export default function SysadSettings() {
           </div>
         )}
       </main>
+      </div>
 
       {/* Password Verification Modal */}
       {showPwModal && (

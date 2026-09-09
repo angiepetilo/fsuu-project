@@ -4,7 +4,7 @@ import {
   FileText, Mail, FileCheck, BellRing, ShieldAlert
 } from "lucide-react";
 import api from "@/lib/axios";
-import { notify } from "@/lib/notify";
+import notify from "@/lib/notify";
 import { usePermissions } from "@/hooks/usePermissions";
 import { formatTime12, formatTimeRange12, formatDateTime } from "@/lib/dateUtils";
 import { getOverdueMinutes } from "@/lib/dateTimeUtils";
@@ -721,10 +721,13 @@ export default function EquipmentBorrowDetailModal({
         });
       }
 
-      setInspectionSuccessMsg(isPreUse ? "Pre-release inspection stored." : "Post-use equipment inspection stored.");
+      const successMsg = isPreUse ? "Pre-release inspection stored." : "Post-use equipment inspection stored.";
+      setInspectionSuccessMsg(successMsg);
+      notify.success("Inspection Saved", isPreUse ? "Pre-release equipment inspection record has been saved successfully." : "Post-use equipment inspection record has been saved successfully.");
       setTimeout(() => setInspectionSuccessMsg(null), 3000);
     } catch {
       setInspectionSuccessMsg("Inspection record saved.");
+      notify.success("Inspection Saved", "Equipment inspection record has been saved successfully.");
       setTimeout(() => setInspectionSuccessMsg(null), 3000);
     } finally {
       setSavingInspection(false);

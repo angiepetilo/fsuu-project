@@ -27,6 +27,35 @@ class AuthController extends Controller
         })->first();
 
         if (!$user || !\Illuminate\Support\Facades\Hash::check($request->password, $user->password)) {
+            $cacheKey = 'failed_login_' . md5($loginInput . '_' . $request->ip());
+            $attempts = (int)\Illuminate\Support\Facades\Cache::get($cacheKey, 0) + 1;
+            \Illuminate\Support\Facades\Cache::put($cacheKey, $attempts, now()->addMinutes(15));
+
+            $userAgent = $request->header('User-Agent') ?: 'Web Browser';
+            $ip = $request->ip() ?: '127.0.0.1';
+            $deviceName = self::parseDeviceSummary($userAgent);
+
+            try {
+                \App\Models\SecurityAlert::create([
+                    'event_type'  => $attempts >= 5 ? 'login_lockout' : 'failed_login',
+                    'severity'    => $attempts >= 5 ? 'critical' : ($attempts >= 3 ? 'high' : 'medium'),
+                    'title'       => "Failed login attempt for '{$loginInput}' (Attempt {$attempts}/5)",
+                    'description' => "Unsuccessful authentication attempt using identifier '{$loginInput}' from origin {$ip}.",
+                    'ip_address'  => $ip,
+                    'user_agent'  => $userAgent,
+                    'metadata'    => [
+                        'origin'        => "{$ip} ({$deviceName})",
+                        'username'      => $loginInput,
+                        'attempt'       => $attempts,
+                        'max_attempts'  => 5,
+                        'device'        => $deviceName,
+                    ],
+                    'status'      => 'unresolved',
+                ]);
+            } catch (\Throwable $t) {
+                \Illuminate\Support\Facades\Log::error("Failed to log dynamic SecurityAlert: " . $t->getMessage());
+            }
+
             throw ValidationException::withMessages([
                 'email' => ['Invalid email or password. Please verify your credentials.'],
             ]);
@@ -50,18 +79,69 @@ class AuthController extends Controller
             ], 403);
         }
 
+        // Reset failed attempt counter on successful login
+        \Illuminate\Support\Facades\Cache::forget('failed_login_' . md5($loginInput . '_' . $request->ip()));
+
         Auth::login($user);
         $user->load(['role']);
 
         // Delete old tokens to keep things clean for SPA
         $user->tokens()->delete();
 
-        $token = $user->createToken('staff-auth-token')->plainTextToken;
+        $userAgent = $request->header('User-Agent') ?: 'Web Browser';
+        $ip = $request->ip() ?: '127.0.0.1';
+        $deviceName = self::parseDeviceSummary($userAgent);
+
+        $tokenResult = $user->createToken('staff-auth-token');
+        $tokenResult->accessToken->update([
+            'ip_address' => $ip,
+            'user_agent' => $userAgent,
+            'device_name' => $deviceName,
+            'is_revoked' => false,
+        ]);
+
+        $token = $tokenResult->plainTextToken;
 
         return response()->json([
             'user' => $user,
             'token' => $token
         ]);
+    }
+
+    /**
+     * Parse human-readable device/browser summary from User-Agent.
+     */
+    public static function parseDeviceSummary(?string $ua): string
+    {
+        if (empty($ua)) return 'Web Terminal';
+
+        $browser = 'Browser';
+        if (preg_match('/Edg\/([\d\.]+)/i', $ua, $m)) {
+            $browser = 'Edge ' . explode('.', $m[1])[0];
+        } elseif (preg_match('/Chrome\/([\d\.]+)/i', $ua, $m)) {
+            $browser = 'Chrome ' . explode('.', $m[1])[0];
+        } elseif (preg_match('/Firefox\/([\d\.]+)/i', $ua, $m)) {
+            $browser = 'Firefox ' . explode('.', $m[1])[0];
+        } elseif (str_contains($ua, 'Safari/') && !str_contains($ua, 'Chrome')) {
+            $browser = 'Safari';
+        }
+
+        $os = 'Desktop';
+        if (str_contains($ua, 'Windows NT 10.0') || str_contains($ua, 'Windows NT 11.0')) {
+            $os = 'Windows 10/11';
+        } elseif (str_contains($ua, 'Windows')) {
+            $os = 'Windows';
+        } elseif (str_contains($ua, 'Macintosh') || str_contains($ua, 'Mac OS')) {
+            $os = 'macOS';
+        } elseif (str_contains($ua, 'Linux')) {
+            $os = 'Linux';
+        } elseif (str_contains($ua, 'Android')) {
+            $os = 'Android';
+        } elseif (str_contains($ua, 'iPhone') || str_contains($ua, 'iPad')) {
+            $os = 'iOS';
+        }
+
+        return "{$browser} on {$os}";
     }
 
     /**
@@ -192,6 +272,19 @@ class AuthController extends Controller
 
         $user->password = \Illuminate\Support\Facades\Hash::make($request->new_password);
         $user->save();
+
+        try {
+            app(\App\Services\AuditLogService::class)->log(
+                $user,
+                'PASSWORD_CHANGED',
+                'users',
+                $user->id,
+                [
+                    'description' => "User '{$user->name}' updated their account password.",
+                    'email'       => $user->email_address ?? $user->email,
+                ]
+            );
+        } catch (\Throwable $e) {}
 
         return response()->json(['message' => 'Password updated successfully']);
     }

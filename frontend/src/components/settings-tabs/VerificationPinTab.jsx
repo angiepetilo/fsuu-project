@@ -11,6 +11,12 @@ export default function VerificationPinTab({
   handleSavePinConfig: externalHandleSavePinConfig,
   showMsg: externalShowMsg,
 }) {
+  const DEFAULT_APPLICABILITY_MATRIX = {
+    student: { venue_single: false, venue_multiday: true, equipment: false },
+    faculty: { venue_single: false, venue_multiday: true, equipment: false },
+    external: { venue_single: true, venue_multiday: true, equipment: true },
+  };
+
   const [pinSettings, setPinSettings] = useState({
     masterPin: "123456",
     isEnabled: true,
@@ -25,6 +31,7 @@ export default function VerificationPinTab({
     venueVerifyPhone: false,
     equipmentVerifyEmail: true,
     equipmentVerifyPhone: false,
+    applicabilityMatrix: DEFAULT_APPLICABILITY_MATRIX,
   });
 
   const [pinLoading, setPinLoading] = useState(true);
@@ -72,6 +79,7 @@ export default function VerificationPinTab({
           venueVerifyPhone: res.data.venueVerifyPhone === true,
           equipmentVerifyEmail: res.data.equipmentVerifyEmail !== false,
           equipmentVerifyPhone: res.data.equipmentVerifyPhone === true,
+          applicabilityMatrix: res.data.applicabilityMatrix || DEFAULT_APPLICABILITY_MATRIX,
         };
         setPinSettings(loaded);
         setOriginalPinSettings(loaded);
@@ -86,6 +94,7 @@ export default function VerificationPinTab({
             requireMultiDayVenue: loaded.requirePinMultiDayVenue,
             requireMultiDayEquipment: loaded.requirePinMultiDayEquipment,
             enableExternal: loaded.enableExternalVenue,
+            applicabilityMatrix: loaded.applicabilityMatrix,
           }));
         } catch {}
       }
@@ -102,6 +111,7 @@ export default function VerificationPinTab({
             requirePinMultiDayVenue: parsed.requireMultiDayVenue !== false,
             enableExternalVenue: parsed.enableExternal !== false,
             enableExternalEquipment: parsed.enableExternal !== false,
+            applicabilityMatrix: parsed.applicabilityMatrix || DEFAULT_APPLICABILITY_MATRIX,
           }));
           setOriginalPinSettings(prev => ({
             ...prev,
@@ -110,6 +120,7 @@ export default function VerificationPinTab({
             requirePinMultiDayVenue: parsed.requireMultiDayVenue !== false,
             enableExternalVenue: parsed.enableExternal !== false,
             enableExternalEquipment: parsed.enableExternal !== false,
+            applicabilityMatrix: parsed.applicabilityMatrix || DEFAULT_APPLICABILITY_MATRIX,
           }));
         }
       } catch {}
@@ -154,6 +165,7 @@ export default function VerificationPinTab({
         venueVerifyPhone: !!pinSettings.venueVerifyPhone,
         equipmentVerifyEmail: !!pinSettings.equipmentVerifyEmail,
         equipmentVerifyPhone: !!pinSettings.equipmentVerifyPhone,
+        applicabilityMatrix: pinSettings.applicabilityMatrix || DEFAULT_APPLICABILITY_MATRIX,
       };
       if (pinSettings.masterPin && !pinSettings.masterPin.startsWith('$2y$')) {
         payload.masterPin = pinSettings.masterPin;
@@ -178,6 +190,7 @@ export default function VerificationPinTab({
           requireMultiDayVenue: payload.requirePinMultiDayVenue,
           requireMultiDayEquipment: payload.requirePinMultiDayEquipment,
           enableExternal: payload.enableExternalVenue,
+          applicabilityMatrix: payload.applicabilityMatrix,
         }));
         window.dispatchEvent(new Event("pin_settings_updated"));
       } catch {}
@@ -272,6 +285,43 @@ export default function VerificationPinTab({
     setPinSettings(prev => ({ ...prev, [field]: newValue }));
   };
 
+  const ToggleSwitch = ({ checked, onChange, disabled, title }) => (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      title={title}
+      disabled={disabled}
+      onClick={() => onChange(!checked)}
+      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+        disabled ? "opacity-40 cursor-not-allowed" : ""
+      } ${checked ? "bg-blue-600" : "bg-slate-300"}`}
+    >
+      <span
+        aria-hidden="true"
+        className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+          checked ? "translate-x-4" : "translate-x-0"
+        }`}
+      />
+    </button>
+  );
+
+  const updateMatrixCell = (group, column, val) => {
+    if (!isEditing || !pinSettings.isEnabled) return;
+    setPinSettings(prev => ({
+      ...prev,
+      applicabilityMatrix: {
+        ...(prev.applicabilityMatrix || DEFAULT_APPLICABILITY_MATRIX),
+        [group]: {
+          ...((prev.applicabilityMatrix || DEFAULT_APPLICABILITY_MATRIX)[group] || {}),
+          [column]: val,
+        },
+      },
+    }));
+  };
+
+  const currentMatrix = pinSettings.applicabilityMatrix || DEFAULT_APPLICABILITY_MATRIX;
+
   return (
     <div className="space-y-6">
       {/* Top Section: Verification PIN Settings & Trigger Checklist */}
@@ -282,17 +332,21 @@ export default function VerificationPinTab({
             <h3 className="text-sm font-semibold text-slate-900">
               Verification PIN Settings
             </h3>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Configure master authorization code and trigger conditions for facility reservations.
+            </p>
           </div>
 
-          <label className={`inline-flex items-center gap-2 text-xs font-medium text-slate-700 ${isEditing ? 'cursor-pointer' : 'cursor-default pointer-events-none'}`}>
-            <input
-              type="checkbox"
-              readOnly={!isEditing}
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-medium text-slate-600">
+              {pinSettings.isEnabled ? "PIN Protection Active" : "PIN Protection Disabled"}
+            </span>
+            <ToggleSwitch
               checked={pinSettings.isEnabled !== false}
-              onChange={(e) => { if (isEditing) setPinSettings({ ...pinSettings, isEnabled: e.target.checked }) }}
-              className="w-4 h-4 text-blue-600 rounded border-slate-300"
+              disabled={!isEditing}
+              onChange={(val) => setPinSettings({ ...pinSettings, isEnabled: val })}
             />
-          </label>
+          </div>
         </div>
 
         {/* Disabled banner */}
@@ -319,13 +373,13 @@ export default function VerificationPinTab({
                 setPinSettings({ ...pinSettings, masterPin: val });
               }}
               placeholder="123456"
-              className="w-48 p-2 text-sm font-mono tracking-widest bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-slate-500 disabled:bg-slate-100 disabled:cursor-not-allowed"
+              className="w-48 p-2 text-sm font-mono tracking-widest bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-blue-500 disabled:bg-slate-100 disabled:cursor-not-allowed"
             />
             <button
               type="button"
               disabled={!pinSettings.isEnabled}
               onClick={() => setShowPin(!showPin)}
-              className="px-3 py-2 text-xs text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50 disabled:cursor-not-allowed"
+              className="px-3 py-2 text-xs text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50 disabled:cursor-not-allowed cursor-pointer"
             >
               {showPin ? "Hide PIN" : "Show PIN"}
             </button>
@@ -335,7 +389,7 @@ export default function VerificationPinTab({
           </p>
         </div>
 
-        {/* Section 2: Trigger Rules Checklist */}
+        {/* Section 2: Trigger Rules (Sleek plain divider layout, no cards, toggle icons) */}
         <div className={`space-y-3 pt-3 border-t border-slate-100 transition-opacity ${!pinSettings.isEnabled ? "opacity-40 pointer-events-none select-none" : ""}`}>
           <div>
             <h4 className="text-xs font-semibold text-slate-900">
@@ -346,182 +400,181 @@ export default function VerificationPinTab({
             </p>
           </div>
 
-          <div className="space-y-2.5">
-            {/* Rule 1: External Users (Mandatory) */}
-            <label className={`flex items-start justify-between p-3.5 bg-slate-50 rounded-lg border border-slate-200 transition-colors ${isEditing ? 'cursor-pointer hover:bg-slate-100/70' : 'cursor-default'}`}>
-              <div className="space-y-1 pr-4">
+          <div className="divide-y divide-slate-100 border-y border-slate-100">
+            {/* Rule 1: External Users */}
+            <div className="flex items-center justify-between py-3">
+              <div className="space-y-0.5 pr-4">
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-semibold text-slate-900">
                     External Users: Venue Bookings &amp; Equipment Borrowings
                   </span>
-                  <span className="px-1.5 py-0.5 text-[10px] font-medium bg-slate-200 text-slate-700 rounded">
+                  <span className="px-1.5 py-0.5 text-[10px] font-medium bg-slate-100 text-slate-700 rounded">
                     Mandatory
                   </span>
                 </div>
+                <p className="text-[11px] text-slate-500">
+                  Enforce PIN authentication for all external client reservations and equipment rentals.
+                </p>
               </div>
-              <input
-                type="checkbox"
-                readOnly={!isEditing}
+              <ToggleSwitch
                 checked={pinSettings.enableExternalVenue !== false && pinSettings.enableExternalEquipment !== false}
-                onClick={(e) => { if (!isEditing) e.preventDefault(); }}
-                onChange={(e) => {
-                  if (isEditing) {
-                    setPinSettings({
-                      ...pinSettings,
-                      enableExternalVenue: e.target.checked,
-                      enableExternalEquipment: e.target.checked,
-                    });
-                  }
+                disabled={!isEditing || !pinSettings.isEnabled}
+                onChange={(val) => {
+                  setPinSettings({
+                    ...pinSettings,
+                    enableExternalVenue: val,
+                    enableExternalEquipment: val,
+                  });
                 }}
-                className="w-4 h-4 text-blue-600 rounded border-slate-300 mt-0.5"
               />
-            </label>
+            </div>
 
-            {/* Rule 2: Multi-Day Venue Bookings for Faculty & Students (Mandatory) */}
-            <label className={`flex items-start justify-between p-3.5 bg-slate-50 rounded-lg border border-slate-200 transition-colors ${isEditing ? 'cursor-pointer hover:bg-slate-100/70' : 'cursor-default'}`}>
-              <div className="space-y-1 pr-4">
+            {/* Rule 2: Multi-Day Venue Bookings */}
+            <div className="flex items-center justify-between py-3">
+              <div className="space-y-0.5 pr-4">
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-semibold text-slate-900">
                     Multi-Day Venue Bookings: Faculty &amp; Students (2+ Days)
                   </span>
-                  <span className="px-1.5 py-0.5 text-[10px] font-medium bg-slate-200 text-slate-700 rounded">
+                  <span className="px-1.5 py-0.5 text-[10px] font-medium bg-slate-100 text-slate-700 rounded">
                     Mandatory
                   </span>
                 </div>
+                <p className="text-[11px] text-slate-500">
+                  Require administrative PIN verification when reserving venues spanning two or more days.
+                </p>
               </div>
-              <input
-                type="checkbox"
-                readOnly={!isEditing}
+              <ToggleSwitch
                 checked={pinSettings.requirePinMultiDayVenue !== false}
-                onClick={(e) => { if (!isEditing) e.preventDefault(); }}
-                onChange={(e) => { if (isEditing) setPinSettings({ ...pinSettings, requirePinMultiDayVenue: e.target.checked }) }}
-                className="w-4 h-4 text-blue-600 rounded border-slate-300 mt-0.5"
+                disabled={!isEditing || !pinSettings.isEnabled}
+                onChange={(val) => setPinSettings({ ...pinSettings, requirePinMultiDayVenue: val })}
               />
-            </label>
+            </div>
 
-            {/* Rule 3: Outside Campus Office Hours (Configurable) */}
-            <label className={`flex items-start justify-between p-3.5 bg-slate-50 rounded-lg border border-slate-200 transition-colors ${isEditing ? 'cursor-pointer hover:bg-slate-100/70' : 'cursor-default'}`}>
-              <div className="space-y-1 pr-4">
+            {/* Rule 3: Outside Campus Office Hours */}
+            <div className="flex items-center justify-between py-3">
+              <div className="space-y-0.5 pr-4">
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-semibold text-slate-900">
                     Outside Campus Office Hours
                   </span>
-                  <span className="px-1.5 py-0.5 text-[10px] font-medium bg-slate-100 text-slate-600 rounded border border-slate-200">
+                  <span className="px-1.5 py-0.5 text-[10px] font-medium bg-blue-50 text-blue-700 rounded">
                     Configurable
                   </span>
                 </div>
+                <p className="text-[11px] text-slate-500">
+                  Mandate administrator verification for schedules booked outside standard university hours.
+                </p>
               </div>
-              <input
-                type="checkbox"
-                readOnly={!isEditing}
+              <ToggleSwitch
                 checked={pinSettings.requirePinOutsideHours !== false}
-                onClick={(e) => { if (!isEditing) e.preventDefault(); }}
-                onChange={(e) => { if (isEditing) setPinSettings({ ...pinSettings, requirePinOutsideHours: e.target.checked }) }}
-                className="w-4 h-4 text-blue-600 rounded border-slate-300 mt-0.5"
+                disabled={!isEditing || !pinSettings.isEnabled}
+                onChange={(val) => setPinSettings({ ...pinSettings, requirePinOutsideHours: val })}
               />
-            </label>
+            </div>
           </div>
         </div>
 
-        {/* Section 3: OTP Verification Settings */}
+        {/* Section 3: OTP Verification Settings (Sleek plain divider layout, no cards, toggle icons) */}
         <div className={`space-y-3 pt-3 border-t border-slate-100 transition-opacity ${!pinSettings.isEnabled ? "opacity-40 pointer-events-none select-none" : ""}`}>
           <div>
             <h4 className="text-xs font-semibold text-slate-900">
               OTP Verification Settings
             </h4>
             <p className="text-xs text-slate-500 mt-0.5">
-              Enable or disable one-time password verification for email and phone numbers.
+              Enable or disable one-time password verification channels for email and SMS contacts.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="divide-y divide-slate-100 border-y border-slate-100">
             {/* Venue Email */}
-            <label className={`flex items-start justify-between p-3.5 bg-slate-50 rounded-lg border border-slate-200 transition-colors ${isEditing ? 'cursor-pointer hover:bg-slate-100/70' : 'cursor-default'}`}>
-              <div className="space-y-1 pr-4">
+            <div className="flex items-center justify-between py-3">
+              <div className="space-y-0.5 pr-4">
                 <span className="text-xs font-semibold text-slate-900 block">
                   Venue Booking: Verify Email
                 </span>
-                <span className="text-[10px] text-slate-500 block">
-                  Requires 6-digit OTP code sent via email
+                <span className="text-[11px] text-slate-500 block">
+                  Requires 6-digit OTP code sent via verified email address.
                 </span>
               </div>
-              <input
-                type="checkbox"
-                readOnly={!isEditing}
+              <ToggleSwitch
                 checked={pinSettings.venueVerifyEmail !== false}
-                onClick={(e) => { if (!isEditing) e.preventDefault(); }}
-                onChange={(e) => { if (isEditing) handleOtpSettingChange('venueVerifyEmail', e.target.checked) }}
-                className="w-4 h-4 text-blue-600 rounded border-slate-300 mt-0.5"
+                disabled={!isEditing || !pinSettings.isEnabled}
+                onChange={(val) => handleOtpSettingChange('venueVerifyEmail', val)}
               />
-            </label>
-            
+            </div>
+
             {/* Venue Phone */}
-            <label className={`flex items-start justify-between p-3.5 bg-slate-50 rounded-lg border border-slate-200 transition-colors ${isEditing ? 'cursor-pointer hover:bg-slate-100/70' : 'cursor-default'}`}>
-              <div className="space-y-1 pr-4">
+            <div className="flex items-center justify-between py-3">
+              <div className="space-y-0.5 pr-4">
                 <span className="text-xs font-semibold text-slate-900 block">
                   Venue Booking: Verify Phone
                 </span>
-                <span className="text-[10px] text-slate-500 block">
-                  Requires 6-digit OTP code sent via SMS
+                <span className="text-[11px] text-slate-500 block">
+                  Requires 6-digit OTP code sent via SMS mobile channel.
                 </span>
               </div>
-              <input
-                type="checkbox"
-                readOnly={!isEditing}
+              <ToggleSwitch
                 checked={pinSettings.venueVerifyPhone === true}
-                onClick={(e) => { if (!isEditing) e.preventDefault(); }}
-                onChange={(e) => { if (isEditing) handleOtpSettingChange('venueVerifyPhone', e.target.checked) }}
-                className="w-4 h-4 text-blue-600 rounded border-slate-300 mt-0.5"
+                disabled={!isEditing || !pinSettings.isEnabled}
+                onChange={(val) => handleOtpSettingChange('venueVerifyPhone', val)}
               />
-            </label>
+            </div>
 
             {/* Equipment Email */}
-            <label className={`flex items-start justify-between p-3.5 bg-slate-50 rounded-lg border border-slate-200 transition-colors ${isEditing ? 'cursor-pointer hover:bg-slate-100/70' : 'cursor-default'}`}>
-              <div className="space-y-1 pr-4">
+            <div className="flex items-center justify-between py-3">
+              <div className="space-y-0.5 pr-4">
                 <span className="text-xs font-semibold text-slate-900 block">
                   Equipment Borrowing: Verify Email
                 </span>
-                <span className="text-[10px] text-slate-500 block">
-                  Requires 6-digit OTP code sent via email
+                <span className="text-[11px] text-slate-500 block">
+                  Requires 6-digit OTP code sent via verified email address.
                 </span>
               </div>
-              <input
-                type="checkbox"
-                readOnly={!isEditing}
+              <ToggleSwitch
                 checked={pinSettings.equipmentVerifyEmail !== false}
-                onClick={(e) => { if (!isEditing) e.preventDefault(); }}
-                onChange={(e) => { if (isEditing) handleOtpSettingChange('equipmentVerifyEmail', e.target.checked) }}
-                className="w-4 h-4 text-blue-600 rounded border-slate-300 mt-0.5"
+                disabled={!isEditing || !pinSettings.isEnabled}
+                onChange={(val) => handleOtpSettingChange('equipmentVerifyEmail', val)}
               />
-            </label>
-            
+            </div>
+
             {/* Equipment Phone */}
-            <label className={`flex items-start justify-between p-3.5 bg-slate-50 rounded-lg border border-slate-200 transition-colors ${isEditing ? 'cursor-pointer hover:bg-slate-100/70' : 'cursor-default'}`}>
-              <div className="space-y-1 pr-4">
+            <div className="flex items-center justify-between py-3">
+              <div className="space-y-0.5 pr-4">
                 <span className="text-xs font-semibold text-slate-900 block">
                   Equipment Borrowing: Verify Phone
                 </span>
-                <span className="text-[10px] text-slate-500 block">
-                  Requires 6-digit OTP code sent via SMS
+                <span className="text-[11px] text-slate-500 block">
+                  Requires 6-digit OTP code sent via SMS mobile channel.
                 </span>
               </div>
-              <input
-                type="checkbox"
-                readOnly={!isEditing}
+              <ToggleSwitch
                 checked={pinSettings.equipmentVerifyPhone === true}
-                onClick={(e) => { if (!isEditing) e.preventDefault(); }}
-                onChange={(e) => { if (isEditing) handleOtpSettingChange('equipmentVerifyPhone', e.target.checked) }}
-                className="w-4 h-4 text-blue-600 rounded border-slate-300 mt-0.5"
+                disabled={!isEditing || !pinSettings.isEnabled}
+                onChange={(val) => handleOtpSettingChange('equipmentVerifyPhone', val)}
               />
-            </label>
+            </div>
           </div>
         </div>
 
-        {/* Applicability Matrix Table */}
+        {/* Dynamic Applicability Matrix Table */}
         <div className="space-y-2 pt-3 border-t border-slate-100">
-          <h4 className="text-xs font-semibold text-slate-900">
-            Applicability Matrix
-          </h4>
+          <div className="flex items-center justify-between">
+            <div>
+              <h4 className="text-xs font-semibold text-slate-900">
+                Applicability Matrix
+              </h4>
+              <p className="text-[11px] text-slate-500 mt-0.5">
+                Dynamic classification enforcement rules. Click edit to toggle requirement per service type.
+              </p>
+            </div>
+            {isEditing && (
+              <span className="text-[11px] font-medium text-blue-600 bg-blue-50 px-2 py-0.5 rounded">
+                Editing Matrix Rules
+              </span>
+            )}
+          </div>
+
           <div className="border border-slate-200 rounded-lg overflow-hidden text-xs">
             <table className="w-full text-left">
               <thead>
@@ -533,23 +586,127 @@ export default function VerificationPinTab({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 font-normal text-slate-700">
-                <tr>
+                {/* Student */}
+                <tr className="hover:bg-slate-50/50">
                   <td className="p-2.5 font-medium text-slate-900">Student</td>
-                  <td className="p-2.5 text-slate-500">No PIN (Direct)</td>
-                  <td className="p-2.5 font-medium text-slate-900">PIN Required</td>
-                  <td className="p-2.5 text-slate-500">No PIN (Direct)</td>
+                  <td className="p-2.5">
+                    <div className="flex items-center gap-2">
+                      <ToggleSwitch
+                        checked={!!currentMatrix.student?.venue_single}
+                        disabled={!isEditing || !pinSettings.isEnabled}
+                        onChange={(val) => updateMatrixCell('student', 'venue_single', val)}
+                      />
+                      <span className={`text-[11px] font-medium ${currentMatrix.student?.venue_single ? 'text-blue-600 font-semibold' : 'text-slate-500'}`}>
+                        {currentMatrix.student?.venue_single ? "PIN Required" : "No PIN (Direct)"}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="p-2.5">
+                    <div className="flex items-center gap-2">
+                      <ToggleSwitch
+                        checked={!!currentMatrix.student?.venue_multiday}
+                        disabled={!isEditing || !pinSettings.isEnabled}
+                        onChange={(val) => updateMatrixCell('student', 'venue_multiday', val)}
+                      />
+                      <span className={`text-[11px] font-medium ${currentMatrix.student?.venue_multiday ? 'text-blue-600 font-semibold' : 'text-slate-500'}`}>
+                        {currentMatrix.student?.venue_multiday ? "PIN Required" : "No PIN (Direct)"}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="p-2.5">
+                    <div className="flex items-center gap-2">
+                      <ToggleSwitch
+                        checked={!!currentMatrix.student?.equipment}
+                        disabled={!isEditing || !pinSettings.isEnabled}
+                        onChange={(val) => updateMatrixCell('student', 'equipment', val)}
+                      />
+                      <span className={`text-[11px] font-medium ${currentMatrix.student?.equipment ? 'text-blue-600 font-semibold' : 'text-slate-500'}`}>
+                        {currentMatrix.student?.equipment ? "PIN Required" : "No PIN (Direct)"}
+                      </span>
+                    </div>
+                  </td>
                 </tr>
-                <tr>
+
+                {/* Faculty / Staff */}
+                <tr className="hover:bg-slate-50/50">
                   <td className="p-2.5 font-medium text-slate-900">Faculty / Staff</td>
-                  <td className="p-2.5 text-slate-500">No PIN (Direct)</td>
-                  <td className="p-2.5 font-medium text-slate-900">PIN Required</td>
-                  <td className="p-2.5 text-slate-500">No PIN (Direct)</td>
+                  <td className="p-2.5">
+                    <div className="flex items-center gap-2">
+                      <ToggleSwitch
+                        checked={!!currentMatrix.faculty?.venue_single}
+                        disabled={!isEditing || !pinSettings.isEnabled}
+                        onChange={(val) => updateMatrixCell('faculty', 'venue_single', val)}
+                      />
+                      <span className={`text-[11px] font-medium ${currentMatrix.faculty?.venue_single ? 'text-blue-600 font-semibold' : 'text-slate-500'}`}>
+                        {currentMatrix.faculty?.venue_single ? "PIN Required" : "No PIN (Direct)"}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="p-2.5">
+                    <div className="flex items-center gap-2">
+                      <ToggleSwitch
+                        checked={!!currentMatrix.faculty?.venue_multiday}
+                        disabled={!isEditing || !pinSettings.isEnabled}
+                        onChange={(val) => updateMatrixCell('faculty', 'venue_multiday', val)}
+                      />
+                      <span className={`text-[11px] font-medium ${currentMatrix.faculty?.venue_multiday ? 'text-blue-600 font-semibold' : 'text-slate-500'}`}>
+                        {currentMatrix.faculty?.venue_multiday ? "PIN Required" : "No PIN (Direct)"}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="p-2.5">
+                    <div className="flex items-center gap-2">
+                      <ToggleSwitch
+                        checked={!!currentMatrix.faculty?.equipment}
+                        disabled={!isEditing || !pinSettings.isEnabled}
+                        onChange={(val) => updateMatrixCell('faculty', 'equipment', val)}
+                      />
+                      <span className={`text-[11px] font-medium ${currentMatrix.faculty?.equipment ? 'text-blue-600 font-semibold' : 'text-slate-500'}`}>
+                        {currentMatrix.faculty?.equipment ? "PIN Required" : "No PIN (Direct)"}
+                      </span>
+                    </div>
+                  </td>
                 </tr>
-                <tr>
+
+                {/* External Client */}
+                <tr className="hover:bg-slate-50/50">
                   <td className="p-2.5 font-medium text-slate-900">External Client</td>
-                  <td className="p-2.5 font-medium text-slate-900">PIN Required</td>
-                  <td className="p-2.5 font-medium text-slate-900">PIN Required</td>
-                  <td className="p-2.5 font-medium text-slate-900">PIN Required</td>
+                  <td className="p-2.5">
+                    <div className="flex items-center gap-2">
+                      <ToggleSwitch
+                        checked={!!currentMatrix.external?.venue_single}
+                        disabled={!isEditing || !pinSettings.isEnabled}
+                        onChange={(val) => updateMatrixCell('external', 'venue_single', val)}
+                      />
+                      <span className={`text-[11px] font-medium ${currentMatrix.external?.venue_single ? 'text-blue-600 font-semibold' : 'text-slate-500'}`}>
+                        {currentMatrix.external?.venue_single ? "PIN Required" : "No PIN (Direct)"}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="p-2.5">
+                    <div className="flex items-center gap-2">
+                      <ToggleSwitch
+                        checked={!!currentMatrix.external?.venue_multiday}
+                        disabled={!isEditing || !pinSettings.isEnabled}
+                        onChange={(val) => updateMatrixCell('external', 'venue_multiday', val)}
+                      />
+                      <span className={`text-[11px] font-medium ${currentMatrix.external?.venue_multiday ? 'text-blue-600 font-semibold' : 'text-slate-500'}`}>
+                        {currentMatrix.external?.venue_multiday ? "PIN Required" : "No PIN (Direct)"}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="p-2.5">
+                    <div className="flex items-center gap-2">
+                      <ToggleSwitch
+                        checked={!!currentMatrix.external?.equipment}
+                        disabled={!isEditing || !pinSettings.isEnabled}
+                        onChange={(val) => updateMatrixCell('external', 'equipment', val)}
+                      />
+                      <span className={`text-[11px] font-medium ${currentMatrix.external?.equipment ? 'text-blue-600 font-semibold' : 'text-slate-500'}`}>
+                        {currentMatrix.external?.equipment ? "PIN Required" : "No PIN (Direct)"}
+                      </span>
+                    </div>
+                  </td>
                 </tr>
               </tbody>
             </table>
@@ -562,7 +719,7 @@ export default function VerificationPinTab({
             <button
               type="button"
               onClick={() => setIsEditing(true)}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold transition-colors"
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold transition-colors cursor-pointer"
             >
               Edit Settings
             </button>
@@ -574,14 +731,14 @@ export default function VerificationPinTab({
                   setIsEditing(false);
                   if (originalPinSettings) setPinSettings(originalPinSettings);
                 }}
-                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold transition-colors"
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={saveLoading || pinLoading}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold transition-colors disabled:opacity-50"
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold transition-colors disabled:opacity-50 cursor-pointer"
               >
                 {saveLoading ? "Saving..." : "Save Settings"}
               </button>

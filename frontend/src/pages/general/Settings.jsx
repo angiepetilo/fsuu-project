@@ -5,8 +5,9 @@ import notify from "@/lib/notify";
 import api from "@/lib/axios";
 import {
   ShieldCheck, Package, Building, DollarSign, BookOpen, Clock,
-  GraduationCap, Key, Sliders, User, Mail, ChevronRight,
-  Lock, Eye, EyeOff, ShieldAlert, Loader2, X
+  GraduationCap, Key, Sliders, User, Mail, ChevronRight, ChevronDown,
+  Lock, Eye, EyeOff, ShieldAlert, Loader2, X, Tag, Laptop, Activity,
+  Building2, Users
 } from "lucide-react";
 
 import {
@@ -20,7 +21,11 @@ import {
   VerificationPinTab,
   SystemSettingsTab,
   CommunicationLogsTab,
-  ProfileConfigTab
+  ProfileConfigTab,
+  AuditLogsTab,
+  BrandsTab,
+  ActiveSessionsTab,
+  SecurityAlertsTab,
 } from "@/components/settings-tabs";
 
 // Tabs that require password confirmation before viewing
@@ -31,46 +36,88 @@ const PROTECTED_TAB_NAMES = {
   system_settings: "System Settings",
 };
 
-const ALL_SETTINGS_TABS = [
-  { id: "roles", label: "Roles & Permissions", desc: "User accounts & access levels", icon: ShieldCheck, superAdminOnly: true },
-  { id: "equipment", label: "Equipment Category", desc: "Equipment item catalog groups", icon: Package, permissionKey: "settings.equipment" },
-  { id: "venues", label: "Venue Creation", desc: "Campus rooms & capacity setup", icon: Building, permissionKey: "settings.venues" },
-  { id: "fee_matrix", label: "Fee Matrix", desc: "Facility rental fee schedule", icon: DollarSign, permissionKey: "settings.fee_matrix", staffOnly: true },
-  { id: "departments", label: "Departments", desc: "University academic units", icon: BookOpen, permissionKey: "settings.departments" },
-  { id: "operating_hours", label: "Operating Hours", desc: "Campus hours & reservation cutoffs", icon: Clock, permissionKey: "settings.operating_hours", staffOnly: true },
-  { id: "academic_terms", label: "Academic Terms", desc: "Semester terms & archiving", icon: GraduationCap, permissionKey: "settings.academic_terms", staffOnly: true },
-  { id: "pin", label: "Verification PIN", desc: "6-digit emergency overrides", icon: Key, permissionKey: "settings.pin", staffOnly: true, protected: true },
-  { id: "communication_logs", label: "Communications Log", desc: "SMS & Email dispatch audit", icon: Mail, permissionKey: "settings.communication_logs" },
-  { id: "system_settings", label: "System Settings", desc: "Branding and portal parameters", icon: Sliders, permissionKey: "settings.system_settings", staffOnly: true, protected: true },
-  { id: "profile", label: "Profile", desc: "Account credentials & password", icon: User },
+const SETTINGS_CATEGORIES = [
+  {
+    id: "user_access",
+    label: "User & Access Management",
+    icon: Users,
+    items: [
+      { id: "roles", label: "User Management", desc: "Staff accounts & RBAC permissions", icon: ShieldCheck, superAdminOnly: true },
+      { id: "active_sessions", label: "Active Sessions", desc: "Monitor & remotely terminate terminals", icon: Laptop, permissionKey: "settings.active_sessions" },
+      { id: "pin", label: "Verification PIN", desc: "6-digit emergency overrides", icon: Key, permissionKey: "settings.pin", staffOnly: true, protected: true },
+    ]
+  },
+  {
+    id: "system_security",
+    label: "System & Security Logs",
+    icon: ShieldAlert,
+    items: [
+      { id: "security_alerts", label: "Security Alerts", desc: "Rate limits, lockouts & terminations", icon: ShieldAlert, permissionKey: "settings.security_alerts" },
+      { id: "audit_logs", label: "Activity Audit Trail", desc: "System transactions & action trail", icon: Activity, permissionKey: "settings.audit_logs" },
+      { id: "communication_logs", label: "SMS and Email Log", desc: "Brevo & iProg SMS dispatch log", icon: Mail, permissionKey: "settings.communication_logs" },
+    ]
+  },
+  {
+    id: "organization",
+    label: "Organization Setup",
+    icon: Building2,
+    items: [
+      { id: "brands", label: "Brands", desc: "Equipment manufacturer brands", icon: Tag, permissionKey: "settings.brands" },
+      { id: "equipment", label: "Equipment Category", desc: "Equipment item catalog groups", icon: Package, permissionKey: "settings.equipment" },
+      { id: "venues", label: "Venue Creation", desc: "Campus rooms & capacity setup", icon: Building, permissionKey: "settings.venues" },
+      { id: "departments", label: "Departments", desc: "University academic units", icon: BookOpen, permissionKey: "settings.departments" },
+    ]
+  },
+  {
+    id: "operations",
+    label: "Operations & Billing",
+    icon: Clock,
+    items: [
+      { id: "fee_matrix", label: "Fee Matrix", desc: "Facility rental fee schedule", icon: DollarSign, permissionKey: "settings.fee_matrix", staffOnly: true },
+      { id: "operating_hours", label: "Operating Hours", desc: "Campus hours & reservation cutoffs", icon: Clock, permissionKey: "settings.operating_hours", staffOnly: true },
+      { id: "academic_terms", label: "Academic Terms", desc: "Semester terms & archiving", icon: GraduationCap, permissionKey: "settings.academic_terms", staffOnly: true },
+    ]
+  },
+  {
+    id: "account",
+    label: "Account",
+    icon: Sliders,
+    items: [
+      { id: "system_settings", label: "System Settings", desc: "Branding and portal parameters", icon: Sliders, permissionKey: "settings.system_settings", staffOnly: true, protected: true },
+      { id: "profile", label: "Profile", desc: "Account credentials & password", icon: User },
+    ]
+  }
 ];
+
+const ALL_SETTINGS_TABS = SETTINGS_CATEGORIES.flatMap((c) => c.items);
 
 export default function Settings() {
   const { user, isSuperAdmin, isStudentAssistant, isStaff, hasPermission } = usePermissions();
   const context = useOutletContext();
   const selectedOffice = context?.selectedOffice ?? "All Offices";
 
-  // Filter visible tabs strictly based on Super Admin configured permissions:
-  // 1. Super Admin: All tabs
-  // 2. Profile: Always visible to the logged-in user (view / edit / change password)
-  // 3. Student Assistants: Only Profile tab is accessible (all administrative tabs hidden)
-  // 4. Staff / Other: Require granular 'settings.<tab_id>' or 'settings' permission granted by Super Admin
-  const visibleTabs = ALL_SETTINGS_TABS.filter((tab) => {
-    if (isSuperAdmin) return true;
-    if (tab.superAdminOnly) return false;
-    if (tab.id === "profile") return true;
+  // Filter visible categories and tabs strictly based on Super Admin configured permissions
+  const visibleCategories = SETTINGS_CATEGORIES.map((cat) => {
+    const items = cat.items.filter((tab) => {
+      if (isSuperAdmin) return true;
+      if (tab.superAdminOnly) return false;
+      if (tab.id === "profile") return true;
 
-    // Student Assistants only have access to their personal Profile tab
-    if (isStudentAssistant) {
-      return false;
-    }
+      // Student Assistants only have access to their personal Profile tab
+      if (isStudentAssistant) {
+        return false;
+      }
 
-    if (tab.permissionKey && !hasPermission(tab.permissionKey)) {
-      return false;
-    }
+      if (tab.permissionKey && !hasPermission(tab.permissionKey)) {
+        return false;
+      }
 
-    return true;
-  });
+      return true;
+    });
+    return { ...cat, items };
+  }).filter((cat) => cat.items.length > 0);
+
+  const visibleTabs = visibleCategories.flatMap((c) => c.items);
 
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -85,6 +132,33 @@ export default function Settings() {
 
   const [activeTab, setActiveTab] = useState(getInitialTab);
   const [mountedTabs, setMountedTabs] = useState(() => new Set([getInitialTab()]));
+
+  // Track expanded accordion categories (default expands category of active tab)
+  const [openCategories, setOpenCategories] = useState(() => {
+    const initTab = getInitialTab();
+    const state = {};
+    SETTINGS_CATEGORIES.forEach((cat) => {
+      state[cat.id] = cat.items.some((it) => it.id === initTab);
+    });
+    return state;
+  });
+
+  // Automatically expand category when activeTab changes
+  useEffect(() => {
+    const parentCat = SETTINGS_CATEGORIES.find((cat) =>
+      cat.items.some((it) => it.id === activeTab)
+    );
+    if (parentCat) {
+      setOpenCategories((prev) => ({ ...prev, [parentCat.id]: true }));
+    }
+  }, [activeTab]);
+
+  const toggleCategory = (catId) => {
+    setOpenCategories((prev) => ({
+      ...prev,
+      [catId]: !prev[catId],
+    }));
+  };
 
   // Track which protected tabs have been unlocked this session
   const [unlockedTabs, setUnlockedTabs] = useState(new Set());
@@ -171,35 +245,99 @@ export default function Settings() {
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs flex flex-col lg:flex-row overflow-visible font-sans">
-      {/* ── Left Sidebar: Integrated Vertical Navigation ── */}
-      <aside className="w-full lg:w-60 xl:w-64 shrink-0 bg-slate-50/70 border-b lg:border-b-0 lg:border-r border-slate-200/80 p-3 flex flex-col justify-between">
-        <nav className="space-y-1 pr-0.5">
-          {visibleTabs.map((tab) => {
-            const IconComp = tab.icon;
-            const active = activeTab === tab.id;
-            const isProtected = PROTECTED_TABS.includes(tab.id) && !unlockedTabs.has(tab.id);
+      {/* ── Left Sidebar: Integrated Collapsible Accordion Navigation ── */}
+      <aside className="w-full lg:w-64 xl:w-72 shrink-0 bg-slate-50/70 border-b lg:border-b-0 lg:border-r border-slate-200/80 p-3 flex flex-col justify-between">
+        <nav className="space-y-2 pr-0.5">
+          {visibleCategories.map((category) => {
+            const CatIcon = category.icon;
+            const isOpen = Boolean(openCategories[category.id]);
+            const hasActiveChild = category.items.some((it) => it.id === activeTab);
+
             return (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => handleTabClick(tab.id)}
-                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-left text-xs font-bold transition-all cursor-pointer ${
-                  active
-                    ? "bg-blue-600 text-white shadow-xs"
-                    : "text-slate-600 hover:bg-white hover:text-slate-900"
-                }`}
-              >
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <IconComp size={15} className={`shrink-0 ${active ? "text-white" : "text-slate-400"}`} />
-                  <span className="truncate">{tab.label}</span>
-                </div>
-                <div className="flex items-center gap-1.5 shrink-0">
-                  {isProtected && (
-                    <Lock size={12} className={active ? "text-blue-200" : "text-slate-400"} />
-                  )}
-                  <ChevronRight size={13} className={`shrink-0 transition-transform ${active ? "text-white" : "text-slate-300 opacity-0 group-hover:opacity-100"}`} />
-                </div>
-              </button>
+              <div key={category.id} className="space-y-1">
+                <button
+                  type="button"
+                  onClick={() => toggleCategory(category.id)}
+                  className={`w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-left transition-all cursor-pointer group select-none ${
+                    hasActiveChild ? "bg-blue-50/80 text-blue-900 font-black" : "hover:bg-slate-100/70 text-slate-700 font-extrabold"
+                  }`}
+                  title={`${isOpen ? "Collapse" : "Expand"} ${category.label}`}
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div
+                      className={`p-1 rounded-lg shrink-0 transition-colors ${
+                        hasActiveChild
+                          ? "bg-blue-600 text-white shadow-2xs"
+                          : "bg-slate-200/70 text-slate-600 group-hover:bg-slate-300"
+                      }`}
+                    >
+                      <CatIcon size={13} />
+                    </div>
+                    <span className="truncate text-[11px] uppercase tracking-wider font-extrabold">
+                      {category.label}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span
+                      className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-full border ${
+                        hasActiveChild
+                          ? "bg-blue-100 text-blue-700 border-blue-200"
+                          : "bg-slate-100 text-slate-500 border-slate-200"
+                      }`}
+                    >
+                      {category.items.length}
+                    </span>
+                    <ChevronDown
+                      size={14}
+                      className={`text-slate-400 transition-transform duration-200 shrink-0 ${
+                        isOpen ? "rotate-0 text-slate-700" : "-rotate-90"
+                      }`}
+                    />
+                  </div>
+                </button>
+
+                {isOpen && (
+                  <div className="space-y-1 pl-2.5 ml-3 border-l-2 border-slate-200/90 pt-0.5 pb-1 animate-in fade-in slide-in-from-top-1 duration-150">
+                    {category.items.map((tab) => {
+                      const IconComp = tab.icon;
+                      const active = activeTab === tab.id;
+                      const isProtected = PROTECTED_TABS.includes(tab.id) && !unlockedTabs.has(tab.id);
+
+                      return (
+                        <button
+                          key={tab.id}
+                          type="button"
+                          onClick={() => handleTabClick(tab.id)}
+                          className={`w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-left text-xs font-bold transition-all cursor-pointer ${
+                            active
+                              ? "bg-blue-600 text-white shadow-xs"
+                              : "text-slate-600 hover:bg-white hover:text-slate-900"
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <IconComp
+                              size={14}
+                              className={`shrink-0 ${active ? "text-white" : "text-slate-400"}`}
+                            />
+                            <span className="truncate">{tab.label}</span>
+                          </div>
+                          <div className="flex items-center gap-1 shrink-0">
+                            {isProtected && (
+                              <Lock size={11} className={active ? "text-blue-200" : "text-slate-400"} />
+                            )}
+                            <ChevronRight
+                              size={12}
+                              className={`shrink-0 transition-transform ${
+                                active ? "text-white" : "text-slate-300 opacity-0 group-hover:opacity-100"
+                              }`}
+                            />
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             );
           })}
         </nav>
@@ -211,6 +349,26 @@ export default function Settings() {
         {mountedTabs.has("roles") && (
           <div className={activeTab === "roles" ? "block" : "hidden"}>
             <UserManagementTab />
+          </div>
+        )}
+        {mountedTabs.has("active_sessions") && (
+          <div className={activeTab === "active_sessions" ? "block" : "hidden"}>
+            <ActiveSessionsTab />
+          </div>
+        )}
+        {mountedTabs.has("security_alerts") && (
+          <div className={activeTab === "security_alerts" ? "block" : "hidden"}>
+            <SecurityAlertsTab />
+          </div>
+        )}
+        {mountedTabs.has("audit_logs") && (
+          <div className={activeTab === "audit_logs" ? "block" : "hidden"}>
+            <AuditLogsTab />
+          </div>
+        )}
+        {mountedTabs.has("brands") && (
+          <div className={activeTab === "brands" ? "block" : "hidden"}>
+            <BrandsTab />
           </div>
         )}
         {mountedTabs.has("equipment") && (

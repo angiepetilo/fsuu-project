@@ -3,13 +3,14 @@ import { Link, useLocation, useNavigate, Navigate, Outlet } from "react-router-d
 import { useAuth } from "@/context/AuthContext";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
+import { useTheme } from "@/context/ThemeContext";
 import api from "@/lib/axios";
 import echoInstance from "@/lib/echo";
 import { notify } from "@/lib/notify";
 import {
   LayoutDashboard, Building2, PackageOpen, Box, CalendarCheck,
   FileBarChart2, Settings, ShieldCheck, ChevronRight,
-  ChevronDown, Menu, X, LogOut, Globe, Monitor, Loader2
+  ChevronDown, Menu, X, LogOut, Globe, Monitor, Loader2, Sun, Moon
 } from "lucide-react";
 import NotificationDropdown from "@/components/notifications/NotificationDropdown";
 import IncidentDetailModal from "@/components/notifications/IncidentDetailModal";
@@ -51,6 +52,8 @@ const NAV_GROUPS = [
 export default function GeneralLayout() {
   const { logout } = useAuth();
   const { user, isSuperAdmin, isStudentAssistant, hasPermission } = usePermissions();
+  const { theme, toggleTheme } = useTheme();
+  const isDark = theme === "dark";
   const navigate = useNavigate();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -274,7 +277,7 @@ export default function GeneralLayout() {
   const currentFeature = getFeatureDetails(location.pathname);
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] flex font-sans antialiased text-slate-900 relative">
+    <div className={`min-h-screen flex font-sans antialiased relative ${isDark ? "bg-[#0b132b] text-slate-100" : "bg-[#f8fafc] text-slate-900"}`}>
 
       {/* ── Logout Confirm Modal ── */}
       <ConfirmModal
@@ -302,26 +305,30 @@ export default function GeneralLayout() {
       {/* ── Sidebar ── */}
       <aside
         className={`
-          fixed inset-y-0 left-0 z-40 flex flex-col bg-slate-900 text-white transition-all duration-300 ease-in-out border-r border-slate-800 overflow-hidden
+          fixed inset-y-0 left-0 z-40 flex flex-col transition-all duration-300 ease-in-out overflow-hidden
+          ${isDark
+            ? "bg-slate-900 text-white border-r border-slate-800"
+            : "bg-white text-slate-900 border-r border-slate-200 shadow-sm"
+          }
           ${sidebarOpen ? "w-64" : "w-[68px]"}
           ${mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
         `}
       >
         {/* Brand Header */}
-        <div className="flex items-center gap-3 px-4 py-4 border-b border-slate-800 h-[65px] overflow-hidden whitespace-nowrap">
+        <div className={`flex items-center gap-3 px-4 py-4 border-b h-[65px] overflow-hidden whitespace-nowrap ${isDark ? "border-slate-800" : "border-slate-100"}`}>
           <img src="/fsuu_logo.png" alt="FSUU" className="h-9 w-9 flex-shrink-0 object-contain" />
           <div className="flex flex-col min-w-0 overflow-hidden">
-            <span className="font-bold text-sm text-white tracking-tight leading-tight truncate">
+            <span className={`font-bold text-sm tracking-tight leading-tight truncate ${isDark ? "text-white" : "text-slate-900"}`}>
               FSUU
             </span>
-            <span className="text-[11px] text-slate-400 font-medium tracking-wide mt-0.5 truncate">
+            <span className={`text-[11px] font-medium tracking-wide mt-0.5 truncate ${isDark ? "text-slate-400" : "text-slate-500"}`}>
               {officeName || "General Operations"}
             </span>
           </div>
         </div>
 
         {/* Grouped Navigation */}
-        <nav className="flex-1 overflow-y-auto py-5 px-3 space-y-6 scrollbar-none overflow-x-hidden">
+        <nav className={`flex-1 overflow-y-auto py-5 px-3 space-y-6 scrollbar-none overflow-x-hidden`}>
           {NAV_GROUPS.map((group) => {
             const filteredItems = group.items.filter(item => {
               if (item.label === "Interface" && isStudentAssistant) {
@@ -338,7 +345,7 @@ export default function GeneralLayout() {
             return (
               <div key={group.title} className="space-y-1.5 overflow-hidden">
                 <div className="px-3 pb-1 pt-1 overflow-hidden">
-                  <p className="text-[10px] font-bold tracking-widest text-slate-400 uppercase truncate leading-none overflow-hidden whitespace-nowrap">
+                  <p className={`text-[10px] font-bold tracking-widest uppercase truncate leading-none overflow-hidden whitespace-nowrap ${isDark ? "text-slate-400" : "text-slate-400"}`}>
                     {sidebarOpen ? group.title : "—"}
                   </p>
                 </div>
@@ -355,7 +362,9 @@ export default function GeneralLayout() {
                           flex items-center gap-3 px-3 py-2 rounded-lg font-medium text-xs transition-colors duration-150 relative overflow-hidden whitespace-nowrap w-full
                           ${active
                             ? "bg-blue-600 text-white"
-                            : "text-slate-300 hover:text-white hover:bg-slate-800"
+                            : isDark
+                              ? "text-slate-300 hover:text-white hover:bg-slate-800"
+                              : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
                           }
                         `}
                       >
@@ -376,7 +385,7 @@ export default function GeneralLayout() {
         <button
           type="button"
           onClick={() => setSidebarOpen(v => !v)}
-          className="hidden lg:flex items-center h-9 mx-2.5 mb-2 px-2.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors text-xs gap-3 font-medium cursor-pointer overflow-hidden whitespace-nowrap"
+          className={`hidden lg:flex items-center h-9 mx-2.5 mb-2 px-2.5 rounded-lg transition-colors text-xs gap-3 font-medium cursor-pointer overflow-hidden whitespace-nowrap ${isDark ? "text-slate-400 hover:text-white hover:bg-slate-800" : "text-slate-500 hover:text-slate-900 hover:bg-slate-100"}`}
         >
           <div className="w-5 h-5 flex-shrink-0 flex items-center justify-center">
             <ChevronRight size={14} className={`transition-transform duration-200 ${sidebarOpen ? "rotate-180" : ""}`} />
@@ -385,14 +394,14 @@ export default function GeneralLayout() {
         </button>
 
         {/* User Card */}
-        <div className="border-t border-slate-800 p-2.5 bg-slate-900 overflow-hidden whitespace-nowrap">
+        <div className={`border-t p-2.5 overflow-hidden whitespace-nowrap ${isDark ? "border-slate-800 bg-slate-900" : "border-slate-100 bg-white"}`}>
           {sidebarOpen ? (
             <>
               <div
                 onClick={() => setUserMenuOpen(v => !v)}
-                className="flex items-center gap-2.5 p-1.5 rounded-lg hover:bg-slate-800 transition-colors cursor-pointer overflow-hidden w-full"
+                className={`flex items-center gap-2.5 p-1.5 rounded-lg transition-colors cursor-pointer overflow-hidden w-full ${isDark ? "hover:bg-slate-800" : "hover:bg-slate-100"}`}
               >
-                <div className="w-8 h-8 rounded-full bg-slate-800 text-slate-200 border border-slate-700 flex items-center justify-center text-xs font-semibold flex-shrink-0 overflow-hidden">
+                <div className={`w-8 h-8 rounded-full border flex items-center justify-center text-xs font-semibold flex-shrink-0 overflow-hidden ${isDark ? "bg-slate-800 text-slate-200 border-slate-700" : "bg-slate-100 text-slate-700 border-slate-200"}`}>
                   {adminAvatar ? (
                     <img src={adminAvatar} alt={adminName} className="w-full h-full object-cover" />
                   ) : (
@@ -400,18 +409,18 @@ export default function GeneralLayout() {
                   )}
                 </div>
                 <div className="flex-1 min-w-0 overflow-hidden">
-                  <p className="text-xs font-medium text-slate-200 truncate">{adminName}</p>
-                  <p className="text-[10.5px] text-slate-400 truncate capitalize">{userRole.replace("_", " ")}</p>
+                  <p className={`text-xs font-medium truncate ${isDark ? "text-slate-200" : "text-slate-800"}`}>{adminName}</p>
+                  <p className={`text-[10.5px] truncate capitalize ${isDark ? "text-slate-400" : "text-slate-500"}`}>{userRole.replace("_", " ")}</p>
                 </div>
-                <ChevronDown size={13} className={`text-slate-400 flex-shrink-0 transition-transform ${userMenuOpen ? "rotate-180" : ""}`} />
+                <ChevronDown size={13} className={`flex-shrink-0 transition-transform ${userMenuOpen ? "rotate-180" : ""} ${isDark ? "text-slate-400" : "text-slate-400"}`} />
               </div>
 
               {userMenuOpen && (
-                <div className="pt-1.5 border-t border-slate-800 mt-1">
+                <div className={`pt-1.5 border-t mt-1 ${isDark ? "border-slate-800" : "border-slate-100"}`}>
                   <button
                     type="button"
                     onClick={() => setShowLogoutConfirm(true)}
-                    className="w-full flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors cursor-pointer"
+                    className="w-full flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors cursor-pointer"
                   >
                     <LogOut size={13} /> Sign Out
                   </button>
@@ -424,7 +433,7 @@ export default function GeneralLayout() {
                 type="button"
                 onClick={() => setShowLogoutConfirm(true)}
                 title={`Sign Out (${adminName})`}
-                className="w-9 h-9 rounded-xl bg-slate-800/80 hover:bg-rose-500/20 text-slate-300 hover:text-rose-400 border border-slate-700 hover:border-rose-500/40 flex items-center justify-center transition-all cursor-pointer shadow-xs"
+                className={`w-9 h-9 rounded-xl border flex items-center justify-center transition-all cursor-pointer shadow-xs hover:bg-rose-500/20 hover:text-rose-400 hover:border-rose-500/40 ${isDark ? "bg-slate-800/80 text-slate-300 border-slate-700" : "bg-slate-100 text-slate-600 border-slate-200"}`}
               >
                 <LogOut size={16} />
               </button>
@@ -442,35 +451,45 @@ export default function GeneralLayout() {
       )}
 
       {/* ── Main Content Container ── */}
-      <div className={`flex-1 flex flex-col min-h-screen transition-all duration-300 ${sidebarOpen ? "lg:ml-64" : "lg:ml-[68px]"}`}>
+      <div className={`flex-1 flex flex-col min-h-screen min-w-0 overflow-x-hidden transition-all duration-300 ${sidebarOpen ? "lg:ml-64" : "lg:ml-[68px]"}`}>
 
         {/* Top Header */}
-        <header className="sticky top-0 z-20 bg-white border-b border-slate-200 shadow-2xs">
-          <div className="flex items-center justify-between px-6 h-16">
-            <div className="flex items-center gap-4">
+        <header className={`sticky top-0 z-20 border-b shadow-2xs ${isDark ? "bg-[#0b132b] border-slate-800 text-white" : "bg-white border-slate-200 text-slate-900"}`}>
+          <div className="flex items-center justify-between px-4 sm:px-6 h-14 sm:h-16">
+            <div className="flex items-center gap-3 sm:gap-4 min-w-0">
               <button
-                className="lg:hidden p-2 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors"
+                className={`lg:hidden p-1.5 sm:p-2 rounded-lg transition-colors flex-shrink-0 ${isDark ? "text-slate-300 hover:text-white hover:bg-slate-800" : "text-slate-600 hover:bg-slate-100"}`}
                 onClick={() => setMobileOpen(v => !v)}
               >
                 {mobileOpen ? <X size={18} /> : <Menu size={18} />}
               </button>
 
-              <div className="flex flex-col justify-center">
-                <div className="flex items-center gap-2.5">
-                  <h1 className="font-extrabold text-slate-900 text-base sm:text-lg tracking-tight">
+              <div className="flex flex-col justify-center min-w-0">
+                <div className="flex items-center gap-2">
+                  <h1 className={`font-extrabold text-sm sm:text-base lg:text-lg tracking-tight truncate ${isDark ? "text-white" : "text-slate-900"}`}>
                     {currentFeature.title}
                   </h1>
                 </div>
-                <p className="text-xs text-slate-500 font-normal mt-0.5 hidden sm:block">
+                <p className={`text-xs font-normal mt-0.5 hidden sm:block truncate ${isDark ? "text-slate-400" : "text-slate-500"}`}>
                   {currentFeature.subtitle}
                 </p>
               </div>
             </div>
 
-            {/* Right Side: Quick Links, Tasks & Notification Bell */}
-            <div className="flex items-center gap-2.5">
+            {/* Right Side: Tasks, Theme Toggle & Notification Bell */}
+            <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
               {/* Tasks Counter Indicator */}
               <PendingTasksIndicator basePath="/general" isSysad={isSuperAdmin} />
+
+              {/* Theme Toggle */}
+              <button
+                type="button"
+                onClick={toggleTheme}
+                title={theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
+                className={`p-2 rounded-lg transition-colors cursor-pointer ${isDark ? "text-slate-300 hover:text-white hover:bg-slate-800" : "text-slate-500 hover:text-slate-900 hover:bg-slate-100"}`}
+              >
+                {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
+              </button>
 
               {/* Notification Bell Dropdown */}
               <NotificationDropdown
@@ -486,7 +505,7 @@ export default function GeneralLayout() {
         </header>
 
         {/* Page Main Canvas */}
-        <main className="flex-1 p-6 sm:p-8 overflow-auto">
+        <main className="flex-1 p-3 sm:p-5 lg:p-8 overflow-auto overflow-x-hidden">
           <Outlet context={{ 
             selectedOffice: adminOffice, 
             selectedOfficeId: adminOfficeId,

@@ -74,6 +74,16 @@ class VenueController extends Controller
 
         $venue = Venue::create($data);
 
+        try {
+            app(\App\Services\AuditLogService::class)->log(
+                $request->user(),
+                'VENUE_CREATED',
+                'venues',
+                $venue->id,
+                ['description' => "Venue facility '{$venue->name}' created."]
+            );
+        } catch (\Throwable $t) {}
+
         return response()->json($venue, 201);
     }
 
@@ -106,6 +116,16 @@ class VenueController extends Controller
         }
 
         $venue->update($data);
+
+        try {
+            app(\App\Services\AuditLogService::class)->log(
+                $request->user(),
+                'VENUE_UPDATED',
+                'venues',
+                $venue->id,
+                ['description' => "Venue facility '{$venue->name}' updated."]
+            );
+        } catch (\Throwable $t) {}
 
         return response()->json($venue);
     }

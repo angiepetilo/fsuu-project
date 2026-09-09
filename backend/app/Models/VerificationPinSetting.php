@@ -24,6 +24,7 @@ class VerificationPinSetting extends Model
         'venue_verify_phone',
         'equipment_verify_email',
         'equipment_verify_phone',
+        'applicability_matrix',
     ];
 
     protected $casts = [
@@ -36,5 +37,6 @@ class VerificationPinSetting extends Model
         'venue_verify_phone'          => 'boolean',
         'equipment_verify_email'      => 'boolean',
         'equipment_verify_phone'      => 'boolean',
+        'applicability_matrix'        => 'array',
     ];
 }

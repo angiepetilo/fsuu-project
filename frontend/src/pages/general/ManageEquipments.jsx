@@ -523,9 +523,9 @@ export default function ManageEquipments() {
       </div>
 
       {/* Physical Units Table */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs">
-        <div>
-          <table className="w-full text-sm">
+      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+        <div className="overflow-x-auto scrollbar-thin">
+          <table className="w-full text-sm min-w-[760px]">
             <thead>
               <tr className="bg-slate-50/80 border-b border-slate-100">
                 {["#", "Unit Barcode", "Equipment Unit Name", "Assigned Category", "Date Purchased", "Lifespan vs Current", "Action"].map((h, i) => (

@@ -26,7 +26,227 @@ export default function HistoryTable({
   handleOpenEdit,
   handleUndoHistory,
   handleDeleteHistory,
+  onViewIncident,
 }) {
+  if (historyType === "incidents") {
+    return (
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden font-sans">
+        {/* Desktop Table View */}
+        <div className="hidden md:block overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-white border-b border-slate-200">
+                {["#", "Track Number", "Type", "Requestor", "Department", "Facility / Item", "Incident Category", "Details & Barcodes", "Date", "Action"].map((h) => (
+                  <th key={h} className="px-4 py-3 text-left text-[11px] font-mono font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap">
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 text-xs font-semibold">
+              {loading && filteredRecords.length === 0 ? (
+                <tr>
+                  <td colSpan={10} className="text-center py-12 text-slate-400">
+                    <Loader2 size={18} className="animate-spin inline mr-2" /> Loading incidents...
+                  </td>
+                </tr>
+              ) : filteredRecords.length === 0 ? (
+                <tr>
+                  <td colSpan={10} className="text-center py-12 text-slate-400 font-medium">
+                    No incident or damage history records found.
+                  </td>
+                </tr>
+              ) : (
+                paginatedList.map((inc, idx) => {
+                  const displayIndex = startIndex + idx + 1;
+                  const refCode = inc.reference_code || `INC-${inc.id}`;
+                  const isVenue = inc.source_type === "venue" || inc.source_record?.record_type === "venue";
+                  const color = inc.category_color || "rose";
+
+                  const badgeStyles = {
+                    rose: "bg-rose-100 text-rose-700 border-rose-200",
+                    amber: "bg-amber-100 text-amber-800 border-amber-200",
+                    purple: "bg-purple-100 text-purple-700 border-purple-200",
+                    orange: "bg-orange-100 text-orange-800 border-orange-200",
+                  }[color] || "bg-rose-100 text-rose-700 border-rose-200";
+
+                  const flagged = Array.isArray(inc.flagged_units) && inc.flagged_units.length > 0 ? inc.flagged_units : [];
+
+                  return (
+                    <tr key={`history-inc-${inc.id || idx}-${idx}`} className="hover:bg-slate-50/60 transition-colors">
+                      <td className="px-4 py-3 text-slate-400 font-mono">{displayIndex}</td>
+                      <td className="px-4 py-3 font-mono text-xs font-bold text-slate-900 whitespace-nowrap">
+                        {refCode}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${
+                          isVenue ? "bg-indigo-50 text-indigo-700 border border-indigo-200" : "bg-cyan-50 text-cyan-700 border border-cyan-200"
+                        }`}>
+                          {isVenue ? "Venue" : "Equipment"}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 font-bold text-slate-900">
+                        {inc.filer_name || "Requestor"}
+                      </td>
+                      <td className="px-4 py-3 text-slate-700 whitespace-nowrap">
+                        {inc.department || inc.program_office || "N/A"}
+                      </td>
+                      <td className="px-4 py-3 font-bold text-slate-900 font-mono">
+                        {inc.facility_or_item || "Facility"}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <span className={`px-2.5 py-1 rounded-full text-[11px] font-extrabold border inline-flex items-center gap-1 ${badgeStyles}`}>
+                          {inc.incident_label || "Incident"}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 max-w-xs text-slate-600">
+                        {flagged.length > 0 ? (
+                          <div className="space-y-0.5">
+                            <span className="font-mono text-[11px] font-bold text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200 inline-block">
+                              Units: {flagged.join(", ")}
+                            </span>
+                            {inc.notes && <span className="text-slate-500 truncate block text-[11px]">{inc.notes}</span>}
+                          </div>
+                        ) : (
+                          <span className="truncate block" title={inc.notes || inc.violation_type}>
+                            {inc.violation_type ? `[${inc.violation_type}] ` : ""}{inc.notes || "No details provided"}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-slate-600 font-mono whitespace-nowrap">
+                        {formatDate(inc.date)}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (onViewIncident) onViewIncident(inc);
+                            else if (isVenue) setSelectedVenueModal(inc.source_record);
+                            else setSelectedEquipModal(inc.source_record);
+                          }}
+                          className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-xl text-xs font-extrabold flex items-center gap-1.5 shadow-2xs transition-all cursor-pointer"
+                        >
+                          <Eye size={13} />
+                          <span>View</span>
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Mobile Card View */}
+        <div className="md:hidden divide-y divide-slate-100">
+          {loading && filteredRecords.length === 0 ? (
+            <div className="text-center py-12 text-slate-400">
+              <Loader2 size={18} className="animate-spin inline mr-2" /> Loading incidents...
+            </div>
+          ) : filteredRecords.length === 0 ? (
+            <div className="text-center py-12 text-slate-400 font-medium text-xs">
+              No incident or damage history records found.
+            </div>
+          ) : (
+            paginatedList.map((inc, idx) => {
+              const refCode = inc.reference_code || `INC-${inc.id}`;
+              const isVenue = inc.source_type === "venue" || inc.source_record?.record_type === "venue";
+              const color = inc.category_color || "rose";
+              const badgeStyles = {
+                rose: "bg-rose-100 text-rose-700 border-rose-200",
+                amber: "bg-amber-100 text-amber-800 border-amber-200",
+                purple: "bg-purple-100 text-purple-700 border-purple-200",
+                orange: "bg-orange-100 text-orange-800 border-orange-200",
+              }[color] || "bg-rose-100 text-rose-700 border-rose-200";
+
+              return (
+                <div key={`mob-inc-${inc.id || idx}`} className="p-4 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono text-xs font-extrabold text-blue-600">{refCode}</span>
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-black border ${badgeStyles}`}>
+                      {inc.incident_label || "Incident"}
+                    </span>
+                  </div>
+                  <div className="text-xs space-y-0.5">
+                    <p className="font-bold text-slate-900">{inc.filer_name} ({inc.department})</p>
+                    <p className="text-slate-600 font-mono text-[11px]">{inc.facility_or_item}</p>
+                    {inc.notes && <p className="text-slate-500 text-[11px] italic">{inc.notes}</p>}
+                  </div>
+                  <div className="flex items-center justify-between pt-1 border-t border-slate-100 text-xs">
+                    <span className="text-slate-400 font-mono">{formatDate(inc.date)}</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (onViewIncident) onViewIncident(inc);
+                        else if (isVenue) setSelectedVenueModal(inc.source_record);
+                        else setSelectedEquipModal(inc.source_record);
+                      }}
+                      className="px-3 py-1 bg-blue-600 text-white font-bold text-xs rounded-lg flex items-center gap-1 cursor-pointer"
+                    >
+                      <Eye size={12} /> View
+                    </button>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {/* Pagination Controls */}
+        {filteredRecords.length > 0 && (
+          <div className="px-6 py-4 border-t border-slate-100 bg-white flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-2">
+              <span className="text-slate-500">Show</span>
+              <select
+                value={ITEMS_PER_PAGE}
+                onChange={(e) => {
+                  setItemsPerPage(Number(e.target.value));
+                  setCurrentPage(1);
+                }}
+                className="px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-800 focus:outline-none focus:border-blue-500 cursor-pointer shadow-2xs"
+              >
+                <option value={10}>10</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
+              <span className="text-slate-500">per page</span>
+              <div className="text-slate-500 font-mono ml-4 hidden sm:inline">
+                Showing <span className="font-bold text-slate-900">{startIndex + 1}</span> to{" "}
+                <span className="font-bold text-slate-900">{Math.min(startIndex + ITEMS_PER_PAGE, filteredRecords.length)}</span> of{" "}
+                <span className="font-bold text-slate-900">{filteredRecords.length}</span> records
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-slate-500 font-mono mr-2">
+                Page {currentPage} of {totalPages}
+              </span>
+              <button
+                type="button"
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all shadow-2xs font-bold text-xs"
+              >
+                <ChevronLeft size={13} /> Prev
+              </button>
+
+              <button
+                type="button"
+                disabled={currentPage >= totalPages}
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all shadow-2xs font-bold text-xs"
+              >
+                Next <ChevronRight size={13} />
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   if (historyType === "venue") {
     return (
       <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">

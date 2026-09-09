@@ -31,6 +31,7 @@ class RoleController extends Controller
                     'id'          => $role->id,
                     'name'        => $role->name,
                     'description' => $role->description,
+                    'permissions' => $role->permissions ?? [],
                     'users_count' => $role->users_count,
                     'is_protected'=> in_array(str_replace(' ', '_', strtolower(trim($role->name))), ['staff', 'student_assistant', 'super_admin', 'sysad']),
                 ];
@@ -50,8 +51,10 @@ class RoleController extends Controller
         }
 
         $validated = $request->validate([
-            'name'        => 'required|string|max:100',
-            'description' => 'nullable|string|max:255',
+            'name'          => 'required|string|max:100',
+            'description'   => 'nullable|string|max:255',
+            'permissions'   => 'nullable|array',
+            'permissions.*' => 'string',
         ]);
 
         $cleanName = preg_replace('/\s+/', '_', strtolower(trim($validated['name'])));
@@ -63,7 +66,18 @@ class RoleController extends Controller
         $role = Role::create([
             'name'        => $cleanName,
             'description' => $validated['description'] ?? null,
+            'permissions' => $validated['permissions'] ?? [],
         ]);
+
+        try {
+            app(\App\Services\AuditLogService::class)->log(
+                $authUser,
+                'ROLE_CREATED',
+                'roles',
+                $role->id,
+                ['description' => "Super Admin created role '{$cleanName}' with " . count($role->permissions ?? []) . " permissions."]
+            );
+        } catch (\Throwable $e) {}
 
         return response()->json([
             'message' => 'Role created successfully.',
@@ -88,14 +102,20 @@ class RoleController extends Controller
         }
 
         $validated = $request->validate([
-            'name'        => 'nullable|string|max:100|unique:roles,name,' . $id,
-            'description' => 'nullable|string|max:255',
+            'name'          => 'nullable|string|max:100|unique:roles,name,' . $id,
+            'description'   => 'nullable|string|max:255',
+            'permissions'   => 'nullable|array',
+            'permissions.*' => 'string',
         ]);
 
         if (!empty($validated['name'])) {
             $role->name = strtolower(trim($validated['name']));
         }
         $role->description = $validated['description'] ?? $role->description;
+        if (array_key_exists('permissions', $validated)) {
+            $role->permissions = $validated['permissions'] ?? [];
+            User::where('role_id', $id)->update(['permissions' => json_encode($role->permissions)]);
+        }
         $role->save();
 
         return response()->json([
@@ -132,14 +152,16 @@ class RoleController extends Controller
     }
 
     /**
-     * Get permissions for a given role (returns the permissions array of the first user in that role,
-     * or a default empty array if no users yet).
+     * Get permissions for a given role (returns the role's saved permissions array,
+     * or the permissions array of the first user in that role).
      */
     public function getPermissions(int $id): JsonResponse
     {
         $role = Role::findOrFail($id);
         $sampleUser = User::where('role_id', $id)->whereNotNull('permissions')->first();
-        $permissions = $sampleUser?->permissions ?? [];
+        $permissions = (!empty($role->permissions) && is_array($role->permissions))
+            ? $role->permissions
+            : ($sampleUser?->permissions ?? []);
 
         return response()->json([
             'role_id'     => $role->id,
@@ -149,7 +171,7 @@ class RoleController extends Controller
     }
 
     /**
-     * Save permissions for a role — bulk-updates all users who have this role.
+     * Save permissions for a role — updates the role model and bulk-updates all users who have this role.
      */
     public function savePermissions(Request $request, int $id): JsonResponse
     {
@@ -164,6 +186,9 @@ class RoleController extends Controller
             'permissions'   => 'required|array',
             'permissions.*' => 'string',
         ]);
+
+        $role->permissions = $validated['permissions'];
+        $role->save();
 
         $permissionsJson = json_encode($validated['permissions']);
 

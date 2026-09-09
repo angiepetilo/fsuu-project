@@ -1,9 +1,104 @@
 import React, { useState, useEffect } from "react";
-import { Bell, X } from "lucide-react";
+import { Bell, X, AlertTriangle, AlertCircle, ShieldAlert, Clock, CheckCircle2, XCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 const STORAGE_KEY = "fsuu_archived_notifications";
+
+const getNotificationColorConfig = (n) => {
+  const incType = String(n.incident_type || n.target_type || n.type || "").toLowerCase();
+  const title = String(n.title || "").toLowerCase();
+  const msg = String(n.message || "").toLowerCase();
+
+  // 1. Damaged Physical Unit / Damage Incident
+  if (incType.includes("damage") || title.includes("damage") || msg.includes("damaged")) {
+    return {
+      border: "border-l-4 border-l-rose-500",
+      bgUnread: "bg-rose-50/40 hover:bg-rose-50/70",
+      badgeBg: "bg-rose-100 text-rose-700 border-rose-200",
+      badgeText: "DAMAGED",
+      iconBg: "bg-rose-100 text-rose-600",
+      dot: "bg-rose-600",
+      Icon: AlertTriangle,
+    };
+  }
+
+  // 2. Lost Physical Unit / Missing
+  if (incType.includes("lost") || title.includes("lost") || msg.includes("lost") || title.includes("missing")) {
+    return {
+      border: "border-l-4 border-l-amber-500",
+      bgUnread: "bg-amber-50/40 hover:bg-amber-50/70",
+      badgeBg: "bg-amber-100 text-amber-800 border-amber-200",
+      badgeText: "LOST",
+      iconBg: "bg-amber-100 text-amber-600",
+      dot: "bg-amber-600",
+      Icon: AlertCircle,
+    };
+  }
+
+  // 3. Policy Violation / Facility Rule Breach
+  if (incType.includes("violation") || title.includes("violation") || msg.includes("violation") || title.includes("breach")) {
+    return {
+      border: "border-l-4 border-l-purple-500",
+      bgUnread: "bg-purple-50/40 hover:bg-purple-50/70",
+      badgeBg: "bg-purple-100 text-purple-700 border-purple-200",
+      badgeText: "VIOLATION",
+      iconBg: "bg-purple-100 text-purple-600",
+      dot: "bg-purple-600",
+      Icon: ShieldAlert,
+    };
+  }
+
+  // 4. Overdue / Late Return
+  if (incType.includes("late") || title.includes("late") || msg.includes("late") || title.includes("overdue") || msg.includes("overdue")) {
+    return {
+      border: "border-l-4 border-l-orange-500",
+      bgUnread: "bg-orange-50/40 hover:bg-orange-50/70",
+      badgeBg: "bg-orange-100 text-orange-800 border-orange-200",
+      badgeText: "OVERDUE",
+      iconBg: "bg-orange-100 text-orange-600",
+      dot: "bg-orange-600",
+      Icon: Clock,
+    };
+  }
+
+  // 5. Approved / Completed
+  if (title.includes("approved") || msg.includes("approved") || title.includes("complete") || msg.includes("complete")) {
+    return {
+      border: "border-l-4 border-l-emerald-500",
+      bgUnread: "bg-emerald-50/40 hover:bg-emerald-50/70",
+      badgeBg: "bg-emerald-100 text-emerald-700 border-emerald-200",
+      badgeText: "APPROVED",
+      iconBg: "bg-emerald-100 text-emerald-600",
+      dot: "bg-emerald-600",
+      Icon: CheckCircle2,
+    };
+  }
+
+  // 6. Rejected / Cancelled
+  if (title.includes("reject") || msg.includes("reject") || title.includes("cancel") || msg.includes("cancel")) {
+    return {
+      border: "border-l-4 border-l-rose-500",
+      bgUnread: "bg-rose-50/40 hover:bg-rose-50/70",
+      badgeBg: "bg-rose-100 text-rose-700 border-rose-200",
+      badgeText: "REJECTED",
+      iconBg: "bg-rose-100 text-rose-600",
+      dot: "bg-rose-600",
+      Icon: XCircle,
+    };
+  }
+
+  // Default: Pending / Info
+  return {
+    border: "border-l-4 border-l-blue-500",
+    bgUnread: "bg-blue-50/30 hover:bg-blue-50/60",
+    badgeBg: "bg-blue-100 text-blue-700 border-blue-200",
+    badgeText: "PENDING",
+    iconBg: "bg-blue-100 text-blue-600",
+    dot: "bg-blue-600",
+    Icon: Bell,
+  };
+};
 
 export default function NotificationDropdown({
   notifications = [],
@@ -121,7 +216,7 @@ export default function NotificationDropdown({
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="relative p-2 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-colors cursor-pointer shadow-2xs flex items-center justify-center"
+        className="relative p-2 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-700 dark:hover:text-white transition-colors cursor-pointer shadow-2xs flex items-center justify-center"
         title="Notifications"
       >
         <Bell size={16} />
@@ -200,43 +295,58 @@ export default function NotificationDropdown({
             ) : (
               displayedItems.map((n) => {
                 const isRead = readNotifIds.has(n.id) || Boolean(n.is_read);
+                const cfg = getNotificationColorConfig(n);
+                const IconComponent = cfg.Icon;
 
                 return (
                   <div
                     key={n.id}
                     onClick={() => handleItemClick(n)}
-                    className={`group flex items-start gap-3 p-4 transition-colors cursor-pointer relative text-left ${
+                    className={`group flex items-start gap-3 p-3.5 transition-all cursor-pointer relative text-left border-b border-slate-100 last:border-b-0 ${cfg.border} ${
                       activeTab === "inbox" && !isRead
-                        ? "bg-blue-50/30 hover:bg-blue-50/60"
-                        : "hover:bg-slate-50"
+                        ? cfg.bgUnread
+                        : "hover:bg-slate-50/80 bg-white"
                     }`}
                   >
-                    {/* Unread indicator dot */}
-                    <div className="pt-1 shrink-0">
-                      <span
-                        className={`w-2 h-2 rounded-full block ${
-                          activeTab === "inbox" && !isRead ? "bg-blue-600" : "bg-slate-200"
-                        }`}
-                      />
+                    {/* Color-coded Icon Box */}
+                    <div className="pt-0.5 shrink-0">
+                      <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${cfg.iconBg} shadow-2xs`}>
+                        <IconComponent size={16} />
+                      </div>
                     </div>
 
                     {/* Message Content */}
                     <div className="flex-1 min-w-0 pr-1">
-                      <div className="flex items-center justify-between gap-2">
-                        <h5 className={`text-xs leading-snug truncate ${!isRead ? "font-extrabold text-slate-900" : "font-semibold text-slate-800"}`}>
-                          {n.title}
-                        </h5>
-                        <span className="text-[11px] font-medium text-slate-400 whitespace-nowrap shrink-0">
-                          {n.time}
-                        </span>
+                      <div className="flex items-center justify-between gap-1.5">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <span className={`px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border shrink-0 ${cfg.badgeBg}`}>
+                            {cfg.badgeText}
+                          </span>
+                          <h5 className={`text-xs leading-snug truncate ${!isRead ? "font-extrabold text-slate-900" : "font-semibold text-slate-800"}`}>
+                            {n.title}
+                          </h5>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <span className="text-[10.5px] font-medium text-slate-400 whitespace-nowrap">
+                            {n.time}
+                          </span>
+                          {activeTab === "inbox" && !isRead && (
+                            <span className={`w-2 h-2 rounded-full block ${cfg.dot}`} />
+                          )}
+                        </div>
                       </div>
 
-                      <p className="text-xs text-slate-600 font-normal mt-0.5 leading-relaxed line-clamp-2">
+                      <p className="text-xs text-slate-600 font-normal mt-1 leading-relaxed line-clamp-2">
                         {n.message}
                       </p>
 
-                      <div className="flex flex-wrap items-center gap-2 mt-2 text-[10.5px]">
+                      <div className="flex flex-wrap items-center gap-2 mt-1.5 text-[10.5px]">
                         {n.ref && <span className="font-mono text-blue-600 font-bold">{n.ref}</span>}
+                        {n.person_name && (
+                          <span className="text-slate-500 font-medium">
+                            • {n.person_name}
+                          </span>
+                        )}
                         {activeTab === "archive" && (
                           <span className="text-amber-700 font-bold bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200/60">
                             Auto-purges in {getDaysRemainingInArchive(n.id)}d

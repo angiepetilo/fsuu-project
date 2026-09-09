@@ -5,6 +5,7 @@ import api from "@/lib/axios";
 import { cleanupLocalStorage } from "@/lib/cleanupLocalStorage";
 import { PageLoader } from "@/components/ui/page-loader";
 import ConfirmModal from "@/components/ui/ConfirmModal";
+import { ThemeProvider } from "@/context/ThemeContext";
 
 // Public — landing page loads eagerly (it's the first paint)
 import LandingPage from "./pages/public/LandingPage/LandingPage";
@@ -166,36 +167,51 @@ function AppContent() {
     <>
       {/* Navigation — public and interface pages */}
       {!hideHeaderFooter && (
-        <header className="fixed top-0 left-0 w-full z-50 bg-white/85 backdrop-blur-md border-b border-slate-200 transition-all shadow-xs">
-          <div className="max-w-[1280px] mx-auto px-6 sm:px-8 py-3.5 flex justify-between items-center">
-            {/* Logo on Left */}
-            <button
-              type="button"
-              onClick={() => {
-                if (user || token) {
-                  setShowHomeLogoutConfirm(true);
-                } else {
-                  navigate("/");
-                }
-              }}
-              className="flex items-center gap-3.5 text-slate-900 group bg-transparent border-0 p-0 text-left cursor-pointer"
-            >
-              <img src="/fsuu_logo.png" alt="FSUU Seal" className="h-11 w-auto transition-transform duration-300 group-hover:scale-105" />
-              <div className="flex flex-col">
-                <span className="font-extrabold text-xl tracking-tight text-slate-900 leading-tight">
-                  {publicSettings.header_brand_text || publicSettings.header_branding_text || "Urios"}
-                </span>
-                <span className="text-xs text-slate-500 font-semibold">{publicSettings.system_name || "Reserve and Booking System"}</span>
-              </div>
-            </button>
+        <header className="fixed top-0 left-0 w-full z-50 bg-white/90 backdrop-blur-md border-b border-slate-200 transition-all shadow-xs">
+          <div className="max-w-[1280px] mx-auto px-4 sm:px-8 py-2.5 sm:py-3.5 flex flex-col sm:flex-row justify-between items-center gap-2.5 sm:gap-4">
+            <div className="w-full sm:w-auto flex items-center justify-between">
+              {/* Logo on Left */}
+              <button
+                type="button"
+                onClick={() => {
+                  if (user || token) {
+                    setShowHomeLogoutConfirm(true);
+                  } else {
+                    navigate("/");
+                  }
+                }}
+                className="flex items-center gap-2.5 sm:gap-3.5 text-slate-900 group bg-transparent border-0 p-0 text-left cursor-pointer"
+              >
+                <img src="/fsuu_logo.png" alt="FSUU Seal" className="h-9 sm:h-11 w-auto transition-transform duration-300 group-hover:scale-105" />
+                <div className="flex flex-col">
+                  <span className="font-extrabold text-base sm:text-xl tracking-tight text-slate-900 leading-tight">
+                    {publicSettings.header_brand_text || publicSettings.header_branding_text || "Urios"}
+                  </span>
+                  <span className="text-[10px] sm:text-xs text-slate-500 font-semibold">{publicSettings.system_name || "Reserve and Booking System"}</span>
+                </div>
+              </button>
 
-            {/* Right Side Header Items */}
-            <div className="flex items-center gap-3">
+              {/* Mobile Dashboard Button */}
+              {(user || token) && (
+                <div className="sm:hidden">
+                  <Link
+                    to={userRole === "superadmin" || userRole === "super_admin" ? "/sysad/dashboard" : "/general/dashboard"}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-extrabold bg-blue-600 hover:bg-blue-700 text-white transition-all shadow-xs"
+                  >
+                    <LayoutDashboard size={13} />
+                    <span>Dashboard</span>
+                  </Link>
+                </div>
+              )}
+            </div>
+
+            {/* Right / Below Header Items */}
+            <div className="flex items-center gap-3 w-full sm:w-auto justify-center sm:justify-end">
               {(user || token) && location.pathname.startsWith("/interface") && (
-                <div className="flex items-center p-1 bg-slate-100 border border-slate-200 rounded-full">
+                <div className="flex items-center p-1 bg-slate-100 border border-slate-200 rounded-full w-full sm:w-auto justify-center">
                   <Link
                     to="/interface/venue"
-                    className={`px-3.5 py-1 rounded-full text-xs font-extrabold transition-all ${
+                    className={`flex-1 sm:flex-none text-center px-3.5 py-1.5 sm:py-1 rounded-full text-xs font-extrabold transition-all ${
                       location.pathname === "/interface/venue"
                         ? "bg-blue-600 text-white shadow-xs"
                         : "text-slate-600 hover:text-slate-900"
@@ -205,7 +221,7 @@ function AppContent() {
                   </Link>
                   <Link
                     to="/interface/equipment"
-                    className={`px-3.5 py-1 rounded-full text-xs font-extrabold transition-all ${
+                    className={`flex-1 sm:flex-none text-center px-3.5 py-1.5 sm:py-1 rounded-full text-xs font-extrabold transition-all ${
                       location.pathname === "/interface/equipment"
                         ? "bg-blue-600 text-white shadow-xs"
                         : "text-slate-600 hover:text-slate-900"
@@ -216,14 +232,17 @@ function AppContent() {
                 </div>
               )}
 
+              {/* Desktop Dashboard Button */}
               {(user || token) && (
-                <Link
-                  to={userRole === "superadmin" || userRole === "super_admin" ? "/sysad/dashboard" : "/general/dashboard"}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-extrabold bg-blue-600 hover:bg-blue-700 text-white transition-all shadow-xs"
-                >
-                  <LayoutDashboard size={14} />
-                  <span>Dashboard</span>
-                </Link>
+                <div className="hidden sm:block">
+                  <Link
+                    to={userRole === "superadmin" || userRole === "super_admin" ? "/sysad/dashboard" : "/general/dashboard"}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-extrabold bg-blue-600 hover:bg-blue-700 text-white transition-all shadow-xs"
+                  >
+                    <LayoutDashboard size={14} />
+                    <span>Dashboard</span>
+                  </Link>
+                </div>
               )}
             </div>
           </div>
@@ -235,7 +254,9 @@ function AppContent() {
           ? "w-full min-h-screen"
           : isAuthPage
             ? "w-full min-h-screen"
-            : "w-full max-w-[1280px] mx-auto px-8 pt-[9rem] pb-[4rem] flex-1 flex flex-col overflow-x-hidden"
+            : location.pathname.startsWith("/interface")
+              ? "w-full max-w-[1280px] mx-auto px-4 sm:px-6 md:px-8 pt-[7.5rem] sm:pt-[7.5rem] md:pt-[8.5rem] pb-[4rem] flex-1 flex flex-col overflow-x-hidden"
+              : "w-full max-w-[1280px] mx-auto px-4 sm:px-6 md:px-8 pt-[5.5rem] sm:pt-[6.5rem] md:pt-[7.5rem] pb-[4rem] flex-1 flex flex-col overflow-x-hidden"
       }>
         <Suspense fallback={<PageLoader />}>
           <Routes>
@@ -329,18 +350,18 @@ function AppContent() {
       </main>
 
       {!hideHeaderFooter && (
-        <footer className="border-t border-slate-200 bg-white/60 backdrop-blur-xs mt-20">
-          <div className="max-w-[1280px] mx-auto px-6 sm:px-8 py-10 flex flex-col sm:flex-row items-center justify-between gap-6 text-slate-500 text-xs">
+        <footer className="border-t border-slate-200 dark:border-[#1E2D56] bg-white/80 dark:bg-[#080E21] backdrop-blur-md mt-20 transition-colors">
+          <div className="max-w-[1280px] mx-auto px-6 sm:px-8 py-10 flex flex-col sm:flex-row items-center justify-between gap-6 text-slate-500 dark:text-[#CBD5E1] text-xs">
             <div className="flex flex-col items-center sm:items-start gap-1">
-              <span className="font-extrabold text-sm text-slate-900">
+              <span className="font-extrabold text-sm text-slate-900 dark:text-[#F8FAFC]">
                 {publicSettings.organization_name || "Father Saturnino Urios University"}
               </span>
-              <span className="text-slate-500 font-medium">
+              <span className="text-slate-500 dark:text-[#CBD5E1] font-medium">
                 {publicSettings.system_name || "Facilities & Equipment Booking System"}
               </span>
             </div>
 
-            <div className="flex flex-wrap items-center justify-center gap-5 font-semibold text-slate-600">
+            <div className="flex flex-wrap items-center justify-center gap-5 font-semibold text-slate-600 dark:text-[#CBD5E1]">
               {/* Facebook */}
               {(publicSettings.facebook_url || "https://www.facebook.com/fsuubutuan") && (
                 <a
@@ -362,7 +383,7 @@ function AppContent() {
                     <rect x="2" y="8" width="44" height="32" rx="4" fill="#EA4335"/>
                     <path d="M2 12l22 14 22-14" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round"/>
                   </svg>
-                  <a href={`mailto:${publicSettings.contact_email}`} className="hover:text-blue-600 transition-colors text-xs">
+                  <a href={`mailto:${publicSettings.contact_email}`} className="hover:text-blue-600 dark:hover:text-[#93C5FD] transition-colors text-xs">
                     {publicSettings.contact_email}
                   </a>
                 </div>
@@ -374,14 +395,14 @@ function AppContent() {
                     <circle cx="24" cy="24" r="22" fill="#25D366"/>
                     <path d="M33.4 28.9c-.4-.2-2.4-1.2-2.8-1.3-.4-.2-.6-.2-.9.2-.2.4-.9 1.3-1.1 1.5-.2.2-.4.3-.8.1s-1.6-.6-3-1.9c-1.1-1-1.9-2.2-2.1-2.6-.2-.4 0-.6.2-.8l.6-.7c.2-.2.2-.4.4-.6.1-.2 0-.5 0-.7-.1-.2-.9-2.2-1.2-3-.3-.8-.7-.6-.9-.7H20c-.3 0-.7.1-1 .5-.4.4-1.4 1.3-1.4 3.2s1.4 3.7 1.6 4c.2.2 2.8 4.3 6.8 6 .9.4 1.7.6 2.2.8.9.3 1.8.2 2.4.1.7-.1 2.2-.9 2.5-1.8.3-.9.3-1.6.2-1.8-.1-.2-.3-.3-.7-.5z" fill="#fff"/>
                   </svg>
-                  <a href={`tel:${publicSettings.contact_phone}`} className="hover:text-blue-600 transition-colors text-xs">
+                  <a href={`tel:${publicSettings.contact_phone}`} className="hover:text-blue-600 dark:hover:text-[#93C5FD] transition-colors text-xs">
                     {publicSettings.contact_phone}
                   </a>
                 </div>
               )}
             </div>
 
-            <div className="text-center sm:text-right text-slate-400 font-medium">
+            <div className="text-center sm:text-right text-slate-400 dark:text-[#94A3B8] font-medium">
               © {new Date().getFullYear()} All rights reserved.
             </div>
           </div>
@@ -409,7 +430,9 @@ function AppContent() {
 function App() {
   return (
     <BrowserRouter>
-      <AppContent />
+      <ThemeProvider>
+        <AppContent />
+      </ThemeProvider>
     </BrowserRouter>
   );
 }

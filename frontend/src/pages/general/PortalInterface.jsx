@@ -13,7 +13,8 @@ export default function PortalInterface() {
   return (
     <div className="space-y-6">
       {/* Top Banner with Mode Indicator */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 bg-gradient-to-r from-slate-900 to-blue-950 text-white rounded-3xl border border-slate-800 shadow-md">
+      <div className="flex flex-col gap-4 p-5 bg-gradient-to-r from-slate-900 to-blue-950 text-white rounded-3xl border border-slate-800 shadow-md">
+        {/* Header Row */}
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black tracking-wider uppercase bg-blue-500 text-white">
@@ -32,8 +33,8 @@ export default function PortalInterface() {
           </p>
         </div>
 
-        {/* Tab Switcher */}
-        <div className="flex items-center p-1 bg-slate-800/90 border border-slate-700 rounded-2xl shrink-0">
+        {/* Tab Switcher — on its own row below the header */}
+        <div className="flex items-center p-1 bg-slate-800/90 border border-slate-700 rounded-2xl self-start">
           <button
             type="button"
             onClick={() => setActiveTab("venue")}
