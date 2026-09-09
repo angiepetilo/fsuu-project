@@ -108,7 +108,7 @@ export function PinModal({
       if (err.response?.status === 422) {
         setLoading(false);
         setError(true);
-        setErrorMessage(err.response?.data?.message || "Invalid PIN Code. Please check the PIN issued by the AVR Head.");
+        setErrorMessage(err.response?.data?.message || "Invalide Pin Code. please try again");
         return;
       }
 
@@ -124,7 +124,7 @@ export function PinModal({
 
     setLoading(false);
     setError(true);
-    setErrorMessage("Invalid PIN Code. Please check the PIN issued by the AVR Head.");
+    setErrorMessage("Invalide Pin Code. please try again");
   };
 
   return (
@@ -149,9 +149,9 @@ export function PinModal({
         </p>
 
         {error && (
-          <div className="mb-4 p-2.5 bg-slate-50 border border-slate-200 text-slate-700 text-xs rounded-lg flex items-center justify-center gap-2 animate-in fade-in">
-            <AlertCircle size={14} className="shrink-0 text-slate-500" />
-            <span>{errorMessage || "Invalid PIN Code. Please check the PIN issued by the AVR Head."}</span>
+          <div className="mb-4 p-2.5 bg-red-50 border border-red-200 text-red-600 text-xs font-semibold rounded-lg flex items-center justify-center gap-2 animate-in fade-in">
+            <AlertCircle size={14} className="shrink-0 text-red-600" />
+            <span className="text-red-600 font-bold">{errorMessage || "Invalide Pin Code. please try again"}</span>
           </div>
         )}
 

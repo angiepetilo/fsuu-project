@@ -38,8 +38,8 @@ class EquipmentCategoryService
                         DB::raw('COUNT(*) as total_registered'),
                         DB::raw("SUM(CASE WHEN LOWER(status) IN ('released', 'in_use', 'borrowed', 'in-use') THEN 1 ELSE 0 END) as physical_released"),
                         DB::raw("SUM(CASE WHEN LOWER(status) = 'reserved' THEN 1 ELSE 0 END) as physical_reserved"),
-                        DB::raw("SUM(CASE WHEN (LOWER(status) IN ('damaged', 'maintenance', 'unavailable') OR LOWER(COALESCE(condition, 'good')) IN ('damaged', 'maintenance', 'worn', 'under repair')) AND LOWER(COALESCE(condition, 'good')) NOT IN ('lost', 'decommissioned') AND LOWER(COALESCE(status, 'available')) NOT IN ('lost', 'decommissioned') THEN 1 ELSE 0 END) as physical_damaged"),
-                        DB::raw("SUM(CASE WHEN LOWER(status) IN ('decommissioned', 'lost') OR LOWER(COALESCE(condition, '')) = 'lost' THEN 1 ELSE 0 END) as physical_lost")
+                        DB::raw("SUM(CASE WHEN (LOWER(status) IN ('damaged', 'maintenance', 'unavailable') OR LOWER(COALESCE(`condition`, 'good')) IN ('damaged', 'maintenance', 'worn', 'under repair')) AND LOWER(COALESCE(`condition`, 'good')) NOT IN ('lost', 'decommissioned') AND LOWER(COALESCE(status, 'available')) NOT IN ('lost', 'decommissioned') THEN 1 ELSE 0 END) as physical_damaged"),
+                        DB::raw("SUM(CASE WHEN LOWER(status) IN ('decommissioned', 'lost') OR LOWER(COALESCE(`condition`, '')) = 'lost' THEN 1 ELSE 0 END) as physical_lost")
                     )
                     ->groupBy('equipment_type_id')
                     ->get();
@@ -216,9 +216,9 @@ class EquipmentCategoryService
                     ->where(function($q) {
                         $q->where(function($sub) {
                             $sub->whereIn(DB::raw('LOWER(status)'), ['damaged', 'maintenance', 'unavailable'])
-                                ->orWhereIn(DB::raw('LOWER(condition)'), ['damaged', 'maintenance', 'worn', 'under repair']);
+                                ->orWhereIn(DB::raw('LOWER(`condition`)'), ['damaged', 'maintenance', 'worn', 'under repair']);
                         })
-                        ->whereNotIn(DB::raw("LOWER(COALESCE(condition, 'good'))"), ['lost', 'decommissioned'])
+                        ->whereNotIn(DB::raw("LOWER(COALESCE(`condition`, 'good'))"), ['lost', 'decommissioned'])
                         ->whereNotIn(DB::raw("LOWER(COALESCE(status, 'available'))"), ['lost', 'decommissioned']);
                     })
                     ->count();
@@ -228,7 +228,7 @@ class EquipmentCategoryService
                     ->whereNull('archived_at')
                     ->where(function($q) {
                         $q->whereIn(DB::raw('LOWER(status)'), ['decommissioned', 'lost'])
-                          ->orWhereIn(DB::raw("LOWER(COALESCE(condition, ''))"), ['lost']);
+                          ->orWhereIn(DB::raw("LOWER(COALESCE(`condition`, ''))"), ['lost']);
                     })
                     ->count();
             } catch (\Throwable $th) {}
@@ -517,7 +517,7 @@ class EquipmentCategoryService
                             $q->orWhereIn('id', array_map('intval', $relNumIds));
                         }
                     })
-                    ->whereNotIn(DB::raw("LOWER(COALESCE(condition, 'good'))"), ['lost', 'damaged'])
+                    ->whereNotIn(DB::raw("LOWER(COALESCE(`condition`, 'good'))"), ['lost', 'damaged'])
                     ->whereNotIn(DB::raw("LOWER(COALESCE(status, 'available'))"), ['lost', 'damaged'])
                     ->where('status', '!=', 'released')
                     ->update(['status' => 'released', 'updated_at' => now()]);
@@ -535,7 +535,7 @@ class EquipmentCategoryService
                             $q->orWhereIn('id', array_map('intval', $resNumIds));
                         }
                     })
-                    ->whereNotIn(DB::raw("LOWER(COALESCE(condition, 'good'))"), ['lost', 'damaged'])
+                    ->whereNotIn(DB::raw("LOWER(COALESCE(`condition`, 'good'))"), ['lost', 'damaged'])
                     ->whereNotIn(DB::raw("LOWER(COALESCE(status, 'available'))"), ['lost', 'damaged'])
                     ->where('status', '!=', 'reserved')
                     ->update(['status' => 'reserved', 'updated_at' => now()]);
@@ -548,7 +548,7 @@ class EquipmentCategoryService
 
             DB::table('equipment_units')
                 ->whereIn('status', ['reserved', 'released'])
-                ->whereNotIn(DB::raw("LOWER(COALESCE(condition, 'good'))"), ['lost', 'damaged'])
+                ->whereNotIn(DB::raw("LOWER(COALESCE(`condition`, 'good'))"), ['lost', 'damaged'])
                 ->when(!empty($occupiedBarcodes), function($q) use ($occCodes, $occNumIds) {
                     $q->whereNotIn('barcode', $occCodes);
                     if (!empty($occNumIds)) {

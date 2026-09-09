@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Check, PackageOpen, ChevronLeft, ChevronRight, XCircle, Clock, CalendarDays, AlertTriangle, AlertCircle, Search, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import CustomTimePicker from "@/components/ui/custom-time-picker";
 import api from "@/lib/axios";
 import { getTodayISO, isPastTimeToday, isPastDateTime } from "@/lib/dateTimeUtils";
 
@@ -415,11 +416,9 @@ export default function Step2Equipment({
                   <span>Borrow Release Start Time</span>
                   <span className="text-rose-500">*</span>
                 </label>
-                <input
-                  type="time"
+                <CustomTimePicker
                   value={startTimeVal}
-                  onChange={(e) => {
-                    const newStartTime = e.target.value;
+                  onChange={(newStartTime) => {
                     setStartTime && setStartTime(`${activeBorrowDate}T${newStartTime}`);
                     // Ensure end time is at least 1 hour after start time
                     const [sh, sm] = (newStartTime || "08:00").split(":").map(Number);
@@ -433,7 +432,8 @@ export default function Step2Equipment({
                       setEndTime && setEndTime(`${activeBorrowDate}T${nH}:${nM}`);
                     }
                   }}
-                  className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-sm font-extrabold text-slate-800 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 shadow-sm transition-all"
+                  minuteStep={5}
+                  align="left"
                 />
               </div>
 
@@ -442,13 +442,13 @@ export default function Step2Equipment({
                   <span>Expected Return Time</span>
                   <span className="text-rose-500">*</span>
                 </label>
-                <input
-                  type="time"
+                <CustomTimePicker
                   value={endTimeVal}
-                  onChange={(e) => {
-                    setEndTime && setEndTime(`${activeBorrowDate}T${e.target.value}`);
+                  onChange={(newEndTime) => {
+                    setEndTime && setEndTime(`${activeBorrowDate}T${newEndTime}`);
                   }}
-                  className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-sm font-extrabold text-slate-800 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 shadow-sm transition-all"
+                  minuteStep={5}
+                  align="left"
                 />
               </div>
 

@@ -117,7 +117,7 @@ export default function Step4Verification({
               <span className="font-bold text-slate-900">{department || "General"}</span>
             </div>
             <div className="flex justify-between border-b border-slate-100 pb-2">
-              <span className="text-slate-400 font-bold">Place of Use / Venue</span>
+              <span className="text-slate-400 font-bold">Location of Equipment Use</span>
               <span className="font-bold text-blue-700">{placeOfUse || "Inside Campus"}</span>
             </div>
             <div className="flex justify-between border-b border-slate-100 pb-2">

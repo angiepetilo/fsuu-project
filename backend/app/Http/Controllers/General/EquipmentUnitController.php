@@ -204,18 +204,22 @@ class EquipmentUnitController extends Controller
      */
     private function syncCategoryStock(int $typeId): void
     {
-        $type = EquipmentType::find($typeId);
-        if (!$type) return;
+        try {
+            $type = EquipmentType::find($typeId);
+            if (!$type) return;
 
-        $totalUnits = EquipmentUnit::where('equipment_type_id', $typeId)->count();
-        $availableUnits = EquipmentUnit::where('equipment_type_id', $typeId)
-            ->where('status', 'available')
-            ->whereNotIn(DB::raw('LOWER(condition)'), ['damaged', 'lost', 'under repair', 'worn'])
-            ->count();
+            $totalUnits = EquipmentUnit::where('equipment_type_id', $typeId)->count();
+            $availableUnits = EquipmentUnit::where('equipment_type_id', $typeId)
+                ->where('status', 'available')
+                ->whereNotIn(DB::raw('LOWER(`condition`)'), ['damaged', 'lost', 'under repair', 'worn'])
+                ->count();
 
-        $type->update([
-            'total_quantity'  => $totalUnits,
-            'available_count' => $availableUnits,
-        ]);
+            $type->update([
+                'total_quantity'  => $totalUnits,
+                'available_count' => $availableUnits,
+            ]);
+        } catch (\Throwable $th) {
+            \Illuminate\Support\Facades\Log::warning("Failed to sync category stock for type {$typeId}: " . $th->getMessage());
+        }
     }
 }

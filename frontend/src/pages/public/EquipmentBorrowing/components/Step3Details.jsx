@@ -325,7 +325,7 @@ export default function Step3Details({
         </div>
 
         {/* EMAIL FIELD WITH INLINE DOMAIN CHECK & ATTACHED OTP VERIFY BUTTON */}
-        <div className="flex flex-col gap-1.5 sm:col-span-2">
+        <div className="flex flex-col gap-1.5 sm:col-span-1">
           <div className="flex items-center justify-between">
             <label className="text-xs font-bold text-slate-900">
               Personal Email <span className="text-red-500">*</span>
@@ -541,7 +541,7 @@ export default function Step3Details({
         </div>
 
         {/* CONTACT NUMBER FIELD (NON-OTP GATED, FORMAT VALIDATION ONLY) */}
-        <div className="flex flex-col gap-1.5 sm:col-span-2 mt-4">
+        <div className="flex flex-col gap-1.5 sm:col-span-1">
           <div className="flex items-center justify-between">
             <label className="text-xs font-bold text-slate-900">
               Contact Number <span className="text-red-500">*</span>
@@ -579,7 +579,7 @@ export default function Step3Details({
           </p>
         </div>
 
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-1.5 sm:col-span-1">
           <label className="text-xs font-bold text-slate-900">
             {isExternal ? "Office / Organization" : "Department"} <span className="text-red-500">*</span>
           </label>
@@ -624,9 +624,16 @@ export default function Step3Details({
           )}
         </div>
 
-        <div className="flex flex-col gap-1.5 sm:col-span-2">
-          <label className="text-xs font-bold text-slate-900">Location / Venue of Equipment Use <span className="text-red-500">*</span></label>
-          <input type="text" required value={placeOfUse} onChange={e => setPlaceOfUse(e.target.value)} placeholder="e.g. Main Gymnasium / AVR 1" className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600" />
+        <div className="flex flex-col gap-1.5 sm:col-span-1">
+          <label className="text-xs font-bold text-slate-900">Location of Equipment Use <span className="text-red-500">*</span></label>
+          <input 
+            type="text" 
+            required 
+            value={placeOfUse} 
+            onChange={e => setPlaceOfUse(e.target.value)} 
+            placeholder="e.g. Main Gymnasium / AVR 1" 
+            className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all" 
+          />
         </div>
 
         {primaryDept === "sco" && (

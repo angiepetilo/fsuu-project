@@ -351,8 +351,8 @@ export default function VenueBooking({ isPortal: isPortalProp }) {
       if (requiresPin && !isPinVerified) {
         if (isShortNotice) {
           setPinModalMeta({
-            title: "Short-Notice Booking Verification PIN",
-            description: `Selected date (${selectedDate}) is within the 3-day notice window (tomorrow / short-notice booking). AVR Head / Admin Verification PIN is required for authorization.`,
+            title: "Verification Pin",
+            description: `Early date [${selectedDate}] need authorized admin verification pin.`,
           });
         } else if (multiDayRequiresPin) {
           setPinModalMeta({
