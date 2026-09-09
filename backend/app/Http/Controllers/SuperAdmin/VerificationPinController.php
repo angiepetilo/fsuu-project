@@ -220,7 +220,7 @@ class VerificationPinController extends Controller
 
         return response()->json([
             'valid'   => false,
-            'message' => 'Invalid PIN Code. Please check the PIN issued by the AVR Head / Administrator.',
+            'message' => 'Invalide Pin Code. please try again',
         ], 422);
     }
 }

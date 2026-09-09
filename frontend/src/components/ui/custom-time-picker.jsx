@@ -54,6 +54,7 @@ export default function CustomTimePicker({
   disabled = false,
   minTime,
   maxTime,
+  align = "left",
   className = "",
   triggerClassName = "",
   id,
@@ -120,7 +121,7 @@ export default function CustomTimePicker({
         onClick={() => !disabled && setIsOpen(!isOpen)}
         className={
           triggerClassName ||
-          `w-full flex items-center justify-between px-4 py-2.5 bg-slate-100/80 hover:bg-slate-100 border border-slate-200/80 rounded-full cursor-pointer transition-all text-left group ${isOpen ? "ring-2 ring-blue-500 border-blue-400 bg-white" : ""
+          `w-full flex items-center justify-between px-3.5 py-2.5 bg-slate-50 hover:bg-slate-100/80 border border-slate-200 rounded-xl cursor-pointer transition-all text-left group ${isOpen ? "ring-2 ring-blue-500 border-blue-400 bg-white" : ""
           } ${disabled ? "opacity-50 cursor-not-allowed" : ""}`
         }
       >
@@ -136,7 +137,7 @@ export default function CustomTimePicker({
 
       {/* 3-Column Floating Picker Popover */}
       {isOpen && (
-        <div className="absolute z-50 mt-1.5 w-64 bg-white rounded-2xl border border-slate-200 shadow-xl p-2.5 animate-in fade-in zoom-in-95 text-xs">
+        <div className={`absolute z-50 mt-1.5 w-64 bg-white rounded-2xl border border-slate-200 shadow-xl p-2.5 animate-in fade-in zoom-in-95 text-xs ${align === "right" ? "right-0" : "left-0"}`}>
           {/* Header Preview */}
           <div className="flex items-center justify-between px-2.5 py-1.5 bg-slate-50 border border-slate-100 rounded-xl mb-2 text-[11px] font-mono font-black text-slate-700">
             <span className="text-slate-400 font-sans font-bold text-[10px] uppercase">Selected</span>
@@ -232,7 +233,7 @@ export default function CustomTimePicker({
             <button
               type="button"
               onClick={() => setIsOpen(false)}
-              className="px-3 py-1 bg-slate-900 hover:bg-black text-white rounded-lg text-[11px] font-bold transition-colors cursor-pointer"
+              className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[11px] font-bold transition-colors cursor-pointer shadow-xs"
             >
               Done
             </button>

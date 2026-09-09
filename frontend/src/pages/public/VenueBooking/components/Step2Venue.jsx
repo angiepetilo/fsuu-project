@@ -1,6 +1,7 @@
 import { MapPin, ChevronLeft, ChevronRight, Clock, Calendar as CalendarIcon, CalendarDays, CheckCircle2, AlertTriangle, Building2, DollarSign, Search, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
+import CustomTimePicker from "@/components/ui/custom-time-picker";
 import { useState, useEffect } from "react";
 import api from "@/lib/axios";
 import { getTodayISO, isPastDate, isPastTimeToday, isPastDateTime } from "@/lib/dateTimeUtils";
@@ -708,8 +709,8 @@ export default function Step2Venue({
                           // Trigger verification pin modal prompt for short notice (within 3 days / tomorrow) in portal mode
                           if (isPortal && isShortNotice && !isPinVerified) {
                             setPinModalMeta && setPinModalMeta({
-                              title: "Short-Notice Booking Verification PIN",
-                              description: `Selected date (${dateStr}) is within the 3-day notice window (tomorrow / short-notice booking). AVR Head / Administrative clearance PIN is required to authorize this slot.`,
+                              title: "Verification Pin",
+                              description: `Early date [${dateStr}] need authorized admin verification pin.`,
                             });
                             setShowPinModal && setShowPinModal(true);
                           }
@@ -779,21 +780,21 @@ export default function Step2Venue({
             <div className="grid grid-cols-2 gap-3 pt-1">
               <div className="space-y-1.5">
                 <label className="text-xs font-extrabold text-slate-800 block">Time Start *</label>
-                <input
-                  type="time"
+                <CustomTimePicker
                   value={timeStart || "08:00"}
-                  onChange={(e) => setTimeStart(e.target.value)}
-                  className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-sm font-extrabold text-slate-800 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 shadow-sm transition-all"
+                  onChange={(val) => setTimeStart(val)}
+                  minuteStep={5}
+                  align="left"
                 />
               </div>
 
               <div className="space-y-1.5">
                 <label className="text-xs font-extrabold text-slate-800 block">Time End *</label>
-                <input
-                  type="time"
+                <CustomTimePicker
                   value={timeEnd || "10:00"}
-                  onChange={(e) => setTimeEnd(e.target.value)}
-                  className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-sm font-extrabold text-slate-800 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 shadow-sm transition-all"
+                  onChange={(val) => setTimeEnd(val)}
+                  minuteStep={5}
+                  align="right"
                 />
               </div>
             </div>

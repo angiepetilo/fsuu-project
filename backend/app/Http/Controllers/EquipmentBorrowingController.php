@@ -37,7 +37,7 @@ class EquipmentBorrowingController extends Controller
             $academicTermId = DB::table('academic_terms')->where('is_active', true)->value('id');
         }
 
-        $borrowings = EquipmentBorrow::with(['trackingNumber', 'items.equipmentType'])
+        $borrowingsQuery = EquipmentBorrow::with(['trackingNumber', 'items.equipmentType'])
             ->where(function ($q) {
                 $completedStatuses = ['completed', 'done', 'returned', 'damaged', 'lost', 'returned late', 'returned_late'];
                 $q->where(function ($q2) use ($completedStatuses) {
@@ -54,8 +54,31 @@ class EquipmentBorrowingController extends Controller
             ->when($academicTermId, function ($query) use ($academicTermId) {
                 $query->where('academic_term_id', $academicTermId);
             })
-            ->latest()
-            ->paginate(25);
+            ->when($request->query('status'), function ($query, $status) {
+                if (in_array(strtolower($status), ['ongoing', 'on-going', 'out', 'borrowed'])) {
+                    $query->where(function ($q) {
+                        $q->whereIn(DB::raw('LOWER(equipment_borrows.status)'), ['ongoing', 'on-going', 'borrowed', 'claimed', 'released', 'overdue'])
+                          ->orWhereHas('trackingNumber', function ($t) {
+                              $t->whereIn(DB::raw('LOWER(status)'), ['ongoing', 'on-going', 'borrowed', 'claimed', 'released', 'overdue']);
+                          });
+                    });
+                } else {
+                    $query->where(function ($q) use ($status) {
+                        $q->where('equipment_borrows.status', $status)
+                          ->orWhereHas('trackingNumber', function ($t) use ($status) {
+                              $t->where('status', $status);
+                          });
+                    });
+                }
+            })
+            ->latest();
+
+        if ($request->query('per_page') === 'all' || $request->boolean('all') || $request->query('all') === '1') {
+            return response()->json($borrowingsQuery->get());
+        }
+
+        $perPage = (int) ($request->query('per_page', 25));
+        $borrowings = $borrowingsQuery->paginate($perPage > 0 ? $perPage : 25);
 
         return response()->json($borrowings);
     }

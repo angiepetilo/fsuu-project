@@ -85,6 +85,7 @@ export default function Reports() {
 
   const [venueBookings, setVenueBookings] = useState([]);
   const [equipmentBorrowings, setEquipmentBorrowings] = useState([]);
+  const [activeEquipmentBorrowings, setActiveEquipmentBorrowings] = useState([]);
   const [ruleViolations, setRuleViolations] = useState([]);
   const [inventoryItems, setInventoryItems] = useState([]);
   const [academicTerms, setAcademicTerms] = useState([]);
@@ -115,11 +116,12 @@ export default function Reports() {
     if (!silent) setLoading(true);
     try {
       const termParam = selectedTermId ? `?academic_term_id=${selectedTermId}` : "";
-      const [histRes, daRes, eqData, unitsRes] = await Promise.all([
+      const [histRes, daRes, eqData, unitsRes, activeEbRes] = await Promise.all([
         api.get(`/general/history-log${termParam}`).catch(() => ({ data: { venue_bookings: [], equipment_borrowings: [] } })),
         api.get(`/general/department-analytics${termParam}`).catch(() => ({ data: { rule_violations: [], late_returns: [] } })),
         api.get("/general/equipment-types").then(r => r.data).catch(() => []),
         api.get("/general/equipment-units").then(r => r.data).catch(() => []),
+        api.get(`/avr-equipment-borrowings?all=1${termParam ? `&academic_term_id=${selectedTermId}` : ''}`).catch(() => ({ data: [] })),
       ]);
 
       // 1. History log venue bookings & equipment borrowings
@@ -127,6 +129,10 @@ export default function Reports() {
       const eb = histRes.data?.equipment_borrowings || [];
       setVenueBookings(vb);
       setEquipmentBorrowings(eb);
+
+      // Active equipment borrowings (live data for Equipment Out tab)
+      const rawActiveEb = activeEbRes.data?.data ?? (Array.isArray(activeEbRes.data) ? activeEbRes.data : []);
+      setActiveEquipmentBorrowings(rawActiveEb);
 
       // 2. Department analytics / violations
       const violations = daRes.data?.rule_violations || [];
@@ -178,6 +184,19 @@ export default function Reports() {
       return true;
     });
   }, [equipmentBorrowings, selectedOfficeId, selectedOfficeName]);
+
+  const filteredActiveEquipmentBorrowings = useMemo(() => {
+    if (!selectedOfficeId || selectedOfficeId === "all") return activeEquipmentBorrowings;
+    return activeEquipmentBorrowings.filter(eb => {
+      const offId = eb.office_id || eb.office?.id || eb.items?.[0]?.equipment_type?.office_id || eb.items?.[0]?.equipmentType?.office_id;
+      const offName = eb.office?.name || eb.office_name || eb.items?.[0]?.equipment_type?.office?.name;
+      if (offId) return String(offId) === String(selectedOfficeId);
+      if (offName && selectedOfficeName && selectedOfficeName !== "All Offices") {
+        return offName.toLowerCase().includes(selectedOfficeName.toLowerCase());
+      }
+      return true;
+    });
+  }, [activeEquipmentBorrowings, selectedOfficeId, selectedOfficeName]);
 
   const filteredInventoryItems = useMemo(() => {
     if (!selectedOfficeId || selectedOfficeId === "all") return inventoryItems;
@@ -272,6 +291,7 @@ export default function Reports() {
     booking_borrowing: "Booking & Borrowing Report",
     breaches: "Rule & Late Return Violations",
     inventory: "Inventory and Stock",
+    equipment_out: "Equipment Out",
   };
 
   // ── DIRECT PDF DOWNLOAD (Generates and saves .pdf file to user's device) ──
@@ -410,7 +430,7 @@ export default function Reports() {
       {mountedTabs.has("equipment_out") && (
         <div className={activeTab === "equipment_out" ? "block" : "hidden"}>
           <EquipmentOutTab
-            equipmentBorrowings={filteredEquipmentBorrowings}
+            equipmentBorrowings={filteredActiveEquipmentBorrowings}
             loading={loading}
           />
         </div>
@@ -429,6 +449,7 @@ export default function Reports() {
         onPrintPDF={handlePrintPDF}
         filteredVenueBookings={filteredVenueBookings}
         filteredEquipmentBorrowings={filteredEquipmentBorrowings}
+        filteredActiveEquipmentBorrowings={filteredActiveEquipmentBorrowings}
         filteredRuleViolations={filteredRuleViolations}
         filteredInventoryItems={filteredInventoryItems}
         filteredUnits={filteredUnits}

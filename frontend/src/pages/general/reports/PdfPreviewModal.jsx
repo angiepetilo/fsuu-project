@@ -13,6 +13,7 @@ export default function PdfPreviewModal({
   onPrintPDF,
   filteredVenueBookings = [],
   filteredEquipmentBorrowings = [],
+  filteredActiveEquipmentBorrowings = [],
   filteredRuleViolations = [],
   filteredInventoryItems = [],
   filteredUnits = [],
@@ -474,67 +475,111 @@ export default function PdfPreviewModal({
             )}
 
             {/* Tab 4: Equipment Out Report */}
-            {activeTab === "equipment_out" && (
-              <div className="space-y-6">
-                <div className="space-y-2.5">
-                  <div className="flex items-center justify-between border-b border-slate-200 pb-1.5">
-                    <h4 className="font-extrabold text-xs text-slate-900 uppercase tracking-wider">
-                      Equipment Out / Dispatched Log ({filteredEquipmentBorrowings.filter(b => ["ongoing", "on-going", "released"].includes((b.status || "").toLowerCase())).length} Active)
-                    </h4>
-                    <span className="text-[10.5px] font-mono font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
-                      Active Loans
-                    </span>
-                  </div>
+            {activeTab === "equipment_out" && (() => {
+              const activeOutLoans = (filteredActiveEquipmentBorrowings && filteredActiveEquipmentBorrowings.length > 0
+                ? filteredActiveEquipmentBorrowings
+                : filteredEquipmentBorrowings
+              ).filter(b => ["ongoing", "on-going", "released", "borrowed", "claimed", "in_use", "in-use", "overdue"].includes((b.status || b.tracking_number?.status || "").toLowerCase()));
 
-                  <table className="w-full text-xs border border-slate-300 border-collapse">
-                    <thead>
-                      <tr className="bg-slate-100/90 text-slate-700 text-[11px] font-extrabold uppercase tracking-wider">
-                        <th className="border border-slate-300 p-2.5 text-center w-10">#</th>
-                        <th className="border border-slate-300 p-2.5 text-left">Track No.</th>
-                        <th className="border border-slate-300 p-2.5 text-left">Requestor</th>
-                        <th className="border border-slate-300 p-2.5 text-left">Department</th>
-                        <th className="border border-slate-300 p-2.5 text-left">Equipment Out</th>
-                        <th className="border border-slate-300 p-2.5 text-left">Dispatch Schedule</th>
-                        <th className="border border-slate-300 p-2.5 text-center">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredEquipmentBorrowings.filter(b => ["ongoing", "on-going", "released"].includes((b.status || "").toLowerCase())).length === 0 ? (
-                        <tr>
-                          <td colSpan={7} className="border border-slate-300 p-4 text-center text-slate-400 italic">
-                            No active equipment out records at this time.
-                          </td>
+              const extractBarcodes = (b) => {
+                let codes = [];
+                if (b.assigned_units) {
+                  if (typeof b.assigned_units === "object" && !Array.isArray(b.assigned_units)) {
+                    codes = Object.values(b.assigned_units).filter(Boolean);
+                  } else if (Array.isArray(b.assigned_units)) {
+                    codes = b.assigned_units.filter(Boolean);
+                  } else if (typeof b.assigned_units === "string") {
+                    try {
+                      const parsed = JSON.parse(b.assigned_units);
+                      if (typeof parsed === "object") codes = Object.values(parsed).filter(Boolean);
+                    } catch {
+                      codes = [b.assigned_units];
+                    }
+                  }
+                }
+                if (codes.length === 0 && Array.isArray(b.assigned_barcodes)) codes = b.assigned_barcodes.filter(Boolean);
+                if (codes.length === 0 && b.barcodes) codes = Array.isArray(b.barcodes) ? b.barcodes.filter(Boolean) : [b.barcodes];
+                return Array.from(new Set(codes.map(c => String(c).trim()).filter(Boolean)));
+              };
+
+              return (
+                <div className="space-y-6">
+                  <div className="space-y-2.5">
+                    <div className="flex items-center justify-between border-b border-slate-200 pb-1.5">
+                      <h4 className="font-extrabold text-xs text-slate-900 uppercase tracking-wider">
+                        Equipment Out / Dispatched Log ({activeOutLoans.length} Active Loans)
+                      </h4>
+                      <span className="text-[10.5px] font-mono font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                        Active Loans
+                      </span>
+                    </div>
+
+                    <table className="w-full text-xs border border-slate-300 border-collapse">
+                      <thead>
+                        <tr className="bg-slate-100/90 text-slate-700 text-[11px] font-extrabold uppercase tracking-wider">
+                          <th className="border border-slate-300 p-2.5 text-center w-10">#</th>
+                          <th className="border border-slate-300 p-2.5 text-left">Track No.</th>
+                          <th className="border border-slate-300 p-2.5 text-left">Requestor</th>
+                          <th className="border border-slate-300 p-2.5 text-left">Department</th>
+                          <th className="border border-slate-300 p-2.5 text-left">Equipment Out</th>
+                          <th className="border border-slate-300 p-2.5 text-center">Units</th>
+                          <th className="border border-slate-300 p-2.5 text-left">Barcode</th>
+                          <th className="border border-slate-300 p-2.5 text-left">Borrow Date</th>
+                          <th className="border border-slate-300 p-2.5 text-left">Expected Return</th>
+                          <th className="border border-slate-300 p-2.5 text-center">Status</th>
                         </tr>
-                      ) : (
-                        filteredEquipmentBorrowings.filter(b => ["ongoing", "on-going", "released"].includes((b.status || "").toLowerCase())).map((b, i) => (
-                          <tr key={i} className="hover:bg-slate-50/50">
-                            <td className="border border-slate-300 p-2.5 text-center text-slate-500 font-bold">{i + 1}</td>
-                            <td className="border border-slate-300 p-2.5 font-mono font-bold text-blue-700 whitespace-nowrap">
-                              {b.tracking_number?.reference_code || b.reference_code || `TRK-EQP${b.id}`}
-                            </td>
-                            <td className="border border-slate-300 p-2.5 font-extrabold text-slate-900">{b.filer_name || b.requestor_name || "—"}</td>
-                            <td className="border border-slate-300 p-2.5 text-slate-700">{b.department || b.program_office || "—"}</td>
-                            <td className="border border-slate-300 p-2.5 font-semibold text-slate-800">
-                              {b.items && b.items.length > 0
-                                ? b.items.map(it => `${it.quantity_requested || 1}x ${it.equipmentType?.name || it.equipment_type?.name || 'Item'}`).join(', ')
-                                : (b.equipment_name || "AV Equipment")}
-                            </td>
-                            <td className="border border-slate-300 p-2.5 font-mono text-[11px] text-slate-700 whitespace-nowrap">
-                              {b.start_datetime ? new Date(b.start_datetime).toLocaleDateString() : (b.date_of_usage || "—")}
-                            </td>
-                            <td className="border border-slate-300 p-2.5 text-center font-bold uppercase text-[10.5px]">
-                              <span className="px-2 py-0.5 rounded bg-blue-50 border border-blue-200 text-blue-700">
-                                {b.status || "ONGOING"}
-                              </span>
+                      </thead>
+                      <tbody>
+                        {activeOutLoans.length === 0 ? (
+                          <tr>
+                            <td colSpan={10} className="border border-slate-300 p-4 text-center text-slate-400 italic">
+                              No active equipment out records at this time.
                             </td>
                           </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
+                        ) : (
+                          activeOutLoans.map((b, i) => {
+                            const barcodes = extractBarcodes(b);
+                            const equipName = b.items && b.items.length > 0
+                              ? b.items.map(it => `${it.quantity_requested || 1}x ${it.equipmentType?.name || it.equipment_type?.name || 'Item'}`).join(', ')
+                              : (b.equipment_name || "AV Equipment");
+                            const totalQty = b.items && b.items.length > 0
+                              ? b.items.reduce((s, it) => s + (parseInt(it.quantity_requested || it.quantity, 10) || 1), 0)
+                              : (parseInt(b.quantity || b.qty, 10) || 1);
+
+                            return (
+                              <tr key={i} className="hover:bg-slate-50/50">
+                                <td className="border border-slate-300 p-2.5 text-center text-slate-500 font-bold">{i + 1}</td>
+                                <td className="border border-slate-300 p-2.5 font-mono font-bold text-blue-700 whitespace-nowrap">
+                                  {b.tracking_number?.reference_code || b.reference_code || `TRK-EQP${b.id}`}
+                                </td>
+                                <td className="border border-slate-300 p-2.5 font-extrabold text-slate-900">{b.filer_name || b.requestor_name || "—"}</td>
+                                <td className="border border-slate-300 p-2.5 text-slate-700">{b.department || b.program_office || "—"}</td>
+                                <td className="border border-slate-300 p-2.5 font-semibold text-slate-800">{equipName}</td>
+                                <td className="border border-slate-300 p-2.5 text-center font-bold text-blue-700">{totalQty}</td>
+                                <td className="border border-slate-300 p-2.5 font-mono text-[11px] font-bold text-slate-700 max-w-[120px] truncate">
+                                  {barcodes.length > 0 ? barcodes.join(", ") : "—"}
+                                </td>
+                                <td className="border border-slate-300 p-2.5 font-mono text-[11px] text-slate-700 whitespace-nowrap">
+                                  {b.date_of_usage ? new Date(b.date_of_usage).toLocaleDateString() : (b.start_datetime ? new Date(b.start_datetime).toLocaleDateString() : "—")}
+                                </td>
+                                <td className="border border-slate-300 p-2.5 font-mono text-[11px] text-slate-700 whitespace-nowrap">
+                                  {b.time_end || "17:00"}
+                                </td>
+                                <td className="border border-slate-300 p-2.5 text-center font-bold uppercase text-[10.5px]">
+                                  <span className="px-2 py-0.5 rounded bg-amber-50 border border-amber-200 text-amber-700 whitespace-nowrap">
+                                    {b.status || "ONGOING"}
+                                  </span>
+                                </td>
+                              </tr>
+                            );
+                          })
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
 
             {/* Official Sign-Off Footer */}
             <div className="pt-8 flex justify-between items-end border-t-2 border-slate-900 text-xs">

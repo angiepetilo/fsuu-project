@@ -219,7 +219,7 @@ function AppContent() {
               {(user || token) && (
                 <Link
                   to={userRole === "superadmin" || userRole === "super_admin" ? "/sysad/dashboard" : "/general/dashboard"}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-extrabold bg-slate-900 hover:bg-slate-800 text-white transition-all shadow-xs"
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-extrabold bg-blue-600 hover:bg-blue-700 text-white transition-all shadow-xs"
                 >
                   <LayoutDashboard size={14} />
                   <span>Dashboard</span>
