@@ -113,7 +113,8 @@ export default function AcademicTermsTab({ showMsg }) {
       setShowAddModal(false);
       try {
         const res = await api.post("/general/academic-terms", termForm);
-        const saved = res.data;
+        // Response shape: { message, term } — unwrap the actual term object
+        const saved = res.data?.term ?? res.data;
         setTerms(t => t.map(x => x.id === tempId ? { ...saved, _optimistic: false } : x));
         notify(`Academic term "${label}" created!`);
       } catch (err) {
@@ -124,6 +125,7 @@ export default function AcademicTermsTab({ showMsg }) {
   };
 
   const handleActivateTerm = async (term) => {
+    if (!term?.id) { notify("❌ Cannot activate: term ID is missing. Please refresh the page."); return; }
     if (!confirm(`Set "${term.name}" as the active academic semester?`)) return;
     // ── OPTIMISTIC ACTIVATE ────────────────────────────────────────────────
     const prev = terms;
@@ -141,6 +143,7 @@ export default function AcademicTermsTab({ showMsg }) {
   };
 
   const handleDeleteTerm = async (term) => {
+    if (!term?.id) { notify("❌ Cannot delete: term ID is missing. Please refresh the page."); return; }
     if (term.is_active) { notify("Cannot delete the currently active semester."); return; }
     if (!confirm(`Delete "${term.name}"?`)) return;
     // ── OPTIMISTIC DELETE ────────────────────────────────────────────────
