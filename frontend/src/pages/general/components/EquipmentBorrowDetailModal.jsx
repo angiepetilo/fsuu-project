@@ -253,13 +253,16 @@ export default function EquipmentBorrowDetailModal({
           else if (p.condition === "good" || p.condition === "clean") setPreInspectionStatus("clean");
           if (p.unit_conditions) setPreUnitReturnedConditions(p.unit_conditions);
         }
-        const localPost = localStorage.getItem(`fsuu_inspection_post_use_eb_${selected.id}`);
-        if (localPost) {
-          const p = JSON.parse(localPost);
-          if (p.notes) setViolationNotes(p.notes);
-          if (p.condition === "damaged" || p.condition === "violation") setInspectionStatus("violation");
-          else if (p.condition === "good" || p.condition === "clean") setInspectionStatus("clean");
-          if (p.unit_conditions) setUnitReturnedConditions(p.unit_conditions);
+        const isBorrowCompleted = ['completed', 'done', 'returned', 'damaged', 'lost'].includes(String(selected.status || selected.tracking_number?.status || '').toLowerCase());
+        if (isBorrowCompleted) {
+          const localPost = localStorage.getItem(`fsuu_inspection_post_use_eb_${selected.id}`);
+          if (localPost) {
+            const p = JSON.parse(localPost);
+            if (p.notes) setViolationNotes(p.notes);
+            if (p.condition === "damaged" || p.condition === "violation") setInspectionStatus("violation");
+            else if (p.condition === "good" || p.condition === "clean") setInspectionStatus("clean");
+            if (p.unit_conditions) setUnitReturnedConditions(p.unit_conditions);
+          }
         }
       } catch {}
 
@@ -270,12 +273,13 @@ export default function EquipmentBorrowDetailModal({
           const list = Array.isArray(res.data) ? res.data : res.data?.data ?? [];
           
           const preUse = list.find(i => i.inspection_type === 'pre_use');
+          const isBorrowCompleted = ['completed', 'done', 'returned', 'damaged', 'lost'].includes(String(selected.status || selected.tracking_number?.status || '').toLowerCase());
           // Accept post_use OR post_event as the after-inspection record
           const postUse = list.find(i => i.inspection_type === 'post_use')
             || list.find(i => i.inspection_type === 'post_event')
             || list.find(i => i.inspection_type && i.inspection_type !== 'pre_use');
 
-          if (postUse) {
+          if (postUse && isBorrowCompleted) {
             // Parse assigned_units (may be JSON string or object from DB)
             let auData = postUse.assigned_units;
             if (typeof auData === 'string') { try { auData = JSON.parse(auData); } catch { auData = {}; } }
@@ -735,6 +739,13 @@ export default function EquipmentBorrowDetailModal({
   };
 
   const handleReleaseOngoing = async () => {
+    // Clear any stale post-use cache since equipment is newly being released now
+    try {
+      localStorage.removeItem(`fsuu_inspection_post_use_eb_${selected.id}`);
+    } catch {}
+    setUnitReturnedConditions({});
+    setInspectionStatus("clean");
+
     // Automatically save pre-release inspection before marking as ongoing
     try {
       await handleSaveInspection(null, "pre_use");

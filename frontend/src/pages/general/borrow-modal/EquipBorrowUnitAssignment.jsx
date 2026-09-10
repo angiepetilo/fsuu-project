@@ -397,17 +397,19 @@ export default function EquipBorrowUnitAssignment({
                       );
                     }
 
-                    // Only show condition badge from actual inspection data (not a fallback guess)
-                    const resolvedCond = val
+                    // Condition badge should ONLY be shown when the borrowing is COMPLETED.
+                    // For ONGOING / APPROVED: equipment is currently out with borrower, so never show Lost/Damaged badge.
+                    const resolvedCond = (isCompleted && val)
                       ? unitReturnedConditions[val] || unitReturnedConditions[idxKey] || unitReturnedConditions[catKey]
                       : null;
 
-                    // For ONGOING: only show condition if we have real inspection data.
-                    // Never auto-fill a fake condition while equipment is still out.
-                    // For COMPLETED: use real data or fall back to inspectionStatus.
-                    let displayCond = resolvedCond;
-                    if (!displayCond && isCompleted) {
-                      if (inspectionStatus === "violation") {
+                    let displayCond = null;
+                    if (isCompleted) {
+                      if (resolvedCond) {
+                        displayCond = resolvedCond;
+                      } else if (inspectionStatus === "lost") {
+                        displayCond = "Lost";
+                      } else if (inspectionStatus === "violation") {
                         displayCond = "Damaged";
                       } else if (timeliness === "late") {
                         displayCond = "Late Return";
@@ -415,7 +417,6 @@ export default function EquipBorrowUnitAssignment({
                         displayCond = "Complete";
                       }
                     }
-                    // isOngoing with no real inspection data → no badge shown
 
                     return (
                       <div key={uIdx} className="flex flex-col sm:flex-row sm:items-center justify-between p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-800 gap-2">

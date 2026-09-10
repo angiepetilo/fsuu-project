@@ -326,15 +326,24 @@ class EquipmentBorrowingController extends Controller
 
             // Release physical units back based on return condition
             if (!empty($barcodes) && \Illuminate\Support\Facades\Schema::hasTable('equipment_units')) {
+                $numericIds = array_values(array_filter($barcodes, fn($v) => is_numeric($v) && (int)$v > 0));
+                $unitCodes = array_values(array_filter($barcodes, fn($v) => !empty($v)));
+
                 if ($condition === 'good') {
-                    \App\Models\EquipmentUnit::where(function($q) use ($barcodes) {
-                        $q->whereIn('barcode', $barcodes)->orWhereIn('id', $barcodes);
+                    \App\Models\EquipmentUnit::where(function($q) use ($unitCodes, $numericIds) {
+                        $q->whereIn('barcode', $unitCodes);
+                        if (!empty($numericIds)) {
+                            $q->orWhereIn('id', array_map('intval', $numericIds));
+                        }
                     })->update(['status' => 'available', 'condition' => 'Good']);
                 } else {
                     $uStatus = ($condition === 'lost' || $condition === 'damaged') ? 'unavailable' : 'available';
                     $uCond = $condition === 'lost' ? 'Lost' : 'Damaged';
-                    \App\Models\EquipmentUnit::where(function($q) use ($barcodes) {
-                        $q->whereIn('barcode', $barcodes)->orWhereIn('id', $barcodes);
+                    \App\Models\EquipmentUnit::where(function($q) use ($unitCodes, $numericIds) {
+                        $q->whereIn('barcode', $unitCodes);
+                        if (!empty($numericIds)) {
+                            $q->orWhereIn('id', array_map('intval', $numericIds));
+                        }
                     })->update(['status' => $uStatus, 'condition' => $uCond]);
                 }
             }
@@ -623,8 +632,14 @@ class EquipmentBorrowingController extends Controller
 
         if (!empty($barcodes)) {
             $newUnitStatus = in_array($currentStatus, ['ongoing', 'on-going', 'borrowed']) ? 'released' : 'reserved';
-            \App\Models\EquipmentUnit::where(function($q) use ($barcodes) {
-                $q->whereIn('barcode', $barcodes)->orWhereIn('id', $barcodes);
+            $numericIds = array_values(array_filter($barcodes, fn($v) => is_numeric($v) && (int)$v > 0));
+            $unitCodes = array_values(array_filter($barcodes, fn($v) => !empty($v)));
+
+            \App\Models\EquipmentUnit::where(function($q) use ($unitCodes, $numericIds) {
+                $q->whereIn('barcode', $unitCodes);
+                if (!empty($numericIds)) {
+                    $q->orWhereIn('id', array_map('intval', $numericIds));
+                }
             })
             ->update(['status' => $newUnitStatus]);
         }
