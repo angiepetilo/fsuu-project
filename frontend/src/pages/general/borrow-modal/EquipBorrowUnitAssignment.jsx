@@ -228,7 +228,9 @@ export default function EquipBorrowUnitAssignment({
       {/* Equipment Unit Assignments */}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <span className="text-[10px] font-mono text-slate-500 uppercase tracking-wider block">
+          <span className={`text-[10px] font-mono uppercase tracking-wider block font-bold ${
+            isCompleted ? "text-emerald-600" : "text-slate-500"
+          }`}>
             {isPending ? "REQUESTED EQUIPMENT" : "EQUIPMENT UNIT ASSIGNMENT"}
           </span>
           {isApproved && (
@@ -238,6 +240,11 @@ export default function EquipBorrowUnitAssignment({
                 : "bg-amber-50 text-amber-700 border-amber-200"
             }`}>
               {totalAssignedUnits} of {totalRequestedUnits} units selected
+            </span>
+          )}
+          {isCompleted && (
+            <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border bg-emerald-50 text-emerald-700 border-emerald-200">
+              ✓ Completed
             </span>
           )}
         </div>
@@ -390,18 +397,25 @@ export default function EquipBorrowUnitAssignment({
                       );
                     }
 
-                    const resolvedCond = val ? unitReturnedConditions[val] || unitReturnedConditions[idxKey] || unitReturnedConditions[catKey] : null;
+                    // Only show condition badge from actual inspection data (not a fallback guess)
+                    const resolvedCond = val
+                      ? unitReturnedConditions[val] || unitReturnedConditions[idxKey] || unitReturnedConditions[catKey]
+                      : null;
 
+                    // For ONGOING: only show condition if we have real inspection data.
+                    // Never auto-fill a fake condition while equipment is still out.
+                    // For COMPLETED: use real data or fall back to inspectionStatus.
                     let displayCond = resolvedCond;
-                    if (!displayCond && (isOngoing || isCompleted)) {
+                    if (!displayCond && isCompleted) {
                       if (inspectionStatus === "violation") {
                         displayCond = "Damaged";
                       } else if (timeliness === "late") {
                         displayCond = "Late Return";
                       } else {
-                        displayCond = "Good";
+                        displayCond = "Complete";
                       }
                     }
+                    // isOngoing with no real inspection data → no badge shown
 
                     return (
                       <div key={uIdx} className="flex flex-col sm:flex-row sm:items-center justify-between p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-800 gap-2">
@@ -414,10 +428,10 @@ export default function EquipBorrowUnitAssignment({
                           }`}>
                             {val || "Unassigned"}
                           </span>
-                          
-                          {(isCompleted || isOngoing) && displayCond && val && val !== "—" && (
+
+                          {displayCond && val && val !== "—" && (
                             <span className={`px-2 py-0.5 rounded-lg border font-extrabold shadow-xs ${
-                              displayCond.toLowerCase() === 'good' || displayCond.toLowerCase() === 'clean'
+                              ['good', 'clean', 'complete'].includes(displayCond.toLowerCase())
                                 ? "bg-emerald-50 text-emerald-700 border-emerald-200"
                                 : displayCond.toLowerCase() === 'late return' || displayCond.toLowerCase() === 'late'
                                 ? "bg-amber-50 text-amber-700 border-amber-200"

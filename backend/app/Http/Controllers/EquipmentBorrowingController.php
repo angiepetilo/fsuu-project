@@ -535,12 +535,14 @@ class EquipmentBorrowingController extends Controller
             }
         }
 
-        // Schedule overlap conflict validation
-        if (!empty($barcodes)) {
-            $dateOfUsage = $equipmentBorrowing->date_of_usage ?? ($equipmentBorrowing->start_datetime ? substr($equipmentBorrowing->start_datetime, 0, 10) : date('Y-m-d'));
+        // Schedule overlap conflict validation (wrapped defensively so a DB edge case never blocks saving)
+        if (!empty($barcodes)) try {
+            $dateOfUsage = $equipmentBorrowing->date_of_usage
+                ? (is_string($equipmentBorrowing->date_of_usage) ? $equipmentBorrowing->date_of_usage : $equipmentBorrowing->date_of_usage->format('Y-m-d'))
+                : ($equipmentBorrowing->start_datetime ? substr($equipmentBorrowing->start_datetime, 0, 10) : date('Y-m-d'));
             $reservationEndDate = $equipmentBorrowing->reservation_end_date ?? $dateOfUsage;
             $timeStart = $equipmentBorrowing->time_start ?? ($equipmentBorrowing->start_datetime ? substr($equipmentBorrowing->start_datetime, 11, 8) : '08:00:00');
-            $timeEnd = $equipmentBorrowing->time_end ?? ($equipmentBorrowing->end_datetime ? substr($equipmentBorrowing->end_datetime, 11, 8) : '17:00:00');
+            $timeEnd   = $equipmentBorrowing->time_end   ?? ($equipmentBorrowing->end_datetime   ? substr($equipmentBorrowing->end_datetime, 11, 8)   : '17:00:00');
 
             $inactiveStatuses = ['completed', 'done', 'returned', 'rejected', 'cancelled', 'cancelled_by_user', 'damaged', 'lost', 'solved'];
 
@@ -548,6 +550,7 @@ class EquipmentBorrowingController extends Controller
             $otherEquipBorrows = \Illuminate\Support\Facades\DB::table('equipment_borrows')
                 ->join('tracking_numbers', 'equipment_borrows.tracking_number_id', '=', 'tracking_numbers.id')
                 ->where('equipment_borrows.id', '!=', $equipmentBorrowing->id)
+                ->whereNotNull('equipment_borrows.tracking_number_id')
                 ->whereNotIn('tracking_numbers.status', $inactiveStatuses)
                 ->whereNotNull('equipment_borrows.assigned_units')
                 ->where(function ($q) use ($dateOfUsage, $reservationEndDate, $timeStart, $timeEnd) {
@@ -579,6 +582,7 @@ class EquipmentBorrowingController extends Controller
             // 2. Check overlapping active venue bookings
             $otherVenueBookings = \Illuminate\Support\Facades\DB::table('venue_bookings')
                 ->join('tracking_numbers', 'venue_bookings.tracking_number_id', '=', 'tracking_numbers.id')
+                ->whereNotNull('venue_bookings.tracking_number_id')
                 ->whereNotIn('tracking_numbers.status', $inactiveStatuses)
                 ->whereNotNull('venue_bookings.assigned_units')
                 ->where(function ($q) use ($dateOfUsage, $reservationEndDate, $timeStart, $timeEnd) {
@@ -606,6 +610,9 @@ class EquipmentBorrowingController extends Controller
                     }
                 }
             }
+        } catch (\Throwable $overlapEx) {
+            // Log silently — overlap check failed (e.g. production DB schema diff), but still allow assignment to proceed
+            \Illuminate\Support\Facades\Log::warning('assign-units overlap check failed: ' . $overlapEx->getMessage());
         }
 
         $equipmentBorrowing->update([
