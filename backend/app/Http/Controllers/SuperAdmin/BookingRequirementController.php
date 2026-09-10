@@ -14,14 +14,34 @@ class BookingRequirementController extends Controller
      */
     public function publicIndex(): JsonResponse
     {
-        $this->ensureDefaultRequirements();
+        try {
+            $this->ensureDefaultRequirements();
 
-        $reqs = BookingRequirement::orderBy('sort_order')->orderBy('id')->get();
-        $unique = $reqs->unique(function ($item) {
-            return strtolower(trim($item->label));
-        })->values();
+            $reqs = BookingRequirement::orderBy('sort_order')->orderBy('id')->get();
+            $unique = $reqs->unique(function ($item) {
+                return strtolower(trim($item->label));
+            })->values();
 
-        return response()->json($unique);
+            return response()->json($unique);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('publicIndex booking-requirements failed: ' . $e->getMessage());
+            return response()->json([
+                [
+                    'id' => 1,
+                    'classification' => 'Organization Purposes',
+                    'label' => 'Formal request letter signed and endorsed by the Director of OISAA',
+                    'description' => 'Mandatory endorsement for all student organization venue activities.',
+                    'sort_order' => 1,
+                ],
+                [
+                    'id' => 2,
+                    'classification' => 'Academic Purposes',
+                    'label' => 'Formal request letter signed and endorsed by the OVPASA',
+                    'description' => 'Mandatory endorsement for academic events and examinations.',
+                    'sort_order' => 2,
+                ]
+            ]);
+        }
     }
 
     /**

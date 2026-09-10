@@ -29,9 +29,9 @@ export default function VenueScheduleForm({
   };
 
   return (
-    <div className="bg-white rounded-[28px] border border-slate-200/90 shadow-sm p-6 h-full flex flex-col justify-between space-y-4">
-      <div className="border-b border-slate-100 pb-3">
-        <h3 className="font-extrabold text-slate-900 text-xs uppercase tracking-wider flex items-center gap-2">
+    <div className="bg-white dark:bg-[#111827] rounded-[28px] border border-slate-200/90 dark:border-slate-800 shadow-sm p-6 h-full flex flex-col justify-between space-y-4">
+      <div className="border-b border-slate-100 dark:border-slate-800 pb-3">
+        <h3 className="font-extrabold text-slate-900 dark:text-white text-xs uppercase tracking-wider flex items-center gap-2">
           Venue Selection &amp; Availability Control
         </h3>
       </div>
@@ -40,7 +40,7 @@ export default function VenueScheduleForm({
         <div className="space-y-4">
           {/* Venue Selector */}
           <div>
-            <label className="block text-xs font-bold text-slate-900 mb-1">Select Venue *</label>
+            <label className="block text-xs font-bold text-slate-900 dark:text-slate-200 mb-1">Select Venue *</label>
             <select
               value={selectedVenue?.id || ""}
               onChange={(e) => {
@@ -50,7 +50,7 @@ export default function VenueScheduleForm({
                   setSetupForm({ ...setupForm, venueId: found.id });
                 }
               }}
-              className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:outline-none focus:border-blue-600 cursor-pointer text-xs"
+              className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-900 dark:text-white focus:outline-none focus:border-blue-600 cursor-pointer text-xs"
             >
               {(!VENUES || VENUES.length === 0) ? (
                 <option value="">No venues created yet</option>
@@ -65,9 +65,9 @@ export default function VenueScheduleForm({
           </div>
 
           {/* Multi-Day Reservation Toggle */}
-          <label className="flex items-center justify-between p-3.5 bg-slate-50 hover:bg-slate-100/80 border border-slate-200 rounded-2xl cursor-pointer transition-colors select-none">
+          <label className="flex items-center justify-between p-3.5 bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100/80 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl cursor-pointer transition-colors select-none">
             <div className="flex flex-col">
-              <span className="text-xs font-black text-slate-900 flex items-center gap-2">
+              <span className="text-xs font-black text-slate-900 dark:text-white flex items-center gap-2">
                 Multi-Day Block
                 {Boolean(setupForm.isMultiDay) && (
                   <span className="bg-blue-600 text-white text-[9.5px] font-black px-1.5 py-0.5 rounded-md uppercase tracking-wider">
@@ -75,7 +75,7 @@ export default function VenueScheduleForm({
                   </span>
                 )}
               </span>
-              <span className="text-[11px] text-slate-600 font-semibold">Apply status across consecutive days</span>
+              <span className="text-[11px] text-slate-600 dark:text-slate-300 font-semibold">Apply status across consecutive days</span>
             </div>
             <div className="relative inline-flex items-center">
               <input
@@ -91,7 +91,7 @@ export default function VenueScheduleForm({
                 }}
                 className="sr-only peer"
               />
-              <div className="w-10 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+              <div className="w-10 h-6 bg-slate-200 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
             </div>
           </label>
 
@@ -100,7 +100,7 @@ export default function VenueScheduleForm({
             <div className="space-y-1.5">
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-xs font-black text-slate-900 mb-1">Start Date *</label>
+                  <label className="block text-xs font-black text-slate-900 dark:text-slate-200 mb-1">Start Date *</label>
                   <input
                     type="date"
                     required
@@ -113,22 +113,22 @@ export default function VenueScheduleForm({
                         endDate: (prev.endDate && prev.endDate < newStart) ? newStart : prev.endDate,
                       }));
                     }}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:outline-none focus:border-blue-600 text-xs cursor-pointer"
+                    className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-900 dark:text-white focus:outline-none focus:border-blue-600 text-xs cursor-pointer"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-black text-slate-900 mb-1">End Date *</label>
+                  <label className="block text-xs font-black text-slate-900 dark:text-slate-200 mb-1">End Date *</label>
                   <input
                     type="date"
                     required
                     min={setupForm.startDate}
                     value={setupForm.endDate || setupForm.startDate}
                     onChange={e => setSetupForm(prev => ({ ...prev, endDate: e.target.value }))}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:outline-none focus:border-blue-600 text-xs cursor-pointer"
+                    className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-900 dark:text-white focus:outline-none focus:border-blue-600 text-xs cursor-pointer"
                   />
                 </div>
               </div>
-              <div className="text-[11px] font-bold text-blue-700 bg-blue-50/70 border border-blue-200/60 px-2.5 py-1 rounded-lg flex items-center justify-between">
+              <div className="text-[11px] font-bold text-blue-700 dark:text-blue-300 bg-blue-50/70 dark:bg-blue-950/60 border border-blue-200/60 dark:border-blue-800/60 px-2.5 py-1 rounded-lg flex items-center justify-between">
                 <span>Multi-day range</span>
                 <span>
                   {setupForm.startDate && setupForm.endDate && setupForm.endDate >= setupForm.startDate
@@ -139,13 +139,13 @@ export default function VenueScheduleForm({
             </div>
           ) : (
             <div>
-              <label className="block text-xs font-black text-slate-900 mb-1">Target Date *</label>
+              <label className="block text-xs font-black text-slate-900 dark:text-slate-200 mb-1">Target Date *</label>
               <input
                 type="date"
                 required
                 value={setupForm.startDate}
                 onChange={e => setSetupForm({ ...setupForm, startDate: e.target.value })}
-                className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:outline-none focus:border-blue-600 text-xs cursor-pointer"
+                className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-900 dark:text-white focus:outline-none focus:border-blue-600 text-xs cursor-pointer"
               />
             </div>
           )}
@@ -154,55 +154,55 @@ export default function VenueScheduleForm({
           <div>
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="block text-xs font-black text-slate-900 mb-1">Start Time *</label>
+                <label className="block text-xs font-black text-slate-900 dark:text-slate-200 mb-1">Start Time *</label>
                 <CustomTimePicker
                   value={setupForm.startTime || venueOpen}
                   onChange={val => handleStartTimeChange(val)}
                   minuteStep={5}
-                  triggerClassName="w-full flex items-center justify-between p-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl font-bold text-slate-900 text-xs transition-colors cursor-pointer"
+                  triggerClassName="w-full flex items-center justify-between p-2.5 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-900 dark:text-white text-xs transition-colors cursor-pointer"
                 />
               </div>
               <div>
-                <label className="block text-xs font-black text-slate-900 mb-1">End Time *</label>
+                <label className="block text-xs font-black text-slate-900 dark:text-slate-200 mb-1">End Time *</label>
                 <CustomTimePicker
                   value={setupForm.endTime || venueClose}
                   onChange={val => handleEndTimeChange(val)}
                   minuteStep={5}
-                  triggerClassName="w-full flex items-center justify-between p-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl font-bold text-slate-900 text-xs transition-colors cursor-pointer"
+                  triggerClassName="w-full flex items-center justify-between p-2.5 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-900 dark:text-white text-xs transition-colors cursor-pointer"
                 />
               </div>
             </div>
 
-            <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-600 bg-slate-50 border border-slate-200 px-2.5 py-1.5 rounded-xl mt-2">
-              <Clock size={13} className="text-blue-600 shrink-0" />
+            <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-700 dark:text-slate-200 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 px-2.5 py-1.5 rounded-xl mt-2">
+              <Clock size={13} className="text-blue-600 dark:text-blue-400 shrink-0" />
               <span>
-                Venue Reservation Operating Window: <strong className="text-slate-900">{formatTime12h(venueOpen)} – {formatTime12h(venueClose)}</strong>
+                Venue Reservation Operating Window: <strong className="text-slate-900 dark:text-white">{formatTime12h(venueOpen)} – {formatTime12h(venueClose)}</strong>
               </span>
             </div>
           </div>
 
           {/* Operating Status Control Buttons */}
           <div>
-            <label className="block text-xs font-black text-slate-900 mb-1.5">Operating Status *</label>
+            <label className="block text-xs font-black text-slate-900 dark:text-slate-200 mb-1.5">Operating Status *</label>
             <div className="grid grid-cols-3 gap-2">
               {[
                 { 
                   id: "Available",   
                   label: "Available",   
                   activeClass: "bg-emerald-600 border-emerald-600 text-white font-black shadow-sm",
-                  inactiveClass: "border-slate-200 bg-slate-50 text-slate-700 hover:bg-emerald-50 hover:text-emerald-800 font-bold",
+                  inactiveClass: "border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 hover:text-emerald-800 dark:hover:text-emerald-300 font-bold",
                 },
                 { 
                   id: "Maintenance", 
                   label: "Maintenance", 
                   activeClass: "bg-amber-500 border-amber-500 text-white font-black shadow-sm",
-                  inactiveClass: "border-slate-200 bg-slate-50 text-slate-700 hover:bg-amber-50 hover:text-amber-800 font-bold",
+                  inactiveClass: "border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-amber-50 dark:hover:bg-amber-950/40 hover:text-amber-800 dark:hover:text-amber-300 font-bold",
                 },
                 { 
                   id: "Closed",      
                   label: "Closed",      
                   activeClass: "bg-rose-600 border-rose-600 text-white font-black shadow-sm",
-                  inactiveClass: "border-slate-200 bg-slate-50 text-slate-700 hover:bg-rose-50 hover:text-rose-800 font-bold",
+                  inactiveClass: "border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-rose-50 dark:hover:bg-rose-950/40 hover:text-rose-800 dark:hover:text-rose-300 font-bold",
                 },
               ].map(st => {
                 const isSelected = setupForm.status === st.id;
@@ -224,13 +224,13 @@ export default function VenueScheduleForm({
 
           {/* Remarks */}
           <div>
-            <label className="block text-xs font-black text-slate-900 mb-1">Remarks</label>
+            <label className="block text-xs font-black text-slate-900 dark:text-slate-200 mb-1">Remarks</label>
             <textarea
               rows={3}
               placeholder="e.g. Scheduled holiday closure, regular maintenance, AV calibration..."
               value={setupForm.reason}
               onChange={e => setSetupForm({ ...setupForm, reason: e.target.value })}
-              className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-900 focus:outline-none focus:border-blue-600 text-xs"
+              className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-medium text-slate-900 dark:text-white focus:outline-none focus:border-blue-600 text-xs"
             />
           </div>
         </div>

@@ -25,7 +25,8 @@ export default function SystemSettingsTab() {
     university_name: "Father Saturnino Urios University",
     header_brand_text: "Urios",
     system_logo: "",
-    facebook_url: "",
+    facebook_url: "https://www.facebook.com/fsuubutuan",
+    facebook_name: "Father Saturnino Urios University",
     telephone_no: "(085) 342-1830",
     contact_email: "support.booking@fsuu.edu.ph",
     contact_phone: "(085) 342-1830",
@@ -323,6 +324,18 @@ export default function SystemSettingsTab() {
                 className={`${inputCls(editMode)} pl-9`}
               />
             </div>
+          </div>
+
+          <div>
+            <label className={labelCls}>Facebook Page Name / Display Name</label>
+            <input
+              type="text"
+              disabled={!editMode}
+              placeholder="Father Saturnino Urios University"
+              value={settings.facebook_name || ""}
+              onChange={(e) => handleChange("facebook_name", e.target.value)}
+              className={inputCls(editMode)}
+            />
           </div>
 
           <div>

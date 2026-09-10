@@ -81,10 +81,10 @@ const SETTINGS_CATEGORIES = [
   {
     id: "account",
     label: "Account",
-    icon: Sliders,
+    icon: User,
     items: [
-      { id: "system_settings", label: "System Settings", desc: "Branding and portal parameters", icon: Sliders, permissionKey: "settings.system_settings", staffOnly: true, protected: true },
       { id: "profile", label: "Profile", desc: "Account credentials & password", icon: User },
+      { id: "system_settings", label: "System Settings", desc: "Branding and portal parameters", icon: Sliders, permissionKey: "settings.system_settings", staffOnly: true, protected: true },
     ]
   }
 ];
@@ -121,11 +121,14 @@ export default function Settings() {
 
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // Determine tab from URL param or default to first permitted tab
+  // Determine tab from URL param or default to profile
   const getInitialTab = () => {
     const urlTab = searchParams.get("tab");
     if (urlTab && visibleTabs.some((t) => t.id === urlTab)) {
       return urlTab;
+    }
+    if (visibleTabs.some((t) => t.id === "profile")) {
+      return "profile";
     }
     return visibleTabs[0]?.id || "profile";
   };
@@ -244,9 +247,9 @@ export default function Settings() {
   };
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs flex flex-col lg:flex-row overflow-visible font-sans">
+    <div className="bg-white dark:bg-[#111827] rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col lg:flex-row overflow-visible font-sans">
       {/* ── Left Sidebar: Integrated Collapsible Accordion Navigation ── */}
-      <aside className="w-full lg:w-64 xl:w-72 shrink-0 bg-slate-50/70 border-b lg:border-b-0 lg:border-r border-slate-200/80 p-3 flex flex-col justify-between">
+      <aside className="w-full lg:w-64 xl:w-72 shrink-0 bg-slate-50/70 dark:bg-slate-900/60 border-b lg:border-b-0 lg:border-r border-slate-200/80 dark:border-slate-800 p-3 flex flex-col justify-between">
         <nav className="space-y-2 pr-0.5">
           {visibleCategories.map((category) => {
             const CatIcon = category.icon;
@@ -259,7 +262,9 @@ export default function Settings() {
                   type="button"
                   onClick={() => toggleCategory(category.id)}
                   className={`w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-left transition-all cursor-pointer group select-none ${
-                    hasActiveChild ? "bg-blue-50/80 text-blue-900 font-black" : "hover:bg-slate-100/70 text-slate-700 font-extrabold"
+                    hasActiveChild
+                      ? "bg-blue-50/80 dark:bg-blue-950/60 text-blue-900 dark:text-blue-200 font-black"
+                      : "hover:bg-slate-100/70 dark:hover:bg-slate-800/60 text-slate-700 dark:text-slate-200 font-extrabold"
                   }`}
                   title={`${isOpen ? "Collapse" : "Expand"} ${category.label}`}
                 >
@@ -268,7 +273,7 @@ export default function Settings() {
                       className={`p-1 rounded-lg shrink-0 transition-colors ${
                         hasActiveChild
                           ? "bg-blue-600 text-white shadow-2xs"
-                          : "bg-slate-200/70 text-slate-600 group-hover:bg-slate-300"
+                          : "bg-slate-200/70 dark:bg-slate-800 text-slate-600 dark:text-slate-300 group-hover:bg-slate-300 dark:group-hover:bg-slate-700"
                       }`}
                     >
                       <CatIcon size={13} />
@@ -281,23 +286,23 @@ export default function Settings() {
                     <span
                       className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-full border ${
                         hasActiveChild
-                          ? "bg-blue-100 text-blue-700 border-blue-200"
-                          : "bg-slate-100 text-slate-500 border-slate-200"
+                          ? "bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-700"
+                          : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700"
                       }`}
                     >
                       {category.items.length}
                     </span>
                     <ChevronDown
                       size={14}
-                      className={`text-slate-400 transition-transform duration-200 shrink-0 ${
-                        isOpen ? "rotate-0 text-slate-700" : "-rotate-90"
+                      className={`transition-transform duration-200 shrink-0 ${
+                        isOpen ? "rotate-0 text-slate-700 dark:text-slate-200" : "-rotate-90 text-slate-400 dark:text-slate-500"
                       }`}
                     />
                   </div>
                 </button>
 
                 {isOpen && (
-                  <div className="space-y-1 pl-2.5 ml-3 border-l-2 border-slate-200/90 pt-0.5 pb-1 animate-in fade-in slide-in-from-top-1 duration-150">
+                  <div className="space-y-1 pl-2.5 ml-3 border-l-2 border-slate-200/90 dark:border-slate-800 pt-0.5 pb-1 animate-in fade-in slide-in-from-top-1 duration-150">
                     {category.items.map((tab) => {
                       const IconComp = tab.icon;
                       const active = activeTab === tab.id;
@@ -311,24 +316,24 @@ export default function Settings() {
                           className={`w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-left text-xs font-bold transition-all cursor-pointer ${
                             active
                               ? "bg-blue-600 text-white shadow-xs"
-                              : "text-slate-600 hover:bg-white hover:text-slate-900"
+                              : "text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white"
                           }`}
                         >
                           <div className="flex items-center gap-2 min-w-0">
                             <IconComp
                               size={14}
-                              className={`shrink-0 ${active ? "text-white" : "text-slate-400"}`}
+                              className={`shrink-0 ${active ? "text-white" : "text-slate-400 dark:text-slate-500"}`}
                             />
                             <span className="truncate">{tab.label}</span>
                           </div>
                           <div className="flex items-center gap-1 shrink-0">
                             {isProtected && (
-                              <Lock size={11} className={active ? "text-blue-200" : "text-slate-400"} />
+                              <Lock size={11} className={active ? "text-blue-200" : "text-slate-400 dark:text-slate-500"} />
                             )}
                             <ChevronRight
                               size={12}
                               className={`shrink-0 transition-transform ${
-                                active ? "text-white" : "text-slate-300 opacity-0 group-hover:opacity-100"
+                                active ? "text-white" : "text-slate-300 dark:text-slate-600 opacity-0 group-hover:opacity-100"
                               }`}
                             />
                           </div>
@@ -344,7 +349,7 @@ export default function Settings() {
       </aside>
 
       {/* ── Right Content Canvas: Inlined & Aligned ── */}
-      <main className="flex-1 min-w-0 p-6 lg:p-7 bg-white">
+      <main className="flex-1 min-w-0 p-6 lg:p-7 bg-white dark:bg-[#111827]">
         {/* Active Tab Content Render — persistent tab states to prevent reload/unmount */}
         {mountedTabs.has("roles") && (
           <div className={activeTab === "roles" ? "block" : "hidden"}>

@@ -10,41 +10,73 @@ import { notify } from "@/lib/notify";
 import {
   LayoutDashboard, Building2, PackageOpen, Box, CalendarCheck,
   FileBarChart2, Settings, ShieldCheck, ChevronRight,
-  ChevronDown, Menu, X, LogOut, Globe, Monitor, Loader2, Sun, Moon
+  ChevronDown, Menu, X, LogOut, Globe, Monitor, Loader2, Sun, Moon,
+  PackageCheck, RotateCcw, User, History
 } from "lucide-react";
 import NotificationDropdown from "@/components/notifications/NotificationDropdown";
 import IncidentDetailModal from "@/components/notifications/IncidentDetailModal";
 import PendingTasksIndicator from "@/components/notifications/PendingTasksIndicator";
 import ConfirmModal from "@/components/ui/ConfirmModal";
 
-const NAV_GROUPS = [
+const STUDENT_ASSISTANT_NAV_GROUPS = [
   {
-    title: "INTERFACE",
+    title: "WORKSPACE",
     items: [
-      { label: "Interface",           icon: Monitor,          path: "/interface/venue",            roles: ["super_admin", "admin", "staff"], permissionKey: "interface" },
+      { label: "Dashboard",           icon: LayoutDashboard, path: "/general/dashboard" },
+      { label: "Today's Reservations", icon: CalendarCheck,   path: "/general/today-reservations" },
     ],
   },
   {
+    title: "TRANSACTIONS",
+    items: [
+      { label: "Equipment Release",   icon: PackageCheck,    path: "/general/equipment-release" },
+      { label: "Equipment Return",    icon: RotateCcw,       path: "/general/equipment-return" },
+    ],
+  },
+  {
+    title: "INVENTORY",
+    items: [
+      { label: "Equipment",           icon: Box,             path: "/general/manage-equipments" },
+      { label: "Equipment Status",    icon: PackageOpen,     path: "/general/equipment-borrowing" },
+    ],
+  },
+  {
+    title: "ACTIVITY",
+    items: [
+      { label: "Transaction History", icon: History,         path: "/general/history-log" },
+    ],
+  },
+  {
+    title: "ACCOUNT",
+    items: [
+      { label: "Profile",             icon: User,            path: "/general/settings?tab=profile" },
+    ],
+  },
+];
+
+const STAFF_NAV_GROUPS = [
+  {
     title: "GLOBAL OVERVIEW",
     items: [
-      { label: "Dashboard",           icon: LayoutDashboard, path: "/general/dashboard",          roles: ["super_admin", "admin", "staff"], permissionKey: "dashboard" },
-      { label: "Venue Booking",       icon: Building2,        path: "/general/venue-bookings",     roles: ["super_admin", "admin", "staff"], permissionKey: "venue_bookings" },
-      { label: "Equipment Borrowing", icon: PackageOpen,      path: "/general/equipment-borrowing",roles: ["super_admin", "admin", "staff"], permissionKey: "equipment_borrowing" },
+      { label: "Dashboard",           icon: LayoutDashboard, path: "/general/dashboard",           permissionKey: "dashboard" },
+      { label: "Venue Booking",       icon: Building2,        path: "/general/venue-bookings",      permissionKey: "venue_bookings" },
+      { label: "Equipment Borrowing", icon: PackageOpen,      path: "/general/equipment-borrowing", permissionKey: "equipment_borrowing" },
     ],
   },
   {
     title: "RECORDS & INVENTORY",
     items: [
-      { label: "Manage Equipment",    icon: Box,              path: "/general/manage-equipments",  roles: ["super_admin", "admin", "staff"], permissionKey: "manage_equipments" },
-      { label: "Manage Venue",        icon: CalendarCheck,    path: "/general/manage-venues",      roles: ["super_admin", "admin", "staff"], permissionKey: "manage_venues" },
-      { label: "Report",              icon: FileBarChart2,    path: "/general/reports",            roles: ["super_admin", "admin", "staff"], permissionKey: "reports" },
-      { label: "History Log",         icon: FileBarChart2,    path: "/general/history-log",        roles: ["super_admin", "admin", "staff"], permissionKey: "history_log" },
+      { label: "Manage Equipment",    icon: Box,              path: "/general/manage-equipments",   permissionKey: "manage_equipments" },
+      { label: "Manage Venue",        icon: CalendarCheck,    path: "/general/manage-venues",       permissionKey: "manage_venues" },
+      { label: "Report",              icon: FileBarChart2,    path: "/general/reports",             permissionKey: "reports" },
+      { label: "History Log",         icon: History,          path: "/general/history-log",         permissionKey: "history_log" },
     ],
   },
   {
-    title: "SYSTEM CONTROL",
+    title: "ACCOUNT",
     items: [
-      { label: "Settings",            icon: Settings,         path: "/general/settings",           roles: ["super_admin", "admin", "staff"], permissionKey: "settings" },
+      { label: "Profile",             icon: User,            path: "/general/settings?tab=profile" },
+      { label: "Settings",            icon: Settings,        path: "/general/settings",            permissionKey: "settings" },
     ],
   },
 ];
@@ -58,6 +90,14 @@ export default function GeneralLayout() {
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  // Sync theme with document element
+  useEffect(() => {
+    // Keep user's preferred theme or default to dark for internal management if not set
+    if (!localStorage.getItem("fsuu_theme")) {
+      document.documentElement.classList.add("dark");
+    }
+  }, []);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [showNotifDropdown, setShowNotifDropdown] = useState(false);
   const [selectedOffice, setSelectedOffice] = useState("All Offices");
@@ -220,6 +260,24 @@ export default function GeneralLayout() {
         subtitle: `${getGreeting()}, ${adminName} • Live facility utilization & inventory overview.`
       };
     }
+    if (path.includes("/today-reservations")) {
+      return {
+        title: "Today's Reservations",
+        subtitle: "Real-time daily schedule of facility bookings and equipment requisitions."
+      };
+    }
+    if (path.includes("/equipment-release")) {
+      return {
+        title: "Equipment Release Desk",
+        subtitle: "Verify booking references, inspect physical units, and record handover."
+      };
+    }
+    if (path.includes("/equipment-return")) {
+      return {
+        title: "Equipment Return & Inspection",
+        subtitle: "Inspect physical condition of returned units, record damage notes, and confirm returns."
+      };
+    }
     if (path.includes("/interface")) {
       return {
         title: "Interface",
@@ -277,7 +335,7 @@ export default function GeneralLayout() {
   const currentFeature = getFeatureDetails(location.pathname);
 
   return (
-    <div className={`min-h-screen flex font-sans antialiased relative ${isDark ? "bg-[#0b132b] text-slate-100" : "bg-[#f8fafc] text-slate-900"}`}>
+    <div className="min-h-screen flex font-sans antialiased relative bg-background text-foreground">
 
       {/* ── Logout Confirm Modal ── */}
       <ConfirmModal
@@ -294,10 +352,10 @@ export default function GeneralLayout() {
       {/* ── Logout Loading Overlay ── */}
       {isLoggingOut && (
         <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex flex-col items-center justify-center text-white animate-in fade-in duration-200">
-          <div className="bg-[#0B1F3A] p-7 rounded-3xl border border-slate-700/80 shadow-2xl flex flex-col items-center gap-3 text-center max-w-xs mx-4">
-            <Loader2 size={36} className="animate-spin text-blue-500" />
-            <p className="text-sm font-extrabold text-white tracking-tight">Signing out...</p>
-            <p className="text-xs text-slate-400 font-medium">Securing and clearing your session</p>
+          <div className="bg-card p-7 rounded-2xl border border-border shadow-2xl flex flex-col items-center gap-3 text-center max-w-xs mx-4">
+            <Loader2 size={36} className="animate-spin text-primary" />
+            <p className="text-sm font-bold text-foreground tracking-tight">Signing out...</p>
+            <p className="text-xs text-muted-foreground font-normal">Securing and clearing your session</p>
           </div>
         </div>
       )}
@@ -306,34 +364,29 @@ export default function GeneralLayout() {
       <aside
         className={`
           fixed inset-y-0 left-0 z-40 flex flex-col transition-all duration-300 ease-in-out overflow-hidden
-          ${isDark
-            ? "bg-slate-900 text-white border-r border-slate-800"
-            : "bg-white text-slate-900 border-r border-slate-200 shadow-sm"
-          }
+          bg-sidebar text-sidebar-foreground border-r border-sidebar-border shadow-xs
           ${sidebarOpen ? "w-64" : "w-[68px]"}
           ${mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
         `}
       >
         {/* Brand Header */}
-        <div className={`flex items-center gap-3 px-4 py-4 border-b h-[65px] overflow-hidden whitespace-nowrap ${isDark ? "border-slate-800" : "border-slate-100"}`}>
+        <div className="flex items-center gap-3 px-4 py-4 border-b border-sidebar-border h-[65px] overflow-hidden whitespace-nowrap">
           <img src="/fsuu_logo.png" alt="FSUU" className="h-9 w-9 flex-shrink-0 object-contain" />
           <div className="flex flex-col min-w-0 overflow-hidden">
-            <span className={`font-bold text-sm tracking-tight leading-tight truncate ${isDark ? "text-white" : "text-slate-900"}`}>
+            <span className="font-bold text-sm tracking-tight leading-tight truncate text-sidebar-foreground">
               FSUU
             </span>
-            <span className={`text-[11px] font-medium tracking-wide mt-0.5 truncate ${isDark ? "text-slate-400" : "text-slate-500"}`}>
-              {officeName || "General Operations"}
+            <span className="text-[11px] font-normal tracking-wide mt-0.5 truncate text-muted-foreground">
+              PMO Office
             </span>
           </div>
         </div>
 
         {/* Grouped Navigation */}
-        <nav className={`flex-1 overflow-y-auto py-5 px-3 space-y-6 scrollbar-none overflow-x-hidden`}>
-          {NAV_GROUPS.map((group) => {
+        <nav className="flex-1 overflow-y-auto py-5 px-3 space-y-6 scrollbar-none overflow-x-hidden">
+          {(isStudentAssistant ? STUDENT_ASSISTANT_NAV_GROUPS : STAFF_NAV_GROUPS).map((group) => {
             const filteredItems = group.items.filter(item => {
-              if (item.label === "Interface" && isStudentAssistant) {
-                return false;
-              }
+              if (isStudentAssistant) return true;
               if (isSuperAdmin) return true;
               if (item.permissionKey) {
                 return hasPermission(item.permissionKey);
@@ -345,7 +398,7 @@ export default function GeneralLayout() {
             return (
               <div key={group.title} className="space-y-1.5 overflow-hidden">
                 <div className="px-3 pb-1 pt-1 overflow-hidden">
-                  <p className={`text-[10px] font-bold tracking-widest uppercase truncate leading-none overflow-hidden whitespace-nowrap ${isDark ? "text-slate-400" : "text-slate-400"}`}>
+                  <p className="text-[10px] font-bold tracking-widest uppercase truncate leading-none overflow-hidden whitespace-nowrap text-muted-foreground">
                     {sidebarOpen ? group.title : "—"}
                   </p>
                 </div>
@@ -361,17 +414,15 @@ export default function GeneralLayout() {
                         className={`
                           flex items-center gap-3 px-3 py-2 rounded-lg font-medium text-xs transition-colors duration-150 relative overflow-hidden whitespace-nowrap w-full
                           ${active
-                            ? "bg-blue-600 text-white"
-                            : isDark
-                              ? "text-slate-300 hover:text-white hover:bg-slate-800"
-                              : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                            ? "bg-primary text-primary-foreground font-semibold shadow-2xs"
+                            : "text-muted-foreground hover:text-foreground hover:bg-muted"
                           }
                         `}
                       >
                         <div className="w-5 h-5 flex-shrink-0 flex items-center justify-center">
                           <Icon size={16} />
                         </div>
-                        <span className="truncate">{label}</span>
+                        <span className="truncate flex-1">{label}</span>
                       </Link>
                     );
                   })}
@@ -385,7 +436,7 @@ export default function GeneralLayout() {
         <button
           type="button"
           onClick={() => setSidebarOpen(v => !v)}
-          className={`hidden lg:flex items-center h-9 mx-2.5 mb-2 px-2.5 rounded-lg transition-colors text-xs gap-3 font-medium cursor-pointer overflow-hidden whitespace-nowrap ${isDark ? "text-slate-400 hover:text-white hover:bg-slate-800" : "text-slate-500 hover:text-slate-900 hover:bg-slate-100"}`}
+          className="hidden lg:flex items-center h-9 mx-2.5 mb-2 px-2.5 rounded-lg transition-colors text-xs gap-3 font-medium cursor-pointer overflow-hidden whitespace-nowrap text-muted-foreground hover:text-foreground hover:bg-muted"
         >
           <div className="w-5 h-5 flex-shrink-0 flex items-center justify-center">
             <ChevronRight size={14} className={`transition-transform duration-200 ${sidebarOpen ? "rotate-180" : ""}`} />
@@ -394,14 +445,14 @@ export default function GeneralLayout() {
         </button>
 
         {/* User Card */}
-        <div className={`border-t p-2.5 overflow-hidden whitespace-nowrap ${isDark ? "border-slate-800 bg-slate-900" : "border-slate-100 bg-white"}`}>
+        <div className="border-t border-sidebar-border p-2.5 overflow-hidden whitespace-nowrap bg-sidebar">
           {sidebarOpen ? (
             <>
               <div
                 onClick={() => setUserMenuOpen(v => !v)}
-                className={`flex items-center gap-2.5 p-1.5 rounded-lg transition-colors cursor-pointer overflow-hidden w-full ${isDark ? "hover:bg-slate-800" : "hover:bg-slate-100"}`}
+                className="flex items-center gap-2.5 p-1.5 rounded-lg transition-colors cursor-pointer overflow-hidden w-full hover:bg-muted"
               >
-                <div className={`w-8 h-8 rounded-full border flex items-center justify-center text-xs font-semibold flex-shrink-0 overflow-hidden ${isDark ? "bg-slate-800 text-slate-200 border-slate-700" : "bg-slate-100 text-slate-700 border-slate-200"}`}>
+                <div className="w-8 h-8 rounded-full border border-sidebar-border bg-muted flex items-center justify-center text-xs font-semibold flex-shrink-0 overflow-hidden text-foreground">
                   {adminAvatar ? (
                     <img src={adminAvatar} alt={adminName} className="w-full h-full object-cover" />
                   ) : (
@@ -409,18 +460,18 @@ export default function GeneralLayout() {
                   )}
                 </div>
                 <div className="flex-1 min-w-0 overflow-hidden">
-                  <p className={`text-xs font-medium truncate ${isDark ? "text-slate-200" : "text-slate-800"}`}>{adminName}</p>
-                  <p className={`text-[10.5px] truncate capitalize ${isDark ? "text-slate-400" : "text-slate-500"}`}>{userRole.replace("_", " ")}</p>
+                  <p className="text-xs font-medium truncate text-foreground">{adminName}</p>
+                  <p className="text-[10.5px] truncate capitalize text-muted-foreground">{userRole.replace("_", " ")}</p>
                 </div>
-                <ChevronDown size={13} className={`flex-shrink-0 transition-transform ${userMenuOpen ? "rotate-180" : ""} ${isDark ? "text-slate-400" : "text-slate-400"}`} />
+                <ChevronDown size={13} className={`flex-shrink-0 transition-transform ${userMenuOpen ? "rotate-180" : ""} text-muted-foreground`} />
               </div>
 
               {userMenuOpen && (
-                <div className={`pt-1.5 border-t mt-1 ${isDark ? "border-slate-800" : "border-slate-100"}`}>
+                <div className="pt-1.5 border-t border-sidebar-border mt-1">
                   <button
                     type="button"
                     onClick={() => setShowLogoutConfirm(true)}
-                    className="w-full flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors cursor-pointer"
+                    className="w-full flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-destructive hover:bg-destructive/10 rounded-lg transition-colors cursor-pointer"
                   >
                     <LogOut size={13} /> Sign Out
                   </button>
@@ -433,7 +484,7 @@ export default function GeneralLayout() {
                 type="button"
                 onClick={() => setShowLogoutConfirm(true)}
                 title={`Sign Out (${adminName})`}
-                className={`w-9 h-9 rounded-xl border flex items-center justify-center transition-all cursor-pointer shadow-xs hover:bg-rose-500/20 hover:text-rose-400 hover:border-rose-500/40 ${isDark ? "bg-slate-800/80 text-slate-300 border-slate-700" : "bg-slate-100 text-slate-600 border-slate-200"}`}
+                className="w-9 h-9 rounded-xl border border-sidebar-border bg-muted text-muted-foreground flex items-center justify-center transition-all cursor-pointer shadow-xs hover:bg-destructive/15 hover:text-destructive"
               >
                 <LogOut size={16} />
               </button>
@@ -445,7 +496,7 @@ export default function GeneralLayout() {
       {/* Mobile Backdrop */}
       {mobileOpen && (
         <div
-          className="fixed inset-0 bg-slate-950/40 z-30 lg:hidden"
+          className="fixed inset-0 bg-slate-950/40 z-30 lg:hidden backdrop-blur-xs"
           onClick={() => setMobileOpen(false)}
         />
       )}
@@ -454,11 +505,11 @@ export default function GeneralLayout() {
       <div className={`flex-1 flex flex-col min-h-screen min-w-0 overflow-x-hidden transition-all duration-300 ${sidebarOpen ? "lg:ml-64" : "lg:ml-[68px]"}`}>
 
         {/* Top Header */}
-        <header className={`sticky top-0 z-20 border-b shadow-2xs ${isDark ? "bg-[#0b132b] border-slate-800 text-white" : "bg-white border-slate-200 text-slate-900"}`}>
+        <header className="sticky top-0 z-20 border-b border-border bg-card/95 backdrop-blur-xs text-foreground shadow-2xs">
           <div className="flex items-center justify-between px-4 sm:px-6 h-14 sm:h-16">
             <div className="flex items-center gap-3 sm:gap-4 min-w-0">
               <button
-                className={`lg:hidden p-1.5 sm:p-2 rounded-lg transition-colors flex-shrink-0 ${isDark ? "text-slate-300 hover:text-white hover:bg-slate-800" : "text-slate-600 hover:bg-slate-100"}`}
+                className="lg:hidden p-1.5 sm:p-2 rounded-lg transition-colors flex-shrink-0 text-muted-foreground hover:text-foreground hover:bg-muted"
                 onClick={() => setMobileOpen(v => !v)}
               >
                 {mobileOpen ? <X size={18} /> : <Menu size={18} />}
@@ -466,11 +517,11 @@ export default function GeneralLayout() {
 
               <div className="flex flex-col justify-center min-w-0">
                 <div className="flex items-center gap-2">
-                  <h1 className={`font-extrabold text-sm sm:text-base lg:text-lg tracking-tight truncate ${isDark ? "text-white" : "text-slate-900"}`}>
+                  <h1 className="font-bold text-sm sm:text-base lg:text-lg tracking-tight truncate text-foreground">
                     {currentFeature.title}
                   </h1>
                 </div>
-                <p className={`text-xs font-normal mt-0.5 hidden sm:block truncate ${isDark ? "text-slate-400" : "text-slate-500"}`}>
+                <p className="text-xs font-normal mt-0.5 hidden sm:block truncate text-muted-foreground">
                   {currentFeature.subtitle}
                 </p>
               </div>
@@ -486,7 +537,7 @@ export default function GeneralLayout() {
                 type="button"
                 onClick={toggleTheme}
                 title={theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
-                className={`p-2 rounded-lg transition-colors cursor-pointer ${isDark ? "text-slate-300 hover:text-white hover:bg-slate-800" : "text-slate-500 hover:text-slate-900 hover:bg-slate-100"}`}
+                className="p-2 rounded-lg transition-colors cursor-pointer text-muted-foreground hover:text-foreground hover:bg-muted min-h-[36px] min-w-[36px] flex items-center justify-center"
               >
                 {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
               </button>

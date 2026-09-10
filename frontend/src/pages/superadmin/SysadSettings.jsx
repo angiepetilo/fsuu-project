@@ -75,10 +75,10 @@ const SYSAD_CATEGORIES = [
   {
     id: "account",
     label: "Account",
-    icon: Sliders,
+    icon: User,
     items: [
-      { id: "system_settings",   label: "System Settings",             desc: "Brevo SMTP & portal branding",    icon: Sliders, protected: true },
       { id: "profile",           label: "Profile",                     desc: "Super Admin credentials",         icon: User },
+      { id: "system_settings",   label: "System Settings",             desc: "Brevo SMTP & portal branding",    icon: Sliders, protected: true },
     ]
   }
 ];
@@ -230,11 +230,11 @@ export default function SysadSettings() {
       </div>
 
       {/* ── Main Container: Left Sub-Menu + Right Content Canvas ── */}
-      <div className="bg-white rounded-xl border border-slate-200 flex flex-col md:flex-row overflow-hidden min-h-[580px]">
+      <div className="bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-slate-800 flex flex-col md:flex-row overflow-hidden min-h-[580px]">
         {/* Left Sub-Menu Navigation */}
-        <aside className="w-full md:w-56 shrink-0 bg-white border-b md:border-b-0 md:border-r border-slate-100 py-3 px-2">
-          <div className="px-2.5 pb-2 mb-1.5 border-b border-slate-100">
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+        <aside className="w-full md:w-56 shrink-0 bg-white dark:bg-slate-900/60 border-b md:border-b-0 md:border-r border-slate-100 dark:border-slate-800 py-3 px-2">
+          <div className="px-2.5 pb-2 mb-1.5 border-b border-slate-100 dark:border-slate-800">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
               {currentCategory.label}
             </span>
           </div>
@@ -251,19 +251,19 @@ export default function SysadSettings() {
                   onClick={() => handleTabClick(item.id)}
                   className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-left text-xs transition-colors cursor-pointer select-none ${
                     isActive
-                      ? "border-l-2 border-blue-600 bg-blue-50/70 text-blue-600 font-semibold"
-                      : "border-l-2 border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-50 font-normal"
+                      ? "border-l-2 border-blue-600 bg-blue-50/70 dark:bg-blue-950/60 text-blue-600 dark:text-blue-300 font-semibold"
+                      : "border-l-2 border-transparent text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/60 font-normal"
                   }`}
                 >
                   <div className="flex items-center gap-2 min-w-0">
                     <ItemIcon
                       size={14}
-                      className={`shrink-0 ${isActive ? "text-blue-600" : "text-slate-400"}`}
+                      className={`shrink-0 ${isActive ? "text-blue-600 dark:text-blue-400" : "text-slate-400 dark:text-slate-500"}`}
                     />
                     <span className="truncate">{item.label}</span>
                   </div>
                   {isProtected && (
-                    <Lock size={11} className={isActive ? "text-blue-500" : "text-slate-400"} />
+                    <Lock size={11} className={isActive ? "text-blue-500" : "text-slate-400 dark:text-slate-500"} />
                   )}
                 </button>
               );
@@ -272,7 +272,7 @@ export default function SysadSettings() {
         </aside>
 
         {/* ── Right Content Canvas: Inlined & Aligned ── */}
-        <main className="flex-1 min-w-0 p-5 lg:p-6 bg-white">
+        <main className="flex-1 min-w-0 p-5 lg:p-6 bg-white dark:bg-[#111827]">
         {/* Active Tab Content Render — persistent tab states to prevent reload/unmount */}
         {mountedTabs.has("users") && (
           <div className={activeTab === "users" ? "block" : "hidden"}>

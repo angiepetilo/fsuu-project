@@ -37,7 +37,7 @@ export default function LandingPage() {
   };
 
   return (
-    <div className="w-full text-[#0f172a] font-sans relative">
+    <div className="w-full text-foreground relative">
 
       {/* Hero Section */}
       <Hero />
@@ -46,24 +46,24 @@ export default function LandingPage() {
       <FeatureCards />
 
       {/* Booking Requirements Section */}
-      <section className="bg-white border border-slate-200 rounded-2xl p-6 sm:p-8 mb-10 shadow-xs relative overflow-hidden">
-        <div className="absolute top-0 left-0 w-1.5 h-full bg-gradient-to-b from-blue-600 to-amber-500" />
+      <section className="bg-card border border-border rounded-2xl p-6 sm:p-8 mb-10 shadow-xs relative overflow-hidden transition-colors">
+        <div className="absolute top-0 left-0 w-1 h-full bg-primary" />
 
         <div className="mb-6">
-          <h2 className="text-lg font-extrabold text-slate-900">
+          <h2 className="text-lg sm:text-xl font-bold text-foreground">
             Requirements Needed Before Venue Booking
           </h2>
-          <p className="text-xs text-slate-500 font-medium mt-0.5">
+          <p className="text-xs sm:text-sm text-muted-foreground font-normal mt-1">
             Review official endorsement letter structures and signatory clearance requirements.
           </p>
         </div>
 
         {loading ? (
-          <div className="py-8 text-center text-slate-400 text-xs font-semibold">
+          <div className="py-8 text-center text-muted-foreground text-xs font-medium">
             <Loader2 className="animate-spin inline mr-2" size={16} /> Loading booking requirements...
           </div>
         ) : uniqueRequirements.length === 0 ? (
-          <div className="bg-slate-50 border border-slate-200/80 p-5 rounded-xl text-center text-xs text-slate-500 font-medium">
+          <div className="bg-muted/40 border border-border p-5 rounded-xl text-center text-xs text-muted-foreground font-medium">
             No specific venue booking requirements configured.
           </div>
         ) : (
@@ -71,35 +71,35 @@ export default function LandingPage() {
             {uniqueRequirements.map((req, idx) => {
               const isAcad = String(req.classification || "").toLowerCase().includes("acad");
               return (
-                <div key={req.id || idx} className="bg-slate-50 border border-slate-200/80 p-5 rounded-xl transition-all duration-200 hover:border-slate-300 hover:shadow-xs flex flex-col justify-between space-y-3">
+                <div key={req.id || idx} className="bg-muted/30 border border-border/80 p-5 rounded-xl transition-all duration-200 hover:border-border flex flex-col justify-between space-y-3">
                   <div>
                     <div className="flex items-center justify-between gap-2 mb-2">
-                      <p className="text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200/60 inline-block px-2.5 py-0.5 rounded-md capitalize">
+                      <p className="text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200/60 dark:bg-emerald-500/15 dark:text-emerald-400 dark:border-emerald-500/30 inline-block px-2.5 py-0.5 rounded-md capitalize">
                         {req.classification || "General Requirement"}
                       </p>
                     </div>
 
-                    <p className="text-sm font-bold text-slate-900 mb-2 leading-snug">
+                    <p className="text-sm font-semibold text-foreground mb-1.5 leading-snug">
                       {req.label}
                     </p>
 
                     {req.description && (
-                      <p className="text-xs text-slate-500 font-medium">
+                      <p className="text-xs text-muted-foreground font-normal">
                         {req.description}
                       </p>
                     )}
                   </div>
 
-                  <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between">
-                    <span className="text-[11px] font-medium text-slate-500">
+                  <div className="pt-2.5 border-t border-border/60 flex items-center justify-between gap-2">
+                    <span className="text-[11px] font-normal text-muted-foreground">
                       Signatures: Dean, {isAcad ? "OVPASA" : "OISAA"}, PMO
                     </span>
                     <button
                       type="button"
                       onClick={() => handleOpenTemplate(req.classification)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-100 text-slate-900 border border-slate-300 rounded-lg text-xs font-bold transition-all shadow-2xs cursor-pointer"
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-card hover:bg-muted text-foreground border border-border rounded-lg text-xs font-semibold transition-all shadow-2xs cursor-pointer min-h-[36px]"
                     >
-                      <FileText size={13} className="text-blue-600" />
+                      <FileText size={13} className="text-primary" />
                       <span>View Format</span>
                     </button>
                   </div>
@@ -110,8 +110,8 @@ export default function LandingPage() {
         )}
 
         {/* Important Payment Notice */}
-        <div className="mt-5 p-4 bg-blue-50/70 border-l-4 border-blue-600 rounded-r-xl text-xs text-blue-950 font-medium leading-relaxed">
-          <span className="font-bold text-blue-900">Important Payment Notice for external users:</span> Payment scheduling and transaction details will be finalized only after the request receives administrative approval.
+        <div className="mt-6 p-4 bg-primary/10 border-l-4 border-primary rounded-r-xl text-xs text-foreground font-normal leading-relaxed">
+          <span className="font-semibold text-foreground">Important Payment Notice for external users:</span> Payment scheduling and transaction details will be finalized only after the request receives administrative approval.
         </div>
       </section>
 
@@ -123,13 +123,13 @@ export default function LandingPage() {
       />
 
       {/* Action Links Below Requirements Card */}
-      <div className="flex items-center justify-center gap-6 my-8 text-xs font-semibold text-slate-500">
+      <div className="flex items-center justify-center gap-6 my-8 text-xs font-medium text-muted-foreground">
         <Link
           to="/login"
-          className="flex items-center gap-2 hover:text-slate-800 transition-colors group"
+          className="flex items-center gap-2 hover:text-foreground transition-colors group py-2 px-3 rounded-lg min-h-[44px]"
         >
-          <span className="w-1.5 h-1.5 rounded-full bg-rose-500 group-hover:scale-125 transition-transform" />
-          <span>login</span>
+          <span className="w-1.5 h-1.5 rounded-full bg-primary group-hover:scale-125 transition-transform" />
+          <span>Staff & Administrative Access</span>
         </Link>
       </div>
 

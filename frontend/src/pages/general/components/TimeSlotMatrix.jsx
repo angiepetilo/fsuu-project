@@ -71,12 +71,12 @@ export default function TimeSlotMatrix({
   const resourceHeader = title.toLowerCase().includes("venue") ? "Venue / Facility" : "Equipment Resource";
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+    <div className="bg-white dark:bg-[#111827] rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden">
       {/* Top Header */}
-      <div className="p-4 bg-slate-50/80 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
+      <div className="p-4 bg-slate-50/80 dark:bg-slate-900/80 border-b border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h3 className="font-extrabold text-slate-900 text-sm">{title}</h3>
-          <p className="text-xs text-slate-500 font-semibold">{formattedDateTitle}</p>
+          <h3 className="font-extrabold text-slate-900 dark:text-white text-sm">{title}</h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold">{formattedDateTitle}</p>
         </div>
       </div>
 
@@ -84,16 +84,16 @@ export default function TimeSlotMatrix({
       <div className="overflow-x-auto">
         <div className="min-w-[860px]">
           {/* Table Header Row */}
-          <div className="grid grid-cols-[240px_1fr] bg-slate-100/90 border-b border-slate-200 text-[11px] font-mono font-bold text-slate-600">
-            <div className="p-3 border-r border-slate-200 font-sans font-extrabold text-slate-900 flex items-center">
+          <div className="grid grid-cols-[240px_1fr] bg-slate-100/90 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 text-[11px] font-mono font-bold text-slate-700 dark:text-slate-200">
+            <div className="p-3 border-r border-slate-200 dark:border-slate-700 font-sans font-extrabold text-slate-900 dark:text-white flex items-center">
               <span>{resourceHeader}</span>
             </div>
             <div className="grid" style={{ gridTemplateColumns: `repeat(${hourSlots.length}, minmax(0, 1fr))` }}>
               {hourSlots.map((h) => (
                 <div
                   key={h}
-                  className={`p-2.5 text-center border-r border-slate-200 last:border-r-0 ${
-                    h === 12 ? "bg-slate-200/50 text-slate-800" : ""
+                  className={`p-2.5 text-center border-r border-slate-200 dark:border-slate-700 last:border-r-0 text-slate-700 dark:text-slate-200 font-bold ${
+                    h === 12 ? "bg-slate-200/60 dark:bg-slate-700/60 text-slate-900 dark:text-white" : ""
                   }`}
                 >
                   {formatHourLabel(h)}
@@ -104,11 +104,11 @@ export default function TimeSlotMatrix({
 
           {/* Table Body Rows */}
           {items.length === 0 ? (
-            <div className="p-8 text-center text-xs font-semibold text-slate-400">
+            <div className="p-8 text-center text-xs font-semibold text-slate-400 dark:text-slate-500">
               {emptyLabel}
             </div>
           ) : (
-            <div className="divide-y divide-slate-100">
+            <div className="divide-y divide-slate-100 dark:divide-slate-800">
               {items.map((item) => {
                 // Find all schedules matching this specific row/item (by ID or Barcode)
                 const rowSchedules = (Array.isArray(schedules) ? schedules : []).filter(
@@ -121,15 +121,15 @@ export default function TimeSlotMatrix({
                 return (
                   <div
                     key={item.id}
-                    className="grid grid-cols-[240px_1fr] hover:bg-slate-50/50 transition-colors group"
+                    className="grid grid-cols-[240px_1fr] hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors group"
                   >
                     {/* Left Column: Resource Title */}
-                    <div className="p-3 border-r border-slate-200 bg-white group-hover:bg-slate-50/50 transition-colors flex flex-col justify-center">
-                      <span className="font-extrabold text-slate-900 text-xs leading-tight">
+                    <div className="p-3 border-r border-slate-200 dark:border-slate-700 bg-white dark:bg-[#111827] group-hover:bg-slate-50/50 dark:group-hover:bg-slate-800/40 transition-colors flex flex-col justify-center">
+                      <span className="font-extrabold text-slate-900 dark:text-white text-xs leading-tight">
                         {item.name}
                       </span>
                       {(item.subtitle || item.code) && (
-                        <span className="text-[10.5px] font-mono text-slate-500 font-semibold mt-0.5">
+                        <span className="text-[10.5px] font-mono text-slate-500 dark:text-slate-400 font-semibold mt-0.5">
                           {item.code ? `[${item.code}] ` : ""}
                           {item.subtitle}
                         </span>
@@ -137,7 +137,7 @@ export default function TimeSlotMatrix({
                     </div>
 
                     {/* Right Column: Time-Slot Gantt Timeline Area */}
-                    <div className="relative h-16 bg-white group-hover:bg-slate-50/50 transition-colors">
+                    <div className="relative h-16 bg-white dark:bg-[#111827] group-hover:bg-slate-50/50 dark:group-hover:bg-slate-800/40 transition-colors">
                       {/* Background Hourly Grid Lines */}
                       <div
                         className="absolute inset-0 grid pointer-events-none"
@@ -146,8 +146,8 @@ export default function TimeSlotMatrix({
                         {hourSlots.map((h) => (
                           <div
                             key={h}
-                            className={`border-r border-slate-100/90 last:border-r-0 h-full ${
-                              h === 12 ? "bg-slate-50/40" : ""
+                            className={`border-r border-slate-100/90 dark:border-slate-800/80 last:border-r-0 h-full ${
+                              h === 12 ? "bg-slate-50/40 dark:bg-slate-800/30" : ""
                             }`}
                           />
                         ))}

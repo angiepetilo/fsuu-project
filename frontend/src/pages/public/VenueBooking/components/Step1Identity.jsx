@@ -22,50 +22,50 @@ export function Step1Identity({
         {/* Role 1: Student */}
         <div
           onClick={() => selectHandler("student")}
-          className={`group bg-white rounded-[24px] p-6 text-center cursor-pointer transition-all duration-300 border-2 flex flex-col items-center justify-center min-h-[190px] ${
+          className={`group bg-white dark:bg-[#111827] rounded-[24px] p-6 text-center cursor-pointer transition-all duration-300 border-2 flex flex-col items-center justify-center min-h-[190px] ${
             currentIdentity === "student"
-              ? "border-blue-500 bg-white shadow-md shadow-blue-500/10 ring-4 ring-blue-50/60 scale-[1.02]"
-              : "border-slate-200/80 shadow-2xs hover:border-blue-300 hover:shadow-md"
+              ? "border-blue-500 bg-white dark:bg-[#111827] shadow-md shadow-blue-500/10 ring-4 ring-blue-50/60 dark:ring-blue-900/40 scale-[1.02]"
+              : "border-slate-200/80 dark:border-slate-800 shadow-2xs hover:border-blue-300 dark:hover:border-blue-500 hover:shadow-md"
           }`}
         >
-          <div className="w-14 h-14 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform shrink-0">
+          <div className="w-14 h-14 rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform shrink-0">
             <GraduationCap size={30} />
           </div>
-          <h3 className="font-extrabold text-slate-900 dark:text-[#F8FAFC] text-base mb-1">Student</h3>
-          <p className="text-xs font-semibold text-slate-500 dark:text-[#CBD5E1]">Enrolled FSUU Student</p>
+          <h3 className="font-extrabold text-slate-900 dark:text-white text-base mb-1">Student</h3>
+          <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">Enrolled FSUU Student</p>
         </div>
 
         {/* Role 2: Faculty */}
         <div
           onClick={() => selectHandler("faculty")}
-          className={`group bg-white rounded-[24px] p-6 text-center cursor-pointer transition-all duration-300 border-2 flex flex-col items-center justify-center min-h-[190px] ${
+          className={`group bg-white dark:bg-[#111827] rounded-[24px] p-6 text-center cursor-pointer transition-all duration-300 border-2 flex flex-col items-center justify-center min-h-[190px] ${
             currentIdentity === "faculty"
-              ? "border-amber-500 bg-white shadow-md shadow-amber-500/10 ring-4 ring-amber-50/60 scale-[1.02]"
-              : "border-slate-200/80 shadow-2xs hover:border-amber-300 hover:shadow-md"
+              ? "border-amber-500 bg-white dark:bg-[#111827] shadow-md shadow-amber-500/10 ring-4 ring-amber-50/60 dark:ring-amber-900/40 scale-[1.02]"
+              : "border-slate-200/80 dark:border-slate-800 shadow-2xs hover:border-amber-300 dark:hover:border-amber-500 hover:shadow-md"
           }`}
         >
-          <div className="w-14 h-14 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform shrink-0">
+          <div className="w-14 h-14 rounded-2xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform shrink-0">
             <Users size={30} />
           </div>
-          <h3 className="font-extrabold text-slate-900 dark:text-[#F8FAFC] text-base mb-1">Faculty</h3>
-          <p className="text-xs font-semibold text-slate-500 dark:text-[#CBD5E1]">Academic or Administrative Dept</p>
+          <h3 className="font-extrabold text-slate-900 dark:text-white text-base mb-1">Faculty</h3>
+          <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">Academic or Administrative Dept</p>
         </div>
 
         {/* Role 3: External User (Only in Portal Interface) */}
         {isPortal && (
           <div
             onClick={() => selectHandler("external")}
-            className={`group bg-white rounded-[24px] p-6 text-center cursor-pointer transition-all duration-300 border-2 flex flex-col items-center justify-center min-h-[190px] ${
+            className={`group bg-white dark:bg-[#111827] rounded-[24px] p-6 text-center cursor-pointer transition-all duration-300 border-2 flex flex-col items-center justify-center min-h-[190px] ${
               currentIdentity === "external"
-                ? "border-emerald-500 bg-white shadow-md shadow-emerald-500/10 ring-4 ring-emerald-50/60 scale-[1.02]"
-                : "border-slate-200/80 shadow-2xs hover:border-emerald-300 hover:shadow-md"
+                ? "border-emerald-500 bg-white dark:bg-[#111827] shadow-md shadow-emerald-500/10 ring-4 ring-emerald-50/60 dark:ring-emerald-900/40 scale-[1.02]"
+                : "border-slate-200/80 dark:border-slate-800 shadow-2xs hover:border-emerald-300 dark:hover:border-emerald-500 hover:shadow-md"
             }`}
           >
-            <div className="w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform shrink-0">
+            <div className="w-14 h-14 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform shrink-0">
               <User size={30} />
             </div>
-            <h3 className="font-extrabold text-slate-900 dark:text-[#F8FAFC] text-base mb-1">External User</h3>
-            <p className="text-xs font-semibold text-slate-500 dark:text-[#CBD5E1]">Guest or Partner Entity</p>
+            <h3 className="font-extrabold text-slate-900 dark:text-white text-base mb-1">External User</h3>
+            <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">Guest or Partner Entity</p>
           </div>
         )}
 

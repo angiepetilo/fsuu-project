@@ -5,7 +5,7 @@ import api from "@/lib/axios";
 import { cleanupLocalStorage } from "@/lib/cleanupLocalStorage";
 import { PageLoader } from "@/components/ui/page-loader";
 import ConfirmModal from "@/components/ui/ConfirmModal";
-import { ThemeProvider } from "@/context/ThemeContext";
+import { ThemeProvider, useTheme } from "@/context/ThemeContext";
 
 // Public — landing page loads eagerly (it's the first paint)
 import LandingPage from "./pages/public/LandingPage/LandingPage";
@@ -35,10 +35,13 @@ const Reports            = lazy(() => import("./pages/general/Reports"));
 const HistoryLog         = lazy(() => import("./pages/general/HistoryLog"));
 const Settings           = lazy(() => import("./pages/general/Settings"));
 const PortalInterface    = lazy(() => import("./pages/general/PortalInterface"));
+const TodayReservations  = lazy(() => import("./pages/general/operations/TodayReservations"));
+const EquipmentRelease   = lazy(() => import("./pages/general/operations/EquipmentRelease"));
+const EquipmentReturn    = lazy(() => import("./pages/general/operations/EquipmentReturn"));
 
 import { Toaster } from "@/components/ui/sonner";
 
-import { LayoutDashboard } from "lucide-react";
+import { LayoutDashboard, Sun, Moon } from "lucide-react";
 
 function ProtectedInterfaceRoute({ children }) {
   const { user, token } = useAuth();
@@ -55,6 +58,8 @@ function AppContent() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, token, logout } = useAuth();
+  const { theme, toggleTheme } = useTheme();
+  const isDark = theme === "dark";
   const userRole = user?.role?.name || user?.role || "staff";
 
   const [showHomeLogoutConfirm, setShowHomeLogoutConfirm] = useState(false);
@@ -167,7 +172,7 @@ function AppContent() {
     <>
       {/* Navigation — public and interface pages */}
       {!hideHeaderFooter && (
-        <header className="fixed top-0 left-0 w-full z-50 bg-white/90 backdrop-blur-md border-b border-slate-200 transition-all shadow-xs">
+        <header className="fixed top-0 left-0 w-full z-50 bg-card/90 backdrop-blur-md border-b border-border transition-colors shadow-xs">
           <div className="max-w-[1280px] mx-auto px-4 sm:px-8 py-2.5 sm:py-3.5 flex flex-col sm:flex-row justify-between items-center gap-2.5 sm:gap-4">
             <div className="w-full sm:w-auto flex items-center justify-between">
               {/* Logo on Left */}
@@ -180,51 +185,62 @@ function AppContent() {
                     navigate("/");
                   }
                 }}
-                className="flex items-center gap-2.5 sm:gap-3.5 text-slate-900 group bg-transparent border-0 p-0 text-left cursor-pointer"
+                className="flex items-center gap-2.5 sm:gap-3 text-foreground group bg-transparent border-0 p-0 text-left cursor-pointer"
               >
-                <img src="/fsuu_logo.png" alt="FSUU Seal" className="h-9 sm:h-11 w-auto transition-transform duration-300 group-hover:scale-105" />
+                <img src="/fsuu_logo.png" alt="FSUU Seal" className="h-9 sm:h-10 w-auto transition-transform duration-200 group-hover:scale-105" />
                 <div className="flex flex-col">
-                  <span className="font-extrabold text-base sm:text-xl tracking-tight text-slate-900 leading-tight">
-                    {publicSettings.header_brand_text || publicSettings.header_branding_text || "Urios"}
+                  <span className="font-bold text-base sm:text-lg tracking-tight text-foreground leading-tight">
+                    Urios
                   </span>
-                  <span className="text-[10px] sm:text-xs text-slate-500 font-semibold">{publicSettings.system_name || "Reserve and Booking System"}</span>
+                  <span className="text-[11px] sm:text-xs text-muted-foreground font-medium">
+                    {publicSettings.system_name || "FSUU Facilities & Equipment Booking System"}
+                  </span>
                 </div>
               </button>
 
-              {/* Mobile Dashboard Button */}
-              {(user || token) && (
-                <div className="sm:hidden">
+              {/* Mobile Right Controls: Theme Toggle & Dashboard */}
+              <div className="flex items-center gap-2 sm:hidden">
+                <button
+                  type="button"
+                  onClick={toggleTheme}
+                  aria-label="Toggle theme"
+                  className="p-2 rounded-lg border border-border bg-card text-muted-foreground hover:text-foreground transition-colors cursor-pointer min-h-[44px] min-w-[44px] flex items-center justify-center"
+                >
+                  {isDark ? <Sun size={17} /> : <Moon size={17} />}
+                </button>
+
+                {(user || token) && (
                   <Link
                     to={userRole === "superadmin" || userRole === "super_admin" ? "/sysad/dashboard" : "/general/dashboard"}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-extrabold bg-blue-600 hover:bg-blue-700 text-white transition-all shadow-xs"
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold bg-primary hover:opacity-90 text-primary-foreground transition-all shadow-xs min-h-[44px]"
                   >
-                    <LayoutDashboard size={13} />
+                    <LayoutDashboard size={14} />
                     <span>Dashboard</span>
                   </Link>
-                </div>
-              )}
+                )}
+              </div>
             </div>
 
-            {/* Right / Below Header Items */}
+            {/* Desktop Right Header Items */}
             <div className="flex items-center gap-3 w-full sm:w-auto justify-center sm:justify-end">
               {(user || token) && location.pathname.startsWith("/interface") && (
-                <div className="flex items-center p-1 bg-slate-100 border border-slate-200 rounded-full w-full sm:w-auto justify-center">
+                <div className="flex items-center p-1 bg-muted border border-border rounded-lg w-full sm:w-auto justify-center">
                   <Link
                     to="/interface/venue"
-                    className={`flex-1 sm:flex-none text-center px-3.5 py-1.5 sm:py-1 rounded-full text-xs font-extrabold transition-all ${
+                    className={`flex-1 sm:flex-none text-center px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all ${
                       location.pathname === "/interface/venue"
-                        ? "bg-blue-600 text-white shadow-xs"
-                        : "text-slate-600 hover:text-slate-900"
+                        ? "bg-primary text-primary-foreground shadow-xs"
+                        : "text-muted-foreground hover:text-foreground"
                     }`}
                   >
                     Book Venue
                   </Link>
                   <Link
                     to="/interface/equipment"
-                    className={`flex-1 sm:flex-none text-center px-3.5 py-1.5 sm:py-1 rounded-full text-xs font-extrabold transition-all ${
+                    className={`flex-1 sm:flex-none text-center px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all ${
                       location.pathname === "/interface/equipment"
-                        ? "bg-blue-600 text-white shadow-xs"
-                        : "text-slate-600 hover:text-slate-900"
+                        ? "bg-primary text-primary-foreground shadow-xs"
+                        : "text-muted-foreground hover:text-foreground"
                     }`}
                   >
                     Borrow Equipment
@@ -232,12 +248,25 @@ function AppContent() {
                 </div>
               )}
 
+              {/* Desktop Theme Switcher */}
+              <div className="hidden sm:flex items-center">
+                <button
+                  type="button"
+                  onClick={toggleTheme}
+                  aria-label="Toggle theme"
+                  className="p-2 rounded-lg border border-border bg-card text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer min-h-[36px] min-w-[36px] flex items-center justify-center"
+                  title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
+                >
+                  {isDark ? <Sun size={16} /> : <Moon size={16} />}
+                </button>
+              </div>
+
               {/* Desktop Dashboard Button */}
               {(user || token) && (
                 <div className="hidden sm:block">
                   <Link
                     to={userRole === "superadmin" || userRole === "super_admin" ? "/sysad/dashboard" : "/general/dashboard"}
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-extrabold bg-blue-600 hover:bg-blue-700 text-white transition-all shadow-xs"
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold bg-primary hover:opacity-90 text-primary-foreground transition-all shadow-xs"
                   >
                     <LayoutDashboard size={14} />
                     <span>Dashboard</span>
@@ -304,6 +333,9 @@ function AppContent() {
               <Route path="manage-venues"       element={<ManageVenues />} />
               <Route path="reports"             element={<Reports />} />
               <Route path="history-log"         element={<HistoryLog />} />
+              <Route path="today-reservations"  element={<TodayReservations />} />
+              <Route path="equipment-release"   element={<EquipmentRelease />} />
+              <Route path="equipment-return"    element={<EquipmentReturn />} />
               <Route path="settings"            element={<SysadSettings />} />
             </Route>
 
@@ -315,6 +347,9 @@ function AppContent() {
             }>
               <Route index                      element={<Navigate to="/general/dashboard" replace />} />
               <Route path="dashboard"           element={<Dashboard />} />
+              <Route path="today-reservations"  element={<TodayReservations />} />
+              <Route path="equipment-release"   element={<EquipmentRelease />} />
+              <Route path="equipment-return"    element={<EquipmentReturn />} />
               <Route path="venue-bookings"      element={<VenueBookings />} />
               <Route path="equipment-borrowing" element={<EquipmentBorrowings />} />
               <Route path="equipment-borrowings" element={<EquipmentBorrowings />} />
@@ -350,31 +385,34 @@ function AppContent() {
       </main>
 
       {!hideHeaderFooter && (
-        <footer className="border-t border-slate-200 dark:border-[#1E2D56] bg-white/80 dark:bg-[#080E21] backdrop-blur-md mt-20 transition-colors">
-          <div className="max-w-[1280px] mx-auto px-6 sm:px-8 py-10 flex flex-col sm:flex-row items-center justify-between gap-6 text-slate-500 dark:text-[#CBD5E1] text-xs">
+        <footer className="border-t border-border bg-card/80 backdrop-blur-md mt-20 transition-colors">
+          <div className="max-w-[1280px] mx-auto px-6 sm:px-8 py-10 flex flex-col sm:flex-row items-center justify-between gap-6 text-muted-foreground text-xs">
             <div className="flex flex-col items-center sm:items-start gap-1">
-              <span className="font-extrabold text-sm text-slate-900 dark:text-[#F8FAFC]">
+              <span className="font-bold text-sm text-foreground">
                 {publicSettings.organization_name || "Father Saturnino Urios University"}
               </span>
-              <span className="text-slate-500 dark:text-[#CBD5E1] font-medium">
+              <span className="text-muted-foreground font-normal">
                 {publicSettings.system_name || "Facilities & Equipment Booking System"}
               </span>
             </div>
 
-            <div className="flex flex-wrap items-center justify-center gap-5 font-semibold text-slate-600 dark:text-[#CBD5E1]">
+            <div className="flex flex-wrap items-center justify-center gap-5 font-medium text-muted-foreground">
               {/* Facebook */}
               {(publicSettings.facebook_url || "https://www.facebook.com/fsuubutuan") && (
-                <a
-                  href={publicSettings.facebook_url || "https://www.facebook.com/fsuubutuan"}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  title="Visit our Facebook page"
-                  className="hover:opacity-75 transition-opacity inline-flex items-center justify-center"
-                >
+                <div className="flex items-center gap-1.5">
                   <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="#1877F2">
                     <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
                   </svg>
-                </a>
+                  <a
+                    href={publicSettings.facebook_url || "https://www.facebook.com/fsuubutuan"}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title="Visit our Facebook page"
+                    className="hover:text-primary transition-colors text-xs"
+                  >
+                    {publicSettings.facebook_name || (publicSettings.facebook_url && publicSettings.facebook_url.includes("facebook.com/") ? publicSettings.facebook_url.split("facebook.com/")[1].replace(/\/$/, '') : null) || "Father Saturnino Urios University"}
+                  </a>
+                </div>
               )}
               {/* Email */}
               {publicSettings.contact_email && (
@@ -383,7 +421,7 @@ function AppContent() {
                     <rect x="2" y="8" width="44" height="32" rx="4" fill="#EA4335"/>
                     <path d="M2 12l22 14 22-14" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round"/>
                   </svg>
-                  <a href={`mailto:${publicSettings.contact_email}`} className="hover:text-blue-600 dark:hover:text-[#93C5FD] transition-colors text-xs">
+                  <a href={`mailto:${publicSettings.contact_email}`} className="hover:text-primary transition-colors text-xs">
                     {publicSettings.contact_email}
                   </a>
                 </div>
@@ -395,14 +433,14 @@ function AppContent() {
                     <circle cx="24" cy="24" r="22" fill="#25D366"/>
                     <path d="M33.4 28.9c-.4-.2-2.4-1.2-2.8-1.3-.4-.2-.6-.2-.9.2-.2.4-.9 1.3-1.1 1.5-.2.2-.4.3-.8.1s-1.6-.6-3-1.9c-1.1-1-1.9-2.2-2.1-2.6-.2-.4 0-.6.2-.8l.6-.7c.2-.2.2-.4.4-.6.1-.2 0-.5 0-.7-.1-.2-.9-2.2-1.2-3-.3-.8-.7-.6-.9-.7H20c-.3 0-.7.1-1 .5-.4.4-1.4 1.3-1.4 3.2s1.4 3.7 1.6 4c.2.2 2.8 4.3 6.8 6 .9.4 1.7.6 2.2.8.9.3 1.8.2 2.4.1.7-.1 2.2-.9 2.5-1.8.3-.9.3-1.6.2-1.8-.1-.2-.3-.3-.7-.5z" fill="#fff"/>
                   </svg>
-                  <a href={`tel:${publicSettings.contact_phone}`} className="hover:text-blue-600 dark:hover:text-[#93C5FD] transition-colors text-xs">
+                  <a href={`tel:${publicSettings.contact_phone}`} className="hover:text-primary transition-colors text-xs">
                     {publicSettings.contact_phone}
                   </a>
                 </div>
               )}
             </div>
 
-            <div className="text-center sm:text-right text-slate-400 dark:text-[#94A3B8] font-medium">
+            <div className="text-center sm:text-right text-muted-foreground font-medium">
               © {new Date().getFullYear()} All rights reserved.
             </div>
           </div>

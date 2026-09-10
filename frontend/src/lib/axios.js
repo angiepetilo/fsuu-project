@@ -16,7 +16,6 @@ const inFlightRequests = new Map();
 const CACHEABLE_ENDPOINTS = [
   '/public/system-settings',
   '/public/operating-hours',
-  '/public/booking-requirements',
   '/public/verification-pin-settings',
   '/public/departments',
   '/public/venue-overrides',

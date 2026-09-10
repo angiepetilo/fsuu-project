@@ -469,25 +469,26 @@ export default function Step2Venue({
                     onClick={() => {
                       if (!isMaintenance) handleVenueSelect(v);
                     }}
-                    className={`relative border-2 rounded-[32px] p-6 transition-all duration-300 flex flex-col justify-between overflow-hidden ${isMaintenance
-                      ? "border-amber-300/80 bg-amber-50/20 opacity-90 cursor-not-allowed shadow-2xs"
-                      : isSelected
-                        ? "border-blue-600 bg-white shadow-lg ring-4 ring-blue-50/60 cursor-pointer"
-                        : "border-slate-100 bg-white hover:border-slate-300 hover:shadow-xs cursor-pointer"
-                      }`}
+                    className={`relative border rounded-2xl p-4 transition-all duration-200 flex flex-col justify-between overflow-hidden ${
+                      isMaintenance
+                        ? "border-amber-300/80 bg-amber-50/20 opacity-90 cursor-not-allowed shadow-2xs"
+                        : isSelected
+                          ? "border-blue-600 bg-white dark:bg-card shadow-md ring-2 ring-blue-500/20 cursor-pointer"
+                          : "border-slate-200 dark:border-border bg-white dark:bg-card hover:border-blue-500/60 hover:shadow-xs cursor-pointer"
+                    }`}
                   >
                     <div>
-                      {/* Venue Image / Placeholder Box - Seamless Full Fit */}
-                      <div className="w-full h-[175px] bg-slate-50 border border-slate-100 rounded-2xl overflow-hidden flex flex-col items-center justify-center text-center relative group">
+                      {/* Venue Image: 100% width, Aspect Ratio 16:9, Radius 12px */}
+                      <div className="w-full aspect-video bg-white dark:bg-[#1E293B] border border-slate-100 dark:border-slate-800 rounded-xl overflow-hidden flex flex-col items-center justify-center text-center relative group p-1">
                         {venueInfo.photo ? (
                           <img
                             src={venueInfo.photo}
                             alt={v.name}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                            className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
                           />
                         ) : (
-                          <div className="p-6 flex flex-col items-center justify-center h-full w-full bg-slate-50">
-                            <span className="text-slate-800 font-extrabold text-sm leading-snug line-clamp-2">
+                          <div className="p-4 flex flex-col items-center justify-center h-full w-full bg-slate-50 dark:bg-muted">
+                            <span className="text-slate-900 dark:text-white font-extrabold text-xs sm:text-sm leading-snug line-clamp-2 uppercase tracking-wide">
                               {v.name}
                             </span>
                           </div>
@@ -495,23 +496,34 @@ export default function Step2Venue({
                       </div>
 
                       {/* Venue Metadata */}
-                      <div className="mt-4 space-y-1">
-                        <h4 className="font-extrabold text-slate-900 text-sm leading-tight line-clamp-1">{v.name}</h4>
-                        <p className="text-xs text-slate-600 font-semibold line-clamp-1">
+                      <div className="mt-3.5 space-y-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <h4 className="font-bold text-slate-900 dark:text-foreground text-sm leading-tight line-clamp-1">
+                            {v.name}
+                          </h4>
+                          <span className={`text-[10.5px] font-bold px-2 py-0.5 rounded-full ${
+                            isMaintenance 
+                              ? "bg-amber-100 text-amber-800"
+                              : "bg-emerald-100 text-emerald-800"
+                          }`}>
+                            {isMaintenance ? "Maintenance" : "Available"}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-500 dark:text-muted-foreground font-medium line-clamp-1">
                           {formatVenueLocation(v)}
                         </p>
-                        <p className="text-xs text-slate-600 font-semibold">
-                          {v.capacity || venueInfo.capacity || 80} seats
+                        <p className="text-xs text-slate-600 dark:text-muted-foreground font-semibold">
+                          Capacity: {v.capacity || venueInfo.capacity || 80} persons
                         </p>
                       </div>
                     </div>
 
-                    {/* Bottom Action Pill Button */}
-                    <div className="mt-5">
+                    {/* Primary Action Button: Height 40-44px, Radius 8-10px */}
+                    <div className="mt-4">
                       {isMaintenance ? (
                         <button
                           disabled
-                          className="w-full py-3 rounded-full border border-amber-300 bg-amber-50 text-amber-800 text-xs font-extrabold flex items-center justify-center gap-1.5 opacity-90 cursor-not-allowed"
+                          className="w-full h-10 rounded-lg border border-amber-300 bg-amber-50 text-amber-800 text-xs font-semibold flex items-center justify-center gap-1.5 opacity-90 cursor-not-allowed"
                         >
                           <AlertTriangle size={14} className="text-amber-600" />
                           <span>Maintenance Block</span>
@@ -520,7 +532,7 @@ export default function Step2Venue({
                         <button
                           type="button"
                           onClick={(e) => { e.stopPropagation(); handleVenueSelect(v); }}
-                          className="w-full py-3 rounded-full bg-blue-600 text-white text-xs font-black flex items-center justify-center gap-1.5 shadow-md transition-colors cursor-pointer"
+                          className="w-full h-10 rounded-lg bg-blue-600 text-white text-xs font-semibold flex items-center justify-center gap-1.5 shadow-xs transition-colors cursor-pointer"
                         >
                           <CheckCircle2 size={14} />
                           <span>Selected</span>
@@ -529,7 +541,7 @@ export default function Step2Venue({
                         <button
                           type="button"
                           onClick={(e) => { e.stopPropagation(); handleVenueSelect(v); }}
-                          className="w-full py-3 rounded-full border border-slate-200 bg-white hover:bg-blue-600 hover:text-white hover:border-blue-600 text-slate-800 text-xs font-black transition-all cursor-pointer shadow-2xs"
+                          className="w-full h-10 rounded-lg border border-slate-200 dark:border-border bg-white dark:bg-muted hover:bg-blue-600 hover:text-white hover:border-blue-600 text-slate-800 dark:text-foreground text-xs font-semibold transition-all cursor-pointer shadow-2xs"
                         >
                           Select Venue
                         </button>

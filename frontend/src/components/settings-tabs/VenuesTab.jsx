@@ -392,34 +392,67 @@ export default function VenuesTab({ showMsg }) {
 
             <form onSubmit={handleSave} className="space-y-4 text-xs">
               {/* Photo Upload */}
-              <div className="flex items-center gap-4 bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
-                <div className="w-16 h-16 rounded-2xl bg-white border border-slate-200 overflow-hidden flex items-center justify-center shadow-inner shrink-0 relative">
-                  {(form.photo || form.avatar) ? (
-                    <img src={form.photo || form.avatar} alt="Preview" className="w-full h-full object-contain p-1" />
-                  ) : (
-                    <Building size={24} className="text-slate-400" />
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <label className="block font-bold text-slate-900 text-xs mb-1">Venue Photo</label>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs cursor-pointer shadow-2xs transition-all">
-                      <Camera size={13} />
-                      <span>{(form.photo || form.avatar) ? "Change Photo" : "Upload Photo"}</span>
-                      <input type="file" accept="image/*" onChange={handlePhotoUpload} className="hidden" />
-                    </label>
-                    {(form.photo || form.avatar) && (
-                      <button
-                        type="button"
-                        onClick={() => setForm({ ...form, photo: "", avatar: "" })}
-                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border border-red-200 bg-white hover:bg-red-50 text-red-600 font-bold text-xs cursor-pointer shadow-2xs transition-all"
-                      >
-                        <X size={12} />
-                        Remove
-                      </button>
+              <div className="space-y-3 bg-slate-50 dark:bg-slate-800/60 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-700">
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 overflow-hidden flex items-center justify-center shadow-inner shrink-0 relative">
+                    {(form.photo || form.avatar) ? (
+                      <img src={form.photo || form.avatar} alt="Preview" className="w-full h-full object-contain p-1" />
+                    ) : (
+                      <Building size={24} className="text-slate-400" />
                     )}
                   </div>
+                  <div className="flex-1 min-w-0">
+                    <label className="block font-bold text-slate-900 dark:text-slate-200 text-xs mb-1">Venue Photo</label>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs cursor-pointer shadow-2xs transition-all">
+                        <Camera size={13} />
+                        <span>{(form.photo || form.avatar) ? "Change Photo" : "Upload Photo"}</span>
+                        <input type="file" accept="image/*" onChange={handlePhotoUpload} className="hidden" />
+                      </label>
+                      {(form.photo || form.avatar) && (
+                        <button
+                          type="button"
+                          onClick={() => setForm({ ...form, photo: "", avatar: "" })}
+                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border border-red-200 dark:border-red-800 bg-white dark:bg-slate-800 hover:bg-red-50 dark:hover:bg-red-950/40 text-red-600 dark:text-red-400 font-bold text-xs cursor-pointer shadow-2xs transition-all"
+                        >
+                          <X size={12} />
+                          Remove
+                        </button>
+                      )}
+                    </div>
+                  </div>
                 </div>
+
+                {/* Live Public View Preview */}
+                {(form.photo || form.avatar || form.name) && (
+                  <div className="pt-2 border-t border-slate-200/80 dark:border-slate-700">
+                    <span className="text-[10.5px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400 block mb-2">
+                      Public View Card Preview
+                    </span>
+                    <div className="max-w-[220px] mx-auto border border-slate-200 dark:border-slate-700 rounded-2xl p-3 bg-white dark:bg-[#111827] shadow-xs">
+                      <div className="w-full aspect-video bg-white dark:bg-[#1E293B] border border-slate-100 dark:border-slate-800 rounded-xl overflow-hidden flex items-center justify-center p-1.5">
+                        {(form.photo || form.avatar) ? (
+                          <img src={form.photo || form.avatar} alt="Public Preview" className="w-full h-full object-contain" />
+                        ) : (
+                          <span className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wide">
+                            {form.name || "VENUE"}
+                          </span>
+                        )}
+                      </div>
+                      <div className="mt-2.5">
+                        <h5 className="font-extrabold text-xs text-slate-900 dark:text-white truncate">
+                          {form.name || "Venue Name"}
+                        </h5>
+                        <div className="mt-1">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-700 dark:text-[#6EE7B7]">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                            Available in Public View
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div>

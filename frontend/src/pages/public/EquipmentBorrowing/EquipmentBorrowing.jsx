@@ -15,10 +15,10 @@ import { isPastDateTime } from "@/lib/dateTimeUtils";
 import { useAuth } from "@/context/AuthContext";
 
 const BORROW_STEPS = [
-  { title: "Identity", subtitle: "Requester role" },
-  { title: "Equipment Catalog", subtitle: "Select AV items" },
-  { title: "Fill Details", subtitle: "Requisition form" },
-  { title: "Review & Submit", subtitle: "Review & submit" },
+  { title: "SELECT ROLE", subtitle: "Select role" },
+  { title: "DATE & TIME", subtitle: "Choose equipment & schedule" },
+  { title: "FILL DETAILS", subtitle: "Requisition form" },
+  { title: "UPLOAD & SUBMIT", subtitle: "Review & submit" },
 ];
 
 export default function EquipmentBorrowing({ isPortal: isPortalProp }) {

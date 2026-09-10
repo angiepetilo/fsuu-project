@@ -190,36 +190,36 @@ export default function TrackBooking() {
       <div className="w-full flex items-center justify-start mb-4">
         <Link
           to="/"
-          className="inline-flex items-center gap-2 text-xs font-extrabold text-slate-600 hover:text-blue-600 bg-white hover:bg-slate-50 border border-slate-200 px-4 py-2 rounded-xl transition-all shadow-2xs group"
+          className="inline-flex items-center gap-2 text-xs font-semibold text-muted-foreground hover:text-foreground bg-card hover:bg-muted border border-border px-3.5 py-2 rounded-lg transition-all shadow-2xs min-h-[36px] group"
         >
           <ArrowLeft size={14} className="group-hover:-translate-x-0.5 transition-transform" />
           <span>Back to Homepage</span>
         </Link>
       </div>
 
-      <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-10 w-full shadow-xs">
-        <h2 className="text-2xl font-extrabold text-slate-900 text-center mb-2">
-          Track Booking
+      <div className="bg-card border border-border rounded-2xl p-6 sm:p-8 w-full shadow-xs transition-colors">
+        <h2 className="text-xl sm:text-2xl font-bold text-foreground text-center mb-1">
+          Track Booking Status
         </h2>
 
-        <p className="text-slate-500 text-xs text-center mb-8 font-semibold">
-          Enter your unique Tracking / Reference Code to view live progress & inspection updates.
+        <p className="text-muted-foreground text-xs sm:text-sm text-center mb-6 font-normal">
+          Enter your unique Reference Code to view real-time approval, claiming, and turnover progress.
         </p>
 
         <form onSubmit={handleTrack} className="flex flex-col gap-4 mb-6">
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-bold text-slate-900 uppercase tracking-wide">
-              Reference Code <span className="text-rose-500">*</span>
+            <label className="text-xs font-semibold text-foreground uppercase tracking-wide">
+              Reference Code <span className="text-destructive">*</span>
             </label>
             <div className="relative">
-              <Hash className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+              <Hash className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
               <input
                 type="text"
                 value={trackCode}
                 onChange={e => setTrackCode(e.target.value)}
                 placeholder="e.g. TRK-AVR8921 or EQUIP-REQ-101"
                 required
-                className="w-full pl-11 pr-4 py-3 bg-white border-2 border-slate-200 hover:border-blue-400 focus:border-blue-600 focus:ring-4 focus:ring-blue-600/15 rounded-xl text-slate-900 text-sm font-semibold transition-all outline-none"
+                className="w-full pl-10 pr-4 py-2.5 min-h-[44px] bg-card border border-border hover:border-primary/50 focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-lg text-foreground text-sm font-medium transition-all outline-none"
               />
             </div>
           </div>
@@ -227,7 +227,7 @@ export default function TrackBooking() {
           <Button
             type="submit"
             disabled={loading}
-            className="w-full py-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-xs flex items-center justify-center gap-2 transition-all"
+            className="w-full py-3 min-h-[44px] rounded-lg bg-primary hover:opacity-90 text-primary-foreground font-semibold text-sm shadow-xs flex items-center justify-center gap-2 transition-all cursor-pointer"
           >
             {loading ? <Loader2 size={18} className="animate-spin" /> : <Search size={18} />}
             {loading ? "Searching Timeline..." : "Track Status"}
@@ -235,92 +235,92 @@ export default function TrackBooking() {
         </form>
 
         {hasSearched && !isFound && (
-          <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl text-center text-xs font-bold text-rose-700 flex items-center justify-center gap-2">
+          <div className="p-4 bg-rose-50 border border-rose-200 dark:bg-rose-500/15 dark:border-rose-500/30 dark:text-rose-400 rounded-xl text-center text-xs font-semibold text-rose-700 flex items-center justify-center gap-2">
             <AlertCircle size={16} />
             No reservation found matching reference code "{trackCode}". Please verify your reference code.
           </div>
         )}
 
         {hasSearched && isFound && booking && (
-          <div className="mt-8 pt-8 border-t border-slate-200/80 space-y-6">
+          <div className="mt-8 pt-8 border-t border-border space-y-6">
 
             {/* Header info */}
-            <div className="flex justify-between items-center bg-slate-50 p-4.5 rounded-2xl border border-slate-200/60">
+            <div className="flex justify-between items-center bg-muted/40 p-4 rounded-xl border border-border/70">
               <div className="flex items-center gap-3">
-                <div className={`p-2.5 rounded-xl ${isVenue ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`}>
+                <div className={`p-2.5 rounded-lg ${isVenue ? 'bg-primary/10 text-primary' : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'}`}>
                   {isVenue ? <Building2 size={22} /> : <PackageOpen size={22} />}
                 </div>
                 <div>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                  <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
                     {isVenue ? "Venue Reservation Timeline" : "Equipment Borrowing Timeline"}
                   </span>
-                  <span className="text-base font-extrabold text-slate-900">{booking.reference_code || trackCode}</span>
+                  <span className="text-base font-bold text-foreground">{booking.reference_code || trackCode}</span>
                 </div>
               </div>
 
-              <StatusBadge status={activeStatus} className="px-3.5 py-1 text-xs font-extrabold" />
+              <StatusBadge status={activeStatus} className="px-3 py-1 text-xs" />
             </div>
 
             {/* Details Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/60">
-                <span className="text-slate-400 font-bold uppercase text-[10px] block">Requestor Filer</span>
-                <span className="text-sm font-extrabold text-slate-900">{booking.filer_name || booking.requestor_name || "—"}</span>
+              <div className="bg-muted/30 p-4 rounded-xl border border-border/60">
+                <span className="text-muted-foreground font-semibold uppercase text-[11px] block">Requestor Filer</span>
+                <span className="text-sm font-semibold text-foreground">{booking.filer_name || booking.requestor_name || "—"}</span>
               </div>
-              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/60">
-                <span className="text-slate-400 font-bold uppercase text-[10px] block">
+              <div className="bg-muted/30 p-4 rounded-xl border border-border/60">
+                <span className="text-muted-foreground font-semibold uppercase text-[11px] block">
                   {isVenue ? "Reserved Venue / Facility" : "Equipment Category & Qty"}
                 </span>
                 {isVenue ? (
-                  <span className="text-sm font-extrabold text-blue-700">
+                  <span className="text-sm font-semibold text-primary">
                     {booking.venue?.name || booking.venue_name || "AVR / Campus Venue"}
                   </span>
                 ) : equipmentItems.length > 0 ? (
                   <div className="flex flex-wrap gap-1.5 mt-1.5">
                     {equipmentItems.map((item, idx) => (
-                      <span key={idx} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-50 text-blue-700 border border-blue-200 text-xs font-extrabold">
+                      <span key={idx} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-primary/10 text-primary border border-primary/20 text-xs font-semibold">
                         <span>{item.name}</span>
-                        <span className="bg-blue-600 text-white text-[10px] px-1.5 py-0.5 rounded-full font-black">
+                        <span className="bg-primary text-primary-foreground text-[10px] px-1.5 py-0.2 rounded-full font-bold">
                           Qty: {item.qty}
                         </span>
                       </span>
                     ))}
                   </div>
                 ) : (
-                  <span className="text-sm font-extrabold text-blue-700">
+                  <span className="text-sm font-semibold text-primary">
                     {booking.equipment_name || "General Equipment"}
                   </span>
                 )}
               </div>
-              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/60">
-                <span className="text-slate-400 font-bold uppercase text-[10px] block">Department / Program</span>
-                <span className="text-sm font-bold text-slate-800">{booking.program_office || booking.department?.name || booking.department || "Academic Dept"}</span>
+              <div className="bg-muted/30 p-4 rounded-xl border border-border/60">
+                <span className="text-muted-foreground font-semibold uppercase text-[11px] block">Department / Program</span>
+                <span className="text-sm font-medium text-foreground">{booking.program_office || booking.department?.name || booking.department || "Academic Dept"}</span>
               </div>
-              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/60">
-                <span className="text-slate-400 font-bold uppercase text-[10px] block">Date of Usage</span>
-                <span className="text-sm font-bold text-slate-800">
+              <div className="bg-muted/30 p-4 rounded-xl border border-border/60">
+                <span className="text-muted-foreground font-semibold uppercase text-[11px] block">Date of Usage</span>
+                <span className="text-sm font-medium text-foreground">
                   {booking.date_of_usage ? new Date(booking.date_of_usage).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : (booking.start_datetime ? new Date(booking.start_datetime).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—")}
                 </span>
               </div>
-              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/60">
-                <span className="text-slate-400 font-bold uppercase text-[10px] block">Schedule Time</span>
-                <span className="text-sm font-bold text-slate-800">{usageTimeRange}</span>
+              <div className="bg-muted/30 p-4 rounded-xl border border-border/60">
+                <span className="text-muted-foreground font-semibold uppercase text-[11px] block">Schedule Time</span>
+                <span className="text-sm font-medium text-foreground">{usageTimeRange}</span>
               </div>
               {booking.assigned_units && Object.keys(typeof booking.assigned_units === 'string' ? JSON.parse(booking.assigned_units || '{}') : booking.assigned_units).length > 0 ? (
-                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/60">
-                  <span className="text-slate-400 font-bold uppercase text-[10px] block">Assigned Physical Unit(s)</span>
+                <div className="bg-muted/30 p-4 rounded-xl border border-border/60">
+                  <span className="text-muted-foreground font-semibold uppercase text-[11px] block">Assigned Physical Unit(s)</span>
                   <div className="flex flex-wrap gap-1 mt-1">
                     {Object.values(typeof booking.assigned_units === 'string' ? JSON.parse(booking.assigned_units || '{}') : booking.assigned_units).map((code, uIdx) => (
-                      <span key={uIdx} className="px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 border border-purple-200 font-mono text-xs font-bold">
+                      <span key={uIdx} className="px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 border border-purple-200 dark:bg-purple-500/15 dark:text-purple-300 dark:border-purple-500/30 text-xs font-semibold">
                         Unit {code}
                       </span>
                     ))}
                   </div>
                 </div>
               ) : (
-                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/60">
-                  <span className="text-slate-400 font-bold uppercase text-[10px] block">Physical Unit Status</span>
-                  <span className="text-xs font-bold text-slate-600">
+                <div className="bg-muted/30 p-4 rounded-xl border border-border/60">
+                  <span className="text-muted-foreground font-semibold uppercase text-[11px] block">Physical Unit Status</span>
+                  <span className="text-xs font-semibold text-muted-foreground">
                     {['ongoing', 'on-going', 'released', 'in-use', 'borrowed'].includes((activeStatus || '').toLowerCase())
                       ? 'Released to Borrower'
                       : ['completed', 'done', 'cleared'].includes((activeStatus || '').toLowerCase())
@@ -329,24 +329,24 @@ export default function TrackBooking() {
                   </span>
                 </div>
               )}
-              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/60 sm:col-span-2">
-                <span className="text-slate-400 font-bold uppercase text-[10px] block">Purpose / Activity</span>
-                <span className="text-sm font-semibold text-slate-800">{booking.purpose || "Official University Activity"}</span>
+              <div className="bg-muted/30 p-4 rounded-xl border border-border/60 sm:col-span-2">
+                <span className="text-muted-foreground font-semibold uppercase text-[11px] block">Purpose / Activity</span>
+                <span className="text-sm font-medium text-foreground">{booking.purpose || "Official University Activity"}</span>
               </div>
             </div>
 
-            {/* Item 32: 5-Step Timeline Tracker */}
+            {/* 5-Step Timeline Tracker */}
             <div className="pt-6 space-y-6">
-              <h4 className="text-xs font-extrabold text-slate-900 uppercase tracking-wider">
+              <h4 className="text-xs font-bold text-foreground uppercase tracking-wider">
                 Progress Timeline ({isVenue ? "Venue Process" : "Equipment Kiosk Process"})
               </h4>
 
               {/* Desktop Horizontal Timeline (>= sm) */}
               <div className="hidden sm:flex relative justify-between items-start">
                 {/* Connecting Line Track */}
-                <div className="absolute top-4 left-[18px] right-[18px] -translate-y-1/2 h-1 z-0 bg-slate-200 rounded-full">
+                <div className="absolute top-4 left-[18px] right-[18px] -translate-y-1/2 h-1 z-0 bg-border rounded-full">
                   <div
-                    className="h-full bg-blue-600 rounded-full transition-all duration-700 ease-out"
+                    className="h-full bg-primary rounded-full transition-all duration-500 ease-out"
                     style={{ width: `${isCompletedBooking ? 100 : Math.min(100, Math.max(0, (currentStep - 1) * 25))}%` }}
                   />
                 </div>
@@ -359,19 +359,19 @@ export default function TrackBooking() {
                   return (
                     <div key={idx} className="relative z-20 flex flex-col items-center text-center max-w-[100px]">
                       <div
-                        className={`w-9 h-9 rounded-full border-2 flex items-center justify-center text-xs font-extrabold transition-all
-                          ${isStepDone ? 'bg-blue-600 border-blue-600 text-white shadow-xs' : ''}
-                          ${isActive ? 'bg-blue-600 border-blue-600 text-white ring-4 ring-blue-600/25 scale-110 shadow-md' : ''}
-                          ${!isStepDone && !isActive ? 'bg-white border-slate-300 text-slate-400' : ''}
+                        className={`w-9 h-9 rounded-full border-2 flex items-center justify-center text-xs font-bold transition-all
+                          ${isStepDone ? 'bg-primary border-primary text-primary-foreground shadow-2xs' : ''}
+                          ${isActive ? 'bg-primary border-primary text-primary-foreground ring-4 ring-primary/20 scale-105 shadow-2xs' : ''}
+                          ${!isStepDone && !isActive ? 'bg-card border-border text-muted-foreground' : ''}
                         `}
                       >
-                        {isStepDone ? <CheckCircle2 size={18} /> : stepNum}
+                        {isStepDone ? <CheckCircle2 size={16} /> : stepNum}
                       </div>
 
-                      <span className={`text-xs font-extrabold mt-2.5 block ${isStepDone || isActive ? 'text-blue-600' : 'text-slate-800'}`}>
+                      <span className={`text-xs font-semibold mt-2.5 block ${isStepDone || isActive ? 'text-primary' : 'text-muted-foreground'}`}>
                         {step.label}
                       </span>
-                      <span className="text-[10px] font-semibold text-slate-400 leading-tight mt-0.5 hidden sm:block">
+                      <span className="text-[10.5px] font-normal text-muted-foreground leading-tight mt-0.5 hidden sm:block">
                         {step.desc}
                       </span>
                     </div>
@@ -380,7 +380,7 @@ export default function TrackBooking() {
               </div>
 
               {/* Mobile Vertical Timeline (< sm) */}
-              <div className="sm:hidden space-y-4 relative pl-4 border-l-2 border-slate-200 ml-3">
+              <div className="sm:hidden space-y-4 relative pl-4 border-l-2 border-border ml-3">
                 {activeSteps.map((step, idx) => {
                   const stepNum = idx + 1;
                   const isStepDone = stepNum < currentStep || (stepNum <= currentStep && isCompletedBooking);
@@ -389,20 +389,20 @@ export default function TrackBooking() {
                   return (
                     <div key={idx} className="relative flex items-center gap-3">
                       <div
-                        className={`w-7 h-7 rounded-full border-2 -ml-[23px] flex items-center justify-center text-xs font-extrabold transition-all shrink-0
-                          ${isStepDone ? 'bg-blue-600 border-blue-600 text-white' : ''}
-                          ${isActive ? 'bg-blue-600 border-blue-600 text-white ring-4 ring-blue-600/20' : ''}
-                          ${!isStepDone && !isActive ? 'bg-white border-slate-300 text-slate-400' : ''}
+                        className={`w-7 h-7 rounded-full border-2 -ml-[23px] flex items-center justify-center text-xs font-bold transition-all shrink-0
+                          ${isStepDone ? 'bg-primary border-primary text-primary-foreground' : ''}
+                          ${isActive ? 'bg-primary border-primary text-primary-foreground ring-4 ring-primary/20' : ''}
+                          ${!isStepDone && !isActive ? 'bg-card border-border text-muted-foreground' : ''}
                         `}
                       >
                         {isStepDone ? <CheckCircle2 size={13} /> : stepNum}
                       </div>
                       <div>
-                        <p className={`text-xs font-extrabold ${isStepDone || isActive ? 'text-blue-700' : 'text-slate-400'}`}>
+                        <p className={`text-xs font-semibold ${isStepDone || isActive ? 'text-primary' : 'text-muted-foreground'}`}>
                           {step.label}
                         </p>
                         {step.desc && (
-                          <p className="text-[10.5px] text-slate-500 font-medium">{step.desc}</p>
+                          <p className="text-[11px] text-muted-foreground font-normal">{step.desc}</p>
                         )}
                       </div>
                     </div>
@@ -470,15 +470,15 @@ export default function TrackBooking() {
 
               {/* Cancellation Option for Pending / Approved Requests */}
               {['pending', 'approved'].includes((booking.status || '').toLowerCase()) && (
-                <div className="pt-4 mt-4 border-t border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-slate-50/80 p-4 rounded-2xl">
+                <div className="pt-4 mt-4 border-t border-border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-muted/40 p-4 rounded-xl border border-border/70">
                   <div>
-                    <h5 className="text-xs font-extrabold text-slate-800">Need to cancel this {isVenue ? 'booking' : 'borrowing'}?</h5>
-                    <p className="text-[11px] text-slate-500 font-medium">You can cancel your reservation before the scheduled start time.</p>
+                    <h5 className="text-xs font-semibold text-foreground">Need to cancel this {isVenue ? 'booking' : 'borrowing'}?</h5>
+                    <p className="text-[11px] text-muted-foreground font-normal">You can cancel your reservation before the scheduled start time.</p>
                   </div>
                   <button
                     type="button"
                     onClick={() => setShowCancelModal(true)}
-                    className="px-4 py-2 bg-white hover:bg-rose-50 text-rose-600 border border-rose-200 rounded-xl text-xs font-extrabold transition-all cursor-pointer shadow-2xs"
+                    className="px-4 py-2 bg-card hover:bg-rose-50 hover:text-rose-700 text-rose-600 border border-rose-200 dark:bg-rose-500/10 dark:border-rose-500/30 dark:text-rose-400 rounded-lg text-xs font-semibold transition-all cursor-pointer shadow-2xs min-h-[38px]"
                   >
                     Cancel {isVenue ? 'Venue Booking' : 'Equipment Borrowing'}
                   </button>
@@ -492,35 +492,35 @@ export default function TrackBooking() {
 
         {/* Cancellation Confirmation Modal */}
         {showCancelModal && (
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-[1500] flex items-center justify-center p-4">
-            <div className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl border border-slate-100 space-y-4 animate-in zoom-in-95">
-              <div className="flex items-center gap-3 text-rose-600">
-                <div className="w-10 h-10 rounded-2xl bg-rose-50 border border-rose-100 flex items-center justify-center shrink-0">
+          <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs z-[1500] flex items-center justify-center p-4">
+            <div className="bg-card text-foreground rounded-2xl p-6 max-w-sm w-full shadow-xl border border-border space-y-4 animate-in zoom-in-95">
+              <div className="flex items-center gap-3 text-rose-600 dark:text-rose-400">
+                <div className="w-10 h-10 rounded-xl bg-rose-50 dark:bg-rose-500/15 border border-rose-200 dark:border-rose-500/30 flex items-center justify-center shrink-0">
                   <AlertCircle size={20} />
                 </div>
                 <div>
-                  <h4 className="font-extrabold text-slate-900 text-sm">Cancel Reservation</h4>
-                  <p className="text-[11px] text-slate-500 font-medium">This action cannot be undone.</p>
+                  <h4 className="font-bold text-foreground text-sm">Cancel Reservation</h4>
+                  <p className="text-[11px] text-muted-foreground font-normal">This action cannot be undone.</p>
                 </div>
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-700">Reason for Cancellation (Optional)</label>
+                <label className="text-xs font-semibold text-foreground">Reason for Cancellation (Optional)</label>
                 <textarea
                   rows={3}
                   placeholder="e.g. Activity rescheduled, no longer needed..."
                   value={cancelReason}
                   onChange={(e) => setCancelReason(e.target.value)}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 focus:outline-none focus:border-blue-600"
+                  className="w-full p-3 bg-card border border-border rounded-lg text-xs font-normal text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
                 />
               </div>
 
-              <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+              <div className="flex justify-end gap-2 pt-2 border-t border-border">
                 <button
                   type="button"
                   disabled={cancelLoading}
                   onClick={() => setShowCancelModal(false)}
-                  className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-100 cursor-pointer"
+                  className="px-4 py-2 min-h-[40px] rounded-lg border border-border text-xs font-semibold text-foreground hover:bg-muted cursor-pointer"
                 >
                   Keep Reservation
                 </button>
@@ -543,7 +543,7 @@ export default function TrackBooking() {
                       setCancelLoading(false);
                     }
                   }}
-                  className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs shadow-md flex items-center gap-1.5 cursor-pointer"
+                  className="px-4 py-2 min-h-[40px] rounded-lg bg-destructive hover:opacity-90 text-destructive-foreground font-semibold text-xs shadow-xs flex items-center gap-1.5 cursor-pointer"
                 >
                   {cancelLoading ? <Loader2 size={13} className="animate-spin" /> : null}
                   <span>Confirm Cancellation</span>

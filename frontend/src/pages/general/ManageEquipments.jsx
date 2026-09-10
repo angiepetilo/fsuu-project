@@ -497,15 +497,15 @@ export default function ManageEquipments() {
 
       {/* Search & Category Filter */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white p-3 rounded-2xl border border-slate-200/80 shadow-xs">
-        <div className="flex items-center gap-2 bg-slate-50 px-3.5 py-2 rounded-xl border border-slate-200 shadow-xs text-xs font-bold text-slate-700">
-          <Filter size={14} className="text-blue-600 flex-shrink-0" />
+        <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 shadow-xs text-xs font-bold text-slate-700 dark:text-slate-200">
+          <Filter size={14} className="text-blue-600 dark:text-blue-400 flex-shrink-0" />
           <select
             value={activeCategory}
             onChange={(e) => setActiveCategory(e.target.value)}
-            className="bg-transparent font-bold text-slate-900 focus:outline-none cursor-pointer text-xs pr-2"
+            className="bg-transparent font-bold text-slate-900 dark:text-white focus:outline-none cursor-pointer text-xs pr-2"
           >
             {categoryList.map(t => (
-              <option key={t.id} value={t.id}>{t.label}</option>
+              <option key={t.id} value={t.id} className="dark:bg-slate-900">{t.label}</option>
             ))}
           </select>
         </div>
@@ -517,25 +517,25 @@ export default function ManageEquipments() {
             placeholder="Search unit name, barcode..."
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:border-blue-600"
+            className="w-full pl-9 pr-3 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
           />
         </div>
       </div>
 
       {/* Physical Units Table */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+      <div className="bg-white dark:bg-[#111827] rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs overflow-hidden">
         <div className="overflow-x-auto scrollbar-thin">
           <table className="w-full text-sm min-w-[760px]">
             <thead>
-              <tr className="bg-slate-50/80 border-b border-slate-100">
+              <tr className="bg-slate-50/80 dark:bg-slate-800/80 border-b border-slate-100 dark:border-slate-800">
                 {["#", "Unit Barcode", "Equipment Unit Name", "Assigned Category", "Date Purchased", "Lifespan vs Current", "Action"].map((h, i) => (
-                  <th key={h} className={`px-4 py-3.5 text-left text-[11px] font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap ${i === 0 ? 'rounded-tl-2xl' : i === 6 ? 'rounded-tr-2xl' : ''}`}>
+                  <th key={h} className={`px-4 py-3.5 text-left text-[11px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap ${i === 0 ? 'rounded-tl-2xl' : i === 6 ? 'rounded-tr-2xl' : ''}`}>
                     {h}
                   </th>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 text-xs font-semibold">
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-xs font-semibold">
               {loading && units.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="text-center py-12 text-slate-400">
@@ -561,18 +561,18 @@ export default function ManageEquipments() {
                   const isOpen = openActionId === item.id;
 
                   return (
-                    <tr key={item.id} className={`hover:bg-slate-50/60 transition-colors ${isOpen ? 'relative z-30' : ''}`}>
-                      <td className="px-4 py-3.5 font-bold text-slate-400">{displayIndex}</td>
-                      <td className="px-4 py-3.5 font-mono text-xs font-bold text-blue-600 whitespace-nowrap">
+                    <tr key={item.id} className={`hover:bg-slate-50/60 dark:hover:bg-slate-800/50 transition-colors ${isOpen ? 'relative z-30' : ''}`}>
+                      <td className="px-4 py-3.5 font-bold text-slate-400 dark:text-slate-500">{displayIndex}</td>
+                      <td className="px-4 py-3.5 font-mono text-xs font-bold whitespace-nowrap">
                         <div className="flex items-center gap-1.5">
-                          <div className="flex items-center gap-1.5 bg-blue-50/60 border border-blue-200/60 px-2.5 py-1 rounded-lg w-fit">
-                            <Barcode size={14} className="text-blue-500" />
+                          <div className="flex items-center gap-1.5 bg-blue-50/80 dark:bg-blue-950/80 border border-blue-200 dark:border-blue-800 px-2.5 py-1 rounded-lg w-fit text-blue-700 dark:text-blue-300 font-bold shadow-2xs">
+                            <Barcode size={14} className="text-blue-600 dark:text-blue-400 shrink-0" />
                             <span>{item.barcode}</span>
                           </div>
                           <button
                             type="button"
                             onClick={() => handleCopyBarcode(item.barcode)}
-                            className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-500 hover:text-slate-900 transition-all cursor-pointer"
+                            className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer"
                             title="Copy Barcode"
                           >
                             {copiedBarcode === item.barcode ? (
@@ -583,14 +583,14 @@ export default function ManageEquipments() {
                           </button>
                         </div>
                       </td>
-                      <td className="px-4 py-3.5 font-extrabold text-slate-900 max-w-[200px] truncate" title={item.name}>{item.name}</td>
-                      <td className="px-4 py-3.5 font-bold text-blue-700 max-w-[180px]">
-                        <span className="bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-200/60 block w-fit max-w-full truncate" title={item.category}>
+                      <td className="px-4 py-3.5 font-extrabold text-slate-900 dark:text-white max-w-[200px] truncate" title={item.name}>{item.name}</td>
+                      <td className="px-4 py-3.5 font-bold text-blue-700 dark:text-blue-300 max-w-[180px]">
+                        <span className="bg-blue-50 dark:bg-blue-950/60 px-2.5 py-1 rounded-lg border border-blue-200/60 dark:border-blue-800/60 block w-fit max-w-full truncate" title={item.category}>
                           {item.category}
                         </span>
                       </td>
-                      <td className="px-4 py-3.5 text-slate-600 whitespace-nowrap">{item.date_purchased}</td>
-                      <td className="px-4 py-3.5 text-slate-600 whitespace-nowrap">{ageYears.toFixed(1)} / {lifespanYears} yrs</td>
+                      <td className="px-4 py-3.5 text-slate-600 dark:text-slate-300 whitespace-nowrap">{item.date_purchased}</td>
+                      <td className="px-4 py-3.5 text-slate-600 dark:text-slate-300 whitespace-nowrap">{ageYears.toFixed(1)} / {lifespanYears} yrs</td>
                       <td className="px-4 py-3.5 relative">
                         <div className="relative action-menu-container inline-block">
                           <button
@@ -602,7 +602,7 @@ export default function ManageEquipments() {
                             className={`p-1.5 rounded-xl border transition-all cursor-pointer shadow-2xs ${
                               isOpen
                                 ? "bg-blue-600 border-blue-600 text-white shadow-md shadow-blue-600/20"
-                                : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                                : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white"
                             }`}
                             title="Actions"
                           >
@@ -610,14 +610,14 @@ export default function ManageEquipments() {
                           </button>
 
                           {isOpen && (
-                            <div className={`absolute right-0 ${isNearBottom ? 'bottom-full mb-1.5' : 'top-full mt-1.5'} w-44 bg-white rounded-2xl shadow-2xl border border-slate-200/90 py-1.5 z-50 animate-in fade-in zoom-in-95 backdrop-blur-md`}>
+                            <div className={`absolute right-0 ${isNearBottom ? 'bottom-full mb-1.5' : 'top-full mt-1.5'} w-44 bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-200/90 dark:border-slate-700 py-1.5 z-50 animate-in fade-in zoom-in-95 backdrop-blur-md`}>
                               <button
                                 type="button"
                                 onClick={() => {
                                   setOpenActionId(null);
                                   setSelectedItem(item);
                                 }}
-                                className="w-full px-3.5 py-2 text-left text-xs font-bold text-slate-700 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-2.5 transition-colors cursor-pointer"
+                                className="w-full px-3.5 py-2 text-left text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-blue-950/60 hover:text-blue-600 dark:hover:text-blue-300 flex items-center gap-2.5 transition-colors cursor-pointer"
                               >
                                 <Eye size={14} className="text-blue-500" />
                                 <span>View Details</span>

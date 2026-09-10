@@ -228,27 +228,27 @@ export default function Step2Equipment({
                   onClick={() => {
                     if (isAvailable) handleEquipmentToggle(item.id);
                   }}
-                  className={`relative border-2 rounded-[32px] p-6 transition-all duration-300 flex flex-col justify-between overflow-hidden ${isMaintenance
+                  className={`relative border rounded-2xl p-4 transition-all duration-200 flex flex-col justify-between overflow-hidden ${isMaintenance
                     ? "border-amber-300/80 bg-amber-50/20 opacity-90 cursor-not-allowed shadow-2xs"
                     : !isAvailable
-                      ? "border-slate-100 bg-white opacity-90 cursor-pointer"
+                      ? "border-slate-200 bg-white dark:bg-card opacity-90 cursor-pointer"
                       : isChecked
-                        ? "border-blue-600 bg-white shadow-lg ring-4 ring-blue-50/60 cursor-pointer"
-                        : "border-slate-100 bg-white hover:border-slate-300 hover:shadow-xs cursor-pointer"
+                        ? "border-blue-600 bg-white dark:bg-card shadow-md ring-2 ring-blue-500/20 cursor-pointer"
+                        : "border-slate-200 dark:border-border bg-white dark:bg-card hover:border-blue-500/60 hover:shadow-xs cursor-pointer"
                     }`}
                 >
                   <div>
-                    {/* Top Image / Placeholder Box - Seamless Full Fit */}
-                    <div className="w-full h-[175px] bg-slate-50 border border-slate-100 rounded-2xl overflow-hidden flex flex-col items-center justify-center text-center relative group">
+                    {/* Top Image Box: Full view, never cropped or cut off */}
+                    <div className="w-full aspect-video bg-white dark:bg-[#1E293B] border border-slate-100 dark:border-slate-800 rounded-xl overflow-hidden flex flex-col items-center justify-center text-center relative group p-2">
                       {item.avatar || item.photo || item.image || item.photo_url ? (
                         <img
                           src={item.avatar || item.photo || item.image || item.photo_url}
                           alt={item.name}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
                         />
                       ) : (
-                        <div className="p-6 flex flex-col items-center justify-center h-full w-full bg-slate-50">
-                          <span className="text-slate-800 font-extrabold text-sm leading-snug line-clamp-2" title={item.name}>
+                        <div className="p-4 flex flex-col items-center justify-center h-full w-full bg-slate-50 dark:bg-[#0F172A]/70">
+                          <span className="text-slate-900 dark:text-white font-extrabold text-xs sm:text-sm leading-snug line-clamp-2 uppercase tracking-wide" title={item.name}>
                             {item.name}
                           </span>
                         </div>
@@ -256,8 +256,8 @@ export default function Step2Equipment({
                     </div>
 
                     {/* Equipment Metadata */}
-                    <div className="mt-4 space-y-1">
-                      <h4 className="font-extrabold text-slate-900 dark:text-[#F8FAFC] text-sm leading-tight truncate" title={item.name}>{item.name}</h4>
+                    <div className="mt-3.5 space-y-1">
+                      <h4 className="font-bold text-slate-900 dark:text-[#F8FAFC] text-sm leading-tight truncate" title={item.name}>{item.name}</h4>
                       <div className="pt-1">
                         <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold ${
                           remainingAvailable === 0

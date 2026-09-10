@@ -1,70 +1,211 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-@import "@fontsource-variable/geist";
 
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: oklch(0.922 0 0);
-  --code-bg: #f4f3ec;
-  --accent: oklch(0.97 0 0);
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
-
-  --sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
-  --heading: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
+  --sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --heading: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
   font: 16px/150% var(--sans);
-  letter-spacing: 0.18px;
+  letter-spacing: -0.011em;
   color-scheme: light;
-  color: var(--text);
-  background: var(--bg);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 
-  @media (max-width: 1024px) {
+  @media (max-width: 640px) {
     font-size: 15px;
   }
 
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
+  /* ── Core Institutional Palette (Light Mode) ── */
+  --background: #F8FAFC;
+  --surface: #FFFFFF;
+  --surface-elevated: #FFFFFF;
+  --foreground: #0F172A;
+  --muted-foreground: #64748B;
+  --border: #E2E8F0;
+  --primary: #2563EB;
+  --primary-foreground: #FFFFFF;
+  --secondary: #F1F5F9;
+  --secondary-foreground: #0F172A;
+  --muted: #F1F5F9;
+  --accent: #F1F5F9;
+  --accent-foreground: #0F172A;
+  --destructive: #DC2626;
+  --destructive-foreground: #FFFFFF;
+  --input: #E2E8F0;
+  --ring: #2563EB;
+  --card: #FFFFFF;
+  --card-foreground: #0F172A;
+  --popover: #FFFFFF;
+  --popover-foreground: #0F172A;
+
+  /* Semantic Status Tokens (Light Mode) */
+  --success: #16A34A;
+  --success-foreground: #FFFFFF;
+  --warning: #D97706;
+  --warning-foreground: #FFFFFF;
+  --error: #DC2626;
+  --error-foreground: #FFFFFF;
+  --info: #2563EB;
+  --info-foreground: #FFFFFF;
+
+  /* Status Badge Tints (Light Mode) */
+  --status-success-bg: #DCFCE7;
+  --status-success-text: #15803D;
+  --status-success-border: #86EFAC;
+  --status-warning-bg: #FEF3C7;
+  --status-warning-text: #B45309;
+  --status-warning-border: #FDE68A;
+  --status-danger-bg: #FEE2E2;
+  --status-danger-text: #B91C1C;
+  --status-danger-border: #FECACA;
+  --status-info-bg: #DBEAFE;
+  --status-info-text: #1D4ED8;
+  --status-info-border: #BFDBFE;
+  --status-purple-bg: #F3E8FF;
+  --status-purple-text: #7E22CE;
+  --status-purple-border: #E9D5FF;
+  --status-neutral-bg: #F1F5F9;
+  --status-neutral-text: #475569;
+  --status-neutral-border: #CBD5E1;
+
   --radius: 0.625rem;
+
+  /* Sidebar Tokens (Light Mode) */
+  --sidebar: #FFFFFF;
+  --sidebar-foreground: #0F172A;
+  --sidebar-primary: #2563EB;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #F1F5F9;
+  --sidebar-accent-foreground: #0F172A;
+  --sidebar-border: #E2E8F0;
+  --sidebar-ring: #2563EB;
 }
 
-body {
-  margin: 0;
-  font-family: 'Plus Jakarta Sans', sans-serif;
-  background-color: #f8fafc;
-  background-image:
-    radial-gradient(at 0% 0%, hsla(217, 100%, 97%, 1) 0px, transparent 50%),
-    radial-gradient(at 100% 0%, hsla(43, 100%, 94%, 1) 0px, transparent 50%),
-    radial-gradient(at 100% 100%, hsla(217, 100%, 97%, 1) 0px, transparent 50%);
-  background-attachment: fixed;
-  color: #0f172a;
+.dark,
+html.dark {
+  color-scheme: dark;
+
+  /* ── Core Institutional Palette (Dark Mode) ── */
+  --background: #0B1120;
+  --surface: #111827;
+  --surface-elevated: #1F2937;
+  --foreground: #F8FAFC;
+  --muted-foreground: #94A3B8;
+  --border: #273449;
+  --primary: #4F8EF7;
+  --primary-foreground: #FFFFFF;
+  --secondary: #1F2937;
+  --secondary-foreground: #F8FAFC;
+  --muted: #1F2937;
+  --accent: #1F2937;
+  --accent-foreground: #F8FAFC;
+  --destructive: #EF4444;
+  --destructive-foreground: #FFFFFF;
+  --input: #273449;
+  --ring: #4F8EF7;
+  --card: #111827;
+  --card-foreground: #F8FAFC;
+  --popover: #111827;
+  --popover-foreground: #F8FAFC;
+
+  /* Semantic Status Tokens (Dark Mode) */
+  --success: #22C55E;
+  --success-foreground: #FFFFFF;
+  --warning: #F59E0B;
+  --warning-foreground: #FFFFFF;
+  --error: #EF4444;
+  --error-foreground: #FFFFFF;
+  --info: #60A5FA;
+  --info-foreground: #FFFFFF;
+
+  /* Status Badge Tints (Dark Mode) */
+  --status-success-bg: rgba(34, 197, 94, 0.15);
+  --status-success-text: #4ADE80;
+  --status-success-border: rgba(74, 222, 128, 0.3);
+  --status-warning-bg: rgba(245, 158, 11, 0.15);
+  --status-warning-text: #FCD34D;
+  --status-warning-border: rgba(252, 211, 77, 0.3);
+  --status-danger-bg: rgba(239, 68, 68, 0.15);
+  --status-danger-text: #FCA5A5;
+  --status-danger-border: rgba(252, 165, 165, 0.3);
+  --status-info-bg: rgba(79, 142, 247, 0.16);
+  --status-info-text: #93C5FD;
+  --status-info-border: rgba(147, 197, 253, 0.32);
+  --status-purple-bg: rgba(168, 85, 247, 0.16);
+  --status-purple-text: #D8B4FE;
+  --status-purple-border: rgba(216, 180, 254, 0.32);
+  --status-neutral-bg: rgba(148, 163, 184, 0.12);
+  --status-neutral-text: #CBD5E1;
+  --status-neutral-border: rgba(203, 213, 225, 0.25);
+
+  /* Sidebar Tokens (Dark Mode) */
+  --sidebar: #111827;
+  --sidebar-foreground: #F8FAFC;
+  --sidebar-primary: #4F8EF7;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #1F2937;
+  --sidebar-accent-foreground: #F8FAFC;
+  --sidebar-border: #273449;
+  --sidebar-ring: #4F8EF7;
+}
+
+@theme inline {
+  --font-heading: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    margin: 0;
+  }
+
+  html {
+    @apply font-sans;
+    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
 }
 
 #root {
@@ -75,13 +216,8 @@ body {
   box-sizing: border-box;
 }
 
-h1,
-h2,
-h3,
-h4,
-h5,
-h6 {
-  font-family: 'Plus Jakarta Sans', sans-serif;
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   margin: 0;
 }
 
@@ -89,185 +225,39 @@ p {
   margin: 0;
 }
 
-code,
-.counter {
-  font-family: var(--mono);
-  display: inline-flex;
-  border-radius: 4px;
-  color: var(--text-h);
-}
-
-code {
-  font-size: 15px;
-  line-height: 135%;
-  padding: 4px 8px;
-  background: var(--code-bg);
-}
-
-@theme inline {
-  --font-heading: var(--font-sans);
-  --font-sans: 'Geist Variable', sans-serif;
-  --color-sidebar-ring: var(--sidebar-ring);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar: var(--sidebar);
-  --color-chart-5: var(--chart-5);
-  --color-chart-4: var(--chart-4);
-  --color-chart-3: var(--chart-3);
-  --color-chart-2: var(--chart-2);
-  --color-chart-1: var(--chart-1);
-  --color-ring: var(--ring);
-  --color-input: var(--input);
-  --color-border: var(--border);
-  --color-destructive: var(--destructive);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-accent: var(--accent);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-muted: var(--muted);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-secondary: var(--secondary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-primary: var(--primary);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-popover: var(--popover);
-  --color-card-foreground: var(--card-foreground);
-  --color-card: var(--card);
-  --color-foreground: var(--foreground);
-  --color-background: var(--background);
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
-}
-
-.dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
-}
-
-@layer base {
-  * {
-    @apply border-border outline-ring/50;
-  }
-
-  body {
-    @apply bg-background text-foreground;
-  }
-
-  html {
-    @apply font-sans;
-  }
-}
-
-/* ── SCREENSHOT 3 GLOBAL DARK THEME & WCAG AA TOKENS ── */
-:root {
-  --surface-canvas: #f8fafc;
-  --surface-card: #ffffff;
-  --surface-elevated: #f1f5f9;
-  --surface-border: #e2e8f0;
-  --text-primary: #0f172a;
-  --text-secondary: #475569;
-  --text-muted: #64748b;
-  --status-success-bg: #dcfce7;
-  --status-success-text: #15803d;
-  --status-warning-bg: #fef3c7;
-  --status-warning-text: #b45309;
-  --status-danger-bg: #fee2e2;
-  --status-danger-text: #b91c1c;
-  --status-info-bg: #dbeafe;
-  --status-info-text: #1d4ed8;
-}
-
-html.dark {
-  --surface-canvas: #0b132b;
-  --surface-card: #111c38;
-  --surface-elevated: #18264b;
-  --surface-border: #1e2d56;
-  --text-primary: #f8fafc;
-  --text-secondary: #cbd5e1;
-  --text-muted: #94a3b8;
-  --status-success-bg: rgba(16, 185, 129, 0.15);
-  --status-success-border: rgba(110, 231, 183, 0.3);
-  --status-success-text: #6ee7b7;
-  --status-warning-bg: rgba(245, 158, 11, 0.15);
-  --status-warning-border: rgba(252, 211, 77, 0.3);
-  --status-warning-text: #fcd34d;
-  --status-danger-bg: rgba(239, 68, 68, 0.15);
-  --status-danger-border: rgba(252, 165, 165, 0.3);
-  --status-danger-text: #fca5a5;
-  --status-info-bg: rgba(59, 130, 246, 0.16);
-  --status-info-border: rgba(147, 197, 253, 0.32);
-  --status-info-text: #93c5fd;
-}
-
+/* ── Global Dark Theme Institutional Overrides ── */
 html.dark,
 html.dark body {
-  background-color: #0b132b !important;
+  background-color: #0B1120 !important;
   background-image: none !important;
-  color: #f8fafc !important;
+  color: #F8FAFC !important;
 }
 
 html.dark aside {
-  background-color: #0b132b !important;
-  border-color: #1e2d56 !important;
+  background-color: #111827 !important;
+  border-color: #273449 !important;
 }
 
 html.dark header {
-  background-color: #0b132b !important;
-  border-color: #1e2d56 !important;
+  background-color: #111827 !important;
+  border-color: #273449 !important;
 }
 
 html.dark main {
-  background-color: #0b132b !important;
+  background-color: #0B1120 !important;
 }
 
 html.dark footer {
-  background-color: #080e21 !important;
-  border-color: #1e2d56 !important;
-  color: #cbd5e1 !important;
+  background-color: #0B1120 !important;
+  border-color: #273449 !important;
+  color: #94A3B8 !important;
 }
 
 html.dark .bg-white,
 html.dark [class*="bg-white/"] {
-  background-color: #111c38 !important;
-  border-color: #1e2d56 !important;
-  color: #f8fafc !important;
+  background-color: #111827 !important;
+  border-color: #273449 !important;
+  color: #F8FAFC !important;
 }
 
 html.dark .bg-slate-50,
@@ -277,38 +267,39 @@ html.dark .bg-slate-50\/70,
 html.dark .bg-slate-50\/80,
 html.dark .bg-slate-50\/90,
 html.dark .bg-slate-100 {
-  background-color: #0e1738 !important;
+  background-color: #162032 !important;
 }
 
 html.dark .border-slate-100,
 html.dark .border-slate-200,
+html.dark .border-slate-200\/60,
 html.dark .border-slate-200\/80,
 html.dark .border-slate-200\/90,
 html.dark .border-slate-300 {
-  border-color: #1e2d56 !important;
+  border-color: #273449 !important;
 }
 
 html.dark .divide-slate-100 > :not([hidden]) ~ :not([hidden]),
 html.dark .divide-slate-200 > :not([hidden]) ~ :not([hidden]) {
-  border-color: #1e2d56 !important;
+  border-color: #273449 !important;
 }
 
 html.dark .text-slate-900,
 html.dark .text-slate-800 {
-  color: #f8fafc !important;
+  color: #F8FAFC !important;
 }
 
 html.dark .text-slate-700,
 html.dark .text-slate-600 {
-  color: #cbd5e1 !important;
+  color: #CBD5E1 !important;
 }
 
 html.dark .text-slate-500,
 html.dark .text-slate-400 {
-  color: #94a3b8 !important;
+  color: #94A3B8 !important;
 }
 
-/* Ensure text remains light on hover, focus, and click (active) in dark mode */
+/* Hover, Focus, and Active in Dark Mode */
 html.dark [class*="hover:text-slate-900"]:hover,
 html.dark [class*="hover:text-slate-800"]:hover,
 html.dark [class*="hover:text-slate-700"]:hover,
@@ -319,41 +310,30 @@ html.dark [class*="hover:text-gray-800"]:hover,
 html.dark [class*="active:text-slate-900"]:active,
 html.dark [class*="active:text-slate-800"]:active,
 html.dark [class*="focus:text-slate-900"]:focus {
-  color: #f8fafc !important;
+  color: #F8FAFC !important;
 }
 
-/* Ensure hovered background surfaces don't wash out with light slate in dark mode */
 html.dark [class*="hover:bg-slate-100"]:hover,
 html.dark [class*="hover:bg-slate-50"]:hover,
 html.dark [class*="hover:bg-slate-200"]:hover,
 html.dark [class*="hover:bg-gray-100"]:hover,
 html.dark [class*="hover:bg-gray-50"]:hover {
-  background-color: #172447 !important;
-  color: #f8fafc !important;
+  background-color: #1F2937 !important;
+  color: #F8FAFC !important;
 }
 
 /* Light mode sidebar background guarantee */
 html:not(.dark) aside {
-  background-color: #ffffff !important;
-  border-color: #e2e8f0 !important;
+  background-color: #FFFFFF !important;
+  border-color: #E2E8F0 !important;
 }
 
-/* ── WCAG AA Compliant Status Tokens on Dark Surfaces ── */
-html.dark {
-  --status-purple-bg: rgba(168, 85, 247, 0.16);
-  --status-purple-border: rgba(216, 180, 254, 0.32);
-  --status-purple-text: #d8b4fe;
-  --status-neutral-bg: rgba(148, 163, 184, 0.12);
-  --status-neutral-border: rgba(203, 213, 225, 0.25);
-  --status-neutral-text: #cbd5e1;
-}
-
-/* Background Tints in Dark Mode (Pastel / Soft Translucent Glow) */
+/* Status Badges - Dark Mode Enhancements */
 html.dark .bg-emerald-50,
 html.dark .bg-emerald-100,
 html.dark .bg-green-50,
 html.dark .bg-green-100 {
-  background-color: rgba(16, 185, 129, 0.15) !important;
+  background-color: rgba(34, 197, 94, 0.15) !important;
 }
 
 html.dark .bg-amber-50,
@@ -373,7 +353,7 @@ html.dark .bg-red-100 {
 
 html.dark .bg-blue-50,
 html.dark .bg-blue-100 {
-  background-color: rgba(59, 130, 246, 0.16) !important;
+  background-color: rgba(79, 142, 247, 0.16) !important;
 }
 
 html.dark .bg-purple-50,
@@ -383,15 +363,9 @@ html.dark .bg-violet-100 {
   background-color: rgba(168, 85, 247, 0.16) !important;
 }
 
-html.dark .bg-red-900,
-html.dark .bg-red-950 {
-  background-color: rgba(239, 68, 68, 0.25) !important;
-}
-
-/* Border Tints in Dark Mode */
 html.dark .border-emerald-200,
 html.dark .border-emerald-300 {
-  border-color: rgba(110, 231, 183, 0.3) !important;
+  border-color: rgba(74, 222, 128, 0.3) !important;
 }
 
 html.dark .border-amber-200,
@@ -414,7 +388,6 @@ html.dark .border-purple-300 {
   border-color: rgba(216, 180, 254, 0.32) !important;
 }
 
-/* Text and Icon Colors in Dark Mode (Achieving > 4.5:1 AA and > 7:1 AAA contrast) */
 html.dark .text-emerald-600,
 html.dark .text-emerald-700,
 html.dark .text-emerald-800,
@@ -422,7 +395,7 @@ html.dark .text-emerald-900,
 html.dark .text-green-600,
 html.dark .text-green-700,
 html.dark .text-green-800 {
-  color: #6ee7b7 !important;
+  color: #4ADE80 !important;
 }
 
 html.dark .text-amber-600,
@@ -433,7 +406,7 @@ html.dark .text-yellow-600,
 html.dark .text-yellow-700,
 html.dark .text-orange-500,
 html.dark .text-orange-600 {
-  color: #fcd34d !important;
+  color: #FCD34D !important;
 }
 
 html.dark .text-rose-600,
@@ -443,14 +416,14 @@ html.dark .text-rose-900,
 html.dark .text-red-600,
 html.dark .text-red-700,
 html.dark .text-red-800 {
-  color: #fca5a5 !important;
+  color: #FCA5A5 !important;
 }
 
 html.dark .text-blue-600,
 html.dark .text-blue-700,
 html.dark .text-blue-800,
 html.dark .text-blue-900 {
-  color: #93c5fd !important;
+  color: #93C5FD !important;
 }
 
 html.dark .text-purple-600,
@@ -459,94 +432,53 @@ html.dark .text-purple-800,
 html.dark .text-purple-900,
 html.dark .text-violet-600,
 html.dark .text-violet-700 {
-  color: #d8b4fe !important;
+  color: #D8B4FE !important;
 }
 
-/* Hover Tint Preservations in Dark Mode */
-html.dark [class*="hover:bg-emerald-100"]:hover {
-  background-color: rgba(16, 185, 129, 0.25) !important;
-}
-html.dark [class*="hover:bg-amber-100"]:hover {
-  background-color: rgba(245, 158, 11, 0.25) !important;
-}
-html.dark [class*="hover:bg-rose-100"]:hover {
-  background-color: rgba(239, 68, 68, 0.25) !important;
-}
-html.dark [class*="hover:bg-blue-100"]:hover {
-  background-color: rgba(59, 130, 246, 0.26) !important;
-}
-html.dark [class*="hover:bg-purple-100"]:hover {
-  background-color: rgba(168, 85, 247, 0.26) !important;
-}
-
-/* Semantic Badges */
-html.dark .status-badge-success,
-html.dark .badge-success {
-  background-color: rgba(16, 185, 129, 0.15) !important;
-  border-color: rgba(110, 231, 183, 0.3) !important;
-  color: #6ee7b7 !important;
-}
-
-html.dark .status-badge-warning,
-html.dark .badge-warning {
-  background-color: rgba(245, 158, 11, 0.15) !important;
-  border-color: rgba(252, 211, 77, 0.3) !important;
-  color: #fcd34d !important;
-}
-
-html.dark .status-badge-danger,
-html.dark .badge-danger {
-  background-color: rgba(239, 68, 68, 0.15) !important;
-  border-color: rgba(252, 165, 165, 0.3) !important;
-  color: #fca5a5 !important;
-}
-
-html.dark .status-badge-info,
-html.dark .badge-info {
-  background-color: rgba(59, 130, 246, 0.16) !important;
-  border-color: rgba(147, 197, 253, 0.32) !important;
-  color: #93c5fd !important;
-}
-
-html.dark .status-badge-purple,
-html.dark .badge-purple {
-  background-color: rgba(168, 85, 247, 0.16) !important;
-  border-color: rgba(216, 180, 254, 0.32) !important;
-  color: #d8b4fe !important;
-}
-
-html.dark .status-badge-neutral,
-html.dark .badge-neutral {
-  background-color: rgba(148, 163, 184, 0.12) !important;
-  border-color: rgba(203, 213, 225, 0.25) !important;
-  color: #cbd5e1 !important;
+/* Institutional Tables */
+table {
+  font-size: 14px;
 }
 
 html.dark table thead tr {
-  background-color: #0e1738 !important;
+  background-color: #162032 !important;
 }
 
 html.dark table th {
-  color: #94a3b8 !important;
+  color: #94A3B8 !important;
 }
 
 html.dark table tbody tr:hover {
-  background-color: #172447 !important;
+  background-color: #1F2937 !important;
+}
+
+/* Institutional Form Controls */
+input, select, textarea {
+  font-family: inherit;
 }
 
 html.dark input,
 html.dark select,
 html.dark textarea {
-  background-color: #0e1738 !important;
-  border-color: #1e2d56 !important;
-  color: #f8fafc !important;
+  background-color: #162032 !important;
+  border-color: #273449 !important;
+  color: #F8FAFC !important;
 }
 
 html.dark input::placeholder,
 html.dark textarea::placeholder {
-  color: #64748b !important;
+  color: #64748B !important;
 }
 
+/* Touch targets guarantee on mobile */
+@media (max-width: 640px) {
+  button:not(.btn-inline),
+  .touch-target-control {
+    min-height: 44px;
+  }
+}
+
+/* Print Utilities */
 @media print {
   body * {
     visibility: hidden;
