@@ -54,39 +54,69 @@ class DashboardStatsController extends Controller
 
         $now = Carbon::now();
 
-        // 2. Total Venue Bookings (All non-archived)
-        $totalVenueBookings = DB::table('venue_bookings')->whereNull('archived_at')->count();
+        // ── Resolve the active academic term ──────────────────────────────────
+        // All booking/borrowing stats are scoped to the ACTIVE semester only.
+        // When a new semester becomes active, counts reset to 0 for that semester.
+        $activeTermId = DB::table('academic_terms')
+            ->where('is_active', true)
+            ->value('id');
 
-        // 3. Total Equipment Borrows (All non-archived)
-        $totalEquipBorrows = DB::table('equipment_borrows')->whereNull('archived_at')->count();
+        // 2. Total Venue Bookings — scoped to active term only
+        $vbQuery = DB::table('venue_bookings')->whereNull('archived_at');
+        if ($activeTermId) {
+            $vbQuery->where('academic_term_id', $activeTermId);
+        }
+        $totalVenueBookings = $vbQuery->count();
 
-        $pendingVb = DB::table('venue_bookings')
+        // 3. Total Equipment Borrows — scoped to active term only
+        $ebQuery = DB::table('equipment_borrows')->whereNull('archived_at');
+        if ($activeTermId) {
+            $ebQuery->where('academic_term_id', $activeTermId);
+        }
+        $totalEquipBorrows = $ebQuery->count();
+
+        // 4. Pending Venue Bookings — scoped to active term
+        $pendingVbQuery = DB::table('venue_bookings')
             ->join('tracking_numbers', 'venue_bookings.tracking_number_id', '=', 'tracking_numbers.id')
             ->whereNull('venue_bookings.archived_at')
-            ->where(DB::raw('LOWER(TRIM(tracking_numbers.status))'), 'pending')
-            ->count();
+            ->where(DB::raw('LOWER(TRIM(tracking_numbers.status))'), 'pending');
+        if ($activeTermId) {
+            $pendingVbQuery->where('venue_bookings.academic_term_id', $activeTermId);
+        }
+        $pendingVb = $pendingVbQuery->count();
 
-        $pendingEb = DB::table('equipment_borrows')
+        // 4b. Pending Equipment Borrows — scoped to active term
+        $pendingEbQuery = DB::table('equipment_borrows')
             ->join('tracking_numbers', 'equipment_borrows.tracking_number_id', '=', 'tracking_numbers.id')
             ->whereNull('equipment_borrows.archived_at')
-            ->where(DB::raw('LOWER(TRIM(tracking_numbers.status))'), 'pending')
-            ->count();
+            ->where(DB::raw('LOWER(TRIM(tracking_numbers.status))'), 'pending');
+        if ($activeTermId) {
+            $pendingEbQuery->where('equipment_borrows.academic_term_id', $activeTermId);
+        }
+        $pendingEb = $pendingEbQuery->count();
 
-        $postInspectionPendingVenue = DB::table('venue_bookings')
+        // 4c. Post-Inspection Pending — scoped to active term
+        $postVbQuery = DB::table('venue_bookings')
             ->join('tracking_numbers', 'venue_bookings.tracking_number_id', '=', 'tracking_numbers.id')
             ->whereNull('venue_bookings.archived_at')
-            ->whereIn(DB::raw('LOWER(TRIM(tracking_numbers.status))'), ['ongoing', 'on-going', 'post-inspection'])
-            ->count();
+            ->whereIn(DB::raw('LOWER(TRIM(tracking_numbers.status))'), ['ongoing', 'on-going', 'post-inspection']);
+        if ($activeTermId) {
+            $postVbQuery->where('venue_bookings.academic_term_id', $activeTermId);
+        }
+        $postInspectionPendingVenue = $postVbQuery->count();
 
-        $postInspectionPendingEquip = DB::table('equipment_borrows')
+        $postEbQuery = DB::table('equipment_borrows')
             ->join('tracking_numbers', 'equipment_borrows.tracking_number_id', '=', 'tracking_numbers.id')
             ->whereNull('equipment_borrows.archived_at')
-            ->whereIn(DB::raw('LOWER(TRIM(tracking_numbers.status))'), ['ongoing', 'on-going', 'borrowed', 'post-inspection'])
-            ->count();
+            ->whereIn(DB::raw('LOWER(TRIM(tracking_numbers.status))'), ['ongoing', 'on-going', 'borrowed', 'post-inspection']);
+        if ($activeTermId) {
+            $postEbQuery->where('equipment_borrows.academic_term_id', $activeTermId);
+        }
+        $postInspectionPendingEquip = $postEbQuery->count();
 
         $pendingApproval = $pendingVb + $pendingEb;
 
-        // 5. Physical Equipment Units Count
+        // 5. Physical Equipment Units Count (NOT semester-scoped — reflects real inventory state)
         $unitCounts = DB::table('equipment_units')
             ->whereNull('archived_at')
             ->select(
@@ -100,43 +130,75 @@ class DashboardStatsController extends Controller
         $physicalDamages    = (int) ($unitCounts->damage_count ?? 0);
         $physicalLost       = (int) ($unitCounts->lost_count ?? 0);
 
-        // 6. Inspection-based Lost and Damaged counts
-        $inspectionDamages = DB::table('inspections')
+        // 6. Inspection-based Lost and Damaged counts (scoped to active term via bookings join)
+        $inspDmgQuery = DB::table('inspections')
             ->where(function($q) {
                 $q->where(DB::raw('LOWER(inspections.condition)'), 'damaged')
                   ->orWhere('violation_type', 'LIKE', '%damage%');
-            })
-            ->count();
+            });
+        if ($activeTermId) {
+            $inspDmgQuery->where(function($q) use ($activeTermId) {
+                $q->whereExists(function($sub) use ($activeTermId) {
+                    $sub->from('equipment_borrows')
+                        ->whereColumn('equipment_borrows.id', 'inspections.inspectable_id')
+                        ->where('equipment_borrows.academic_term_id', $activeTermId);
+                })->orWhereExists(function($sub) use ($activeTermId) {
+                    $sub->from('venue_bookings')
+                        ->whereColumn('venue_bookings.id', 'inspections.inspectable_id')
+                        ->where('venue_bookings.academic_term_id', $activeTermId);
+                });
+            });
+        }
+        $inspectionDamages = $inspDmgQuery->count();
 
-        $inspectionLost = DB::table('inspections')
+        $inspLostQuery = DB::table('inspections')
             ->where(function($q) {
                 $q->where(DB::raw('LOWER(inspections.condition)'), 'lost')
                   ->orWhere('violation_type', 'LIKE', '%lost%');
-            })
-            ->count();
+            });
+        if ($activeTermId) {
+            $inspLostQuery->where(function($q) use ($activeTermId) {
+                $q->whereExists(function($sub) use ($activeTermId) {
+                    $sub->from('equipment_borrows')
+                        ->whereColumn('equipment_borrows.id', 'inspections.inspectable_id')
+                        ->where('equipment_borrows.academic_term_id', $activeTermId);
+                })->orWhereExists(function($sub) use ($activeTermId) {
+                    $sub->from('venue_bookings')
+                        ->whereColumn('venue_bookings.id', 'inspections.inspectable_id')
+                        ->where('venue_bookings.academic_term_id', $activeTermId);
+                });
+            });
+        }
+        $inspectionLost = $inspLostQuery->count();
 
         $totalEquipmentDamages = max($physicalDamages, $inspectionDamages);
         $totalEquipmentLost = max($physicalLost, $inspectionLost);
 
-        // 7. Overdue Returns & Completed Today
-        $overdueReturns = DB::table('equipment_borrows')
+        // 7. Overdue Returns & Completed Today — scoped to active term
+        $overdueQuery = DB::table('equipment_borrows')
             ->join('tracking_numbers', 'equipment_borrows.tracking_number_id', '=', 'tracking_numbers.id')
             ->whereNull('equipment_borrows.archived_at')
             ->whereIn(DB::raw('LOWER(TRIM(tracking_numbers.status))'), ['on-going', 'ongoing'])
-            ->where('equipment_borrows.date_of_usage', '<', $now->toDateString())
-            ->count();
+            ->where('equipment_borrows.date_of_usage', '<', $now->toDateString());
+        if ($activeTermId) {
+            $overdueQuery->where('equipment_borrows.academic_term_id', $activeTermId);
+        }
+        $overdueReturns = $overdueQuery->count();
 
-        $completedToday = DB::table('equipment_borrows')
+        $completedQuery = DB::table('equipment_borrows')
             ->join('tracking_numbers', 'equipment_borrows.tracking_number_id', '=', 'tracking_numbers.id')
             ->whereNull('equipment_borrows.archived_at')
             ->whereIn(DB::raw('LOWER(TRIM(tracking_numbers.status))'), ['completed', 'late return', 'returned late', 'damaged', 'lost'])
-            ->whereDate('tracking_numbers.updated_at', $now->toDateString())
-            ->count();
+            ->whereDate('tracking_numbers.updated_at', $now->toDateString());
+        if ($activeTermId) {
+            $completedQuery->where('equipment_borrows.academic_term_id', $activeTermId);
+        }
+        $completedToday = $completedQuery->count();
 
-        // 8. Top 5 Borrowed Equipment Types
+        // 8. Top 5 Borrowed Equipment Types — scoped to active term
         $topEquipment = [];
         try {
-            $topEquipmentData = DB::table('equipment_borrow_items')
+            $topEquipQuery = DB::table('equipment_borrow_items')
                 ->join('equipment_borrows', 'equipment_borrow_items.equipment_borrow_id', '=', 'equipment_borrows.id')
                 ->join('equipment_types', 'equipment_borrow_items.equipment_type_id', '=', 'equipment_types.id')
                 ->select(
@@ -145,8 +207,13 @@ class DashboardStatsController extends Controller
                 )
                 ->groupBy('equipment_types.id', 'equipment_types.eq_name')
                 ->orderByDesc('total_borrows')
-                ->limit(5)
-                ->get();
+                ->limit(5);
+
+            if ($activeTermId) {
+                $topEquipQuery->where('equipment_borrows.academic_term_id', $activeTermId);
+            }
+
+            $topEquipmentData = $topEquipQuery->get();
 
             $topEquipment = $topEquipmentData->map(function ($item, $index) {
                 return [
@@ -157,24 +224,32 @@ class DashboardStatsController extends Controller
             })->all();
         } catch (\Throwable $e) {}
 
-        // 9. Department with Most Bookings (Venue Bookings + Equipment Borrows)
+        // 9. Department with Most Bookings — scoped to active term
         $topBookedDeptsMap = [];
         try {
-            $vbDepts = DB::table('venue_bookings')
+            $vbDeptsQuery = DB::table('venue_bookings')
                 ->whereNull('archived_at')
                 ->select('program_office', DB::raw('count(*) as total'))
-                ->groupBy('program_office')
-                ->get();
+                ->groupBy('program_office');
+            if ($activeTermId) {
+                $vbDeptsQuery->where('academic_term_id', $activeTermId);
+            }
+            $vbDepts = $vbDeptsQuery->get();
+
             foreach ($vbDepts as $row) {
                 $p = trim($row->program_office ?: 'General');
                 if ($p) $topBookedDeptsMap[$p] = ($topBookedDeptsMap[$p] ?? 0) + (int)$row->total;
             }
 
-            $ebDepts = DB::table('equipment_borrows')
+            $ebDeptsQuery = DB::table('equipment_borrows')
                 ->whereNull('archived_at')
                 ->select('program_office', DB::raw('count(*) as total'))
-                ->groupBy('program_office')
-                ->get();
+                ->groupBy('program_office');
+            if ($activeTermId) {
+                $ebDeptsQuery->where('academic_term_id', $activeTermId);
+            }
+            $ebDepts = $ebDeptsQuery->get();
+
             foreach ($ebDepts as $row) {
                 $p = trim($row->program_office ?: 'General');
                 if ($p) $topBookedDeptsMap[$p] = ($topBookedDeptsMap[$p] ?? 0) + (int)$row->total;
@@ -191,10 +266,10 @@ class DashboardStatsController extends Controller
             ];
         }
 
-        // 10. Department with Most Violations
+        // 10. Department with Most Violations — scoped to active term
         $deptViolationsMap = [];
         try {
-            $insps = DB::table('inspections')
+            $inspsQuery = DB::table('inspections')
                 ->leftJoin('venue_bookings', function($j) {
                     $j->on('inspections.inspectable_id', '=', 'venue_bookings.id')
                       ->where(function($q) {
@@ -217,8 +292,16 @@ class DashboardStatsController extends Controller
                     'inspections.violation_type',
                     'inspections.is_late',
                     'inspections.timeliness'
-                )
-                ->get();
+                );
+
+            if ($activeTermId) {
+                $inspsQuery->where(function($q) use ($activeTermId) {
+                    $q->where('venue_bookings.academic_term_id', $activeTermId)
+                      ->orWhere('equipment_borrows.academic_term_id', $activeTermId);
+                });
+            }
+
+            $insps = $inspsQuery->get();
 
             foreach ($insps as $insp) {
                 $p = trim($insp->program_office ?: 'General');
@@ -231,12 +314,15 @@ class DashboardStatsController extends Controller
                 if ($isViolation) $deptViolationsMap[$p]['violations'] += 1;
             }
 
-            // Direct check from equipment_borrows tracking status
-            $ebBreaches = DB::table('equipment_borrows')
+            // Direct check from equipment_borrows tracking status — scoped to active term
+            $ebBreachesQuery = DB::table('equipment_borrows')
                 ->join('tracking_numbers', 'equipment_borrows.tracking_number_id', '=', 'tracking_numbers.id')
                 ->whereNull('equipment_borrows.archived_at')
-                ->select('equipment_borrows.program_office', 'tracking_numbers.status as tracking_status')
-                ->get();
+                ->select('equipment_borrows.program_office', 'tracking_numbers.status as tracking_status');
+            if ($activeTermId) {
+                $ebBreachesQuery->where('equipment_borrows.academic_term_id', $activeTermId);
+            }
+            $ebBreaches = $ebBreachesQuery->get();
 
             foreach ($ebBreaches as $eb) {
                 $p = trim($eb->program_office ?: 'General');
@@ -278,11 +364,11 @@ class DashboardStatsController extends Controller
         usort($lateSortedPrograms, fn($a, $b) => $b['late'] <=> $a['late']);
         $topLateDept = (!empty($lateSortedPrograms) && $lateSortedPrograms[0]['late'] > 0) ? $lateSortedPrograms[0]['program'] : 'None';
 
-        // 10b. Violating Students / Borrowers List
+        // 10b. Violating Students / Borrowers List — scoped to active term
         $violatingStudents = [];
         try {
             if (Schema::hasTable('inspections')) {
-                $rawInspStudents = DB::table('inspections')
+                $rawInspStudentsQuery = DB::table('inspections')
                     ->where(function ($q) {
                         $q->where('inspections.is_late', 1)
                           ->orWhere(DB::raw('LOWER(inspections.timeliness)'), 'like', '%late%')
@@ -323,8 +409,16 @@ class DashboardStatsController extends Controller
                         DB::raw("CASE WHEN equipment_borrows.id IS NOT NULL THEN 'Equipment Loan' ELSE 'Venue Booking' END as transaction_type")
                     )
                     ->orderByDesc('inspections.id')
-                    ->limit(20)
-                    ->get();
+                    ->limit(20);
+
+                if ($activeTermId) {
+                    $rawInspStudentsQuery->where(function($q) use ($activeTermId) {
+                        $q->where('venue_bookings.academic_term_id', $activeTermId)
+                          ->orWhere('equipment_borrows.academic_term_id', $activeTermId);
+                    });
+                }
+
+                $rawInspStudents = $rawInspStudentsQuery->get();
 
                 $violatingStudents = $rawInspStudents->map(function ($row) {
                     $dt = Carbon::parse($row->incident_date);
@@ -344,8 +438,8 @@ class DashboardStatsController extends Controller
             }
         } catch (\Throwable $e) {}
 
-        // 11. Schedule Overview Calendar Data (Both Venue Bookings and Equipment Borrowings)
-        $calendarVenueBookings = DB::table('venue_bookings')
+        // 11. Schedule Overview Calendar Data — scoped to active term
+        $calVbQuery = DB::table('venue_bookings')
             ->join('tracking_numbers', 'venue_bookings.tracking_number_id', '=', 'tracking_numbers.id')
             ->leftJoin('venues', 'venue_bookings.venue_id', '=', 'venues.id')
             ->whereNull('venue_bookings.archived_at')
@@ -365,10 +459,13 @@ class DashboardStatsController extends Controller
                 'tracking_numbers.status'
             )
             ->orderBy('venue_bookings.date_of_usage', 'asc')
-            ->limit(50)
-            ->get();
+            ->limit(50);
+        if ($activeTermId) {
+            $calVbQuery->where('venue_bookings.academic_term_id', $activeTermId);
+        }
+        $calendarVenueBookings = $calVbQuery->get();
 
-        $calendarEquipBorrowings = DB::table('equipment_borrows')
+        $calEbQuery = DB::table('equipment_borrows')
             ->join('tracking_numbers', 'equipment_borrows.tracking_number_id', '=', 'tracking_numbers.id')
             ->whereNull('equipment_borrows.archived_at')
             ->whereIn(DB::raw('LOWER(TRIM(tracking_numbers.status))'), ['pending', 'approved', 'ongoing', 'on-going', 'completed', 'late return', 'returned late', 'damaged', 'lost'])
@@ -387,38 +484,42 @@ class DashboardStatsController extends Controller
                 'tracking_numbers.status'
             )
             ->orderBy('equipment_borrows.date_of_usage', 'asc')
-            ->limit(50)
-            ->get();
+            ->limit(50);
+        if ($activeTermId) {
+            $calEbQuery->where('equipment_borrows.academic_term_id', $activeTermId);
+        }
+        $calendarEquipBorrowings = $calEbQuery->get();
 
         $calendarBookings = $calendarVenueBookings->concat($calendarEquipBorrowings);
 
         return [
             'quick_stats' => [
-                'total_venue_bookings' => $totalVenueBookings,
-                'total_equip_borrows' => $totalEquipBorrows,
-                'pending_bookings' => $pendingVb,
-                'pending_borrowings' => $pendingEb,
-                'pending_approval' => $pendingApproval,
-                'pending_approval_count' => $pendingVb,
-                'pending_venue_count' => $pendingVb,
-                'pending_equipment_count' => $pendingEb,
-                'pending_borrow_count' => $pendingEb,
-                'post_inspection_pending_venue' => $postInspectionPendingVenue,
-                'post_inspection_pending_equip' => $postInspectionPendingEquip,
-                'available_equipment' => $availableEquipment,
-                'damage_reports' => $physicalDamages,
-                'overdue_returns' => $overdueReturns,
-                'completed_today' => $completedToday,
-                'total_equipment_damages' => $totalEquipmentDamages,
-                'total_equipment_lost' => $totalEquipmentLost,
-                'top_violating_department' => $topViolatingDept,
-                'top_late_department' => $topLateDept,
+                'total_venue_bookings'         => $totalVenueBookings,
+                'total_equip_borrows'          => $totalEquipBorrows,
+                'pending_bookings'             => $pendingVb,
+                'pending_borrowings'           => $pendingEb,
+                'pending_approval'             => $pendingApproval,
+                'pending_approval_count'       => $pendingVb,
+                'pending_venue_count'          => $pendingVb,
+                'pending_equipment_count'      => $pendingEb,
+                'pending_borrow_count'         => $pendingEb,
+                'post_inspection_pending_venue'  => $postInspectionPendingVenue,
+                'post_inspection_pending_equip'  => $postInspectionPendingEquip,
+                'available_equipment'          => $availableEquipment,
+                'damage_reports'               => $physicalDamages,
+                'overdue_returns'              => $overdueReturns,
+                'completed_today'              => $completedToday,
+                'total_equipment_damages'      => $totalEquipmentDamages,
+                'total_equipment_lost'         => $totalEquipmentLost,
+                'top_violating_department'     => $topViolatingDept,
+                'top_late_department'          => $topLateDept,
+                'active_term_id'               => $activeTermId,
             ],
-            'top_departments' => $topBookedDepts,
-            'top_equipment' => $topEquipment,
+            'top_departments'         => $topBookedDepts,
+            'top_equipment'           => $topEquipment,
             'programs_with_violations' => array_slice($programsList, 0, 5),
-            'violating_students' => $violatingStudents,
-            'calendar_bookings' => $calendarBookings,
+            'violating_students'      => $violatingStudents,
+            'calendar_bookings'       => $calendarBookings,
         ];
     }
 }
