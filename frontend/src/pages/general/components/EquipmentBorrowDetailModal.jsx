@@ -571,21 +571,11 @@ export default function EquipmentBorrowDetailModal({
       return true;
     });
 
-    // 5. Soft-Reservation by Quantity
-    if (eqTypeId) {
-      const totalOverlappingQty = overlappingCategoryQtyMap[String(eqTypeId)] || 0;
-      if (totalOverlappingQty > 0) {
-        const alreadyExcludedByBarcode = matched.filter((u) => {
-          const bCode = String(u.barcode || u.serial_number || u.code || u.id || "").trim().toUpperCase();
-          return bCode && overlappingReservedBarcodes.has(bCode);
-        }).length;
-        const additionalSoftReserved = Math.max(0, totalOverlappingQty - alreadyExcludedByBarcode);
-        if (additionalSoftReserved > 0) {
-          return available.slice(0, Math.max(0, available.length - additionalSoftReserved));
-        }
-      }
-    }
-
+    // Note: We intentionally do NOT apply quantity-based soft-reservation here.
+    // Units are already excluded when they have a confirmed barcode assignment in
+    // a conflicting booking (via overlappingReservedBarcodes above).
+    // A quantity-only soft-reserve would incorrectly hide units from admins when
+    // another borrowing has requested but not yet assigned any specific barcodes.
     return available;
   };
 
