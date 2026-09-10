@@ -37,55 +37,16 @@ class EquipmentBorrowingService
                 );
             }
 
-            // Permanent Active / Pending Duplicate Borrowing Request Check
+            // Rapid multi-click debounce protection (prevents duplicate simultaneous clicks within 3 seconds)
             $applicantEmail = $data['email_address'] ?? $data['email'] ?? null;
-            $firstName = $data['first_name'] ?? null;
-            $lastName = $data['last_name'] ?? null;
-
-            $borrowDate = isset($data['start_datetime']) ? substr($data['start_datetime'], 0, 10) : (isset($data['date_of_usage']) ? $data['date_of_usage'] : now()->toDateString());
-
-            if (!empty($applicantEmail) || (!empty($firstName) && !empty($lastName))) {
-                $existingActiveBorrow = DB::table('equipment_borrows')
-                    ->join('tracking_numbers', 'equipment_borrows.tracking_number_id', '=', 'tracking_numbers.id')
-                    ->whereIn('tracking_numbers.status', ['pending', 'approved', 'ongoing', 'on-going'])
-                    ->where(function ($q) use ($applicantEmail, $firstName, $lastName) {
-                        if ($applicantEmail) {
-                            $q->where('equipment_borrows.email_address', $applicantEmail);
-                        }
-                        if ($firstName && $lastName) {
-                            $q->orWhere(function ($sub) use ($firstName, $lastName) {
-                                $sub->where('equipment_borrows.first_name', $firstName)
-                                    ->where('equipment_borrows.last_name', $lastName);
-                            });
-                        }
-                    })
-                    ->where('equipment_borrows.date_of_usage', $borrowDate)
-                    ->select('tracking_numbers.reference_code', 'tracking_numbers.status')
-                    ->first();
-
-                if ($existingActiveBorrow) {
-                    $statusLabel = strtoupper($existingActiveBorrow->status);
-                    throw new \InvalidArgumentException("You already have an active {$statusLabel} equipment borrowing request ({$existingActiveBorrow->reference_code}) for this borrow date. You cannot submit duplicate requests.");
-                }
-
-                // Anti-Spam Duplicate Prevention (15-Minute Buffer)
-                $recentDuplicate = DB::table('equipment_borrows')
-                    ->where('created_at', '>=', now()->subMinutes(15))
-                    ->where(function ($q) use ($applicantEmail, $firstName, $lastName) {
-                        if ($applicantEmail) {
-                            $q->where('email_address', $applicantEmail);
-                        }
-                        if ($firstName && $lastName) {
-                            $q->orWhere(function ($sub) use ($firstName, $lastName) {
-                                $sub->where('first_name', $firstName)
-                                    ->where('last_name', $lastName);
-                            });
-                        }
-                    })
+            if (!empty($applicantEmail)) {
+                $rapidDuplicate = DB::table('equipment_borrows')
+                    ->where('email_address', $applicantEmail)
+                    ->where('created_at', '>=', now()->subSeconds(3))
                     ->exists();
 
-                if ($recentDuplicate) {
-                    throw new \InvalidArgumentException('You have already submitted an equipment borrowing request recently. To prevent duplicate requests, please wait 15 minutes before submitting again or track your existing request.');
+                if ($rapidDuplicate) {
+                    throw new \InvalidArgumentException('Your request is already being processed. Please wait a moment.');
                 }
             }
 
@@ -426,16 +387,23 @@ class EquipmentBorrowingService
         $type = EquipmentType::where('id', $equipmentTypeId)->lockForUpdate()->first();
         if (!$type) return;
 
-        $totalStock = max(1, $type->total_quantity ?? 1);
+        // Accurate physical unit inventory count (operational, non-damaged, non-lost, non-decommissioned)
+        $operationalUnitsCount = \App\Models\EquipmentUnit::where('equipment_type_id', $equipmentTypeId)
+            ->whereNull('archived_at')
+            ->whereNotIn('status', ['damaged', 'lost', 'decommissioned', 'maintenance', 'Damaged', 'Lost', 'Decommissioned', 'Maintenance'])
+            ->whereNotIn('condition', ['damaged', 'lost', 'under repair', 'under_repair', 'Damaged', 'Lost', 'Under Repair'])
+            ->count();
+
+        $totalStock = $operationalUnitsCount > 0 ? $operationalUnitsCount : max(1, $type->total_quantity ?? 1);
 
         $dateStr = substr($startDatetime, 0, 10);
         $startTimeStr = substr($startDatetime, 11, 8);
         $endTimeStr = substr($endDatetime, 11, 8);
 
-        // 1. Calculate Equipment Borrowings overlapping this time slot
+        // 1. Calculate Equipment Borrowings overlapping this time slot (excluding returned/completed/cancelled/rejected)
         $borrowCommitted = \App\Models\EquipmentBorrowItem::where('equipment_type_id', $equipmentTypeId)
             ->whereHas('equipmentBorrow', function ($query) use ($dateStr, $startTimeStr, $endTimeStr) {
-                $query->whereHas('trackingNumber', fn($t) => $t->whereNotIn('status', ['rejected', 'cancelled']))
+                $query->whereHas('trackingNumber', fn($t) => $t->whereNotIn('status', ['rejected', 'cancelled', 'completed', 'returned', 'done', 'cleared']))
                     ->where('date_of_usage', $dateStr)
                     ->where('time_start', '<', $endTimeStr)
                     ->where('time_end', '>', $startTimeStr);
@@ -443,7 +411,7 @@ class EquipmentBorrowingService
             ->sum('quantity_requested');
 
         // 2. Calculate Venue Bookings overlapping this date & time slot
-        $venueCommitted = \App\Models\VenueBooking::whereHas('trackingNumber', fn($t) => $t->whereNotIn('status', ['rejected', 'cancelled']))
+        $venueCommitted = \App\Models\VenueBooking::whereHas('trackingNumber', fn($t) => $t->whereNotIn('status', ['rejected', 'cancelled', 'completed', 'done']))
             ->where('date_of_usage', $dateStr)
             ->where('time_start', '<', $endTimeStr)
             ->where('time_end', '>', $startTimeStr)
@@ -462,7 +430,7 @@ class EquipmentBorrowingService
         $availableInSlot = max(0, $totalStock - $totalCommitted);
 
         if ($requestedQuantity > $availableInSlot) {
-            throw new \App\Exceptions\EquipmentUnavailableException("Requested quantity ({$requestedQuantity}) exceeds available stock ({$availableInSlot}) for this time slot.");
+            throw new \App\Exceptions\EquipmentUnavailableException("Sorry, only {$availableInSlot} physical unit(s) are available for this time slot (Requested: {$requestedQuantity}).");
         }
     }
 

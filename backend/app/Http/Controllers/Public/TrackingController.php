@@ -17,42 +17,37 @@ class TrackingController extends Controller
 
         $booking = null;
 
-        if (str_starts_with($referenceCode, 'VN-') || str_starts_with($referenceCode, 'TRK-') || str_starts_with($referenceCode, 'REF-')) {
-            $tracking = \Illuminate\Support\Facades\DB::table('tracking_numbers')
-                ->where('reference_code', $referenceCode)
-                ->orWhere('id', str_replace(['TRK-AVR', 'TRK-'], '', $referenceCode))
-                ->first();
+        $refLower = strtolower($referenceCode);
 
-            if ($tracking && $tracking->reservation_type === 'venue_booking') {
-                $booking = VenueBooking::with('venue', 'trackingNumber')->where('id', $tracking->reservation_id)->first();
-            }
-            if (!$booking) {
-                $booking = VenueBooking::with('venue', 'trackingNumber')
-                    ->where('reference_code', $referenceCode)
-                    ->orWhere('id', str_replace(['TRK-AVR', 'TRK-'], '', $referenceCode))
-                    ->first();
-            }
-        } elseif (str_starts_with($referenceCode, 'EQ-')) {
-            // EQ references are stored in tracking_numbers — reservation_type is 'equipment_borrowing'
-            $tracking = \Illuminate\Support\Facades\DB::table('tracking_numbers')
-                ->where('reference_code', $referenceCode)
-                ->first();
-            if ($tracking && in_array($tracking->reservation_type, ['equipment_borrow', 'equipment_borrowing'])) {
-                $booking = EquipmentBorrow::with('items.equipmentType', 'trackingNumber')
+        // 1. Search in tracking_numbers table (case-insensitive)
+        $tracking = \Illuminate\Support\Facades\DB::table('tracking_numbers')
+            ->whereRaw('LOWER(reference_code) = ?', [$refLower])
+            ->orWhere('id', str_replace(['trk-avr', 'trk-', 'eq-2026-', 'eq-'], '', $refLower))
+            ->first();
+
+        if ($tracking) {
+            if (in_array($tracking->reservation_type, ['equipment_borrow', 'equipment_borrowing'])) {
+                $booking = EquipmentBorrow::with(['items.equipmentType', 'trackingNumber', 'department'])
                     ->find($tracking->reservation_id);
+            } elseif ($tracking->reservation_type === 'venue_booking') {
+                $booking = VenueBooking::with(['venue', 'trackingNumber', 'department'])->where('id', $tracking->reservation_id)->first();
             }
         }
 
-        // Fallback: search across all models if not matched yet
+        // 2. Direct fallback on EquipmentBorrow
         if (!$booking) {
-            $tracking = \Illuminate\Support\Facades\DB::table('tracking_numbers')->where('reference_code', $referenceCode)->first();
-            if ($tracking) {
-                if (in_array($tracking->reservation_type, ['venue_booking'])) {
-                    $booking = VenueBooking::with('venue', 'trackingNumber')->where('id', $tracking->reservation_id)->first();
-                } elseif (in_array($tracking->reservation_type, ['equipment_borrow', 'equipment_borrowing'])) {
-                    $booking = EquipmentBorrow::with('items.equipmentType', 'trackingNumber')->find($tracking->reservation_id);
-                }
-            }
+            $booking = EquipmentBorrow::with(['items.equipmentType', 'trackingNumber', 'department'])
+                ->whereHas('trackingNumber', fn($q) => $q->whereRaw('LOWER(reference_code) = ?', [$refLower]))
+                ->orWhere('id', str_replace(['eq-2026-', 'eq-'], '', $refLower))
+                ->first();
+        }
+
+        // 3. Direct fallback on VenueBooking
+        if (!$booking) {
+            $booking = VenueBooking::with(['venue', 'trackingNumber', 'department'])
+                ->whereRaw('LOWER(reference_code) = ?', [$refLower])
+                ->orWhere('id', str_replace(['trk-avr', 'trk-'], '', $refLower))
+                ->first();
         }
 
         $errorMessage = 'We could not find a booking matching this reference code.';

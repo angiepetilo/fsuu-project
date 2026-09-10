@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { Search, Hash, CheckCircle2, Loader2, AlertCircle, Building2, PackageOpen, AlertTriangle, ArrowLeft } from "lucide-react";
+import { Search, Hash, CheckCircle2, Loader2, AlertCircle, Building2, PackageOpen, AlertTriangle, ArrowLeft, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/status-badge";
 import api from "@/lib/axios";
@@ -82,32 +82,46 @@ export default function TrackBooking() {
   }, [booking?.reference_code, trackCode]);
 
 
-  const isVenue = booking?.type === 'venue' || (booking?.reference_code || trackCode).startsWith('VN') || (booking?.reference_code || trackCode).includes('AVR');
+  const isEquipment = booking?.tracking_number?.reservation_type === 'equipment_borrowing' ||
+    booking?.tracking_number?.reservation_type === 'equipment_borrow' ||
+    (Array.isArray(booking?.items) && booking?.items.length > 0) ||
+    Boolean(booking?.equipment_name) ||
+    (booking?.reference_code || trackCode).toUpperCase().startsWith('EQ');
 
-  // Timeline Step calculation per Item 32:
+  const isVenue = !isEquipment && (
+    booking?.type === 'venue' ||
+    booking?.tracking_number?.reservation_type === 'venue_booking' ||
+    Boolean(booking?.venue_id) ||
+    Boolean(booking?.venue) ||
+    (booking?.reference_code || trackCode).toUpperCase().startsWith('VN') ||
+    (booking?.reference_code || trackCode).toUpperCase().startsWith('TRK-AVR')
+  );
+
+  // Timeline Step calculation:
   // Venue steps: Pending (1) -> Approved (2) -> On-going (3) -> Inspection (4) -> Completed (5)
-  // Equipment steps: Pending (1) -> Claim (2) -> Return (3) -> Inspection/Damage Tag (4) -> Completed (5)
+  // Equipment steps: Pending (1) -> Claim/Approved (2) -> On-going/In Use (3) -> Inspection (4) -> Completed (5)
   const getVenueStepIndex = (status) => {
-    const s = (status || "").toLowerCase();
+    const s = (status || "").toLowerCase().replace(/_/g, "-");
     if (s === "pending") return 1;
     if (s === "approved") return 2;
     if (s === "ongoing" || s === "on-going") return 3;
-    if (s === "inspection" || s === "post-inspection") return 4;
+    if (s === "inspection" || s === "post-inspection" || s === "post-event-inspection") return 4;
     if (s === "completed") return 5;
     return 1;
   };
 
   const getEquipmentStepIndex = (status) => {
-    const s = (status || "").toLowerCase();
+    const s = (status || "").toLowerCase().replace(/_/g, "-");
     if (s === "pending") return 1;
-    if (s === "approved" || s === "claim" || s === "claimed") return 2;
-    if (s === "return" || s === "returned") return 3;
-    if (s === "damaged" || s === "lost" || s === "inspection") return 4;
-    if (s === "completed") return 5;
+    if (s === "approved" || s === "claim" || s === "claimed" || s === "ready-to-claim") return 2;
+    if (s === "ongoing" || s === "on-going" || s === "released" || s === "in-use" || s === "borrowed") return 3;
+    if (s === "return" || s === "returned" || s === "inspection" || s === "post-inspection") return 4;
+    if (s === "completed" || s === "done" || s === "cleared") return 5;
     return 1;
   };
 
   const activeStatus = booking?.status || booking?.tracking_number?.status || "pending";
+  const isCompletedBooking = ['completed', 'done', 'cleared'].includes((activeStatus || '').toLowerCase());
 
   const currentStep = booking
     ? (isVenue ? getVenueStepIndex(activeStatus) : getEquipmentStepIndex(activeStatus))
@@ -122,14 +136,33 @@ export default function TrackBooking() {
   ];
 
   const equipmentSteps = [
-    { label: "Pending", desc: "Awaiting approval" },
-    { label: "Claim", desc: "Ready to claim (Bring Institutional ID)" },
-    { label: "Return", desc: "Return due at kiosk" },
-    { label: "Inspection", desc: "Condition check" },
-    { label: "Completed", desc: "Log closed" },
+    { label: "Pending", desc: "Awaiting staff review" },
+    { label: "Claim", desc: "Ready to claim (Bring ID)" },
+    { label: "On-going", desc: "Released & in use (Kiosk return due)" },
+    { label: "Inspection", desc: "Returned & condition check" },
+    { label: "Completed", desc: "Cleared & log closed" },
   ];
 
   const activeSteps = isVenue ? venueSteps : equipmentSteps;
+
+  const formatTime12 = (tStr) => {
+    if (!tStr) return "";
+    let raw = tStr;
+    if (raw.includes("T")) raw = raw.split("T")[1];
+    const parts = raw.split(":");
+    const h = parseInt(parts[0], 10);
+    const m = parseInt(parts[1] || "0", 10);
+    if (isNaN(h)) return "";
+    const ampm = h >= 12 ? "PM" : "AM";
+    const h12 = h % 12 || 12;
+    return `${String(h12).padStart(2, '0')}:${String(m).padStart(2, '0')} ${ampm}`;
+  };
+
+  const usageTimeRange = booking?.time_start && booking?.time_end
+    ? `${formatTime12(booking.time_start)} - ${formatTime12(booking.time_end)}`
+    : (booking?.start_datetime && booking?.end_datetime
+      ? `${formatTime12(booking.start_datetime)} - ${formatTime12(booking.end_datetime)}`
+      : "—");
 
   const getRequestedEquipmentList = () => {
     if (!booking) return [];
@@ -261,7 +294,7 @@ export default function TrackBooking() {
               </div>
               <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/60">
                 <span className="text-slate-400 font-bold uppercase text-[10px] block">Department / Program</span>
-                <span className="text-sm font-bold text-slate-800">{booking.program_office || booking.department || "Academic Dept"}</span>
+                <span className="text-sm font-bold text-slate-800">{booking.program_office || booking.department?.name || booking.department || "Academic Dept"}</span>
               </div>
               <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/60">
                 <span className="text-slate-400 font-bold uppercase text-[10px] block">Date of Usage</span>
@@ -269,6 +302,33 @@ export default function TrackBooking() {
                   {booking.date_of_usage ? new Date(booking.date_of_usage).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : (booking.start_datetime ? new Date(booking.start_datetime).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—")}
                 </span>
               </div>
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/60">
+                <span className="text-slate-400 font-bold uppercase text-[10px] block">Schedule Time</span>
+                <span className="text-sm font-bold text-slate-800">{usageTimeRange}</span>
+              </div>
+              {booking.assigned_units && Object.keys(typeof booking.assigned_units === 'string' ? JSON.parse(booking.assigned_units || '{}') : booking.assigned_units).length > 0 ? (
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/60">
+                  <span className="text-slate-400 font-bold uppercase text-[10px] block">Assigned Physical Unit(s)</span>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {Object.values(typeof booking.assigned_units === 'string' ? JSON.parse(booking.assigned_units || '{}') : booking.assigned_units).map((code, uIdx) => (
+                      <span key={uIdx} className="px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 border border-purple-200 font-mono text-xs font-bold">
+                        Unit {code}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/60">
+                  <span className="text-slate-400 font-bold uppercase text-[10px] block">Physical Unit Status</span>
+                  <span className="text-xs font-bold text-slate-600">
+                    {['ongoing', 'on-going', 'released', 'in-use', 'borrowed'].includes((activeStatus || '').toLowerCase())
+                      ? 'Released to Borrower'
+                      : ['completed', 'done', 'cleared'].includes((activeStatus || '').toLowerCase())
+                        ? 'Returned to Kiosk'
+                        : 'Assigned on Release'}
+                  </span>
+                </div>
+              )}
               <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/60 sm:col-span-2">
                 <span className="text-slate-400 font-bold uppercase text-[10px] block">Purpose / Activity</span>
                 <span className="text-sm font-semibold text-slate-800">{booking.purpose || "Official University Activity"}</span>
@@ -287,28 +347,28 @@ export default function TrackBooking() {
                 <div className="absolute top-4 left-[18px] right-[18px] -translate-y-1/2 h-1 z-0 bg-slate-200 rounded-full">
                   <div
                     className="h-full bg-blue-600 rounded-full transition-all duration-700 ease-out"
-                    style={{ width: `${Math.min(100, Math.max(0, (currentStep - 1) * 25))}%` }}
+                    style={{ width: `${isCompletedBooking ? 100 : Math.min(100, Math.max(0, (currentStep - 1) * 25))}%` }}
                   />
                 </div>
 
                 {activeSteps.map((step, idx) => {
                   const stepNum = idx + 1;
-                  const isActive = stepNum === currentStep;
-                  const isCompleted = stepNum < currentStep;
+                  const isStepDone = stepNum < currentStep || (stepNum <= currentStep && isCompletedBooking);
+                  const isActive = stepNum === currentStep && !isCompletedBooking;
 
                   return (
                     <div key={idx} className="relative z-20 flex flex-col items-center text-center max-w-[100px]">
                       <div
                         className={`w-9 h-9 rounded-full border-2 flex items-center justify-center text-xs font-extrabold transition-all
-                          ${isCompleted ? 'bg-blue-600 border-blue-600 text-white shadow-xs' : ''}
+                          ${isStepDone ? 'bg-blue-600 border-blue-600 text-white shadow-xs' : ''}
                           ${isActive ? 'bg-blue-600 border-blue-600 text-white ring-4 ring-blue-600/25 scale-110 shadow-md' : ''}
-                          ${!isCompleted && !isActive ? 'bg-white border-slate-300 text-slate-400' : ''}
+                          ${!isStepDone && !isActive ? 'bg-white border-slate-300 text-slate-400' : ''}
                         `}
                       >
-                        {isCompleted ? <CheckCircle2 size={18} /> : stepNum}
+                        {isStepDone ? <CheckCircle2 size={18} /> : stepNum}
                       </div>
 
-                      <span className={`text-xs font-extrabold mt-2.5 block ${isActive ? 'text-blue-600' : 'text-slate-800'}`}>
+                      <span className={`text-xs font-extrabold mt-2.5 block ${isStepDone || isActive ? 'text-blue-600' : 'text-slate-800'}`}>
                         {step.label}
                       </span>
                       <span className="text-[10px] font-semibold text-slate-400 leading-tight mt-0.5 hidden sm:block">
@@ -323,22 +383,22 @@ export default function TrackBooking() {
               <div className="sm:hidden space-y-4 relative pl-4 border-l-2 border-slate-200 ml-3">
                 {activeSteps.map((step, idx) => {
                   const stepNum = idx + 1;
-                  const isActive = stepNum === currentStep;
-                  const isCompleted = stepNum < currentStep;
+                  const isStepDone = stepNum < currentStep || (stepNum <= currentStep && isCompletedBooking);
+                  const isActive = stepNum === currentStep && !isCompletedBooking;
 
                   return (
                     <div key={idx} className="relative flex items-center gap-3">
                       <div
                         className={`w-7 h-7 rounded-full border-2 -ml-[23px] flex items-center justify-center text-xs font-extrabold transition-all shrink-0
-                          ${isCompleted ? 'bg-blue-600 border-blue-600 text-white' : ''}
+                          ${isStepDone ? 'bg-blue-600 border-blue-600 text-white' : ''}
                           ${isActive ? 'bg-blue-600 border-blue-600 text-white ring-4 ring-blue-600/20' : ''}
-                          ${!isCompleted && !isActive ? 'bg-white border-slate-300 text-slate-400' : ''}
+                          ${!isStepDone && !isActive ? 'bg-white border-slate-300 text-slate-400' : ''}
                         `}
                       >
-                        {isCompleted ? <CheckCircle2 size={13} /> : stepNum}
+                        {isStepDone ? <CheckCircle2 size={13} /> : stepNum}
                       </div>
                       <div>
-                        <p className={`text-xs font-extrabold ${isActive ? 'text-blue-700' : isCompleted ? 'text-slate-900' : 'text-slate-400'}`}>
+                        <p className={`text-xs font-extrabold ${isStepDone || isActive ? 'text-blue-700' : 'text-slate-400'}`}>
                           {step.label}
                         </p>
                         {step.desc && (
@@ -350,11 +410,54 @@ export default function TrackBooking() {
                 })}
               </div>
 
-              {/* Special Requirement Callout Tags (Item 32) */}
-              {!isVenue && currentStep === 2 && (
-                <div className="p-3.5 bg-blue-50 border border-blue-200 rounded-2xl text-blue-900 text-xs font-bold flex items-center gap-2">
-                  <PackageOpen size={18} className="text-blue-600 shrink-0" />
-                  <span><strong>Ready for Claim:</strong> Please bring your <strong>Institutional Student/Employee ID</strong> to the equipment kiosk to collect items.</span>
+              {/* Special Requirement & Dynamic Status Callout Tags */}
+              {!isVenue && (
+                <>
+                  {currentStep === 1 && (
+                    <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-2xl text-amber-900 text-xs font-bold flex items-center gap-2">
+                      <Clock size={18} className="text-amber-600 shrink-0" />
+                      <span><strong>Pending Staff Review:</strong> Your equipment borrowing requisition is received and awaiting staff verification.</span>
+                    </div>
+                  )}
+                  {currentStep === 2 && (
+                    <div className="p-3.5 bg-blue-50 border border-blue-200 rounded-2xl text-blue-900 text-xs font-bold flex items-center gap-2">
+                      <PackageOpen size={18} className="text-blue-600 shrink-0" />
+                      <span><strong>Ready for Claim:</strong> Your borrowing is approved! Please bring your <strong>Institutional Student/Employee ID</strong> to the equipment kiosk to collect items.</span>
+                    </div>
+                  )}
+                  {currentStep === 3 && (
+                    <div className="p-3.5 bg-blue-50 border border-blue-200 rounded-2xl text-blue-900 text-xs font-bold flex items-center gap-2">
+                      <PackageOpen size={18} className="text-blue-600 shrink-0" />
+                      <span><strong>Equipment In Use (On-going):</strong> Physical equipment has been released to the borrower. Return is due at the kiosk before the scheduled return time ({usageTimeRange}).</span>
+                    </div>
+                  )}
+                  {currentStep === 4 && (
+                    <div className="p-3.5 bg-purple-50 border border-purple-200 rounded-2xl text-purple-900 text-xs font-bold flex items-center gap-2">
+                      <CheckCircle2 size={18} className="text-purple-600 shrink-0" />
+                      <span><strong>Returned & Inspection:</strong> Equipment has been returned to the kiosk and is undergoing post-turnover condition check.</span>
+                    </div>
+                  )}
+                  {currentStep === 5 && (
+                    <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-2xl text-emerald-900 text-xs font-bold flex items-center gap-2">
+                      <CheckCircle2 size={18} className="text-emerald-600 shrink-0" />
+                      <span><strong>Requisition Completed:</strong> Physical units inspected and returned in good condition. Clearance finalized and record closed.</span>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {/* Rejection / Cancellation Callouts */}
+              {(activeStatus || '').toLowerCase() === 'rejected' && (
+                <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-2xl text-rose-900 text-xs font-bold flex items-center gap-2">
+                  <AlertCircle size={18} className="text-rose-600 shrink-0" />
+                  <span><strong>Requisition Rejected:</strong> This request was not approved. {booking.rejection_reason || booking.remarks ? `Remarks: ${booking.rejection_reason || booking.remarks}` : "Please contact the PMO/AVR office."}</span>
+                </div>
+              )}
+
+              {(activeStatus || '').toLowerCase() === 'cancelled' && (
+                <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-2xl text-rose-900 text-xs font-bold flex items-center gap-2">
+                  <AlertCircle size={18} className="text-rose-600 shrink-0" />
+                  <span><strong>Reservation Cancelled:</strong> This reservation has been cancelled.</span>
                 </div>
               )}
 
