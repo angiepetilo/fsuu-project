@@ -13,6 +13,8 @@ class EmailVerification extends Model
 
     protected $fillable = [
         'email',
+        'channel',
+        'phone_number',
         'otp_code',
         'expires_at',
         'verified_at',

@@ -42,19 +42,23 @@ class EquipmentBorrowingController extends Controller
             $academicTermId = $academicTermId ? (int)$academicTermId : null;
         }
 
+        $includeReturned = $request->boolean('include_returned') || $request->query('include_returned') === '1' || $request->query('status') === 'all';
+
         $borrowingsQuery = EquipmentBorrow::with(['trackingNumber', 'items.equipmentType'])
-            ->where(function ($q) {
+            ->when(!$includeReturned, function ($query) {
                 $completedStatuses = ['completed', 'done', 'returned', 'damaged', 'lost', 'returned late', 'returned_late'];
-                $q->where(function ($q2) use ($completedStatuses) {
-                    $q2->whereHas('trackingNumber', function ($t) use ($completedStatuses) {
-                        $t->whereNotIn('status', $completedStatuses);
-                    })
-                    ->orWhereNull('tracking_number_id');
+                $query->where(function ($q) use ($completedStatuses) {
+                    $q->where(function ($q2) use ($completedStatuses) {
+                        $q2->whereHas('trackingNumber', function ($t) use ($completedStatuses) {
+                            $t->whereNotIn('status', $completedStatuses);
+                        })
+                        ->orWhereNull('tracking_number_id');
+                    });
+                    
+                    if (\Illuminate\Support\Facades\Schema::hasColumn('equipment_borrows', 'status')) {
+                        $q->whereNotIn('status', $completedStatuses);
+                    }
                 });
-                
-                if (\Illuminate\Support\Facades\Schema::hasColumn('equipment_borrows', 'status')) {
-                    $q->whereNotIn('status', $completedStatuses);
-                }
             })
             ->when($academicTermId, function ($query) use ($academicTermId) {
                 $query->where('academic_term_id', $academicTermId);
@@ -318,7 +322,11 @@ class EquipmentBorrowingController extends Controller
                 \Illuminate\Support\Facades\DB::table('tracking_numbers')->where('id', $equipmentBorrowing->tracking_number_id)->update(['status' => $finalStatus]);
             }
             if (\Illuminate\Support\Facades\Schema::hasColumn('equipment_borrows', 'status')) {
-                $equipmentBorrowing->forceFill(['status' => $finalStatus])->save();
+                $updatePayload = ['status' => $finalStatus];
+                if (\Illuminate\Support\Facades\Schema::hasColumn('equipment_borrows', 'returned_at')) {
+                    $updatePayload['returned_at'] = now();
+                }
+                $equipmentBorrowing->forceFill($updatePayload)->save();
             }
 
             $violationType = $request->get('violation_type') ?? ($isLate ? 'Late Equipment Return' : ($condition === 'damaged' ? 'Equipment Damage' : ($condition === 'lost' ? 'Lost Equipment' : null)));

@@ -4,7 +4,7 @@ import api from "@/lib/axios";
 import notify from "@/lib/notify";
 import {
   Loader2, RefreshCw, AlertCircle, Eye, PackageOpen, ChevronLeft, ChevronRight,
-  Search, Calendar, X, Clock
+  Search, Calendar, X, Clock, Filter
 } from "lucide-react";
 import { PageLoader } from "@/components/ui/page-loader";
 import { StatusBadge, OverdueBadge } from "@/components/ui/status-badge";
@@ -142,7 +142,8 @@ export default function EquipmentBorrowings() {
     const s = (b.status || b.tracking_number?.status || "").toLowerCase();
     return !["completed", "rejected", "cancelled", "damaged", "lost", "late return", "returned late"].includes(s);
   });
-  const countPending = activeBorrowings.filter(b => (b.status || "").toLowerCase() === "pending").length;
+  const countPending = activeBorrowings.filter(b => ["pending", "incomplete"].includes((b.status || "").toLowerCase())).length;
+  const countIncomplete = activeBorrowings.filter(b => (b.status || "").toLowerCase() === "incomplete").length;
   const countApproved = activeBorrowings.filter(b => (b.status || "").toLowerCase() === "approved").length;
   const countOngoing = activeBorrowings.filter(b => ["ongoing", "on-going", "released"].includes((b.status || "").toLowerCase())).length;
 
@@ -154,7 +155,8 @@ export default function EquipmentBorrowings() {
 
     // Status Filter
     if (statusFilter !== "all") {
-      if (statusFilter === "pending" && s !== "pending") return false;
+      if (statusFilter === "pending" && s !== "pending" && s !== "incomplete") return false;
+      if (statusFilter === "incomplete" && s !== "incomplete") return false;
       if (statusFilter === "approved" && s !== "approved") return false;
       if (statusFilter === "ongoing" && s !== "ongoing" && s !== "on-going" && s !== "released") return false;
     }
@@ -354,27 +356,32 @@ export default function EquipmentBorrowings() {
             )}
           </div>
 
-          {/* Date Dropdown */}
+          {/* Status Dropdown Filter */}
           <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
             <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
-              <Calendar size={13} /> Date:
+              <Filter size={13} /> Status:
             </span>
             <select
-              value={dateFilter}
-              onChange={(e) => setDateFilter(e.target.value)}
-              className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:border-blue-500 cursor-pointer shadow-2xs"
+              value={statusFilter}
+              onChange={(e) => {
+                setStatusFilter(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="px-3 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 focus:outline-none focus:border-blue-500 cursor-pointer shadow-2xs"
             >
-              <option value="all">All Dates</option>
-              <option value="today">Today</option>
-              <option value="this_week">This Week</option>
-              <option value="this_month">This Month</option>
+              <option value="all">All Statuses</option>
+              <option value="pending">Pending Review</option>
+              <option value="incomplete">Incomplete</option>
+              <option value="approved">Approved</option>
+              <option value="ongoing">Ongoing</option>
             </select>
-            {(dateFilter !== "all" || searchQuery) && (
+            {(statusFilter !== "all" || searchQuery) && (
               <button
                 type="button"
                 onClick={() => {
-                  setDateFilter("all");
+                  setStatusFilter("all");
                   setSearchQuery("");
+                  setCurrentPage(1);
                 }}
                 className="text-[11px] font-bold text-rose-600 hover:text-rose-700 underline ml-1 cursor-pointer"
               >

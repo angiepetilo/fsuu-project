@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Loader2, Play, FileCheck, Check, ShieldAlert, BellRing } from "lucide-react";
+import { Loader2, Play, FileCheck, Check, ShieldAlert, BellRing, AlertTriangle } from "lucide-react";
 import api from "@/lib/axios";
 import { notify } from "@/lib/notify";
 
@@ -25,6 +25,8 @@ export default function VenueModalFooter({
   canApprove = true,
   canReject = true,
   isStudentAssistant = false,
+  showIncompleteForm,
+  setShowIncompleteForm,
 }) {
   const [notifyingUrgent, setNotifyingUrgent] = useState(false);
 
@@ -49,26 +51,42 @@ export default function VenueModalFooter({
   return (
     <div className="px-6 py-3.5 bg-white border-t border-slate-200 flex items-center justify-end gap-3 shrink-0">
       {isPending ? (
-        <>
+        <div className="flex items-center gap-2 flex-wrap justify-end">
+          {/* Mark Incomplete is available to both Student Assistants and Staff/Admins */}
+          <button
+            type="button"
+            onClick={() => {
+              if (setShowIncompleteForm) setShowIncompleteForm(prev => !prev);
+              if (setShowRejectForm) setShowRejectForm(false);
+            }}
+            disabled={!!actionLoading}
+            className="px-4 py-2.5 bg-amber-50 hover:bg-amber-100 active:bg-amber-200 text-amber-900 border border-amber-300 font-extrabold text-xs rounded-xl shadow-2xs transition-all duration-150 cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+            title="Mark booking incomplete and set 24-48h grace period"
+          >
+            <AlertTriangle size={14} className="text-amber-600" />
+            <span>Mark Incomplete</span>
+          </button>
+
           {!canApprove ? (
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={handleNotifyUrgent}
-                disabled={notifyingUrgent}
-                className="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white font-extrabold text-xs rounded-xl shadow-xs transition-all duration-150 cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
-                title="Notify Staff and Super Admin for urgent approval"
-              >
-                {notifyingUrgent ? <Loader2 size={14} className="animate-spin" /> : <BellRing size={14} />}
-                <span>Notify Staff &amp; Super Admin (Urgent Approval)</span>
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={handleNotifyUrgent}
+              disabled={notifyingUrgent}
+              className="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white font-extrabold text-xs rounded-xl shadow-xs transition-all duration-150 cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+              title="Notify Staff and Super Admin for urgent approval"
+            >
+              {notifyingUrgent ? <Loader2 size={14} className="animate-spin" /> : <BellRing size={14} />}
+              <span>Notify Staff &amp; Super Admin (Urgent Approval)</span>
+            </button>
           ) : (
             <>
               {canReject && (
                 <button
                   type="button"
-                  onClick={() => setShowRejectForm(true)}
+                  onClick={() => {
+                    setShowRejectForm(true);
+                    if (setShowIncompleteForm) setShowIncompleteForm(false);
+                  }}
                   disabled={!!actionLoading}
                   className="px-5 py-2.5 bg-rose-50 hover:bg-rose-600 text-rose-700 hover:text-white border border-rose-200 hover:border-rose-600 font-bold text-xs rounded-xl shadow-2xs transition-all duration-150 cursor-pointer disabled:opacity-50"
                 >
@@ -86,7 +104,7 @@ export default function VenueModalFooter({
               </button>
             </>
           )}
-        </>
+        </div>
       ) : isApproved ? (
         <div className="flex items-center gap-2.5">
           <button

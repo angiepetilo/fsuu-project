@@ -16,6 +16,7 @@ import api from "@/lib/axios";
 import { notify } from "@/lib/notify";
 import ActionPopover from "./ActionPopover";
 import UserFormModal from "./UserFormModal";
+import IosToggle from "@/components/ui/ios-toggle";
 
 export default function UsersSubTab({ showMsg }) {
   const [availableRoles, setAvailableRoles] = useState([]);
@@ -279,9 +280,10 @@ export default function UsersSubTab({ showMsg }) {
         </select>
       </div>
 
-      {/* Table */}
-      <div className="border border-slate-200 rounded-xl overflow-hidden">
-        <table className="w-full text-left text-xs">
+      {/* Table with horizontal scroll */}
+      <div className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-xs">
+        <div className="overflow-x-auto w-full">
+          <table className="w-full text-left text-xs min-w-[760px]">
           <thead className="bg-slate-50 border-b border-slate-200">
             <tr>
               <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
@@ -408,19 +410,27 @@ export default function UsersSubTab({ showMsg }) {
 
                     {/* Status */}
                     <td className="px-4 py-3">
-                      {isDisabled ? (
-                        <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-rose-50 text-rose-600 border border-rose-200">
-                          Disabled
-                        </span>
-                      ) : isPending ? (
-                        <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-amber-50 text-amber-600 border border-amber-200">
-                          Pending
-                        </span>
-                      ) : (
-                        <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-50 text-emerald-600 border border-emerald-200">
-                          Active
-                        </span>
-                      )}
+                      <div className="flex items-center gap-2">
+                        <IosToggle
+                          size="sm"
+                          enabled={!isDisabled}
+                          onChange={() => handleToggleDisable(u)}
+                          title={isDisabled ? "Account is disabled. Click to enable." : "Account is active. Click to disable."}
+                        />
+                        {isDisabled ? (
+                          <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-rose-50 text-rose-600 border border-rose-200">
+                            Disabled
+                          </span>
+                        ) : isPending ? (
+                          <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-amber-50 text-amber-600 border border-amber-200">
+                            Pending
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-50 text-emerald-600 border border-emerald-200">
+                            Active
+                          </span>
+                        )}
+                      </div>
                     </td>
 
                     {/* Date Added */}
@@ -504,6 +514,7 @@ export default function UsersSubTab({ showMsg }) {
             )}
           </tbody>
         </table>
+        </div>
       </div>
 
       {/* Create / Edit Modal */}

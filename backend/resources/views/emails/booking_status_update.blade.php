@@ -31,6 +31,21 @@
 <p>Good day, {{ $requestorName }}.</p>
 <p>Your {{ $itemType }} (Reference: {{ $ref }}) has been approved!<br>
 Scheduled date: {{ $formattedSchedule ?? ($formattedStart ?? 'Scheduled Time') }}.</p>
+@elseif(($status ?? '') === 'incomplete')
+<p style="font-size: 16px; font-weight: bold; color: #d97706;">ACTION REQUIRED: MISSING REQUIREMENTS</p>
+<p>Good day, {{ $requestorName }}.</p>
+<p>Your {{ $itemType }} [<strong>{{ $ref }}</strong>] has been reviewed and requires additional documents before it can be finalized.</p>
+<div style="background-color: #fffbeb; border-left: 4px solid #f59e0b; padding: 12px 16px; margin: 16px 0;">
+  <p style="margin: 0 0 6px 0; font-weight: bold; color: #92400e;">Reviewer Remarks:</p>
+  <p style="margin: 0; color: #78350f;">{{ $remarks ?? 'Missing required document(s)' }}</p>
+  @if(!empty($booking->incomplete_deadline_at))
+  <p style="margin: 8px 0 0 0; font-size: 12px; color: #b45309;">
+    <strong>Submission Deadline:</strong> {{ \Carbon\Carbon::parse($booking->incomplete_deadline_at)->format('M d, Y h:i A') }} (Please upload missing files before this deadline to retain your reserved slot).
+  </p>
+  @endif
+</div>
+<p>You can upload your missing documents directly on the tracking portal:</p>
+<p><a href="{{ $trackUrl }}" style="display: inline-block; background-color: #2563eb; color: #ffffff; padding: 10px 18px; border-radius: 8px; text-decoration: none; font-weight: bold;">Upload Missing Documents &rarr;</a></p>
 @elseif(($status ?? '') === 'rejected')
 <p>Good day, {{ $requestorName }}.</p>
 <p>Your {{ $itemType }} (Reference: {{ $ref }}) was not approved.<br>

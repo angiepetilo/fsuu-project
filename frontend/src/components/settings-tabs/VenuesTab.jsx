@@ -3,6 +3,7 @@ import { Plus, Edit2, Ban, CheckCircle2, X, Building, Loader2, Image as ImageIco
 import { usePermissions } from "@/hooks/usePermissions";
 import api from "@/lib/axios";
 import ConfirmModal from "@/components/ui/ConfirmModal";
+import IosToggle from "@/components/ui/ios-toggle";
 
 export default function VenuesTab({ showMsg }) {
   const { isSuperAdmin, hasPermission } = usePermissions();
@@ -17,6 +18,9 @@ export default function VenuesTab({ showMsg }) {
   const [editItem, setEditItem] = useState(null);
   const [formLoading, setFormLoading] = useState(false);
   const [disableTarget, setDisableTarget] = useState(null); // { id, name, status }
+
+  const [previewScale, setPreviewScale] = useState(100);
+  const [previewFit, setPreviewFit] = useState("contain");
 
   const [form, setForm] = useState({
     name: "",
@@ -277,8 +281,8 @@ export default function VenuesTab({ showMsg }) {
       </div>
 
       {/* Table: [#, Photo, Venue, Status, Action] */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
-        <table className="w-full text-sm">
+      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-x-auto w-full">
+        <table className="w-full text-sm min-w-[750px]">
           <thead>
             <tr className="bg-slate-50/80 border-b border-slate-100">
               {["#", "Photo", "Venue", "Status", "Action"].map((h) => (
@@ -341,27 +345,27 @@ export default function VenuesTab({ showMsg }) {
 
                     <td className="px-4 py-3">
                       {canEdit || canDisable ? (
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-2.5">
+                          {canDisable && (
+                            <div className="flex items-center gap-1.5">
+                              <IosToggle
+                                checked={!isItemDisabled}
+                                onChange={() => setDisableTarget({ id: v.id, name: v.name, status: v.status })}
+                                size="sm"
+                                title={isItemDisabled ? "Click to Enable Venue" : "Click to Disable Venue"}
+                              />
+                              <span className={`text-[10.5px] font-extrabold w-14 text-left select-none ${!isItemDisabled ? 'text-emerald-600' : 'text-slate-400'}`}>
+                                {!isItemDisabled ? 'Available' : 'Disabled'}
+                              </span>
+                            </div>
+                          )}
                           {canEdit && (
                             <button
                               onClick={() => handleEditClick(v)}
-                              className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-600 cursor-pointer transition-colors"
+                              className="p-1.5 rounded-xl border border-slate-200 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 text-slate-600 cursor-pointer transition-all shadow-2xs"
                               title="Edit Venue"
                             >
                               <Edit2 size={13} />
-                            </button>
-                          )}
-                          {canDisable && (
-                            <button
-                              onClick={() => setDisableTarget({ id: v.id, name: v.name, status: v.status })}
-                              className={`p-1.5 rounded-lg border cursor-pointer transition-colors ${
-                                isItemDisabled 
-                                  ? "border-emerald-200 hover:bg-emerald-50 text-emerald-600" 
-                                  : "border-rose-200 hover:bg-rose-50 text-rose-600"
-                              }`}
-                              title={isItemDisabled ? "Enable Venue" : "Disable Venue"}
-                            >
-                              <Ban size={13} />
                             </button>
                           )}
                         </div>
@@ -426,13 +430,56 @@ export default function VenuesTab({ showMsg }) {
                 {/* Live Public View Preview */}
                 {(form.photo || form.avatar || form.name) && (
                   <div className="pt-2 border-t border-slate-200/80 dark:border-slate-700">
-                    <span className="text-[10.5px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400 block mb-2">
-                      Public View Card Preview
-                    </span>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-[10.5px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                        Public View Card Preview
+                      </span>
+                      {/* Photo Resize & Fit Controls */}
+                      {(form.photo || form.avatar) && (
+                        <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
+                          <button
+                            type="button"
+                            onClick={() => setPreviewFit((f) => (f === "contain" ? "cover" : "contain"))}
+                            className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 hover:bg-slate-50 cursor-pointer"
+                            title="Toggle Fit (Contain / Cover)"
+                          >
+                            {previewFit === "contain" ? "Fit: Contain" : "Fit: Cover"}
+                          </button>
+                          <div className="flex items-center gap-1 border-l border-slate-200 dark:border-slate-700 pl-1.5">
+                            <button
+                              type="button"
+                              onClick={() => setPreviewScale((s) => Math.max(50, s - 10))}
+                              className="w-5 h-5 flex items-center justify-center rounded bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold border border-slate-200 dark:border-slate-600 cursor-pointer"
+                              title="Zoom out"
+                            >
+                              -
+                            </button>
+                            <span className="text-[10px] font-mono font-bold text-slate-600 dark:text-slate-300 w-7 text-center">
+                              {previewScale}%
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setPreviewScale((s) => Math.min(150, s + 10))}
+                              className="w-5 h-5 flex items-center justify-center rounded bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold border border-slate-200 dark:border-slate-600 cursor-pointer"
+                              title="Zoom in"
+                            >
+                              +
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                     <div className="max-w-[220px] mx-auto border border-slate-200 dark:border-slate-700 rounded-2xl p-3 bg-white dark:bg-[#111827] shadow-xs">
                       <div className="w-full aspect-video bg-white dark:bg-[#1E293B] border border-slate-100 dark:border-slate-800 rounded-xl overflow-hidden flex items-center justify-center p-1.5">
                         {(form.photo || form.avatar) ? (
-                          <img src={form.photo || form.avatar} alt="Public Preview" className="w-full h-full object-contain" />
+                          <div className="w-full h-full overflow-hidden flex items-center justify-center">
+                            <img
+                              src={form.photo || form.avatar}
+                              alt="Public Preview"
+                              className={`w-full h-full transition-transform duration-200 ${previewFit === "cover" ? "object-cover" : "object-contain"}`}
+                              style={{ transform: `scale(${previewScale / 100})` }}
+                            />
+                          </div>
                         ) : (
                           <span className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wide">
                             {form.name || "VENUE"}

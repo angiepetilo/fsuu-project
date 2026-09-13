@@ -39,6 +39,11 @@ return new class extends Migration
             $table->string('status')->default('pending');
             $table->dateTime('claim_timestamp')->nullable()->index();
             $table->boolean('is_complete')->default(true);
+            $table->text('missing_requirements_remarks')->nullable();
+            $table->json('missing_requirements_list')->nullable();
+            $table->timestamp('incomplete_at')->nullable();
+            $table->timestamp('incomplete_deadline_at')->nullable();
+            $table->timestamp('resubmitted_at')->nullable();
             $table->longText('assigned_units')->nullable();
             $table->string('endorsement_url')->nullable();
             $table->string('endorsement_letter')->nullable();

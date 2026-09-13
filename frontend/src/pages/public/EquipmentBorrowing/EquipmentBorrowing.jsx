@@ -311,10 +311,10 @@ export default function EquipmentBorrowing({ isPortal: isPortalProp }) {
 
   const handleDetailsSubmit = (e) => {
     e.preventDefault();
-    const requireEmailVerify = pinRules ? (pinRules.isEnabled !== false && pinRules.equipmentVerifyEmail === true) : false;
+    const requireVerify = pinRules ? (pinRules.isEnabled !== false && (pinRules.equipmentVerifyEmail === true || pinRules.equipmentVerifyPhone === true)) : false;
 
-    if (requireEmailVerify && !isEmailVerified) {
-      alert("Please verify your email address via OTP before proceeding to the next step.");
+    if (requireVerify && !isEmailVerified) {
+      alert("Please verify your contact details with the 6-digit verification code before proceeding to the next step.");
       return;
     }
     if (!completedSteps.includes(3)) setCompletedSteps([...completedSteps, 3]);

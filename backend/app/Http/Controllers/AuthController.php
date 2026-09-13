@@ -339,7 +339,17 @@ class AuthController extends Controller
         if (array_key_exists('last_name', $validated)) $user->last_name = $validated['last_name'];
         if (array_key_exists('suffix', $validated)) $user->suffix = $validated['suffix'];
 
-        if (isset($validated['name'])) $user->name = $validated['name'];
+        if (isset($validated['name'])) {
+            $trimmedName = trim($validated['name']);
+            $user->name = $trimmedName;
+            if (!isset($validated['first_name']) && !isset($validated['last_name'])) {
+                $parts = preg_split('/\s+/', $trimmedName);
+                $user->first_name = array_shift($parts) ?: $trimmedName;
+                $user->middle_name = null;
+                $user->suffix = null;
+                $user->last_name = !empty($parts) ? implode(' ', $parts) : '';
+            }
+        }
         $newEmail = $validated['email_address'] ?? $validated['email'] ?? null;
         if ($newEmail) {
             $user->email_address = $newEmail;

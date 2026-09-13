@@ -24,6 +24,7 @@ export default function ProfileConfigTab({ showMsg }) {
   const [showSaveConfirm, setShowSaveConfirm] = useState(false);
   const [showPassConfirm, setShowPassConfirm] = useState(false);
   const [pendingPassSubmit, setPendingPassSubmit] = useState(null);
+  const [saveLoading, setSaveLoading] = useState(false);
 
   const [profileData, setProfileData] = useState(() => ({
     name: user?.name || "Super Administrator",
@@ -55,28 +56,54 @@ export default function ProfileConfigTab({ showMsg }) {
     }
   };
 
+  const hasProfileChanges = Boolean(
+    (profileData.name && profileData.name !== (user?.name || "")) ||
+    (profileData.email && profileData.email !== (user?.email_address || user?.email || "")) ||
+    avatarPreview !== null
+  );
+
   const handleSaveProfile = async () => {
+    if (saveLoading) return;
     const payload = {
       name: profileData.name,
       email: profileData.email,
       email_address: profileData.email,
       avatar: avatarPreview || profileData.avatar,
     };
-    setShowSaveConfirm(false);
+    setSaveLoading(true);
+    const toastId = notify.loading ? notify.loading("Saving Profile...", "Updating your profile information.") : null;
     try {
       const res = await api.post("/user/profile", payload);
-      if (res.data?.user && updateAuthUser) {
-        updateAuthUser(res.data.user);
+      const updatedUser = res.data?.user;
+      if (updatedUser && updateAuthUser) {
+        updateAuthUser(updatedUser);
+      }
+      if (updatedUser) {
+        setProfileData({
+          name: updatedUser.name || updatedUser.full_name || payload.name,
+          email: updatedUser.email_address || updatedUser.email || payload.email,
+          avatar: updatedUser.avatar || payload.avatar,
+        });
+        setAvatarPreview(updatedUser.avatar || null);
       }
       notify.success("Profile Updated", "Profile settings saved successfully.");
       setIsEditing(false);
+      setShowSaveConfirm(false);
     } catch (err) {
       notify.error("Update Failed", err.response?.data?.message || "Failed to update profile.");
+    } finally {
+      if (toastId && notify.dismiss) notify.dismiss(toastId);
+      setSaveLoading(false);
     }
   };
 
   const handleProfileFormSubmit = (e) => {
     e.preventDefault();
+    if (saveLoading) return;
+    if (!hasProfileChanges) {
+      notify.info("No Changes Detected", "No changes were made to your profile.");
+      return;
+    }
     setShowSaveConfirm(true);
   };
 
@@ -144,20 +171,21 @@ export default function ProfileConfigTab({ showMsg }) {
 
           {isEditing && (
             <div className="w-full space-y-2">
-              <label className="w-full px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold rounded-lg text-xs flex items-center justify-center gap-1.5 cursor-pointer transition-colors shadow-2xs">
+              <label className={`w-full px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold rounded-lg text-xs flex items-center justify-center gap-1.5 cursor-pointer transition-colors shadow-2xs ${saveLoading ? "opacity-50 pointer-events-none cursor-not-allowed" : ""}`}>
                 <Camera size={13} />
                 <span>{avatarPreview || profileData.avatar ? "Change Photo" : "Upload Photo"}</span>
-                <input type="file" accept="image/*" onChange={handleAvatarChange} className="hidden" />
+                <input type="file" accept="image/*" onChange={handleAvatarChange} disabled={saveLoading} className="hidden" />
               </label>
 
               {(avatarPreview || profileData.avatar) && (
                 <button
                   type="button"
+                  disabled={saveLoading}
                   onClick={() => {
                     setAvatarPreview(null);
                     setProfileData((prev) => ({ ...prev, avatar: null }));
                   }}
-                  className="w-full px-3 py-1.5 border border-slate-200 text-rose-600 hover:bg-rose-50 font-semibold rounded-lg text-xs flex items-center justify-center gap-1 cursor-pointer transition-colors"
+                  className="w-full px-3 py-1.5 border border-slate-200 text-rose-600 hover:bg-rose-50 disabled:opacity-50 disabled:cursor-not-allowed font-semibold rounded-lg text-xs flex items-center justify-center gap-1 cursor-pointer transition-colors"
                 >
                   <X size={13} />
                   <span>Remove</span>
@@ -185,17 +213,20 @@ export default function ProfileConfigTab({ showMsg }) {
                   <div className="flex items-center gap-1.5">
                     <button
                       type="button"
+                      disabled={saveLoading}
                       onClick={() => setIsEditing(false)}
-                      className="px-3 py-1.5 border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-lg transition-colors cursor-pointer"
+                      className="px-3 py-1.5 border border-slate-300 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed text-slate-700 text-xs font-semibold rounded-lg transition-colors cursor-pointer"
                     >
                       Cancel
                     </button>
                     <button
                       type="submit"
-                      className="px-3 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-700 active:bg-blue-800 transition-colors cursor-pointer shadow-xs flex items-center gap-1.5"
+                      disabled={saveLoading || !hasProfileChanges}
+                      title={!hasProfileChanges ? "Make changes before saving" : "Save Changes"}
+                      className="px-3 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-700 active:bg-blue-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer shadow-xs flex items-center gap-1.5"
                     >
-                      <Save size={13} />
-                      <span>Save Changes</span>
+                      {saveLoading ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
+                      <span>{saveLoading ? "Saving..." : "Save Changes"}</span>
                     </button>
                   </div>
                 ) : (
@@ -381,12 +412,13 @@ export default function ProfileConfigTab({ showMsg }) {
       )}
       <ConfirmModal
         open={showSaveConfirm}
-        onClose={() => setShowSaveConfirm(false)}
+        onClose={() => !saveLoading && setShowSaveConfirm(false)}
         onConfirm={handleSaveProfile}
         variant="save"
         title="Save Profile Changes?"
         message="Your personal information and profile photo will be updated."
         confirmLabel="Save Changes"
+        loading={saveLoading}
       />
 
       <ConfirmModal

@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { useState, useEffect } from "react";
-import { Loader2, FileText } from "lucide-react";
+import { Loader2, FileText, Download } from "lucide-react";
 import api from "@/lib/axios";
 import Hero from "./components/Hero";
 import FeatureCards from "./components/FeatureCards";
@@ -11,6 +11,7 @@ export default function LandingPage() {
   const [loading, setLoading] = useState(true);
   const [showTemplateModal, setShowTemplateModal] = useState(false);
   const [selectedTemplateType, setSelectedTemplateType] = useState("organization");
+  const [selectedTemplateRequirement, setSelectedTemplateRequirement] = useState(null);
 
   useEffect(() => {
     api.get("/public/booking-requirements")
@@ -30,9 +31,9 @@ export default function LandingPage() {
     (req, idx, arr) => arr.findIndex((r) => r.label?.trim()?.toLowerCase() === req.label?.trim()?.toLowerCase()) === idx
   );
 
-  const handleOpenTemplate = (classification) => {
-    const isAcad = String(classification || "").toLowerCase().includes("acad");
-    setSelectedTemplateType(isAcad ? "academic" : "organization");
+  const handleOpenTemplate = (req) => {
+    setSelectedTemplateRequirement(req);
+    setSelectedTemplateType(req.classification || "organization");
     setShowTemplateModal(true);
   };
 
@@ -90,18 +91,33 @@ export default function LandingPage() {
                     )}
                   </div>
 
-                  <div className="pt-2.5 border-t border-border/60 flex items-center justify-between gap-2">
+                  <div className="pt-2.5 border-t border-border/60 flex items-center justify-between gap-2 flex-wrap sm:flex-nowrap">
                     <span className="text-[11px] font-normal text-muted-foreground">
                       Signatures: Dean, {isAcad ? "OVPASA" : "OISAA"}, PMO
                     </span>
-                    <button
-                      type="button"
-                      onClick={() => handleOpenTemplate(req.classification)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-card hover:bg-muted text-foreground border border-border rounded-lg text-xs font-semibold transition-all shadow-2xs cursor-pointer min-h-[36px]"
-                    >
-                      <FileText size={13} className="text-primary" />
-                      <span>View Format</span>
-                    </button>
+                    <div className="flex items-center gap-2">
+                      {req.template_file_url && (
+                        <a
+                          href={req.template_file_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          download
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 dark:hover:bg-blue-900/50 border border-blue-200 dark:border-blue-800 rounded-lg text-xs font-semibold transition-all shadow-2xs min-h-[36px]"
+                          title={req.template_file_name || "Download Template File"}
+                        >
+                          <Download size={13} className="text-blue-600 dark:text-blue-400" />
+                          <span>Download Template</span>
+                        </a>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => handleOpenTemplate(req)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-card hover:bg-muted text-foreground border border-border rounded-lg text-xs font-semibold transition-all shadow-2xs cursor-pointer min-h-[36px]"
+                      >
+                        <FileText size={13} className="text-primary" />
+                        <span>View Format</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
               );
@@ -118,8 +134,14 @@ export default function LandingPage() {
       {/* Endorsement Letter Format Preview Modal */}
       <EndorsementLetterTemplateModal
         isOpen={showTemplateModal}
-        onClose={() => setShowTemplateModal(false)}
+        onClose={() => {
+          setShowTemplateModal(false);
+          setSelectedTemplateRequirement(null);
+        }}
+        requirement={selectedTemplateRequirement}
         initialType={selectedTemplateType}
+        allowEdit={false}
+        showTypeTabs={false}
       />
 
       {/* Action Links Below Requirements Card */}

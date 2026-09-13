@@ -118,4 +118,124 @@ class TrackingController extends Controller
 
         return response()->json(['message' => 'Reservation could not be found or cancelled.'], 404);
     }
+
+    public function resubmitRequirements(\Illuminate\Http\Request $request): JsonResponse
+    {
+        $referenceCode = trim($request->input('reference_code') ?? '');
+        if (empty($referenceCode)) {
+            return response()->json(['message' => 'Reference code is required.'], 422);
+        }
+
+        $tracking = \Illuminate\Support\Facades\DB::table('tracking_numbers')
+            ->where('reference_code', $referenceCode)
+            ->first();
+
+        $bookingId = $tracking ? $tracking->reservation_id : null;
+        $vb = $bookingId ? VenueBooking::find($bookingId) : VenueBooking::where('reference_code', $referenceCode)->first();
+
+        if (!$vb) {
+            return response()->json(['message' => 'Venue reservation not found.'], 404);
+        }
+
+        $currentStatus = strtolower($vb->status ?? $vb->trackingNumber?->status ?? 'pending');
+        if (!in_array($currentStatus, ['incomplete', 'pending'])) {
+            return response()->json(['message' => "Cannot resubmit documents for a booking in status: {$currentStatus}."], 422);
+        }
+
+        $uploadedUrls = [];
+        $mediaUploadService = app(\App\Services\MediaUploadService::class);
+
+        // Handle single or multiple file uploads
+        $filesToProcess = [];
+        if ($request->hasFile('documents')) {
+            $f = $request->file('documents');
+            if (is_array($f)) {
+                $filesToProcess = array_merge($filesToProcess, $f);
+            } else {
+                $filesToProcess[] = $f;
+            }
+        }
+        if ($request->hasFile('requirement_file')) {
+            $f = $request->file('requirement_file');
+            if (is_array($f)) {
+                $filesToProcess = array_merge($filesToProcess, $f);
+            } else {
+                $filesToProcess[] = $f;
+            }
+        }
+        if ($request->hasFile('file')) {
+            $f = $request->file('file');
+            if (is_array($f)) {
+                $filesToProcess = array_merge($filesToProcess, $f);
+            } else {
+                $filesToProcess[] = $f;
+            }
+        }
+
+        foreach ($filesToProcess as $file) {
+            $url = $mediaUploadService->upload($file, 'documents');
+            $uploadedUrls[] = $url;
+            \Illuminate\Support\Facades\DB::table('documents')->insert([
+                'venue_booking_id' => $vb->id,
+                'file_path'        => $url,
+                'document_type'    => 'resubmitted_requirement',
+                'status'           => 'pending',
+                'uploaded_at'      => now(),
+                'created_at'       => now(),
+                'updated_at'       => now(),
+            ]);
+        }
+
+        if ($request->hasFile('endorsement_file')) {
+            $url = $mediaUploadService->upload($request->file('endorsement_file'), 'endorsements');
+            $uploadedUrls[] = $url;
+            $vb->endorsement_url = $url;
+            $vb->endorsement_letter = $url;
+            \Illuminate\Support\Facades\DB::table('documents')->insert([
+                'venue_booking_id' => $vb->id,
+                'file_path'        => $url,
+                'document_type'    => 'endorsement_letter',
+                'status'           => 'pending',
+                'uploaded_at'      => now(),
+                'created_at'       => now(),
+                'updated_at'       => now(),
+            ]);
+        }
+
+        if (empty($uploadedUrls)) {
+            return response()->json(['message' => 'Please select at least one file to upload.'], 422);
+        }
+
+        // Transition back to pending / under review
+        $vb->status = 'pending';
+        $vb->is_complete = true;
+        $vb->resubmitted_at = now();
+        $vb->save();
+
+        if ($tracking) {
+            \Illuminate\Support\Facades\DB::table('tracking_numbers')
+                ->where('id', $tracking->id)
+                ->update(['status' => 'pending']);
+        }
+
+        // Broadcast real-time status update
+        try {
+            event(new \App\Events\BookingStatusUpdated('venue_booking', $referenceCode, 'pending', $vb->id, 'Missing requirements resubmitted by applicant'));
+        } catch (\Throwable $e) {}
+
+        // Notify Staff and Super Admin
+        try {
+            \App\Jobs\SendAdminPendingTaskNotificationJob::dispatch(
+                'requirements_resubmitted',
+                $vb,
+                "Applicant {$vb->filer_name} has uploaded missing requirements for reservation {$referenceCode}."
+            );
+        } catch (\Throwable $e) {}
+
+        return response()->json([
+            'message' => 'Missing requirements uploaded successfully! Your reservation has been returned to review.',
+            'status'  => 'pending',
+            'booking' => $vb->fresh(['venue', 'trackingNumber', 'department', 'documents']),
+        ]);
+    }
 }

@@ -13,6 +13,9 @@ return new class extends Migration
             $table->string('classification')->default('all');
             $table->string('label');
             $table->text('description')->nullable();
+            $table->text('template_file_url')->nullable();
+            $table->string('template_file_name')->nullable();
+            $table->longText('format_content')->nullable();
             $table->unsignedSmallInteger('sort_order')->default(0);
             $table->timestamps();
             $table->timestamp('archived_at')->nullable();

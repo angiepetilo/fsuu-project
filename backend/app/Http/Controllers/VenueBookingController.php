@@ -123,6 +123,26 @@ class VenueBookingController extends Controller
         return response()->json($booking);
     }
 
+    public function markIncomplete(\Illuminate\Http\Request $request, VenueBooking $avrVenueBooking): JsonResponse
+    {
+        $this->authorize('reject', $avrVenueBooking);
+
+        $validated = $request->validate([
+            'missing_requirements' => 'nullable|array',
+            'remarks'              => 'nullable|string',
+            'grace_hours'          => 'nullable|integer|in:24,48',
+        ]);
+
+        $user = auth()->user() ?? $request->user();
+        $graceHours = (int) ($validated['grace_hours'] ?? (\App\Models\OperatingHour::first()?->requirement_grace_hours ?? 24));
+        $remarks = $validated['remarks'] ?? 'Missing requirements notice';
+        $missingList = $validated['missing_requirements'] ?? [];
+
+        $booking = $this->service->markIncomplete($avrVenueBooking, $user, $missingList, $remarks, $graceHours);
+
+        return response()->json($booking);
+    }
+
     public function reject(RejectVenueBookingRequest $request, VenueBooking $avrVenueBooking): JsonResponse
     {
         $this->authorize('reject', $avrVenueBooking);

@@ -63,11 +63,31 @@ class BookingRequirementController extends Controller
     public function store(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'classification' => 'required|string|max:50',
-            'label'          => 'required|string|max:255',
-            'description'    => 'nullable|string|max:500',
-            'sort_order'     => 'nullable|integer|min:0',
+            'classification'     => 'required|string|max:50',
+            'label'              => 'required|string|max:255',
+            'description'        => 'nullable|string|max:500',
+            'sort_order'         => 'nullable|integer|min:0',
+            'template_file'      => 'nullable|file|mimes:pdf,doc,docx,xls,xlsx,png,jpg,jpeg|max:10240',
+            'template_file_url'  => 'nullable|string',
+            'template_file_name' => 'nullable|string|max:255',
+            'format_content'     => 'nullable',
         ]);
+
+        if ($request->hasFile('template_file')) {
+            $file = $request->file('template_file');
+            $data['template_file_url'] = app(\App\Services\MediaUploadService::class)->upload($file, 'requirements');
+            $data['template_file_name'] = $file->getClientOriginalName();
+        }
+
+        if ($request->has('format_content')) {
+            $val = $request->input('format_content');
+            if (is_string($val)) {
+                $decoded = json_decode($val, true);
+                $data['format_content'] = json_last_error() === JSON_ERROR_NONE ? $decoded : $val;
+            } else {
+                $data['format_content'] = $val;
+            }
+        }
 
         $req = BookingRequirement::create($data);
 
@@ -79,11 +99,37 @@ class BookingRequirementController extends Controller
         $req = BookingRequirement::findOrFail($id);
 
         $data = $request->validate([
-            'classification' => 'sometimes|string|max:50',
-            'label'          => 'sometimes|string|max:255',
-            'description'    => 'nullable|string|max:500',
-            'sort_order'     => 'nullable|integer|min:0',
+            'classification'     => 'sometimes|string|max:50',
+            'label'              => 'sometimes|string|max:255',
+            'description'        => 'nullable|string|max:500',
+            'sort_order'         => 'nullable|integer|min:0',
+            'template_file'      => 'nullable|file|mimes:pdf,doc,docx,xls,xlsx,png,jpg,jpeg|max:10240',
+            'template_file_url'  => 'nullable|string',
+            'template_file_name' => 'nullable|string|max:255',
+            'remove_template'    => 'nullable|boolean',
+            'format_content'     => 'nullable',
         ]);
+
+        if ($request->boolean('remove_template')) {
+            $data['template_file_url'] = null;
+            $data['template_file_name'] = null;
+        } elseif ($request->hasFile('template_file')) {
+            $file = $request->file('template_file');
+            $data['template_file_url'] = app(\App\Services\MediaUploadService::class)->upload($file, 'requirements');
+            $data['template_file_name'] = $file->getClientOriginalName();
+        }
+
+        if ($request->has('format_content')) {
+            $val = $request->input('format_content');
+            if (is_string($val)) {
+                $decoded = json_decode($val, true);
+                $data['format_content'] = json_last_error() === JSON_ERROR_NONE ? $decoded : $val;
+            } else {
+                $data['format_content'] = $val;
+            }
+        }
+
+        unset($data['remove_template']);
 
         $req->update($data);
 
@@ -108,6 +154,11 @@ class BookingRequirementController extends Controller
             BookingRequirement::where('label', 'like', '%Dean of Student Affairs%')
                 ->orWhere('label', 'like', '%(DSA)%')
                 ->update(['label' => 'Formal request letter signed and endorsed by the Director of OISAA']);
+
+            // Strip any "Format: " prefix from requirement labels
+            BookingRequirement::where('label', 'like', 'Format: %')->get()->each(function ($req) {
+                $req->update(['label' => preg_replace('/^Format:\s*/i', '', $req->label)]);
+            });
 
             BookingRequirement::where('label', 'like', '%VP for Academic Affairs%')
                 ->orWhere('label', 'like', '%(VP Acad)%')

@@ -6,10 +6,13 @@ import { fetchWithCache, invalidateCache } from "@/lib/apiCache";
 import {
   PackageOpen, Plus, Search, Filter, Edit3, Ban, CheckCircle2,
   AlertTriangle, RefreshCw, Barcode, Eye, Copy, Check,
-  ChevronLeft, ChevronRight, LayoutGrid, Loader2, MoreVertical
+  ChevronLeft, ChevronRight, LayoutGrid, Loader2, MoreVertical,
+  FileSpreadsheet
 } from "lucide-react";
 import EquipmentDetailModal from "./components/EquipmentDetailModal";
 import EquipmentModal from "./components/EquipmentModal";
+import EquipmentImportModal from "./components/EquipmentImportModal";
+import ActionPopover from "@/components/ui/action-popover";
 import { PageLoader } from "@/components/ui/page-loader";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -38,9 +41,11 @@ export default function ManageEquipments() {
   const [activeCategory, setActiveCategory] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [selectedItem, setSelectedItem] = useState(null);
   const [openActionId, setOpenActionId] = useState(null);
+  const [actionAnchorEl, setActionAnchorEl] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [feedback, setFeedback] = useState(null);
   const [copiedBarcode, setCopiedBarcode] = useState(null);
@@ -461,10 +466,19 @@ export default function ManageEquipments() {
         <button
           onClick={() => fetchEquipments(false)}
           disabled={loading || isSyncing}
-          className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-50 shadow-xs cursor-pointer"
+          className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 shadow-xs cursor-pointer"
         >
           <RefreshCw size={14} className={isSyncing ? "animate-spin" : ""} />
           {isSyncing ? "Refreshing..." : "Refresh"}
+        </button>
+
+        <button
+          onClick={() => setShowImportModal(true)}
+          className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-extrabold shadow-md shadow-emerald-600/20 transition-all cursor-pointer"
+          title="Bulk import equipment units from CSV spreadsheet"
+        >
+          <FileSpreadsheet size={15} />
+          <span>Import CSV</span>
         </button>
 
         <button
@@ -597,7 +611,13 @@ export default function ManageEquipments() {
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
-                              setOpenActionId(openActionId === item.id ? null : item.id);
+                              if (openActionId === item.id) {
+                                setOpenActionId(null);
+                                setActionAnchorEl(null);
+                              } else {
+                                setOpenActionId(item.id);
+                                setActionAnchorEl(e.currentTarget);
+                              }
                             }}
                             className={`p-1.5 rounded-xl border transition-all cursor-pointer shadow-2xs ${
                               isOpen
@@ -609,59 +629,67 @@ export default function ManageEquipments() {
                             <MoreVertical size={15} />
                           </button>
 
-                          {isOpen && (
-                            <div className={`absolute right-0 ${isNearBottom ? 'bottom-full mb-1.5' : 'top-full mt-1.5'} w-44 bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-200/90 dark:border-slate-700 py-1.5 z-50 animate-in fade-in zoom-in-95 backdrop-blur-md`}>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setOpenActionId(null);
-                                  setSelectedItem(item);
-                                }}
-                                className="w-full px-3.5 py-2 text-left text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-blue-950/60 hover:text-blue-600 dark:hover:text-blue-300 flex items-center gap-2.5 transition-colors cursor-pointer"
-                              >
-                                <Eye size={14} className="text-blue-500" />
-                                <span>View Details</span>
-                              </button>
+                          <ActionPopover
+                            isOpen={isOpen}
+                            anchorEl={actionAnchorEl}
+                            onClose={() => {
+                              setOpenActionId(null);
+                              setActionAnchorEl(null);
+                            }}
+                          >
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setOpenActionId(null);
+                                setActionAnchorEl(null);
+                                setSelectedItem(item);
+                              }}
+                              className="w-full px-3.5 py-2 text-left text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-blue-950/60 hover:text-blue-600 dark:hover:text-blue-300 flex items-center gap-2.5 transition-colors cursor-pointer"
+                            >
+                              <Eye size={14} className="text-blue-500" />
+                              <span>View Details</span>
+                            </button>
 
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setOpenActionId(null);
-                                  setEditingItem(item);
-                                  setEditFormData({
-                                    brand: item.brand || "",
-                                    model: item.model || "",
-                                    barcode: item.barcode || "",
-                                    category: item.category || "",
-                                    date_purchased: item.date_purchased || "",
-                                    lifespan_years: String(item.lifespan_years || 5),
-                                    total_units: "1",
-                                    status: item.status || "available",
-                                    condition: item.condition || "Good",
-                                    description: item.description || "",
-                                  });
-                                }}
-                                className="w-full px-3.5 py-2 text-left text-xs font-bold text-slate-700 hover:bg-slate-50 hover:text-slate-900 flex items-center gap-2.5 transition-colors cursor-pointer"
-                              >
-                                <Edit3 size={14} className="text-slate-500" />
-                                <span>Edit Unit</span>
-                              </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setOpenActionId(null);
+                                setActionAnchorEl(null);
+                                setEditingItem(item);
+                                setEditFormData({
+                                  brand: item.brand || "",
+                                  model: item.model || "",
+                                  barcode: item.barcode || "",
+                                  category: item.category || "",
+                                  date_purchased: item.date_purchased || "",
+                                  lifespan_years: String(item.lifespan_years || 5),
+                                  total_units: "1",
+                                  status: item.status || "available",
+                                  condition: item.condition || "Good",
+                                  description: item.description || "",
+                                });
+                              }}
+                              className="w-full px-3.5 py-2 text-left text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white flex items-center gap-2.5 transition-colors cursor-pointer"
+                            >
+                              <Edit3 size={14} className="text-slate-500" />
+                              <span>Edit Unit</span>
+                            </button>
 
-                              <div className="border-t border-slate-100 my-1"></div>
+                            <div className="border-t border-slate-100 dark:border-slate-800 my-1"></div>
 
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setOpenActionId(null);
-                                  handleDeleteEquipment(item.id, item.name);
-                                }}
-                                className="w-full px-3.5 py-2 text-left text-xs font-bold text-rose-600 hover:bg-rose-50 flex items-center gap-2.5 transition-colors cursor-pointer"
-                              >
-                                <Ban size={14} className="text-rose-500" />
-                                <span>Archive Unit</span>
-                              </button>
-                            </div>
-                          )}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setOpenActionId(null);
+                                setActionAnchorEl(null);
+                                handleDeleteEquipment(item.id, item.name);
+                              }}
+                              className="w-full px-3.5 py-2 text-left text-xs font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 flex items-center gap-2.5 transition-colors cursor-pointer"
+                            >
+                              <Ban size={14} className="text-rose-500" />
+                              <span>Archive Unit</span>
+                            </button>
+                          </ActionPopover>
                         </div>
                       </td>
                     </tr>
@@ -728,6 +756,20 @@ export default function ManageEquipments() {
       <EquipmentDetailModal
         selectedItem={selectedItem}
         setSelectedItem={setSelectedItem}
+      />
+
+      {/* Bulk CSV Import Modal */}
+      <EquipmentImportModal
+        isOpen={showImportModal}
+        onClose={() => setShowImportModal(false)}
+        onImportSuccess={(result) => {
+          invalidateCache("equipment_types_list");
+          fetchEquipments(false);
+          notify.success(
+            "Import Successful",
+            result?.message || `Imported ${result?.imported_count || 0} physical units.`
+          );
+        }}
       />
     </div>
   );

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { Printer, Save, PlusCircle, Trash2, Loader2 } from "lucide-react";
 import api from "@/lib/axios";
 import { downloadReportAsPdf } from "@/pages/general/reports/exportPdfHelper";
+import IosToggle from "@/components/ui/ios-toggle";
 
 export default function FeeMatrixTab({ officeScope = "All Offices", showMsg }) {
   const [venues, setVenues] = useState([]);
@@ -275,20 +276,12 @@ export default function FeeMatrixTab({ officeScope = "All Offices", showMsg }) {
           <div className="space-y-3 pt-1">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-bold text-slate-900">Signature</h3>
-              <button
-                type="button"
-                onClick={() => setShowSignatures(!showSignatures)}
-                className={`w-11 h-6 flex items-center rounded-full p-0.5 transition-colors cursor-pointer ${
-                  showSignatures ? "bg-blue-600" : "bg-slate-300"
-                }`}
+              <IosToggle
+                checked={showSignatures}
+                onChange={setShowSignatures}
+                size="md"
                 title="Toggle Signature on/off"
-              >
-                <div
-                  className={`bg-white w-5 h-5 rounded-full shadow-md transform transition-transform ${
-                    showSignatures ? "translate-x-5" : "translate-x-0"
-                  }`}
-                />
-              </button>
+              />
             </div>
 
             {showSignatures && (
@@ -351,20 +344,12 @@ export default function FeeMatrixTab({ officeScope = "All Offices", showMsg }) {
           <div className="space-y-3 pt-1">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-bold text-slate-900">Rate item</h3>
-              <button
-                type="button"
-                onClick={() => setShowRateItems(!showRateItems)}
-                className={`w-11 h-6 flex items-center rounded-full p-0.5 transition-colors cursor-pointer ${
-                  showRateItems ? "bg-blue-600" : "bg-slate-300"
-                }`}
+              <IosToggle
+                checked={showRateItems}
+                onChange={setShowRateItems}
+                size="md"
                 title="Toggle Rate Items on/off"
-              >
-                <div
-                  className={`bg-white w-5 h-5 rounded-full shadow-md transform transition-transform ${
-                    showRateItems ? "translate-x-5" : "translate-x-0"
-                  }`}
-                />
-              </button>
+              />
             </div>
 
             {showRateItems && (
@@ -383,13 +368,17 @@ export default function FeeMatrixTab({ officeScope = "All Offices", showMsg }) {
                       <div className="flex items-center justify-between mb-1">
                         <label className="text-xs font-medium text-slate-700">Description</label>
                         <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => handleToggleRateItem(rIdx)}
-                            className="text-[11px] font-semibold text-slate-500 hover:text-blue-600 cursor-pointer"
-                          >
-                            {item.enabled ? "disable" : "enable"}
-                          </button>
+                          <div className="flex items-center gap-1.5">
+                            <IosToggle
+                              size="sm"
+                              checked={item.enabled}
+                              onChange={() => handleToggleRateItem(rIdx)}
+                              title={item.enabled ? "Disable rate item" : "Enable rate item"}
+                            />
+                            <span className={`text-[10px] font-bold ${item.enabled ? "text-emerald-600" : "text-slate-400"}`}>
+                              {item.enabled ? "Enabled" : "Disabled"}
+                            </span>
+                          </div>
                           {rateItems.length > 1 && (
                             <button
                               type="button"

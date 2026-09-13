@@ -92,14 +92,26 @@ export default function SysadLayout() {
 
   // System Admin Global Notifications — loaded from API with database read persistence
   const [sysadNotifications, setSysadNotifications] = useState([]);
+  const userStorageKey = user?.id ? `fsuu_read_sysad_notification_ids_${user.id}` : "fsuu_read_sysad_notification_ids";
   const [readNotifIds, setReadNotifIds] = useState(() => {
     try {
-      const saved = JSON.parse(localStorage.getItem("fsuu_read_sysad_notification_ids") || "[]");
+      const key = user?.id ? `fsuu_read_sysad_notification_ids_${user.id}` : "fsuu_read_sysad_notification_ids";
+      const saved = JSON.parse(localStorage.getItem(key) || localStorage.getItem("fsuu_read_sysad_notification_ids") || "[]");
       return Array.isArray(saved) ? new Set(saved) : new Set();
     } catch {
       return new Set();
     }
   });
+
+  useEffect(() => {
+    if (!user?.id) return;
+    try {
+      const saved = JSON.parse(localStorage.getItem(`fsuu_read_sysad_notification_ids_${user.id}`) || localStorage.getItem("fsuu_read_sysad_notification_ids") || "[]");
+      if (Array.isArray(saved) && saved.length > 0) {
+        setReadNotifIds(prev => new Set([...prev, ...saved]));
+      }
+    } catch {}
+  }, [user?.id]);
 
   const fetchNotifs = () => {
     api.get("/sysad/notifications")
@@ -111,6 +123,7 @@ export default function SysadLayout() {
           setReadNotifIds(prev => {
             const merged = new Set([...prev, ...serverReadIds]);
             try {
+              localStorage.setItem(userStorageKey, JSON.stringify(Array.from(merged)));
               localStorage.setItem("fsuu_read_sysad_notification_ids", JSON.stringify(Array.from(merged)));
             } catch {}
             return merged;
@@ -127,10 +140,12 @@ export default function SysadLayout() {
       const next = new Set(prev);
       next.add(notifId);
       try {
+        localStorage.setItem(userStorageKey, JSON.stringify(Array.from(next)));
         localStorage.setItem("fsuu_read_sysad_notification_ids", JSON.stringify(Array.from(next)));
       } catch {}
       return next;
     });
+    setSysadNotifications(prev => prev.map(n => n.id === notifId ? { ...n, is_read: true } : n));
     try {
       await api.post("/sysad/notifications/mark-as-read", { notification_id: notifId });
     } catch {}
@@ -141,6 +156,7 @@ export default function SysadLayout() {
     setReadNotifIds(allIds);
     setSysadNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
     try {
+      localStorage.setItem(userStorageKey, JSON.stringify(Array.from(allIds)));
       localStorage.setItem("fsuu_read_sysad_notification_ids", JSON.stringify(Array.from(allIds)));
     } catch {}
     try {

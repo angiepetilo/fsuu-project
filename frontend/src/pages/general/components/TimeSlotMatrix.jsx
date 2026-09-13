@@ -78,6 +78,26 @@ export default function TimeSlotMatrix({
           <h3 className="font-extrabold text-slate-900 dark:text-white text-sm">{title}</h3>
           <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold">{formattedDateTitle}</p>
         </div>
+
+        {/* Operating Status Legend */}
+        <div className="flex items-center gap-3 text-[11px] font-bold text-slate-600 dark:text-slate-300 flex-wrap">
+          <div className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-600 shrink-0 inline-block shadow-2xs" />
+            <span>Available / Reserved</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-blue-600 shrink-0 inline-block shadow-2xs" />
+            <span>On-Going</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-amber-500 shrink-0 inline-block shadow-2xs" />
+            <span>Maintenance</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-rose-600 shrink-0 inline-block shadow-2xs" />
+            <span>Closed</span>
+          </div>
+        </div>
       </div>
 
       {/* Grid Container */}
@@ -170,30 +190,35 @@ export default function TimeSlotMatrix({
                         const widthPercent = (duration / totalHours) * 100;
 
                         const rawStatus = (sched.status || "").toLowerCase();
-                        const isPending =
-                          rawStatus === "pending" ||
-                          rawStatus === "pending_approval";
-                        const isMaintenance =
-                          rawStatus === "maintenance" ||
-                          rawStatus === "closed" ||
-                          rawStatus === "damaged";
+                        const isClosed = rawStatus === "closed";
+                        const isMaintenance = rawStatus === "maintenance" || rawStatus === "damaged";
                         const isOngoing =
                           rawStatus === "ongoing" ||
                           rawStatus === "on-going" ||
                           rawStatus === "borrowed";
+                        const isPending =
+                          rawStatus === "pending" ||
+                          rawStatus === "pending_approval";
+                        const isAvailable = rawStatus === "available";
 
-                        let blockStyle = "bg-indigo-600 border-indigo-700 text-white shadow-xs";
+                        let blockStyle = "bg-emerald-600 border-emerald-700 text-white shadow-xs";
                         let statusBadgeLabel = "RESERVED";
 
-                        if (isOngoing) {
+                        if (isClosed) {
+                          blockStyle = "bg-rose-600 border-rose-700 text-white shadow-xs";
+                          statusBadgeLabel = "CLOSED";
+                        } else if (isMaintenance) {
+                          blockStyle = "bg-amber-500 border-amber-600 text-white shadow-xs";
+                          statusBadgeLabel = "MAINTENANCE";
+                        } else if (isOngoing) {
                           blockStyle = "bg-blue-600 border-blue-700 text-white shadow-xs";
                           statusBadgeLabel = "ON-GOING";
                         } else if (isPending) {
-                          blockStyle = "bg-amber-500 border-amber-600 text-white shadow-xs";
+                          blockStyle = "bg-amber-500/90 border-amber-600 text-white shadow-xs";
                           statusBadgeLabel = "PENDING";
-                        } else if (isMaintenance) {
-                          blockStyle = "bg-slate-700 border-slate-800 text-white shadow-xs";
-                          statusBadgeLabel = "BLOCKED";
+                        } else if (isAvailable) {
+                          blockStyle = "bg-emerald-600 border-emerald-700 text-white shadow-xs";
+                          statusBadgeLabel = "AVAILABLE";
                         }
 
                         const sStart = sched?.startTime || sched?.time_start || sched?.start_time || sched?.start || "08:00";

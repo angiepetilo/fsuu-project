@@ -472,7 +472,7 @@ html.dark textarea::placeholder {
 
 /* Touch targets guarantee on mobile */
 @media (max-width: 640px) {
-  button:not(.btn-inline),
+  button:not(.btn-inline):not([role="switch"]):not(.ios-toggle-btn),
   .touch-target-control {
     min-height: 44px;
   }

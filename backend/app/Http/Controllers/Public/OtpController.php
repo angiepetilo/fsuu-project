@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Jobs\SendOtpEmailJob;
 use App\Models\EmailVerification;
 use App\Rules\ActiveDeliverableEmail;
+use App\Services\SmsService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -13,11 +14,103 @@ use Illuminate\Support\Facades\Cache;
 class OtpController extends Controller
 {
     /**
-     * Generate and send a 6-digit verification code to the provided email.
+     * Generate and send a 6-digit verification code to the provided email OR SMS.
      * POST /api/public/send-otp
      */
     public function send(Request $request): JsonResponse
     {
+        $channel = strtolower(trim($request->input('channel', 'email')));
+
+        if ($channel === 'sms') {
+            $request->validate([
+                'phone_number' => ['required', 'string', 'max:20'],
+            ]);
+
+            $rawPhone = trim($request->input('phone_number'));
+            $cleanPhone = preg_replace('/[^0-9]/', '', $rawPhone);
+            if (str_starts_with($cleanPhone, '63')) {
+                $cleanPhone = '0' . substr($cleanPhone, 2);
+            }
+            if (strlen($cleanPhone) === 10 && str_starts_with($cleanPhone, '9')) {
+                $cleanPhone = '0' . $cleanPhone;
+            }
+
+            if (strlen($cleanPhone) !== 11 || !str_starts_with($cleanPhone, '09')) {
+                return response()->json([
+                    'message' => 'Please provide a valid 11-digit Philippine mobile number (e.g. 09XXXXXXXXX).',
+                ], 422);
+            }
+
+            // Upfront Duplicate Reservation Check for Equipment
+            if ($request->input('reservation_type') === 'equipment' && $request->input('borrow_date')) {
+                $existingEq = \Illuminate\Support\Facades\DB::table('equipment_borrows')
+                    ->join('tracking_numbers', 'equipment_borrows.tracking_number_id', '=', 'tracking_numbers.id')
+                    ->whereIn('tracking_numbers.status', ['pending', 'approved', 'ongoing', 'on-going'])
+                    ->where('equipment_borrows.contact_number', 'LIKE', "%{$cleanPhone}%")
+                    ->where('equipment_borrows.date_of_usage', $request->input('borrow_date'))
+                    ->select('tracking_numbers.reference_code', 'tracking_numbers.status')
+                    ->first();
+
+                if ($existingEq) {
+                    $statusUpper = strtoupper($existingEq->status);
+                    return response()->json([
+                        'message' => "An active {$statusUpper} equipment borrowing request ({$existingEq->reference_code}) already exists for this mobile number on this date.",
+                        'duplicate' => true,
+                        'reference_code' => $existingEq->reference_code,
+                    ], 422);
+                }
+            }
+
+            $cooldownKey = 'otp_cooldown_sms_' . $cleanPhone;
+
+            if (Cache::has($cooldownKey)) {
+                $remaining = Cache::get($cooldownKey) - time();
+                if ($remaining > 0) {
+                    return response()->json([
+                        'message' => "Please wait {$remaining} seconds before requesting a new SMS verification code.",
+                        'cooldown_remaining' => $remaining,
+                    ], 429);
+                }
+            }
+
+            $code = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+            $expiresAt = now()->addMinutes(10);
+
+            $verification = EmailVerification::create([
+                'email'        => $cleanPhone . '@sms.fsuu.local',
+                'channel'      => 'sms',
+                'phone_number' => $cleanPhone,
+                'otp_code'     => $code,
+                'expires_at'   => $expiresAt,
+                'ip_address'   => $request->ip(),
+            ]);
+
+            $cacheKey = 'otp_sms_' . $cleanPhone;
+            Cache::put($cacheKey, [
+                'code'       => $code,
+                'expires_at' => $expiresAt->timestamp,
+                'id'         => $verification->id,
+            ], $expiresAt);
+
+            Cache::put($cooldownKey, time() + 60, 60);
+
+            // Dispatch SMS via SmsService
+            try {
+                $smsResult = SmsService::send($cleanPhone, "FSUU AVR: Your 6-digit equipment borrowing verification code is {$code}. Valid for 10 minutes.");
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::error("Failed to send OTP SMS: " . $e->getMessage());
+            }
+
+            return response()->json([
+                'message'      => 'Verification code sent to your mobile number via SMS.',
+                'channel'      => 'sms',
+                'phone_number' => $cleanPhone,
+                'expires_in'   => 600,
+                'cooldown'     => 60,
+            ]);
+        }
+
+        // Default: Email OTP Flow
         $request->validate([
             'email' => ['required', 'string', 'email', 'max:255', new ActiveDeliverableEmail],
         ]);
@@ -106,6 +199,7 @@ class OtpController extends Controller
         // Save to email_verifications table
         $verification = EmailVerification::create([
             'email'      => $email,
+            'channel'    => 'email',
             'otp_code'   => $code,
             'expires_at' => $expiresAt,
             'ip_address' => $request->ip(),
@@ -127,24 +221,74 @@ class OtpController extends Controller
 
         return response()->json([
             'message'    => 'Verification code sent successfully. Please check your inbox.',
+            'channel'    => 'email',
             'expires_in' => 600,
             'cooldown'   => 60,
         ]);
     }
 
     /**
-     * Verify the submitted 6-digit code against the recorded email OTP.
+     * Verify the submitted 6-digit code against the recorded email OR phone OTP.
      * POST /api/public/verify-otp
      */
     public function verify(Request $request): JsonResponse
     {
+        $channel = strtolower(trim($request->input('channel', 'email')));
+        $code = trim($request->input('code') ?? '');
+
+        if (strlen($code) !== 6) {
+            return response()->json(['message' => 'Please provide a valid 6-digit verification code.'], 422);
+        }
+
+        if ($channel === 'sms' || $request->filled('phone_number')) {
+            $rawPhone = trim($request->input('phone_number') ?? '');
+            $cleanPhone = preg_replace('/[^0-9]/', '', $rawPhone);
+            if (str_starts_with($cleanPhone, '63')) {
+                $cleanPhone = '0' . substr($cleanPhone, 2);
+            }
+            if (strlen($cleanPhone) === 10 && str_starts_with($cleanPhone, '9')) {
+                $cleanPhone = '0' . $cleanPhone;
+            }
+
+            $record = EmailVerification::where('channel', 'sms')
+                ->where('phone_number', $cleanPhone)
+                ->whereNull('verified_at')
+                ->where('expires_at', '>', now())
+                ->latest('id')
+                ->first();
+
+            if (! $record) {
+                return response()->json([
+                    'message' => 'Verification code has expired or was not requested. Please request a new code.',
+                ], 422);
+            }
+
+            if ($record->otp_code !== $code) {
+                return response()->json([
+                    'message' => 'Incorrect verification code. Please check your SMS and try again.',
+                ], 422);
+            }
+
+            $record->update([
+                'verified_at' => now(),
+                'otp_code'    => 'CONSUMED',
+            ]);
+
+            Cache::forget('otp_sms_' . $cleanPhone);
+
+            return response()->json([
+                'verified' => true,
+                'message'  => 'Mobile number verified successfully via SMS.',
+                'channel'  => 'sms',
+            ]);
+        }
+
         $request->validate([
             'email' => ['required', 'string', 'email'],
             'code'  => ['required', 'string', 'size:6'],
         ]);
 
         $email = strtolower(trim($request->input('email')));
-        $code  = trim($request->input('code'));
 
         // Query active pending verification record
         $record = EmailVerification::where('email', $email)
@@ -177,6 +321,7 @@ class OtpController extends Controller
         return response()->json([
             'verified' => true,
             'message'  => 'Email verified successfully.',
+            'channel'  => 'email',
         ]);
     }
 }

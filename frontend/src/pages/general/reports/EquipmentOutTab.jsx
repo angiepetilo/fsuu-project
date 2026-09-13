@@ -6,6 +6,7 @@ import { getOverdueMinutes } from "@/lib/dateTimeUtils";
 export default function EquipmentOutTab({ equipmentBorrowings = [], loading = false }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [deptFilter, setDeptFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all"); // 'all' | 'out_on_loan' | 'returned' | 'overdue'
 
   // Helper to extract assigned unit barcodes without placeholders
   const extractBarcodes = (b) => {
@@ -59,28 +60,63 @@ export default function EquipmentOutTab({ equipmentBorrowings = [], loading = fa
     return parseInt(b.quantity || b.qty, 10) || 1;
   };
 
-  // Strictly list borrowers who currently have physical units out and have NOT yet returned them
-  const unreturnedBorrowings = useMemo(() => {
+  // Helper to format returned timestamp
+  const formatReturnedAt = (raw) => {
+    if (!raw) return null;
+    try {
+      const d = new Date(raw);
+      if (isNaN(d.getTime())) return String(raw);
+      return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+    } catch {
+      return String(raw);
+    }
+  };
+
+  // Retain all out-on-loan and returned records for comprehensive tracking
+  const validBorrowings = useMemo(() => {
     return equipmentBorrowings.filter(b => {
       const st = (b.status || b.tracking_number?.status || "").toLowerCase();
-      // Only active out-on-loan statuses; exclude completed, returned, rejected, cancelled, pending, approved
-      return ["ongoing", "on-going", "borrowed", "claimed", "released", "in_use", "in-use", "overdue"].includes(st);
+      return [
+        "ongoing", "on-going", "borrowed", "claimed", "released", "in_use", "in-use", "overdue",
+        "returned", "completed", "late return", "late_return"
+      ].includes(st);
     });
   }, [equipmentBorrowings]);
 
   // Extract unique departments for filter dropdown
   const departments = useMemo(() => {
     const set = new Set();
-    unreturnedBorrowings.forEach(b => {
+    validBorrowings.forEach(b => {
       const dept = b.program_office || b.department?.name || b.department;
       if (dept) set.add(dept);
     });
     return Array.from(set);
-  }, [unreturnedBorrowings]);
+  }, [validBorrowings]);
 
-  // Filter by search query and department
+  // Status counts for filter chips/options
+  const statusCounts = useMemo(() => {
+    let outCount = 0;
+    let retCount = 0;
+    let overdueCount = 0;
+
+    validBorrowings.forEach(b => {
+      const st = (b.status || b.tracking_number?.status || "").toLowerCase();
+      const isRet = ["returned", "completed", "late return", "late_return"].includes(st);
+      if (isRet) {
+        retCount++;
+      } else {
+        const isOverdue = getOverdueMinutes(b.date_of_usage || b.start_datetime, b.time_end || b.end_datetime) > 0;
+        if (isOverdue) overdueCount++;
+        else outCount++;
+      }
+    });
+
+    return { outCount, retCount, overdueCount };
+  }, [validBorrowings]);
+
+  // Filter by search query, department, and status
   const filteredRecords = useMemo(() => {
-    return unreturnedBorrowings.filter(b => {
+    return validBorrowings.filter(b => {
       const query = searchQuery.toLowerCase().trim();
       const filer = (b.filer_name || b.requestor || b.applicant_name || "").toLowerCase();
       const equip = extractEquipmentName(b).toLowerCase();
@@ -98,15 +134,28 @@ export default function EquipmentOutTab({ equipmentBorrowings = [], loading = fa
       const currentDept = b.program_office || b.department?.name || b.department;
       const matchesDept = deptFilter === "all" || currentDept === deptFilter;
 
-      return matchesSearch && matchesDept;
+      const st = (b.status || b.tracking_number?.status || "").toLowerCase();
+      const isReturned = ["returned", "completed", "late return", "late_return"].includes(st);
+      const isOverdue = !isReturned && getOverdueMinutes(b.date_of_usage || b.start_datetime, b.time_end || b.end_datetime) > 0;
+
+      let matchesStatus = true;
+      if (statusFilter === "returned") {
+        matchesStatus = isReturned;
+      } else if (statusFilter === "overdue") {
+        matchesStatus = isOverdue;
+      } else if (statusFilter === "out_on_loan") {
+        matchesStatus = !isReturned && !isOverdue;
+      }
+
+      return matchesSearch && matchesDept && matchesStatus;
     });
-  }, [unreturnedBorrowings, searchQuery, deptFilter]);
+  }, [validBorrowings, searchQuery, deptFilter, statusFilter]);
 
   return (
     <div className="space-y-4">
       {/* Filter and Search Bar */}
-      <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-3">
-        <div className="relative w-full sm:w-80">
+      <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col md:flex-row items-center justify-between gap-3">
+        <div className="relative w-full md:w-80">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
@@ -117,7 +166,20 @@ export default function EquipmentOutTab({ equipmentBorrowings = [], loading = fa
           />
         </div>
 
-        <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto justify-end">
+          {/* Status Filter Dropdown */}
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:border-blue-600 cursor-pointer"
+          >
+            <option value="all">All Statuses ({validBorrowings.length})</option>
+            <option value="out_on_loan">Out on Loan ({statusCounts.outCount})</option>
+            <option value="returned">Returned ({statusCounts.retCount})</option>
+            <option value="overdue">Overdue ({statusCounts.overdueCount})</option>
+          </select>
+
+          {/* Department Filter Dropdown */}
           <select
             value={deptFilter}
             onChange={(e) => setDeptFilter(e.target.value)}
@@ -134,17 +196,17 @@ export default function EquipmentOutTab({ equipmentBorrowings = [], loading = fa
       {/* Main Table */}
       <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs border-collapse">
+          <table className="w-full text-left text-xs border-collapse min-w-[850px]">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
                 <th className="py-3.5 px-4">#</th>
                 <th className="py-3.5 px-4">Borrower</th>
                 <th className="py-3.5 px-4">Department</th>
                 <th className="py-3.5 px-4">Equipment Item</th>
-                <th className="py-3.5 px-4 text-center">Units Out</th>
+                <th className="py-3.5 px-4 text-center">Units</th>
                 <th className="py-3.5 px-4">Barcode</th>
                 <th className="py-3.5 px-4">Borrow Date</th>
-                <th className="py-3.5 px-4">Expected Return</th>
+                <th className="py-3.5 px-4">Expected / Return Time</th>
                 <th className="py-3.5 px-4 text-center">Status</th>
               </tr>
             </thead>
@@ -152,14 +214,14 @@ export default function EquipmentOutTab({ equipmentBorrowings = [], loading = fa
               {loading ? (
                 <tr>
                   <td colSpan={9} className="py-12 text-center text-slate-400 font-bold">
-                    Loading equipment out records...
+                    Loading equipment borrowing records...
                   </td>
                 </tr>
               ) : filteredRecords.length === 0 ? (
                 <tr>
                   <td colSpan={9} className="py-12 text-center text-slate-400 font-medium">
-                    <CheckCircle2 size={24} className="mx-auto text-emerald-500 mb-2" />
-                    No active equipment currently out. All physical units are safely returned in inventory.
+                    <CheckCircle2 size={24} className="mx-auto text-slate-300 mb-2" />
+                    No equipment borrowing records matching the selected criteria.
                   </td>
                 </tr>
               ) : (
@@ -173,6 +235,10 @@ export default function EquipmentOutTab({ equipmentBorrowings = [], loading = fa
                   const borrowDate = formatDate(b.date_of_usage || b.start_datetime || b.date);
                   const returnTime = b.time_end ? formatTime12(b.time_end) : "17:00";
                   const overdueMins = getOverdueMinutes(b.date_of_usage || b.start_datetime, b.time_end || b.end_datetime);
+
+                  const st = (b.status || b.tracking_number?.status || "").toLowerCase();
+                  const isReturned = ["returned", "completed", "late return", "late_return"].includes(st);
+                  const returnedTimeFormatted = formatReturnedAt(b.returned_at || (isReturned ? b.updated_at : null));
 
                   return (
                     <tr key={`eq-out-${b.id || idx}`} className="hover:bg-slate-50/70 transition-colors">
@@ -198,14 +264,33 @@ export default function EquipmentOutTab({ equipmentBorrowings = [], loading = fa
                         )}
                       </td>
                       <td className="py-3 px-4 text-xs font-semibold text-slate-600 whitespace-nowrap">{borrowDate}</td>
-                      <td className="py-3 px-4 text-xs font-extrabold text-slate-800 whitespace-nowrap">
-                        <span className="inline-flex items-center gap-1 text-slate-800">
-                          <Clock size={12} className="text-blue-600" />
-                          {returnTime}
-                        </span>
+                      <td className="py-3 px-4 text-xs whitespace-nowrap">
+                        {isReturned ? (
+                          <div className="flex flex-col">
+                            <span className="inline-flex items-center gap-1 font-bold text-emerald-700">
+                              <CheckCircle2 size={12} className="text-emerald-600" />
+                              {returnedTimeFormatted || returnTime}
+                            </span>
+                            {b.returned_at && (
+                              <span className="text-[10px] text-slate-400 font-semibold">
+                                {formatDate(b.returned_at)}
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-slate-800 font-extrabold">
+                            <Clock size={12} className="text-blue-600" />
+                            {returnTime}
+                          </span>
+                        )}
                       </td>
                       <td className="py-3 px-4 text-center whitespace-nowrap">
-                        {overdueMins > 0 ? (
+                        {isReturned ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            <CheckCircle2 size={10} className="text-emerald-600 shrink-0" />
+                            Returned
+                          </span>
+                        ) : overdueMins > 0 ? (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider bg-rose-50 text-rose-700 border border-rose-200">
                             <AlertCircle size={10} className="text-rose-600 shrink-0" />
                             Overdue ({overdueMins}m)

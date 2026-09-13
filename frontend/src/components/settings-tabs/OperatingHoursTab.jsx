@@ -14,6 +14,7 @@ export default function OperatingHoursTab({ showMsg }) {
     arrival_grace_mins: 15,
     return_grace_mins: 30,
     auto_cancel_mins: 30,
+    requirement_grace_hours: 24,
   });
 
   const fetchHours = async () => {
@@ -29,6 +30,7 @@ export default function OperatingHoursTab({ showMsg }) {
           arrival_grace_mins: res.data.arrival_grace_mins ?? 15,
           return_grace_mins: res.data.return_grace_mins ?? 30,
           auto_cancel_mins: res.data.auto_cancel_mins ?? 30,
+          requirement_grace_hours: res.data.requirement_grace_hours ?? 24,
         });
       }
     } catch {
@@ -177,6 +179,65 @@ export default function OperatingHoursTab({ showMsg }) {
               className="w-full p-3 bg-white border border-slate-200 rounded-xl font-bold text-slate-900 text-xs"
             />
             <p className="text-[10px] text-slate-400 font-medium">Auto cancels if client fails to arrive after event start.</p>
+          </div>
+        </div>
+
+        {/* Missing Requirements Review Grace Period */}
+        <div className="mt-4 p-4.5 bg-blue-50/50 rounded-2xl border border-blue-200/80 space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+              <label className="block text-xs font-extrabold text-slate-900">
+                Missing Requirements Review Grace Period
+              </label>
+              <p className="text-[11px] text-slate-500 font-medium mt-0.5">
+                Allowed window for requestors to submit missing requirements before competing complete bookings can claim the reserved slot.
+              </p>
+            </div>
+            <span className="px-2.5 py-1 bg-blue-100 text-blue-800 text-[11px] font-bold rounded-lg self-start sm:self-auto border border-blue-300">
+              Active: {operatingHours.requirement_grace_hours || 24} Hours
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+            <button
+              type="button"
+              onClick={() => setOperatingHours({ ...operatingHours, requirement_grace_hours: 24 })}
+              className={`p-3 rounded-xl border text-left cursor-pointer transition-all ${
+                (operatingHours.requirement_grace_hours || 24) === 24
+                  ? "bg-white border-blue-600 ring-2 ring-blue-500/20 shadow-xs"
+                  : "bg-white/60 border-slate-200 hover:bg-white text-slate-600"
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-extrabold text-slate-900">24 Hours (1 Day)</span>
+                {(operatingHours.requirement_grace_hours || 24) === 24 && (
+                  <span className="w-2.5 h-2.5 rounded-full bg-blue-600"></span>
+                )}
+              </div>
+              <p className="text-[10.5px] text-slate-500 mt-1">
+                Standard review window for on-campus student organizations and academic activities.
+              </p>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setOperatingHours({ ...operatingHours, requirement_grace_hours: 48 })}
+              className={`p-3 rounded-xl border text-left cursor-pointer transition-all ${
+                operatingHours.requirement_grace_hours === 48
+                  ? "bg-white border-blue-600 ring-2 ring-blue-500/20 shadow-xs"
+                  : "bg-white/60 border-slate-200 hover:bg-white text-slate-600"
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-extrabold text-slate-900">48 Hours (2 Days)</span>
+                {operatingHours.requirement_grace_hours === 48 && (
+                  <span className="w-2.5 h-2.5 rounded-full bg-blue-600"></span>
+                )}
+              </div>
+              <p className="text-[10.5px] text-slate-500 mt-1">
+                Extended review window recommended for external client reservations or weekend filings.
+              </p>
+            </button>
           </div>
         </div>
       </div>

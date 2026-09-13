@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { X, CheckCircle, Clock, Play, FileCheck, Check, Loader2, ShieldAlert, Edit, Trash2, Plus } from "lucide-react";
+import { X, CheckCircle, Clock, Play, FileCheck, Check, Loader2, ShieldAlert, Edit, Trash2, Plus, AlertTriangle, FileQuestion, FileText } from "lucide-react";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { useAuth } from "@/context/AuthContext";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -66,6 +66,52 @@ export default function VenueBookingDetailModal({
   const [showAddRejection, setShowAddRejection] = useState(false);
   const [newRejectionInput, setNewRejectionInput] = useState("");
   const [savingNewRejection, setSavingNewRejection] = useState(false);
+
+  // Incomplete / Missing Requirements State
+  const [showIncompleteForm, setShowIncompleteForm] = useState(false);
+  const [incompleteRemarks, setIncompleteRemarks] = useState("");
+  const [selectedMissingItems, setSelectedMissingItems] = useState([
+    "Official Endorsement Letter"
+  ]);
+  const [graceHoursChoice, setGraceHoursChoice] = useState(24);
+  const [submittingIncomplete, setSubmittingIncomplete] = useState(false);
+
+  // Fetch default grace hours from operating hours setting
+  useEffect(() => {
+    api.get("/operating-hours").then(res => {
+      if (res.data?.requirement_grace_hours) {
+        setGraceHoursChoice(parseInt(res.data.requirement_grace_hours, 10));
+      }
+    }).catch(() => {});
+  }, []);
+
+  const handleSubmitIncomplete = async (e) => {
+    if (e) e.preventDefault();
+    if (!incompleteRemarks.trim() && selectedMissingItems.length === 0) {
+      notify.error("Input Required", "Please select at least one missing requirement or enter remarks.");
+      return;
+    }
+    setSubmittingIncomplete(true);
+    try {
+      const payload = {
+        remarks: incompleteRemarks.trim() || selectedMissingItems.join(", "),
+        missing_requirements: selectedMissingItems,
+        grace_hours: graceHoursChoice,
+      };
+      await handleAction(selected.id, "mark-incomplete", payload);
+      setShowIncompleteForm(false);
+      setSelected(prev => ({
+        ...prev,
+        status: "incomplete",
+        missing_requirements_remarks: payload.remarks,
+        missing_requirements_list: selectedMissingItems,
+      }));
+    } catch (err) {
+      notify.error("Action Failed", err.response?.data?.message || "Failed to mark booking incomplete.");
+    } finally {
+      setSubmittingIncomplete(false);
+    }
+  };
 
   // Fetch dynamic rejection reasons
   useEffect(() => {
@@ -681,7 +727,7 @@ export default function VenueBookingDetailModal({
 
   const currentStatus = (selected.status || selected.tracking_number?.status || "").toLowerCase();
   const isCancelledOrRejected = currentStatus === "cancelled" || currentStatus === "rejected" || currentStatus === "cancelled_by_user";
-  const isPending = currentStatus === "pending";
+  const isPending = currentStatus === "pending" || currentStatus === "incomplete";
   const isApproved = currentStatus === "approved";
   const isOngoing = currentStatus === "ongoing" || currentStatus === "on-going";
   const isPostInspection = currentStatus === "post-inspection" || currentStatus === "post-event inspection" || currentStatus === "post_inspection";
@@ -1126,10 +1172,50 @@ export default function VenueBookingDetailModal({
                 requestedCategories={requestedCategories}
                 setFullImageModal={setFullImageModal}
               />
-              <div className="py-2.5 px-3.5 bg-amber-50/70 border border-amber-200/80 rounded-xl text-xs font-medium text-slate-700 flex items-center justify-between">
-                <span>Reservation Status: <strong className="text-amber-700 font-mono font-bold uppercase">Pending Review</strong></span>
-                <span className="text-[11px] text-slate-500 font-medium">Review request details before approving or rejecting.</span>
-              </div>
+              {currentStatus === "incomplete" ? (
+                <div className="py-3 px-4 bg-amber-50 border-2 border-amber-300 rounded-xl text-xs space-y-1.5 shadow-2xs">
+                  <div className="flex items-center justify-between">
+                    <span className="font-extrabold text-amber-900 flex items-center gap-1.5">
+                      <AlertTriangle size={15} className="text-amber-600" />
+                      Status: INCOMPLETE (Awaiting Applicant Requirements)
+                    </span>
+                    {selected.incomplete_deadline_at && (
+                      <span className="text-[11px] font-mono font-bold bg-amber-200/70 text-amber-900 px-2 py-0.5 rounded">
+                        Deadline: {new Date(selected.incomplete_deadline_at).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                      </span>
+                    )}
+                  </div>
+                  {selected.missing_requirements_remarks && (
+                    <p className="text-xs text-amber-800 font-medium">
+                      <strong>Remarks:</strong> {selected.missing_requirements_remarks}
+                    </p>
+                  )}
+                  {selected.missing_requirements_list && (
+                    <div className="flex flex-wrap gap-1 pt-0.5">
+                      {(Array.isArray(selected.missing_requirements_list) 
+                        ? selected.missing_requirements_list 
+                        : typeof selected.missing_requirements_list === 'string' && selected.missing_requirements_list.startsWith('[')
+                          ? JSON.parse(selected.missing_requirements_list)
+                          : [selected.missing_requirements_list]
+                      ).map((item, idx) => (
+                        <span key={idx} className="px-2 py-0.5 rounded bg-amber-100 border border-amber-300 text-[10.5px] font-bold text-amber-800">
+                          {item}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  {selected.resubmitted_at && (
+                    <p className="text-[11px] font-bold text-emerald-700 pt-1">
+                      ✓ Supplementary requirements re-uploaded on {new Date(selected.resubmitted_at).toLocaleString()}
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <div className="py-2.5 px-3.5 bg-amber-50/70 border border-amber-200/80 rounded-xl text-xs font-medium text-slate-700 flex items-center justify-between">
+                  <span>Reservation Status: <strong className="text-amber-700 font-mono font-bold uppercase">Pending Review</strong></span>
+                  <span className="text-[11px] text-slate-500 font-medium">Review request details before approving, rejecting, or marking incomplete.</span>
+                </div>
+              )}
             </div>
           ) : isApproved ? (
             /* APPROVED STATUS: Sleek, clean Override Controls & Physical Barcode Unit Assignments only */
@@ -1392,6 +1478,156 @@ export default function VenueBookingDetailModal({
             </div>
           )}
 
+          {/* Mark Incomplete Drawer / Form */}
+          {showIncompleteForm && (
+            <div className="p-4 bg-amber-50/90 border-2 border-amber-300 rounded-2xl space-y-3.5 shadow-md animate-in fade-in slide-in-from-top-2">
+              <div className="flex items-center justify-between border-b border-amber-200 pb-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-amber-500 text-white flex items-center justify-center font-black">
+                    !
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-black text-amber-950">Mark Reservation Incomplete</h4>
+                    <p className="text-[11px] text-amber-800 font-medium">Specify missing requirements and set review grace period (24h or 48h)</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowIncompleteForm(false)}
+                  className="text-amber-800 hover:text-amber-950 font-bold text-xs p-1"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Missing Requirements Checklist */}
+              <div className="space-y-1.5">
+                <label className="block text-[11px] font-extrabold text-amber-950 uppercase tracking-wide">
+                  Missing Requirements Checklist
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {[
+                    "Official Endorsement Letter",
+                    "Dean / Department Chair Approval",
+                    "Activity Permit / Campus Clearance",
+                    "Faculty Adviser Endorsement",
+                    "Valid Institutional ID Copy",
+                    "Other Requirements",
+                  ].map((item, idx) => {
+                    const isChecked = selectedMissingItems.includes(item);
+                    return (
+                      <label
+                        key={idx}
+                        className={`flex items-center gap-2 p-2 rounded-xl border text-xs font-bold cursor-pointer transition-all ${
+                          isChecked
+                            ? "bg-amber-100 border-amber-400 text-amber-950 shadow-2xs"
+                            : "bg-white border-amber-200 text-slate-700 hover:bg-amber-50"
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => {
+                            if (isChecked) {
+                              setSelectedMissingItems(prev => prev.filter(i => i !== item));
+                            } else {
+                              setSelectedMissingItems(prev => [...prev, item]);
+                            }
+                          }}
+                          className="w-4 h-4 text-amber-600 rounded border-amber-300 focus:ring-amber-500 cursor-pointer"
+                        />
+                        <span>{item}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Remarks Textarea */}
+              <div className="space-y-1">
+                <label className="block text-[11px] font-extrabold text-amber-950 uppercase tracking-wide">
+                  Reviewer Remarks / Clear Instructions for Applicant <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  rows={2}
+                  value={incompleteRemarks}
+                  onChange={(e) => setIncompleteRemarks(e.target.value)}
+                  placeholder="e.g. Please upload your signed Endorsement Letter from the Dean's Office..."
+                  className="w-full p-2.5 bg-white border border-amber-300 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+                />
+              </div>
+
+              {/* Grace Period Selection (24 Hours vs 48 Hours) */}
+              <div className="space-y-1.5 pt-1">
+                <label className="block text-[11px] font-extrabold text-amber-950 uppercase tracking-wide">
+                  Review Grace Period Deadline
+                </label>
+                <div className="grid grid-cols-2 gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setGraceHoursChoice(24)}
+                    className={`p-2.5 rounded-xl border text-left cursor-pointer transition-all ${
+                      graceHoursChoice === 24
+                        ? "bg-white border-amber-500 ring-2 ring-amber-500/20 shadow-xs"
+                        : "bg-amber-100/50 border-amber-200 text-slate-700 hover:bg-white"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-black text-slate-900">24 Hours</span>
+                      {graceHoursChoice === 24 && <span className="w-2 h-2 rounded-full bg-amber-600" />}
+                    </div>
+                    <p className="text-[10.5px] text-slate-500 mt-0.5">Applicant has 1 day to upload missing files</p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setGraceHoursChoice(48)}
+                    className={`p-2.5 rounded-xl border text-left cursor-pointer transition-all ${
+                      graceHoursChoice === 48
+                        ? "bg-white border-amber-500 ring-2 ring-amber-500/20 shadow-xs"
+                        : "bg-amber-100/50 border-amber-200 text-slate-700 hover:bg-white"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-black text-slate-900">48 Hours</span>
+                      {graceHoursChoice === 48 && <span className="w-2 h-2 rounded-full bg-amber-600" />}
+                    </div>
+                    <p className="text-[10.5px] text-slate-500 mt-0.5">Applicant has 2 days to upload missing files</p>
+                  </button>
+                </div>
+                <p className="text-[10.5px] text-amber-800">
+                  ⚠️ If the applicant does not submit requirements within this period, competing bookings with complete requirements for this schedule may take the slot.
+                </p>
+              </div>
+
+              {/* Actions */}
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-amber-200">
+                <button
+                  type="button"
+                  onClick={() => setShowIncompleteForm(false)}
+                  className="px-3.5 py-1.5 bg-white border border-amber-300 text-slate-700 hover:bg-amber-50 rounded-lg text-xs font-bold cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={submittingIncomplete || (!incompleteRemarks.trim() && selectedMissingItems.length === 0)}
+                  onClick={handleSubmitIncomplete}
+                  className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-black cursor-pointer shadow-xs disabled:opacity-50 flex items-center gap-1.5"
+                >
+                  {submittingIncomplete ? (
+                    <>
+                      <Loader2 size={13} className="animate-spin" />
+                      <span>Sending Alert...</span>
+                    </>
+                  ) : (
+                    <span>Send Alert &amp; Mark Incomplete</span>
+                  )}
+                </button>
+              </div>
+            </div>
+          )}
+
         </div>
 
         <VenueModalFooter
@@ -1412,6 +1648,8 @@ export default function VenueBookingDetailModal({
           canApprove={canApprove}
           canReject={canReject}
           isStudentAssistant={isStudentAssistant}
+          showIncompleteForm={showIncompleteForm}
+          setShowIncompleteForm={setShowIncompleteForm}
         />
 
         {/* Lightbox Modal */}

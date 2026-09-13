@@ -46,6 +46,11 @@ class VenueBooking extends Model
         'endorsement_letter',
         'claim_timestamp',
         'is_complete',
+        'missing_requirements_remarks',
+        'missing_requirements_list',
+        'incomplete_at',
+        'incomplete_deadline_at',
+        'resubmitted_at',
     ];
 
     protected $casts = [
@@ -57,6 +62,10 @@ class VenueBooking extends Model
         'extend_reservation_end_date' => 'date:Y-m-d',
         'claim_timestamp'             => 'datetime',
         'assigned_units'              => 'array',
+        'missing_requirements_list'   => 'array',
+        'incomplete_at'               => 'datetime',
+        'incomplete_deadline_at'      => 'datetime',
+        'resubmitted_at'              => 'datetime',
     ];
 
     protected $appends = ['reference_code', 'status', 'endorsement_url', 'filer_name', 'extend_reservation_end_date'];

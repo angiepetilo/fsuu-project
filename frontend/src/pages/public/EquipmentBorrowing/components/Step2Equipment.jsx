@@ -593,7 +593,7 @@ export default function Step2Equipment({
           type="button"
           variant="outline"
           onClick={() => onBack && onBack()}
-          className="border-slate-300 hover:bg-slate-50 text-slate-700 font-bold text-xs py-5 px-5 rounded-xl cursor-pointer"
+          className="border-slate-300 hover:bg-slate-50 text-slate-700 font-bold text-xs py-3 px-4 sm:px-5 rounded-full cursor-pointer flex items-center gap-1.5 shrink-0"
         >
           <ChevronLeft size={16} />
           <span>Back</span>
@@ -620,9 +620,10 @@ export default function Step2Equipment({
                   isBlocked
                 }
                 onClick={handleEquipmentSubmit}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-5 rounded-xl font-extrabold text-xs flex items-center gap-2 shadow-md disabled:opacity-50 cursor-pointer"
+                className="bg-blue-600 hover:bg-blue-700 text-white px-5 sm:px-7 py-3 rounded-full font-extrabold text-xs flex items-center justify-center gap-2 shadow-md shadow-blue-600/20 disabled:opacity-50 cursor-pointer"
               >
-                <span>Next: Fill Details ({totalSelectedCount} items selected)</span>
+                <span className="sm:hidden">Next Step ({totalSelectedCount})</span>
+                <span className="hidden sm:inline">Next: Fill Details ({totalSelectedCount} items selected)</span>
                 <ChevronRight size={16} />
               </Button>
               {isPortal && isBlocked && !isPinVerified ? (

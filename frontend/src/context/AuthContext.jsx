@@ -79,8 +79,6 @@ export function AuthProvider({ children }) {
       "fsuu_cache_sysad_offices",
       "fsuu_venue_overrides",
       "fsuu_venue_maintenance",
-      "fsuu_read_notification_ids",
-      "fsuu_read_sysad_notification_ids",
     ];
     keysToClean.forEach(k => {
       try { localStorage.removeItem(k); } catch {}

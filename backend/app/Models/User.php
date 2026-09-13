@@ -84,6 +84,9 @@ class User extends Authenticatable
 
     public function getFullNameAttribute(): string
     {
+        if (!empty($this->attributes['name'])) {
+            return $this->attributes['name'];
+        }
         $parts = array_filter([
             $this->first_name,
             $this->middle_name,
@@ -93,7 +96,7 @@ class User extends Authenticatable
         if (!empty($parts)) {
             return implode(' ', $parts);
         }
-        return $this->attributes['name'] ?? '';
+        return '';
     }
 
     public function getNameAttribute(): string
@@ -104,9 +107,12 @@ class User extends Authenticatable
     public function setNameAttribute($value): void
     {
         $this->attributes['name'] = $value;
-        if (empty($this->attributes['first_name']) && !empty($value)) {
-            $parts = explode(' ', trim($value));
-            $this->attributes['first_name'] = array_shift($parts) ?: $value;
+        if (!empty($value)) {
+            $trimmed = trim($value);
+            $parts = preg_split('/\s+/', $trimmed);
+            $this->attributes['first_name'] = array_shift($parts) ?: $trimmed;
+            $this->attributes['middle_name'] = null;
+            $this->attributes['suffix'] = null;
             $this->attributes['last_name'] = !empty($parts) ? implode(' ', $parts) : '';
         }
     }

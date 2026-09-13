@@ -20,7 +20,7 @@ function ModuleCheckbox({ allEnabled, someEnabled, onClick }) {
       type="checkbox"
       checked={allEnabled}
       onChange={onClick}
-      className="w-4 h-4 accent-slate-900 cursor-pointer flex-shrink-0 mt-0.5"
+      className="w-4 h-4 accent-emerald-600 text-emerald-600 focus:ring-emerald-500 rounded cursor-pointer flex-shrink-0 mt-0.5"
       onClick={(e) => e.stopPropagation()}
     />
   );

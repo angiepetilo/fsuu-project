@@ -75,11 +75,11 @@ class DashboardStatsController extends Controller
         }
         $totalEquipBorrows = $ebQuery->count();
 
-        // 4. Pending Venue Bookings — scoped to active term
+        // 4. Pending Venue Bookings — scoped to active term (includes incomplete review requests)
         $pendingVbQuery = DB::table('venue_bookings')
             ->join('tracking_numbers', 'venue_bookings.tracking_number_id', '=', 'tracking_numbers.id')
             ->whereNull('venue_bookings.archived_at')
-            ->where(DB::raw('LOWER(TRIM(tracking_numbers.status))'), 'pending');
+            ->whereIn(DB::raw('LOWER(TRIM(tracking_numbers.status))'), ['pending', 'incomplete']);
         if ($activeTermId) {
             $pendingVbQuery->where('venue_bookings.academic_term_id', $activeTermId);
         }
@@ -89,7 +89,7 @@ class DashboardStatsController extends Controller
         $pendingEbQuery = DB::table('equipment_borrows')
             ->join('tracking_numbers', 'equipment_borrows.tracking_number_id', '=', 'tracking_numbers.id')
             ->whereNull('equipment_borrows.archived_at')
-            ->where(DB::raw('LOWER(TRIM(tracking_numbers.status))'), 'pending');
+            ->whereIn(DB::raw('LOWER(TRIM(tracking_numbers.status))'), ['pending', 'incomplete']);
         if ($activeTermId) {
             $pendingEbQuery->where('equipment_borrows.academic_term_id', $activeTermId);
         }

@@ -31,6 +31,7 @@ return new class extends Migration
             $table->time('time_end');
             $table->unsignedBigInteger('equipment_units_id')->nullable();
             $table->string('status')->default('pending');
+            $table->timestamp('returned_at')->nullable();
             $table->longText('assigned_units')->nullable();
             $table->timestamps();
             $table->timestamp('archived_at')->nullable();

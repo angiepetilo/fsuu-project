@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { Search, Hash, CheckCircle2, Loader2, AlertCircle, Building2, PackageOpen, AlertTriangle, ArrowLeft, Clock } from "lucide-react";
+import { Search, Hash, CheckCircle2, Loader2, AlertCircle, Building2, PackageOpen, AlertTriangle, ArrowLeft, Clock, UploadCloud, FileText, Check, Hourglass } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/status-badge";
 import api from "@/lib/axios";
@@ -16,6 +16,61 @@ export default function TrackBooking() {
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
   const [cancelLoading, setCancelLoading] = useState(false);
+
+  // Missing Requirements Resubmission States
+  const [resubmitFile, setResubmitFile] = useState(null);
+  const [resubmitRemarks, setResubmitRemarks] = useState("");
+  const [resubmitLoading, setResubmitLoading] = useState(false);
+  const [resubmitSuccess, setResubmitSuccess] = useState("");
+  const [resubmitError, setResubmitError] = useState("");
+
+  const getRemainingTime = (deadline) => {
+    if (!deadline) return null;
+    const end = new Date(deadline).getTime();
+    const now = new Date().getTime();
+    const diff = end - now;
+    if (diff <= 0) return "Grace period expired";
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    return `${hours}h ${minutes}m remaining`;
+  };
+
+  const handleResubmit = async (e) => {
+    e.preventDefault();
+    if (!resubmitFile) {
+      setResubmitError("Please select a document or file to upload.");
+      return;
+    }
+    setResubmitLoading(true);
+    setResubmitError("");
+    setResubmitSuccess("");
+
+    try {
+      const formData = new FormData();
+      const ref = booking?.reference_code || trackCode;
+      formData.append("reference_code", ref);
+      formData.append("requirement_file", resubmitFile);
+      formData.append("documents", resubmitFile);
+      if (resubmitRemarks) {
+        formData.append("applicant_remarks", resubmitRemarks);
+      }
+
+      const res = await api.post("/public/resubmit-requirements", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+
+      setResubmitSuccess(res.data?.message || "Missing requirements uploaded successfully! Your reservation has been returned to review.");
+      setResubmitFile(null);
+      setResubmitRemarks("");
+      setTimeout(() => {
+        executeTrack(ref);
+      }, 1500);
+    } catch (err) {
+      setResubmitError(err.response?.data?.message || "Failed to upload requirements. Please try again.");
+    } finally {
+      setResubmitLoading(false);
+    }
+  };
 
   const executeTrack = async (codeToSearch) => {
     const query = (codeToSearch || trackCode).trim().toUpperCase();
@@ -102,7 +157,7 @@ export default function TrackBooking() {
   // Equipment steps: Pending (1) -> Claim/Approved (2) -> On-going/In Use (3) -> Inspection (4) -> Completed (5)
   const getVenueStepIndex = (status) => {
     const s = (status || "").toLowerCase().replace(/_/g, "-");
-    if (s === "pending") return 1;
+    if (s === "pending" || s === "incomplete") return 1;
     if (s === "approved") return 2;
     if (s === "ongoing" || s === "on-going") return 3;
     if (s === "inspection" || s === "post-inspection" || s === "post-event-inspection") return 4;
@@ -335,6 +390,137 @@ export default function TrackBooking() {
               </div>
             </div>
 
+            {/* INCOMPLETE STATUS & MISSING REQUIREMENTS RESUBMISSION CARD */}
+            {(activeStatus || '').toLowerCase() === 'incomplete' && (
+              <div className="p-5 bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-card border-2 border-amber-500/40 rounded-2xl shadow-sm space-y-4 animate-in fade-in slide-in-from-top-2">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 mt-0.5 shadow-xs">
+                    <AlertTriangle size={22} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <h3 className="text-sm font-bold text-amber-950 dark:text-amber-200">
+                        Action Required: Incomplete Requirements
+                      </h3>
+                      {booking.incomplete_deadline_at && (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-extrabold bg-amber-500/20 text-amber-800 dark:text-amber-300 border border-amber-500/30">
+                          <Hourglass size={13} className="animate-pulse" />
+                          <span>Deadline: {getRemainingTime(booking.incomplete_deadline_at)}</span>
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-amber-800/90 dark:text-amber-300/90 mt-1 leading-relaxed">
+                      Your booking review requires supplementary documentation. Please upload the requested missing requirement(s) before the grace period expires. If the deadline passes, another requestor with complete requirements for this schedule may be given priority.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Reviewer Remarks & Missing Items Breakdown */}
+                <div className="p-3.5 bg-background/80 dark:bg-muted/40 border border-amber-500/30 rounded-xl space-y-2">
+                  <div className="flex items-center gap-2">
+                    <FileText size={14} className="text-amber-600 dark:text-amber-400 shrink-0" />
+                    <span className="text-xs font-bold text-foreground">Reviewer Remarks / Needed Items:</span>
+                  </div>
+                  <p className="text-xs text-foreground font-medium pl-5 whitespace-pre-wrap">
+                    {booking.missing_requirements_remarks || booking.remarks || "Missing endorsement letter or department clearance."}
+                  </p>
+                  {booking.missing_requirements_list && (
+                    <div className="pl-5 pt-1 flex flex-wrap gap-1.5">
+                      {(Array.isArray(booking.missing_requirements_list) 
+                        ? booking.missing_requirements_list 
+                        : typeof booking.missing_requirements_list === 'string' && booking.missing_requirements_list.startsWith('[')
+                          ? JSON.parse(booking.missing_requirements_list)
+                          : [booking.missing_requirements_list]
+                      ).map((item, idx) => (
+                        <span key={idx} className="px-2 py-0.5 rounded-md bg-amber-500/15 border border-amber-500/30 text-[11px] font-semibold text-amber-900 dark:text-amber-200">
+                          • {item}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  {booking.incomplete_deadline_at && (
+                    <p className="text-[11px] text-muted-foreground pl-5 pt-1">
+                      Grace period ends on: <strong className="text-foreground">{new Date(booking.incomplete_deadline_at).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })}</strong>
+                    </p>
+                  )}
+                </div>
+
+                {/* Interactive Resubmission Upload Form */}
+                <form onSubmit={handleResubmit} className="p-4 bg-background border border-border rounded-xl space-y-3">
+                  <h4 className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                    <UploadCloud size={16} className="text-primary" />
+                    <span>Upload & Resubmit Missing Document</span>
+                  </h4>
+
+                  <div className="flex flex-col gap-2">
+                    <input
+                      type="file"
+                      id="missing-req-upload"
+                      accept=".pdf,.png,.jpg,.jpeg,.docx,.doc"
+                      required
+                      onChange={(e) => {
+                        if (e.target.files && e.target.files[0]) {
+                          setResubmitFile(e.target.files[0]);
+                          setResubmitError("");
+                        }
+                      }}
+                      className="block w-full text-xs text-foreground file:mr-3 file:py-2 file:px-3.5 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-primary file:text-primary-foreground hover:file:opacity-90 cursor-pointer bg-muted/30 border border-border rounded-lg p-1.5 transition-all"
+                    />
+                    <p className="text-[10.5px] text-muted-foreground">
+                      Accepted formats: PDF, DOCX, PNG, JPG (Max 10MB)
+                    </p>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-semibold text-muted-foreground">
+                      Additional Notes / Explanation (Optional)
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={resubmitRemarks}
+                      onChange={(e) => setResubmitRemarks(e.target.value)}
+                      placeholder="e.g. Attached signed endorsement letter from Dean's office."
+                      className="w-full p-2.5 bg-card border border-border rounded-lg text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                    />
+                  </div>
+
+                  {resubmitError && (
+                    <div className="p-2.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 dark:bg-rose-500/15 dark:border-rose-500/30 dark:text-rose-400 text-xs font-semibold flex items-center gap-2">
+                      <AlertCircle size={14} className="shrink-0" />
+                      <span>{resubmitError}</span>
+                    </div>
+                  )}
+
+                  {resubmitSuccess && (
+                    <div className="p-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 dark:bg-emerald-500/15 dark:border-emerald-500/30 dark:text-emerald-300 text-xs font-bold flex items-center gap-2">
+                      <Check size={14} className="shrink-0 text-emerald-600 dark:text-emerald-400" />
+                      <span>{resubmitSuccess}</span>
+                    </div>
+                  )}
+
+                  <div className="flex justify-end pt-1">
+                    <Button
+                      type="submit"
+                      disabled={resubmitLoading || !resubmitFile}
+                      className="px-5 py-2.5 text-xs font-bold bg-primary hover:opacity-90 text-primary-foreground rounded-lg shadow-xs flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                    >
+                      {resubmitLoading ? (
+                        <>
+                          <Loader2 size={13} className="animate-spin" />
+                          <span>Uploading & Submitting...</span>
+                        </>
+                      ) : (
+                        <>
+                          <UploadCloud size={14} />
+                          <span>Submit Missing Requirements</span>
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </form>
+              </div>
+            )}
+
             {/* 5-Step Timeline Tracker */}
             <div className="pt-6 space-y-6">
               <h4 className="text-xs font-bold text-foreground uppercase tracking-wider">
@@ -468,8 +654,8 @@ export default function TrackBooking() {
                 </div>
               ) : null}
 
-              {/* Cancellation Option for Pending / Approved Requests */}
-              {['pending', 'approved'].includes((booking.status || '').toLowerCase()) && (
+              {/* Cancellation Option for Pending / Approved / Incomplete Requests */}
+              {['pending', 'approved', 'incomplete'].includes((booking.status || '').toLowerCase()) && (
                 <div className="pt-4 mt-4 border-t border-border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-muted/40 p-4 rounded-xl border border-border/70">
                   <div>
                     <h5 className="text-xs font-semibold text-foreground">Need to cancel this {isVenue ? 'booking' : 'borrowing'}?</h5>

@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react";
 import api from "@/lib/axios";
 import { notify } from "@/lib/notify";
+import { Download, FileText, UploadCloud, X, Paperclip } from "lucide-react";
 import EndorsementLetterTemplateModal from "@/components/ui/EndorsementLetterTemplateModal";
 import ConfirmModal from "@/components/ui/ConfirmModal";
+import IosToggle from "@/components/ui/ios-toggle";
 
 export default function VerificationPinTab({
   pinConfig: externalPinConfig,
@@ -39,6 +41,7 @@ export default function VerificationPinTab({
   const [showPin, setShowPin] = useState(false);
   const [showTemplateModal, setShowTemplateModal] = useState(false);
   const [selectedTemplateType, setSelectedTemplateType] = useState("organization");
+  const [selectedReqForFormat, setSelectedReqForFormat] = useState(null);
   const [feedbackMsg, setFeedbackMsg] = useState(null);
 
   const [isEditing, setIsEditing] = useState(false);
@@ -55,6 +58,10 @@ export default function VerificationPinTab({
     classification: "all",
     label: "",
     description: "",
+    template_file: null,
+    template_file_name: "",
+    template_file_url: "",
+    remove_template: false,
   });
 
   const [confirmModalState, setConfirmModalState] = useState({ open: false, field: null });
@@ -221,20 +228,39 @@ export default function VerificationPinTab({
   const handleSaveReq = async (e) => {
     e.preventDefault();
     setReqFormLoading(true);
-    const payload = {
-      classification: reqForm.classification,
-      label: reqForm.label,
-      description: reqForm.description,
-      office_id: 1,
-    };
+
+    const formData = new FormData();
+    formData.append("classification", reqForm.classification);
+    formData.append("label", reqForm.label);
+    formData.append("description", reqForm.description || "");
+    formData.append("office_id", "1");
+
+    if (reqForm.template_file) {
+      formData.append("template_file", reqForm.template_file);
+    }
+    if (reqForm.remove_template) {
+      formData.append("remove_template", "1");
+    }
 
     if (editReq) {
       const prev = requirements;
-      setRequirements(r => r.map(x => x.id === editReq.id ? { ...x, ...payload } : x));
+      setRequirements(r => r.map(x => x.id === editReq.id ? {
+        ...x,
+        classification: reqForm.classification,
+        label: reqForm.label,
+        description: reqForm.description,
+        template_file_name: reqForm.remove_template ? null : (reqForm.template_file ? reqForm.template_file.name : x.template_file_name),
+        template_file_url: reqForm.remove_template ? null : x.template_file_url,
+      } : x));
       setShowReqModal(false);
       setEditReq(null);
       try {
-        await api.put(`/general/booking-requirements/${editReq.id}`, payload);
+        formData.append("_method", "PUT");
+        const res = await api.post(`/general/booking-requirements/${editReq.id}`, formData, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+        const updated = res.data;
+        setRequirements(r => r.map(x => x.id === editReq.id ? updated : x));
         notify.success("Requirement updated.");
       } catch {
         setRequirements(prev);
@@ -247,10 +273,18 @@ export default function VerificationPinTab({
     } else {
       const tempId = `temp-${Date.now()}`;
       const prev = requirements;
-      setRequirements(r => [...r, { ...payload, id: tempId }]);
+      setRequirements(r => [...r, {
+        id: tempId,
+        classification: reqForm.classification,
+        label: reqForm.label,
+        description: reqForm.description,
+        template_file_name: reqForm.template_file ? reqForm.template_file.name : null,
+      }]);
       setShowReqModal(false);
       try {
-        const res = await api.post("/general/booking-requirements", payload);
+        const res = await api.post("/general/booking-requirements", formData, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
         const saved = res.data;
         setRequirements(r => r.map(x => x.id === tempId ? saved : x));
         notify.success("Requirement added.");
@@ -277,6 +311,29 @@ export default function VerificationPinTab({
     }
   };
 
+  const handleSaveRequirementFormat = async (updatedFormat) => {
+    if (!selectedReqForFormat) return;
+    const reqId = selectedReqForFormat.id;
+
+    const formData = new FormData();
+    formData.append("_method", "PUT");
+    formData.append("format_content", JSON.stringify(updatedFormat));
+
+    const res = await api.post(`/general/booking-requirements/${reqId}`, formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+
+    const updated = res.data;
+    setRequirements((prev) =>
+      prev.map((r) =>
+        r.id === reqId ? { ...r, format_content: updated.format_content || updatedFormat } : r
+      )
+    );
+    setSelectedReqForFormat((prev) =>
+      prev ? { ...prev, format_content: updated.format_content || updatedFormat } : null
+    );
+  };
+
   const handleOtpSettingChange = (field, newValue) => {
     if (newValue === false) {
       setConfirmModalState({ open: true, field });
@@ -285,25 +342,14 @@ export default function VerificationPinTab({
     setPinSettings(prev => ({ ...prev, [field]: newValue }));
   };
 
-  const ToggleSwitch = ({ checked, onChange, disabled, title }) => (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      title={title}
+  const ToggleSwitch = ({ checked, onChange, disabled, title, size = "md" }) => (
+    <IosToggle
+      checked={checked}
+      onChange={onChange}
       disabled={disabled}
-      onClick={() => onChange(!checked)}
-      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-        disabled ? "opacity-40 cursor-not-allowed" : ""
-      } ${checked ? "bg-blue-600" : "bg-slate-300"}`}
-    >
-      <span
-        aria-hidden="true"
-        className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-          checked ? "translate-x-4" : "translate-x-0"
-        }`}
-      />
-    </button>
+      title={title}
+      size={size}
+    />
   );
 
   const updateMatrixCell = (group, column, val) => {
@@ -575,8 +621,8 @@ export default function VerificationPinTab({
             )}
           </div>
 
-          <div className="border border-slate-200 rounded-lg overflow-hidden text-xs">
-            <table className="w-full text-left">
+          <div className="border border-slate-200 rounded-xl overflow-x-auto w-full text-xs">
+            <table className="w-full text-left min-w-[580px]">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-semibold text-slate-600">
                   <th className="p-2.5">Requester Classification</th>
@@ -592,11 +638,12 @@ export default function VerificationPinTab({
                   <td className="p-2.5">
                     <div className="flex items-center gap-2">
                       <ToggleSwitch
+                        size="sm"
                         checked={!!currentMatrix.student?.venue_single}
                         disabled={!isEditing || !pinSettings.isEnabled}
                         onChange={(val) => updateMatrixCell('student', 'venue_single', val)}
                       />
-                      <span className={`text-[11px] font-medium ${currentMatrix.student?.venue_single ? 'text-blue-600 font-semibold' : 'text-slate-500'}`}>
+                      <span className={`text-[11px] font-medium ${currentMatrix.student?.venue_single ? 'text-emerald-700 font-semibold' : 'text-slate-500'}`}>
                         {currentMatrix.student?.venue_single ? "PIN Required" : "No PIN (Direct)"}
                       </span>
                     </div>
@@ -604,11 +651,12 @@ export default function VerificationPinTab({
                   <td className="p-2.5">
                     <div className="flex items-center gap-2">
                       <ToggleSwitch
+                        size="sm"
                         checked={!!currentMatrix.student?.venue_multiday}
                         disabled={!isEditing || !pinSettings.isEnabled}
                         onChange={(val) => updateMatrixCell('student', 'venue_multiday', val)}
                       />
-                      <span className={`text-[11px] font-medium ${currentMatrix.student?.venue_multiday ? 'text-blue-600 font-semibold' : 'text-slate-500'}`}>
+                      <span className={`text-[11px] font-medium ${currentMatrix.student?.venue_multiday ? 'text-emerald-700 font-semibold' : 'text-slate-500'}`}>
                         {currentMatrix.student?.venue_multiday ? "PIN Required" : "No PIN (Direct)"}
                       </span>
                     </div>
@@ -616,11 +664,12 @@ export default function VerificationPinTab({
                   <td className="p-2.5">
                     <div className="flex items-center gap-2">
                       <ToggleSwitch
+                        size="sm"
                         checked={!!currentMatrix.student?.equipment}
                         disabled={!isEditing || !pinSettings.isEnabled}
                         onChange={(val) => updateMatrixCell('student', 'equipment', val)}
                       />
-                      <span className={`text-[11px] font-medium ${currentMatrix.student?.equipment ? 'text-blue-600 font-semibold' : 'text-slate-500'}`}>
+                      <span className={`text-[11px] font-medium ${currentMatrix.student?.equipment ? 'text-emerald-700 font-semibold' : 'text-slate-500'}`}>
                         {currentMatrix.student?.equipment ? "PIN Required" : "No PIN (Direct)"}
                       </span>
                     </div>
@@ -633,11 +682,12 @@ export default function VerificationPinTab({
                   <td className="p-2.5">
                     <div className="flex items-center gap-2">
                       <ToggleSwitch
+                        size="sm"
                         checked={!!currentMatrix.faculty?.venue_single}
                         disabled={!isEditing || !pinSettings.isEnabled}
                         onChange={(val) => updateMatrixCell('faculty', 'venue_single', val)}
                       />
-                      <span className={`text-[11px] font-medium ${currentMatrix.faculty?.venue_single ? 'text-blue-600 font-semibold' : 'text-slate-500'}`}>
+                      <span className={`text-[11px] font-medium ${currentMatrix.faculty?.venue_single ? 'text-emerald-700 font-semibold' : 'text-slate-500'}`}>
                         {currentMatrix.faculty?.venue_single ? "PIN Required" : "No PIN (Direct)"}
                       </span>
                     </div>
@@ -645,11 +695,12 @@ export default function VerificationPinTab({
                   <td className="p-2.5">
                     <div className="flex items-center gap-2">
                       <ToggleSwitch
+                        size="sm"
                         checked={!!currentMatrix.faculty?.venue_multiday}
                         disabled={!isEditing || !pinSettings.isEnabled}
                         onChange={(val) => updateMatrixCell('faculty', 'venue_multiday', val)}
                       />
-                      <span className={`text-[11px] font-medium ${currentMatrix.faculty?.venue_multiday ? 'text-blue-600 font-semibold' : 'text-slate-500'}`}>
+                      <span className={`text-[11px] font-medium ${currentMatrix.faculty?.venue_multiday ? 'text-emerald-700 font-semibold' : 'text-slate-500'}`}>
                         {currentMatrix.faculty?.venue_multiday ? "PIN Required" : "No PIN (Direct)"}
                       </span>
                     </div>
@@ -657,11 +708,12 @@ export default function VerificationPinTab({
                   <td className="p-2.5">
                     <div className="flex items-center gap-2">
                       <ToggleSwitch
+                        size="sm"
                         checked={!!currentMatrix.faculty?.equipment}
                         disabled={!isEditing || !pinSettings.isEnabled}
                         onChange={(val) => updateMatrixCell('faculty', 'equipment', val)}
                       />
-                      <span className={`text-[11px] font-medium ${currentMatrix.faculty?.equipment ? 'text-blue-600 font-semibold' : 'text-slate-500'}`}>
+                      <span className={`text-[11px] font-medium ${currentMatrix.faculty?.equipment ? 'text-emerald-700 font-semibold' : 'text-slate-500'}`}>
                         {currentMatrix.faculty?.equipment ? "PIN Required" : "No PIN (Direct)"}
                       </span>
                     </div>
@@ -674,11 +726,12 @@ export default function VerificationPinTab({
                   <td className="p-2.5">
                     <div className="flex items-center gap-2">
                       <ToggleSwitch
+                        size="sm"
                         checked={!!currentMatrix.external?.venue_single}
                         disabled={!isEditing || !pinSettings.isEnabled}
                         onChange={(val) => updateMatrixCell('external', 'venue_single', val)}
                       />
-                      <span className={`text-[11px] font-medium ${currentMatrix.external?.venue_single ? 'text-blue-600 font-semibold' : 'text-slate-500'}`}>
+                      <span className={`text-[11px] font-medium ${currentMatrix.external?.venue_single ? 'text-emerald-700 font-semibold' : 'text-slate-500'}`}>
                         {currentMatrix.external?.venue_single ? "PIN Required" : "No PIN (Direct)"}
                       </span>
                     </div>
@@ -686,11 +739,12 @@ export default function VerificationPinTab({
                   <td className="p-2.5">
                     <div className="flex items-center gap-2">
                       <ToggleSwitch
+                        size="sm"
                         checked={!!currentMatrix.external?.venue_multiday}
                         disabled={!isEditing || !pinSettings.isEnabled}
                         onChange={(val) => updateMatrixCell('external', 'venue_multiday', val)}
                       />
-                      <span className={`text-[11px] font-medium ${currentMatrix.external?.venue_multiday ? 'text-blue-600 font-semibold' : 'text-slate-500'}`}>
+                      <span className={`text-[11px] font-medium ${currentMatrix.external?.venue_multiday ? 'text-emerald-700 font-semibold' : 'text-slate-500'}`}>
                         {currentMatrix.external?.venue_multiday ? "PIN Required" : "No PIN (Direct)"}
                       </span>
                     </div>
@@ -698,11 +752,12 @@ export default function VerificationPinTab({
                   <td className="p-2.5">
                     <div className="flex items-center gap-2">
                       <ToggleSwitch
+                        size="sm"
                         checked={!!currentMatrix.external?.equipment}
                         disabled={!isEditing || !pinSettings.isEnabled}
                         onChange={(val) => updateMatrixCell('external', 'equipment', val)}
                       />
-                      <span className={`text-[11px] font-medium ${currentMatrix.external?.equipment ? 'text-blue-600 font-semibold' : 'text-slate-500'}`}>
+                      <span className={`text-[11px] font-medium ${currentMatrix.external?.equipment ? 'text-emerald-700 font-semibold' : 'text-slate-500'}`}>
                         {currentMatrix.external?.equipment ? "PIN Required" : "No PIN (Direct)"}
                       </span>
                     </div>
@@ -762,7 +817,15 @@ export default function VerificationPinTab({
             type="button"
             onClick={() => {
               setEditReq(null);
-              setReqForm({ classification: "all", label: "", description: "" });
+              setReqForm({
+                classification: "all",
+                label: "",
+                description: "",
+                template_file: null,
+                template_file_name: "",
+                template_file_url: "",
+                remove_template: false,
+              });
               setShowReqModal(true);
             }}
             className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-extrabold shadow-xs transition-all self-start sm:self-auto cursor-pointer flex items-center gap-1.5"
@@ -780,19 +843,20 @@ export default function VerificationPinTab({
                 <th className="p-2.5">Requirement Title</th>
                 <th className="p-2.5">Scope</th>
                 <th className="p-2.5">Description</th>
+                <th className="p-2.5">Downloadable Template</th>
                 <th className="p-2.5 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
               {reqLoading ? (
                 <tr>
-                  <td colSpan={5} className="p-4 text-center text-slate-400">
+                  <td colSpan={6} className="p-4 text-center text-slate-400">
                     Loading requirements...
                   </td>
                 </tr>
               ) : requirements.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="p-4 text-center text-slate-400">
+                  <td colSpan={6} className="p-4 text-center text-slate-400">
                     No requirements configured.
                   </td>
                 </tr>
@@ -809,17 +873,36 @@ export default function VerificationPinTab({
                         </span>
                       </td>
                       <td className="p-2.5 text-slate-500">{req.description || "—"}</td>
+                      <td className="p-2.5">
+                        {req.template_file_url ? (
+                          <a
+                            href={req.template_file_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            download
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 font-semibold text-[11px] transition-colors"
+                            title={req.template_file_name || "Download Template"}
+                          >
+                            <Download className="w-3.5 h-3.5 shrink-0 text-blue-600" />
+                            <span className="truncate max-w-[130px]">{req.template_file_name || "Download"}</span>
+                          </a>
+                        ) : (
+                          <span className="text-slate-400 text-xs italic">No file attached</span>
+                        )}
+                      </td>
                       <td className="p-2.5 text-right">
                         <div className="inline-flex items-center gap-2">
                           <button
                             type="button"
                             onClick={() => {
-                              setSelectedTemplateType(isAcad ? "academic" : "organization");
+                              setSelectedReqForFormat(req);
+                              setSelectedTemplateType(req.classification || (isAcad ? "academic" : "organization"));
                               setShowTemplateModal(true);
                             }}
-                            className="px-2 py-1 border border-slate-200 rounded text-slate-600 hover:bg-slate-100 text-[11px]"
+                            className="px-2 py-1 border border-slate-200 rounded text-slate-600 hover:bg-slate-100 text-[11px] cursor-pointer"
+                            title="View and edit dynamic requirement document format"
                           >
-                            Template
+                            Format
                           </button>
                           <button
                             type="button"
@@ -829,6 +912,10 @@ export default function VerificationPinTab({
                                 classification: req.classification || "all",
                                 label: req.label || "",
                                 description: req.description || "",
+                                template_file: null,
+                                template_file_name: req.template_file_name || "",
+                                template_file_url: req.template_file_url || "",
+                                remove_template: false,
                               });
                               setShowReqModal(true);
                             }}
@@ -864,7 +951,7 @@ export default function VerificationPinTab({
               </h3>
               <button
                 onClick={() => setShowReqModal(false)}
-                className="text-slate-400 hover:text-slate-600 text-sm"
+                className="text-slate-400 hover:text-slate-600 text-sm cursor-pointer"
               >
                 ✕
               </button>
@@ -914,18 +1001,75 @@ export default function VerificationPinTab({
                 />
               </div>
 
+              {/* Downloadable Template File Upload */}
+              <div>
+                <label className="block font-medium text-slate-700 mb-1">
+                  Downloadable Template Form (Optional)
+                </label>
+                {reqForm.template_file_url && !reqForm.remove_template ? (
+                  <div className="flex items-center justify-between p-2.5 bg-slate-50 border border-slate-200 rounded-lg">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <FileText className="w-4 h-4 text-blue-600 shrink-0" />
+                      <a
+                        href={reqForm.template_file_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-medium text-blue-600 hover:underline truncate max-w-[200px]"
+                        title={reqForm.template_file_name || "Existing Template File"}
+                      >
+                        {reqForm.template_file_name || "Attached Template File"}
+                      </a>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setReqForm(prev => ({ ...prev, remove_template: true, template_file: null }))}
+                      className="text-rose-600 hover:text-rose-800 font-semibold ml-2 shrink-0 cursor-pointer"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-1.5">
+                    <input
+                      type="file"
+                      accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          setReqForm(prev => ({
+                            ...prev,
+                            template_file: file,
+                            template_file_name: file.name,
+                            remove_template: false,
+                          }));
+                        }
+                      }}
+                      className="w-full text-xs text-slate-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
+                    />
+                    {reqForm.template_file && (
+                      <p className="text-[11px] text-emerald-600 font-medium flex items-center gap-1">
+                        ✓ Selected: {reqForm.template_file.name}
+                      </p>
+                    )}
+                    <p className="text-[10.5px] text-slate-400">
+                      Attach printable or fillable form (PDF, Word, Excel, Images up to 10MB).
+                    </p>
+                  </div>
+                )}
+              </div>
+
               <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setShowReqModal(false)}
-                  className="px-3 py-1.5 border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50"
+                  className="px-3 py-1.5 border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={reqFormLoading}
-                  className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium"
+                  className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium cursor-pointer"
                 >
                   {reqFormLoading ? "Saving..." : "Save"}
                 </button>
@@ -938,10 +1082,15 @@ export default function VerificationPinTab({
       {/* Template Modal */}
       <EndorsementLetterTemplateModal
         isOpen={showTemplateModal}
-        onClose={() => setShowTemplateModal(false)}
+        onClose={() => {
+          setShowTemplateModal(false);
+          setSelectedReqForFormat(null);
+        }}
+        requirement={selectedReqForFormat}
+        onSaveTemplate={handleSaveRequirementFormat}
         initialType={selectedTemplateType}
         allowEdit={true}
-        showTypeTabs={true}
+        showTypeTabs={!selectedReqForFormat}
       />
 
       <ConfirmModal

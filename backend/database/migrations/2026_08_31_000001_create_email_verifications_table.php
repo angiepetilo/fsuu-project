@@ -11,6 +11,8 @@ return new class extends Migration
         Schema::create('email_verifications', function (Blueprint $table) {
             $table->id();
             $table->string('email')->index();
+            $table->string('channel', 20)->default('email');
+            $table->string('phone_number', 50)->nullable();
             $table->string('otp_code', 10);
             $table->timestamp('expires_at');
             $table->timestamp('verified_at')->nullable();

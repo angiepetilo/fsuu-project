@@ -74,7 +74,7 @@ export function Step1Identity({
         {!isPortal ? (
           <a
             href="/"
-            className="px-6 py-3 rounded-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 text-slate-700 dark:text-slate-200 font-extrabold text-xs flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer no-underline"
+            className="px-4 sm:px-6 py-3 rounded-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 text-slate-700 dark:text-slate-200 font-extrabold text-xs flex items-center justify-center gap-1.5 transition-all shadow-2xs cursor-pointer no-underline shrink-0"
           >
             <span>← Back to Homepage</span>
           </a>
@@ -87,9 +87,10 @@ export function Step1Identity({
         <Button
           onClick={() => onNext && onNext()}
           disabled={!currentIdentity}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3.5 rounded-full font-extrabold text-xs flex items-center gap-2 shadow-md shadow-blue-600/20 disabled:opacity-50 transition-all cursor-pointer"
+          className="bg-blue-600 hover:bg-blue-700 text-white px-5 sm:px-8 py-3 sm:py-3.5 rounded-full font-extrabold text-xs flex items-center justify-center gap-2 shadow-md shadow-blue-600/20 disabled:opacity-50 transition-all cursor-pointer"
         >
-          <span>Next: Select Equipment & Quantity</span>
+          <span className="sm:hidden">Next Step</span>
+          <span className="hidden sm:inline">Next: Select Equipment & Quantity</span>
           <ArrowRight size={16} />
         </Button>
       </div>

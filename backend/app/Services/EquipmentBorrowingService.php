@@ -7,6 +7,7 @@ use App\Exceptions\EquipmentUnavailableException;
 use App\Exceptions\ExternalRequiresVenueBookingException;
 use App\Jobs\SendBookingConfirmationJob;
 use App\Jobs\SendBookingStatusUpdateJob;
+use App\Jobs\SendAdminPendingTaskNotificationJob;
 use App\Models\Approval;
 use App\Models\VenueBooking;
 use App\Models\EquipmentBorrow;
@@ -171,6 +172,11 @@ class EquipmentBorrowingService
             // Dispatch confirmation email asynchronously
             try {
                 SendBookingConfirmationJob::dispatch('equipment', $borrowing->load('items'));
+            } catch (\Throwable $e) {}
+
+            // Dispatch pending task notification email to Super Admin & Staff
+            try {
+                SendAdminPendingTaskNotificationJob::dispatch('new_equipment_borrowing', $borrowing->load('items'));
             } catch (\Throwable $e) {}
 
             // Broadcast real-time Pusher event

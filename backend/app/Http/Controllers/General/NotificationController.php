@@ -19,13 +19,30 @@ class NotificationController extends Controller
             $userId = $user ? $user->id : null;
 
             $readKeys = [];
+            $allReadAt = null;
             if (Schema::hasTable('notification_reads')) {
-                $readKeys = DB::table('notification_reads')
+                $readRecords = DB::table('notification_reads')
                     ->where('user_id', $userId)
-                    ->pluck('notification_key')
-                    ->flip()
-                    ->toArray();
+                    ->get();
+
+                foreach ($readRecords as $rr) {
+                    if ($rr->notification_key === '__ALL_READ__') {
+                        $allReadAt = $rr->read_at ? Carbon::parse($rr->read_at) : null;
+                    } else {
+                        $readKeys[$rr->notification_key] = true;
+                    }
+                }
             }
+
+            $checkIsRead = function ($key, $date) use ($readKeys, $allReadAt) {
+                if (isset($readKeys[$key])) return true;
+                if ($allReadAt && $date) {
+                    try {
+                        if (Carbon::parse($date)->lte($allReadAt)) return true;
+                    } catch (\Throwable $t) {}
+                }
+                return false;
+            };
 
             $notifs = collect();
 
@@ -155,7 +172,7 @@ class NotificationController extends Controller
                             'priority'          => 'critical',
                             'time'              => $formattedTime,
                             'rawDate'           => $rawDate,
-                            'is_read'           => isset($readKeys[$key]),
+                            'is_read'           => $checkIsRead($key, $rawDate),
                         ]);
                     }
 
@@ -181,7 +198,7 @@ class NotificationController extends Controller
                             'priority'          => 'critical',
                             'time'              => $formattedTime,
                             'rawDate'           => $rawDate,
-                            'is_read'           => isset($readKeys[$key]),
+                            'is_read'           => $checkIsRead($key, $rawDate),
                         ]);
                     }
 
@@ -208,7 +225,7 @@ class NotificationController extends Controller
                             'priority'          => 'critical',
                             'time'              => $formattedTime,
                             'rawDate'           => $rawDate,
-                            'is_read'           => isset($readKeys[$key]),
+                            'is_read'           => $checkIsRead($key, $rawDate),
                         ]);
                     }
                 }
@@ -256,7 +273,7 @@ class NotificationController extends Controller
                         'priority'          => 'critical',
                         'time'              => $formattedTime,
                         'rawDate'           => $du->updated_at ?? $du->created_at ?? now(),
-                        'is_read'           => isset($readKeys[$key]),
+                        'is_read'           => $checkIsRead($key, $du->updated_at ?? $du->created_at ?? now()),
                     ]);
                 }
             }
@@ -302,7 +319,7 @@ class NotificationController extends Controller
                         'ref'            => $ref,
                         'time'           => $time,
                         'rawDate'        => $b->created_at,
-                        'is_read'        => isset($readKeys[$key]),
+                        'is_read'        => $checkIsRead($key, $b->created_at),
                     ]);
                 }
             }
@@ -346,7 +363,7 @@ class NotificationController extends Controller
                         'ref'            => $ref,
                         'time'           => $time,
                         'rawDate'        => $b->created_at,
-                        'is_read'        => isset($readKeys[$key]),
+                        'is_read'        => $checkIsRead($key, $b->created_at),
                     ]);
                 }
             }
@@ -384,7 +401,7 @@ class NotificationController extends Controller
                         'ref'            => 'REQ-' . $cr->id,
                         'time'           => $time,
                         'rawDate'        => $cr->created_at,
-                        'is_read'        => isset($readKeys[$key]),
+                        'is_read'        => $checkIsRead($key, $cr->created_at),
                     ]);
                 }
             }
@@ -420,6 +437,7 @@ class NotificationController extends Controller
                     if ($hasEquipmentRequested && $hasUnassignedUnits && $hoursUntil <= 24 && $hoursUntil >= 0) {
                         $key = 'notif-vb-unassigned-' . $b->id;
                         $timeUrgency = $hoursUntil <= 7 ? "in {$hoursUntil} hours" : "tomorrow";
+                        $notifItemDate = $b->updated_at ?? $b->created_at ?? $now->toDateTimeString();
                         $notifs->push([
                             'id'             => $key,
                             'target_id'      => $b->id,
@@ -437,8 +455,8 @@ class NotificationController extends Controller
                             'item_name'      => $b->venue_name ?? 'Venue Facility',
                             'ref'            => $ref,
                             'time'           => $hoursUntil <= 7 ? "{$hoursUntil}h left" : "1 day left",
-                            'rawDate'        => $now->toDateTimeString(),
-                            'is_read'        => isset($readKeys[$key]),
+                            'rawDate'        => $notifItemDate,
+                            'is_read'        => $checkIsRead($key, $notifItemDate),
                         ]);
                     }
                 }
@@ -468,6 +486,7 @@ class NotificationController extends Controller
 
                     if ($now->greaterThan($endDt)) {
                         $key = 'notif-vb-postinsp-overdue-' . $b->id;
+                        $notifItemDate = $b->updated_at ?? $endDt->toDateTimeString();
                         $notifs->push([
                             'id'             => $key,
                             'target_id'      => $b->id,
@@ -485,8 +504,8 @@ class NotificationController extends Controller
                             'item_name'      => $b->venue_name ?? 'Venue Facility',
                             'ref'            => $ref,
                             'time'           => 'Needs Inspection',
-                            'rawDate'        => $now->toDateTimeString(),
-                            'is_read'        => isset($readKeys[$key]),
+                            'rawDate'        => $notifItemDate,
+                            'is_read'        => $checkIsRead($key, $notifItemDate),
                         ]);
                     }
                 }
@@ -513,6 +532,7 @@ class NotificationController extends Controller
 
                     if ($now->greaterThan($endDt)) {
                         $key = 'notif-eb-postinsp-overdue-' . $b->id;
+                        $notifItemDate = $b->updated_at ?? $endDt->toDateTimeString();
                         $notifs->push([
                             'id'             => $key,
                             'target_id'      => $b->id,
@@ -530,8 +550,8 @@ class NotificationController extends Controller
                             'item_name'      => 'Borrowed Equipment Units',
                             'ref'            => $ref,
                             'time'           => 'Needs Inspection',
-                            'rawDate'        => $now->toDateTimeString(),
-                            'is_read'        => isset($readKeys[$key]),
+                            'rawDate'        => $notifItemDate,
+                            'is_read'        => $checkIsRead($key, $notifItemDate),
                         ]);
                     }
                 }
@@ -606,17 +626,26 @@ class NotificationController extends Controller
             $keys = array_column($all, 'id');
         }
 
+        $now = now();
         foreach ($keys as $k) {
             if ($k) {
                 DB::table('notification_reads')->updateOrInsert(
                     ['notification_key' => $k, 'user_id' => $userId],
-                    ['read_at' => now(), 'updated_at' => now(), 'created_at' => now()]
+                    ['read_at' => $now, 'updated_at' => $now, 'created_at' => $now]
                 );
             }
         }
 
+        // Global watermark for this user:
+        if ($userId) {
+            DB::table('notification_reads')->updateOrInsert(
+                ['notification_key' => '__ALL_READ__', 'user_id' => $userId],
+                ['read_at' => $now, 'updated_at' => $now, 'created_at' => $now]
+            );
+        }
+
         if (Schema::hasTable('notifications')) {
-            DB::table('notifications')->update(['read_at' => now()]);
+            DB::table('notifications')->update(['read_at' => $now]);
         }
 
         return response()->json(['success' => true, 'marked_count' => count($keys)]);

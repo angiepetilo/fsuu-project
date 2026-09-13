@@ -3,6 +3,7 @@ import { BookOpen, Plus, Edit2, Ban, X, Loader2, Lock } from "lucide-react";
 import { usePermissions } from "@/hooks/usePermissions";
 import api from "@/lib/axios";
 import ConfirmModal from "@/components/ui/ConfirmModal";
+import IosToggle from "@/components/ui/ios-toggle";
 
 export default function DepartmentsTab({ showMsg }) {
   const { isSuperAdmin, hasPermission } = usePermissions();
@@ -129,15 +130,15 @@ export default function DepartmentsTab({ showMsg }) {
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
-        <table className="w-full text-xs text-left">
+      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-x-auto w-full">
+        <table className="w-full text-xs text-left min-w-[650px]">
           <thead>
             <tr className="bg-slate-50/80 border-b border-slate-100 text-slate-400 font-bold uppercase text-[10px] tracking-wider">
               <th className="px-4 py-3.5 w-12">#</th>
               <th className="px-4 py-3.5 w-32">Code</th>
               <th className="px-4 py-3.5">Department / Program Name</th>
               <th className="px-4 py-3.5 w-24">Status</th>
-              <th className="px-4 py-3.5 text-right w-28">Action</th>
+              <th className="px-4 py-3.5 text-right w-36">Action</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 font-semibold">
@@ -181,7 +182,20 @@ export default function DepartmentsTab({ showMsg }) {
                     </td>
                     <td className="px-4 py-3.5 text-right">
                       {canEdit || canDisable ? (
-                        <div className="flex items-center justify-end gap-1.5">
+                        <div className="flex items-center justify-end gap-2.5">
+                          {canDisable && (
+                            <div className="flex items-center gap-1.5">
+                              <IosToggle
+                                checked={!isItemDisabled}
+                                onChange={() => setDisableTarget({ id: dept.id, code: dept.code, status: dept.status })}
+                                size="sm"
+                                title={isItemDisabled ? "Click to Enable Department" : "Click to Disable Department"}
+                              />
+                              <span className={`text-[10.5px] font-extrabold w-12 text-left select-none ${!isItemDisabled ? 'text-emerald-600' : 'text-slate-400'}`}>
+                                {!isItemDisabled ? 'Active' : 'Disabled'}
+                              </span>
+                            </div>
+                          )}
                           {canEdit && (
                             <button
                               onClick={() => {
@@ -193,23 +207,10 @@ export default function DepartmentsTab({ showMsg }) {
                                 });
                                 setShowAddDeptModal(true);
                               }}
-                              className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 cursor-pointer"
+                              className="p-1.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 cursor-pointer transition-all shadow-2xs"
                               title="Edit Department"
                             >
                               <Edit2 size={13} />
-                            </button>
-                          )}
-                          {canDisable && (
-                            <button
-                              onClick={() => setDisableTarget({ id: dept.id, code: dept.code, status: dept.status })}
-                              className={`p-1.5 rounded-lg border cursor-pointer transition-colors ${
-                                isItemDisabled
-                                  ? "border-emerald-200 hover:bg-emerald-50 text-emerald-600"
-                                  : "border-rose-200 hover:bg-rose-50 text-rose-600"
-                              }`}
-                              title={isItemDisabled ? "Enable Department" : "Disable Department"}
-                            >
-                              <Ban size={13} />
                             </button>
                           )}
                         </div>

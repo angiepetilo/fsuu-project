@@ -16,6 +16,13 @@ class BookingRequirement extends Model
         'classification',
         'label',
         'description',
+        'template_file_url',
+        'template_file_name',
+        'format_content',
         'sort_order',
+    ];
+
+    protected $casts = [
+        'format_content' => 'array',
     ];
 }

@@ -38,9 +38,10 @@ class OperatingHoursController extends Controller
                 'venue_close'         => '17:00',
                 'equipment_open'      => '07:00',
                 'equipment_close'     => '17:00',
-                'arrival_grace_mins'  => 15,
-                'return_grace_mins'   => 30,
-                'auto_cancel_mins'    => 30,
+                'arrival_grace_mins'      => 15,
+                'return_grace_mins'       => 30,
+                'auto_cancel_mins'        => 30,
+                'requirement_grace_hours' => 24,
             ]);
         }
 
@@ -50,14 +51,16 @@ class OperatingHoursController extends Controller
     public function update(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'venue_open'          => 'required',
-            'venue_close'         => 'required',
-            'equipment_open'      => 'required',
-            'equipment_close'     => 'required',
-            'arrival_grace_mins'  => 'required|integer|min:0|max:120',
-            'return_grace_mins'   => 'required|integer|min:0|max:120',
-            'auto_cancel_mins'    => 'required|integer|min:0|max:120',
+            'venue_open'              => 'required',
+            'venue_close'             => 'required',
+            'equipment_open'          => 'required',
+            'equipment_close'         => 'required',
+            'arrival_grace_mins'      => 'required|integer|min:0|max:120',
+            'return_grace_mins'       => 'required|integer|min:0|max:120',
+            'auto_cancel_mins'        => 'required|integer|min:0|max:120',
+            'requirement_grace_hours' => 'nullable|integer|in:24,48',
         ]);
+        $data['requirement_grace_hours'] = (int) ($data['requirement_grace_hours'] ?? 24);
 
         $formatTime = function ($t) {
             if (!$t) return '07:00:00';

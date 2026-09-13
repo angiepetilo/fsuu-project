@@ -62,6 +62,7 @@ Route::get('/public/system-settings', [SystemSettingController::class, 'publicSh
 Route::post('/public/verify-email-active', [EmailVerificationController::class, 'verifyActive'])->middleware('throttle:60,1');
 Route::post('/public/track', [TrackingController::class, 'track'])->middleware('throttle:60,1');
 Route::post('/public/cancel-booking', [TrackingController::class, 'cancel'])->middleware('throttle:20,1');
+Route::post('/public/resubmit-requirements', [TrackingController::class, 'resubmitRequirements'])->middleware('throttle:30,1');
 
 // ─── Authentication ────────────────────────────────────────────────────────────
 Route::get('/auth/google/redirect', [GoogleAuthController::class, 'redirect']);
@@ -117,14 +118,19 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/admin/equipment-types/{id}',      [EquipmentTypeController::class, 'update']);
     Route::delete('/admin/equipment-types/{id}',   [EquipmentTypeController::class, 'destroy']);
 
-    Route::get('/general/equipment-units',         [EquipmentUnitController::class, 'index']);
-    Route::post('/general/equipment-units',        [EquipmentUnitController::class, 'store']);
-    Route::put('/general/equipment-units/{id}',    [EquipmentUnitController::class, 'update']);
-    Route::delete('/general/equipment-units/{id}', [EquipmentUnitController::class, 'destroy']);
-    Route::get('/admin/equipment-units',           [EquipmentUnitController::class, 'index']);
-    Route::post('/admin/equipment-units',          [EquipmentUnitController::class, 'store']);
-    Route::put('/admin/equipment-units/{id}',      [EquipmentUnitController::class, 'update']);
-    Route::delete('/admin/equipment-units/{id}',   [EquipmentUnitController::class, 'destroy']);
+    Route::get('/general/equipment-units/import-template', [EquipmentUnitController::class, 'downloadTemplate']);
+    Route::post('/general/equipment-units/import-csv',      [EquipmentUnitController::class, 'importCsv']);
+    Route::get('/general/equipment-units',                 [EquipmentUnitController::class, 'index']);
+    Route::post('/general/equipment-units',                [EquipmentUnitController::class, 'store']);
+    Route::put('/general/equipment-units/{id}',            [EquipmentUnitController::class, 'update']);
+    Route::delete('/general/equipment-units/{id}',         [EquipmentUnitController::class, 'destroy']);
+
+    Route::get('/admin/equipment-units/import-template',   [EquipmentUnitController::class, 'downloadTemplate']);
+    Route::post('/admin/equipment-units/import-csv',        [EquipmentUnitController::class, 'importCsv']);
+    Route::get('/admin/equipment-units',                   [EquipmentUnitController::class, 'index']);
+    Route::post('/admin/equipment-units',                  [EquipmentUnitController::class, 'store']);
+    Route::put('/admin/equipment-units/{id}',              [EquipmentUnitController::class, 'update']);
+    Route::delete('/admin/equipment-units/{id}',           [EquipmentUnitController::class, 'destroy']);
 
     // ── General: Equipment Category Requests (Student Assistant Proposals) ─────
     Route::get('/general/category-requests',             [CategoryRequestController::class, 'index']);
@@ -415,6 +421,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/avr-venue-bookings/{avrVenueBooking}',            [VenueBookingController::class, 'show']);
     Route::post('/avr-venue-bookings',                             [VenueBookingController::class, 'store']);
     Route::post('/avr-venue-bookings/{avrVenueBooking}/approve',   [VenueBookingController::class, 'approve']);
+    Route::post('/avr-venue-bookings/{avrVenueBooking}/mark-incomplete', [VenueBookingController::class, 'markIncomplete']);
     Route::post('/avr-venue-bookings/{avrVenueBooking}/reject',    [VenueBookingController::class, 'reject']);
     Route::post('/avr-venue-bookings/{avrVenueBooking}/ongoing',           [VenueBookingController::class, 'ongoing']);
     Route::post('/avr-venue-bookings/{avrVenueBooking}/post-inspection',   [VenueBookingController::class, 'postInspection']);

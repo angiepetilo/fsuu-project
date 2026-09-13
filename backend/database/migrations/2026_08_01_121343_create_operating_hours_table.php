@@ -20,6 +20,7 @@ return new class extends Migration
             $table->unsignedSmallInteger('arrival_grace_mins')->default(15);
             $table->unsignedSmallInteger('return_grace_mins')->default(30);
             $table->unsignedSmallInteger('auto_cancel_mins')->default(30);
+            $table->unsignedSmallInteger('requirement_grace_hours')->default(24);
             $table->timestamps();
         });
     }

@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { StatusBadge } from "@/components/ui/status-badge";
 import EquipmentDetailModal from "../components/EquipmentDetailModal";
+import ActionPopover from "@/components/ui/action-popover";
 
 export default function EquipmentStockTab({
   filteredInventory = [],
@@ -113,6 +114,7 @@ export default function EquipmentStockTab({
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedItem, setSelectedItem] = useState(null);
   const [openActionId, setOpenActionId] = useState(null);
+  const [actionAnchorEl, setActionAnchorEl] = useState(null);
   const [copiedBarcode, setCopiedBarcode] = useState(null);
   const [unitPage, setUnitPage] = useState(1);
   const UNIT_ITEMS_PER_PAGE = 10;
@@ -658,7 +660,13 @@ export default function EquipmentStockTab({
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                setOpenActionId(openActionId === item.id ? null : item.id);
+                                if (openActionId === item.id) {
+                                  setOpenActionId(null);
+                                  setActionAnchorEl(null);
+                                } else {
+                                  setOpenActionId(item.id);
+                                  setActionAnchorEl(e.currentTarget);
+                                }
                               }}
                               className={`p-1.5 rounded-full border transition-all cursor-pointer shadow-2xs ${
                                 isOpen
@@ -670,21 +678,27 @@ export default function EquipmentStockTab({
                               <MoreVertical size={15} />
                             </button>
 
-                            {isOpen && (
-                              <div className={`absolute right-0 ${isNearBottom ? 'bottom-full mb-1.5' : 'top-full mt-1.5'} w-40 bg-white rounded-2xl shadow-2xl border border-slate-200/90 py-1.5 z-50 animate-in fade-in zoom-in-95 backdrop-blur-md`}>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setOpenActionId(null);
-                                    setSelectedItem(item);
-                                  }}
-                                  className="w-full px-3.5 py-2 text-left text-xs font-bold text-slate-700 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-2.5 transition-colors cursor-pointer"
-                                >
-                                  <Eye size={14} className="text-blue-500" />
-                                  <span>View Details</span>
-                                </button>
-                              </div>
-                            )}
+                            <ActionPopover
+                              isOpen={isOpen}
+                              anchorEl={actionAnchorEl}
+                              onClose={() => {
+                                setOpenActionId(null);
+                                setActionAnchorEl(null);
+                              }}
+                            >
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setOpenActionId(null);
+                                  setActionAnchorEl(null);
+                                  setSelectedItem(item);
+                                }}
+                                className="w-full px-3.5 py-2 text-left text-xs font-bold text-slate-700 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-2.5 transition-colors cursor-pointer"
+                              >
+                                <Eye size={14} className="text-blue-500" />
+                                <span>View Details</span>
+                              </button>
+                            </ActionPopover>
                           </div>
                         </td>
                       </tr>

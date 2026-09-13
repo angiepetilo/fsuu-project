@@ -5,6 +5,7 @@ import CustomTimePicker from "@/components/ui/custom-time-picker";
 import { useState, useEffect } from "react";
 import api from "@/lib/axios";
 import { getTodayISO, isPastDate, isPastTimeToday, isPastDateTime } from "@/lib/dateTimeUtils";
+import IosToggle from "@/components/ui/ios-toggle";
 
 const BLOCKING_STATUSES = ["approved", "ongoing", "on-going"];
 
@@ -607,26 +608,17 @@ export default function Step2Venue({
               <span className="text-xs font-bold text-slate-900 dark:text-[#f8fafc]">
                 Multi-Day Reservation <span className="text-slate-500 dark:text-[#94a3b8] font-normal">[{isMultiDay ? "on : multi-day" : "off : single day"}]</span>
               </span>
-              <button
-                type="button"
-                onClick={() => {
-                  const next = !isMultiDay;
+              <IosToggle
+                checked={isMultiDay}
+                onChange={(next) => {
                   setIsMultiDay(next);
                   if (!next && selectedDate && setSelectedEndDate) {
                     setSelectedEndDate(selectedDate);
                   }
                 }}
-                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                  isMultiDay ? "bg-blue-600" : "bg-slate-300 dark:bg-slate-700"
-                }`}
+                size="md"
                 title={isMultiDay ? "Switch to single-day mode" : "Switch to multi-day mode"}
-              >
-                <span
-                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
-                    isMultiDay ? "translate-x-5" : "translate-x-0"
-                  }`}
-                />
-              </button>
+              />
             </div>
 
             {/* Interactive Calendar Container */}
@@ -938,19 +930,21 @@ export default function Step2Venue({
           type="button"
           variant="outline"
           onClick={() => onBack && onBack()}
-          className="border-slate-200 text-slate-700 hover:bg-slate-50 px-5 py-5 rounded-xl font-bold text-xs flex items-center gap-2 cursor-pointer"
+          className="border-slate-200 text-slate-700 hover:bg-slate-50 px-4 sm:px-5 py-3 rounded-full font-bold text-xs flex items-center gap-1.5 cursor-pointer shrink-0"
         >
           <ChevronLeft size={16} />
-          <span>Back to Role Selection</span>
+          <span className="sm:hidden">Back</span>
+          <span className="hidden sm:inline">Back to Role Selection</span>
         </Button>
 
         <Button
           type="button"
           disabled={!canProceed}
           onClick={() => canProceed && onNext && onNext()}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-5 rounded-xl font-extrabold text-xs flex items-center gap-2 shadow-md disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+          className="bg-blue-600 hover:bg-blue-700 text-white px-5 sm:px-7 py-3 rounded-full font-extrabold text-xs flex items-center justify-center gap-2 shadow-md shadow-blue-600/20 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
         >
-          <span>Next: Fill Details</span>
+          <span className="sm:hidden">Next Step</span>
+          <span className="hidden sm:inline">Next: Fill Details</span>
           <ChevronRight size={16} />
         </Button>
       </div>

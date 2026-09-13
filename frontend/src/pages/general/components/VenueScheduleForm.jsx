@@ -2,6 +2,7 @@ import React from "react";
 import { Loader2, Calendar, Clock } from "lucide-react";
 import { formatTime12 as formatTime12h } from "../../../lib/dateUtils";
 import CustomTimePicker from "@/components/ui/custom-time-picker";
+import IosToggle from "@/components/ui/ios-toggle";
 
 export default function VenueScheduleForm({
   VENUES = [],
@@ -65,7 +66,7 @@ export default function VenueScheduleForm({
           </div>
 
           {/* Multi-Day Reservation Toggle */}
-          <label className="flex items-center justify-between p-3.5 bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100/80 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl cursor-pointer transition-colors select-none">
+          <div className="flex items-center justify-between p-3.5 bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100/80 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl transition-colors select-none">
             <div className="flex flex-col">
               <span className="text-xs font-black text-slate-900 dark:text-white flex items-center gap-2">
                 Multi-Day Block
@@ -77,23 +78,19 @@ export default function VenueScheduleForm({
               </span>
               <span className="text-[11px] text-slate-600 dark:text-slate-300 font-semibold">Apply status across consecutive days</span>
             </div>
-            <div className="relative inline-flex items-center">
-              <input
-                type="checkbox"
-                checked={Boolean(setupForm.isMultiDay)}
-                onChange={(e) => {
-                  const enabled = e.target.checked;
-                  setSetupForm(prev => ({
-                    ...prev,
-                    isMultiDay: enabled,
-                    endDate: enabled ? (prev.endDate || prev.startDate) : "",
-                  }));
-                }}
-                className="sr-only peer"
-              />
-              <div className="w-10 h-6 bg-slate-200 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-            </div>
-          </label>
+            <IosToggle
+              checked={Boolean(setupForm.isMultiDay)}
+              onChange={(enabled) => {
+                setSetupForm((prev) => ({
+                  ...prev,
+                  isMultiDay: enabled,
+                  endDate: enabled ? (prev.endDate || prev.startDate) : "",
+                }));
+              }}
+              size="md"
+              title={setupForm.isMultiDay ? "Disable multi-day block" : "Enable multi-day block"}
+            />
+          </div>
 
           {/* Target Date(s) */}
           {setupForm.isMultiDay ? (

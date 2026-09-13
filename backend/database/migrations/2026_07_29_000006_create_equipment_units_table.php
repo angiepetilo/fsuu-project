@@ -15,7 +15,6 @@ return new class extends Migration
             $table->string('brand')->nullable();
             $table->string('model')->nullable();
             $table->string('barcode')->nullable();
-            $table->string('unit_code')->nullable();
             $table->date('purchased_at')->nullable();
             $table->integer('eq_lifespan')->default(5); // in years
             $table->string('status')->default('available');

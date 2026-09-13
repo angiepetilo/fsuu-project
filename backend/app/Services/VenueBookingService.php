@@ -7,6 +7,7 @@ use App\Exceptions\VenueOverlapException;
 use App\Exceptions\VenueReservationTooSoonException;
 use App\Jobs\SendBookingConfirmationJob;
 use App\Jobs\SendBookingStatusUpdateJob;
+use App\Jobs\SendAdminPendingTaskNotificationJob;
 use App\Models\Approval;
 use App\Models\VenueBooking;
 use App\Models\User;
@@ -299,6 +300,13 @@ class VenueBookingService
                 \Illuminate\Support\Facades\Log::error('Failed to dispatch venue booking confirmation email: ' . $e->getMessage());
             }
 
+            // Dispatch pending task notification email to Super Admin & Staff
+            try {
+                SendAdminPendingTaskNotificationJob::dispatch('new_venue_booking', $booking);
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::error('Failed to dispatch admin notification email: ' . $e->getMessage());
+            }
+
             // Dispatch real-time Pusher event
             try {
                 event(new \App\Events\BookingCreated(
@@ -318,19 +326,41 @@ class VenueBookingService
         });
     }
 
-    public function approve(VenueBooking $booking, User $actor, ?string $remarks = null): VenueBooking
+    public function approve(VenueBooking $booking, User $actor, ?string $remarks = null, array $extra = []): VenueBooking
     {
-        return DB::transaction(function () use ($booking, $actor, $remarks) {
-            $venueId = $booking->venue_id;
-            $rawDate = $booking->date_of_usage ? (is_string($booking->date_of_usage) ? substr($booking->date_of_usage, 0, 10) : $booking->date_of_usage->format('Y-m-d')) : date('Y-m-d');
-            $rawEndDate = $booking->reservation_end_date ? (is_string($booking->reservation_end_date) ? substr($booking->reservation_end_date, 0, 10) : $booking->reservation_end_date->format('Y-m-d')) : $rawDate;
-            $timeStart = $booking->time_start ?: '08:00:00';
-            $timeEnd = $booking->time_end ?: '17:00:00';
-            $myClaim = $booking->claim_timestamp ?: $booking->created_at ?: now();
+        return DB::transaction(function () use ($booking, $actor, $remarks, $extra) {
+            $rawDate    = $booking->date_of_usage;
+            $rawEndDate = $booking->reservation_end_date ?? $rawDate;
+            $timeStart  = $booking->time_start;
+            $timeEnd    = $booking->time_end;
+            $venueId    = $booking->venue_id;
 
-            // SPEC RULE 3 (FCFS block) removed: Admin is allowed to choose which pending request to approve.
+            // SPEC RULE 1: OVERLAP VALIDATION BEFORE APPROVAL
+            $existingOverlap = VenueBooking::query()
+                ->join('tracking_numbers', 'venue_bookings.tracking_number_id', '=', 'tracking_numbers.id')
+                ->where('venue_bookings.venue_id', $venueId)
+                ->where('venue_bookings.id', '!=', $booking->id)
+                ->whereIn('tracking_numbers.status', ['approved', 'ongoing', 'on-going'])
+                ->where(function ($q) use ($rawDate, $rawEndDate, $timeStart, $timeEnd) {
+                    $q->where(function ($sub) use ($rawDate, $timeStart, $timeEnd) {
+                        $sub->where('venue_bookings.date_of_usage', '<=', $rawDate)
+                            ->whereRaw('COALESCE(venue_bookings.reservation_end_date, venue_bookings.date_of_usage) >= ?', [$rawDate])
+                            ->where('venue_bookings.time_start', '<', $timeEnd)
+                            ->where('venue_bookings.time_end', '>', $timeStart);
+                    })->orWhere(function ($sub2) use ($rawDate, $rawEndDate, $timeStart, $timeEnd) {
+                        $sub2->where('venue_bookings.date_of_usage', '<=', $rawEndDate)
+                            ->whereRaw('COALESCE(venue_bookings.reservation_end_date, venue_bookings.date_of_usage) >= ?', [$rawDate])
+                            ->where('venue_bookings.time_start', '<', $timeEnd)
+                            ->where('venue_bookings.time_end', '>', $timeStart);
+                    });
+                })
+                ->exists();
 
-            // Approve current booking
+            if ($existingOverlap) {
+                throw new VenueOverlapException("Cannot approve reservation: This venue is already booked for an approved reservation on {$rawDate} overlapping {$timeStart} - {$timeEnd}.");
+            }
+
+            // SPEC RULE 2: STATUS TRANSITION
             if (\Illuminate\Support\Facades\Schema::hasColumn('venue_bookings', 'status')) {
                 $booking->forceFill(['status' => 'approved'])->save();
             }
@@ -342,7 +372,7 @@ class VenueBookingService
                     $q->where('reservation_type', 'venue_booking')->where('reservation_id', $booking->id);
                 })
                 ->update([
-                    'status' => 'approved',
+                    'status'      => 'approved',
                     'approved_by' => $actor->id,
                     'rejected_by' => null,
                 ]);
@@ -372,9 +402,9 @@ class VenueBookingService
                 ]
             );
 
-            $notificationType = $booking->requestor_identity_type === 'external'
-                ? 'payment_required'
-                : 'venue_secured';
+            $notificationType = ($booking->submission_channel === 'in_person')
+                ? 'in_person_booking_approved'
+                : 'online_booking_approved';
 
             $this->notification->log(
                 'avr_venue_booking',
@@ -393,13 +423,13 @@ class VenueBookingService
                 event(new \App\Events\BookingStatusUpdated('venue_booking', $ref, 'approved', $booking->id, $remarks));
             } catch (\Throwable $e) {}
 
-            // SPEC RULE 4: AUTO-REJECTION OF COMPETING PENDING REQUESTS
-            // Automatically reject all other pending requests (complete or incomplete) for the SAME date/venue/timeslot.
+            // SPEC RULE 4: AUTO-REJECTION OF COMPETING PENDING & INCOMPLETE REQUESTS
+            // Automatically reject all other pending or incomplete requests for the SAME date/venue/timeslot.
             $competingPendingBookings = VenueBooking::query()
                 ->join('tracking_numbers', 'venue_bookings.tracking_number_id', '=', 'tracking_numbers.id')
                 ->where('venue_bookings.venue_id', $venueId)
                 ->where('venue_bookings.id', '!=', $booking->id)
-                ->where('tracking_numbers.status', 'pending')
+                ->whereIn('tracking_numbers.status', ['pending', 'incomplete'])
                 ->where(function ($q) use ($rawDate, $rawEndDate, $timeStart, $timeEnd) {
                     $q->where(function ($sub) use ($rawDate, $timeStart, $timeEnd) {
                         $sub->where('venue_bookings.date_of_usage', '<=', $rawDate)
@@ -413,12 +443,16 @@ class VenueBookingService
                             ->where('venue_bookings.time_end', '>', $timeStart);
                     });
                 })
-                ->select('venue_bookings.*')
+                ->select('venue_bookings.*', 'tracking_numbers.status as tracking_status')
                 ->get();
 
-            $autoRejectReason = "This date and timeslot was already confirmed and occupied by another reservation. Please re-book by selecting a different date and/or timeslot.";
-
             foreach ($competingPendingBookings as $competing) {
+                $competingStatus = strtolower($competing->tracking_status ?? $competing->status ?? 'pending');
+                $isCompetingIncomplete = $competingStatus === 'incomplete' || (isset($competing->is_complete) && !$competing->is_complete);
+                $autoRejectReason = $isCompetingIncomplete
+                    ? "This reservation was forfeited because required documents were not completed within the grace period, and the venue slot was awarded to another applicant with complete requirements."
+                    : "This date and timeslot was already confirmed and occupied by another reservation. Please re-book by selecting a different date and/or timeslot.";
+
                 if (\Illuminate\Support\Facades\Schema::hasColumn('venue_bookings', 'status')) {
                     $competing->forceFill(['status' => 'rejected'])->save();
                 }
@@ -472,6 +506,82 @@ class VenueBookingService
             }
 
             return $booking->fresh();
+        });
+    }
+
+    public function markIncomplete(VenueBooking $booking, User $actor, array $missingList, string $remarks, int $graceHours = 24): VenueBooking
+    {
+        return DB::transaction(function () use ($booking, $actor, $missingList, $remarks, $graceHours) {
+            $now = now();
+            $deadline = now()->addHours($graceHours);
+
+            if (\Illuminate\Support\Facades\Schema::hasColumn('venue_bookings', 'status')) {
+                $booking->forceFill([
+                    'status'                       => 'incomplete',
+                    'is_complete'                  => false,
+                    'missing_requirements_remarks' => $remarks,
+                    'missing_requirements_list'    => $missingList,
+                    'incomplete_at'                => $now,
+                    'incomplete_deadline_at'       => $deadline,
+                ])->save();
+            }
+
+            DB::table('tracking_numbers')
+                ->where('id', $booking->tracking_number_id)
+                ->orWhere('reference_code', $booking->reference_code)
+                ->orWhere(function($q) use ($booking) {
+                    $q->where('reservation_type', 'venue_booking')->where('reservation_id', $booking->id);
+                })
+                ->update([
+                    'status' => 'incomplete',
+                ]);
+
+            if (\Illuminate\Support\Facades\Schema::hasTable('approvals')) {
+                DB::table('approvals')->insert([
+                    'reference_type' => 'avr_venue_booking',
+                    'reference_id'   => $booking->id,
+                    'action'         => 'marked_incomplete',
+                    'remarks'        => $remarks,
+                    'approved_by'    => $actor->id,
+                    'created_at'     => now(),
+                    'updated_at'     => now(),
+                ]);
+            }
+
+            $this->auditLog->log(
+                $actor,
+                'VENUE_BOOKING_MARKED_INCOMPLETE',
+                'venue_bookings',
+                $booking->id,
+                [
+                    'remarks'              => $remarks,
+                    'missing_requirements' => $missingList,
+                    'grace_hours'          => $graceHours,
+                    'deadline'             => $deadline->toDateTimeString(),
+                    'reference_code'       => $booking->reference_code ?? $booking->trackingNumber?->reference_code,
+                    'filer_name'           => $booking->filer_name,
+                    'venue_name'           => $booking->venue?->name,
+                ]
+            );
+
+            $this->notification->log(
+                'avr_venue_booking',
+                $booking->id,
+                'booking_incomplete',
+                $booking->contact_preference ?? 'email',
+                $booking->email_address ?? $booking->requestor_email
+            );
+
+            // Broadcast real-time status update
+            try {
+                $ref = $booking->reference_code ?? $booking->trackingNumber?->reference_code ?? ('TRK-VB-' . $booking->id);
+                event(new \App\Events\BookingStatusUpdated('venue_booking', $ref, 'incomplete', $booking->id, $remarks));
+            } catch (\Throwable $e) {}
+
+            // Send notification email to applicant
+            SendBookingStatusUpdateJob::dispatch('venue', $booking->fresh('venue'), 'incomplete', $remarks);
+
+            return $booking->fresh(['venue', 'trackingNumber', 'department']);
         });
     }
 

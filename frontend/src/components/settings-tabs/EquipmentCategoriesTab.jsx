@@ -5,6 +5,8 @@ import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 import api from "@/lib/axios";
 import notify from "@/lib/notify";
 import ConfirmModal from "@/components/ui/ConfirmModal";
+import ActionPopover from "@/components/ui/action-popover";
+import IosToggle from "@/components/ui/ios-toggle";
 
 export default function EquipmentCategoriesTab({ showMsg }) {
   const { isSuperAdmin, hasPermission, isStudentAssistant } = usePermissions();
@@ -22,8 +24,12 @@ export default function EquipmentCategoriesTab({ showMsg }) {
 
   const [editItem, setEditItem] = useState(null);
   const [openActionId, setOpenActionId] = useState(null);
+  const [actionAnchorEl, setActionAnchorEl] = useState(null);
   const [formLoading, setFormLoading] = useState(false);
   const [disableTarget, setDisableTarget] = useState(null);
+
+  const [previewScale, setPreviewScale] = useState(100);
+  const [previewFit, setPreviewFit] = useState("contain");
 
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 10;
@@ -257,8 +263,8 @@ export default function EquipmentCategoriesTab({ showMsg }) {
       </div>
 
       {/* Table: [Photo, Category, Total, Available, Reserved, Released, Damaged, Lost, Action] */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-visible">
-        <table className="w-full text-xs text-left">
+      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-x-auto w-full">
+        <table className="w-full text-xs text-left min-w-[850px]">
           <thead className="bg-slate-50/80 border-b border-slate-100 text-slate-400 font-bold uppercase text-[10px] tracking-wider">
             <tr>
               <th className="px-4 py-3.5 w-16">Photo</th>
@@ -289,15 +295,13 @@ export default function EquipmentCategoriesTab({ showMsg }) {
                 </td>
               </tr>
             ) : (
-              paginatedCategories.map((cat, idx) => {
+              paginatedCategories.map((cat) => {
                 const total = cat.total_quantity ?? cat.total_units ?? 0;
                 const available = cat.available_count ?? total;
                 const reserved = cat.reserved_count ?? 0;
                 const released = cat.released_count ?? 0;
                 const damaged = cat.damaged_count ?? 0;
                 const lost = cat.lost_count ?? 0;
-                const isNearBottom = idx >= Math.max(1, paginatedCategories.length - 2);
-                const isOpen = openActionId === cat.id;
                 const displayPhoto = cat.photo || cat.avatar;
                 const isItemDisabled = cat.status === "disabled" || cat.status === "inactive" || cat.status === "unavailable";
 
@@ -358,62 +362,38 @@ export default function EquipmentCategoriesTab({ showMsg }) {
                         {lost}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-right relative">
-                      {canEdit || canDisable ? (
-                        <div className="relative action-menu-container inline-block">
+                    <td className="px-4 py-3 text-right">
+                      <div className="flex items-center justify-end gap-2.5">
+                        {canDisable && (
+                          <div className="flex items-center gap-1.5">
+                            <IosToggle
+                              checked={!isItemDisabled}
+                              onChange={() => {
+                                setDisableTarget({ id: cat.id, name: cat.eq_name || cat.name, status: cat.status });
+                              }}
+                              size="sm"
+                              title={isItemDisabled ? "Click to Enable Category" : "Click to Disable Category"}
+                            />
+                            <span className={`text-[10.5px] font-extrabold w-12 text-left select-none ${!isItemDisabled ? 'text-emerald-600' : 'text-slate-400'}`}>
+                              {!isItemDisabled ? 'Active' : 'Disabled'}
+                            </span>
+                          </div>
+                        )}
+
+                        {canEdit && (
                           <button
                             type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setOpenActionId(openActionId === cat.id ? null : cat.id);
-                            }}
-                            className={`p-1.5 rounded-xl border transition-all cursor-pointer shadow-2xs ${
-                              isOpen
-                                ? "bg-blue-600 border-blue-600 text-white shadow-md shadow-blue-600/20"
-                                : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-                            }`}
-                            title="Actions"
+                            onClick={() => handleOpenEditModal(cat)}
+                            className="p-1.5 rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition-all cursor-pointer shadow-2xs"
+                            title="Edit Category"
                           >
-                            <MoreVertical size={14} />
+                            <Pencil size={13} />
                           </button>
-
-                          {isOpen && (
-                            <div className={`absolute right-0 ${isNearBottom ? "bottom-full mb-1.5" : "top-full mt-1.5"} w-48 bg-white rounded-2xl shadow-2xl border border-slate-200/90 py-1.5 z-[9999] animate-in fade-in zoom-in-95 backdrop-blur-md text-left`}>
-                              {canEdit && (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setOpenActionId(null);
-                                    handleOpenEditModal(cat);
-                                  }}
-                                  className="w-full px-3.5 py-2 text-left text-xs font-bold text-slate-700 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-2.5 transition-colors cursor-pointer"
-                                >
-                                  <Pencil size={13} className="text-blue-500" />
-                                  <span>Edit Category</span>
-                                </button>
-                              )}
-
-                              {canEdit && canDisable && <div className="border-t border-slate-100 my-1"></div>}
-
-                              {canDisable && (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setOpenActionId(null);
-                                    setDisableTarget({ id: cat.id, name: cat.eq_name || cat.name, status: cat.status });
-                                  }}
-                                  className="w-full px-3.5 py-2 text-left text-xs font-bold text-rose-600 hover:bg-rose-50 flex items-center gap-2.5 transition-colors cursor-pointer"
-                                >
-                                  <Ban size={13} className="text-rose-500" />
-                                  <span>{isItemDisabled ? "Enable Category" : "Disable Category"}</span>
-                                </button>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        <span className="text-[10.5px] font-bold text-slate-400 italic">View Only</span>
-                      )}
+                        )}
+                        {!canEdit && !canDisable && (
+                          <span className="text-[10.5px] font-bold text-slate-400 italic">View Only</span>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 );
@@ -508,13 +488,56 @@ export default function EquipmentCategoriesTab({ showMsg }) {
                 {/* Live Public View Preview */}
                 {(form.photo || form.avatar || form.eq_name) && (
                   <div className="pt-2 border-t border-slate-200/80 dark:border-slate-700">
-                    <span className="text-[10.5px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400 block mb-2">
-                      Public View Card Preview
-                    </span>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-[10.5px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                        Public View Card Preview
+                      </span>
+                      {/* Photo Resize & Fit Controls */}
+                      {(form.photo || form.avatar) && (
+                        <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
+                          <button
+                            type="button"
+                            onClick={() => setPreviewFit((f) => (f === "contain" ? "cover" : "contain"))}
+                            className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 hover:bg-slate-50 cursor-pointer"
+                            title="Toggle Fit (Contain / Cover)"
+                          >
+                            {previewFit === "contain" ? "Fit: Contain" : "Fit: Cover"}
+                          </button>
+                          <div className="flex items-center gap-1 border-l border-slate-200 dark:border-slate-700 pl-1.5">
+                            <button
+                              type="button"
+                              onClick={() => setPreviewScale((s) => Math.max(50, s - 10))}
+                              className="w-5 h-5 flex items-center justify-center rounded bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold border border-slate-200 dark:border-slate-600 cursor-pointer"
+                              title="Zoom out"
+                            >
+                              -
+                            </button>
+                            <span className="text-[10px] font-mono font-bold text-slate-600 dark:text-slate-300 w-7 text-center">
+                              {previewScale}%
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setPreviewScale((s) => Math.min(150, s + 10))}
+                              className="w-5 h-5 flex items-center justify-center rounded bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold border border-slate-200 dark:border-slate-600 cursor-pointer"
+                              title="Zoom in"
+                            >
+                              +
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                     <div className="max-w-[220px] mx-auto border border-slate-200 dark:border-slate-700 rounded-2xl p-3 bg-white dark:bg-[#111827] shadow-xs">
                       <div className="w-full aspect-video bg-white dark:bg-[#1E293B] border border-slate-100 dark:border-slate-800 rounded-xl overflow-hidden flex items-center justify-center p-1.5">
                         {(form.photo || form.avatar) ? (
-                          <img src={form.photo || form.avatar} alt="Public Preview" className="w-full h-full object-contain" />
+                          <div className="w-full h-full overflow-hidden flex items-center justify-center">
+                            <img
+                              src={form.photo || form.avatar}
+                              alt="Public Preview"
+                              className={`w-full h-full transition-transform duration-200 ${previewFit === "cover" ? "object-cover" : "object-contain"}`}
+                              style={{ transform: `scale(${previewScale / 100})` }}
+                            />
+                          </div>
                         ) : (
                           <span className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wide">
                             {form.eq_name || "ITEM"}

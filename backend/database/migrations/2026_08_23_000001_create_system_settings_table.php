@@ -34,6 +34,11 @@ return new class extends Migration
             $table->string('mail_from_address')->nullable();
             $table->string('mail_from_name')->nullable();
 
+            // SMS & External Notification Services
+            $table->string('sms_api_key')->nullable();
+            $table->string('sms_api_url')->nullable();
+            $table->string('facebook_url')->nullable()->default('https://www.facebook.com/fsuubutuan');
+
             $table->timestamps();
         });
 
@@ -55,6 +60,9 @@ return new class extends Migration
             'smtp_encryption'                => env('MAIL_ENCRYPTION', 'tls'),
             'mail_from_address'              => env('MAIL_FROM_ADDRESS', 'support.booking@fsuu.edu.ph'),
             'mail_from_name'                 => env('MAIL_FROM_NAME', 'FSUU Facilities & Equipment Booking'),
+            'sms_api_key'                    => null,
+            'sms_api_url'                    => null,
+            'facebook_url'                   => 'https://www.facebook.com/fsuubutuan',
             'created_at'                     => now(),
             'updated_at'                     => now(),
         ]);

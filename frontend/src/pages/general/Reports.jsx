@@ -121,7 +121,7 @@ export default function Reports() {
         api.get(`/general/department-analytics${termParam}`).catch(() => ({ data: { rule_violations: [], late_returns: [] } })),
         api.get("/general/equipment-types").then(r => r.data).catch(() => []),
         api.get("/general/equipment-units").then(r => r.data).catch(() => []),
-        api.get(`/avr-equipment-borrowings?all=1${termParam ? `&academic_term_id=${selectedTermId}` : ''}`).catch(() => ({ data: [] })),
+        api.get(`/avr-equipment-borrowings?all=1&include_returned=1${termParam ? `&academic_term_id=${selectedTermId}` : ''}`).catch(() => ({ data: [] })),
       ]);
 
       // 1. History log venue bookings & equipment borrowings

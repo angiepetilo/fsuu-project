@@ -18,7 +18,12 @@ return new class extends Migration
             $table->boolean('require_multi_day_venue')->default(true);
             $table->boolean('require_multi_day_equipment')->default(true);
             $table->boolean('require_external')->default(true);
+            $table->json('applicability_matrix')->nullable();
             $table->string('pin_mode', 20)->default('optional');         // 'optional' or 'required'
+            $table->boolean('venue_verify_email')->default(true);
+            $table->boolean('venue_verify_phone')->default(false);
+            $table->boolean('equipment_verify_email')->default(true);
+            $table->boolean('equipment_verify_phone')->default(false);
             $table->timestamps();
         });
 
@@ -34,6 +39,10 @@ return new class extends Migration
             'require_multi_day_equipment' => true,
             'require_external'            => true,
             'pin_mode'                    => 'optional',
+            'venue_verify_email'          => true,
+            'venue_verify_phone'          => false,
+            'equipment_verify_email'      => true,
+            'equipment_verify_phone'      => false,
             'created_at'                  => now(),
             'updated_at'                  => now(),
         ]);

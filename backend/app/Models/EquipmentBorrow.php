@@ -37,12 +37,14 @@ class EquipmentBorrow extends Model
         'assigned_units',
         'equipment_units_id',
         'status',
+        'returned_at',
     ];
 
     protected $casts = [
         'date_of_usage'           => 'date:Y-m-d',
         'extend_of_date_returned' => 'date:Y-m-d',
         'assigned_units'          => 'array',
+        'returned_at'             => 'datetime',
     ];
 
     protected $appends = ['reference_code', 'status', 'filer_name'];

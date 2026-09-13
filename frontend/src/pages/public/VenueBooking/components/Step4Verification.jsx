@@ -1,4 +1,4 @@
-import { UploadCloud, X, FileText, Image, CheckCircle2, ShieldCheck } from "lucide-react";
+import { UploadCloud, X, FileText, Image, CheckCircle2, ShieldCheck, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useRef, useState, useEffect } from "react";
 import api from "@/lib/axios";
@@ -39,12 +39,22 @@ export default function Step4Verification({
     return "(085) 342-1830";
   });
 
+  const [activeTemplate, setActiveTemplate] = useState(null);
+
   useEffect(() => {
     api.get("/public/system-settings")
       .then((res) => {
         if (res.data?.contact_phone) {
           setContactPhone(res.data.contact_phone);
         }
+      })
+      .catch(() => {});
+
+    api.get("/public/booking-requirements")
+      .then((res) => {
+        const list = Array.isArray(res.data) ? res.data : [];
+        const found = list.find(r => r.template_file_url);
+        if (found) setActiveTemplate(found);
       })
       .catch(() => {});
   }, []);
@@ -104,15 +114,30 @@ export default function Step4Verification({
             <h3 className="text-sm font-extrabold text-slate-900 uppercase tracking-wide flex items-center gap-2">
               1. Booking Requirements
             </h3>
-            <button
-              type="button"
-              onClick={() => setShowTemplateModal(true)}
-              className="flex items-center gap-1.5 text-[11px] font-extrabold text-blue-700 bg-blue-50 hover:bg-blue-100/80 border border-blue-200 px-2.5 py-1 rounded-lg transition-colors cursor-pointer shadow-2xs shrink-0"
-              title="View and copy approved endorsement letter format"
-            >
-              <FileText size={12} />
-              <span>View Letter Format</span>
-            </button>
+            <div className="flex items-center gap-1.5 shrink-0">
+              {activeTemplate?.template_file_url && (
+                <a
+                  href={activeTemplate.template_file_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  download
+                  className="flex items-center gap-1.5 text-[11px] font-extrabold text-emerald-700 bg-emerald-50 hover:bg-emerald-100/80 border border-emerald-200 px-2.5 py-1 rounded-lg transition-colors cursor-pointer shadow-2xs shrink-0"
+                  title={activeTemplate.template_file_name || "Download official booking template"}
+                >
+                  <Download size={12} className="text-emerald-600" />
+                  <span>Download Form</span>
+                </a>
+              )}
+              <button
+                type="button"
+                onClick={() => setShowTemplateModal(true)}
+                className="flex items-center gap-1.5 text-[11px] font-extrabold text-blue-700 bg-blue-50 hover:bg-blue-100/80 border border-blue-200 px-2.5 py-1 rounded-lg transition-colors cursor-pointer shadow-2xs shrink-0"
+                title="View and copy approved endorsement letter format"
+              >
+                <FileText size={12} />
+                <span>View Letter Format</span>
+              </button>
+            </div>
           </div>
 
           <p className="text-xs text-slate-500 font-semibold leading-relaxed">
@@ -295,6 +320,7 @@ export default function Step4Verification({
       <EndorsementLetterTemplateModal
         isOpen={showTemplateModal}
         onClose={() => setShowTemplateModal(false)}
+        requirement={activeTemplate}
         initialType={templateType}
       />
     </div>

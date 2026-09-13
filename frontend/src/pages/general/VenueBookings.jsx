@@ -4,7 +4,7 @@ import api from "@/lib/axios";
 import notify from "@/lib/notify";
 import {
   Loader2, RefreshCw, AlertCircle, Eye, Building2, ChevronLeft, ChevronRight,
-  Search, Calendar, X
+  Search, Calendar, X, Filter
 } from "lucide-react";
 import { PageLoader } from "@/components/ui/page-loader";
 import { StatusBadge, OverdueBadge } from "@/components/ui/status-badge";
@@ -136,7 +136,7 @@ export default function VenueBookings() {
     const targetId = params.get("id") || location.state?.selectedId;
     const targetRef = params.get("trk") || params.get("ref");
     const paramStatus = params.get("status");
-    if (paramStatus && ["pending", "approved", "ongoing"].includes(paramStatus)) {
+    if (paramStatus && ["pending", "approved", "ongoing", "incomplete"].includes(paramStatus)) {
       setStatusFilter(paramStatus);
     }
     if ((targetId || targetRef) && bookings.length > 0) {
@@ -158,18 +158,20 @@ export default function VenueBookings() {
     const s = (b.status || b.tracking_number?.status || "").toLowerCase();
     return s !== "completed" && s !== "damaged" && s !== "solved" && s !== "rejected" && s !== "cancelled";
   });
-  const countPending = activeBookings.filter(b => (b.status || "").toLowerCase() === "pending").length;
-  const countApproved = activeBookings.filter(b => (b.status || "").toLowerCase() === "approved").length;
-  const countOngoing = activeBookings.filter(b => ["ongoing", "on-going"].includes((b.status || "").toLowerCase())).length;
+  const countPending = activeBookings.filter(b => ["pending", "incomplete"].includes((b.status || b.tracking_number?.status || "").toLowerCase())).length;
+  const countIncomplete = activeBookings.filter(b => (b.status || b.tracking_number?.status || "").toLowerCase() === "incomplete").length;
+  const countApproved = activeBookings.filter(b => (b.status || b.tracking_number?.status || "").toLowerCase() === "approved").length;
+  const countOngoing = activeBookings.filter(b => ["ongoing", "on-going"].includes((b.status || b.tracking_number?.status || "").toLowerCase())).length;
 
   const filteredBookings = bookings.filter(b => {
     const s = (b.status || b.tracking_number?.status || "").toLowerCase();
     const notDone = s !== "completed" && s !== "damaged" && s !== "solved" && s !== "rejected" && s !== "cancelled";
     if (!notDone) return false;
 
-    // Status Filter
+    // Status Filter (Pending review includes both pending and incomplete requests awaiting documents)
     if (statusFilter !== "all") {
-      if (statusFilter === "pending" && s !== "pending") return false;
+      if (statusFilter === "pending" && s !== "pending" && s !== "incomplete") return false;
+      if (statusFilter === "incomplete" && s !== "incomplete") return false;
       if (statusFilter === "approved" && s !== "approved") return false;
       if (statusFilter === "ongoing" && s !== "ongoing" && s !== "on-going") return false;
     }
@@ -248,7 +250,8 @@ export default function VenueBookings() {
         ongoing: "on-going",
         complete: "completed",
         reject: "rejected",
-        cancel: "cancelled"
+        cancel: "cancelled",
+        "mark-incomplete": "incomplete",
       };
       const newStatus = statusMap[action] || action;
       const refCode = selected?.reference_code || selected?.tracking_number?.reference_code || `TRK-AVR${bookingId}`;
@@ -262,6 +265,8 @@ export default function VenueBookings() {
         notify.error("Reservation Rejected", `Venue booking (${refCode}) rejected and transferred to History Log.`);
         setSelectedId(null);
         setShowRejectForm(false);
+      } else if (action === "mark-incomplete") {
+        notify.warning("Marked Incomplete", `Venue booking (${refCode}) marked incomplete. Alert email sent with 24-48h deadline.`);
       } else if (action === "approve") {
         notify.success("Reservation Approved", `Venue booking (${refCode}) has been approved.`);
       } else if (action === "ongoing") {
@@ -306,7 +311,7 @@ export default function VenueBookings() {
         <button
           onClick={() => fetchBookings(false)}
           disabled={loading || isSyncing}
-          className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 hover:bg-blue-700 hover:text-white hover:border-blue-700 transition-colors cursor-pointer disabled:opacity-60 shadow-xs"
+          className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-blue-700 hover:text-white hover:border-blue-700 transition-colors cursor-pointer disabled:opacity-60 shadow-xs shrink-0"
         >
           <RefreshCw size={14} className={isSyncing ? "animate-spin" : ""} />
           <span>{isSyncing ? "Refreshing..." : "Refresh"}</span>
@@ -319,10 +324,8 @@ export default function VenueBookings() {
         </div>
       )}
 
-
-
-      {/* Search & Date Controls Bar */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 p-3.5 shadow-xs">
+      {/* Search & Status Controls Bar */}
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-3.5 shadow-xs">
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
           {/* Search Input */}
           <div className="relative flex-1 max-w-md">
@@ -332,7 +335,7 @@ export default function VenueBookings() {
               placeholder="Search tracking, requestor, department, venue..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-8 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:border-blue-500 focus:bg-white transition-all placeholder:text-slate-400"
+              className="w-full pl-9 pr-8 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium focus:outline-none focus:border-blue-500 focus:bg-white dark:focus:bg-slate-900 text-slate-900 dark:text-white transition-all placeholder:text-slate-400"
             />
             {searchQuery && (
               <button
@@ -345,26 +348,27 @@ export default function VenueBookings() {
             )}
           </div>
 
-          {/* Date Dropdown */}
+          {/* Status Dropdown Filter */}
           <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
             <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
-              <Calendar size={13} /> Date:
+              <Filter size={13} /> Status:
             </span>
             <select
-              value={dateFilter}
-              onChange={(e) => setDateFilter(e.target.value)}
-              className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:border-blue-500 cursor-pointer shadow-2xs"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="px-3 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 focus:outline-none focus:border-blue-500 cursor-pointer shadow-2xs"
             >
-              <option value="all">All Dates</option>
-              <option value="today">Today</option>
-              <option value="this_week">This Week</option>
-              <option value="this_month">This Month</option>
+              <option value="all">All Statuses</option>
+              <option value="pending">Pending Review</option>
+              <option value="incomplete">Incomplete</option>
+              <option value="approved">Approved</option>
+              <option value="ongoing">Ongoing</option>
             </select>
-            {(dateFilter !== "all" || searchQuery) && (
+            {(statusFilter !== "all" || searchQuery) && (
               <button
                 type="button"
                 onClick={() => {
-                  setDateFilter("all");
+                  setStatusFilter("all");
                   setSearchQuery("");
                 }}
                 className="text-[11px] font-bold text-rose-600 hover:text-rose-700 underline ml-1 cursor-pointer"
