@@ -11,6 +11,7 @@ use App\Http\Requests\EquipmentBorrowing\RejectEquipmentBorrowingRequest;
 use App\Http\Requests\EquipmentBorrowing\StoreEquipmentBorrowingRequest;
 use App\Models\EquipmentBorrow;
 use App\Services\EquipmentBorrowingService;
+use App\Models\AuditLog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -137,6 +138,24 @@ class EquipmentBorrowingController extends Controller
             $request->validated('remarks')
         );
 
+        try {
+            $ref = $equipmentBorrowing->trackingNumber?->reference_code ?? "EQ-{$equipmentBorrowing->id}";
+            AuditLog::create([
+                'user_id'        => auth()->id(),
+                'action'         => 'EQUIPMENT_BORROW_APPROVED',
+                'auditable_type' => 'equipment_borrows',
+                'auditable_id'   => $equipmentBorrowing->id,
+                'metadata'       => [
+                    'reference_code' => $ref,
+                    'filer_name'     => $equipmentBorrowing->filer_name,
+                    'remarks'        => $request->validated('remarks'),
+                    'description'    => "Equipment borrowing {$ref} approved by " . (auth()->user()?->name ?? 'Staff'),
+                ],
+                'ip_address'     => request()->ip(),
+                'created_at'     => now(),
+            ]);
+        } catch (\Throwable $e) {}
+
         return response()->json($borrowing);
     }
 
@@ -149,6 +168,24 @@ class EquipmentBorrowingController extends Controller
             auth()->user(),
             $request->validated('remarks')
         );
+
+        try {
+            $ref = $equipmentBorrowing->trackingNumber?->reference_code ?? "EQ-{$equipmentBorrowing->id}";
+            AuditLog::create([
+                'user_id'        => auth()->id(),
+                'action'         => 'EQUIPMENT_BORROW_REJECTED',
+                'auditable_type' => 'equipment_borrows',
+                'auditable_id'   => $equipmentBorrowing->id,
+                'metadata'       => [
+                    'reference_code' => $ref,
+                    'filer_name'     => $equipmentBorrowing->filer_name,
+                    'remarks'        => $request->validated('remarks'),
+                    'description'    => "Equipment borrowing {$ref} rejected by " . (auth()->user()?->name ?? 'Staff'),
+                ],
+                'ip_address'     => request()->ip(),
+                'created_at'     => now(),
+            ]);
+        } catch (\Throwable $e) {}
 
         return response()->json($borrowing);
     }
@@ -166,6 +203,24 @@ class EquipmentBorrowingController extends Controller
         } catch (BookingActionNotAllowedException $e) {
             return response()->json(['message' => $e->getMessage()], 403);
         }
+
+        try {
+            $ref = $equipmentBorrowing->trackingNumber?->reference_code ?? "EQ-{$equipmentBorrowing->id}";
+            AuditLog::create([
+                'user_id'        => auth()->id(),
+                'action'         => 'EQUIPMENT_BORROW_CANCELLED',
+                'auditable_type' => 'equipment_borrows',
+                'auditable_id'   => $equipmentBorrowing->id,
+                'metadata'       => [
+                    'reference_code' => $ref,
+                    'filer_name'     => $equipmentBorrowing->filer_name,
+                    'remarks'        => $request->validated('remarks'),
+                    'description'    => "Equipment borrowing {$ref} cancelled by " . (auth()->user()?->name ?? 'Staff'),
+                ],
+                'ip_address'     => request()->ip(),
+                'created_at'     => now(),
+            ]);
+        } catch (\Throwable $e) {}
 
         return response()->json($borrowing);
     }
@@ -215,6 +270,24 @@ class EquipmentBorrowingController extends Controller
         \App\Models\EquipmentBorrowItem::where('equipment_borrow_id', $equipmentBorrowing->id)
             ->whereNull('picked_up_at')
             ->update(['picked_up_at' => now()]);
+
+        try {
+            $ref = $equipmentBorrowing->trackingNumber?->reference_code ?? "EQ-{$equipmentBorrowing->id}";
+            $user = auth()->user();
+            AuditLog::create([
+                'user_id'        => $user?->id ?? auth()->id(),
+                'action'         => 'EQUIPMENT_BORROW_RELEASED',
+                'auditable_type' => 'equipment_borrows',
+                'auditable_id'   => $equipmentBorrowing->id,
+                'metadata'       => [
+                    'reference_code' => $ref,
+                    'filer_name'     => $equipmentBorrowing->filer_name,
+                    'description'    => "Equipment borrowing {$ref} released (units handed out) by " . ($user?->name ?? 'Staff'),
+                ],
+                'ip_address'     => request()->ip(),
+                'created_at'     => now(),
+            ]);
+        } catch (\Throwable $e) {}
 
         return response()->json($equipmentBorrowing->fresh(['items.equipmentType', 'trackingNumber']));
     }
@@ -434,6 +507,27 @@ class EquipmentBorrowingController extends Controller
             \App\Models\EquipmentBorrowItem::where('equipment_borrow_id', $equipmentBorrowing->id)
                 ->whereNull('returned_at')
                 ->update(['returned_at' => now()]);
+
+            try {
+                $ref = $equipmentBorrowing->trackingNumber?->reference_code ?? "EQ-{$equipmentBorrowing->id}";
+                $user = auth()->user();
+                AuditLog::create([
+                    'user_id'        => $user?->id ?? auth()->id(),
+                    'action'         => 'EQUIPMENT_BORROW_COMPLETED',
+                    'auditable_type' => 'equipment_borrows',
+                    'auditable_id'   => $equipmentBorrowing->id,
+                    'metadata'       => [
+                        'reference_code' => $ref,
+                        'filer_name'     => $equipmentBorrowing->filer_name,
+                        'condition'      => $condition,
+                        'is_late'        => $isLate,
+                        'final_status'   => $finalStatus,
+                        'description'    => "Equipment borrowing {$ref} completed (status: {$finalStatus}) by " . ($user?->name ?? 'Staff'),
+                    ],
+                    'ip_address'     => request()->ip(),
+                    'created_at'     => now(),
+                ]);
+            } catch (\Throwable $e) {}
 
             return response()->json($equipmentBorrowing->fresh(['items.equipmentType', 'trackingNumber']));
         } catch (\Throwable $e) {

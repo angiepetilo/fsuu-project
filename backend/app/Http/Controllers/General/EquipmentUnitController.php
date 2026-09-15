@@ -10,6 +10,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\DB;
+use App\Models\AuditLog;
 
 class EquipmentUnitController extends Controller
 {
@@ -104,13 +105,32 @@ class EquipmentUnitController extends Controller
             'barcode'           => trim($validated['barcode']),
             'purchased_at'      => $validated['purchased_at'] ?? now()->toDateString(),
             'eq_lifespan'       => $validated['eq_lifespan'] ?? 5,
-            'status'            => $validated['status'] ?? 'available',
+            'status'            => isset($validated['status']) ? strtolower(trim($validated['status'])) : 'available',
             'condition'         => $canonicalCondition,
             'description'       => $validated['description'] ?? null,
         ]);
 
         // Sync category stock count
         $this->syncCategoryStock($unit->equipment_type_id);
+
+        try {
+            $unit->load('equipmentType');
+            AuditLog::create([
+                'user_id'        => auth()->id(),
+                'action'         => 'EQUIPMENT_UNIT_CREATED',
+                'auditable_type' => 'equipment_units',
+                'auditable_id'   => $unit->id,
+                'metadata'       => [
+                    'barcode'     => $unit->barcode,
+                    'brand'       => $unit->brand,
+                    'model'       => $unit->model,
+                    'category'    => $unit->equipmentType?->name ?? $unit->equipmentType?->eq_name,
+                    'description' => "Physical equipment unit {$unit->barcode} ({$unit->brand} {$unit->model}) added by " . (auth()->user()?->name ?? 'Staff'),
+                ],
+                'ip_address'     => request()->ip(),
+                'created_at'     => now(),
+            ]);
+        } catch (\Throwable $e) {}
 
         return response()->json($unit->load('equipmentType'), 201);
     }
@@ -171,6 +191,10 @@ class EquipmentUnitController extends Controller
             $validated['barcode'] = trim($validated['barcode']);
         }
 
+        if (isset($validated['status'])) {
+            $validated['status'] = strtolower(trim($validated['status']));
+        }
+
         $oldTypeId = $unit->equipment_type_id;
 
         $unit->update($validated);
@@ -180,6 +204,23 @@ class EquipmentUnitController extends Controller
         if ($unit->equipment_type_id !== $oldTypeId) {
             $this->syncCategoryStock($unit->equipment_type_id);
         }
+
+        try {
+            AuditLog::create([
+                'user_id'        => auth()->id(),
+                'action'         => 'EQUIPMENT_UNIT_UPDATED',
+                'auditable_type' => 'equipment_units',
+                'auditable_id'   => $unit->id,
+                'metadata'       => [
+                    'barcode'     => $unit->barcode,
+                    'condition'   => $unit->condition,
+                    'status'      => $unit->status,
+                    'description' => "Equipment unit {$unit->barcode} updated by " . (auth()->user()?->name ?? 'Staff'),
+                ],
+                'ip_address'     => request()->ip(),
+                'created_at'     => now(),
+            ]);
+        } catch (\Throwable $e) {}
 
         return response()->json($unit->load('equipmentType'));
     }
@@ -196,6 +237,21 @@ class EquipmentUnitController extends Controller
         $unit->delete();
 
         $this->syncCategoryStock($typeId);
+
+        try {
+            AuditLog::create([
+                'user_id'        => auth()->id(),
+                'action'         => 'EQUIPMENT_UNIT_DELETED',
+                'auditable_type' => 'equipment_units',
+                'auditable_id'   => $unit->id,
+                'metadata'       => [
+                    'barcode'     => $unit->barcode,
+                    'description' => "Equipment unit {$unit->barcode} archived/deleted by " . (auth()->user()?->name ?? 'Staff'),
+                ],
+                'ip_address'     => request()->ip(),
+                'created_at'     => now(),
+            ]);
+        } catch (\Throwable $e) {}
 
         return response()->json(['message' => 'Equipment unit archived successfully']);
     }
@@ -512,6 +568,22 @@ class EquipmentUnitController extends Controller
         $importedCount = count($rowsToInsert);
         $skippedCount = count($skippedDetails);
 
+        try {
+            AuditLog::create([
+                'user_id'        => auth()->id(),
+                'action'         => 'EQUIPMENT_UNIT_BULK_IMPORTED',
+                'auditable_type' => 'equipment_units',
+                'auditable_id'   => null,
+                'metadata'       => [
+                    'imported_count' => $importedCount,
+                    'skipped_count'  => $skippedCount,
+                    'description'    => "Bulk imported {$importedCount} equipment units by " . (auth()->user()?->name ?? 'Staff'),
+                ],
+                'ip_address'     => request()->ip(),
+                'created_at'     => now(),
+            ]);
+        } catch (\Throwable $e) {}
+
         return response()->json([
             'success'            => true,
             'message'            => "Successfully imported {$importedCount} equipment " . ($importedCount === 1 ? 'unit' : 'units') . '.',
@@ -532,15 +604,36 @@ class EquipmentUnitController extends Controller
             $type = EquipmentType::find($typeId);
             if (!$type) return;
 
-            $totalUnits = EquipmentUnit::where('equipment_type_id', $typeId)->count();
+            $totalUnits = EquipmentUnit::where('equipment_type_id', $typeId)->whereNull('archived_at')->count();
             $availableUnits = EquipmentUnit::where('equipment_type_id', $typeId)
-                ->where('status', 'available')
-                ->whereNotIn(DB::raw('LOWER(`condition`)'), ['damaged', 'lost', 'under repair', 'worn'])
+                ->whereNull('archived_at')
+                ->whereRaw("LOWER(COALESCE(equipment_units.status, 'available')) NOT IN ('damaged', 'lost', 'decommissioned', 'maintenance', 'released', 'in_use', 'borrowed', 'in-use', 'reserved', 'unavailable')")
+                ->whereRaw("LOWER(COALESCE(equipment_units.condition, 'good')) NOT IN ('damaged', 'lost', 'under repair', 'under_repair', 'worn', 'minor wear')")
+                ->count();
+
+            $damagedUnits = EquipmentUnit::where('equipment_type_id', $typeId)
+                ->whereNull('archived_at')
+                ->where(function($q) {
+                    $q->whereRaw("LOWER(COALESCE(equipment_units.status, 'available')) IN ('damaged', 'maintenance', 'unavailable')")
+                      ->orWhereRaw("LOWER(COALESCE(equipment_units.condition, 'good')) IN ('damaged', 'maintenance', 'worn', 'under repair')");
+                })
+                ->whereRaw("LOWER(COALESCE(equipment_units.status, 'available')) NOT IN ('lost', 'decommissioned')")
+                ->whereRaw("LOWER(COALESCE(equipment_units.condition, 'good')) NOT IN ('lost', 'decommissioned')")
+                ->count();
+
+            $lostUnits = EquipmentUnit::where('equipment_type_id', $typeId)
+                ->whereNull('archived_at')
+                ->where(function($q) {
+                    $q->whereRaw("LOWER(COALESCE(equipment_units.status, 'available')) IN ('lost', 'decommissioned')")
+                      ->orWhereRaw("LOWER(COALESCE(equipment_units.condition, 'good')) IN ('lost', 'decommissioned')");
+                })
                 ->count();
 
             $type->update([
                 'total_quantity'  => $totalUnits,
                 'available_count' => $availableUnits,
+                'damaged_count'   => $damagedUnits,
+                'lost_count'      => $lostUnits,
             ]);
         } catch (\Throwable $th) {
             \Illuminate\Support\Facades\Log::warning("Failed to sync category stock for type {$typeId}: " . $th->getMessage());

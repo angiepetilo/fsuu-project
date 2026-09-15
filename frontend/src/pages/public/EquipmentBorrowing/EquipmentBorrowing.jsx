@@ -127,7 +127,21 @@ export default function EquipmentBorrowing({ isPortal: isPortalProp }) {
 
   useEffect(() => {
     const fetchEquipment = () => {
-      api.get("/public/equipment-types")
+      const params = new URLSearchParams();
+      if (startTime) {
+        const sParts = startTime.split("T");
+        if (sParts[0]) params.set("date", sParts[0]);
+        if (sParts[1]) params.set("time_start", sParts[1].slice(0, 5));
+      }
+      if (endTime) {
+        const eParts = endTime.split("T");
+        if (eParts[1]) params.set("time_end", eParts[1].slice(0, 5));
+      }
+
+      const queryString = params.toString();
+      const url = queryString ? `/public/equipment-types?${queryString}` : "/public/equipment-types";
+
+      api.get(url)
         .then(res => {
           let list = Array.isArray(res.data) ? res.data : (res.data?.data || []);
           setCatalog(list);
@@ -151,7 +165,7 @@ export default function EquipmentBorrowing({ isPortal: isPortalProp }) {
     fetchEquipment();
     window.addEventListener("equipment_inventory_updated", fetchEquipment);
     return () => window.removeEventListener("equipment_inventory_updated", fetchEquipment);
-  }, []);
+  }, [startTime, endTime]);
 
   const uniqueCategories = [
     "all",

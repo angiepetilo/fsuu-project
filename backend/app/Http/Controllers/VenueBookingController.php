@@ -12,6 +12,7 @@ use App\Models\VenueBooking;
 use App\Services\VenueBookingService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use App\Models\AuditLog;
 use Illuminate\Support\Facades\DB;
 
 class VenueBookingController extends Controller
@@ -120,6 +121,24 @@ class VenueBookingController extends Controller
             return response()->json(['message' => $e->getMessage()], 422);
         }
 
+        try {
+            $ref = $avrVenueBooking->trackingNumber?->reference_code ?? "VB-{$avrVenueBooking->id}";
+            AuditLog::create([
+                'user_id'        => auth()->id(),
+                'action'         => 'VENUE_BOOKING_APPROVED',
+                'auditable_type' => 'venue_bookings',
+                'auditable_id'   => $avrVenueBooking->id,
+                'metadata'       => [
+                    'reference_code' => $ref,
+                    'filer_name'     => $avrVenueBooking->filer_name,
+                    'remarks'        => $request->validated('remarks'),
+                    'description'    => "Venue booking {$ref} approved by " . (auth()->user()?->name ?? 'Staff'),
+                ],
+                'ip_address'     => request()->ip(),
+                'created_at'     => now(),
+            ]);
+        } catch (\Throwable $e) {}
+
         return response()->json($booking);
     }
 
@@ -140,6 +159,25 @@ class VenueBookingController extends Controller
 
         $booking = $this->service->markIncomplete($avrVenueBooking, $user, $missingList, $remarks, $graceHours);
 
+        try {
+            $ref = $avrVenueBooking->trackingNumber?->reference_code ?? "VB-{$avrVenueBooking->id}";
+            AuditLog::create([
+                'user_id'        => $user?->id ?? auth()->id(),
+                'action'         => 'VENUE_BOOKING_INCOMPLETE',
+                'auditable_type' => 'venue_bookings',
+                'auditable_id'   => $avrVenueBooking->id,
+                'metadata'       => [
+                    'reference_code'       => $ref,
+                    'filer_name'           => $avrVenueBooking->filer_name,
+                    'missing_requirements' => $missingList,
+                    'remarks'              => $remarks,
+                    'description'          => "Venue booking {$ref} flagged incomplete — missing requirements by " . ($user?->name ?? 'Staff'),
+                ],
+                'ip_address'     => request()->ip(),
+                'created_at'     => now(),
+            ]);
+        } catch (\Throwable $e) {}
+
         return response()->json($booking);
     }
 
@@ -152,6 +190,24 @@ class VenueBookingController extends Controller
             auth()->user(),
             $request->validated('remarks')
         );
+
+        try {
+            $ref = $avrVenueBooking->trackingNumber?->reference_code ?? "VB-{$avrVenueBooking->id}";
+            AuditLog::create([
+                'user_id'        => auth()->id(),
+                'action'         => 'VENUE_BOOKING_REJECTED',
+                'auditable_type' => 'venue_bookings',
+                'auditable_id'   => $avrVenueBooking->id,
+                'metadata'       => [
+                    'reference_code' => $ref,
+                    'filer_name'     => $avrVenueBooking->filer_name,
+                    'remarks'        => $request->validated('remarks'),
+                    'description'    => "Venue booking {$ref} rejected by " . (auth()->user()?->name ?? 'Staff'),
+                ],
+                'ip_address'     => request()->ip(),
+                'created_at'     => now(),
+            ]);
+        } catch (\Throwable $e) {}
 
         return response()->json($booking);
     }
@@ -171,6 +227,24 @@ class VenueBookingController extends Controller
 
             $user = auth()->user() ?? $request->user();
             $booking = $this->service->ongoing($avrVenueBooking, $user);
+
+            try {
+                $ref = $avrVenueBooking->trackingNumber?->reference_code ?? "VB-{$avrVenueBooking->id}";
+                AuditLog::create([
+                    'user_id'        => $user?->id ?? auth()->id(),
+                    'action'         => 'VENUE_BOOKING_RELEASED',
+                    'auditable_type' => 'venue_bookings',
+                    'auditable_id'   => $avrVenueBooking->id,
+                    'metadata'       => [
+                        'reference_code' => $ref,
+                        'filer_name'     => $avrVenueBooking->filer_name,
+                        'description'    => "Venue booking {$ref} released / marked on-going by " . ($user?->name ?? 'Staff'),
+                    ],
+                    'ip_address'     => request()->ip(),
+                    'created_at'     => now(),
+                ]);
+            } catch (\Throwable $e) {}
+
             return response()->json($booking);
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::error("VenueBooking ongoing error: " . $e->getMessage());
@@ -191,6 +265,24 @@ class VenueBookingController extends Controller
         $this->authorize('complete', $avrVenueBooking);
         $user = auth()->user() ?? $request->user();
         $booking = $this->service->complete($avrVenueBooking, $user, $request->all());
+
+        try {
+            $ref = $avrVenueBooking->trackingNumber?->reference_code ?? "VB-{$avrVenueBooking->id}";
+            AuditLog::create([
+                'user_id'        => $user?->id ?? auth()->id(),
+                'action'         => 'VENUE_BOOKING_COMPLETED',
+                'auditable_type' => 'venue_bookings',
+                'auditable_id'   => $avrVenueBooking->id,
+                'metadata'       => [
+                    'reference_code' => $ref,
+                    'filer_name'     => $avrVenueBooking->filer_name,
+                    'description'    => "Venue booking {$ref} completed by " . ($user?->name ?? 'Staff'),
+                ],
+                'ip_address'     => request()->ip(),
+                'created_at'     => now(),
+            ]);
+        } catch (\Throwable $e) {}
+
         return response()->json($booking);
     }
 
@@ -199,6 +291,24 @@ class VenueBookingController extends Controller
         $this->authorize('undo', $avrVenueBooking);
         $user = auth()->user() ?? $request->user();
         $booking = $this->service->undo($avrVenueBooking, $user);
+
+        try {
+            $ref = $avrVenueBooking->trackingNumber?->reference_code ?? "VB-{$avrVenueBooking->id}";
+            AuditLog::create([
+                'user_id'        => $user?->id ?? auth()->id(),
+                'action'         => 'VENUE_BOOKING_UNDO',
+                'auditable_type' => 'venue_bookings',
+                'auditable_id'   => $avrVenueBooking->id,
+                'metadata'       => [
+                    'reference_code' => $ref,
+                    'filer_name'     => $avrVenueBooking->filer_name,
+                    'description'    => "Venue booking {$ref} status reverted (undo) by " . ($user?->name ?? 'Staff'),
+                ],
+                'ip_address'     => request()->ip(),
+                'created_at'     => now(),
+            ]);
+        } catch (\Throwable $e) {}
+
         return response()->json($booking);
     }
 
@@ -215,6 +325,24 @@ class VenueBookingController extends Controller
         } catch (BookingActionNotAllowedException $e) {
             return response()->json(['message' => $e->getMessage()], 403);
         }
+
+        try {
+            $ref = $avrVenueBooking->trackingNumber?->reference_code ?? "VB-{$avrVenueBooking->id}";
+            AuditLog::create([
+                'user_id'        => auth()->id(),
+                'action'         => 'VENUE_BOOKING_CANCELLED',
+                'auditable_type' => 'venue_bookings',
+                'auditable_id'   => $avrVenueBooking->id,
+                'metadata'       => [
+                    'reference_code' => $ref,
+                    'filer_name'     => $avrVenueBooking->filer_name,
+                    'remarks'        => $request->validated('remarks'),
+                    'description'    => "Venue booking {$ref} cancelled by " . (auth()->user()?->name ?? 'Staff'),
+                ],
+                'ip_address'     => request()->ip(),
+                'created_at'     => now(),
+            ]);
+        } catch (\Throwable $e) {}
 
         return response()->json($booking);
     }
@@ -412,6 +540,25 @@ class VenueBookingController extends Controller
     {
         $this->authorize('approve', $avrVenueBooking);
         $booking = $this->service->override($avrVenueBooking, auth()->user(), $request->all());
+
+        try {
+            $ref = $avrVenueBooking->trackingNumber?->reference_code ?? "VB-{$avrVenueBooking->id}";
+            AuditLog::create([
+                'user_id'        => auth()->id(),
+                'action'         => 'VENUE_BOOKING_OVERRIDE',
+                'auditable_type' => 'venue_bookings',
+                'auditable_id'   => $avrVenueBooking->id,
+                'metadata'       => [
+                    'reference_code' => $ref,
+                    'filer_name'     => $avrVenueBooking->filer_name,
+                    'new_status'     => $request->input('status'),
+                    'description'    => "Venue booking {$ref} status overridden to '" . $request->input('status') . "' by " . (auth()->user()?->name ?? 'Staff'),
+                ],
+                'ip_address'     => request()->ip(),
+                'created_at'     => now(),
+            ]);
+        } catch (\Throwable $e) {}
+
         return response()->json($booking);
     }
 

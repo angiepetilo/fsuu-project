@@ -30,8 +30,7 @@ return new class extends Migration
                 ->distinct()
                 ->pluck('brand');
 
-            $defaultBrands = ['EPSON', 'SONY', 'CANON', 'ACER', 'LOGITECH', 'DELL', 'HP', 'SAMSUNG', 'PANASONIC'];
-            $allInitial = collect($existingBrands)->merge($defaultBrands)->unique()->filter();
+            $allInitial = collect($existingBrands)->unique()->filter();
 
             foreach ($allInitial as $brandName) {
                 $clean = trim((string)$brandName);

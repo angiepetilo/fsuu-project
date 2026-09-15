@@ -377,9 +377,9 @@ export default function ManageVenues() {
           startTime: ov.startTime || setupForm.startTime || "08:00",
           endTime: ov.endTime || setupForm.endTime || "17:00",
           filerName: ov.status === 'closed' ? 'Closed' : 'Maintenance',
-          title: ov.notes || ov.reason || 'Restricted / Scheduled Maintenance',
-          refCode: 'MAINT',
-          status: 'maintenance',
+          title: ov.notes || ov.reason || (ov.status === 'closed' ? 'Venue Closed' : 'Restricted / Scheduled Maintenance'),
+          refCode: ov.status === 'closed' ? 'CLOSED' : 'MAINT',
+          status: ov.status,
         });
       }
     });

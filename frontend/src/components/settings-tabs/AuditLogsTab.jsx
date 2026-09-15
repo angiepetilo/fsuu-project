@@ -167,6 +167,62 @@ export default function AuditLogsTab() {
         </span>
       );
     }
+    if (act.includes("RELEASED") || act.includes("ONGOING")) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-cyan-50 text-cyan-700 border border-cyan-200">
+          <Activity size={12} className="text-cyan-600" />
+          Released / On-going
+        </span>
+      );
+    }
+    if (act.includes("CANCEL")) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-slate-100 text-slate-700 border border-slate-300">
+          <XCircle size={12} className="text-slate-600" />
+          Cancelled
+        </span>
+      );
+    }
+    if (act.includes("INCOMPLETE")) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+          <AlertTriangle size={12} className="text-amber-600" />
+          Incomplete
+        </span>
+      );
+    }
+    if (act.includes("UNDO") || act.includes("REVERT")) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-orange-50 text-orange-700 border border-orange-200">
+          <RefreshCw size={12} className="text-orange-600" />
+          Reverted / Undo
+        </span>
+      );
+    }
+    if (act.includes("OVERRIDE")) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-purple-50 text-purple-700 border border-purple-200">
+          <AlertCircle size={12} className="text-purple-600" />
+          Override
+        </span>
+      );
+    }
+    if (act.includes("UNITS_ASSIGNED")) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-teal-50 text-teal-700 border border-teal-200">
+          <Package size={12} className="text-teal-600" />
+          Units Assigned
+        </span>
+      );
+    }
+    if (act.includes("BULK_IMPORTED")) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+          <FileText size={12} className="text-indigo-600" />
+          Bulk Imported
+        </span>
+      );
+    }
     return (
       <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
         <Activity size={12} className="text-slate-500" />
@@ -200,8 +256,11 @@ export default function AuditLogsTab() {
               <option value="all">All Actions</option>
               <option value="approval">Approval</option>
               <option value="rejection">Rejection</option>
-              <option value="inspection">Inspection</option>
+              <option value="released">Released / On-going</option>
               <option value="complete">Complete</option>
+              <option value="cancel">Cancelled</option>
+              <option value="incomplete">Incomplete</option>
+              <option value="inspection">Inspection</option>
               <option value="manage_equipment">Manage Equipment</option>
               <option value="add_user">Add User</option>
               <option value="venue_creation">Venue Creation</option>
@@ -257,6 +316,7 @@ export default function AuditLogsTab() {
                 <th className="px-4 py-3.5">Timestamp</th>
                 <th className="px-4 py-3.5">User</th>
                 <th className="px-4 py-3.5">Action / Module</th>
+                <th className="px-4 py-3.5">Activity Description</th>
                 <th className="px-4 py-3.5">Device & IP</th>
                 <th className="px-4 py-3.5">Status</th>
                 <th className="px-4 py-3.5 text-right">Details</th>
@@ -265,7 +325,7 @@ export default function AuditLogsTab() {
             <tbody className="divide-y divide-slate-100 font-medium">
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="text-center py-12">
+                  <td colSpan={7} className="text-center py-12">
                     <div className="flex items-center justify-center gap-2 text-slate-400">
                       <div className="w-4 h-4 rounded-full border-2 border-slate-200 border-t-blue-500 animate-spin" />
                       <span className="text-xs font-semibold italic">Loading audit trail records...</span>
@@ -381,6 +441,25 @@ export default function AuditLogsTab() {
                           {moduleName && (
                             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                               Module: <span className="text-slate-600 capitalize">{moduleName}</span>
+                            </span>
+                          )}
+                        </div>
+                      </td>
+
+                      {/* Activity Description */}
+                      <td className="px-4 py-3 min-w-[220px] max-w-[360px]">
+                        <div className="flex flex-col gap-0.5">
+                          <p className="text-xs text-slate-800 font-medium leading-snug line-clamp-2" title={meta.description || meta.remarks || remarks || refCode}>
+                            {meta.description || (
+                              <>
+                                {refCode && <span className="text-blue-600 font-bold mr-1">{refCode}:</span>}
+                                <span>{remarks || meta.reason || act.replace(/_/g, " ")}</span>
+                              </>
+                            )}
+                          </p>
+                          {meta.reference_code && meta.description && (
+                            <span className="text-[10px] font-mono font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded w-fit inline-block">
+                              {meta.reference_code}
                             </span>
                           )}
                         </div>

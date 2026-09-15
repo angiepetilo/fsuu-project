@@ -178,13 +178,13 @@ export default function EquipmentModal({
                 <div>
                   <label className={labelClasses}>Status *</label>
                   <select
-                    value={editFormData.status}
-                    onChange={e => setEditFormData({ ...editFormData, status: e.target.value })}
+                    value={(editFormData.status || "available").toLowerCase()}
+                    onChange={e => setEditFormData({ ...editFormData, status: e.target.value.toLowerCase() })}
                     disabled={editFormData.condition === "Damaged"}
                     className={`${inputClasses} cursor-pointer disabled:opacity-50`}
                   >
-                    <option value="Available">Available</option>
-                    <option value="Released">Released</option>
+                    <option value="available">Available</option>
+                    <option value="released">Released</option>
                     <option value="unavailable">Unavailable</option>
                   </select>
                 </div>

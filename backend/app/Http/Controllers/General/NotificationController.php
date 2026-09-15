@@ -236,8 +236,8 @@ class NotificationController extends Controller
                 $flaggedUnits = DB::table('equipment_units')
                     ->join('equipment_types', 'equipment_units.equipment_type_id', '=', 'equipment_types.id')
                     ->where(function ($q) {
-                        $q->whereIn(DB::raw('LOWER(`equipment_units`.`status`)'), ['damaged', 'lost', 'decommissioned'])
-                          ->orWhereIn(DB::raw('LOWER(`equipment_units`.`condition`)'), ['damaged', 'lost']);
+                        $q->whereIn(DB::raw('LOWER(equipment_units.status)'), ['damaged', 'lost', 'decommissioned'])
+                          ->orWhereIn(DB::raw('LOWER(equipment_units.condition)'), ['damaged', 'lost']);
                     })
                     ->whereNull('equipment_units.archived_at')
                     ->select(

@@ -125,13 +125,13 @@ class ListingController extends Controller
                 },
                 'equipmentUnits as calculated_operational' => function ($q) {
                     $q->whereNull('archived_at')
-                      ->whereNotIn('status', ['damaged', 'lost', 'decommissioned', 'maintenance', 'Damaged', 'Lost', 'Decommissioned', 'Maintenance'])
-                      ->whereNotIn('condition', ['damaged', 'lost', 'under repair', 'Damaged', 'Lost', 'Under Repair', 'under_repair']);
+                      ->whereRaw("LOWER(COALESCE(equipment_units.status, 'available')) NOT IN ('damaged', 'lost', 'decommissioned', 'maintenance')")
+                      ->whereRaw("LOWER(COALESCE(equipment_units.condition, 'good')) NOT IN ('damaged', 'lost', 'under repair', 'under_repair')");
                 },
                 'equipmentUnits as calculated_available' => function ($q) {
                     $q->whereNull('archived_at')
-                      ->where('status', 'available')
-                      ->whereNotIn('condition', ['damaged', 'lost', 'under repair', 'Damaged', 'Lost', 'Under Repair', 'under_repair']);
+                      ->whereRaw("LOWER(COALESCE(equipment_units.status, 'available')) NOT IN ('damaged', 'lost', 'decommissioned', 'maintenance', 'released', 'in_use', 'borrowed', 'in-use', 'reserved', 'unavailable')")
+                      ->whereRaw("LOWER(COALESCE(equipment_units.condition, 'good')) NOT IN ('damaged', 'lost', 'under repair', 'under_repair', 'worn', 'minor wear')");
                 }
             ]);
 
@@ -148,7 +148,7 @@ class ListingController extends Controller
             $rawBorrowItems = DB::table('equipment_borrow_items')
                 ->join('equipment_borrows', 'equipment_borrow_items.equipment_borrow_id', '=', 'equipment_borrows.id')
                 ->join('tracking_numbers', 'equipment_borrows.tracking_number_id', '=', 'tracking_numbers.id')
-                ->whereNotIn('tracking_numbers.status', ['rejected', 'cancelled', 'completed', 'done', 'damaged', 'lost'])
+                ->whereRaw("LOWER(COALESCE(tracking_numbers.status, 'pending')) NOT IN ('rejected', 'cancelled', 'completed', 'done', 'damaged', 'lost')")
                 ->where('equipment_borrows.date_of_usage', '=', $cleanDate)
                 ->where('equipment_borrows.time_start', '<', $endTimeStr)
                 ->where('equipment_borrows.time_end', '>', $startTimeStr)
@@ -163,7 +163,7 @@ class ListingController extends Controller
             // 2. Single query for all overlapping Venue Bookings
             $overlappingVenueBookings = DB::table('venue_bookings')
                 ->join('tracking_numbers', 'venue_bookings.tracking_number_id', '=', 'tracking_numbers.id')
-                ->whereNotIn('tracking_numbers.status', ['rejected', 'cancelled', 'completed', 'done', 'damaged', 'lost'])
+                ->whereRaw("LOWER(COALESCE(tracking_numbers.status, 'pending')) NOT IN ('rejected', 'cancelled', 'completed', 'done', 'damaged', 'lost')")
                 ->where('venue_bookings.date_of_usage', '<=', $cleanDate)
                 ->whereRaw('COALESCE(venue_bookings.reservation_end_date, venue_bookings.date_of_usage) >= ?', [$cleanDate])
                 ->where('venue_bookings.time_start', '<', $endTimeStr)
@@ -223,6 +223,13 @@ class ListingController extends Controller
             $total = (int)($e->calculated_total ?? 0);
             $operational = (int)($e->calculated_operational ?? 0);
             $availableNow = (int)($e->calculated_available ?? 0);
+
+            // Fallback to equipment_types table numbers if no serialized physical units are linked
+            if ($total === 0) {
+                $total = (int)($e->total_quantity ?? 0);
+                $operational = max(0, $total - (int)($e->damaged_count ?? 0) - (int)($e->lost_count ?? 0));
+                $availableNow = (int)($e->available_count ?? $operational);
+            }
 
             $typeKey = strtoupper(trim((string)$e->id));
             $typeNameKey = strtoupper(trim((string)($e->name ?? $e->eq_name ?? '')));

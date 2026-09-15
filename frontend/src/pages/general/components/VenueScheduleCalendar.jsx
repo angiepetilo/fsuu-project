@@ -89,7 +89,8 @@ export default function VenueScheduleCalendar({
             const dateStr = `${currentYear}-${pad(currentMonth + 1)}-${pad(day)}`;
             const isToday = dateStr === todayStr;
             const dayStatus = getVenueDayStatus(dateStr);
-            const isMaintenanceOrClosed = ["maintenance", "closed", "damaged"].includes(dayStatus.status);
+            const isClosed = dayStatus.status === "closed";
+            const isMaintenance = dayStatus.status === "maintenance" || dayStatus.status === "damaged";
             const isFully = dayStatus.status === "fully";
             const isPartial = dayStatus.status === "partial";
 
@@ -108,12 +109,14 @@ export default function VenueScheduleCalendar({
               tileClasses = "bg-blue-100/90 dark:bg-blue-950 border-blue-300 dark:border-blue-700 text-blue-950 dark:text-blue-200 font-black";
             } else if (isToday) {
               tileClasses = "border-2 border-blue-600 bg-blue-50/60 dark:bg-blue-950/60 text-blue-900 dark:text-blue-300 font-black";
+            } else if (isClosed) {
+              tileClasses = "bg-rose-50/90 dark:bg-rose-950/60 border-rose-300 dark:border-rose-800 text-rose-950 dark:text-rose-200 hover:bg-rose-100 dark:hover:bg-rose-900/50";
+            } else if (isMaintenance) {
+              tileClasses = "bg-amber-50/90 dark:bg-amber-950/60 border-amber-300 dark:border-amber-800 text-amber-950 dark:text-amber-200 hover:bg-amber-100 dark:hover:bg-amber-900/50";
             } else if (isFully) {
               tileClasses = "bg-rose-50/90 dark:bg-rose-950/60 border-rose-300 dark:border-rose-800 text-rose-950 dark:text-rose-200 hover:bg-rose-100 dark:hover:bg-rose-900/50";
             } else if (isPartial) {
               tileClasses = "bg-amber-50/90 dark:bg-amber-950/60 border-amber-300 dark:border-amber-800 text-amber-950 dark:text-amber-200 hover:bg-amber-100 dark:hover:bg-amber-900/50";
-            } else if (isMaintenanceOrClosed) {
-              tileClasses = "bg-slate-100/90 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700";
             }
 
             return (
@@ -145,6 +148,16 @@ export default function VenueScheduleCalendar({
                     </span>
                   ) : isInRange ? (
                     <span className="text-[9px] font-black text-blue-700 dark:text-blue-300 uppercase">Range</span>
+                  ) : isClosed ? (
+                    <span className="flex items-center gap-1">
+                      <span className="w-2 h-2 rounded-full bg-rose-600 ring-2 ring-rose-200 dark:ring-rose-900 inline-block"></span>
+                      <span className="hidden md:inline text-[9px] font-black text-rose-700 dark:text-rose-300">Closed</span>
+                    </span>
+                  ) : isMaintenance ? (
+                    <span className="flex items-center gap-1">
+                      <span className="w-2 h-2 rounded-full bg-amber-500 ring-2 ring-amber-200 dark:ring-amber-900 inline-block"></span>
+                      <span className="hidden md:inline text-[9px] font-black text-amber-700 dark:text-amber-300">Maint</span>
+                    </span>
                   ) : isFully ? (
                     <span className="flex items-center gap-1">
                       <span className="w-2 h-2 rounded-full bg-rose-500 ring-2 ring-rose-200 dark:ring-rose-900 inline-block"></span>
@@ -154,11 +167,6 @@ export default function VenueScheduleCalendar({
                     <span className="flex items-center gap-1">
                       <span className="w-2 h-2 rounded-full bg-amber-500 ring-2 ring-amber-200 dark:ring-amber-900 inline-block"></span>
                       <span className="hidden md:inline text-[9px] font-black text-amber-800 dark:text-amber-300">Partial</span>
-                    </span>
-                  ) : isMaintenanceOrClosed ? (
-                    <span className="flex items-center gap-1">
-                      <span className="w-2 h-2 rounded-full bg-slate-500 ring-2 ring-slate-300 dark:ring-slate-700 inline-block"></span>
-                      <span className="hidden md:inline text-[9px] font-black text-slate-700 dark:text-slate-300">Closed</span>
                     </span>
                   ) : (
                     <span className="w-1.5 h-1.5 rounded-full bg-slate-200/80 dark:bg-slate-700 inline-block"></span>
@@ -178,15 +186,19 @@ export default function VenueScheduleCalendar({
         </span>
         <span className="flex items-center gap-1.5">
           <span className="w-2.5 h-2.5 rounded-full bg-amber-500 ring-2 ring-amber-200 dark:ring-amber-900 inline-block"></span>
+          <span>Maintenance</span>
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="w-2.5 h-2.5 rounded-full bg-rose-600 ring-2 ring-rose-200 dark:ring-rose-900 inline-block"></span>
+          <span>Closed</span>
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="w-2.5 h-2.5 rounded-full bg-amber-500/80 inline-block"></span>
           <span>Partially Booked</span>
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="w-2.5 h-2.5 rounded-full bg-rose-500 ring-2 ring-rose-200 dark:ring-rose-900 inline-block"></span>
+          <span className="w-2.5 h-2.5 rounded-full bg-rose-500 inline-block"></span>
           <span>Fully Booked</span>
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="w-2.5 h-2.5 rounded-full bg-slate-500 ring-2 ring-slate-300 dark:ring-slate-700 inline-block"></span>
-          <span>Maintenance / Closed</span>
         </span>
       </div>
     </div>

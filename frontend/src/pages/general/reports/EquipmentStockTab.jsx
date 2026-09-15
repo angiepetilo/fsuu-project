@@ -336,7 +336,7 @@ export default function EquipmentStockTab({
 
                     if (matchingUnits.length > 0) {
                       expectedQty = matchingUnits.length;
-                      currentDamaged = matchingUnits.filter(u => ['damaged', 'under repair', 'worn', 'minor wear'].includes(String(u.condition || '').toLowerCase()) || ['damaged', 'maintenance', 'under_maintenance'].includes(String(u.status || '').toLowerCase())).length;
+                      currentDamaged = matchingUnits.filter(u => ['damaged', 'under repair', 'worn', 'minor wear'].includes(String(u.condition || '').toLowerCase()) || ['damaged', 'maintenance', 'under_maintenance', 'unavailable'].includes(String(u.status || '').toLowerCase())).length;
                       currentLost = matchingUnits.filter(u => ['lost', 'decommissioned'].includes(String(u.condition || '').toLowerCase()) || ['lost', 'decommissioned'].includes(String(u.status || '').toLowerCase())).length;
                       currentReleased = matchingUnits.filter(u => ['released', 'in_use', 'in-use'].includes(String(u.status || '').toLowerCase())).length;
                       reservedCount = matchingUnits.filter(u => String(u.status || '').toLowerCase() === 'reserved').length || Math.max(0, typeof item.reserved_count === 'number' ? item.reserved_count : 0);
