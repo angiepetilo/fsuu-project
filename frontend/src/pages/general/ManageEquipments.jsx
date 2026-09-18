@@ -165,7 +165,11 @@ export default function ManageEquipments() {
           date_purchased: u.purchased_at ? u.purchased_at.substring(0, 10) : '2026-01-15',
           lifespan_years: u.eq_lifespan || 5,
           description: u.description || '',
-          built_in_units: Array.isArray(u.built_in_units) ? u.built_in_units : [],
+          built_in_units: Array.isArray(u.built_in_units)
+            ? u.built_in_units
+            : (typeof u.built_in_units === 'string'
+                ? (() => { try { return JSON.parse(u.built_in_units); } catch { return []; } })()
+                : []),
         };
       }));
 
@@ -708,6 +712,31 @@ export default function ManageEquipments() {
                             >
                               <Edit3 size={14} className="text-slate-500" />
                               <span>Edit Unit</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setOpenActionId(null);
+                                setActionAnchorEl(null);
+                                setEditingItem(item);
+                                setEditFormData({
+                                  brand: item.brand || "",
+                                  model: item.model || "",
+                                  barcode: item.barcode || "",
+                                  category: item.category || "",
+                                  date_purchased: item.date_purchased || "",
+                                  lifespan_years: String(item.lifespan_years || 5),
+                                  status: item.status || "available",
+                                  condition: item.condition || "Good",
+                                  description: item.description || "",
+                                  built_in_units: Array.isArray(item.built_in_units) && item.built_in_units.length > 0 ? item.built_in_units : [""],
+                                });
+                              }}
+                              className="w-full px-3.5 py-2 text-left text-xs font-bold text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/60 flex items-center gap-2.5 transition-colors cursor-pointer"
+                            >
+                              <PackageOpen size={14} className="text-blue-500" />
+                              <span>Built-in Units {Array.isArray(item.built_in_units) && item.built_in_units.length > 0 ? `(${item.built_in_units.length})` : ""}</span>
                             </button>
 
                             <div className="border-t border-slate-100 dark:border-slate-800 my-1"></div>

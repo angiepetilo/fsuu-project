@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { X, Loader2, Plus, Minus, ChevronDown, Layers } from "lucide-react";
 import api from "@/lib/axios";
 
@@ -107,10 +107,65 @@ function BuiltInUnitsSelector({
     }
   };
 
-  // Filter out the unit being edited (cannot be built-in to itself)
-  const eligibleUnits = (existingUnits || []).filter(
-    (u) => !excludeId || String(u.id) !== String(excludeId)
-  );
+  const normKey = (val) => String(val ?? "").trim().toUpperCase();
+
+  const extractIdentifiers = (field) => {
+    if (!field) return [];
+    let raw = field;
+    if (typeof raw === "string") {
+      try {
+        raw = JSON.parse(raw);
+      } catch {
+        raw = [raw];
+      }
+    }
+    if (!Array.isArray(raw)) return [];
+    return raw
+      .map((item) => {
+        if (typeof item === "object" && item !== null) {
+          return normKey(item.id || item.barcode);
+        }
+        return normKey(item);
+      })
+      .filter(Boolean);
+  };
+
+  // 1. Map of all physical units already assigned as built-in to ANOTHER equipment unit in the inventory
+  const assignedToOtherParentMap = useMemo(() => {
+    const map = new Map(); // childIdentifier -> parent unit
+    (existingUnits || []).forEach((parent) => {
+      // Exclude the current parent unit being edited so its own linked units remain selectable for it
+      if (excludeId && String(parent.id) === String(excludeId)) return;
+
+      const childIds = extractIdentifiers(parent.built_in_units);
+      childIds.forEach((cId) => {
+        if (cId) {
+          map.set(cId, parent);
+        }
+      });
+    });
+    return map;
+  }, [existingUnits, excludeId]);
+
+  // 2. Units eligible for built-in selection:
+  // - Cannot be this unit itself (excludeId)
+  // - Cannot be already assigned as built-in to another unit
+  const eligibleUnits = useMemo(() => {
+    return (existingUnits || []).filter((u) => {
+      // Cannot be built-in to itself
+      if (excludeId && String(u.id) === String(excludeId)) return false;
+
+      const uIdKey = normKey(u.id);
+      const uBarcodeKey = normKey(u.barcode);
+
+      // Exclude if already assigned to another unit
+      if (assignedToOtherParentMap.has(uIdKey) || (uBarcodeKey && assignedToOtherParentMap.has(uBarcodeKey))) {
+        return false;
+      }
+
+      return true;
+    });
+  }, [existingUnits, excludeId, assignedToOtherParentMap]);
 
   const selectedCount = list.filter(Boolean).length;
 
@@ -120,16 +175,57 @@ function BuiltInUnitsSelector({
         <label className="text-xs font-medium text-slate-700 block">
           Built-in
         </label>
-        {selectedCount > 0 && (
-          <span className="text-[10.5px] font-bold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-lg shadow-2xs">
-            {selectedCount} {selectedCount === 1 ? "Unit Linked" : "Units Linked"}
-          </span>
-        )}
+        <div className="flex items-center gap-1.5">
+          {assignedToOtherParentMap.size > 0 && (
+            <span
+              className="text-[10px] font-bold text-slate-400 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-lg"
+              title="Physical units already bundled inside another unit are hidden from the dropdown"
+            >
+              {assignedToOtherParentMap.size} {assignedToOtherParentMap.size === 1 ? "unit" : "units"} in other bundles
+            </span>
+          )}
+          {selectedCount > 0 && (
+            <span className="text-[10.5px] font-bold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-lg shadow-2xs">
+              {selectedCount} {selectedCount === 1 ? "Unit Linked" : "Units Linked"}
+            </span>
+          )}
+        </div>
       </div>
 
       <div className="space-y-2">
         {list.map((currentVal, idx) => {
-          const otherSelected = list.filter((_, i) => i !== idx && Boolean(_));
+          const normCurrent = normKey(currentVal);
+
+          // Units picked in other slots of THIS modal
+          const otherSelectedNorms = list
+            .filter((_, i) => i !== idx && Boolean(_))
+            .map(normKey);
+
+          // Units available in this slot dropdown:
+          // Must be in eligibleUnits, AND not picked in another slot of this modal (unless it's the currentVal of this slot)
+          const slotUnits = eligibleUnits.filter((u) => {
+            const uIdKey = normKey(u.id);
+            const uBarcodeKey = normKey(u.barcode);
+
+            // If selected in THIS slot, keep it so it stays visible as selected
+            if (normCurrent && (uIdKey === normCurrent || uBarcodeKey === normCurrent)) {
+              return true;
+            }
+
+            // If already picked in ANOTHER slot in this modal, do not show
+            if (otherSelectedNorms.includes(uIdKey) || (uBarcodeKey && otherSelectedNorms.includes(uBarcodeKey))) {
+              return false;
+            }
+
+            return true;
+          });
+
+          // In case currentVal is set but somehow not in slotUnits (e.g. from existing DB data), find it to display nicely
+          const selectedUnitObj = (existingUnits || []).find((u) => {
+            const uIdKey = normKey(u.id);
+            const uBarcodeKey = normKey(u.barcode);
+            return normCurrent && (uIdKey === normCurrent || uBarcodeKey === normCurrent);
+          });
 
           return (
             <div key={`builtin-slot-${idx}`} className="flex items-center gap-2">
@@ -139,7 +235,7 @@ function BuiltInUnitsSelector({
                 onClick={() => handleRemoveSlot(idx)}
                 disabled={list.length === 1 && !currentVal}
                 className="w-10 h-10 rounded-lg border border-slate-200 bg-white hover:bg-rose-50 hover:border-rose-200 hover:text-rose-600 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center text-slate-600 cursor-pointer transition-colors shadow-2xs shrink-0"
-                title="Remove physical unit"
+                title="Remove physical unit from built-in bundle"
               >
                 <Minus size={15} />
               </button>
@@ -151,23 +247,26 @@ function BuiltInUnitsSelector({
                   onChange={(e) => handleSlotChange(idx, e.target.value)}
                   className={`${inputClasses} cursor-pointer font-medium text-slate-800 appearance-none pr-8`}
                 >
-                  <option value="">-- Select Built-in Physical Unit --</option>
-                  {eligibleUnits.map((u) => {
-                    const isAlreadyPickedElsewhere = otherSelected.some(
-                      (sel) => String(sel) === String(u.id) || String(sel) === String(u.barcode)
-                    );
+                  <option value="">
+                    {slotUnits.length === 0 && !currentVal
+                      ? "-- No available physical units to link --"
+                      : "-- Select Built-in Physical Unit --"}
+                  </option>
+                  {selectedUnitObj && !slotUnits.some((u) => normKey(u.id) === normCurrent || normKey(u.barcode) === normCurrent) && (
+                    <option value={selectedUnitObj.id}>
+                      {selectedUnitObj.barcode ? `[${selectedUnitObj.barcode}] ` : ""}
+                      {selectedUnitObj.name || [selectedUnitObj.brand, selectedUnitObj.model].filter(Boolean).join(" ") || "Physical Unit"} ({selectedUnitObj.category || "AV"})
+                    </option>
+                  )}
+                  {slotUnits.map((u) => {
                     const unitName = u.name || [u.brand, u.model].filter(Boolean).join(" ") || "Equipment Unit";
                     const displayLabel = u.barcode
                       ? `[${u.barcode}] ${unitName} (${u.category || "AV"})`
                       : `${unitName} (${u.category || "AV"})`;
 
                     return (
-                      <option
-                        key={u.id || u.barcode}
-                        value={u.id}
-                        disabled={isAlreadyPickedElsewhere}
-                      >
-                        {displayLabel} {isAlreadyPickedElsewhere ? "— (Already selected)" : ""}
+                      <option key={u.id || u.barcode} value={u.id}>
+                        {displayLabel}
                       </option>
                     );
                   })}
@@ -182,9 +281,13 @@ function BuiltInUnitsSelector({
                 <button
                   type="button"
                   onClick={handleAddSlot}
-                  disabled={eligibleUnits.length > 0 && list.length >= eligibleUnits.length}
+                  disabled={eligibleUnits.length > 0 && list.filter(Boolean).length >= eligibleUnits.length}
                   className="w-10 h-10 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 hover:border-slate-300 text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center cursor-pointer transition-colors shadow-2xs shrink-0"
-                  title="Add another physical unit dropdown"
+                  title={
+                    eligibleUnits.length > 0 && list.filter(Boolean).length >= eligibleUnits.length
+                      ? "All available units have already been linked"
+                      : "Add another physical unit dropdown"
+                  }
                 >
                   <Plus size={15} />
                 </button>
