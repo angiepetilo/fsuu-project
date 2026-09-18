@@ -139,6 +139,32 @@ class AppServiceProvider extends ServiceProvider
                 ], 429);
             });
         });
+
+        // ─── Automated Schema Self-Healing for Production Sync ─────────────────
+        try {
+            if (\Illuminate\Support\Facades\Schema::hasTable('equipment_types') && !\Illuminate\Support\Facades\Schema::hasColumn('equipment_types', 'built_in_units')) {
+                \Illuminate\Support\Facades\Schema::table('equipment_types', function (\Illuminate\Database\Schema\Blueprint $table) {
+                    $table->json('built_in_units')->nullable();
+                });
+            }
+            if (\Illuminate\Support\Facades\Schema::hasTable('equipment_units') && !\Illuminate\Support\Facades\Schema::hasColumn('equipment_units', 'built_in_units')) {
+                \Illuminate\Support\Facades\Schema::table('equipment_units', function (\Illuminate\Database\Schema\Blueprint $table) {
+                    $table->json('built_in_units')->nullable();
+                });
+            }
+            if (\Illuminate\Support\Facades\Schema::hasTable('email_verifications')) {
+                if (!\Illuminate\Support\Facades\Schema::hasColumn('email_verifications', 'channel')) {
+                    \Illuminate\Support\Facades\Schema::table('email_verifications', function (\Illuminate\Database\Schema\Blueprint $table) {
+                        $table->string('channel', 20)->default('email');
+                    });
+                }
+                if (!\Illuminate\Support\Facades\Schema::hasColumn('email_verifications', 'phone_number')) {
+                    \Illuminate\Support\Facades\Schema::table('email_verifications', function (\Illuminate\Database\Schema\Blueprint $table) {
+                        $table->string('phone_number', 50)->nullable();
+                    });
+                }
+            }
+        } catch (\Throwable $e) {}
     }
 
 }

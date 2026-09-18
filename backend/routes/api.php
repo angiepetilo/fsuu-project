@@ -415,6 +415,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/admin/system-settings',               [SystemSettingController::class, 'update']);
     Route::post('/admin/system-settings/test-smtp',    [SystemSettingController::class, 'testSmtp']);
     Route::get('/admin/communication-logs',            [CommunicationLogController::class, 'index']);
+    Route::post('/sysad/system-migrate', function (\Illuminate\Http\Request $request) {
+        \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
+        return response()->json([
+            'message' => 'Database migrations triggered successfully.',
+            'output'  => \Illuminate\Support\Facades\Artisan::output(),
+        ]);
+    });
 
     // ── Venue Bookings ─────────────────────────────────────────────────────────
     Route::get('/avr-venue-bookings',                              [VenueBookingController::class, 'index']);

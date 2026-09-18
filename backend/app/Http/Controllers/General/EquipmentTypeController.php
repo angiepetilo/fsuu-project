@@ -79,6 +79,11 @@ class EquipmentTypeController extends Controller
             $validated['avatar'] = app(\App\Services\MediaUploadService::class)->upload($validated['avatar'], 'equipment_types');
         }
 
+        // Defensive schema check: prevent insert failure if column doesn't exist yet
+        if (!\Illuminate\Support\Facades\Schema::hasColumn('equipment_types', 'built_in_units')) {
+            unset($validated['built_in_units']);
+        }
+
         $type = EquipmentType::create($validated);
 
         try {
@@ -123,6 +128,11 @@ class EquipmentTypeController extends Controller
                 $rawBuilt = json_decode($rawBuilt, true) ?: [];
             }
             $updateData['built_in_units'] = is_array($rawBuilt) ? array_values(array_filter($rawBuilt, fn($v) => !empty($v))) : [];
+        }
+
+        // Defensive schema check: prevent update failure if column doesn't exist yet
+        if (!\Illuminate\Support\Facades\Schema::hasColumn('equipment_types', 'built_in_units')) {
+            unset($updateData['built_in_units']);
         }
 
         $type->update($updateData);

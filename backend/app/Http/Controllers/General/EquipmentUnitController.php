@@ -215,7 +215,7 @@ class EquipmentUnitController extends Controller
         }
         $builtInUnits = array_values(array_filter($builtInUnits, fn($val) => !empty($val)));
 
-        $unit = EquipmentUnit::create([
+        $unitData = [
             'equipment_type_id' => $validated['equipment_type_id'],
             'brand'             => $validated['brand'] ?? null,
             'model'             => $validated['model'] ?? null,
@@ -224,9 +224,13 @@ class EquipmentUnitController extends Controller
             'eq_lifespan'       => $validated['eq_lifespan'] ?? 5,
             'status'            => isset($validated['status']) ? strtolower(trim($validated['status'])) : 'available',
             'condition'         => $canonicalCondition,
-            'built_in_units'    => !empty($builtInUnits) ? $builtInUnits : null,
             'description'       => $validated['description'] ?? null,
-        ]);
+        ];
+        if (\Illuminate\Support\Facades\Schema::hasColumn('equipment_units', 'built_in_units')) {
+            $unitData['built_in_units'] = !empty($builtInUnits) ? $builtInUnits : null;
+        }
+
+        $unit = EquipmentUnit::create($unitData);
 
         // Sync category stock count
         $this->syncCategoryStock($unit->equipment_type_id);
@@ -325,6 +329,10 @@ class EquipmentUnitController extends Controller
             } else {
                 $validated['built_in_units'] = null;
             }
+        }
+
+        if (!\Illuminate\Support\Facades\Schema::hasColumn('equipment_units', 'built_in_units')) {
+            unset($validated['built_in_units']);
         }
 
         $oldTypeId = $unit->equipment_type_id;
