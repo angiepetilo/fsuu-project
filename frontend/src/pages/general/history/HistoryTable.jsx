@@ -579,8 +579,24 @@ export default function HistoryTable({
                   const isRejected = st === "rejected";
                   const isCancelled = st.includes("cancel");
                   const isSolved = st === "solved";
-                  const isDamaged = st === "damaged" || Boolean(b.has_damage);
-                  const isLost = st === "lost" || Boolean(b.is_lost);
+                  let hasLostInUnits = false;
+                  let hasDamagedInUnits = false;
+                  if (b.unit_conditions) {
+                    let uConds = b.unit_conditions;
+                    if (typeof uConds === "string") {
+                      try { uConds = JSON.parse(uConds); } catch {}
+                    }
+                    if (typeof uConds === "object" && uConds !== null) {
+                      Object.values(uConds).forEach((val) => {
+                        const c = String(typeof val === "object" && val !== null ? (val.condition || val.status || "") : val).toLowerCase();
+                        if (c === "lost") hasLostInUnits = true;
+                        if (c === "damaged") hasDamagedInUnits = true;
+                      });
+                    }
+                  }
+
+                  const isDamaged = st === "damaged" || Boolean(b.has_damage) || hasDamagedInUnits;
+                  const isLost = st === "lost" || Boolean(b.is_lost) || hasLostInUnits;
                   const isLate = Boolean(b.is_late) || b.is_late === 1 || b.is_late === "1" || b.is_late === true || st.includes("late") || (b.timeliness || "").toLowerCase().includes("late") || String(b.violation_type || "").toLowerCase().includes("late") || String(b.violation || "").toLowerCase().includes("late");
                   const isOtherBreach = Boolean(b.violation) && !isLate && !isDamaged && !isLost;
 
@@ -607,17 +623,17 @@ export default function HistoryTable({
                           <span className="font-mono text-xs font-bold text-blue-600 uppercase">
                             ● Solved
                           </span>
-                        ) : isDamaged ? (
-                          <span className="font-mono text-xs font-bold text-rose-600 uppercase">
-                            ● Damaged
-                          </span>
                         ) : isLost ? (
                           <span className="font-mono text-xs font-bold text-rose-600 uppercase">
                             ● Lost
                           </span>
+                        ) : isDamaged ? (
+                          <span className="font-mono text-xs font-bold text-rose-600 uppercase">
+                            ● Damaged
+                          </span>
                         ) : isLate ? (
                           <span className="font-mono text-xs font-bold text-amber-600 uppercase">
-                            ● Late Return
+                            ● Late Returned
                           </span>
                         ) : isOtherBreach ? (
                           <span className="font-mono text-xs font-bold text-rose-600 uppercase">
@@ -707,9 +723,25 @@ export default function HistoryTable({
               const isRejected = st === "rejected";
               const isCancelled = st.includes("cancel");
               const isSolved = st === "solved";
-              const isDamaged = st === "damaged" || Boolean(b.has_damage);
-              const isLost = st === "lost" || Boolean(b.is_lost);
-              const isLate = Boolean(b.is_late) || b.is_late === 1 || b.is_late === "1" || b.is_late === true || st.includes("late");
+              let mobHasLostInUnits = false;
+              let mobHasDamagedInUnits = false;
+              if (b.unit_conditions) {
+                let uConds = b.unit_conditions;
+                if (typeof uConds === "string") {
+                  try { uConds = JSON.parse(uConds); } catch {}
+                }
+                if (typeof uConds === "object" && uConds !== null) {
+                  Object.values(uConds).forEach((val) => {
+                    const c = String(typeof val === "object" && val !== null ? (val.condition || val.status || "") : val).toLowerCase();
+                    if (c === "lost") mobHasLostInUnits = true;
+                    if (c === "damaged") mobHasDamagedInUnits = true;
+                  });
+                }
+              }
+
+              const isDamaged = st === "damaged" || Boolean(b.has_damage) || mobHasDamagedInUnits;
+              const isLost = st === "lost" || Boolean(b.is_lost) || mobHasLostInUnits;
+              const isLate = Boolean(b.is_late) || b.is_late === 1 || b.is_late === "1" || b.is_late === true || st.includes("late") || (b.timeliness || "").toLowerCase().includes("late");
 
               return (
                 <div key={`mob-eq-${b.id || idx}`} className="p-4 space-y-2.5">
@@ -737,7 +769,7 @@ export default function HistoryTable({
                       </span>
                     ) : isLate ? (
                       <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-50 text-amber-800 border border-amber-200">
-                        Late Return
+                        Late Returned
                       </span>
                     ) : (
                       <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200">

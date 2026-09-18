@@ -171,6 +171,7 @@ class EquipmentCategoryService
                 'lifespan_years'  => $e->lifespan_years ?? 5,
                 'status'          => $e->status ?? 'available',
                 'description'     => $e->description,
+                'built_in_units'  => is_array($e->built_in_units) ? $e->built_in_units : (json_decode($e->built_in_units ?? '[]', true) ?: []),
                 'created_at'      => $e->created_at,
             ];
         }
@@ -353,6 +354,7 @@ class EquipmentCategoryService
             'lifespan_years'  => $e->lifespan_years ?? 5,
             'status'          => $e->status ?? 'available',
             'description'     => $e->description,
+            'built_in_units'  => is_array($e->built_in_units) ? $e->built_in_units : (json_decode($e->built_in_units ?? '[]', true) ?: []),
             'created_at'      => $e->created_at,
         ];
     }

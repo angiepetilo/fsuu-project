@@ -67,6 +67,113 @@ class EquipmentUnitController extends Controller
             $request->merge(['eq_lifespan' => (int)$request->input('lifespan_years')]);
         }
 
+        $quantity = max(1, (int)($request->input('quantity') ?? $request->input('total_units') ?? 1));
+
+        if ($quantity > 1) {
+            $validated = $request->validate([
+                'equipment_type_id' => 'required|exists:equipment_types,id',
+                'brand'             => 'nullable|string|max:255',
+                'model'             => 'nullable|string|max:255',
+                'purchased_at'      => 'nullable|date',
+                'eq_lifespan'       => 'nullable|integer|min:1',
+                'status'            => 'nullable|string|max:50',
+                'condition'         => 'nullable|string|max:100',
+            ], [
+                'equipment_type_id.required' => 'The equipment category is required.',
+                'equipment_type_id.exists'   => 'The selected equipment category does not exist.',
+            ]);
+
+            $rawCondition = $request->input('condition', 'Good');
+            $canonicalCondition = match(strtolower(trim((string)$rawCondition))) {
+                'damaged' => 'Damaged',
+                'lost' => 'Lost',
+                'under repair', 'under_repair' => 'Under Repair',
+                'minor wear' => 'Minor Wear',
+                default => 'Good',
+            };
+
+            // Determine barcodes to use
+            $inputBarcodes = $request->input('barcodes');
+            $barcodesToUse = [];
+            if (is_array($inputBarcodes) && count($inputBarcodes) === $quantity) {
+                $barcodesToUse = array_map(fn($b) => trim((string)$b), $inputBarcodes);
+            } else {
+                $base = trim((string)($request->input('barcode') ?? $request->input('unit_code') ?? ''));
+                if ($base === '') {
+                    $base = 'BC-' . date('Ymd') . '-' . strtoupper(bin2hex(random_bytes(2))) . '-01';
+                }
+                if (preg_match('/^(.*?)(\d+)$/', $base, $matches)) {
+                    $prefix = $matches[1];
+                    $startNum = (int)$matches[2];
+                    $padLen = strlen($matches[2]);
+                    for ($i = 0; $i < $quantity; $i++) {
+                        $barcodesToUse[] = $prefix . str_pad((string)($startNum + $i), $padLen, '0', STR_PAD_LEFT);
+                    }
+                } else {
+                    for ($i = 1; $i <= $quantity; $i++) {
+                        $barcodesToUse[] = $base . '-' . str_pad((string)$i, 2, '0', STR_PAD_LEFT);
+                    }
+                }
+            }
+
+            // Uniqueness check across database
+            $existing = EquipmentUnit::whereIn('barcode', $barcodesToUse)->pluck('barcode')->toArray();
+            if (!empty($existing)) {
+                return response()->json([
+                    'message' => 'The following barcode(s) are already assigned: ' . implode(', ', $existing) . '. Each unit requires a unique barcode.',
+                    'errors'  => ['barcode' => ['Barcode(s) already in use: ' . implode(', ', $existing)]],
+                ], 422);
+            }
+
+            $createdUnits = [];
+            DB::beginTransaction();
+            try {
+                foreach ($barcodesToUse as $barcode) {
+                    $createdUnits[] = EquipmentUnit::create([
+                        'equipment_type_id' => $validated['equipment_type_id'],
+                        'brand'             => $validated['brand'] ?? null,
+                        'model'             => $validated['model'] ?? null,
+                        'barcode'           => $barcode,
+                        'purchased_at'      => $validated['purchased_at'] ?? now()->toDateString(),
+                        'eq_lifespan'       => $validated['eq_lifespan'] ?? 5,
+                        'status'            => isset($validated['status']) ? strtolower(trim($validated['status'])) : 'available',
+                        'condition'         => $canonicalCondition,
+                        'description'       => null,
+                    ]);
+                }
+                $this->syncCategoryStock($validated['equipment_type_id']);
+                DB::commit();
+            } catch (\Throwable $e) {
+                DB::rollBack();
+                throw $e;
+            }
+
+            try {
+                AuditLog::create([
+                    'user_id'        => auth()->id(),
+                    'action'         => 'EQUIPMENT_UNIT_BATCH_CREATED',
+                    'auditable_type' => 'equipment_units',
+                    'auditable_id'   => $createdUnits[0]->id,
+                    'metadata'       => [
+                        'count'       => count($createdUnits),
+                        'brand'       => $validated['brand'] ?? null,
+                        'model'       => $validated['model'] ?? null,
+                        'category_id' => $validated['equipment_type_id'],
+                        'barcodes'    => $barcodesToUse,
+                        'description' => count($createdUnits) . " physical equipment units registered by " . (auth()->user()?->name ?? 'Staff'),
+                    ],
+                    'ip_address'     => request()->ip(),
+                    'created_at'     => now(),
+                ]);
+            } catch (\Throwable $e) {}
+
+            return response()->json([
+                'message' => count($createdUnits) . ' physical units registered successfully.',
+                'count'   => count($createdUnits),
+                'units'   => $createdUnits,
+            ], 201);
+        }
+
         $validated = $request->validate([
             'equipment_type_id' => 'required|exists:equipment_types,id',
             'brand'             => 'nullable|string|max:255',
@@ -81,6 +188,7 @@ class EquipmentUnitController extends Controller
             'eq_lifespan'       => 'nullable|integer|min:1',
             'status'            => 'nullable|string|max:50',
             'condition'         => 'nullable|string|max:100',
+            'built_in_units'    => 'nullable',
             'description'       => 'nullable|string',
         ], [
             'equipment_type_id.required' => 'The equipment category is required.',
@@ -98,6 +206,15 @@ class EquipmentUnitController extends Controller
             default => 'Good',
         };
 
+        $builtInUnits = $request->input('built_in_units');
+        if (is_string($builtInUnits)) {
+            $builtInUnits = json_decode($builtInUnits, true) ?: [];
+        }
+        if (!is_array($builtInUnits)) {
+            $builtInUnits = [];
+        }
+        $builtInUnits = array_values(array_filter($builtInUnits, fn($val) => !empty($val)));
+
         $unit = EquipmentUnit::create([
             'equipment_type_id' => $validated['equipment_type_id'],
             'brand'             => $validated['brand'] ?? null,
@@ -107,6 +224,7 @@ class EquipmentUnitController extends Controller
             'eq_lifespan'       => $validated['eq_lifespan'] ?? 5,
             'status'            => isset($validated['status']) ? strtolower(trim($validated['status'])) : 'available',
             'condition'         => $canonicalCondition,
+            'built_in_units'    => !empty($builtInUnits) ? $builtInUnits : null,
             'description'       => $validated['description'] ?? null,
         ]);
 
@@ -125,6 +243,7 @@ class EquipmentUnitController extends Controller
                     'brand'       => $unit->brand,
                     'model'       => $unit->model,
                     'category'    => $unit->equipmentType?->name ?? $unit->equipmentType?->eq_name,
+                    'built_in'    => $unit->built_in_units,
                     'description' => "Physical equipment unit {$unit->barcode} ({$unit->brand} {$unit->model}) added by " . (auth()->user()?->name ?? 'Staff'),
                 ],
                 'ip_address'     => request()->ip(),
@@ -172,6 +291,7 @@ class EquipmentUnitController extends Controller
             'eq_lifespan'       => 'nullable|integer|min:1',
             'status'            => 'nullable|string|max:50',
             'condition'         => 'nullable|string|max:100',
+            'built_in_units'    => 'nullable',
             'description'       => 'nullable|string',
         ], [
             'barcode.unique' => 'This barcode is already assigned to another physical unit. Barcodes must be unique.',
@@ -193,6 +313,18 @@ class EquipmentUnitController extends Controller
 
         if (isset($validated['status'])) {
             $validated['status'] = strtolower(trim($validated['status']));
+        }
+
+        if ($request->has('built_in_units')) {
+            $rawBuiltIn = $request->input('built_in_units');
+            if (is_string($rawBuiltIn)) {
+                $rawBuiltIn = json_decode($rawBuiltIn, true) ?: [];
+            }
+            if (is_array($rawBuiltIn)) {
+                $validated['built_in_units'] = array_values(array_filter($rawBuiltIn, fn($val) => !empty($val)));
+            } else {
+                $validated['built_in_units'] = null;
+            }
         }
 
         $oldTypeId = $unit->equipment_type_id;

@@ -162,6 +162,11 @@ function BorrowSlotBarcodeSelector({
                       {bCode}
                     </span>
                     <span className="text-slate-700 truncate max-w-[180px]">{uName}</span>
+                    {Array.isArray(unit.built_in_units) && unit.built_in_units.length > 0 && (
+                      <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200 shrink-0">
+                        {unit.built_in_units.length} Built-in
+                      </span>
+                    )}
                   </div>
                   {isSelected && (
                     <span className="flex items-center gap-1 text-[11px] font-bold text-emerald-600">
@@ -185,6 +190,7 @@ export default function EquipBorrowUnitAssignment({
   selected,
   categoriesToRender,
   getAvailableUnitsForCategory,
+  allUnits = [],
   assignedUnitSelections,
   setAssignedUnitSelections,
   isApproved,
@@ -204,6 +210,47 @@ export default function EquipBorrowUnitAssignment({
   handleSendOverdueSms,
 }) {
   const borrowingOfficeId = selected?.office_id || selected?.office?.id || (selected?.items && selected.items[0]?.equipment_type?.office_id);
+
+  const getBuiltInUnitsForBarcode = (barcodeVal) => {
+    if (!barcodeVal || barcodeVal === "—") return [];
+    const cleanBarcode = String(barcodeVal).trim().toUpperCase();
+
+    const unit = (allUnits || []).find((u) => {
+      const b = String(u.barcode || u.serial_number || u.code || u.id).trim().toUpperCase();
+      return b === cleanBarcode;
+    });
+
+    if (!unit) return [];
+
+    const rawList = Array.isArray(unit.built_in_units)
+      ? unit.built_in_units
+      : (typeof unit.built_in_units === "string" ? JSON.parse(unit.built_in_units || "[]") : []);
+
+    if (!Array.isArray(rawList) || rawList.length === 0) return [];
+
+    return rawList.map((biId) => {
+      const match = (allUnits || []).find((u) =>
+        String(u.id) === String(biId) ||
+        String(u.barcode).trim().toUpperCase() === String(biId).trim().toUpperCase()
+      );
+      if (match) {
+        const catName = match.equipmentType?.eq_name || match.equipment_type?.eq_name || match.category || "";
+        const uName = match.name || [match.brand, match.model].filter(Boolean).join(" ") || "Unit";
+        return {
+          id: match.id,
+          barcode: match.barcode || `UNIT-${match.id}`,
+          name: uName,
+          category: catName,
+        };
+      }
+      return {
+        id: biId,
+        barcode: String(biId),
+        name: `Physical Unit #${biId}`,
+        category: "",
+      };
+    }).filter(Boolean);
+  };
 
   // Check if all requested units have been assigned
   let totalRequestedUnits = 0;
@@ -334,6 +381,45 @@ export default function EquipBorrowUnitAssignment({
                                 }
                               }}
                             />
+
+                            {/* Built-in physical units linked to selected physical unit */}
+                            {val && (() => {
+                              const slotBuiltIns = getBuiltInUnitsForBarcode(val);
+                              if (!slotBuiltIns || slotBuiltIns.length === 0) return null;
+                              return (
+                                <div className="mt-1.5 p-2.5 rounded-xl bg-blue-50/70 border border-blue-200/80 space-y-1.5 animate-in fade-in">
+                                  <div className="flex items-center justify-between text-[11px] font-extrabold text-blue-950">
+                                    <span className="flex items-center gap-1.5">
+                                      <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse"></span>
+                                      Built-in to [{val}]
+                                    </span>
+                                    <span className="text-[10px] font-bold text-blue-700 bg-white border border-blue-200 px-2 py-0.5 rounded-full shadow-2xs">
+                                      {slotBuiltIns.length} {slotBuiltIns.length === 1 ? "Unit" : "Units"} Linked
+                                    </span>
+                                  </div>
+                                  <div className="flex flex-col gap-1 pt-0.5">
+                                    {slotBuiltIns.map((biUnit, biIdx) => (
+                                      <div
+                                        key={biIdx}
+                                        className="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-white border border-blue-200 text-slate-800 text-xs font-semibold shadow-2xs"
+                                      >
+                                        <div className="flex items-center gap-2">
+                                          <span className="font-mono font-bold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200 text-[11px]">
+                                            {biUnit.barcode}
+                                          </span>
+                                          <span className="text-slate-800 font-bold">{biUnit.name}</span>
+                                        </div>
+                                        {biUnit.category && (
+                                          <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                                            {biUnit.category}
+                                          </span>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              );
+                            })()}
                           </div>
                         );
                       })}
@@ -407,41 +493,76 @@ export default function EquipBorrowUnitAssignment({
                     if (isCompleted) {
                       if (resolvedCond) {
                         displayCond = resolvedCond;
-                      } else if (inspectionStatus === "lost") {
-                        displayCond = "Lost";
-                      } else if (inspectionStatus === "violation") {
-                        displayCond = "Damaged";
-                      } else if (timeliness === "late") {
-                        displayCond = "Late Return";
                       } else {
                         displayCond = "Complete";
                       }
                     }
 
-                    return (
-                      <div key={uIdx} className="flex flex-col sm:flex-row sm:items-center justify-between p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-800 gap-2">
-                        <span>Unit {uIdx + 1}</span>
-                        <div className="flex items-center gap-1.5 flex-wrap justify-end">
-                          <span className={`px-2 py-0.5 rounded-lg border font-extrabold ${
-                            val && val !== "—"
-                              ? "bg-white border-slate-200 text-blue-700 shadow-xs"
-                              : "bg-amber-100/60 border-amber-300 text-amber-800"
-                          }`}>
-                            {val || "Unassigned"}
-                          </span>
+                    const slotBuiltIns = getBuiltInUnitsForBarcode(val);
 
-                          {displayCond && val && val !== "—" && (
-                            <span className={`px-2 py-0.5 rounded-lg border font-extrabold shadow-xs ${
-                              ['good', 'clean', 'complete'].includes(displayCond.toLowerCase())
-                                ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                                : displayCond.toLowerCase() === 'late return' || displayCond.toLowerCase() === 'late'
-                                ? "bg-amber-50 text-amber-700 border-amber-200"
-                                : "bg-rose-50 text-rose-700 border-rose-200"
+                    return (
+                      <div key={uIdx} className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between text-xs font-mono font-bold text-slate-800 gap-2">
+                          <span>Unit {uIdx + 1}</span>
+                          <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                            <span className={`px-2 py-0.5 rounded-lg border font-extrabold ${
+                              val && val !== "—"
+                                ? "bg-white border-slate-200 text-blue-700 shadow-xs"
+                                : "bg-amber-100/60 border-amber-300 text-amber-800"
                             }`}>
-                              {displayCond}
+                              {val || "Unassigned"}
                             </span>
-                          )}
+
+                            {displayCond && val && val !== "—" && (
+                              <span className={`px-2 py-0.5 rounded-lg border font-extrabold shadow-xs ${
+                                ['good', 'clean', 'complete'].includes(displayCond.toLowerCase())
+                                  ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                  : displayCond.toLowerCase() === 'late return' || displayCond.toLowerCase() === 'late'
+                                  ? "bg-amber-50 text-amber-700 border-amber-200"
+                                  : "bg-rose-50 text-rose-700 border-rose-200"
+                              }`}>
+                                {displayCond}
+                              </span>
+                            )}
+                          </div>
                         </div>
+
+                        {slotBuiltIns.length > 0 && (
+                          <div className="pt-1.5 border-t border-slate-200/80 space-y-1">
+                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                              Built-in Linked Units ({slotBuiltIns.length}):
+                            </span>
+                            <div className="flex flex-wrap gap-1.5">
+                              {slotBuiltIns.map((biUnit, biIdx) => {
+                                const biCond = (isCompleted && biUnit.barcode) ? (unitReturnedConditions[biUnit.barcode] || "Complete") : null;
+                                const isBiLost = biCond && biCond.toLowerCase() === "lost";
+                                const isBiDamaged = biCond && biCond.toLowerCase() === "damaged";
+                                return (
+                                  <span
+                                    key={biIdx}
+                                    className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border text-[11px] font-medium shadow-2xs ${
+                                      isBiLost
+                                        ? "bg-rose-100 text-rose-900 border-rose-300 font-bold"
+                                        : isBiDamaged
+                                        ? "bg-rose-50 text-rose-700 border-rose-200 font-bold"
+                                        : "bg-white border-slate-200 text-slate-700"
+                                    }`}
+                                  >
+                                    <span className="font-mono font-bold text-blue-600 bg-blue-50 px-1 py-0.2 rounded border border-blue-100 text-[10px]">
+                                      {biUnit.barcode}
+                                    </span>
+                                    <span>{biUnit.name}</span>
+                                    {biCond && biCond.toLowerCase() !== "complete" && biCond.toLowerCase() !== "good" && (
+                                      <span className={`text-[10px] uppercase font-black px-1.5 py-0.2 rounded ${isBiLost ? "bg-rose-900 text-white" : "bg-rose-600 text-white"}`}>
+                                        {biCond}
+                                      </span>
+                                    )}
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     );
                   })}

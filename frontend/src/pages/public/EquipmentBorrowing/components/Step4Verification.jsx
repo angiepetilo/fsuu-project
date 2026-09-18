@@ -22,13 +22,23 @@ export default function Step4Verification({
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   // Find selected equipment item details
   const selectedDetails = selectedItems.map(id => {
-    const found = catalog.find(c => c.id === id);
+    const found = catalog.find(c => String(c.id) === String(id));
     const qty = itemQuantities[id] || 1;
+    const rawBuilt = Array.isArray(found?.built_in_units) ? found.built_in_units : [];
+    const builtInNames = rawBuilt.map(raw => {
+      const match = catalog.find(
+        cat => String(cat.id) === String(raw) ||
+               (cat.name || cat.eq_name || '').toLowerCase() === String(raw).toLowerCase()
+      );
+      return match ? (match.name || match.eq_name) : String(raw);
+    }).filter(Boolean);
+
     return {
       id,
-      name: found?.name || `Equipment Item #${id}`,
+      name: found?.name || found?.eq_name || `Equipment Item #${id}`,
       dept: found?.dept || "avr",
       quantity: qty,
+      builtInNames,
     };
   });
 
@@ -78,6 +88,16 @@ export default function Step4Verification({
                   <div>
                     <h5 className="font-extrabold text-slate-900 text-xs truncate max-w-[200px]">{item.name}</h5>
                     <span className="text-[10px] font-semibold text-slate-500">{item.quantity} physical unit{item.quantity === 1 ? '' : 's'}</span>
+                    {item.builtInNames && item.builtInNames.length > 0 && (
+                      <div className="flex items-center flex-wrap gap-1 mt-1">
+                        <span className="text-[10px] font-bold text-slate-600">Built-in:</span>
+                        {item.builtInNames.map((bName, bIdx) => (
+                          <span key={bIdx} className="text-[9.5px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200/80 font-bold">
+                            {bName}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
                 <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />

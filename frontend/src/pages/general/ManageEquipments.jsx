@@ -10,7 +10,7 @@ import {
   FileSpreadsheet
 } from "lucide-react";
 import EquipmentDetailModal from "./components/EquipmentDetailModal";
-import EquipmentModal from "./components/EquipmentModal";
+import EquipmentModal, { generateSequentialBarcodes } from "./components/EquipmentModal";
 import EquipmentImportModal from "./components/EquipmentImportModal";
 import ActionPopover from "@/components/ui/action-popover";
 import { PageLoader } from "@/components/ui/page-loader";
@@ -77,10 +77,10 @@ export default function ManageEquipments() {
     category: "",
     date_purchased: new Date().toISOString().split("T")[0],
     lifespan_years: "5",
-    total_units: "1",
     status: "available",
     condition: "Good",
     description: "",
+    built_in_units: [""],
   });
 
   const [editFormData, setEditFormData] = useState({
@@ -90,10 +90,10 @@ export default function ManageEquipments() {
     category: "",
     date_purchased: "2026-03-15",
     lifespan_years: "5",
-    total_units: "1",
     status: "available",
     condition: "Good",
     description: "",
+    built_in_units: [""],
   });
 
   const [isSyncing, setIsSyncing] = useState(false);
@@ -165,6 +165,7 @@ export default function ManageEquipments() {
           date_purchased: u.purchased_at ? u.purchased_at.substring(0, 10) : '2026-01-15',
           lifespan_years: u.eq_lifespan || 5,
           description: u.description || '',
+          built_in_units: Array.isArray(u.built_in_units) ? u.built_in_units : [],
         };
       }));
 
@@ -216,6 +217,7 @@ export default function ManageEquipments() {
       date_purchased: new Date().toISOString().split("T")[0],
       lifespan_years: 5,
       description: "",
+      built_in_units: [""],
     });
 
     setIsSubmitting(false);
@@ -230,14 +232,16 @@ export default function ManageEquipments() {
     }
 
     const enteredBarcode = (formData.barcode || "").trim();
+
+    // Duplicate check
     if (enteredBarcode) {
-      const duplicateUnit = units.find(u =>
+      const duplicateBarcode = units.find(u =>
         (u.barcode || "").trim().toLowerCase() === enteredBarcode.toLowerCase()
       );
-      if (duplicateUnit) {
+      if (duplicateBarcode) {
         notify.error(
           "Duplicate Barcode",
-          `Barcode "${enteredBarcode}" is already assigned to "${duplicateUnit.name || duplicateUnit.brand || 'another unit'}". Every unit must have a unique barcode.`
+          `Barcode "${enteredBarcode}" is already assigned to an equipment unit. Every unit must have a unique barcode.`
         );
         return;
       }
@@ -257,15 +261,16 @@ export default function ManageEquipments() {
 
     const brandModel = [formData.brand, formData.model].filter(Boolean).join(' ');
     const unitDisplayName = brandModel || matchedCat.eq_name || matchedCat.name || 'Unit';
+    const validBuiltIns = (formData.built_in_units || []).filter(Boolean);
 
-    // ── OPTIMISTIC: add a placeholder row immediately ─────────────────────────
+    // ── OPTIMISTIC: add placeholder row immediately ─────────────────────────
     const tempId = `temp-${Date.now()}`;
     const optimisticUnit = {
       id: tempId,
       equipment_type_id: matchedCat.id,
       brand: formData.brand || "",
       model: formData.model || "",
-      barcode: formData.barcode || `BC-${Date.now().toString().slice(-6)}`,
+      barcode: enteredBarcode || `BC-${Date.now().toString().slice(-6)}`,
       name: unitDisplayName,
       category: matchedCat.eq_name || matchedCat.name || "AV Equipment",
       status: "Available",
@@ -274,9 +279,11 @@ export default function ManageEquipments() {
       total_count: 1,
       date_purchased: formData.date_purchased,
       lifespan_years: parseInt(formData.lifespan_years, 10) || 5,
-      description: formData.description || "",
+      description: "",
+      built_in_units: validBuiltIns,
       _optimistic: true,
     };
+
     const prevUnits = units;
     setUnits(prev => [...prev, optimisticUnit]);
     setShowAddModal(false);
@@ -287,26 +294,51 @@ export default function ManageEquipments() {
         equipment_type_id: matchedCat.id,
         brand: formData.brand || undefined,
         model: formData.model || undefined,
-        barcode: formData.barcode || optimisticUnit.barcode,
+        barcode: enteredBarcode,
         purchased_at: formData.date_purchased || undefined,
         eq_lifespan: parseInt(formData.lifespan_years, 10) || 5,
         status: formData.status || "available",
         condition: formData.condition || "Good",
-        description: formData.description || undefined,
+        built_in_units: validBuiltIns,
       };
 
       const res = await api.post("/general/equipment-units", payload);
       const saved = res.data;
 
-      // Replace temp row with real data from server
-      setUnits(prev => prev.map(u =>
-        u.id === tempId
-          ? { ...optimisticUnit, id: saved.id, barcode: saved.barcode || optimisticUnit.barcode, _optimistic: false }
-          : u
-      ));
+      if (saved?.id) {
+        setUnits(prev => prev.map(u =>
+          u.id === tempId
+            ? {
+                ...optimisticUnit,
+                id: saved.id,
+                barcode: saved.barcode || optimisticUnit.barcode,
+                built_in_units: Array.isArray(saved.built_in_units) ? saved.built_in_units : validBuiltIns,
+                _optimistic: false,
+              }
+            : u
+        ));
+      }
 
-      notify.success("Equipment Unit Added", `"${unitDisplayName}" registered under ${matchedCat.eq_name || matchedCat.name}.`);
-      setFormData({ brand: "", model: "", barcode: "", category: matchedCat.eq_name || matchedCat.name || "", status: "available", condition: "Good", date_purchased: new Date().toISOString().split("T")[0], lifespan_years: 5, description: "" });
+      notify.success(
+        "Equipment Unit Added",
+        `Physical unit "${unitDisplayName}" registered under ${matchedCat.eq_name || matchedCat.name}.`
+      );
+
+      setFormData({
+        brand: "",
+        model: "",
+        barcode: "",
+        category: matchedCat.eq_name || matchedCat.name || "",
+        status: "available",
+        condition: "Good",
+        date_purchased: new Date().toISOString().split("T")[0],
+        lifespan_years: 5,
+        description: "",
+        built_in_units: [""],
+      });
+
+      // Background sync
+      fetchEquipments(true);
     } catch (err) {
       // Rollback
       setUnits(prevUnits);
@@ -346,6 +378,7 @@ export default function ManageEquipments() {
 
     const brandModel = [editFormData.brand, editFormData.model].filter(Boolean).join(' ');
     const unitDisplayName = brandModel || matchedCat.eq_name || matchedCat.name || 'Unit';
+    const validBuiltIns = (editFormData.built_in_units || []).filter(Boolean);
 
     // ── OPTIMISTIC: update row immediately ────────────────────────────────────
     const prevUnits = units;
@@ -359,6 +392,7 @@ export default function ManageEquipments() {
       condition: editFormData.condition || "Good",
       date_purchased: editFormData.date_purchased,
       lifespan_years: parseInt(editFormData.lifespan_years, 10) || 5,
+      built_in_units: validBuiltIns,
       description: editFormData.description,
       _optimistic: true,
     };
@@ -376,6 +410,7 @@ export default function ManageEquipments() {
         eq_lifespan: parseInt(editFormData.lifespan_years, 10) || 5,
         status: editFormData.status || "available",
         condition: editFormData.condition || "Good",
+        built_in_units: validBuiltIns,
         description: editFormData.description,
       };
       await api.put(`/general/equipment-units/${editingItem.id}`, payload);
@@ -663,10 +698,10 @@ export default function ManageEquipments() {
                                   category: item.category || "",
                                   date_purchased: item.date_purchased || "",
                                   lifespan_years: String(item.lifespan_years || 5),
-                                  total_units: "1",
                                   status: item.status || "available",
                                   condition: item.condition || "Good",
                                   description: item.description || "",
+                                  built_in_units: Array.isArray(item.built_in_units) && item.built_in_units.length > 0 ? item.built_in_units : [""],
                                 });
                               }}
                               className="w-full px-3.5 py-2 text-left text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white flex items-center gap-2.5 transition-colors cursor-pointer"
@@ -756,6 +791,7 @@ export default function ManageEquipments() {
       <EquipmentDetailModal
         selectedItem={selectedItem}
         setSelectedItem={setSelectedItem}
+        allUnits={units}
       />
 
       {/* Bulk CSV Import Modal */}

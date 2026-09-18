@@ -113,6 +113,34 @@ export default function BookingBorrowingReportTab({
       );
     }
 
+    if (s === "LOST") {
+      const note = record.inspection_notes || record.notes || record.violation || record.violation_type || "";
+      return (
+        <div className="flex flex-col items-center justify-center gap-1 max-w-[220px] mx-auto text-center py-1">
+          <span className="text-[11px] font-bold text-rose-600">Lost</span>
+          {note && note !== "Returned safely in good condition." && (
+            <span className="text-[10px] text-slate-500 font-medium italic leading-tight" title={note}>
+              {note.length > 50 ? note.substring(0, 50) + "..." : note}
+            </span>
+          )}
+        </div>
+      );
+    }
+
+    if (s === "DAMAGED") {
+      const note = record.inspection_notes || record.notes || record.violation || record.violation_type || "";
+      return (
+        <div className="flex flex-col items-center justify-center gap-1 max-w-[220px] mx-auto text-center py-1">
+          <span className="text-[11px] font-bold text-rose-600">Damaged</span>
+          {note && note !== "Returned safely in good condition." && (
+            <span className="text-[10px] text-slate-500 font-medium italic leading-tight" title={note}>
+              {note.length > 50 ? note.substring(0, 50) + "..." : note}
+            </span>
+          )}
+        </div>
+      );
+    }
+
     let rawNote =
       record.inspection_notes ||
       record.notes ||
@@ -291,12 +319,28 @@ export default function BookingBorrowingReportTab({
                     eb.track_number ||
                     eb.reference_code ||
                     `EQ-2026-${String(eb.id || idx + 1).padStart(5, "0")}`;
+                  let hasLostInUnits = false;
+                  let hasDamagedInUnits = false;
+                  if (eb.unit_conditions) {
+                    let uConds = eb.unit_conditions;
+                    if (typeof uConds === "string") {
+                      try { uConds = JSON.parse(uConds); } catch {}
+                    }
+                    if (typeof uConds === "object" && uConds !== null) {
+                      Object.values(uConds).forEach((val) => {
+                        const c = String(typeof val === "object" && val !== null ? (val.condition || val.status || "") : val).toLowerCase();
+                        if (c === "lost") hasLostInUnits = true;
+                        if (c === "damaged") hasDamagedInUnits = true;
+                      });
+                    }
+                  }
+
                   let status = eb.tracking_number?.status || eb.status || "PENDING";
-                  if (eb.is_lost || String(eb.inspection_condition).toLowerCase() === 'lost') {
+                  if (eb.is_lost || String(eb.inspection_condition).toLowerCase() === "lost" || hasLostInUnits || String(status).toUpperCase() === "LOST") {
                     status = "LOST";
-                  } else if (eb.has_damage || String(eb.inspection_condition).toLowerCase() === 'damaged') {
+                  } else if (eb.has_damage || String(eb.inspection_condition).toLowerCase() === "damaged" || hasDamagedInUnits || String(status).toUpperCase() === "DAMAGED") {
                     status = "DAMAGED";
-                  } else if (eb.is_late || String(status).toUpperCase() === 'LATE RETURN' || String(status).toUpperCase() === 'RETURNED LATE' || String(eb.timeliness).toLowerCase() === 'late') {
+                  } else if (eb.is_late || String(status).toUpperCase() === "LATE RETURN" || String(status).toUpperCase() === "RETURNED LATE" || String(eb.timeliness).toLowerCase() === "late") {
                     status = "LATE RETURN";
                   } else if (eb.inspection_condition) {
                     status = (eb.inspection_condition === "good" || eb.inspection_condition === "clean") ? "COMPLETED" : eb.inspection_condition;

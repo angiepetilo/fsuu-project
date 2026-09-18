@@ -7,7 +7,9 @@ import { validatePhilippineMobile } from "@/lib/phoneValidation";
 export default function Step3Details({
   identity,
   primaryDept,
-  selectedItems,
+  selectedItems = [],
+  catalog = [],
+  itemQuantities = {},
   handleDetailsSubmit,
   firstName, setFirstName,
   middleName, setMiddleName,
@@ -264,15 +266,68 @@ export default function Step3Details({
 
   const isExternal = (identity || "").toLowerCase() === "external";
 
+  // Compute category information for selected equipment items
+  const selectedCategoryItems = (selectedItems || []).map((id) => {
+    const item = (catalog || []).find((c) => String(c.id) === String(id));
+    const name = item?.name || item?.eq_name || item?.category || `Equipment #${id}`;
+    const qty = itemQuantities[id] || 1;
+    const builtInList = Array.isArray(item?.built_in_units) ? item.built_in_units : [];
+    return {
+      id,
+      name,
+      qty,
+      rawBuiltIns: builtInList,
+    };
+  });
+
+  // e.g. "Projector" or "Projector (2)" or "Projector, Camera"
+  const selectedCategoryNames = selectedCategoryItems.length > 0
+    ? selectedCategoryItems.map((c) => c.qty > 1 ? `${c.name} (${c.qty})` : c.name).join(", ")
+    : "None";
+
+  // Resolve built-in units names from catalog
+  const builtInNamesSet = new Set();
+  selectedCategoryItems.forEach((c) => {
+    c.rawBuiltIns.forEach((raw) => {
+      const match = (catalog || []).find(
+        (cat) => String(cat.id) === String(raw) ||
+                 (cat.name || cat.eq_name || "").toLowerCase() === String(raw).toLowerCase()
+      );
+      if (match) {
+        builtInNamesSet.add(match.name || match.eq_name || String(raw));
+      } else if (raw) {
+        builtInNamesSet.add(String(raw));
+      }
+    });
+  });
+  const builtInNamesList = Array.from(builtInNamesSet);
+
   return (
     <div className="p-6 sm:p-8 animate-in slide-in-from-top-2 duration-300">
       {/* Context Banner matching Venue Booking header */}
-      <div className="p-4 sm:p-5 rounded-2xl mb-6 border flex items-center justify-between bg-blue-50/90 border-blue-200 text-blue-950 shadow-2xs">
+      <div className="p-4 sm:p-5 rounded-2xl mb-6 border bg-blue-50/90 border-blue-200 text-blue-950 shadow-2xs">
         <div>
           <h4 className="font-black text-sm tracking-tight text-slate-900">Borrowing Form</h4>
-          <p className="text-xs text-blue-900 font-semibold mt-0.5">
-            Total Selected: <span className="font-extrabold text-blue-700">{selectedItems.length} Equipment Unit{selectedItems.length > 1 ? 's' : ''}</span> | Schedule: <span className="font-extrabold text-blue-700">{formatScheduleDisplay(startTime, endTime)}</span>
-          </p>
+          <div className="text-xs text-blue-900 font-semibold mt-0.5 space-y-1.5">
+            <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <span>Total Selected: <span className="font-extrabold text-blue-700">{selectedCategoryNames}</span></span>
+              <span className="text-blue-300">|</span>
+              <span>Schedule: <span className="font-extrabold text-blue-700">{formatScheduleDisplay(startTime, endTime)}</span></span>
+            </p>
+            {builtInNamesList.length > 0 && (
+              <div className="flex items-center flex-wrap gap-1.5 pt-1 border-t border-blue-200/60">
+                <span className="text-slate-700 font-extrabold text-xs">Built-in:</span>
+                {builtInNamesList.map((bName, idx) => (
+                  <span
+                    key={idx}
+                    className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-blue-100/90 text-blue-900 text-[11px] font-bold border border-blue-300/80 shadow-2xs"
+                  >
+                    {bName}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

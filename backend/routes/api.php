@@ -441,6 +441,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/avr-equipment-borrowings/{equipmentBorrowing}/reject',  [EquipmentBorrowingController::class, 'reject']);
     Route::post('/avr-equipment-borrowings/{equipmentBorrowing}/notify-urgent', [EquipmentBorrowingController::class, 'notifyUrgent']);
     Route::post('/avr-equipment-borrowings/{equipmentBorrowing}/ongoing', [EquipmentBorrowingController::class, 'ongoing']);
+    Route::post('/avr-equipment-borrowings/{equipmentBorrowing}/inspection', [EquipmentBorrowingController::class, 'inspection']);
     Route::post('/avr-equipment-borrowings/{equipmentBorrowing}/complete',[EquipmentBorrowingController::class, 'complete']);
     Route::post('/avr-equipment-borrowings/{equipmentBorrowing}/undo',    [EquipmentBorrowingController::class, 'undo']);
     Route::post('/avr-equipment-borrowings/{equipmentBorrowing}/cancel',  [EquipmentBorrowingController::class, 'cancel']);

@@ -4,8 +4,13 @@ export default function EquipmentDetailModal({
   selectedItem,
   setSelectedItem,
   handleOpenEditModal,
+  allUnits = [],
 }) {
   if (!selectedItem) return null;
+
+  const builtInUnitsList = Array.isArray(selectedItem.built_in_units)
+    ? selectedItem.built_in_units.filter(Boolean)
+    : [];
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 sm:p-6 overflow-y-auto animate-in fade-in duration-200">
@@ -67,6 +72,47 @@ export default function EquipmentDetailModal({
             </div>
 
           </div>
+
+          {/* Built-in Physical Units */}
+          {builtInUnitsList.length > 0 && (
+            <div className="p-4 bg-slate-50/80 border border-slate-200/80 rounded-2xl space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                  Built-in Physical Units ({builtInUnitsList.length})
+                </span>
+                <span className="text-[10px] font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-lg border border-blue-100">
+                  Linked Inventory
+                </span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {builtInUnitsList.map((unitId, idx) => {
+                  const found = (allUnits || []).find(
+                    (u) => String(u.id) === String(unitId) || String(u.barcode) === String(unitId)
+                  );
+                  return (
+                    <div
+                      key={idx}
+                      className="flex items-center gap-2.5 p-2.5 rounded-xl bg-white border border-slate-200 shadow-2xs text-slate-800"
+                    >
+                      <span className="px-2 py-0.5 bg-blue-50 border border-blue-200 text-blue-700 font-mono text-[11px] font-bold rounded-lg">
+                        {found?.barcode || `#${unitId}`}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <span className="font-bold text-xs text-slate-900 truncate block">
+                          {found?.name || "Physical Unit"}
+                        </span>
+                        {found?.category && (
+                          <span className="text-[10px] text-slate-400 font-medium truncate block">
+                            {found.category}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Description */}
           {selectedItem.description && (

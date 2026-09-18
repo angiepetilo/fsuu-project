@@ -224,13 +224,6 @@ class ListingController extends Controller
             $operational = (int)($e->calculated_operational ?? 0);
             $availableNow = (int)($e->calculated_available ?? 0);
 
-            // Fallback to equipment_types table numbers if no serialized physical units are linked
-            if ($total === 0) {
-                $total = (int)($e->total_quantity ?? 0);
-                $operational = max(0, $total - (int)($e->damaged_count ?? 0) - (int)($e->lost_count ?? 0));
-                $availableNow = (int)($e->available_count ?? $operational);
-            }
-
             $typeKey = strtoupper(trim((string)$e->id));
             $typeNameKey = strtoupper(trim((string)($e->name ?? $e->eq_name ?? '')));
 
@@ -245,6 +238,12 @@ class ListingController extends Controller
             } else {
                 $avail = $availableNow;
             }
+
+            $rawBuilt = $e->built_in_units;
+            if (is_string($rawBuilt)) {
+                $rawBuilt = json_decode($rawBuilt, true) ?: [];
+            }
+            $builtInUnits = is_array($rawBuilt) ? array_values(array_filter($rawBuilt, fn($v) => !empty($v))) : [];
 
             return [
                 'id'              => $e->id,
@@ -261,6 +260,7 @@ class ListingController extends Controller
                 'reserved_count'  => (int)$venueCommitted,
                 'status'          => $avail > 0 ? 'available' : 'unavailable',
                 'dept'            => 'avr',
+                'built_in_units'  => $builtInUnits,
             ];
         });
 

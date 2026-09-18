@@ -121,9 +121,11 @@ export default function EquipBorrowHeader({
                     ? "text-emerald-600"
                     : currentStatus === "ongoing" || currentStatus === "on-going"
                     ? "text-blue-600"
+                    : currentStatus === "inspection" || currentStatus === "post-inspection"
+                    ? "text-purple-600"
                     : currentStatus === "completed" || currentStatus === "returned"
                     ? "text-slate-800"
-                    : currentStatus === "damaged" || currentStatus === "rejected"
+                    : currentStatus === "damaged" || currentStatus === "rejected" || currentStatus === "lost"
                     ? "text-rose-600"
                     : "text-amber-600"
                 }`}

@@ -161,7 +161,7 @@ export default function TrackBooking() {
     if (s === "approved") return 2;
     if (s === "ongoing" || s === "on-going") return 3;
     if (s === "inspection" || s === "post-inspection" || s === "post-event-inspection") return 4;
-    if (s === "completed") return 5;
+    if (s === "completed" || s === "complete" || s === "done" || s === "cleared" || s === "damaged" || s === "lost" || s === "late-return" || s === "returned-late") return 5;
     return 1;
   };
 
@@ -171,15 +171,48 @@ export default function TrackBooking() {
     if (s === "approved" || s === "claim" || s === "claimed" || s === "ready-to-claim") return 2;
     if (s === "ongoing" || s === "on-going" || s === "released" || s === "in-use" || s === "borrowed") return 3;
     if (s === "return" || s === "returned" || s === "inspection" || s === "post-inspection") return 4;
-    if (s === "completed" || s === "done" || s === "cleared") return 5;
+    if (s === "completed" || s === "complete" || s === "done" || s === "cleared" || s === "damaged" || s === "lost" || s === "late-return" || s === "returned-late") return 5;
     return 1;
   };
 
-  const activeStatus = booking?.status || booking?.tracking_number?.status || "pending";
-  const isCompletedBooking = ['completed', 'done', 'cleared'].includes((activeStatus || '').toLowerCase());
+  const rawStatus = (booking?.status || booking?.tracking_number?.status || "pending").toLowerCase();
+
+  // Check if lost or damaged items exist on this booking
+  let hasLost = rawStatus === 'lost' || Boolean(booking?.is_lost) || String(booking?.condition || '').toLowerCase() === 'lost' || String(booking?.inspection_condition || '').toLowerCase() === 'lost';
+  let hasDamaged = rawStatus === 'damaged' || Boolean(booking?.has_damage) || String(booking?.condition || '').toLowerCase() === 'damaged' || String(booking?.inspection_condition || '').toLowerCase() === 'damaged';
+
+  if (booking?.unit_conditions) {
+    let uConds = booking.unit_conditions;
+    if (typeof uConds === 'string') { try { uConds = JSON.parse(uConds); } catch {} }
+    if (typeof uConds === 'object' && uConds !== null) {
+      Object.values(uConds).forEach((val) => {
+        const c = String(typeof val === 'object' && val !== null ? (val.condition || val.status || '') : val).toLowerCase();
+        if (c === 'lost') hasLost = true;
+        if (c === 'damaged') hasDamaged = true;
+      });
+    }
+  }
+
+  const isCompletedStage = ['completed', 'complete', 'done', 'cleared', 'damaged', 'lost', 'late return', 'returned late'].includes(rawStatus) || Boolean(booking?.returned_at);
+  const isInspectionStage = ['inspection', 'post-inspection', 'post_inspection'].includes(rawStatus);
+
+  let activeStatus = rawStatus;
+  if (isCompletedStage) {
+    if (hasLost) {
+      activeStatus = 'lost';
+    } else if (hasDamaged) {
+      activeStatus = 'damaged';
+    } else {
+      activeStatus = 'completed';
+    }
+  } else if (isInspectionStage) {
+    activeStatus = 'inspection';
+  }
+
+  const isCompletedBooking = isCompletedStage;
 
   const currentStep = booking
-    ? (isVenue ? getVenueStepIndex(activeStatus) : getEquipmentStepIndex(activeStatus))
+    ? (isVenue ? getVenueStepIndex(rawStatus) : getEquipmentStepIndex(rawStatus))
     : 1;
 
   const venueSteps = [
@@ -222,15 +255,22 @@ export default function TrackBooking() {
   const getRequestedEquipmentList = () => {
     if (!booking) return [];
     if (Array.isArray(booking.items) && booking.items.length > 0) {
-      return booking.items.map(it => ({
-        name: it.equipment_type?.eq_name || it.equipment_type?.name || it.equipment_name || it.category || "Equipment Item",
-        qty: parseInt(it.quantity_requested || it.quantity || 1, 10),
-      }));
+      return booking.items.map(it => {
+        const eqType = it.equipment_type || it.equipmentType;
+        const rawBuilt = eqType?.built_in_names || eqType?.built_in_units || it.built_in_units || [];
+        const builtInNames = Array.isArray(rawBuilt) ? rawBuilt : [];
+        return {
+          name: eqType?.eq_name || eqType?.name || it.equipment_name || it.category || "Equipment Item",
+          qty: parseInt(it.quantity_requested || it.quantity || 1, 10),
+          builtInNames,
+        };
+      });
     }
     if (booking.equipment_name || booking.equipment) {
       return [{
         name: booking.equipment_name || booking.equipment,
         qty: parseInt(booking.quantity || booking.qty || 1, 10),
+        builtInNames: [],
       }];
     }
     return [];
@@ -331,14 +371,28 @@ export default function TrackBooking() {
                     {booking.venue?.name || booking.venue_name || "AVR / Campus Venue"}
                   </span>
                 ) : equipmentItems.length > 0 ? (
-                  <div className="flex flex-wrap gap-1.5 mt-1.5">
+                  <div className="space-y-2 mt-1.5">
                     {equipmentItems.map((item, idx) => (
-                      <span key={idx} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-primary/10 text-primary border border-primary/20 text-xs font-semibold">
-                        <span>{item.name}</span>
-                        <span className="bg-primary text-primary-foreground text-[10px] px-1.5 py-0.2 rounded-full font-bold">
-                          Qty: {item.qty}
-                        </span>
-                      </span>
+                      <div key={idx} className="space-y-1">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-primary/10 text-primary border border-primary/20 text-xs font-semibold">
+                            <span>{item.name}</span>
+                            <span className="bg-primary text-primary-foreground text-[10px] px-1.5 py-0.2 rounded-full font-bold">
+                              Qty: {item.qty}
+                            </span>
+                          </span>
+                        </div>
+                        {item.builtInNames && item.builtInNames.length > 0 && (
+                          <div className="flex items-center flex-wrap gap-1 text-[11px] text-muted-foreground pt-0.5">
+                            <span className="font-bold text-foreground">Built-in:</span>
+                            {item.builtInNames.map((bName, bIdx) => (
+                              <span key={bIdx} className="px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800 text-[10px] font-bold">
+                                {bName}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     ))}
                   </div>
                 ) : (

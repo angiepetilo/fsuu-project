@@ -73,6 +73,24 @@ export default function EquipmentBorrowDetailModal({
 
   // Post-Use Inspection Ready Trigger State
   const [isReadyForPostInspection, setIsReadyForPostInspection] = useState(false);
+  const [startingInspection, setStartingInspection] = useState(false);
+
+  const handleStartInspection = async () => {
+    setIsReadyForPostInspection(true);
+    setStartingInspection(true);
+    try {
+      await api.post(`/avr-equipment-borrowings/${selected.id}/inspection`);
+      if (selected) {
+        const ut = selected.tracking_number ? { ...selected.tracking_number, status: "inspection" } : { status: "inspection" };
+        setSelected({ ...selected, status: "inspection", tracking_number: ut, trackingNumber: ut });
+      }
+      handleAction(selected.id, "inspection");
+    } catch (err) {
+      console.warn("Failed to set inspection status:", err);
+    } finally {
+      setStartingInspection(false);
+    }
+  };
 
   // Email resend state
   const [resendLoading, setResendLoading] = useState(false);
@@ -123,21 +141,37 @@ export default function EquipmentBorrowDetailModal({
         const dbType = (dbEquipmentTypes || []).find(t => String(t.id) === String(item.equipment_type_id)) || item.equipment_type || item.equipmentType;
         const name = dbType?.eq_name || dbType?.name || item.equipment_type?.eq_name || item.equipment_type?.name || item.equipmentType?.eq_name || item.equipmentType?.name || item.equipment_name || item.name || "Equipment Item";
         const reqQty = parseInt(item.quantity_requested || item.quantity || 1, 10);
+        const rawBuilt = dbType?.built_in_names || dbType?.built_in_units || item.equipment_type?.built_in_names || item.equipment_type?.built_in_units || item.equipmentType?.built_in_names || item.equipmentType?.built_in_units || [];
+        const builtInList = Array.isArray(rawBuilt) ? rawBuilt : (typeof rawBuilt === 'string' ? JSON.parse(rawBuilt || '[]') : []);
+
+        const builtInNames = builtInList.map((bi) => {
+          const match = (dbEquipmentTypes || []).find(t => String(t.id) === String(bi) || (t.eq_name || t.name || '').toLowerCase() === String(bi).toLowerCase());
+          return match ? (match.eq_name || match.name) : String(bi);
+        }).filter(Boolean);
 
         return {
           category: name,
           quantity: Math.max(reqQty, 1),
           equipment_type_id: item.equipment_type_id || dbType?.id || item.equipment_type?.id || item.equipmentType?.id,
+          builtInNames,
         };
       });
     } else if (selected.equipment_name || selected.equipment) {
       const name = selected.equipment_name || selected.equipment;
       const reqQty = parseInt(selected.quantity || selected.qty || 1, 10);
+      const matchedDb = (dbEquipmentTypes || []).find(t => String(t.id) === String(selected.equipment_type_id) || (t.eq_name || t.name || '').toLowerCase() === String(name).toLowerCase());
+      const rawBuilt = matchedDb?.built_in_names || matchedDb?.built_in_units || [];
+      const builtInList = Array.isArray(rawBuilt) ? rawBuilt : [];
+      const builtInNames = builtInList.map((bi) => {
+        const match = (dbEquipmentTypes || []).find(t => String(t.id) === String(bi) || (t.eq_name || t.name || '').toLowerCase() === String(bi).toLowerCase());
+        return match ? (match.eq_name || match.name) : String(bi);
+      }).filter(Boolean);
 
       categories = [{
         category: name,
         quantity: Math.max(reqQty, 1),
-        equipment_type_id: selected.equipment_type_id,
+        equipment_type_id: selected.equipment_type_id || matchedDb?.id,
+        builtInNames,
       }];
     }
     return categories;
@@ -370,12 +404,23 @@ export default function EquipmentBorrowDetailModal({
 
   const requestedCategories = getRequestedCategories();
 
-  const currentStatus = (selected?.status || selected?.tracking_number?.status || "").toLowerCase();
+  const rawStatus = (selected?.status || selected?.tracking_number?.status || "").toLowerCase();
+  const currentStatus = isReadyForPostInspection ? "inspection" : rawStatus;
   const isPending = currentStatus === "pending";
   const isApproved = currentStatus === "approved";
   const isOngoing = currentStatus === "ongoing" || currentStatus === "on-going";
+  const isInspection = currentStatus === "inspection" || currentStatus === "post-inspection";
   const isCompleted = currentStatus === "completed" || currentStatus === "done" || currentStatus === "returned" || currentStatus === "damaged" || currentStatus === "lost" || currentStatus === "late return" || currentStatus === "returned late";
-  const isPostUseEligible = isOngoing || isCompleted;
+  const isPostUseEligible = isOngoing || isInspection || isCompleted;
+
+  const hasLostUnits = Boolean(selected?.is_lost) || String(selected?.condition || '').toLowerCase() === 'lost' || String(selected?.inspection_condition || '').toLowerCase() === 'lost' || Object.values(unitReturnedConditions || {}).some(v => String(v).toLowerCase() === 'lost');
+  const hasDamagedUnits = Boolean(selected?.has_damage) || String(selected?.condition || '').toLowerCase() === 'damaged' || String(selected?.inspection_condition || '').toLowerCase() === 'damaged' || Object.values(unitReturnedConditions || {}).some(v => String(v).toLowerCase() === 'damaged');
+
+  const headerStatus = isReadyForPostInspection
+    ? "inspection"
+    : (isCompleted
+      ? (hasLostUnits ? "lost" : (hasDamagedUnits ? "damaged" : "completed"))
+      : rawStatus);
 
   const formatDateTimeFiled = formatDateTime;
 
@@ -784,7 +829,7 @@ export default function EquipmentBorrowDetailModal({
           const idxKey = `${catIdx}-${uIdx}`;
           const catKey = `${catName}-${uIdx}`;
           const bCode = (assignedUnitSelections[idxKey] || assignedUnitSelections[catKey]) ? String(assignedUnitSelections[idxKey] || assignedUnitSelections[catKey]).trim() : "";
-          const condChoice = normalizedConditions[bCode] || unitReturnedConditions[idxKey] || unitReturnedConditions[catKey] || (isLost ? "Lost" : (isDamaged ? "Damaged" : "Good"));
+          const condChoice = normalizedConditions[bCode] || unitReturnedConditions[idxKey] || unitReturnedConditions[catKey] || "Good";
 
           if (bCode) {
             const condNormalized = condChoice === "Lost" ? "Lost" : (condChoice === "Damaged" ? "Damaged" : "Good");
@@ -847,6 +892,30 @@ export default function EquipmentBorrowDetailModal({
         }
       });
 
+      // Sync every physical unit in normalizedConditions (both main physical units & linked built-in units)
+      Object.entries(normalizedConditions || {}).forEach(([bCode, condChoice]) => {
+        if (!bCode || bCode === "—") return;
+        const condNormalized = condChoice === "Lost" ? "Lost" : (condChoice === "Damaged" ? "Damaged" : "Good");
+        const newStatus = condNormalized === "Lost" ? "lost" : (condNormalized === "Damaged" ? "damaged" : "available");
+        const newCondition = condNormalized;
+
+        const dbUnit = (physicalUnits || []).find(u => 
+          String(u.barcode || u.id).trim().toUpperCase() === String(bCode).trim().toUpperCase()
+        );
+        const unitDbId = dbUnit?.id && Number.isFinite(Number(dbUnit.id)) ? Number(dbUnit.id) : null;
+
+        if (unitDbId) {
+          dbUpdatePromises.push(
+            api.put(`/general/equipment-units/${unitDbId}`, {
+              status: newStatus,
+              condition: newCondition,
+            }).catch(err => {
+              console.warn(`[EquipBorrow] Failed to update unit ${unitDbId} (${bCode}):`, err?.response?.data || err.message);
+            })
+          );
+        }
+      });
+
       // Wait for all DB updates
       await Promise.allSettled(dbUpdatePromises);
     } catch {}
@@ -869,7 +938,7 @@ export default function EquipmentBorrowDetailModal({
 
         <EquipBorrowHeader
           selected={selected}
-          currentStatus={currentStatus}
+          currentStatus={headerStatus}
           setSelected={setSelected}
           setShowNotifyModal={setShowNotifyModal}
           formatDateTimeFiled={formatDateTimeFiled}
@@ -968,13 +1037,26 @@ export default function EquipmentBorrowDetailModal({
                 <div className="divide-y divide-slate-100">
                   {categoriesToRender.map((catItem, cIdx) => (
                     <div key={cIdx} className="py-2.5 flex items-center justify-between">
-                      <div className="space-y-0.5">
+                      <div className="space-y-1">
                         <span className="font-extrabold text-slate-900 text-xs block">
                           {catItem.category}
                         </span>
-                        <span className="text-[11px] text-slate-500 font-medium">
+                        <span className="text-[11px] text-slate-500 font-medium block">
                           Borrow request specification
                         </span>
+                        {catItem.builtInNames && catItem.builtInNames.length > 0 && (
+                          <div className="flex items-center flex-wrap gap-1 pt-0.5">
+                            <span className="text-[10.5px] font-bold text-slate-600">Built-in:</span>
+                            {catItem.builtInNames.map((biName, biIdx) => (
+                              <span
+                                key={biIdx}
+                                className="inline-flex items-center px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 text-[10px] font-bold border border-blue-200"
+                              >
+                                {biName}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </div>
                       <span className="font-extrabold text-xs text-slate-800 bg-slate-100 px-3 py-1 rounded-xl border border-slate-200/80">
                         Qty: {catItem.quantity}
@@ -992,6 +1074,7 @@ export default function EquipmentBorrowDetailModal({
                 selected={selected}
                 categoriesToRender={categoriesToRender}
                 getAvailableUnitsForCategory={getAvailableUnitsForCategory}
+                allUnits={physicalUnits}
                 assignedUnitSelections={assignedUnitSelections}
                 setAssignedUnitSelections={setAssignedUnitSelections}
                 unitReturnedConditions={unitReturnedConditions}
@@ -1008,8 +1091,8 @@ export default function EquipmentBorrowDetailModal({
 
           </div>
 
-          {/* BOTTOM ROW: Post-Equipment Return Inspection (Shown when ready for inspection or completed) */}
-          {(isCompleted || (isOngoing && isReadyForPostInspection)) ? (
+          {/* BOTTOM ROW: Post-Equipment Return Inspection (Shown when ready for inspection, in inspection, or completed) */}
+          {(isCompleted || isInspection || isReadyForPostInspection) ? (
             <div className="pt-2 border-t border-slate-200 animate-in fade-in space-y-3">
               <div className="flex items-center justify-between border-b border-slate-100 pb-2">
                 <span className="text-xs font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
@@ -1073,10 +1156,11 @@ export default function EquipmentBorrowDetailModal({
                 </div>
                 <button
                   type="button"
-                  onClick={() => setIsReadyForPostInspection(true)}
+                  onClick={handleStartInspection}
+                  disabled={startingInspection}
                   className="px-4 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-xl text-xs font-extrabold flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
                 >
-                  <ShieldAlert size={13} />
+                  {startingInspection ? <Loader2 size={13} className="animate-spin" /> : <ShieldAlert size={13} />}
                   <span>Start Post-Equipment Inspection</span>
                 </button>
               </div>
@@ -1129,7 +1213,7 @@ export default function EquipmentBorrowDetailModal({
             </>
           ) : (
             <div className="flex items-center gap-2.5">
-              {isOngoing && isReadyForPostInspection && (
+              {(isOngoing || isInspection || isReadyForPostInspection) && !isCompleted && (
                 <button
                   type="button"
                   onClick={handleDoneComplete}

@@ -23,6 +23,11 @@ class EquipmentType extends Model
         'lifespan_years',
         'status',
         'description',
+        'built_in_units',
+    ];
+
+    protected $casts = [
+        'built_in_units' => 'array',
     ];
 
     public function equipmentUnits(): HasMany

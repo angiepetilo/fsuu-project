@@ -1,6 +1,33 @@
 import { useState, useEffect } from "react";
-import { X, Loader2 } from "lucide-react";
+import { X, Loader2, Plus, Minus, ChevronDown, Layers } from "lucide-react";
 import api from "@/lib/axios";
+
+export function generateSequentialBarcodes(baseBarcode, count) {
+  const clean = (baseBarcode || "").trim();
+  if (count <= 1) return [clean || `BC-${Date.now().toString().slice(-6)}`];
+
+  const results = [];
+  const match = clean.match(/^(.*?)(\d+)$/);
+  if (match) {
+    const prefix = match[1];
+    const numStr = match[2];
+    const padLen = numStr.length;
+    const startNum = parseInt(numStr, 10);
+    for (let i = 0; i < count; i++) {
+      results.push(`${prefix}${String(startNum + i).padStart(padLen, "0")}`);
+    }
+  } else if (clean) {
+    for (let i = 1; i <= count; i++) {
+      results.push(`${clean}-${String(i).padStart(2, "0")}`);
+    }
+  } else {
+    const today = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+    for (let i = 1; i <= count; i++) {
+      results.push(`BC-${today}-${String(i).padStart(3, "0")}`);
+    }
+  }
+  return results;
+}
 
 export default function EquipmentModal({
   showAddModal,
@@ -51,6 +78,126 @@ export default function EquipmentModal({
   const addDuplicate = showAddModal && addBarcodeClean ? existingUnits.find(u =>
     (u.barcode || "").trim().toLowerCase() === addBarcodeClean
   ) : null;
+
+function BuiltInUnitsSelector({
+  builtInList,
+  setBuiltInList,
+  existingUnits,
+  excludeId,
+  inputClasses,
+}) {
+  const rawList = Array.isArray(builtInList) ? builtInList : [];
+  const list = rawList.length > 0 ? rawList : [""];
+
+  const handleSlotChange = (index, value) => {
+    const next = [...list];
+    next[index] = value;
+    setBuiltInList(next);
+  };
+
+  const handleAddSlot = () => {
+    setBuiltInList([...list, ""]);
+  };
+
+  const handleRemoveSlot = (index) => {
+    if (list.length <= 1) {
+      setBuiltInList([""]);
+    } else {
+      setBuiltInList(list.filter((_, i) => i !== index));
+    }
+  };
+
+  // Filter out the unit being edited (cannot be built-in to itself)
+  const eligibleUnits = (existingUnits || []).filter(
+    (u) => !excludeId || String(u.id) !== String(excludeId)
+  );
+
+  const selectedCount = list.filter(Boolean).length;
+
+  return (
+    <div className="space-y-2 pt-2 border-t border-slate-100">
+      <div className="flex items-center justify-between mb-0.5">
+        <label className="text-xs font-medium text-slate-700 block">
+          Built-in
+        </label>
+        {selectedCount > 0 && (
+          <span className="text-[10.5px] font-bold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-lg shadow-2xs">
+            {selectedCount} {selectedCount === 1 ? "Unit Linked" : "Units Linked"}
+          </span>
+        )}
+      </div>
+
+      <div className="space-y-2">
+        {list.map((currentVal, idx) => {
+          const otherSelected = list.filter((_, i) => i !== idx && Boolean(_));
+
+          return (
+            <div key={`builtin-slot-${idx}`} className="flex items-center gap-2">
+              {/* Minus button to remove or clear slot */}
+              <button
+                type="button"
+                onClick={() => handleRemoveSlot(idx)}
+                disabled={list.length === 1 && !currentVal}
+                className="w-10 h-10 rounded-lg border border-slate-200 bg-white hover:bg-rose-50 hover:border-rose-200 hover:text-rose-600 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center text-slate-600 cursor-pointer transition-colors shadow-2xs shrink-0"
+                title="Remove physical unit"
+              >
+                <Minus size={15} />
+              </button>
+
+              {/* Dropdown with actual raw data from Manage Equipment */}
+              <div className="relative flex-1">
+                <select
+                  value={currentVal || ""}
+                  onChange={(e) => handleSlotChange(idx, e.target.value)}
+                  className={`${inputClasses} cursor-pointer font-medium text-slate-800 appearance-none pr-8`}
+                >
+                  <option value="">-- Select Built-in Physical Unit --</option>
+                  {eligibleUnits.map((u) => {
+                    const isAlreadyPickedElsewhere = otherSelected.some(
+                      (sel) => String(sel) === String(u.id) || String(sel) === String(u.barcode)
+                    );
+                    const unitName = u.name || [u.brand, u.model].filter(Boolean).join(" ") || "Equipment Unit";
+                    const displayLabel = u.barcode
+                      ? `[${u.barcode}] ${unitName} (${u.category || "AV"})`
+                      : `${unitName} (${u.category || "AV"})`;
+
+                    return (
+                      <option
+                        key={u.id || u.barcode}
+                        value={u.id}
+                        disabled={isAlreadyPickedElsewhere}
+                      >
+                        {displayLabel} {isAlreadyPickedElsewhere ? "— (Already selected)" : ""}
+                      </option>
+                    );
+                  })}
+                </select>
+                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2.5 text-slate-400">
+                  <ChevronDown size={14} />
+                </div>
+              </div>
+
+              {/* Plus button to add another physical unit dropdown */}
+              {idx === list.length - 1 ? (
+                <button
+                  type="button"
+                  onClick={handleAddSlot}
+                  disabled={eligibleUnits.length > 0 && list.length >= eligibleUnits.length}
+                  className="w-10 h-10 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 hover:border-slate-300 text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center cursor-pointer transition-colors shadow-2xs shrink-0"
+                  title="Add another physical unit dropdown"
+                >
+                  <Plus size={15} />
+                </button>
+              ) : (
+                <div className="w-10 h-10 shrink-0" />
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
   const inputClasses = "w-full h-10 px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-normal text-slate-800 focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-400 transition-colors placeholder:text-slate-400";
   const labelClasses = "block text-xs font-medium text-slate-700 mb-1.5";
@@ -211,16 +358,14 @@ export default function EquipmentModal({
                 </div>
               </div>
 
-              <div>
-                <label className={labelClasses}>Description</label>
-                <textarea
-                  rows={2}
-                  placeholder="Optional placement notes or storage cabinet..."
-                  value={editFormData.description}
-                  onChange={e => setEditFormData({ ...editFormData, description: e.target.value })}
-                  className="w-full p-3 bg-white border border-slate-200 rounded-lg text-xs font-normal text-slate-800 focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-400 transition-colors placeholder:text-slate-400 resize-y"
-                />
-              </div>
+              {/* Built-in Physical Units Selector (Dropdown + / - buttons to add/remove raw physical units) */}
+              <BuiltInUnitsSelector
+                builtInList={editFormData.built_in_units}
+                setBuiltInList={(nextList) => setEditFormData({ ...editFormData, built_in_units: nextList })}
+                existingUnits={existingUnits}
+                excludeId={editingItem?.id}
+                inputClasses={inputClasses}
+              />
 
               <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
                 <button
@@ -395,16 +540,13 @@ export default function EquipmentModal({
                 </div>
               </div>
 
-              <div>
-                <label className={labelClasses}>Description</label>
-                <textarea
-                  rows={2}
-                  placeholder="Optional placement notes or storage cabinet..."
-                  value={formData.description}
-                  onChange={e => setFormData({ ...formData, description: e.target.value })}
-                  className="w-full p-3 bg-white border border-slate-200 rounded-lg text-xs font-normal text-slate-800 focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-400 transition-colors placeholder:text-slate-400 resize-y"
-                />
-              </div>
+              {/* Built-in Physical Units Selector (Dropdown + / - buttons to add/remove raw physical units) */}
+              <BuiltInUnitsSelector
+                builtInList={formData.built_in_units}
+                setBuiltInList={(nextList) => setFormData({ ...formData, built_in_units: nextList })}
+                existingUnits={existingUnits}
+                inputClasses={inputClasses}
+              />
 
               <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
                 <button

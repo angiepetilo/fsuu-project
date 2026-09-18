@@ -57,6 +57,67 @@ export default function EquipBorrowInspectionForm({
     return `${catIdx}-${uIdx}`;
   };
 
+  const getBuiltInUnitsForBarcode = (barcodeVal) => {
+    if (!barcodeVal || barcodeVal === "—") return [];
+    const cleanBarcode = String(barcodeVal).trim().toUpperCase();
+
+    const unit = (physicalUnits || []).find((u) => {
+      const b = String(u.barcode || u.serial_number || u.code || u.id).trim().toUpperCase();
+      return b === cleanBarcode;
+    });
+
+    if (!unit) return [];
+
+    // built_in_units is stored on the physical unit (equipment_units.built_in_units).
+    // Fallback to the equipment type relation if the physical unit doesn't have it set.
+    let rawList = [];
+    if (Array.isArray(unit.built_in_units)) {
+      rawList = unit.built_in_units;
+    } else if (typeof unit.built_in_units === "string") {
+      try {
+        rawList = JSON.parse(unit.built_in_units || "[]");
+      } catch {
+        rawList = [];
+      }
+    }
+
+    // Fallback: check the equipment type relation (in case built-in info is on the category)
+    if (!rawList.length) {
+      const eqType = unit.equipmentType || unit.equipment_type;
+      const typeBuiltIn = eqType?.built_in_units;
+      if (Array.isArray(typeBuiltIn)) {
+        rawList = typeBuiltIn;
+      } else if (typeof typeBuiltIn === "string") {
+        try { rawList = JSON.parse(typeBuiltIn || "[]"); } catch { rawList = []; }
+      }
+    }
+
+    if (!Array.isArray(rawList) || rawList.length === 0) return [];
+
+    return rawList.map((biId) => {
+      const match = (physicalUnits || []).find((u) =>
+        String(u.id) === String(biId) ||
+        String(u.barcode).trim().toUpperCase() === String(biId).trim().toUpperCase()
+      );
+      if (match) {
+        const catName = match.equipmentType?.eq_name || match.equipment_type?.eq_name || match.category || "";
+        const uName = match.name || [match.brand, match.model_name || match.model].filter(Boolean).join(" ") || "Unit";
+        return {
+          id: match.id,
+          barcode: match.barcode || `UNIT-${match.id}`,
+          name: uName,
+          category: catName,
+        };
+      }
+      return {
+        id: biId,
+        barcode: String(biId),
+        name: `Physical Unit #${biId}`,
+        category: "",
+      };
+    }).filter(Boolean);
+  };
+
   return (
     <form
       onSubmit={(e) => {
@@ -227,6 +288,8 @@ export default function EquipBorrowInspectionForm({
                                   [catKey]: "Complete",
                                 };
                                 if (resolvedCode) updated[resolvedCode] = "Complete";
+                                // NOTE: Do NOT auto-reset built-in units — each built-in unit
+                                // has its own individual condition that must be set independently.
                                 setUnitReturnedConditions(updated);
                               }}
                               className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase transition-all ${
@@ -289,6 +352,129 @@ export default function EquipBorrowInspectionForm({
                             )}
                           </div>
                         </div>
+
+                        {/* Built-in physical units checklist verification */}
+                        {(() => {
+                          const linkedBuiltIns = getBuiltInUnitsForBarcode(val || matched?.barcode);
+                          if (!linkedBuiltIns || linkedBuiltIns.length === 0) return null;
+
+                          return (
+                            <div className="mt-2 pt-2 border-t border-slate-200/80 pl-1 sm:pl-2 space-y-1.5 animate-in fade-in">
+                              <div className="flex items-center justify-between text-[10.5px] font-extrabold text-blue-950">
+                                <span className="flex items-center gap-1.5">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-blue-600"></span>
+                                  Built-in Physical Units ({linkedBuiltIns.length} Linked):
+                                </span>
+                              </div>
+
+                              <div className="space-y-1.5">
+                                {linkedBuiltIns.map((biUnit, biIdx) => {
+                                  const biCode = biUnit.barcode;
+                                  const biLabel = `[${biUnit.barcode}] ${biUnit.name} (${biUnit.category || "Built-in"})`;
+                                  const biCond = unitReturnedConditions[biCode] || "Complete";
+                                  const isBiDamaged = String(biCond).toLowerCase() === "damaged";
+                                  const isBiLost = String(biCond).toLowerCase() === "lost";
+                                  const isBiComplete = !isBiDamaged && !isBiLost;
+
+                                  return (
+                                    <div
+                                      key={biIdx}
+                                      className={`p-2 rounded-xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-2 ${
+                                        isBiDamaged
+                                          ? "border-rose-300 bg-rose-50/50"
+                                          : isBiLost
+                                          ? "border-slate-800 bg-slate-100"
+                                          : "border-slate-200 bg-slate-50/70"
+                                      }`}
+                                    >
+                                      <div className="flex items-center gap-2 min-w-0">
+                                        <span className="font-mono text-[10.5px] font-bold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200 shrink-0">
+                                          {biUnit.barcode}
+                                        </span>
+                                        <span className="text-xs font-bold text-slate-800 truncate" title={biLabel}>
+                                          {biUnit.name}
+                                          {biUnit.category && (
+                                            <span className="text-slate-500 font-medium text-[10.5px] ml-1">
+                                              ({biUnit.category})
+                                            </span>
+                                          )}
+                                        </span>
+                                      </div>
+
+                                      <div className="flex items-center gap-1.5 shrink-0 justify-end">
+                                        <button
+                                          type="button"
+                                          disabled={readOnly}
+                                          onClick={() => {
+                                            if (readOnly) return;
+                                            const updated = {
+                                              ...unitReturnedConditions,
+                                              [biCode]: "Complete",
+                                            };
+                                            setUnitReturnedConditions(updated);
+                                          }}
+                                          className={`px-2 py-0.5 rounded-lg text-[9.5px] font-black uppercase transition-all ${
+                                            isBiComplete
+                                              ? "bg-emerald-600 text-white border border-emerald-700 shadow-2xs"
+                                              : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
+                                          } ${readOnly ? "cursor-default" : "cursor-pointer"}`}
+                                        >
+                                          ✓ Complete
+                                        </button>
+
+                                        {!isPreRelease && (
+                                          <>
+                                            <button
+                                              type="button"
+                                              disabled={readOnly}
+                                              onClick={() => {
+                                                if (readOnly) return;
+                                                const updated = {
+                                                  ...unitReturnedConditions,
+                                                  [biCode]: "Damaged",
+                                                };
+                                                setUnitReturnedConditions(updated);
+                                                setInspectionStatus && setInspectionStatus("violation");
+                                              }}
+                                              className={`px-2 py-0.5 rounded-lg text-[9.5px] font-black uppercase transition-all ${
+                                                isBiDamaged
+                                                  ? "bg-rose-600 text-white border border-rose-700 shadow-2xs"
+                                                  : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
+                                              } ${readOnly ? "cursor-default" : "cursor-pointer"}`}
+                                            >
+                                              Damaged
+                                            </button>
+
+                                            <button
+                                              type="button"
+                                              disabled={readOnly}
+                                              onClick={() => {
+                                                if (readOnly) return;
+                                                const updated = {
+                                                  ...unitReturnedConditions,
+                                                  [biCode]: "Lost",
+                                                };
+                                                setUnitReturnedConditions(updated);
+                                                setInspectionStatus && setInspectionStatus("lost");
+                                              }}
+                                              className={`px-2 py-0.5 rounded-lg text-[9.5px] font-black uppercase transition-all ${
+                                                isBiLost
+                                                  ? "bg-slate-900 text-white border border-slate-950 shadow-2xs"
+                                                  : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
+                                              } ${readOnly ? "cursor-default" : "cursor-pointer"}`}
+                                            >
+                                              Lost
+                                            </button>
+                                          </>
+                                        )}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          );
+                        })()}
                       </div>
                     );
                   })}

@@ -66,6 +66,29 @@ class TrackingController extends Controller
             $booking->load('approvals');
         }
 
+        // Attach resolved built-in category names for equipment items
+        if ($booking && $booking->relationLoaded('items') && $booking->items) {
+            $allCategoryMap = \App\Models\EquipmentType::pluck('eq_name', 'id')->toArray();
+            foreach ($booking->items as $item) {
+                if ($item->equipmentType) {
+                    $raw = $item->equipmentType->built_in_units;
+                    if (is_string($raw)) {
+                        $raw = json_decode($raw, true) ?: [];
+                    }
+                    $builtInNames = [];
+                    if (is_array($raw)) {
+                        foreach ($raw as $val) {
+                            $name = $allCategoryMap[$val] ?? (string)$val;
+                            if (!empty($name)) {
+                                $builtInNames[] = $name;
+                            }
+                        }
+                    }
+                    $item->equipmentType->built_in_names = $builtInNames;
+                }
+            }
+        }
+
         return response()->json($booking);
     }
 

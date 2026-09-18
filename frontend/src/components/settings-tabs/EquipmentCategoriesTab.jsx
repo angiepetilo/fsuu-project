@@ -53,6 +53,7 @@ export default function EquipmentCategoriesTab({ showMsg }) {
     available_count: 0,
     status: "available",
     description: "",
+    built_in_units: [],
   });
 
   const fetchCategories = async () => {
@@ -102,6 +103,7 @@ export default function EquipmentCategoriesTab({ showMsg }) {
       available_count: 0,
       status: "available",
       description: "",
+      built_in_units: [],
     });
     setShowModal(true);
   };
@@ -118,6 +120,7 @@ export default function EquipmentCategoriesTab({ showMsg }) {
       available_count: cat.available_count || 0,
       status: cat.status || "available",
       description: cat.description || "",
+      built_in_units: Array.isArray(cat.built_in_units) ? cat.built_in_units.map(String) : [],
     });
     setShowModal(true);
   };
@@ -137,6 +140,7 @@ export default function EquipmentCategoriesTab({ showMsg }) {
       avatar: photoData,
       description: form.description,
       status: form.status || "available",
+      built_in_units: form.built_in_units || [],
     };
 
     if (editItem) {
@@ -320,6 +324,13 @@ export default function EquipmentCategoriesTab({ showMsg }) {
                       <div className={`font-extrabold text-xs ${isItemDisabled ? 'text-slate-400 line-through' : 'text-slate-900'}`}>
                         {cat.eq_name || cat.name}
                       </div>
+                      {Array.isArray(cat.built_in_units) && cat.built_in_units.length > 0 && (
+                        <div className="mt-0.5">
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-100">
+                            {cat.built_in_units.length} Built-in
+                          </span>
+                        </div>
+                      )}
                       {cat.description && (
                         <div className="text-[11px] text-slate-400 truncate max-w-xs">{cat.description}</div>
                       )}
@@ -437,9 +448,9 @@ export default function EquipmentCategoriesTab({ showMsg }) {
 
       {/* Equipment Category Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-[1500] flex items-center justify-center p-4 animate-in fade-in">
-          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl animate-in zoom-in-95 border border-slate-100 space-y-4">
-            <div className="flex justify-between items-center pb-3 border-b border-slate-100">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-[1500] flex items-center justify-center p-4 overflow-y-auto animate-in fade-in">
+          <div className="bg-white rounded-3xl p-6 sm:p-7 max-w-lg w-full shadow-2xl animate-in zoom-in-95 border border-slate-100 max-h-[90vh] flex flex-col my-auto overflow-hidden">
+            <div className="flex justify-between items-center pb-3 border-b border-slate-100 shrink-0">
               <h3 className="font-extrabold text-slate-900 text-sm">
                 {editItem ? "Edit Equipment Category" : "Add Equipment Category"}
               </h3>
@@ -452,7 +463,7 @@ export default function EquipmentCategoriesTab({ showMsg }) {
               </button>
             </div>
 
-            <form onSubmit={handleSave} className="space-y-4 text-xs">
+            <form onSubmit={handleSave} className="flex-1 overflow-y-auto pr-1 space-y-4 text-xs mt-2 flex flex-col">
               {/* Photo Upload */}
               <div className="space-y-3 bg-slate-50 dark:bg-slate-800/60 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-700">
                 <div className="flex items-center gap-4">
@@ -583,7 +594,62 @@ export default function EquipmentCategoriesTab({ showMsg }) {
                 />
               </div>
 
-              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+              {/* Built-in Equipment Categories (No Max Qty, Checkbox only) */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-bold text-slate-900">Built-in</label>
+                  {form.built_in_units?.length > 0 && (
+                    <span className="text-[10px] font-bold text-blue-600 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-lg">
+                      {form.built_in_units.length} {form.built_in_units.length === 1 ? 'Category Linked' : 'Categories Linked'}
+                    </span>
+                  )}
+                </div>
+                <p className="text-[11px] text-slate-500 mb-2 font-medium">
+                  Select equipment categories built-in for this equipment category.
+                </p>
+                <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl max-h-48 overflow-y-auto space-y-2">
+                  {categories
+                    .filter((cat) => !editItem || String(cat.id) !== String(editItem.id))
+                    .map((cat) => {
+                      const catName = cat.eq_name || cat.name;
+                      const catIdStr = String(cat.id);
+                      const isChecked = (form.built_in_units || []).some(
+                        (item) => String(item) === catIdStr || String(item).toLowerCase() === String(catName).toLowerCase()
+                      );
+
+                      return (
+                        <div
+                          key={cat.id}
+                          className="flex items-center justify-between p-2 rounded-lg bg-white border border-slate-200 hover:border-slate-300 transition-colors"
+                        >
+                          <label className="flex items-center gap-2.5 cursor-pointer flex-1 min-w-0 select-none">
+                            <input
+                              type="checkbox"
+                              className="accent-blue-600 w-4 h-4 shrink-0 rounded cursor-pointer"
+                              checked={isChecked}
+                              onChange={() => {
+                                const next = isChecked
+                                  ? (form.built_in_units || []).filter(
+                                      (item) => String(item) !== catIdStr && String(item).toLowerCase() !== String(catName).toLowerCase()
+                                    )
+                                  : [...(form.built_in_units || []), cat.id];
+                                setForm({ ...form, built_in_units: next });
+                              }}
+                            />
+                            <span className="text-xs font-bold text-slate-800 truncate">
+                              {catName}
+                            </span>
+                          </label>
+                        </div>
+                      );
+                    })}
+                  {categories.filter((cat) => !editItem || String(cat.id) !== String(editItem.id)).length === 0 && (
+                    <span className="text-xs text-slate-500 italic">No other equipment categories found.</span>
+                  )}
+                </div>
+              </div>
+
+              <div className="sticky bottom-0 bg-white/95 backdrop-blur-xs flex justify-end gap-2 pt-3 pb-1 border-t border-slate-100 shrink-0 z-10">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}

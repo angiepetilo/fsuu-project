@@ -47,6 +47,11 @@ class EquipmentBorrowingPolicy
         return $user->isSuperAdmin() || $user->isStaff() || $user->isStudentAssistant() || $user->isAdmin() || $user->isGeneral();
     }
 
+    public function inspection(User $user, EquipmentBorrow $borrowing): bool
+    {
+        return $user->isSuperAdmin() || $user->isStaff() || $user->isStudentAssistant() || $user->isAdmin() || $user->isGeneral();
+    }
+
     public function complete(User $user, EquipmentBorrow $borrowing): bool
     {
         return $user->isSuperAdmin() || $user->isStaff() || $user->isStudentAssistant() || $user->isAdmin() || $user->isGeneral();

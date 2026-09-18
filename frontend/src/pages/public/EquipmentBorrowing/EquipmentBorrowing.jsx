@@ -486,6 +486,8 @@ export default function EquipmentBorrowing({ isPortal: isPortalProp }) {
             identity={identity}
             primaryDept={primaryDept}
             selectedItems={selectedItems}
+            catalog={catalog}
+            itemQuantities={itemQuantities}
             handleDetailsSubmit={handleDetailsSubmit}
             firstName={firstName} setFirstName={setFirstName}
             middleName={middleName} setMiddleName={setMiddleName}

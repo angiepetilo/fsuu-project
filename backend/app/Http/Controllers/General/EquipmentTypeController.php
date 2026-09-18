@@ -52,9 +52,18 @@ class EquipmentTypeController extends Controller
             'lifespan_years'   => 'nullable|integer|min:1',
             'status'           => 'nullable|string',
             'description'      => 'nullable|string',
+            'built_in_units'   => 'nullable',
         ]);
         $validated['eq_name'] = $name;
         unset($validated['name']);
+
+        if ($request->has('built_in_units')) {
+            $rawBuilt = $request->input('built_in_units');
+            if (is_string($rawBuilt)) {
+                $rawBuilt = json_decode($rawBuilt, true) ?: [];
+            }
+            $validated['built_in_units'] = is_array($rawBuilt) ? array_values(array_filter($rawBuilt, fn($v) => !empty($v))) : [];
+        }
 
         // Duplicate name check
         if ($this->categoryService->hasDuplicateName($validated['eq_name'])) {
@@ -106,6 +115,14 @@ class EquipmentTypeController extends Controller
 
         if (array_key_exists('avatar', $updateData) && !empty($updateData['avatar'])) {
             $updateData['avatar'] = app(\App\Services\MediaUploadService::class)->upload($updateData['avatar'], 'equipment_types');
+        }
+
+        if ($request->has('built_in_units')) {
+            $rawBuilt = $request->input('built_in_units');
+            if (is_string($rawBuilt)) {
+                $rawBuilt = json_decode($rawBuilt, true) ?: [];
+            }
+            $updateData['built_in_units'] = is_array($rawBuilt) ? array_values(array_filter($rawBuilt, fn($v) => !empty($v))) : [];
         }
 
         $type->update($updateData);

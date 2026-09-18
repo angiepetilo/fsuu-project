@@ -769,14 +769,8 @@ class VenueBookingService
 
             $explicitClean = ($data['inspection_status'] ?? '') === 'clean';
 
-            // Determine overall room booking outcome (damaged if violation reported, else completed)
-            if ($explicitClean) {
-                $newStatus = 'completed';
-            } else {
-                $newStatus = (!empty($data['has_damage']) || ($data['status'] ?? '') === 'damaged' || ($data['inspection_status'] ?? '') === 'violation' || ($data['condition'] ?? '') === 'damaged')
-                    ? 'damaged'
-                    : 'completed';
-            }
+            // Overall venue booking workflow status is completed; physical damage is captured in inspections
+            $newStatus = 'completed';
 
             if (\Illuminate\Support\Facades\Schema::hasColumn('venue_bookings', 'status')) {
                 $booking->forceFill(['status' => $newStatus])->save();

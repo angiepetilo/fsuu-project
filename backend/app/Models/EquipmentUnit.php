@@ -22,12 +22,14 @@ class EquipmentUnit extends Model
         'eq_lifespan',
         'status',
         'condition',
+        'built_in_units',
         'description',
     ];
 
     protected $casts = [
-        'purchased_at' => 'date',
-        'eq_lifespan'   => 'integer',
+        'purchased_at'   => 'date',
+        'eq_lifespan'    => 'integer',
+        'built_in_units' => 'array',
     ];
 
     public function equipmentType(): BelongsTo

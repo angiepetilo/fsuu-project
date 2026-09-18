@@ -146,11 +146,15 @@ class HistoryLogService
                           $q->where('inspections.inspectable_type', 'like', '%EquipmentBorrow%')
                             ->orWhere('inspections.inspectable_type', 'equipment_borrow')
                             ->orWhere('inspections.inspectable_type', 'avr_equipment_borrowing');
+                     })
+                     ->where(function ($q2) {
+                          $q2->whereIn('inspections.inspection_type', ['post_use', 'post_event'])
+                             ->orWhereNull('inspections.inspection_type');
                      });
             })
             ->whereNull('equipment_borrows.archived_at')
             ->where(function ($query) {
-                $activeStatuses = ['pending', 'approved', 'ongoing', 'on-going', 'post-inspection', 'reserved'];
+                $activeStatuses = ['pending', 'approved', 'ongoing', 'on-going', 'inspection', 'post-inspection', 'reserved'];
                 $query->whereNotNull('tracking_numbers.status')
                       ->whereNotIn(DB::raw('LOWER(tracking_numbers.status)'), $activeStatuses);
             })
@@ -192,9 +196,23 @@ class HistoryLogService
             ->values()
             ->map(function ($b) {
                 $item = (array) $b;
+                $assignedRaw = $b->inspection_assigned_units ?? $b->eb_assigned_units ?? null;
+                $assignedUnits = $assignedRaw ? (is_string($assignedRaw) ? json_decode($assignedRaw, true) : $assignedRaw) : null;
+                $unitCondRaw = $b->inspection_unit_conditions ?? null;
+                $unitConditions = $unitCondRaw ? (is_string($unitCondRaw) ? json_decode($unitCondRaw, true) : $unitCondRaw) : null;
+
                 $isDamaged = ($b->inspection_condition ?? '') === 'damaged' || strtolower($b->status ?? '') === 'damaged';
                 $isLost = ($b->inspection_condition ?? '') === 'lost' || strtolower($b->status ?? '') === 'lost';
-                $isLate = !empty($b->is_late) || str_contains(strtolower($b->timeliness ?? ''), 'late') || str_contains(strtolower($b->violation_type ?? ''), 'overdue');
+                $isLate = !empty($b->is_late) || str_contains(strtolower($b->timeliness ?? ''), 'late') || str_contains(strtolower($b->violation_type ?? ''), 'overdue') || str_contains(strtolower($b->status ?? ''), 'late');
+
+                if (is_array($unitConditions)) {
+                    foreach ($unitConditions as $condVal) {
+                        $condStr = strtolower(is_array($condVal) ? ($condVal['condition'] ?? $condVal['status'] ?? '') : (string)$condVal);
+                        if ($condStr === 'lost') $isLost = true;
+                        if ($condStr === 'damaged') $isDamaged = true;
+                    }
+                }
+
                 $hasViolation = $isDamaged || $isLost || $isLate || !empty($b->violation_type);
                 $violationText = $b->violation_type ?? ($hasViolation ? ($b->inspection_notes ?? 'Policy Breach / Inspection Outcome Recorded') : null);
 
@@ -226,10 +244,6 @@ class HistoryLogService
                     $items = [];
                 }
 
-                $assignedRaw = $b->inspection_assigned_units ?? $b->eb_assigned_units ?? null;
-                $assignedUnits = $assignedRaw ? (is_string($assignedRaw) ? json_decode($assignedRaw, true) : $assignedRaw) : null;
-                $unitCondRaw = $b->inspection_unit_conditions ?? null;
-                $unitConditions = $unitCondRaw ? (is_string($unitCondRaw) ? json_decode($unitCondRaw, true) : $unitCondRaw) : null;
 
                 $rawEbPhoto = $b->evidence_photo ?? null;
                 $ebPhotoList = [];
@@ -250,7 +264,7 @@ class HistoryLogService
                     'is_late'         => $isLate,
                     'has_violation'   => $hasViolation,
                     'violation'       => $violationText,
-                    'violation_type'  => $b->violation_type ?? ($isDamaged ? 'Physical Damage' : ($isLost ? 'Lost Property' : ($isLate ? 'Late Return' : null))),
+                    'violation_type'  => $b->violation_type ?? ($isLost ? 'Lost Property' : ($isDamaged ? 'Physical Damage' : ($isLate ? 'Late Return' : null))),
                     'evidence_photo'  => $ebPhotoList[0] ?? null,
                     'evidence_photos' => $ebPhotoList,
                     'assigned_units'  => $assignedUnits,

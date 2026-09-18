@@ -243,6 +243,7 @@ export default function EquipmentBorrowings() {
         reject: "rejected",
         cancel: "cancelled",
         ongoing: "on-going",
+        inspection: "inspection",
         complete: "completed"
       };
       const newStatus = statusMap[type] || type;
@@ -258,6 +259,8 @@ export default function EquipmentBorrowings() {
         notify.success("Borrow Request Approved", `Borrowing request (${refCode}) has been approved.`);
       } else if (type === "ongoing") {
         notify.info("Equipment Released", `Items for (${refCode}) marked as released to borrower.`);
+      } else if (type === "inspection") {
+        notify.info("Return Inspection", `Borrowing request (${refCode}) is now under post-equipment return inspection.`);
       } else {
         notify.success("Status Updated", `Borrowing request (${refCode}) updated to ${newStatus}.`);
       }

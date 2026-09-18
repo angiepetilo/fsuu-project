@@ -292,6 +292,38 @@ class EquipmentBorrowingController extends Controller
         return response()->json($equipmentBorrowing->fresh(['items.equipmentType', 'trackingNumber']));
     }
 
+    public function inspection(\Illuminate\Http\Request $request, EquipmentBorrow $equipmentBorrowing): JsonResponse
+    {
+        $this->authorize('inspection', $equipmentBorrowing);
+
+        if ($equipmentBorrowing->tracking_number_id) {
+            \Illuminate\Support\Facades\DB::table('tracking_numbers')->where('id', $equipmentBorrowing->tracking_number_id)->update(['status' => 'inspection']);
+        }
+        if (\Illuminate\Support\Facades\Schema::hasColumn('equipment_borrows', 'status')) {
+            $equipmentBorrowing->forceFill(['status' => 'inspection'])->save();
+        }
+
+        try {
+            $ref = $equipmentBorrowing->trackingNumber?->reference_code ?? "EQ-{$equipmentBorrowing->id}";
+            $user = auth()->user();
+            AuditLog::create([
+                'user_id'        => $user?->id ?? auth()->id(),
+                'action'         => 'EQUIPMENT_BORROW_INSPECTION_STARTED',
+                'auditable_type' => 'equipment_borrows',
+                'auditable_id'   => $equipmentBorrowing->id,
+                'metadata'       => [
+                    'reference_code' => $ref,
+                    'filer_name'     => $equipmentBorrowing->filer_name,
+                    'description'    => "Post-equipment inspection initiated for {$ref} by " . ($user?->name ?? 'Staff'),
+                ],
+                'ip_address'     => request()->ip(),
+                'created_at'     => now(),
+            ]);
+        } catch (\Throwable $e) {}
+
+        return response()->json($equipmentBorrowing->fresh(['items.equipmentType', 'trackingNumber']));
+    }
+
     public function complete(\Illuminate\Http\Request $request, EquipmentBorrow $equipmentBorrowing): JsonResponse
     {
         $this->authorize('complete', $equipmentBorrowing);
@@ -385,8 +417,10 @@ class EquipmentBorrowingController extends Controller
             }
 
             $finalStatus = 'completed';
-            if ($condition === 'damaged' || $condition === 'lost') {
-                $finalStatus = $condition;
+            if ($condition === 'lost') {
+                $finalStatus = 'lost';
+            } else if ($condition === 'damaged') {
+                $finalStatus = 'damaged';
             } else if ($isLate) {
                 $finalStatus = 'late return';
             }
@@ -405,28 +439,21 @@ class EquipmentBorrowingController extends Controller
             $violationType = $request->get('violation_type') ?? ($isLate ? 'Late Equipment Return' : ($condition === 'damaged' ? 'Equipment Damage' : ($condition === 'lost' ? 'Lost Equipment' : null)));
             $notes = $request->get('notes') ?? $request->get('remarks') ?? ($isLate ? "Equipment returned {$minutesLate} minutes late." : ($condition !== 'good' ? "Return inspected: condition={$condition}." : 'Returned safely on time.'));
 
-            // Release physical units back based on return condition
+            // Release physical units back based on return condition.
+            // Always reset assigned (main) barcodes to available first — the per-unit
+            // unit_conditions loop below will then precisely update each individual unit
+            // (including built-in sub-units) to Damaged / Lost / Good as recorded.
             if (!empty($barcodes) && \Illuminate\Support\Facades\Schema::hasTable('equipment_units')) {
                 $numericIds = array_values(array_filter($barcodes, fn($v) => is_numeric($v) && (int)$v > 0));
                 $unitCodes = array_values(array_filter($barcodes, fn($v) => !empty($v)));
 
-                if ($condition === 'good') {
-                    \App\Models\EquipmentUnit::where(function($q) use ($unitCodes, $numericIds) {
-                        $q->whereIn('barcode', $unitCodes);
-                        if (!empty($numericIds)) {
-                            $q->orWhereIn('id', array_map('intval', $numericIds));
-                        }
-                    })->update(['status' => 'available', 'condition' => 'Good']);
-                } else {
-                    $uStatus = ($condition === 'lost' || $condition === 'damaged') ? 'unavailable' : 'available';
-                    $uCond = $condition === 'lost' ? 'Lost' : 'Damaged';
-                    \App\Models\EquipmentUnit::where(function($q) use ($unitCodes, $numericIds) {
-                        $q->whereIn('barcode', $unitCodes);
-                        if (!empty($numericIds)) {
-                            $q->orWhereIn('id', array_map('intval', $numericIds));
-                        }
-                    })->update(['status' => $uStatus, 'condition' => $uCond]);
-                }
+                // Reset all assigned barcodes to available first; unit_conditions will override below
+                \App\Models\EquipmentUnit::where(function($q) use ($unitCodes, $numericIds) {
+                    $q->whereIn('barcode', $unitCodes);
+                    if (!empty($numericIds)) {
+                        $q->orWhereIn('id', array_map('intval', $numericIds));
+                    }
+                })->update(['status' => 'available', 'condition' => 'Good']);
             }
 
             // Handle per-unit condition updates if unit_conditions map supplied
