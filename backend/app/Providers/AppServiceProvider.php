@@ -164,6 +164,35 @@ class AppServiceProvider extends ServiceProvider
                     });
                 }
             }
+            if (\Illuminate\Support\Facades\Schema::hasTable('equipment_borrows')) {
+                if (!\Illuminate\Support\Facades\Schema::hasColumn('equipment_borrows', 'endorsement_url')) {
+                    \Illuminate\Support\Facades\Schema::table('equipment_borrows', function (\Illuminate\Database\Schema\Blueprint $table) {
+                        $table->string('endorsement_url')->nullable();
+                    });
+                }
+                if (!\Illuminate\Support\Facades\Schema::hasColumn('equipment_borrows', 'endorsement_letter')) {
+                    \Illuminate\Support\Facades\Schema::table('equipment_borrows', function (\Illuminate\Database\Schema\Blueprint $table) {
+                        $table->string('endorsement_letter')->nullable();
+                    });
+                }
+            }
+            if (\Illuminate\Support\Facades\Schema::hasTable('documents')) {
+                if (!\Illuminate\Support\Facades\Schema::hasColumn('documents', 'reservation_type')) {
+                    \Illuminate\Support\Facades\Schema::table('documents', function (\Illuminate\Database\Schema\Blueprint $table) {
+                        $table->string('reservation_type')->nullable();
+                    });
+                }
+                if (!\Illuminate\Support\Facades\Schema::hasColumn('documents', 'reservation_id')) {
+                    \Illuminate\Support\Facades\Schema::table('documents', function (\Illuminate\Database\Schema\Blueprint $table) {
+                        $table->unsignedBigInteger('reservation_id')->nullable();
+                    });
+                }
+                if (!\Illuminate\Support\Facades\Schema::hasColumn('documents', 'equipment_borrow_id')) {
+                    \Illuminate\Support\Facades\Schema::table('documents', function (\Illuminate\Database\Schema\Blueprint $table) {
+                        $table->unsignedBigInteger('equipment_borrow_id')->nullable();
+                    });
+                }
+            }
         } catch (\Throwable $e) {}
     }
 

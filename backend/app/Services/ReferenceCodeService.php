@@ -39,13 +39,23 @@ class ReferenceCodeService
                 }
 
                 $paddedNumber = str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
-                return "{$prefix}-{$yearMonth}-{$paddedNumber}";
+                $candidate = "{$prefix}-{$yearMonth}-{$paddedNumber}";
+                if (!DB::table('tracking_numbers')->where('reference_code', $candidate)->exists()) {
+                    return $candidate;
+                }
             }
         } catch (\Throwable $e) {}
 
-        // Fallback robust tracking code generator
-        $seq = (DB::table('tracking_numbers')->count() + 1);
-        $paddedSeq = str_pad($seq, 5, '0', STR_PAD_LEFT);
-        return "{$prefix}-" . date('Y') . "-{$paddedSeq}";
+        // Fallback robust tracking code generator (guaranteed unique)
+        do {
+            $seq = (DB::table('tracking_numbers')->count() + 1);
+            $paddedSeq = str_pad($seq, 5, '0', STR_PAD_LEFT);
+            $candidate = "{$prefix}-" . date('Y') . "-{$paddedSeq}";
+            if (DB::table('tracking_numbers')->where('reference_code', $candidate)->exists()) {
+                $candidate = "{$prefix}-" . date('Y') . "-" . rand(10000, 99999);
+            }
+        } while (DB::table('tracking_numbers')->where('reference_code', $candidate)->exists());
+
+        return $candidate;
     }
 }

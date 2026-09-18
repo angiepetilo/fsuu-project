@@ -33,6 +33,15 @@ class EquipmentBorrowingController extends Controller
             return response()->json(['message' => $e->getMessage()], 422);
         } catch (BookingActionNotAllowedException $e) {
             return response()->json(['message' => $e->getMessage()], 422);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('PublicEquipmentBorrowingController error: ' . $e->getMessage(), [
+                'exception' => $e,
+            ]);
+            return response()->json([
+                'message' => 'An unexpected server error occurred while processing your borrowing request: ' . $e->getMessage(),
+            ], 500);
         }
 
         return response()->json($borrowing, 201);

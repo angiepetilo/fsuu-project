@@ -37,10 +37,19 @@ class SendAdminPendingTaskNotificationJob implements ShouldQueue
 
         // Query active super admins and staff with valid emails
         $recipients = User::query()
-            ->whereIn('role', ['super_admin', 'staff'])
-            ->whereNotNull('email')
-            ->where('email', '!=', '')
-            ->pluck('email')
+            ->where(function ($q) {
+                $q->whereHas('role', function ($rq) {
+                    $rq->whereIn('name', ['super_admin', 'staff', 'admin', 'administrator', 'Super Admin', 'Staff']);
+                });
+                if (\Illuminate\Support\Facades\Schema::hasColumn('users', 'role')) {
+                    $q->orWhereIn('role', ['super_admin', 'staff', 'admin', 'administrator', 'Super Admin', 'Staff']);
+                }
+            })
+            ->get()
+            ->map(function ($u) {
+                return $u->email ?: $u->email_address;
+            })
+            ->filter()
             ->unique()
             ->values()
             ->all();
@@ -63,9 +72,10 @@ class SendAdminPendingTaskNotificationJob implements ShouldQueue
 
         $details = $this->customDetails;
         if (!$details) {
+            $filerName = $this->record->filer_name ?? $this->record->requestor_name ?? 'Borrower';
             $details = match($this->taskType) {
-                'new_venue_booking' => "New venue reservation submitted for {$this->record->venue?->name} by {$this->record->filer_name}.",
-                'new_equipment_borrowing' => "New equipment borrowing requisition submitted by {$this->record->requestor_name}.",
+                'new_venue_booking' => "New venue reservation submitted for {$this->record->venue?->name} by {$filerName}.",
+                'new_equipment_borrowing' => "New equipment borrowing requisition submitted by {$filerName}.",
                 'requirements_resubmitted' => "Applicant has uploaded the missing requirements for {$refCode}.",
                 default => "Requisition requires administrative review.",
             };

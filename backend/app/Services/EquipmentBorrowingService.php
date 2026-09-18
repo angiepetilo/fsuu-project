@@ -53,17 +53,14 @@ class EquipmentBorrowingService
 
             $referenceCode = $this->referenceCodeService->generate('EQ');
 
-            $trackingId = null;
-            try {
-                $trackingId = DB::table('tracking_numbers')->insertGetId([
-                    'reference_code'   => $referenceCode,
-                    'reservation_type' => 'equipment_borrowing',
-                    'reservation_id'   => 0,
-                    'status'           => 'pending',
-                    'created_at'       => now(),
-                    'updated_at'       => now(),
-                ]);
-            } catch (\Throwable $e) {}
+            $trackingId = DB::table('tracking_numbers')->insertGetId([
+                'reference_code'   => $referenceCode,
+                'reservation_type' => 'equipment_borrowing',
+                'reservation_id'   => 0,
+                'status'           => 'pending',
+                'created_at'       => now(),
+                'updated_at'       => now(),
+            ]);
 
             $hasCol = fn ($col) => \Illuminate\Support\Facades\Schema::hasColumn('equipment_borrows', $col);
 
@@ -144,14 +141,25 @@ class EquipmentBorrowingService
 
             if (!empty($data['endorsement_url']) && \Illuminate\Support\Facades\Schema::hasTable('documents')) {
                 try {
-                    DB::table('documents')->insert([
-                        'reservation_type' => 'equipment_borrowing',
-                        'reservation_id'   => $borrowing->id,
-                        'file_path'        => $data['endorsement_url'],
-                        'document_type'    => 'endorsement_letter',
-                        'created_at'       => now(),
-                        'updated_at'       => now(),
-                    ]);
+                    $docCols = \Illuminate\Support\Facades\Schema::getColumnListing('documents');
+                    if (in_array('reservation_type', $docCols) && in_array('reservation_id', $docCols)) {
+                        DB::table('documents')->insert([
+                            'reservation_type' => 'equipment_borrowing',
+                            'reservation_id'   => $borrowing->id,
+                            'file_path'        => $data['endorsement_url'],
+                            'document_type'    => 'endorsement_letter',
+                            'created_at'       => now(),
+                            'updated_at'       => now(),
+                        ]);
+                    } elseif (in_array('equipment_borrow_id', $docCols)) {
+                        DB::table('documents')->insert([
+                            'equipment_borrow_id' => $borrowing->id,
+                            'file_path'           => $data['endorsement_url'],
+                            'document_type'       => 'endorsement_letter',
+                            'created_at'          => now(),
+                            'updated_at'          => now(),
+                        ]);
+                    }
                 } catch (\Throwable $e) {}
             }
 
@@ -169,33 +177,47 @@ class EquipmentBorrowingService
                 EquipmentBorrowingItem::create($itemInsert);
             }
 
-            // Dispatch confirmation email asynchronously
-            try {
-                SendBookingConfirmationJob::dispatch('equipment', $borrowing->load('items'));
-            } catch (\Throwable $e) {}
-
-            // Dispatch pending task notification email to Super Admin & Staff
-            try {
-                SendAdminPendingTaskNotificationJob::dispatch('new_equipment_borrowing', $borrowing->load('items'));
-            } catch (\Throwable $e) {}
-
-            // Broadcast real-time Pusher event
-            try {
-                event(new \App\Events\BookingCreated(
-                    'equipment_borrowing',
-                    $referenceCode,
-                    $data['filer_name'] ?? $data['requestor_name'] ?? 'Applicant',
-                    $data['program_office'] ?? $data['requestor_program_office'] ?? 'Department',
-                    $data['place_of_use'] ?? 'Campus Facility',
-                    substr($data['start_datetime'] ?? date('Y-m-d'), 0, 10),
-                    substr($data['start_datetime'] ?? '08:00', 11, 5),
-                    substr($data['end_datetime'] ?? '12:00', 11, 5),
-                    $borrowing->id
-                ));
-            } catch (\Throwable $e) {}
-
-            return $borrowing->fresh(['items', 'trackingNumber']);
+            return $borrowing;
         });
+
+        // ─── Post-Transaction Notifications (safely executed outside DB::transaction) ─
+        $recordToBroadcast = null;
+        try {
+            $recordToBroadcast = $borrowing->fresh(['items', 'trackingNumber']);
+        } catch (\Throwable $e) {
+            $recordToBroadcast = $borrowing;
+        }
+
+        // Dispatch confirmation email asynchronously
+        try {
+            SendBookingConfirmationJob::dispatch('equipment', $recordToBroadcast ?: $borrowing);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('SendBookingConfirmationJob dispatch error: ' . $e->getMessage());
+        }
+
+        // Dispatch pending task notification email to Super Admin & Staff
+        try {
+            SendAdminPendingTaskNotificationJob::dispatch('new_equipment_borrowing', $recordToBroadcast ?: $borrowing);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('SendAdminPendingTaskNotificationJob dispatch error: ' . $e->getMessage());
+        }
+
+        // Broadcast real-time Pusher event
+        try {
+            event(new \App\Events\BookingCreated(
+                'equipment_borrowing',
+                $recordToBroadcast?->reference_code ?? ($data['reference_code'] ?? 'EQ-NEW'),
+                $data['filer_name'] ?? $data['requestor_name'] ?? 'Applicant',
+                $data['program_office'] ?? $data['requestor_program_office'] ?? 'Department',
+                $data['place_of_use'] ?? 'Campus Facility',
+                substr($data['start_datetime'] ?? date('Y-m-d'), 0, 10),
+                substr($data['start_datetime'] ?? '08:00', 11, 5),
+                substr($data['end_datetime'] ?? '12:00', 11, 5),
+                $borrowing->id
+            ));
+        } catch (\Throwable $e) {}
+
+        return $recordToBroadcast ?: $borrowing;
     }
 
     public function approve(EquipmentBorrow $borrowing, User $actor, ?string $remarks = null): EquipmentBorrow

@@ -291,39 +291,40 @@ class VenueBookingService
                 }
             }
 
-            $booking = VenueBooking::with('venue', 'trackingNumber', 'documents')->find($bookingId);
-
-            // Dispatch email confirmation to requestor
-            try {
-                SendBookingConfirmationJob::dispatch('venue', $booking);
-            } catch (\Throwable $e) {
-                \Illuminate\Support\Facades\Log::error('Failed to dispatch venue booking confirmation email: ' . $e->getMessage());
-            }
-
-            // Dispatch pending task notification email to Super Admin & Staff
-            try {
-                SendAdminPendingTaskNotificationJob::dispatch('new_venue_booking', $booking);
-            } catch (\Throwable $e) {
-                \Illuminate\Support\Facades\Log::error('Failed to dispatch admin notification email: ' . $e->getMessage());
-            }
-
-            // Dispatch real-time Pusher event
-            try {
-                event(new \App\Events\BookingCreated(
-                    'venue_booking',
-                    $referenceCode,
-                    $filerName,
-                    $office,
-                    $venue->name ?? 'AVR Facility',
-                    $dateOfUsage,
-                    $timeStart,
-                    $timeEnd,
-                    $bookingId
-                ));
-            } catch (\Throwable $e) {}
-
-            return $booking;
+            return VenueBooking::with('venue', 'trackingNumber', 'documents')->find($bookingId);
         });
+
+        // ─── Post-Transaction Notifications (safely executed outside DB::transaction) ─
+        // Dispatch email confirmation to requestor
+        try {
+            SendBookingConfirmationJob::dispatch('venue', $booking);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Failed to dispatch venue booking confirmation email: ' . $e->getMessage());
+        }
+
+        // Dispatch pending task notification email to Super Admin & Staff
+        try {
+            SendAdminPendingTaskNotificationJob::dispatch('new_venue_booking', $booking);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Failed to dispatch admin notification email: ' . $e->getMessage());
+        }
+
+        // Dispatch real-time Pusher event
+        try {
+            event(new \App\Events\BookingCreated(
+                'venue_booking',
+                $referenceCode,
+                $filerName,
+                $office,
+                $venue->name ?? 'AVR Facility',
+                $dateOfUsage,
+                $timeStart,
+                $timeEnd,
+                $bookingId
+            ));
+        } catch (\Throwable $e) {}
+
+        return $booking;
     }
 
     public function approve(VenueBooking $booking, User $actor, ?string $remarks = null, array $extra = []): VenueBooking

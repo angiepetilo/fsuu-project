@@ -32,11 +32,19 @@ class CommunicationLog extends Model
     /**
      * Record a communication log entry.
      */
-    public static function record(array $data): self
+    public static function record(array $data): ?self
     {
-        return self::create(array_merge([
-            'sent_at' => now(),
-            'status'  => 'sent',
-        ], $data));
+        try {
+            if (!\Illuminate\Support\Facades\Schema::hasTable('communication_logs')) {
+                return null;
+            }
+            return self::create(array_merge([
+                'sent_at' => now(),
+                'status'  => 'sent',
+            ], $data));
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('CommunicationLog record failed: ' . $e->getMessage());
+            return null;
+        }
     }
 }
