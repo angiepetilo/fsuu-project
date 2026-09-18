@@ -141,37 +141,49 @@ export default function EquipmentBorrowDetailModal({
         const dbType = (dbEquipmentTypes || []).find(t => String(t.id) === String(item.equipment_type_id)) || item.equipment_type || item.equipmentType;
         const name = dbType?.eq_name || dbType?.name || item.equipment_type?.eq_name || item.equipment_type?.name || item.equipmentType?.eq_name || item.equipmentType?.name || item.equipment_name || item.name || "Equipment Item";
         const reqQty = parseInt(item.quantity_requested || item.quantity || 1, 10);
-        const rawBuilt = dbType?.built_in_names || dbType?.built_in_units || item.equipment_type?.built_in_names || item.equipment_type?.built_in_units || item.equipmentType?.built_in_names || item.equipmentType?.built_in_units || [];
+        const rawBuilt = item.built_in_names ||
+          dbType?.built_in_names ||
+          item.equipment_type?.built_in_names ||
+          item.equipmentType?.built_in_names ||
+          item.built_in_units ||
+          dbType?.built_in_units ||
+          item.equipment_type?.built_in_units ||
+          item.equipmentType?.built_in_units ||
+          [];
         const builtInList = Array.isArray(rawBuilt) ? rawBuilt : (typeof rawBuilt === 'string' ? JSON.parse(rawBuilt || '[]') : []);
 
         const builtInNames = builtInList.map((bi) => {
+          if (typeof bi === 'string' && isNaN(Number(bi))) {
+            return bi.trim();
+          }
           const match = (dbEquipmentTypes || []).find(t => String(t.id) === String(bi) || (t.eq_name || t.name || '').toLowerCase() === String(bi).toLowerCase());
-          return match ? (match.eq_name || match.name) : String(bi);
+          return match ? (match.eq_name || match.name) : (isNaN(Number(bi)) ? String(bi) : null);
         }).filter(Boolean);
 
         return {
           category: name,
           quantity: Math.max(reqQty, 1),
           equipment_type_id: item.equipment_type_id || dbType?.id || item.equipment_type?.id || item.equipmentType?.id,
-          builtInNames,
+          builtInNames: Array.from(new Set(builtInNames)),
         };
       });
     } else if (selected.equipment_name || selected.equipment) {
       const name = selected.equipment_name || selected.equipment;
       const reqQty = parseInt(selected.quantity || selected.qty || 1, 10);
       const matchedDb = (dbEquipmentTypes || []).find(t => String(t.id) === String(selected.equipment_type_id) || (t.eq_name || t.name || '').toLowerCase() === String(name).toLowerCase());
-      const rawBuilt = matchedDb?.built_in_names || matchedDb?.built_in_units || [];
-      const builtInList = Array.isArray(rawBuilt) ? rawBuilt : [];
+      const rawBuilt = matchedDb?.built_in_names || matchedDb?.built_in_units || selected.built_in_names || selected.built_in_units || [];
+      const builtInList = Array.isArray(rawBuilt) ? rawBuilt : (typeof rawBuilt === 'string' ? JSON.parse(rawBuilt || '[]') : []);
       const builtInNames = builtInList.map((bi) => {
+        if (typeof bi === 'string' && isNaN(Number(bi))) return bi.trim();
         const match = (dbEquipmentTypes || []).find(t => String(t.id) === String(bi) || (t.eq_name || t.name || '').toLowerCase() === String(bi).toLowerCase());
-        return match ? (match.eq_name || match.name) : String(bi);
+        return match ? (match.eq_name || match.name) : (isNaN(Number(bi)) ? String(bi) : null);
       }).filter(Boolean);
 
       categories = [{
         category: name,
         quantity: Math.max(reqQty, 1),
         equipment_type_id: selected.equipment_type_id || matchedDb?.id,
-        builtInNames,
+        builtInNames: Array.from(new Set(builtInNames)),
       }];
     }
     return categories;
@@ -402,7 +414,7 @@ export default function EquipmentBorrowDetailModal({
     }
   }, [selected?.id]);
 
-  const requestedCategories = getRequestedCategories();
+  const requestedCategories = useMemo(() => getRequestedCategories(), [selected, dbEquipmentTypes]);
 
   const rawStatus = (selected?.status || selected?.tracking_number?.status || "").toLowerCase();
   const currentStatus = isReadyForPostInspection ? "inspection" : rawStatus;

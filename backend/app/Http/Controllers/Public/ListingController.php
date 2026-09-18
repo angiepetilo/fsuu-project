@@ -261,6 +261,7 @@ class ListingController extends Controller
                 'status'          => $avail > 0 ? 'available' : 'unavailable',
                 'dept'            => 'avr',
                 'built_in_units'  => $builtInUnits,
+                'built_in_names'  => $e->built_in_names ?? [],
             ];
         });
 

@@ -68,24 +68,31 @@ class TrackingController extends Controller
 
         // Attach resolved built-in category names for equipment items
         if ($booking && $booking->relationLoaded('items') && $booking->items) {
-            $allCategoryMap = \App\Models\EquipmentType::pluck('eq_name', 'id')->toArray();
+            $allCategoryMap = \App\Models\EquipmentType::withTrashed()->pluck('eq_name', 'id')->toArray();
             foreach ($booking->items as $item) {
-                if ($item->equipmentType) {
-                    $raw = $item->equipmentType->built_in_units;
-                    if (is_string($raw)) {
-                        $raw = json_decode($raw, true) ?: [];
-                    }
-                    $builtInNames = [];
-                    if (is_array($raw)) {
-                        foreach ($raw as $val) {
-                            $name = $allCategoryMap[$val] ?? (string)$val;
-                            if (!empty($name)) {
-                                $builtInNames[] = $name;
-                            }
+                $eqType = $item->equipmentType;
+                $raw = $eqType ? ($eqType->built_in_units ?? []) : [];
+                if (is_string($raw)) {
+                    $raw = json_decode($raw, true) ?: [];
+                }
+                $builtInNames = [];
+                if (is_array($raw)) {
+                    foreach ($raw as $val) {
+                        if (empty($val)) continue;
+                        if (is_string($val) && !is_numeric($val)) {
+                            $builtInNames[] = trim($val);
+                        } elseif (isset($allCategoryMap[$val])) {
+                            $builtInNames[] = $allCategoryMap[$val];
+                        } else {
+                            $builtInNames[] = (string)$val;
                         }
                     }
-                    $item->equipmentType->built_in_names = $builtInNames;
                 }
+                $builtInNames = array_values(array_unique(array_filter($builtInNames)));
+                if ($eqType) {
+                    $eqType->setAttribute('built_in_names', $builtInNames);
+                }
+                $item->setAttribute('built_in_names', $builtInNames);
             }
         }
 

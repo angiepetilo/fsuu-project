@@ -23,6 +23,16 @@ export default function TrackBooking() {
   const [resubmitLoading, setResubmitLoading] = useState(false);
   const [resubmitSuccess, setResubmitSuccess] = useState("");
   const [resubmitError, setResubmitError] = useState("");
+  const [catalog, setCatalog] = useState([]);
+
+  useEffect(() => {
+    api.get("/public/equipment-types")
+      .then((res) => {
+        const list = Array.isArray(res.data) ? res.data : (res.data?.data || []);
+        setCatalog(list);
+      })
+      .catch(() => {});
+  }, []);
 
   const getRemainingTime = (deadline) => {
     if (!deadline) return null;
@@ -257,20 +267,54 @@ export default function TrackBooking() {
     if (Array.isArray(booking.items) && booking.items.length > 0) {
       return booking.items.map(it => {
         const eqType = it.equipment_type || it.equipmentType;
-        const rawBuilt = eqType?.built_in_names || eqType?.built_in_units || it.built_in_units || [];
-        const builtInNames = Array.isArray(rawBuilt) ? rawBuilt : [];
+        const matchedCatalog = (catalog || []).find(c =>
+          String(c.id) === String(it.equipment_type_id || eqType?.id) ||
+          (c.name || c.eq_name || '').toLowerCase() === (it.equipment_name || it.category || eqType?.eq_name || eqType?.name || '').toLowerCase()
+        );
+
+        const rawBuilt = eqType?.built_in_names ||
+          it.built_in_names ||
+          matchedCatalog?.built_in_names ||
+          eqType?.built_in_units ||
+          it.built_in_units ||
+          matchedCatalog?.built_in_units ||
+          [];
+
+        const builtList = Array.isArray(rawBuilt) ? rawBuilt : (typeof rawBuilt === 'string' ? JSON.parse(rawBuilt || '[]') : []);
+
+        const builtInNames = builtList.map(bi => {
+          if (typeof bi === 'string' && isNaN(Number(bi))) {
+            return bi.trim();
+          }
+          const cat = (catalog || []).find(c => String(c.id) === String(bi) || (c.name || c.eq_name || '').toLowerCase() === String(bi).toLowerCase());
+          return cat ? (cat.name || cat.eq_name) : (isNaN(Number(bi)) ? String(bi) : null);
+        }).filter(Boolean);
+
         return {
-          name: eqType?.eq_name || eqType?.name || it.equipment_name || it.category || "Equipment Item",
+          name: eqType?.eq_name || eqType?.name || matchedCatalog?.name || matchedCatalog?.eq_name || it.equipment_name || it.category || "Equipment Item",
           qty: parseInt(it.quantity_requested || it.quantity || 1, 10),
-          builtInNames,
+          builtInNames: Array.from(new Set(builtInNames)),
         };
       });
     }
     if (booking.equipment_name || booking.equipment) {
+      const name = booking.equipment_name || booking.equipment;
+      const matchedCatalog = (catalog || []).find(c =>
+        String(c.id) === String(booking.equipment_type_id) ||
+        (c.name || c.eq_name || '').toLowerCase() === String(name).toLowerCase()
+      );
+      const rawBuilt = matchedCatalog?.built_in_names || matchedCatalog?.built_in_units || [];
+      const builtList = Array.isArray(rawBuilt) ? rawBuilt : (typeof rawBuilt === 'string' ? JSON.parse(rawBuilt || '[]') : []);
+      const builtInNames = builtList.map(bi => {
+        if (typeof bi === 'string' && isNaN(Number(bi))) return bi.trim();
+        const cat = (catalog || []).find(c => String(c.id) === String(bi));
+        return cat ? (cat.name || cat.eq_name) : (isNaN(Number(bi)) ? String(bi) : null);
+      }).filter(Boolean);
+
       return [{
-        name: booking.equipment_name || booking.equipment,
+        name: name,
         qty: parseInt(booking.quantity || booking.qty || 1, 10),
-        builtInNames: [],
+        builtInNames: Array.from(new Set(builtInNames)),
       }];
     }
     return [];

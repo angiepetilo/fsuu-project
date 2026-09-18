@@ -271,7 +271,10 @@ export default function Step3Details({
     const item = (catalog || []).find((c) => String(c.id) === String(id));
     const name = item?.name || item?.eq_name || item?.category || `Equipment #${id}`;
     const qty = itemQuantities[id] || 1;
-    const builtInList = Array.isArray(item?.built_in_units) ? item.built_in_units : [];
+    const rawBuilt = (Array.isArray(item?.built_in_names) && item.built_in_names.length > 0)
+      ? item.built_in_names
+      : (Array.isArray(item?.built_in_units) ? item.built_in_units : (typeof item?.built_in_units === 'string' ? JSON.parse(item.built_in_units || '[]') : []));
+    const builtInList = Array.isArray(rawBuilt) ? rawBuilt : [];
     return {
       id,
       name,
@@ -289,13 +292,17 @@ export default function Step3Details({
   const builtInNamesSet = new Set();
   selectedCategoryItems.forEach((c) => {
     c.rawBuiltIns.forEach((raw) => {
+      if (typeof raw === 'string' && isNaN(Number(raw))) {
+        builtInNamesSet.add(raw.trim());
+        return;
+      }
       const match = (catalog || []).find(
         (cat) => String(cat.id) === String(raw) ||
                  (cat.name || cat.eq_name || "").toLowerCase() === String(raw).toLowerCase()
       );
       if (match) {
-        builtInNamesSet.add(match.name || match.eq_name || String(raw));
-      } else if (raw) {
+        builtInNamesSet.add(match.name || match.eq_name);
+      } else if (raw && isNaN(Number(raw))) {
         builtInNamesSet.add(String(raw));
       }
     });

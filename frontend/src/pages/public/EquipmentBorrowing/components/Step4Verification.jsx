@@ -24,13 +24,18 @@ export default function Step4Verification({
   const selectedDetails = selectedItems.map(id => {
     const found = catalog.find(c => String(c.id) === String(id));
     const qty = itemQuantities[id] || 1;
-    const rawBuilt = Array.isArray(found?.built_in_units) ? found.built_in_units : [];
-    const builtInNames = rawBuilt.map(raw => {
+    const rawBuilt = (Array.isArray(found?.built_in_names) && found.built_in_names.length > 0)
+      ? found.built_in_names
+      : (Array.isArray(found?.built_in_units) ? found.built_in_units : (typeof found?.built_in_units === 'string' ? JSON.parse(found.built_in_units || '[]') : []));
+    const builtInNames = (Array.isArray(rawBuilt) ? rawBuilt : []).map(raw => {
+      if (typeof raw === 'string' && isNaN(Number(raw))) {
+        return raw.trim();
+      }
       const match = catalog.find(
         cat => String(cat.id) === String(raw) ||
                (cat.name || cat.eq_name || '').toLowerCase() === String(raw).toLowerCase()
       );
-      return match ? (match.name || match.eq_name) : String(raw);
+      return match ? (match.name || match.eq_name) : (isNaN(Number(raw)) ? String(raw) : null);
     }).filter(Boolean);
 
     return {

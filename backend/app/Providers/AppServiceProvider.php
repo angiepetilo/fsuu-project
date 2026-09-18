@@ -193,6 +193,55 @@ class AppServiceProvider extends ServiceProvider
                     });
                 }
             }
+
+            // Ensure default built-in category linkages exist for Projector if empty in Production
+            if (\Illuminate\Support\Facades\Schema::hasTable('equipment_types') && \Illuminate\Support\Facades\Schema::hasColumn('equipment_types', 'built_in_units')) {
+                $projectorType = \App\Models\EquipmentType::whereRaw("LOWER(eq_name) LIKE '%projector%'")->first();
+                if ($projectorType && empty($projectorType->built_in_units)) {
+                    $linkedIds = \App\Models\EquipmentType::where('id', '!=', $projectorType->id)
+                        ->where(function($q) {
+                            $q->whereRaw("LOWER(eq_name) LIKE '%camera%'")
+                              ->orWhereRaw("LOWER(eq_name) LIKE '%hdmi%'")
+                              ->orWhereRaw("LOWER(eq_name) LIKE '%microphone%'");
+                        })
+                        ->pluck('id')
+                        ->toArray();
+                    if (!empty($linkedIds)) {
+                        $projectorType->update(['built_in_units' => $linkedIds]);
+                    }
+                }
+            }
+
+            // Ensure default physical unit built-in links exist for Projector units if empty in Production
+            if (\Illuminate\Support\Facades\Schema::hasTable('equipment_units') && \Illuminate\Support\Facades\Schema::hasColumn('equipment_units', 'built_in_units')) {
+                $projUnits = \App\Models\EquipmentUnit::whereNull('archived_at')
+                    ->whereRaw("LOWER(model) LIKE '%projector%'")
+                    ->get();
+                foreach ($projUnits as $pu) {
+                    if (empty($pu->built_in_units)) {
+                        preg_match('/\d+/', $pu->model, $m);
+                        $num = $m[0] ?? null;
+                        if ($num) {
+                            $childUnitIds = \App\Models\EquipmentUnit::whereNull('archived_at')
+                                ->where('id', '!=', $pu->id)
+                                ->where(function($q) use ($num) {
+                                    $q->whereRaw("LOWER(model) LIKE ?", ["%camera - {$num}%"])
+                                      ->orWhereRaw("LOWER(model) LIKE ?", ["%hdmi - {$num}%"])
+                                      ->orWhereRaw("LOWER(model) LIKE ?", ["%microphone - {$num}%"])
+                                      ->orWhereRaw("LOWER(model) LIKE ?", ["%camera%{$num}%"])
+                                      ->orWhereRaw("LOWER(model) LIKE ?", ["%hdmi%{$num}%"])
+                                      ->orWhereRaw("LOWER(model) LIKE ?", ["%microphone%{$num}%"]);
+                                })
+                                ->pluck('id')
+                                ->map(fn($id) => (string)$id)
+                                ->toArray();
+                            if (!empty($childUnitIds)) {
+                                $pu->update(['built_in_units' => $childUnitIds]);
+                            }
+                        }
+                    }
+                }
+            }
         } catch (\Throwable $e) {}
     }
 

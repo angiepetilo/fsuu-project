@@ -29,6 +29,13 @@ class EquipmentBorrowItem extends Model
         'returned_at'        => 'datetime',
     ];
 
+    protected $appends = ['built_in_names'];
+
+    public function getBuiltInNamesAttribute(): array
+    {
+        return $this->equipmentType?->built_in_names ?? [];
+    }
+
     public function equipmentBorrow(): BelongsTo
     {
         return $this->belongsTo(EquipmentBorrow::class);

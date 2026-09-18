@@ -172,6 +172,7 @@ class EquipmentCategoryService
                 'status'          => $e->status ?? 'available',
                 'description'     => $e->description,
                 'built_in_units'  => !empty($e->built_in_units) ? (is_array($e->built_in_units) ? $e->built_in_units : (json_decode($e->built_in_units ?? '[]', true) ?: [])) : [],
+                'built_in_names'  => $e->built_in_names ?? [],
                 'created_at'      => $e->created_at,
             ];
         }
@@ -355,6 +356,7 @@ class EquipmentCategoryService
             'status'          => $e->status ?? 'available',
             'description'     => $e->description,
             'built_in_units'  => !empty($e->built_in_units) ? (is_array($e->built_in_units) ? $e->built_in_units : (json_decode($e->built_in_units ?? '[]', true) ?: [])) : [],
+            'built_in_names'  => $e->built_in_names ?? [],
             'created_at'      => $e->created_at,
         ];
     }
