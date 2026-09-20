@@ -1,13 +1,14 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { 
   Search, ShieldCheck, CheckCircle2, AlertCircle, PackageCheck, 
   Clock, Calendar, User, ArrowRight, RefreshCw, CheckSquare, Square,
-  Building2, Check
+  Building2, Check, Loader2
 } from "lucide-react";
 import api from "@/lib/axios";
 import { notify } from "@/lib/notify";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Button } from "@/components/ui/button";
+import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 
 export default function EquipmentRelease() {
   const [searchRef, setSearchRef] = useState("");
@@ -17,7 +18,7 @@ export default function EquipmentRelease() {
   const [selectedBorrowing, setSelectedBorrowing] = useState(null);
   const [inspectedChecklist, setInspectedChecklist] = useState({});
 
-  const fetchBorrowings = async () => {
+  const fetchBorrowings = useCallback(async () => {
     setLoading(true);
     try {
       const res = await api.get("/avr-equipment-borrowings");
@@ -28,11 +29,9 @@ export default function EquipmentRelease() {
     } finally {
       setLoading(false);
     }
-  };
-
-  useEffect(() => {
-    fetchBorrowings();
   }, []);
+
+  useRealtimeSync(fetchBorrowings, { interval: 30000 });
 
   // Approved borrowings that are ready for handover / release
   const readyBorrowings = useMemo(() => {
@@ -387,7 +386,11 @@ export default function EquipmentRelease() {
                   size="lg"
                   className="w-full sm:w-auto px-8 h-12 font-bold gap-2 text-sm shadow-md"
                 >
-                  <PackageCheck size={18} />
+                  {releasing ? (
+                    <Loader2 size={18} className="animate-spin" />
+                  ) : (
+                    <PackageCheck size={18} />
+                  )}
                   <span>{releasing ? "Recording Handover..." : "Release Equipment"}</span>
                 </Button>
               </div>

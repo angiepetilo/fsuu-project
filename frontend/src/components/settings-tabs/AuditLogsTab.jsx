@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { 
   ShieldAlert, CheckCircle2, XCircle, UserCheck, Activity, 
-  Search, Calendar, Filter, RefreshCw, Eye, X, Globe, User, 
+  Search, RefreshCw, Eye, X, Globe, User, 
   Clock, FileText, ChevronLeft, ChevronRight, Info, AlertCircle,
   AlertTriangle, Package, Building2, Tag, Phone, Mail, ExternalLink,
   Camera, Lock, Key
@@ -20,24 +20,21 @@ export default function AuditLogsTab() {
     per_page: 25,
   });
 
-  const [categoryFilter, setCategoryFilter] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
   const [selectedLog, setSelectedLog] = useState(null);
   const [previewPhoto, setPreviewPhoto] = useState(null);
+  const isFirstMount = useRef(true);
 
-  const fetchAuditLogs = async (targetPage = 1) => {
+  const fetchAuditLogs = async (targetPage = 1, query = searchTerm) => {
     setLoading(true);
     try {
       const params = {
         page: targetPage,
         per_page: 25,
       };
-      if (categoryFilter !== "all") params.action = categoryFilter;
-      if (searchTerm.trim()) params.search = searchTerm.trim();
-      if (dateFrom) params.date_from = dateFrom;
-      if (dateTo) params.date_to = dateTo;
+      if (typeof query === "string" && query.trim()) {
+        params.search = query.trim();
+      }
 
       const res = await api.get("/sysad/audit-logs", { params });
       const logsData = res.data?.logs?.data || (Array.isArray(res.data?.logs) ? res.data.logs : []);
@@ -60,20 +57,25 @@ export default function AuditLogsTab() {
   };
 
   useEffect(() => {
-    fetchAuditLogs(1);
-  }, [categoryFilter, dateFrom, dateTo]);
+    if (isFirstMount.current) {
+      isFirstMount.current = false;
+      fetchAuditLogs(1, "");
+      return;
+    }
+    const timer = setTimeout(() => {
+      fetchAuditLogs(1, searchTerm);
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
-    fetchAuditLogs(1);
+    fetchAuditLogs(1, searchTerm);
   };
 
-  const resetFilters = () => {
-    setCategoryFilter("all");
+  const handleClearSearch = () => {
     setSearchTerm("");
-    setDateFrom("");
-    setDateTo("");
-    fetchAuditLogs(1);
+    fetchAuditLogs(1, "");
   };
 
   const getActionBadge = (action = "") => {
@@ -233,77 +235,40 @@ export default function AuditLogsTab() {
 
   return (
     <div className="space-y-4 font-sans">
-      {/* Sleek, Simple, Plain & Minimal Filter Bar (No tabs) */}
-      <div className="bg-slate-50/80 p-3.5 rounded-2xl border border-slate-200/80 space-y-2.5">
-        <form onSubmit={handleSearchSubmit} className="flex flex-wrap items-center justify-between gap-2.5">
-          <div className="flex-1 min-w-[220px] relative">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+      {/* Clean & Sleek Search Bar with Refresh */}
+      <div className="bg-slate-50/80 p-3 rounded-2xl border border-slate-200/80">
+        <form onSubmit={handleSearchSubmit} className="flex items-center justify-between gap-2.5">
+          <div className="flex-1 relative">
+            <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
-              placeholder="Search user, action, reference, description..."
+              placeholder="Search by barcode, action/module, user, activity description..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-blue-600 shadow-2xs"
+              className="w-full pl-9 pr-9 py-2 bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-blue-600 shadow-2xs transition-colors"
             />
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={handleClearSearch}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 rounded cursor-pointer"
+                title="Clear search"
+              >
+                <X size={13} />
+              </button>
+            )}
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap">
-            <select
-              value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
-              className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none shadow-2xs cursor-pointer"
-            >
-              <option value="all">All Actions</option>
-              <option value="approval">Approval</option>
-              <option value="rejection">Rejection</option>
-              <option value="released">Released / On-going</option>
-              <option value="complete">Complete</option>
-              <option value="cancel">Cancelled</option>
-              <option value="incomplete">Incomplete</option>
-              <option value="inspection">Inspection</option>
-              <option value="manage_equipment">Manage Equipment</option>
-              <option value="add_user">Add User</option>
-              <option value="venue_creation">Venue Creation</option>
-              <option value="change_password">Change Password</option>
-              <option value="verification_pin">Verification PIN</option>
-              <option value="equipment_category">Equipment Category</option>
-              <option value="manage_venue">Manage Venue</option>
-            </select>
-
-            <input
-              type="date"
-              value={dateFrom}
-              onChange={(e) => setDateFrom(e.target.value)}
-              className="px-2.5 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-700 focus:outline-none shadow-2xs"
-              title="From date"
-            />
-
-            <input
-              type="date"
-              value={dateTo}
-              onChange={(e) => setDateTo(e.target.value)}
-              className="px-2.5 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-700 focus:outline-none shadow-2xs"
-              title="To date"
-            />
-
-            <button
-              type="submit"
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-2xs transition-all cursor-pointer"
-            >
-              Filter
-            </button>
-
-            <button
-              type="button"
-              onClick={() => fetchAuditLogs(page)}
-              disabled={loading}
-              className="flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition-all cursor-pointer shadow-2xs"
-              title="Refresh audit log"
-            >
-              <RefreshCw size={13} className={loading ? "animate-spin text-blue-600" : "text-slate-500"} />
-              <span>Refresh</span>
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={() => fetchAuditLogs(page, searchTerm)}
+            disabled={loading}
+            className="flex items-center gap-1.5 px-3.5 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition-all cursor-pointer shadow-2xs shrink-0"
+            title="Refresh audit log"
+          >
+            <RefreshCw size={13} className={loading ? "animate-spin text-blue-600" : "text-slate-500"} />
+            <span>Refresh</span>
+          </button>
         </form>
       </div>
 
@@ -337,7 +302,17 @@ export default function AuditLogsTab() {
                   <td colSpan={7} className="text-center py-12 text-slate-400">
                     <Activity size={32} className="mx-auto text-slate-300 mb-2" />
                     <p className="text-xs font-semibold">No incident or audit logs found matching criteria.</p>
-                    <p className="text-[11px] text-slate-400 mt-0.5">Try resetting search filters or changing tabs.</p>
+                    {searchTerm ? (
+                      <button
+                        type="button"
+                        onClick={handleClearSearch}
+                        className="text-[11px] text-blue-600 hover:underline mt-1.5 font-semibold cursor-pointer block mx-auto"
+                      >
+                        Clear search query
+                      </button>
+                    ) : (
+                      <p className="text-[11px] text-slate-400 mt-0.5">No audit activity recorded yet.</p>
+                    )}
                   </td>
                 </tr>
               ) : (
@@ -513,7 +488,7 @@ export default function AuditLogsTab() {
               <button
                 type="button"
                 disabled={pagination.current_page <= 1}
-                onClick={() => fetchAuditLogs(pagination.current_page - 1)}
+                onClick={() => fetchAuditLogs(pagination.current_page - 1, searchTerm)}
                 className="px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-40 cursor-pointer transition-all flex items-center gap-1"
               >
                 <ChevronLeft size={13} />
@@ -522,7 +497,7 @@ export default function AuditLogsTab() {
               <button
                 type="button"
                 disabled={pagination.current_page >= pagination.last_page}
-                onClick={() => fetchAuditLogs(pagination.current_page + 1)}
+                onClick={() => fetchAuditLogs(pagination.current_page + 1, searchTerm)}
                 className="px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-40 cursor-pointer transition-all flex items-center gap-1"
               >
                 <span>Next</span>

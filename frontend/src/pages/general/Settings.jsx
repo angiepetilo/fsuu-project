@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useOutletContext, useSearchParams } from "react-router-dom";
 import { usePermissions } from "@/hooks/usePermissions";
 import notify from "@/lib/notify";
@@ -97,27 +97,29 @@ export default function Settings() {
   const selectedOffice = context?.selectedOffice ?? "All Offices";
 
   // Filter visible categories and tabs strictly based on Super Admin configured permissions
-  const visibleCategories = SETTINGS_CATEGORIES.map((cat) => {
-    const items = cat.items.filter((tab) => {
-      if (isSuperAdmin) return true;
-      if (tab.superAdminOnly) return false;
-      if (tab.id === "profile") return true;
+  const visibleCategories = useMemo(() => {
+    return SETTINGS_CATEGORIES.map((cat) => {
+      const items = cat.items.filter((tab) => {
+        if (isSuperAdmin) return true;
+        if (tab.superAdminOnly) return false;
+        if (tab.id === "profile") return true;
 
-      // Student Assistants only have access to their personal Profile tab
-      if (isStudentAssistant) {
-        return false;
-      }
+        // Student Assistants only have access to their personal Profile tab
+        if (isStudentAssistant) {
+          return false;
+        }
 
-      if (tab.permissionKey && !hasPermission(tab.permissionKey)) {
-        return false;
-      }
+        if (tab.permissionKey && !hasPermission(tab.permissionKey)) {
+          return false;
+        }
 
-      return true;
-    });
-    return { ...cat, items };
-  }).filter((cat) => cat.items.length > 0);
+        return true;
+      });
+      return { ...cat, items };
+    }).filter((cat) => cat.items.length > 0);
+  }, [isSuperAdmin, isStudentAssistant, hasPermission]);
 
-  const visibleTabs = visibleCategories.flatMap((c) => c.items);
+  const visibleTabs = useMemo(() => visibleCategories.flatMap((c) => c.items), [visibleCategories]);
 
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -156,12 +158,12 @@ export default function Settings() {
     }
   }, [activeTab]);
 
-  const toggleCategory = (catId) => {
+  const toggleCategory = useCallback((catId) => {
     setOpenCategories((prev) => ({
       ...prev,
       [catId]: !prev[catId],
     }));
-  };
+  }, []);
 
   // Track which protected tabs have been unlocked this session
   const [unlockedTabs, setUnlockedTabs] = useState(new Set());
@@ -180,9 +182,9 @@ export default function Settings() {
     const targetTab = urlTab && visibleTabs.some((t) => t.id === urlTab) ? urlTab : (visibleTabs[0]?.id || "equipment");
     setActiveTab(targetTab);
     setMountedTabs((prev) => new Set([...prev, targetTab]));
-  }, [searchParams, isSuperAdmin, isStudentAssistant]);
+  }, [searchParams, visibleTabs]);
 
-  const switchTab = (tabId) => {
+  const switchTab = useCallback((tabId) => {
     setActiveTab(tabId);
     setMountedTabs((prev) => new Set([...prev, tabId]));
     setSearchParams((prev) => {
@@ -190,9 +192,9 @@ export default function Settings() {
       next.set("tab", tabId);
       return next;
     }, { replace: true });
-  };
+  }, [setSearchParams]);
 
-  const handleTabClick = (tabId) => {
+  const handleTabClick = useCallback((tabId) => {
     if (PROTECTED_TABS.includes(tabId) && !unlockedTabs.has(tabId)) {
       setPendingTab(tabId);
       setPwInput("");
@@ -202,9 +204,9 @@ export default function Settings() {
       return;
     }
     switchTab(tabId);
-  };
+  }, [unlockedTabs, switchTab]);
 
-  const handleVerifyPassword = async (e) => {
+  const handleVerifyPassword = useCallback(async (e) => {
     e.preventDefault();
     if (!pwInput.trim()) {
       setPwError("Please enter your password.");
@@ -226,25 +228,24 @@ export default function Settings() {
     } finally {
       setVerifying(false);
     }
-  };
+  }, [pwInput, pendingTab, switchTab]);
 
-  const handleModalClose = () => {
+  const handleModalClose = useCallback(() => {
     setShowPwModal(false);
     setPendingTab(null);
     setPwInput("");
     setPwError("");
-  };
+  }, []);
 
-  const showMsg = (msg) => {
+  const showMsg = useCallback((msg) => {
     const errCheck = typeof msg === "string" && (msg.includes("❌") || msg.toLowerCase().includes("fail") || msg.toLowerCase().includes("error"));
     const cleanMsg = (msg || "").replace(/^✅\s*|^❌\s*/, "").trim();
-
     if (errCheck) {
       notify.error("Action Failed", cleanMsg);
     } else {
       notify.success("Success", cleanMsg);
     }
-  };
+  }, []);
 
   return (
     <div className="bg-white dark:bg-[#111827] rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col lg:flex-row overflow-visible font-sans">

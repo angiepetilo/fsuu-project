@@ -120,7 +120,7 @@ class DashboardStatsController extends Controller
         $unitCounts = DB::table('equipment_units')
             ->whereNull('archived_at')
             ->select(
-                DB::raw("SUM(CASE WHEN LOWER(COALESCE(equipment_units.condition, 'good')) = 'good' AND LOWER(equipment_units.status) NOT IN ('damaged', 'maintenance', 'unavailable', 'lost', 'decommissioned') THEN 1 ELSE 0 END) as available_count"),
+                DB::raw("SUM(CASE WHEN LOWER(COALESCE(equipment_units.condition, 'good')) NOT IN ('damaged', 'lost', 'under repair', 'under_repair', 'worn', 'minor wear') AND LOWER(COALESCE(equipment_units.status, 'available')) NOT IN ('damaged', 'maintenance', 'unavailable', 'lost', 'decommissioned', 'released', 'in-use', 'in_use', 'borrowed', 'reserved') THEN 1 ELSE 0 END) as available_count"),
                 DB::raw("SUM(CASE WHEN LOWER(COALESCE(equipment_units.condition, 'good')) IN ('damaged', 'maintenance', 'worn', 'under repair') OR (LOWER(equipment_units.status) IN ('damaged', 'maintenance') AND LOWER(COALESCE(equipment_units.condition, '')) != 'lost') THEN 1 ELSE 0 END) as damage_count"),
                 DB::raw("SUM(CASE WHEN LOWER(COALESCE(equipment_units.condition, '')) = 'lost' OR LOWER(equipment_units.status) IN ('lost', 'decommissioned') THEN 1 ELSE 0 END) as lost_count")
             )
@@ -130,49 +130,28 @@ class DashboardStatsController extends Controller
         $physicalDamages    = (int) ($unitCounts->damage_count ?? 0);
         $physicalLost       = (int) ($unitCounts->lost_count ?? 0);
 
-        // 6. Inspection-based Lost and Damaged counts (scoped to active term via bookings join)
-        $inspDmgQuery = DB::table('inspections')
-            ->where(function($q) {
-                $q->where(DB::raw('LOWER(inspections.condition)'), 'damaged')
-                  ->orWhere('violation_type', 'LIKE', '%damage%');
-            });
-        if ($activeTermId) {
-            $inspDmgQuery->where(function($q) use ($activeTermId) {
-                $q->whereExists(function($sub) use ($activeTermId) {
-                    $sub->from('equipment_borrows')
-                        ->whereColumn('equipment_borrows.id', 'inspections.inspectable_id')
-                        ->where('equipment_borrows.academic_term_id', $activeTermId);
-                })->orWhereExists(function($sub) use ($activeTermId) {
-                    $sub->from('venue_bookings')
-                        ->whereColumn('venue_bookings.id', 'inspections.inspectable_id')
-                        ->where('venue_bookings.academic_term_id', $activeTermId);
-                });
-            });
-        }
-        $inspectionDamages = $inspDmgQuery->count();
+        // 5b. Disabled units count (soft-deleted)
+        $disabledUnits = DB::table('equipment_units')
+            ->whereNotNull('archived_at')
+            ->count();
 
-        $inspLostQuery = DB::table('inspections')
-            ->where(function($q) {
-                $q->where(DB::raw('LOWER(inspections.condition)'), 'lost')
-                  ->orWhere('violation_type', 'LIKE', '%lost%');
-            });
-        if ($activeTermId) {
-            $inspLostQuery->where(function($q) use ($activeTermId) {
-                $q->whereExists(function($sub) use ($activeTermId) {
-                    $sub->from('equipment_borrows')
-                        ->whereColumn('equipment_borrows.id', 'inspections.inspectable_id')
-                        ->where('equipment_borrows.academic_term_id', $activeTermId);
-                })->orWhereExists(function($sub) use ($activeTermId) {
-                    $sub->from('venue_bookings')
-                        ->whereColumn('venue_bookings.id', 'inspections.inspectable_id')
-                        ->where('venue_bookings.academic_term_id', $activeTermId);
-                });
-            });
-        }
-        $inspectionLost = $inspLostQuery->count();
+        // 5c. Total active units
+        $totalActiveUnits = DB::table('equipment_units')
+            ->whereNull('archived_at')
+            ->count();
 
-        $totalEquipmentDamages = max($physicalDamages, $inspectionDamages);
-        $totalEquipmentLost = max($physicalLost, $inspectionLost);
+        // 5d. Released / In-Use units
+        $releasedUnits = DB::table('equipment_units')
+            ->whereNull('archived_at')
+            ->whereRaw("LOWER(COALESCE(status,'')) IN ('released','in-use','in_use','borrowed','reserved')")
+            ->count();
+
+        // 6. Total Equipment Damaged and Lost counts
+        // Directly reflects real-time physical inventory units in damaged/lost condition.
+        // When staff repairs, recovers, or updates a unit back to 'good' & 'available' in Manage Equipment,
+        // the dashboard counts immediately update to reflect current availability.
+        $totalEquipmentDamages = $physicalDamages;
+        $totalEquipmentLost    = $physicalLost;
 
         // 7. Overdue Returns & Completed Today — scoped to active term
         $overdueQuery = DB::table('equipment_borrows')
@@ -492,6 +471,64 @@ class DashboardStatsController extends Controller
 
         $calendarBookings = $calendarVenueBookings->concat($calendarEquipBorrowings);
 
+        // ── Recent Inventory Changes (from audit logs) ──────────────────────
+        $recentInventoryChanges = [];
+        try {
+            if (Schema::hasTable('audit_logs')) {
+                $recentInventoryChanges = DB::table('audit_logs')
+                    ->whereIn('action', [
+                        'EQUIPMENT_UNIT_UPDATED',
+                        'EQUIPMENT_UNIT_CREATED',
+                        'EQUIPMENT_UNIT_DELETED',
+                        'EQUIPMENT_UNIT_ENABLED',
+                        'EQUIPMENT_UNIT_BATCH_CREATED',
+                        'EQUIPMENT_UNIT_BULK_IMPORTED',
+                    ])
+                    ->orderByDesc('created_at')
+                    ->limit(12)
+                    ->get()
+                    ->map(function ($log) {
+                        $meta = [];
+                        try {
+                            $raw = $log->metadata;
+                            if (is_string($raw)) $meta = json_decode($raw, true) ?: [];
+                            elseif (is_array($raw)) $meta = $raw;
+                        } catch (\Throwable $e) {}
+
+                        $actionLabel = match($log->action) {
+                            'EQUIPMENT_UNIT_UPDATED'      => 'Unit Updated',
+                            'EQUIPMENT_UNIT_CREATED'      => 'Unit Added',
+                            'EQUIPMENT_UNIT_DELETED'      => 'Unit Disabled',
+                            'EQUIPMENT_UNIT_ENABLED'      => 'Unit Re-enabled',
+                            'EQUIPMENT_UNIT_BATCH_CREATED'=> 'Batch Added',
+                            'EQUIPMENT_UNIT_BULK_IMPORTED'=> 'Bulk Imported',
+                            default                       => $log->action,
+                        };
+
+                        $trigger = $meta['description'] ?? $meta['trigger'] ?? $actionLabel;
+                        $barcode = $meta['barcode'] ?? null;
+                        $condition = $meta['condition'] ?? null;
+                        $status = $meta['status'] ?? null;
+                        $reason = $meta['reason'] ?? null;
+                        $count = $meta['count'] ?? $meta['imported_count'] ?? null;
+
+                        return [
+                            'id'          => $log->id,
+                            'action'      => $log->action,
+                            'label'       => $actionLabel,
+                            'barcode'     => $barcode,
+                            'condition'   => $condition,
+                            'status'      => $status,
+                            'reason'      => $reason,
+                            'count'       => $count,
+                            'trigger'     => $trigger,
+                            'created_at'  => Carbon::parse($log->created_at)->diffForHumans(),
+                            'raw_date'    => $log->created_at,
+                        ];
+                    })->all();
+            }
+        } catch (\Throwable $e) {}
+
         return [
             'quick_stats' => [
                 'total_venue_bookings'         => $totalVenueBookings,
@@ -515,6 +552,15 @@ class DashboardStatsController extends Controller
                 'top_late_department'          => $topLateDept,
                 'active_term_id'               => $activeTermId,
             ],
+            'equipment_inventory' => [
+                'total_active'  => $totalActiveUnits,
+                'available'     => $availableEquipment,
+                'damaged'       => $physicalDamages,
+                'lost'          => $physicalLost,
+                'released'      => $releasedUnits,
+                'disabled'      => $disabledUnits,
+            ],
+            'recent_inventory_changes' => $recentInventoryChanges,
             'top_departments'         => $topBookedDepts,
             'top_equipment'           => $topEquipment,
             'programs_with_violations' => array_slice($programsList, 0, 5),

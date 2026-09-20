@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Link, useLocation, useNavigate, Navigate, Outlet } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -17,6 +17,8 @@ import NotificationDropdown from "@/components/notifications/NotificationDropdow
 import IncidentDetailModal from "@/components/notifications/IncidentDetailModal";
 import PendingTasksIndicator from "@/components/notifications/PendingTasksIndicator";
 import ConfirmModal from "@/components/ui/ConfirmModal";
+import { useIdleTimeout } from "@/hooks/useIdleTimeout";
+import SessionTimeoutModal from "@/components/ui/SessionTimeoutModal";
 
 const STUDENT_ASSISTANT_NAV_GROUPS = [
   {
@@ -91,6 +93,18 @@ export default function GeneralLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
 
+  // Automatic Session Idle Timeout (30 mins for staff, with 60s countdown warning)
+  const {
+    showWarning: showIdleWarning,
+    secondsRemaining: idleSecondsRemaining,
+    stayLoggedIn,
+    logoutNow: logoutDueToIdle,
+  } = useIdleTimeout({
+    idleTimeoutMs: 30 * 60 * 1000,
+    warningTimeMs: 60 * 1000,
+    enabled: Boolean(user),
+  });
+
   // Sync theme with document element
   useEffect(() => {
     // Keep user's preferred theme or default to dark for internal management if not set
@@ -134,7 +148,7 @@ export default function GeneralLayout() {
     } catch {}
   }, [user?.id]);
 
-  const fetchNotifs = async () => {
+  const fetchNotifs = useCallback(async () => {
     try {
       const res = await api.get("/general/notifications");
       if (Array.isArray(res.data)) {
@@ -152,7 +166,7 @@ export default function GeneralLayout() {
         }
       }
     } catch {}
-  };
+  }, [userStorageKey]);
 
   useRealtimeSync(fetchNotifs, { interval: 30000, enabled: !!user });
 
@@ -190,9 +204,9 @@ export default function GeneralLayout() {
       echoInstance?.leave("admin-notifications");
       echoInstance?.leave("equipment-inventory");
     };
-  }, [user]);
+  }, [user, fetchNotifs]);
 
-  const markAsRead = async (notifId) => {
+  const markAsRead = useCallback(async (notifId) => {
     setReadNotifIds(prev => {
       const next = new Set(prev);
       next.add(notifId);
@@ -206,9 +220,9 @@ export default function GeneralLayout() {
     try {
       await api.post("/general/notifications/mark-as-read", { notification_id: notifId });
     } catch {}
-  };
+  }, [userStorageKey]);
 
-  const markAllAsRead = async () => {
+  const markAllAsRead = useCallback(async () => {
     const allIds = new Set(notifications.map(n => n.id));
     setReadNotifIds(allIds);
     setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
@@ -219,33 +233,35 @@ export default function GeneralLayout() {
     try {
       await api.post("/general/notifications/mark-all-read", { notification_ids: Array.from(allIds) });
     } catch {}
-  };
+  }, [notifications, userStorageKey]);
 
-  const handleNotificationClick = async (n) => {
+  const handleNotificationClick = useCallback(async (n) => {
     await markAsRead(n.id);
     setShowNotifDropdown(false);
     if (n.url) {
       navigate(n.url, { state: { selectedId: n.target_id, targetType: n.target_type, trk: n.ref } });
     }
-  };
+  }, [markAsRead, navigate]);
 
   // Restrict Notifications by assigned office (if specific campus restriction applies)
-  const filteredNotifications = notifications.filter(n => {
-    if (isSuperAdmin || !n.office) return true;
-    const lowerOffice = (adminOffice || "").toLowerCase();
-    if (lowerOffice === "all offices" || lowerOffice.includes("avr") || lowerOffice.includes("operations") || !lowerOffice) {
-      return true;
-    }
-    if (lowerOffice.includes("morelos")) {
-      return (n.office || "").toLowerCase().includes("morelos");
-    }
-    return !(n.office || "").toLowerCase().includes("morelos");
-  });
+  const filteredNotifications = useMemo(() => {
+    return notifications.filter(n => {
+      if (isSuperAdmin || !n.office) return true;
+      const lowerOffice = (adminOffice || "").toLowerCase();
+      if (lowerOffice === "all offices" || lowerOffice.includes("avr") || lowerOffice.includes("operations") || !lowerOffice) {
+        return true;
+      }
+      if (lowerOffice.includes("morelos")) {
+        return (n.office || "").toLowerCase().includes("morelos");
+      }
+      return !(n.office || "").toLowerCase().includes("morelos");
+    });
+  }, [notifications, isSuperAdmin, adminOffice]);
 
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
-  const doLogout = async () => {
+  const doLogout = useCallback(async () => {
     setShowLogoutConfirm(false);
     setIsLoggingOut(true);
     try {
@@ -256,7 +272,7 @@ export default function GeneralLayout() {
     } finally {
       setIsLoggingOut(false);
     }
-  };
+  }, [logout, navigate]);
 
   const isActive = (path) => location.pathname === path || location.pathname.startsWith(path + "/");
 
@@ -352,6 +368,13 @@ export default function GeneralLayout() {
 
   return (
     <div className="min-h-screen flex font-sans antialiased relative bg-background text-foreground">
+      {/* ── Inactivity Auto-Logout Warning Modal ── */}
+      <SessionTimeoutModal
+        isOpen={showIdleWarning}
+        secondsRemaining={idleSecondsRemaining}
+        onStayLoggedIn={stayLoggedIn}
+        onLogout={logoutDueToIdle}
+      />
 
       {/* ── Logout Confirm Modal ── */}
       <ConfirmModal

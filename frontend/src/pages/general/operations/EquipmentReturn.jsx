@@ -1,12 +1,13 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { 
   RotateCcw, Search, AlertCircle, CheckCircle2, ShieldAlert,
-  Clock, Calendar, User, FileText, RefreshCw, AlertTriangle
+  Clock, Calendar, User, FileText, RefreshCw, AlertTriangle, Loader2
 } from "lucide-react";
 import api from "@/lib/axios";
 import { notify } from "@/lib/notify";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Button } from "@/components/ui/button";
+import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 
 const CONDITION_OPTIONS = [
   { value: "Good Condition", label: "Good Condition", color: "text-emerald-400 border-emerald-500/30 bg-emerald-500/10" },
@@ -25,7 +26,7 @@ export default function EquipmentReturn() {
   const [unitConditions, setUnitConditions] = useState({});
   const [returnNotes, setReturnNotes] = useState("");
 
-  const fetchBorrowings = async () => {
+  const fetchBorrowings = useCallback(async () => {
     setLoading(true);
     try {
       const res = await api.get("/avr-equipment-borrowings");
@@ -36,11 +37,9 @@ export default function EquipmentReturn() {
     } finally {
       setLoading(false);
     }
-  };
-
-  useEffect(() => {
-    fetchBorrowings();
   }, []);
+
+  useRealtimeSync(fetchBorrowings, { interval: 30000 });
 
   // Filter items currently out (released / ongoing)
   const activeBorrowings = useMemo(() => {
@@ -384,7 +383,11 @@ export default function EquipmentReturn() {
                   size="lg"
                   className="w-full sm:w-auto px-8 h-12 font-bold gap-2 text-sm shadow-md"
                 >
-                  <CheckCircle2 size={18} />
+                  {submitting ? (
+                    <Loader2 size={18} className="animate-spin" />
+                  ) : (
+                    <CheckCircle2 size={18} />
+                  )}
                   <span>{submitting ? "Processing..." : "Confirm Return"}</span>
                 </Button>
               </div>

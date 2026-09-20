@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Link, useLocation, useNavigate, Navigate, Outlet } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -15,6 +15,8 @@ import NotificationDropdown from "@/components/notifications/NotificationDropdow
 import IncidentDetailModal from "@/components/notifications/IncidentDetailModal";
 import PendingTasksIndicator from "@/components/notifications/PendingTasksIndicator";
 import ConfirmModal from "@/components/ui/ConfirmModal";
+import { useIdleTimeout } from "@/hooks/useIdleTimeout";
+import SessionTimeoutModal from "@/components/ui/SessionTimeoutModal";
 
 const SYSAD_NAV_GROUPS = [
   {
@@ -48,6 +50,67 @@ const SYSAD_NAV_GROUPS = [
   },
 ];
 
+const getFeatureDetails = (path) => {
+  if (path.includes("/dashboard")) {
+    return {
+      title: "Dashboard",
+      subtitle: "Global facility utilization, reservation analytics & inventory overview."
+    };
+  }
+  if (path.includes("/interface")) {
+    return {
+      title: "Interface",
+      subtitle: "Super admin & staff reservation interface with PIN verification overrides."
+    };
+  }
+  if (path.includes("/venue-booking")) {
+    return {
+      title: "Venue Booking",
+      subtitle: "Review, approve, and manage campus venue reservation schedules."
+    };
+  }
+  if (path.includes("/equipment-borrowing")) {
+    return {
+      title: "Equipment Borrowing",
+      subtitle: "Walk-in & advance equipment requisitions, custodial dispatch, and return tracking."
+    };
+  }
+  if (path.includes("/manage-equipment")) {
+    return {
+      title: "Manage Equipment",
+      subtitle: "Physical unit inventory, barcode registry, and equipment categories."
+    };
+  }
+  if (path.includes("/manage-venue")) {
+    return {
+      title: "Manage Venue",
+      subtitle: "Campus facility catalog, capacity configurations, and operating availability."
+    };
+  }
+  if (path.includes("/report")) {
+    return {
+      title: "Reports & Analytics",
+      subtitle: "Utilization metrics, statistical summaries, and official export logs."
+    };
+  }
+  if (path.includes("/history-log")) {
+    return {
+      title: "History Log",
+      subtitle: "Comprehensive audit trail and transaction history records."
+    };
+  }
+  if (path.includes("/settings")) {
+    return {
+      title: "System Settings",
+      subtitle: "Global user accounts, system configuration, verification PIN & audit controls."
+    };
+  }
+  return {
+    title: "Super Admin Portal",
+    subtitle: "Global system administration, user accounts, and system configuration."
+  };
+};
+
 export default function SysadLayout() {
   const { logout } = useAuth();
   const { user } = usePermissions();
@@ -75,7 +138,19 @@ export default function SysadLayout() {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
-  const doLogout = async () => {
+  // Automatic Session Idle Timeout (15 mins for superadmin, with 60s countdown warning)
+  const {
+    showWarning: showIdleWarning,
+    secondsRemaining: idleSecondsRemaining,
+    stayLoggedIn,
+    logoutNow: logoutDueToIdle,
+  } = useIdleTimeout({
+    idleTimeoutMs: 15 * 60 * 1000, // 15 mins for sysad
+    warningTimeMs: 60 * 1000,      // 60s countdown
+    enabled: Boolean(user),
+  });
+
+  const doLogout = useCallback(async () => {
     setShowLogoutConfirm(false);
     setIsLoggingOut(true);
     try {
@@ -86,9 +161,9 @@ export default function SysadLayout() {
     } finally {
       setIsLoggingOut(false);
     }
-  };
+  }, [logout, navigate]);
 
-  const isActive = (path) => location.pathname === path || location.pathname.startsWith(path + "/");
+  const isActive = useCallback((path) => location.pathname === path || location.pathname.startsWith(path + "/"), [location.pathname]);
 
   // System Admin Global Notifications — loaded from API with database read persistence
   const [sysadNotifications, setSysadNotifications] = useState([]);
@@ -113,7 +188,7 @@ export default function SysadLayout() {
     } catch {}
   }, [user?.id]);
 
-  const fetchNotifs = () => {
+  const fetchNotifs = useCallback(() => {
     api.get("/sysad/notifications")
       .then(res => {
         const list = res.data || [];
@@ -131,11 +206,11 @@ export default function SysadLayout() {
         }
       })
       .catch(() => setSysadNotifications([]));
-  };
+  }, [userStorageKey]);
 
   useRealtimeSync(fetchNotifs, { interval: 30000, enabled: !!user });
 
-  const markAsRead = async (notifId) => {
+  const markAsRead = useCallback(async (notifId) => {
     setReadNotifIds(prev => {
       const next = new Set(prev);
       next.add(notifId);
@@ -149,9 +224,9 @@ export default function SysadLayout() {
     try {
       await api.post("/sysad/notifications/mark-as-read", { notification_id: notifId });
     } catch {}
-  };
+  }, [userStorageKey]);
 
-  const markAllAsRead = async () => {
+  const markAllAsRead = useCallback(async () => {
     const allIds = new Set(sysadNotifications.map(n => n.id));
     setReadNotifIds(allIds);
     setSysadNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
@@ -162,77 +237,23 @@ export default function SysadLayout() {
     try {
       await api.post("/sysad/notifications/mark-all-read", { notification_ids: Array.from(allIds) });
     } catch {}
-  };
+  }, [sysadNotifications, userStorageKey]);
 
-  const filteredNotifications = sysadNotifications;
+  const filteredNotifications = useMemo(() => sysadNotifications, [sysadNotifications]);
+
+  const currentFeature = useMemo(() => getFeatureDetails(location.pathname), [location.pathname]);
 
   if (!user) return <Navigate to="/login" replace />;
 
-  const getFeatureDetails = (path) => {
-    if (path.includes("/dashboard")) {
-      return {
-        title: "Dashboard",
-        subtitle: "Global facility utilization, reservation analytics & inventory overview."
-      };
-    }
-    if (path.includes("/interface")) {
-      return {
-        title: "Interface",
-        subtitle: "Super admin & staff reservation interface with PIN verification overrides."
-      };
-    }
-    if (path.includes("/venue-booking")) {
-      return {
-        title: "Venue Booking",
-        subtitle: "Review, approve, and manage campus venue reservation schedules."
-      };
-    }
-    if (path.includes("/equipment-borrowing")) {
-      return {
-        title: "Equipment Borrowing",
-        subtitle: "Walk-in & advance equipment requisitions, custodial dispatch, and return tracking."
-      };
-    }
-    if (path.includes("/manage-equipment")) {
-      return {
-        title: "Manage Equipment",
-        subtitle: "Physical unit inventory, barcode registry, and equipment categories."
-      };
-    }
-    if (path.includes("/manage-venue")) {
-      return {
-        title: "Manage Venue",
-        subtitle: "Campus facility catalog, capacity configurations, and operating availability."
-      };
-    }
-    if (path.includes("/report")) {
-      return {
-        title: "Reports & Analytics",
-        subtitle: "Utilization metrics, statistical summaries, and official export logs."
-      };
-    }
-    if (path.includes("/history-log")) {
-      return {
-        title: "History Log",
-        subtitle: "Comprehensive audit trail and transaction history records."
-      };
-    }
-    if (path.includes("/settings")) {
-      return {
-        title: "System Settings",
-        subtitle: "Global user accounts, system configuration, verification PIN & audit controls."
-      };
-    }
-    return {
-      title: "Super Admin Portal",
-      subtitle: "Global system administration, user accounts, and system configuration."
-    };
-  };
-
-  const currentFeature = getFeatureDetails(location.pathname);
-
   return (
     <div className="min-h-screen flex font-sans antialiased relative bg-background text-foreground">
+      {/* ── Inactivity Auto-Logout Warning Modal ── */}
+      <SessionTimeoutModal
+        isOpen={showIdleWarning}
+        secondsRemaining={idleSecondsRemaining}
+        onStayLoggedIn={stayLoggedIn}
+        onLogout={logoutDueToIdle}
+      />
 
       {/* ── Logout Confirm Modal ── */}
       <ConfirmModal

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { 
   CalendarCheck, Building2, PackageOpen, Clock, User, 
@@ -9,6 +9,7 @@ import api from "@/lib/axios";
 import { notify } from "@/lib/notify";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Button } from "@/components/ui/button";
+import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 
 export default function TodayReservations() {
   const [activeTab, setActiveTab] = useState("all"); // "all" | "venues" | "equipment"
@@ -17,7 +18,7 @@ export default function TodayReservations() {
   const [equipBorrowings, setEquipBorrowings] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchTodayData = async () => {
+  const fetchTodayData = useCallback(async () => {
     setLoading(true);
     try {
       const [vRes, eRes] = await Promise.allSettled([
@@ -38,13 +39,15 @@ export default function TodayReservations() {
     } finally {
       setLoading(false);
     }
-  };
-
-  useEffect(() => {
-    fetchTodayData();
   }, []);
 
-  const todayStr = useMemo(() => new Date().toISOString().substring(0, 10), []);
+  useRealtimeSync(fetchTodayData, { interval: 30000 });
+
+  const todayStr = useMemo(() => {
+    const d = new Date();
+    const pad = (n) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  }, []);
 
   const todayVenues = useMemo(() => {
     return venueBookings.filter(v => {

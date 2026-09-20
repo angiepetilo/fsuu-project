@@ -33,6 +33,8 @@ return new class extends Migration
             $table->string('status')->default('pending');
             $table->timestamp('returned_at')->nullable();
             $table->longText('assigned_units')->nullable();
+            $table->string('endorsement_url')->nullable();
+            $table->string('endorsement_letter')->nullable();
             $table->timestamps();
             $table->timestamp('archived_at')->nullable();
 

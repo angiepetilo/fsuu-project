@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useOutletContext } from "react-router-dom";
 import {
   Calendar as CalendarIcon, Building2, CheckCircle2, Save, Loader2
@@ -10,6 +10,7 @@ import api from "@/lib/axios";
 import { fetchWithCache, invalidateCache } from "@/lib/apiCache";
 import { PageLoader } from "@/components/ui/page-loader";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 import { AlertCircle } from "lucide-react";
 
 export default function ManageVenues() {
@@ -91,14 +92,17 @@ export default function ManageVenues() {
 
   useEffect(() => {
     if (filteredVenues.length > 0) {
-      if (!selectedVenue || !filteredVenues.some((v) => v.id === selectedVenue.id)) {
-        setSelectedVenue(filteredVenues[0]);
-        setSetupForm((p) => ({ ...p, venueId: filteredVenues[0].id }));
-      }
+      setSelectedVenue((prev) => {
+        if (!prev || !filteredVenues.some((v) => v.id === prev.id)) {
+          setSetupForm((p) => ({ ...p, venueId: filteredVenues[0].id }));
+          return filteredVenues[0];
+        }
+        return prev;
+      });
     }
-  }, [filteredVenues, selectedVenue]);
+  }, [filteredVenues]);
 
-  const fetchVenues = async (isSilent = false) => {
+  const fetchVenues = useCallback(async (isSilent = false) => {
     if (!isSilent && venues.length === 0) setLoading(true);
     try {
       const res = await api.get("/general/venues").catch(() => api.get("/general/venues-list"));
@@ -141,16 +145,12 @@ export default function ManageVenues() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [venues.length]);
 
-  useEffect(() => {
-    fetchVenues();
-    const handleUpdate = () => fetchVenues(true);
-    window.addEventListener("venue_availability_updated", handleUpdate);
-    return () => {
-      window.removeEventListener("venue_availability_updated", handleUpdate);
-    };
-  }, []);
+  useRealtimeSync(fetchVenues, {
+    interval: 30000,
+    customEvents: ["venue_availability_updated"],
+  });
 
   useEffect(() => {
     if (!selectedVenue?.id) return;

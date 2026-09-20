@@ -230,10 +230,39 @@ class AuthController extends Controller
         ]);
     }
 
+    /**
+     * Terminate the user's active session and revoke the current Sanctum token.
+     */
     public function logout(Request $request)
     {
-        $request->user()->currentAccessToken()->delete();
-        
+        $user = $request->user();
+        if ($user) {
+            $currentToken = $user->currentAccessToken();
+            if ($currentToken) {
+                $currentToken->update([
+                    'is_revoked' => true,
+                    'revoked_at' => now(),
+                ]);
+                $currentToken->delete();
+            } else {
+                $user->tokens()->delete();
+            }
+
+            try {
+                \App\Models\AuditLog::create([
+                    'user_id'        => $user->id,
+                    'action'         => 'USER_LOGOUT',
+                    'auditable_type' => 'users',
+                    'auditable_id'   => $user->id,
+                    'ip_address'     => $request->ip(),
+                    'metadata'       => [
+                        'description' => "User '{$user->name}' logged out.",
+                        'user_agent'  => $request->userAgent(),
+                    ],
+                ]);
+            } catch (\Throwable $e) {}
+        }
+
         return response()->json(['message' => 'Logged out successfully']);
     }
 
@@ -372,4 +401,269 @@ class AuthController extends Controller
             'user'    => $user,
         ]);
     }
+
+    /**
+     * Handle browser exit beacon (sendBeacon on tab/window close).
+     * Revokes the token even after the user has navigated away or closed the browser.
+     */
+    public function logoutBeacon(Request $request)
+    {
+        // Token can arrive via JSON payload, raw input, or Authorization Bearer header
+        $rawPayload = $request->getContent();
+        $plainToken = null;
+        if (!empty($rawPayload)) {
+            $json = json_decode($rawPayload, true);
+            if (is_array($json) && !empty($json['token'])) {
+                $plainToken = $json['token'];
+            }
+        }
+        if (!$plainToken) {
+            $plainToken = $request->input('token') ?: $request->bearerToken();
+        }
+
+        if ($plainToken) {
+            $token = \Laravel\Sanctum\PersonalAccessToken::findToken($plainToken);
+            if ($token) {
+                $user = $token->tokenable;
+                $token->update([
+                    'is_revoked' => true,
+                    'revoked_at' => now(),
+                ]);
+                $token->delete();
+
+                if ($user) {
+                    try {
+                        \App\Models\AuditLog::create([
+                            'user_id'        => $user->id,
+                            'action'         => 'USER_LOGOUT_BEACON',
+                            'auditable_type' => 'users',
+                            'auditable_id'   => $user->id,
+                            'ip_address'     => $request->ip(),
+                            'metadata'       => [
+                                'description' => "User '{$user->name}' closed browser window/tab (Exit Beacon).",
+                                'user_agent'  => $request->userAgent(),
+                            ],
+                        ]);
+                    } catch (\Throwable $e) {}
+                }
+            }
+        }
+
+        return response()->json(['message' => 'Exit beacon processed']);
+    }
+
+    /**
+     * Handle Forgot Password request.
+     * Generates a single-use 6-digit OTP code and cryptographic reset token,
+     * stores their SHA-256 hashes, dispatches notification, and returns a uniform response.
+     */
+    public function forgotPassword(Request $request)
+    {
+        $request->validate([
+            'email' => ['required', 'string', 'email', 'max:255'],
+        ]);
+
+        $email = strtolower(trim($request->email));
+        $cooldownKey = 'pwd_reset_cooldown_' . hash('sha256', $email);
+
+        if (\Illuminate\Support\Facades\Cache::has($cooldownKey)) {
+            $remaining = \Illuminate\Support\Facades\Cache::get($cooldownKey) - time();
+            if ($remaining > 0) {
+                return response()->json([
+                    'message'            => "Please wait {$remaining} seconds before requesting a new password reset code.",
+                    'cooldown_remaining' => $remaining,
+                ], 429);
+            }
+        }
+
+        // Find user by primary email or email_address
+        $user = \App\Models\User::where(function ($q) use ($email) {
+            $q->whereRaw('LOWER(email_address) = ?', [$email])
+              ->orWhereRaw('LOWER(email) = ?', [$email]);
+        })->first();
+
+        if ($user && ($user->is_active ?? true) && ($user->status !== 'inactive' && $user->status !== 'suspended')) {
+            // Delete any existing unused password reset tokens for this email
+            \App\Models\PasswordResetToken::where('email', $email)->whereNull('used_at')->delete();
+
+            // Generate cryptographically random OTP (6 digits) and 64-character token
+            $plainOtp = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+            $plainToken = bin2hex(random_bytes(32));
+
+            \App\Models\PasswordResetToken::create([
+                'email'       => $email,
+                'token_hash'  => hash('sha256', $plainToken),
+                'otp_hash'    => hash('sha256', $plainOtp),
+                'attempts'    => 0,
+                'expires_at'  => now()->addMinutes(10),
+                'ip_address'  => $request->ip(),
+                'user_agent'  => $request->userAgent(),
+            ]);
+
+            // Set 60s cooldown
+            \Illuminate\Support\Facades\Cache::put($cooldownKey, time() + 60, 60);
+
+            // Dispatch async email job with both 6-digit OTP and direct link
+            \App\Jobs\SendPasswordResetEmailJob::dispatch($email, $user->name, $plainOtp, $plainToken);
+
+            try {
+                \App\Models\AuditLog::create([
+                    'user_id'        => $user->id,
+                    'action'         => 'PASSWORD_RESET_REQUESTED',
+                    'auditable_type' => 'users',
+                    'auditable_id'   => $user->id,
+                    'ip_address'     => $request->ip(),
+                    'metadata'       => [
+                        'description' => "Password reset requested for {$user->name} ({$email})",
+                        'user_agent'  => $request->userAgent(),
+                    ],
+                ]);
+            } catch (\Throwable $e) {}
+        } else {
+            // Still enforce cooldown to prevent timing attacks / email discovery
+            \Illuminate\Support\Facades\Cache::put($cooldownKey, time() + 60, 60);
+        }
+
+        // Anti-enumeration: return uniform response regardless of account existence
+        return response()->json([
+            'message'    => 'If that email address is registered with an active staff account, you will receive a verification code and reset link shortly.',
+            'expires_in' => 600,
+            'cooldown'   => 60,
+        ]);
+    }
+
+    /**
+     * Verify the 6-digit OTP code submitted on the Forgot Password screen.
+     * Enforces a maximum of 5 attempts before locking the request.
+     */
+    public function verifyResetCode(Request $request)
+    {
+        $request->validate([
+            'email' => ['required', 'string', 'email'],
+            'code'  => ['required', 'string', 'size:6'],
+        ]);
+
+        $email = strtolower(trim($request->email));
+        $code  = trim($request->code);
+
+        $record = \App\Models\PasswordResetToken::where('email', $email)
+            ->whereNull('used_at')
+            ->latest('id')
+            ->first();
+
+        if (!$record || $record->isExpired()) {
+            return response()->json([
+                'message' => 'The verification code has expired or was not requested. Please request a new code.',
+            ], 422);
+        }
+
+        if ($record->attempts >= 5) {
+            $record->delete();
+            return response()->json([
+                'message' => 'Maximum verification attempts exceeded. For your security, this reset request has been locked. Please request a new code.',
+            ], 422);
+        }
+
+        $submittedHash = hash('sha256', $code);
+        if ($record->otp_hash !== $submittedHash) {
+            $record->recordFailedAttempt();
+            $remaining = 5 - $record->attempts;
+            return response()->json([
+                'message' => "Incorrect verification code. {$remaining} attempts remaining before request is locked.",
+            ], 422);
+        }
+
+        // OTP verified successfully: generate a fresh exchange token for Step 3
+        $exchangeToken = bin2hex(random_bytes(32));
+        $record->update([
+            'token_hash' => hash('sha256', $exchangeToken),
+            'otp_hash'   => 'VERIFIED',
+        ]);
+
+        return response()->json([
+            'verified'    => true,
+            'reset_token' => $exchangeToken,
+            'message'     => 'Verification code confirmed. You may now enter your new password.',
+        ]);
+    }
+
+    /**
+     * Finalize Password Reset with new password.
+     * Revokes all previous Sanctum tokens/sessions across all devices for security.
+     */
+    public function resetPassword(Request $request)
+    {
+        $request->validate([
+            'email'                 => ['required', 'string', 'email'],
+            'token'                 => ['required', 'string', 'min:32'],
+            'password'              => ['required', 'string', 'min:8', 'confirmed'],
+        ]);
+
+        $email = strtolower(trim($request->email));
+        $token = trim($request->token);
+        $tokenHash = hash('sha256', $token);
+
+        $record = \App\Models\PasswordResetToken::where('email', $email)
+            ->where('token_hash', $tokenHash)
+            ->whereNull('used_at')
+            ->latest('id')
+            ->first();
+
+        if (!$record || $record->isExpired()) {
+            return response()->json([
+                'message' => 'Invalid or expired password reset token. Please request a new reset link.',
+            ], 422);
+        }
+
+        $user = \App\Models\User::where(function ($q) use ($email) {
+            $q->whereRaw('LOWER(email_address) = ?', [$email])
+              ->orWhereRaw('LOWER(email) = ?', [$email]);
+        })->first();
+
+        if (!$user) {
+            return response()->json([
+                'message' => 'Unable to locate an active account for this reset request.',
+            ], 422);
+        }
+
+        // Update password with bcrypt/Argon2
+        $user->password = \Illuminate\Support\Facades\Hash::make($request->password);
+        $user->save();
+
+        // Mark token consumed
+        $record->update([
+            'used_at' => now(),
+        ]);
+
+        // Security Kill Switch: Revoke all existing active Sanctum tokens across all devices
+        $user->tokens()->delete();
+
+        // Log security audit
+        try {
+            \App\Models\AuditLog::create([
+                'user_id'        => $user->id,
+                'action'         => 'PASSWORD_RESET_SUCCESS',
+                'auditable_type' => 'users',
+                'auditable_id'   => $user->id,
+                'ip_address'     => $request->ip(),
+                'metadata'       => [
+                    'description' => "Password successfully reset for {$user->name} ({$email})",
+                    'user_agent'  => $request->userAgent(),
+                ],
+            ]);
+        } catch (\Throwable $e) {}
+
+        // Dispatch security alert email to user
+        \App\Jobs\SendPasswordChangedEmailJob::dispatch(
+            $user->email_address ?: $user->email,
+            $user->name,
+            $request->ip(),
+            self::parseDeviceSummary($request->userAgent())
+        );
+
+        return response()->json([
+            'message' => 'Password reset successfully! You may now sign in with your new password.',
+        ]);
+    }
 }
+

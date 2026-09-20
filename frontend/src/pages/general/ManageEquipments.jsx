@@ -7,15 +7,17 @@ import {
   PackageOpen, Plus, Search, Filter, Edit3, Ban, CheckCircle2,
   AlertTriangle, RefreshCw, Barcode, Eye, Copy, Check,
   ChevronLeft, ChevronRight, LayoutGrid, Loader2, MoreVertical,
-  FileSpreadsheet
+  FileSpreadsheet, CircleCheck
 } from "lucide-react";
 import EquipmentDetailModal from "./components/EquipmentDetailModal";
 import EquipmentModal, { generateSequentialBarcodes } from "./components/EquipmentModal";
 import EquipmentImportModal from "./components/EquipmentImportModal";
 import ActionPopover from "@/components/ui/action-popover";
+import ConfirmModal from "@/components/ui/ConfirmModal";
 import { PageLoader } from "@/components/ui/page-loader";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 
 export default function ManageEquipments() {
   const { hasPermission } = usePermissions();
@@ -49,6 +51,10 @@ export default function ManageEquipments() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [feedback, setFeedback] = useState(null);
   const [copiedBarcode, setCopiedBarcode] = useState(null);
+  const [disableModalTarget, setDisableModalTarget] = useState(null);
+  const [isDisabling, setIsDisabling] = useState(false);
+  const [enableModalTarget, setEnableModalTarget] = useState(null);
+  const [isEnabling, setIsEnabling] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 10;
 
@@ -165,6 +171,7 @@ export default function ManageEquipments() {
           date_purchased: u.purchased_at ? u.purchased_at.substring(0, 10) : '2026-01-15',
           lifespan_years: u.eq_lifespan || 5,
           description: u.description || '',
+          is_disabled: !!u.is_disabled,
           built_in_units: Array.isArray(u.built_in_units)
             ? u.built_in_units
             : (typeof u.built_in_units === 'string'
@@ -185,13 +192,7 @@ export default function ManageEquipments() {
     }
   }, []);
 
-  useEffect(() => {
-    fetchEquipments();
-    // Re-fetch when post-inspection syncs update unit condition/status
-    const handleInventoryUpdate = () => fetchEquipments(true);
-    window.addEventListener("equipment_inventory_updated", handleInventoryUpdate);
-    return () => window.removeEventListener("equipment_inventory_updated", handleInventoryUpdate);
-  }, [fetchEquipments]);
+  useRealtimeSync(fetchEquipments, { interval: 30000 });
 
   const handleOpenAddModal = async () => {
     let activeCats = categories;
@@ -416,10 +417,14 @@ export default function ManageEquipments() {
         condition: editFormData.condition || "Good",
         built_in_units: validBuiltIns,
         description: editFormData.description,
+        reason: editFormData.reason || undefined,
       };
       await api.put(`/general/equipment-units/${editingItem.id}`, payload);
       // Confirm: remove optimistic flag
       setUnits(prev => prev.map(u => u.id === editingItem.id ? { ...u, _optimistic: false } : u));
+      invalidateCache("equipment_types_list");
+      invalidateCache("dashboard");
+      try { localStorage.removeItem("fsuu_cache_admin_dashboard"); } catch {}
       notify.success("Equipment Updated", `"${unitDisplayName}" saved successfully.`);
     } catch (err) {
       // Rollback
@@ -433,49 +438,94 @@ export default function ManageEquipments() {
     }
   };
 
-  const handleDeleteEquipment = async (id, name) => {
-    if (!confirm(`Archive physical unit "${name}"? Soft-delete will apply.`)) return;
+  const handleDisableEquipment = (id, name) => {
+    setDisableModalTarget({ id, name });
+  };
 
-    // ── OPTIMISTIC: remove row immediately ────────────────────────────────────
+  const confirmDisableEquipment = async () => {
+    if (!disableModalTarget) return;
+    const { id, name } = disableModalTarget;
+    setIsDisabling(true);
+
+    // Optimistic: mark greyed-out immediately (don't remove)
     const prevUnits = units;
-    setUnits(prev => prev.filter(u => u.id !== id));
+    setUnits(prev => prev.map(u => u.id === id ? { ...u, is_disabled: true } : u));
     setOpenActionId(null);
-    // ─────────────────────────────────────────────────────────────────────────
 
     try {
       await api.delete(`/general/equipment-units/${id}`);
-      notify.info("Unit Archived", `"${name}" has been removed from active inventory.`);
+      invalidateCache("equipment_types_list");
+      invalidateCache("dashboard");
+      try { localStorage.removeItem("fsuu_cache_admin_dashboard"); } catch {}
+      notify.info("Unit Disabled", `"${name}" has been disabled and appears greyed out.`);
+      setDisableModalTarget(null);
     } catch {
       setUnits(prevUnits); // Rollback
-      notify.error("Archive Failed", "Failed to archive the equipment unit.");
+      notify.error("Disable Failed", "Failed to disable the equipment unit.");
+    } finally {
+      setIsDisabling(false);
+    }
+  };
+
+  const handleEnableEquipment = (id, name) => {
+    setEnableModalTarget({ id, name });
+  };
+
+  const confirmEnableEquipment = async () => {
+    if (!enableModalTarget) return;
+    const { id, name } = enableModalTarget;
+    setIsEnabling(true);
+
+    // Optimistic: un-grey immediately
+    const prevUnits = units;
+    setUnits(prev => prev.map(u => u.id === id ? { ...u, is_disabled: false } : u));
+    setOpenActionId(null);
+
+    try {
+      await api.post(`/general/equipment-units/${id}/enable`);
+      invalidateCache("equipment_types_list");
+      invalidateCache("dashboard");
+      try { localStorage.removeItem("fsuu_cache_admin_dashboard"); } catch {}
+      notify.success("Unit Enabled", `"${name}" has been re-enabled and is back in active inventory.`);
+      setEnableModalTarget(null);
+      fetchEquipments(true);
+    } catch {
+      setUnits(prevUnits); // Rollback
+      notify.error("Enable Failed", "Failed to re-enable the equipment unit.");
+    } finally {
+      setIsEnabling(false);
     }
   };
 
   const officeScope = context?.adminOffice || context?.selectedOffice || "All Offices";
   const selectedOfficeId = context?.selectedOfficeId;
 
-  const filtered = units.filter(item => {
-    if (selectedOfficeId && selectedOfficeId !== "all") {
-      const offId = item.office_id || item.equipment_type?.office_id || item.equipmentType?.office_id;
-      const offName = item.office_name || item.office?.name;
-      if (offId && String(offId) !== String(selectedOfficeId)) return false;
-      if (offName && officeScope && officeScope !== "All Offices" && !offName.toLowerCase().includes(officeScope.toLowerCase())) {
-        return false;
+  const filtered = useMemo(() => {
+    return units.filter(item => {
+      if (selectedOfficeId && selectedOfficeId !== "all") {
+        const offId = item.office_id || item.equipment_type?.office_id || item.equipmentType?.office_id;
+        const offName = item.office_name || item.office?.name;
+        if (offId && String(offId) !== String(selectedOfficeId)) return false;
+        if (offName && officeScope && officeScope !== "All Offices" && !offName.toLowerCase().includes(officeScope.toLowerCase())) {
+          return false;
+        }
       }
-    }
-    const matchCategory = activeCategory === "all" || (item.category || "").toLowerCase() === activeCategory.toLowerCase();
-    const q = searchQuery.toLowerCase();
-    const matchSearch = !searchQuery || (item.name || "").toLowerCase().includes(q) || (item.barcode || "").toLowerCase().includes(q);
-    return matchCategory && matchSearch;
-  });
+      const matchCategory = activeCategory === "all" || (item.category || "").toLowerCase() === activeCategory.toLowerCase();
+      const q = searchQuery.toLowerCase();
+      const matchSearch = !searchQuery || (item.name || "").toLowerCase().includes(q) || (item.barcode || "").toLowerCase().includes(q);
+      return matchCategory && matchSearch;
+    });
+  }, [units, selectedOfficeId, officeScope, activeCategory, searchQuery]);
 
   useEffect(() => {
     setCurrentPage(1);
   }, [activeCategory, searchQuery]);
 
-  const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE) || 1;
+  const totalPages = useMemo(() => Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE)), [filtered.length]);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const paginatedUnits = filtered.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  const paginatedUnits = useMemo(() => {
+    return filtered.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  }, [filtered, startIndex]);
 
   const filteredCategories = useMemo(() => {
     if (!selectedOfficeId || selectedOfficeId === "all") return categories;
@@ -490,11 +540,14 @@ export default function ManageEquipments() {
     });
   }, [categories, selectedOfficeId, officeScope]);
 
-  const categoryNames = Array.from(new Set(filteredCategories.map(c => c.eq_name || c.name || c.eq_type).filter(Boolean)));
-  const categoryList = [
+  const categoryNames = useMemo(() => {
+    return Array.from(new Set(filteredCategories.map(c => c.eq_name || c.name || c.eq_type).filter(Boolean)));
+  }, [filteredCategories]);
+
+  const categoryList = useMemo(() => [
     { id: "all", label: "All Categories" },
     ...categoryNames.map(c => ({ id: c, label: c }))
-  ];
+  ], [categoryNames]);
 
   if (loading && units.length === 0) return <PageLoader message="Loading Equipment Inventory..." />;
 
@@ -614,7 +667,7 @@ export default function ManageEquipments() {
                   const isOpen = openActionId === item.id;
 
                   return (
-                    <tr key={item.id} className={`hover:bg-slate-50/60 dark:hover:bg-slate-800/50 transition-colors ${isOpen ? 'relative z-30' : ''}`}>
+                    <tr key={item.id} className={`transition-colors ${isOpen ? 'relative z-30' : ''} ${item.is_disabled ? 'opacity-50 grayscale bg-slate-50 dark:bg-slate-900/50' : 'hover:bg-slate-50/60 dark:hover:bg-slate-800/50'}`}>
                       <td className="px-4 py-3.5 font-bold text-slate-400 dark:text-slate-500">{displayIndex}</td>
                       <td className="px-4 py-3.5 font-mono text-xs font-bold whitespace-nowrap">
                         <div className="flex items-center gap-1.5">
@@ -705,6 +758,7 @@ export default function ManageEquipments() {
                                   status: item.status || "available",
                                   condition: item.condition || "Good",
                                   description: item.description || "",
+                                  reason: "",
                                   built_in_units: Array.isArray(item.built_in_units) && item.built_in_units.length > 0 ? item.built_in_units : [""],
                                 });
                               }}
@@ -730,6 +784,7 @@ export default function ManageEquipments() {
                                   status: item.status || "available",
                                   condition: item.condition || "Good",
                                   description: item.description || "",
+                                  reason: "",
                                   built_in_units: Array.isArray(item.built_in_units) && item.built_in_units.length > 0 ? item.built_in_units : [""],
                                 });
                               }}
@@ -741,18 +796,33 @@ export default function ManageEquipments() {
 
                             <div className="border-t border-slate-100 dark:border-slate-800 my-1"></div>
 
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setOpenActionId(null);
-                                setActionAnchorEl(null);
-                                handleDeleteEquipment(item.id, item.name);
-                              }}
-                              className="w-full px-3.5 py-2 text-left text-xs font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 flex items-center gap-2.5 transition-colors cursor-pointer"
-                            >
-                              <Ban size={14} className="text-rose-500" />
-                              <span>Archive Unit</span>
-                            </button>
+                            {item.is_disabled ? (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setOpenActionId(null);
+                                  setActionAnchorEl(null);
+                                  handleEnableEquipment(item.id, item.name);
+                                }}
+                                className="w-full px-3.5 py-2 text-left text-xs font-bold text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/50 flex items-center gap-2.5 transition-colors cursor-pointer"
+                              >
+                                <CircleCheck size={14} className="text-emerald-500" />
+                                <span>Enable Unit</span>
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setOpenActionId(null);
+                                  setActionAnchorEl(null);
+                                  handleDisableEquipment(item.id, item.name);
+                                }}
+                                className="w-full px-3.5 py-2 text-left text-xs font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 flex items-center gap-2.5 transition-colors cursor-pointer"
+                              >
+                                <Ban size={14} className="text-rose-500" />
+                                <span>Disable Unit</span>
+                              </button>
+                            )}
                           </ActionPopover>
                         </div>
                       </td>
@@ -835,6 +905,32 @@ export default function ManageEquipments() {
             result?.message || `Imported ${result?.imported_count || 0} physical units.`
           );
         }}
+      />
+
+      {/* Disable Unit Confirmation Modal */}
+      <ConfirmModal
+        open={!!disableModalTarget}
+        onClose={() => !isDisabling && setDisableModalTarget(null)}
+        onConfirm={confirmDisableEquipment}
+        variant="disable"
+        title="Disable Equipment Unit"
+        message={`Are you sure you want to disable physical unit "${disableModalTarget?.name}"? It will appear greyed out but can be re-enabled at any time.`}
+        confirmLabel="Disable Unit"
+        cancelLabel="Cancel"
+        loading={isDisabling}
+      />
+
+      {/* Enable Unit Confirmation Modal */}
+      <ConfirmModal
+        open={!!enableModalTarget}
+        onClose={() => !isEnabling && setEnableModalTarget(null)}
+        onConfirm={confirmEnableEquipment}
+        variant="enable"
+        title="Enable Equipment Unit"
+        message={`Re-enable physical unit "${enableModalTarget?.name}"? It will be restored to active inventory.`}
+        confirmLabel="Enable Unit"
+        cancelLabel="Cancel"
+        loading={isEnabling}
       />
     </div>
   );

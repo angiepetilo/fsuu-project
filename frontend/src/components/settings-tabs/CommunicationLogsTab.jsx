@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, X } from "lucide-react";
 import api from "@/lib/axios";
 import { formatDate } from "@/lib/dateUtils";
 
@@ -324,9 +324,11 @@ export default function CommunicationLogsTab() {
               <button
                 type="button"
                 onClick={() => setSelectedLog(null)}
-                className="text-xs font-bold text-slate-400 hover:text-slate-700 cursor-pointer"
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+                title="Close"
+                aria-label="Close"
               >
-                Close
+                <X size={18} />
               </button>
             </div>
 

@@ -1465,14 +1465,15 @@ export default function VenueBookingDetailModal({
                 </button>
                 <button
                   type="button"
-                  disabled={!rejectionComments.trim() && !selectedViolationType}
+                  disabled={!!actionLoading || (!rejectionComments.trim() && !selectedViolationType)}
                   onClick={() => {
                     const finalReason = rejectionComments.trim() || selectedViolationType || "Missing required documentation";
                     handleAction(selected.id, "reject", { remarks: finalReason, rejection_reason: finalReason, can_reappeal: true });
                   }}
-                  className="px-4 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold cursor-pointer transition-colors shadow-xs"
+                  className="px-4 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold cursor-pointer transition-colors shadow-xs flex items-center gap-1.5 disabled:opacity-50"
                 >
-                  Submit Rejection
+                  {actionLoading === `${selected.id}-reject` && <Loader2 size={13} className="animate-spin" />}
+                  <span>Submit Rejection</span>
                 </button>
               </div>
             </div>

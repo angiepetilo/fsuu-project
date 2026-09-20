@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback, lazy, Suspense } from "react";
+import { useState, useEffect, useCallback, useMemo, lazy, Suspense } from "react";
 import { createPortal } from "react-dom";
 import { useOutletContext, useLocation } from "react-router-dom";
 import api from "@/lib/axios";
+import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 import {
   History, RefreshCw, CheckCircle, Building2, PackageOpen, Search, Loader2,
   Eye, Pencil, CheckCircle2, X, AlertTriangle, ChevronLeft, ChevronRight, RotateCcw, MoreVertical,
@@ -177,18 +178,7 @@ export default function HistoryLog() {
     }
   }, [selectedTermId]);
 
-  useEffect(() => {
-    fetchHistory();
-
-    const handleLiveSync = () => {
-      fetchHistory(true);
-    };
-
-    window.addEventListener("equipment_inventory_updated", handleLiveSync);
-    return () => {
-      window.removeEventListener("equipment_inventory_updated", handleLiveSync);
-    };
-  }, [fetchHistory]);
+  useRealtimeSync(fetchHistory, { interval: 30000, deps: [selectedTermId] });
 
   // Deep-link from notification navigation
   useEffect(() => {
@@ -402,9 +392,18 @@ export default function HistoryLog() {
     });
   };
 
-  const filteredVenues = sortRecords(venueHistory.filter((b) => filterRecord(b, true)), true);
-  const filteredEquipment = sortRecords(equipmentHistory.filter((b) => filterRecord(b, false)), false);
-  const filteredIncidents = sortIncidentRecords(incidentsHistory.filter(filterIncidentRecord));
+  const filteredVenues = useMemo(
+    () => sortRecords(venueHistory.filter((b) => filterRecord(b, true)), true),
+    [venueHistory, searchQuery, sortBy]
+  );
+  const filteredEquipment = useMemo(
+    () => sortRecords(equipmentHistory.filter((b) => filterRecord(b, false)), false),
+    [equipmentHistory, searchQuery, sortBy]
+  );
+  const filteredIncidents = useMemo(
+    () => sortIncidentRecords(incidentsHistory.filter(filterIncidentRecord)),
+    [incidentsHistory, searchQuery, sortBy]
+  );
 
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(25);
@@ -420,9 +419,11 @@ export default function HistoryLog() {
     : filteredIncidents;
   const ITEMS_PER_PAGE = itemsPerPage;
 
-  const totalPages = Math.ceil(activeList.length / ITEMS_PER_PAGE) || 1;
+  const totalPages = useMemo(() => Math.max(1, Math.ceil(activeList.length / ITEMS_PER_PAGE)), [activeList.length, ITEMS_PER_PAGE]);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const paginatedList = activeList.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  const paginatedList = useMemo(() => {
+    return activeList.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  }, [activeList, startIndex, ITEMS_PER_PAGE]);
 
   if (loading && venueHistory.length === 0 && equipmentHistory.length === 0) {
     return <PageLoader message="Loading History Log..." />;

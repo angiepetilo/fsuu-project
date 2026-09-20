@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, lazy, Suspense } from "react";
+import { useState, useEffect, useCallback, useMemo, lazy, Suspense } from "react";
 import { useOutletContext, useLocation } from "react-router-dom";
 import api from "@/lib/axios";
 import notify from "@/lib/notify";
@@ -12,6 +12,7 @@ import { formatDate, formatTimeRange12 } from "@/lib/dateUtils";
 import { getOverdueMinutes } from "@/lib/dateTimeUtils";
 
 import { usePermissions } from "@/hooks/usePermissions";
+import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 
 const EquipmentBorrowDetailModal = lazy(() => import("./components/EquipmentBorrowDetailModal"));
 
@@ -106,18 +107,7 @@ export default function EquipmentBorrowings() {
     }
   }, []);
 
-  useEffect(() => {
-    fetchBorrowings();
-
-    const handleLiveSync = () => {
-      fetchBorrowings(true);
-    };
-
-    window.addEventListener("equipment_inventory_updated", handleLiveSync);
-    return () => {
-      window.removeEventListener("equipment_inventory_updated", handleLiveSync);
-    };
-  }, [fetchBorrowings]);
+  useRealtimeSync(fetchBorrowings, { interval: 30000 });
 
   // Deep-link from notification navigation
   useEffect(() => {
@@ -137,96 +127,105 @@ export default function EquipmentBorrowings() {
 
   const selectedOfficeId = context?.selectedOfficeId;
 
-  // Active borrowings list for counts
-  const activeBorrowings = borrowings.filter(b => {
-    const s = (b.status || b.tracking_number?.status || "").toLowerCase();
-    return !["completed", "rejected", "cancelled", "damaged", "lost", "late return", "returned late"].includes(s);
-  });
-  const countPending = activeBorrowings.filter(b => ["pending", "incomplete"].includes((b.status || "").toLowerCase())).length;
-  const countIncomplete = activeBorrowings.filter(b => (b.status || "").toLowerCase() === "incomplete").length;
-  const countApproved = activeBorrowings.filter(b => (b.status || "").toLowerCase() === "approved").length;
-  const countOngoing = activeBorrowings.filter(b => ["ongoing", "on-going", "released"].includes((b.status || "").toLowerCase())).length;
+  // Active borrowings list and counts memoized
+  const { activeBorrowings, countPending, countIncomplete, countApproved, countOngoing } = useMemo(() => {
+    const active = borrowings.filter(b => {
+      const s = (b.status || b.tracking_number?.status || "").toLowerCase();
+      return !["completed", "rejected", "cancelled", "damaged", "lost", "late return", "returned late"].includes(s);
+    });
+    return {
+      activeBorrowings: active,
+      countPending: active.filter(b => ["pending", "incomplete"].includes((b.status || "").toLowerCase())).length,
+      countIncomplete: active.filter(b => (b.status || "").toLowerCase() === "incomplete").length,
+      countApproved: active.filter(b => (b.status || "").toLowerCase() === "approved").length,
+      countOngoing: active.filter(b => ["ongoing", "on-going", "released"].includes((b.status || "").toLowerCase())).length,
+    };
+  }, [borrowings]);
 
-  // Filter active borrowings (completed/rejected/cancelled transfer directly to History Log)
-  const filteredBorrowings = borrowings.filter(b => {
-    const s = (b.status || b.tracking_number?.status || "").toLowerCase();
-    const notDone = !["completed", "rejected", "cancelled", "damaged", "lost", "late return", "returned late"].includes(s);
-    if (!notDone) return false;
+  // Filter active borrowings memoized
+  const filteredBorrowings = useMemo(() => {
+    return borrowings.filter(b => {
+      const s = (b.status || b.tracking_number?.status || "").toLowerCase();
+      const notDone = !["completed", "rejected", "cancelled", "damaged", "lost", "late return", "returned late"].includes(s);
+      if (!notDone) return false;
 
-    // Status Filter
-    if (statusFilter !== "all") {
-      if (statusFilter === "pending" && s !== "pending" && s !== "incomplete") return false;
-      if (statusFilter === "incomplete" && s !== "incomplete") return false;
-      if (statusFilter === "approved" && s !== "approved") return false;
-      if (statusFilter === "ongoing" && s !== "ongoing" && s !== "on-going" && s !== "released") return false;
-    }
-
-    // Office Scope
-    if (selectedOfficeId && selectedOfficeId !== "all") {
-      const offId = b.office_id || b.office?.id || b.items?.[0]?.equipment_type?.office_id || b.items?.[0]?.equipmentType?.office_id;
-      const offName = b.office?.name || b.office_name || b.items?.[0]?.equipment_type?.office?.name;
-      if (offId && String(offId) !== String(selectedOfficeId)) return false;
-      if (offName && officeScope && officeScope !== "All Offices" && !offName.toLowerCase().includes(officeScope.toLowerCase())) {
-        return false;
+      // Status Filter
+      if (statusFilter !== "all") {
+        if (statusFilter === "pending" && s !== "pending" && s !== "incomplete") return false;
+        if (statusFilter === "incomplete" && s !== "incomplete") return false;
+        if (statusFilter === "approved" && s !== "approved") return false;
+        if (statusFilter === "ongoing" && s !== "ongoing" && s !== "on-going" && s !== "released") return false;
       }
-    }
 
-    // Date Filter
-    const todayStr = getTodayStr();
-    const borrowDate = (b.borrow_date || b.date_of_usage || b.date || "").substring(0, 10);
-    const dueDate = (b.return_due_date || b.expected_return_date || b.reservation_end_date || borrowDate).substring(0, 10);
-
-    if (dateFilter === "today") {
-      if (borrowDate !== todayStr && dueDate !== todayStr) return false;
-    } else if (dateFilter === "this_week") {
-      const startOfWeek = getStartOfWeekStr();
-      const endOfWeek = getEndOfWeekStr();
-      const inBorrowWeek = borrowDate && borrowDate >= startOfWeek && borrowDate <= endOfWeek;
-      const inDueWeek = dueDate && dueDate >= startOfWeek && dueDate <= endOfWeek;
-      if (!inBorrowWeek && !inDueWeek) return false;
-    } else if (dateFilter === "this_month") {
-      const currentYearMonth = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}`;
-      const inBorrowMonth = borrowDate && borrowDate.startsWith(currentYearMonth);
-      const inDueMonth = dueDate && dueDate.startsWith(currentYearMonth);
-      if (!inBorrowMonth && !inDueMonth) return false;
-    }
-
-    // Search Query
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase().trim();
-      const ref = (b.reference_code || b.tracking_number?.reference_code || `EQUIP-REQ-${b.id}`).toLowerCase();
-      const borrower = (b.borrower_name || b.filer_name || b.requestor || "").toLowerCase();
-      const dept = (b.department || b.program_office || "").toLowerCase();
-      const itemsStr = (b.items || []).map(it => it.equipment_type?.name || it.equipment_unit?.name || it.brand || it.model || "").join(" ").toLowerCase();
-      const purpose = (b.purpose || "").toLowerCase();
-      if (!ref.includes(q) && !borrower.includes(q) && !dept.includes(q) && !itemsStr.includes(q) && !purpose.includes(q)) {
-        return false;
+      // Office Scope
+      if (selectedOfficeId && selectedOfficeId !== "all") {
+        const offId = b.office_id || b.office?.id || b.items?.[0]?.equipment_type?.office_id || b.items?.[0]?.equipmentType?.office_id;
+        const offName = b.office?.name || b.office_name || b.items?.[0]?.equipment_type?.office?.name;
+        if (offId && String(offId) !== String(selectedOfficeId)) return false;
+        if (offName && officeScope && officeScope !== "All Offices" && !offName.toLowerCase().includes(officeScope.toLowerCase())) {
+          return false;
+        }
       }
-    }
 
-    return true;
-  }).sort((a, b) => {
-    if (sortBy === "created_desc") {
-      return (new Date(b.created_at || 0).getTime()) - (new Date(a.created_at || 0).getTime());
-    }
-    if (sortBy === "borrow_asc") {
-      const dateA = (a.borrow_date || a.date_of_usage || a.date || "").substring(0, 10);
-      const dateB = (b.borrow_date || b.date_of_usage || b.date || "").substring(0, 10);
-      return dateA.localeCompare(dateB);
-    }
-    // Default: due_asc (earliest due return first - urgent shift priority)
-    const dueA = (a.return_due_date || a.expected_return_date || a.borrow_date || "").substring(0, 10);
-    const dueB = (b.return_due_date || b.expected_return_date || b.borrow_date || "").substring(0, 10);
-    return dueA.localeCompare(dueB);
-  });
+      // Date Filter
+      const todayStr = getTodayStr();
+      const borrowDate = (b.borrow_date || b.date_of_usage || b.date || "").substring(0, 10);
+      const dueDate = (b.return_due_date || b.expected_return_date || b.reservation_end_date || borrowDate).substring(0, 10);
+
+      if (dateFilter === "today") {
+        if (borrowDate !== todayStr && dueDate !== todayStr) return false;
+      } else if (dateFilter === "this_week") {
+        const startOfWeek = getStartOfWeekStr();
+        const endOfWeek = getEndOfWeekStr();
+        const inBorrowWeek = borrowDate && borrowDate >= startOfWeek && borrowDate <= endOfWeek;
+        const inDueWeek = dueDate && dueDate >= startOfWeek && dueDate <= endOfWeek;
+        if (!inBorrowWeek && !inDueWeek) return false;
+      } else if (dateFilter === "this_month") {
+        const currentYearMonth = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}`;
+        const inBorrowMonth = borrowDate && borrowDate.startsWith(currentYearMonth);
+        const inDueMonth = dueDate && dueDate.startsWith(currentYearMonth);
+        if (!inBorrowMonth && !inDueMonth) return false;
+      }
+
+      // Search Query
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim();
+        const ref = (b.reference_code || b.tracking_number?.reference_code || `EQUIP-REQ-${b.id}`).toLowerCase();
+        const borrower = (b.borrower_name || b.filer_name || b.requestor || "").toLowerCase();
+        const dept = (b.department || b.program_office || "").toLowerCase();
+        const itemsStr = (b.items || []).map(it => it.equipment_type?.name || it.equipment_unit?.name || it.brand || it.model || "").join(" ").toLowerCase();
+        const purpose = (b.purpose || "").toLowerCase();
+        if (!ref.includes(q) && !borrower.includes(q) && !dept.includes(q) && !itemsStr.includes(q) && !purpose.includes(q)) {
+          return false;
+        }
+      }
+
+      return true;
+    }).sort((a, b) => {
+      if (sortBy === "created_desc") {
+        return (new Date(b.created_at || 0).getTime()) - (new Date(a.created_at || 0).getTime());
+      }
+      if (sortBy === "borrow_asc") {
+        const dateA = (a.borrow_date || a.date_of_usage || a.date || "").substring(0, 10);
+        const dateB = (b.borrow_date || b.date_of_usage || b.date || "").substring(0, 10);
+        return dateA.localeCompare(dateB);
+      }
+      // Default: due_asc (earliest due return first - urgent shift priority)
+      const dueA = (a.return_due_date || a.expected_return_date || a.borrow_date || "").substring(0, 10);
+      const dueB = (b.return_due_date || b.expected_return_date || b.borrow_date || "").substring(0, 10);
+      return dueA.localeCompare(dueB);
+    });
+  }, [borrowings, statusFilter, selectedOfficeId, officeScope, dateFilter, searchQuery, sortBy]);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [filteredBorrowings.length, statusFilter, dateFilter, searchQuery, sortBy]);
+  }, [statusFilter, dateFilter, searchQuery, sortBy]);
 
-  const totalPages = Math.ceil(filteredBorrowings.length / ITEMS_PER_PAGE) || 1;
+  const totalPages = useMemo(() => Math.max(1, Math.ceil(filteredBorrowings.length / ITEMS_PER_PAGE)), [filteredBorrowings.length]);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const paginatedBorrowings = filteredBorrowings.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  const paginatedBorrowings = useMemo(() => {
+    return filteredBorrowings.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  }, [filteredBorrowings, startIndex]);
 
   const handleAction = async (id, type, payload = {}) => {
     setActionLoading(id + "-" + type);

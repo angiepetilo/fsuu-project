@@ -447,19 +447,105 @@ class AuditLogController extends Controller
                 $query->whereDate('created_at', '<=', $request->query('date_to'));
             }
 
-            // 4. Keyword search (reference code, filer name, user name, ip, notes)
+            // 4. Keyword search (barcode, action/module, user, activity description, device & ip)
             if ($request->filled('search')) {
                 $search = trim($request->query('search'));
-                $query->where(function ($q) use ($search) {
+                $searchClean = preg_replace('/[^a-zA-Z0-9]/', '', strtolower($search));
+
+                $query->where(function ($q) use ($search, $searchClean) {
+                    // Direct fields: action, auditable_type, ip_address, metadata (contains description, barcode, trigger, reason, etc.)
                     $q->where('action', 'like', "%{$search}%")
+                      ->orWhere('auditable_type', 'like', "%{$search}%")
                       ->orWhere('ip_address', 'like', "%{$search}%")
-                      ->orWhere('metadata', 'like', "%{$search}%")
-                      ->orWhereHas('user', function ($uq) use ($search) {
-                          $uq->where('name', 'like', "%{$search}%")
-                             ->orWhere('email', 'like', "%{$search}%")
-                             ->orWhere('first_name', 'like', "%{$search}%")
-                             ->orWhere('last_name', 'like', "%{$search}%");
-                      });
+                      ->orWhere('metadata', 'like', "%{$search}%");
+
+                    // User & Role matching (User)
+                    $q->orWhereHas('user', function ($uq) use ($search) {
+                        $uq->where('name', 'like', "%{$search}%")
+                           ->orWhere('email', 'like', "%{$search}%")
+                           ->orWhere('email_address', 'like', "%{$search}%")
+                           ->orWhere('first_name', 'like', "%{$search}%")
+                           ->orWhere('last_name', 'like', "%{$search}%")
+                           ->orWhere('middle_name', 'like', "%{$search}%")
+                           ->orWhereHas('role', function ($rq) use ($search) {
+                               $rq->where('name', 'like', "%{$search}%");
+                           });
+                    });
+
+                    // Search by barcode in equipment_units directly
+                    $q->orWhere(function ($sub) use ($search) {
+                        $sub->whereIn('auditable_type', ['equipment_units', 'App\Models\EquipmentUnit'])
+                            ->whereIn('auditable_id', function ($in) use ($search) {
+                                $in->select('id')->from('equipment_units')->where('barcode', 'like', "%{$search}%");
+                            });
+                    });
+
+                    // Equipment types (name, eq_name, equipment_types_name)
+                    $q->orWhere(function ($sub) use ($search) {
+                        $sub->whereIn('auditable_type', ['equipment_types', 'App\Models\EquipmentType'])
+                            ->whereIn('auditable_id', function ($in) use ($search) {
+                                $in->select('id')->from('equipment_types')
+                                   ->where('eq_name', 'like', "%{$search}%")
+                                   ->orWhere('name', 'like', "%{$search}%")
+                                   ->orWhere('equipment_types_name', 'like', "%{$search}%");
+                            });
+                    });
+
+                    // Friendly UI Action & Module Keyword Mappings (Action / Module)
+                    if (str_contains($searchClean, 'manageequipment') || str_contains($searchClean, 'equipmentunit') || str_contains($searchClean, 'equipmenttype') || str_contains($searchClean, 'equipmentborrow') || str_contains($searchClean, 'equipment')) {
+                        $q->orWhere('action', 'like', '%EQUIPMENT%')
+                          ->orWhere('auditable_type', 'like', '%equipment%');
+                    }
+                    if (str_contains($searchClean, 'adduser') || str_contains($searchClean, 'user')) {
+                        $q->orWhereIn('action', ['USER_CREATED', 'USER_REGISTERED', 'USER_INVITED', 'USER_UPDATED', 'USER_ARCHIVED', 'USER_LOGOUT_BEACON', 'ROLE_CREATED'])
+                          ->orWhere('auditable_type', 'like', '%user%');
+                    }
+                    if (str_contains($searchClean, 'managevenue') || str_contains($searchClean, 'venuecreation') || str_contains($searchClean, 'venue')) {
+                        $q->orWhere('action', 'like', '%VENUE%')
+                          ->orWhere('auditable_type', 'like', '%venue%');
+                    }
+                    if (str_contains($searchClean, 'approval') || str_contains($searchClean, 'approved')) {
+                        $q->orWhere('action', 'like', '%APPROV%');
+                    }
+                    if (str_contains($searchClean, 'rejection') || str_contains($searchClean, 'rejected') || str_contains($searchClean, 'reject')) {
+                        $q->orWhere('action', 'like', '%REJECT%');
+                    }
+                    if (str_contains($searchClean, 'inspection') || str_contains($searchClean, 'inspect') || str_contains($searchClean, 'damaged') || str_contains($searchClean, 'lost') || str_contains($searchClean, 'violation')) {
+                        $q->orWhere('action', 'like', '%INSPECT%')
+                          ->orWhere('action', 'like', '%DAMAGE%')
+                          ->orWhere('action', 'like', '%LOST%')
+                          ->orWhere('action', 'like', '%VIOLATION%')
+                          ->orWhere('auditable_type', 'like', '%inspect%');
+                    }
+                    if (str_contains($searchClean, 'complete') || str_contains($searchClean, 'completed')) {
+                        $q->orWhere('action', 'like', '%COMPLET%');
+                    }
+                    if (str_contains($searchClean, 'cancel') || str_contains($searchClean, 'cancelled')) {
+                        $q->orWhere('action', 'like', '%CANCEL%');
+                    }
+                    if (str_contains($searchClean, 'release') || str_contains($searchClean, 'ongoing')) {
+                        $q->orWhere('action', 'like', '%RELEASE%');
+                    }
+                    if (str_contains($searchClean, 'password')) {
+                        $q->orWhere('action', 'like', '%PASSWORD%');
+                    }
+                    if (str_contains($searchClean, 'pin') || str_contains($searchClean, 'verification')) {
+                        $q->orWhere('action', 'like', '%PIN%')
+                          ->orWhere('action', 'like', '%VERIFICATION%');
+                    }
+                    if (str_contains($searchClean, 'category')) {
+                        $q->orWhere('action', 'like', '%CATEGORY%');
+                    }
+                    if (str_contains($searchClean, 'bulkimport') || str_contains($searchClean, 'import')) {
+                        $q->orWhere('action', 'like', '%IMPORT%');
+                    }
+                    if (str_contains($searchClean, 'unitsassigned') || str_contains($searchClean, 'assign')) {
+                        $q->orWhere('action', 'like', '%ASSIGN%');
+                    }
+                    if (str_contains($searchClean, 'revert') || str_contains($searchClean, 'undo')) {
+                        $q->orWhere('action', 'like', '%REVERT%')
+                          ->orWhere('action', 'like', '%UNDO%');
+                    }
                 });
             }
 

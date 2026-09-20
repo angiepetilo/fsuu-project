@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, lazy, Suspense } from "react";
+import { useState, useEffect, useCallback, useMemo, lazy, Suspense } from "react";
 import { useOutletContext, useLocation } from "react-router-dom";
 import api from "@/lib/axios";
 import notify from "@/lib/notify";
@@ -12,6 +12,7 @@ import { formatDate, formatTime, formatTimeRange, formatDateRange } from "@/lib/
 import { getOverdueMinutes } from "@/lib/dateTimeUtils";
 
 import { usePermissions } from "@/hooks/usePermissions";
+import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 
 const VenueBookingDetailModal = lazy(() => import("./components/VenueBookingDetailModal"));
 
@@ -117,18 +118,7 @@ export default function VenueBookings() {
     }
   }, []);
 
-  useEffect(() => {
-    fetchBookings();
-
-    const handleLiveSync = () => {
-      fetchBookings(true);
-    };
-
-    window.addEventListener("equipment_inventory_updated", handleLiveSync);
-    return () => {
-      window.removeEventListener("equipment_inventory_updated", handleLiveSync);
-    };
-  }, [fetchBookings]);
+  useRealtimeSync(fetchBookings, { interval: 30000 });
 
   // Deep-link from notification navigation
   useEffect(() => {
@@ -153,84 +143,93 @@ export default function VenueBookings() {
   const officeScope = context?.adminOffice || context?.selectedOffice || "All Offices";
   const selectedOfficeId = context?.selectedOfficeId;
 
-  // Active bookings list for counts
-  const activeBookings = bookings.filter(b => {
-    const s = (b.status || b.tracking_number?.status || "").toLowerCase();
-    return s !== "completed" && s !== "damaged" && s !== "solved" && s !== "rejected" && s !== "cancelled";
-  });
-  const countPending = activeBookings.filter(b => ["pending", "incomplete"].includes((b.status || b.tracking_number?.status || "").toLowerCase())).length;
-  const countIncomplete = activeBookings.filter(b => (b.status || b.tracking_number?.status || "").toLowerCase() === "incomplete").length;
-  const countApproved = activeBookings.filter(b => (b.status || b.tracking_number?.status || "").toLowerCase() === "approved").length;
-  const countOngoing = activeBookings.filter(b => ["ongoing", "on-going"].includes((b.status || b.tracking_number?.status || "").toLowerCase())).length;
+  // Active bookings list and counts memoized
+  const { activeBookings, countPending, countIncomplete, countApproved, countOngoing } = useMemo(() => {
+    const active = bookings.filter(b => {
+      const s = (b.status || b.tracking_number?.status || "").toLowerCase();
+      return s !== "completed" && s !== "damaged" && s !== "solved" && s !== "rejected" && s !== "cancelled";
+    });
+    return {
+      activeBookings: active,
+      countPending: active.filter(b => ["pending", "incomplete"].includes((b.status || b.tracking_number?.status || "").toLowerCase())).length,
+      countIncomplete: active.filter(b => (b.status || b.tracking_number?.status || "").toLowerCase() === "incomplete").length,
+      countApproved: active.filter(b => (b.status || b.tracking_number?.status || "").toLowerCase() === "approved").length,
+      countOngoing: active.filter(b => ["ongoing", "on-going"].includes((b.status || b.tracking_number?.status || "").toLowerCase())).length,
+    };
+  }, [bookings]);
 
-  const filteredBookings = bookings.filter(b => {
-    const s = (b.status || b.tracking_number?.status || "").toLowerCase();
-    const notDone = s !== "completed" && s !== "damaged" && s !== "solved" && s !== "rejected" && s !== "cancelled";
-    if (!notDone) return false;
+  const filteredBookings = useMemo(() => {
+    return bookings.filter(b => {
+      const s = (b.status || b.tracking_number?.status || "").toLowerCase();
+      const notDone = s !== "completed" && s !== "damaged" && s !== "solved" && s !== "rejected" && s !== "cancelled";
+      if (!notDone) return false;
 
-    // Status Filter (Pending review includes both pending and incomplete requests awaiting documents)
-    if (statusFilter !== "all") {
-      if (statusFilter === "pending" && s !== "pending" && s !== "incomplete") return false;
-      if (statusFilter === "incomplete" && s !== "incomplete") return false;
-      if (statusFilter === "approved" && s !== "approved") return false;
-      if (statusFilter === "ongoing" && s !== "ongoing" && s !== "on-going") return false;
-    }
-
-    // Office Scope
-    if (selectedOfficeId && selectedOfficeId !== "all") {
-      const offId = b.venue?.office_id || b.office_id || b.office?.id;
-      const offName = b.venue?.office?.name || b.office?.name || b.office_name;
-      if (offId && String(offId) !== String(selectedOfficeId)) return false;
-      if (offName && officeScope && officeScope !== "All Offices" && !offName.toLowerCase().includes(officeScope.toLowerCase())) {
-        return false;
+      // Status Filter (Pending review includes both pending and incomplete requests awaiting documents)
+      if (statusFilter !== "all") {
+        if (statusFilter === "pending" && s !== "pending" && s !== "incomplete") return false;
+        if (statusFilter === "incomplete" && s !== "incomplete") return false;
+        if (statusFilter === "approved" && s !== "approved") return false;
+        if (statusFilter === "ongoing" && s !== "ongoing" && s !== "on-going") return false;
       }
-    }
 
-    // Date Filter
-    const eventDate = (b.date_of_usage || b.date_of_use || b.date || "").substring(0, 10);
-    const todayStr = getTodayStr();
-    if (dateFilter === "today") {
-      if (eventDate !== todayStr) return false;
-    } else if (dateFilter === "this_week") {
-      const startOfWeek = getStartOfWeekStr();
-      const endOfWeek = getEndOfWeekStr();
-      if (!eventDate || eventDate < startOfWeek || eventDate > endOfWeek) return false;
-    } else if (dateFilter === "this_month") {
-      const currentYearMonth = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}`;
-      if (!eventDate || !eventDate.startsWith(currentYearMonth)) return false;
-    }
-
-    // Search Query
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase().trim();
-      const ref = (b.reference_code || b.tracking_number?.reference_code || `TRK-AVR${b.id}`).toLowerCase();
-      const filer = (b.filer_name || b.requestor || "").toLowerCase();
-      const dept = (b.program_office || b.department || "").toLowerCase();
-      const vName = (b.venue?.name || b.venue_name || "").toLowerCase();
-      const purpose = (b.purpose || "").toLowerCase();
-      if (!ref.includes(q) && !filer.includes(q) && !dept.includes(q) && !vName.includes(q) && !purpose.includes(q)) {
-        return false;
+      // Office Scope
+      if (selectedOfficeId && selectedOfficeId !== "all") {
+        const offId = b.venue?.office_id || b.office_id || b.office?.id;
+        const offName = b.venue?.office?.name || b.office?.name || b.office_name;
+        if (offId && String(offId) !== String(selectedOfficeId)) return false;
+        if (offName && officeScope && officeScope !== "All Offices" && !offName.toLowerCase().includes(officeScope.toLowerCase())) {
+          return false;
+        }
       }
-    }
 
-    return true;
-  }).sort((a, b) => {
-    if (sortBy === "created_desc") {
-      return (new Date(b.created_at || 0).getTime()) - (new Date(a.created_at || 0).getTime());
-    }
-    // Default: event_asc (earliest upcoming event first)
-    const dateA = `${(a.date_of_usage || a.date_of_use || "").substring(0, 10)} ${a.time_start || ""}`;
-    const dateB = `${(b.date_of_usage || b.date_of_use || "").substring(0, 10)} ${b.time_start || ""}`;
-    return dateA.localeCompare(dateB);
-  });
+      // Date Filter
+      const eventDate = (b.date_of_usage || b.date_of_use || b.date || "").substring(0, 10);
+      const todayStr = getTodayStr();
+      if (dateFilter === "today") {
+        if (eventDate !== todayStr) return false;
+      } else if (dateFilter === "this_week") {
+        const startOfWeek = getStartOfWeekStr();
+        const endOfWeek = getEndOfWeekStr();
+        if (!eventDate || eventDate < startOfWeek || eventDate > endOfWeek) return false;
+      } else if (dateFilter === "this_month") {
+        const currentYearMonth = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}`;
+        if (!eventDate || !eventDate.startsWith(currentYearMonth)) return false;
+      }
+
+      // Search Query
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim();
+        const ref = (b.reference_code || b.tracking_number?.reference_code || `TRK-AVR${b.id}`).toLowerCase();
+        const filer = (b.filer_name || b.requestor || "").toLowerCase();
+        const dept = (b.program_office || b.department || "").toLowerCase();
+        const vName = (b.venue?.name || b.venue_name || "").toLowerCase();
+        const purpose = (b.purpose || "").toLowerCase();
+        if (!ref.includes(q) && !filer.includes(q) && !dept.includes(q) && !vName.includes(q) && !purpose.includes(q)) {
+          return false;
+        }
+      }
+
+      return true;
+    }).sort((a, b) => {
+      if (sortBy === "created_desc") {
+        return (new Date(b.created_at || 0).getTime()) - (new Date(a.created_at || 0).getTime());
+      }
+      // Default: event_asc (earliest upcoming event first)
+      const dateA = `${(a.date_of_usage || a.date_of_use || "").substring(0, 10)} ${a.time_start || ""}`;
+      const dateB = `${(b.date_of_usage || b.date_of_use || "").substring(0, 10)} ${b.time_start || ""}`;
+      return dateA.localeCompare(dateB);
+    });
+  }, [bookings, statusFilter, selectedOfficeId, officeScope, dateFilter, searchQuery, sortBy]);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [filteredBookings.length, statusFilter, dateFilter, searchQuery, sortBy]);
+  }, [statusFilter, dateFilter, searchQuery, sortBy]);
 
-  const totalPages = Math.ceil(filteredBookings.length / ITEMS_PER_PAGE) || 1;
+  const totalPages = useMemo(() => Math.max(1, Math.ceil(filteredBookings.length / ITEMS_PER_PAGE)), [filteredBookings.length]);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const paginatedBookings = filteredBookings.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  const paginatedBookings = useMemo(() => {
+    return filteredBookings.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  }, [filteredBookings, startIndex]);
 
   const handleAction = async (bookingId, action, customData = {}) => {
     setActionLoading(`${bookingId}-${action}`);

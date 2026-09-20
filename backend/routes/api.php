@@ -68,12 +68,18 @@ Route::post('/public/resubmit-requirements', [TrackingController::class, 'resubm
 Route::get('/auth/google/redirect', [GoogleAuthController::class, 'redirect']);
 Route::get('/auth/google/callback', [GoogleAuthController::class, 'callback']);
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:login');
+Route::post('/auth/logout-beacon', [AuthController::class, 'logoutBeacon']);
 Route::get('/auth/invite/{token}', [AuthController::class, 'getInviteDetails']);
 Route::post('/auth/activate', [AuthController::class, 'activateAccount'])->middleware('throttle:auth-activate');
+Route::post('/auth/forgot-password', [AuthController::class, 'forgotPassword'])->middleware('throttle:5,15');
+Route::post('/auth/verify-reset-code', [AuthController::class, 'verifyResetCode'])->middleware('throttle:10,15');
+Route::post('/auth/reset-password', [AuthController::class, 'resetPassword'])->middleware('throttle:5,15');
 
 // ─── Authenticated Routes (Staff & General Operations) ────────────────────────
 Route::middleware('auth:sanctum')->group(function () {
 
+    Route::get('/user', [AuthController::class, 'me']);
+    Route::get('/auth/me', [AuthController::class, 'me']);
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::post('/change-password', [AuthController::class, 'changePassword']);
     Route::post('/verify-password', [AuthController::class, 'verifyPassword']);
@@ -120,6 +126,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/general/equipment-units/import-template', [EquipmentUnitController::class, 'downloadTemplate']);
     Route::post('/general/equipment-units/import-csv',      [EquipmentUnitController::class, 'importCsv']);
+    Route::post('/general/equipment-units/{id}/enable',     [EquipmentUnitController::class, 'enable']);
     Route::get('/general/equipment-units',                 [EquipmentUnitController::class, 'index']);
     Route::post('/general/equipment-units',                [EquipmentUnitController::class, 'store']);
     Route::put('/general/equipment-units/{id}',            [EquipmentUnitController::class, 'update']);
@@ -127,6 +134,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/admin/equipment-units/import-template',   [EquipmentUnitController::class, 'downloadTemplate']);
     Route::post('/admin/equipment-units/import-csv',        [EquipmentUnitController::class, 'importCsv']);
+    Route::post('/admin/equipment-units/{id}/enable',       [EquipmentUnitController::class, 'enable']);
     Route::get('/admin/equipment-units',                   [EquipmentUnitController::class, 'index']);
     Route::post('/admin/equipment-units',                  [EquipmentUnitController::class, 'store']);
     Route::put('/admin/equipment-units/{id}',              [EquipmentUnitController::class, 'update']);
@@ -498,7 +506,6 @@ Route::get('/test-sms', function (Request $request) {
         'gateway_response' => $res,
     ]);
 });
-Route::get('/user', fn (Request $request) => $request->user()->load(['role']))->middleware('auth:sanctum');
 
 // ─── Public (Unauthenticated) Routes ──────────────────────────────────────────
 Route::prefix('public')->group(function () {

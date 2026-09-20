@@ -23,6 +23,7 @@ return new class extends Migration
             $table->date('date_purchased')->nullable();
             $table->integer('lifespan_years')->default(5);
             $table->text('description')->nullable();
+            $table->json('built_in_units')->nullable();
             $table->timestamps();
             $table->timestamp('archived_at')->nullable();
         });

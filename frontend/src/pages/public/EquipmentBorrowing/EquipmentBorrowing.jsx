@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { PackageOpen, ShieldCheck, Download, Sparkles, KeyRound, Lock, X, AlertCircle, Copy, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -121,9 +121,9 @@ export default function EquipmentBorrowing({ isPortal: isPortalProp }) {
   const [endTime, setEndTime] = useState(`${getTodayISO()}T${getLaterLiveTime(1)}`);
   const [wishesToExtend, setWishesToExtend] = useState(false);
 
-  const handleContactChange = (e) => {
+  const handleContactChange = useCallback((e) => {
     setContactNumber(e.target.value.replace(/\D/g, '').slice(0, 11));
-  };
+  }, []);
 
   useEffect(() => {
     const fetchEquipment = () => {
@@ -167,23 +167,38 @@ export default function EquipmentBorrowing({ isPortal: isPortalProp }) {
     return () => window.removeEventListener("equipment_inventory_updated", fetchEquipment);
   }, [startTime, endTime]);
 
-  const uniqueCategories = [
+  const uniqueCategories = useMemo(() => [
     "all",
     ...new Set(catalog.map(item => item.eq_type || item.category || "General").filter(Boolean))
-  ];
+  ], [catalog]);
 
-  const filteredCatalog = catalog.filter(item => {
-    if (equipmentCategory === "all") return true;
+  const filteredCatalog = useMemo(() => {
+    if (equipmentCategory === "all") return catalog;
     
-    const cat = (item.eq_type || item.category || "").toLowerCase();
     const query = (equipmentCategory || "").toLowerCase();
-    
-    return cat === query || cat.includes(query) || (item.name || "").toLowerCase().includes(query) || (item.eq_name || "").toLowerCase().includes(query);
-  });
+    return catalog.filter(item => {
+      const cat = (item.eq_type || item.category || "").toLowerCase();
+      return cat === query || cat.includes(query) || (item.name || "").toLowerCase().includes(query) || (item.eq_name || "").toLowerCase().includes(query);
+    });
+  }, [catalog, equipmentCategory]);
 
-  const isScoSelected = selectedItems.some(id => catalog.find(c => c.id === id)?.dept === "sco");
-  const isAvrSelected = selectedItems.some(id => catalog.find(c => c.id === id)?.dept === "avr");
-  const primaryDept = isScoSelected && !isAvrSelected ? "sco" : isAvrSelected && !isScoSelected ? "avr" : "mixed";
+  const catalogMap = useMemo(() => {
+    const map = new Map();
+    catalog.forEach(item => map.set(item.id, item));
+    return map;
+  }, [catalog]);
+
+  const isScoSelected = useMemo(() => {
+    return selectedItems.some(id => catalogMap.get(id)?.dept === "sco");
+  }, [selectedItems, catalogMap]);
+
+  const isAvrSelected = useMemo(() => {
+    return selectedItems.some(id => catalogMap.get(id)?.dept === "avr");
+  }, [selectedItems, catalogMap]);
+
+  const primaryDept = useMemo(() => {
+    return isScoSelected && !isAvrSelected ? "sco" : isAvrSelected && !isScoSelected ? "avr" : "mixed";
+  }, [isScoSelected, isAvrSelected]);
 
   // PIN Verification State
   const [showPinModal, setShowPinModal] = useState(false);
@@ -193,15 +208,15 @@ export default function EquipmentBorrowing({ isPortal: isPortalProp }) {
 
   const [itemQuantities, setItemQuantities] = useState({});
 
-  const formatTime12 = (tStr) => {
+  const formatTime12 = useCallback((tStr) => {
     if (!tStr) return "";
     const [h, m] = tStr.split(":").map(Number);
     const ampm = h >= 12 ? "PM" : "AM";
     const h12 = h % 12 || 12;
     return `${h12}:${String(m || 0).padStart(2, '0')} ${ampm}`;
-  };
+  }, []);
 
-  const handleIdentitySelect = (id) => {
+  const handleIdentitySelect = useCallback((id) => {
     const norm = (id || "").toLowerCase();
     setIdentity(norm);
 
@@ -219,11 +234,11 @@ export default function EquipmentBorrowing({ isPortal: isPortalProp }) {
       }
     }
 
-    if (!completedSteps.includes(1)) setCompletedSteps([...completedSteps, 1]);
+    setCompletedSteps(prev => (!prev.includes(1) ? [...prev, 1] : prev));
     setActiveStep(2);
-  };
+  }, [isPortal, pinRules, isPinVerified]);
 
-  const handleEquipmentToggle = (itemId) => {
+  const handleEquipmentToggle = useCallback((itemId) => {
     setSelectedItems(prev => {
       if (prev.includes(itemId)) {
         setItemQuantities(q => { const copy = { ...q }; delete copy[itemId]; return copy; });
@@ -233,9 +248,9 @@ export default function EquipmentBorrowing({ isPortal: isPortalProp }) {
         return [...prev, itemId];
       }
     });
-  };
+  }, []);
 
-  const handleQuantityChange = (itemId, newQty, maxAvailable) => {
+  const handleQuantityChange = useCallback((itemId, newQty, maxAvailable) => {
     if (newQty < 1) {
       setSelectedItems(prev => prev.filter(i => i !== itemId));
       setItemQuantities(q => { const copy = { ...q }; delete copy[itemId]; return copy; });
@@ -244,9 +259,9 @@ export default function EquipmentBorrowing({ isPortal: isPortalProp }) {
     const limit = maxAvailable !== undefined && maxAvailable !== null ? maxAvailable : 99;
     const finalQty = Math.min(newQty, limit);
     setItemQuantities(q => ({ ...q, [itemId]: finalQty }));
-  };
+  }, []);
 
-  const handleEquipmentSubmit = () => {
+  const handleEquipmentSubmit = useCallback(() => {
     const startDateStr = startTime ? startTime.split("T")[0] : "";
     const startTimeStr = startTime && startTime.includes("T") ? startTime.split("T")[1].slice(0, 5) : "08:00";
     const endDateStr = endTime ? endTime.split("T")[0] : "";
@@ -319,11 +334,11 @@ export default function EquipmentBorrowing({ isPortal: isPortalProp }) {
       }
     }
 
-    if (!completedSteps.includes(2)) setCompletedSteps([...completedSteps, 2]);
+    setCompletedSteps(prev => (!prev.includes(2) ? [...prev, 2] : prev));
     setActiveStep(3);
-  };
+  }, [startTime, endTime, selectedItems, opHours, isPortal, pinRules, identity, isPinVerified, formatTime12]);
 
-  const handleDetailsSubmit = (e) => {
+  const handleDetailsSubmit = useCallback((e) => {
     e.preventDefault();
     const requireVerify = pinRules ? (pinRules.isEnabled !== false && (pinRules.equipmentVerifyEmail === true || pinRules.equipmentVerifyPhone === true)) : false;
 
@@ -331,11 +346,11 @@ export default function EquipmentBorrowing({ isPortal: isPortalProp }) {
       alert("Please verify your contact details with the 6-digit verification code before proceeding to the next step.");
       return;
     }
-    if (!completedSteps.includes(3)) setCompletedSteps([...completedSteps, 3]);
+    setCompletedSteps(prev => (!prev.includes(3) ? [...prev, 3] : prev));
     setActiveStep(4);
-  };
+  }, [pinRules, isEmailVerified]);
 
-  const handleVerifySubmit = async (e) => {
+  const handleVerifySubmit = useCallback(async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
 
@@ -412,16 +427,52 @@ export default function EquipmentBorrowing({ isPortal: isPortalProp }) {
     } finally {
       setIsSubmitting(false);
     }
-  };
+  }, [startTime, endTime, campusBranch, selectedItems, itemQuantities, firstName, middleName, lastName, suffix, fullName, email, contactNumber, department, identity, purpose, placeOfUse, handlerName, notificationChannel, isPinVerified, endorsementFile]);
 
   const [copiedTrack, setCopiedTrack] = useState(false);
 
-  const handleCopyTrack = () => {
+  const handleCopyTrack = useCallback(() => {
     if (!referenceCode) return;
     navigator.clipboard.writeText(referenceCode);
     setCopiedTrack(true);
     setTimeout(() => setCopiedTrack(false), 2000);
-  };
+  }, [referenceCode]);
+
+  // Kiosk Inactivity Reset: in public mode, if terminal is left unattended for 3 minutes, reset to Step 1
+  useEffect(() => {
+    if (isPortal || showSuccess || activeStep === 1) return;
+
+    let timeout;
+    const resetKiosk = () => {
+      setActiveStep(1);
+      setCompletedSteps([]);
+      setSelectedItems([]);
+      setItemQuantities({});
+      setFirstName("");
+      setMiddleName("");
+      setLastName("");
+      setSuffix("");
+      setFullName("");
+      setEmail("");
+      setContactNumber("");
+      setDepartment("");
+      setPurpose("");
+    };
+
+    const handleActivity = () => {
+      clearTimeout(timeout);
+      timeout = setTimeout(resetKiosk, 3 * 60 * 1000);
+    };
+
+    timeout = setTimeout(resetKiosk, 3 * 60 * 1000);
+    const events = ["mousedown", "mousemove", "keydown", "touchstart", "scroll"];
+    events.forEach(e => window.addEventListener(e, handleActivity, { passive: true }));
+
+    return () => {
+      clearTimeout(timeout);
+      events.forEach(e => window.removeEventListener(e, handleActivity));
+    };
+  }, [isPortal, showSuccess, activeStep]);
 
   return (
     <div className="w-full flex flex-col items-center">

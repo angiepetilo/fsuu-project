@@ -503,3 +503,54 @@ html.dark textarea::placeholder {
     background: white !important;
   }
 }
+
+/* ══════════════════════════════════════════════════════════════
+   UNIVERSAL BUTTON CLICK-SPIN FEEDBACK SYSTEM
+   Ensures every button throughout the system spins when clicked.
+   ══════════════════════════════════════════════════════════════ */
+
+@keyframes btn-click-spin-360 {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* SVG Transform origin normalization for flawless axial rotation */
+button svg,
+[role="button"] svg,
+.btn svg {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+/* 1. Instant Active State: icon begins spinning the exact millisecond user clicks (only for non-loading buttons) */
+button:active:not(:disabled):not([data-loading]):not(.no-spin):not(:has(.animate-spin)) svg:not(.animate-spin):not(.no-spin),
+[role="button"]:active:not(:disabled):not([data-loading]):not(.no-spin):not(:has(.animate-spin)) svg:not(.animate-spin):not(.no-spin),
+.btn:active:not(:disabled):not([data-loading]):not(.no-spin):not(:has(.animate-spin)) svg:not(.animate-spin):not(.no-spin) {
+  animation: btn-click-spin-360 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* 2. Sustained Click-Spin Animation: completes full 360° rotation on non-loading icon */
+button.btn-clicked-spinning:not(:disabled):not([data-loading]):not(.no-spin):not(:has(.animate-spin)) svg:not(.animate-spin):not(.no-spin),
+[role="button"].btn-clicked-spinning:not(:disabled):not([data-loading]):not(.no-spin):not(:has(.animate-spin)) svg:not(.animate-spin):not(.no-spin),
+.btn.btn-clicked-spinning:not(:disabled):not([data-loading]):not(.no-spin):not(:has(.animate-spin)) svg:not(.animate-spin):not(.no-spin) {
+  animation: btn-click-spin-360 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* 3. Anti-redundancy guard: ensure no button renders an artificial secondary pseudo-element spinner */
+button.btn-spin-text::after,
+[role="button"].btn-spin-text::after,
+.btn.btn-spin-text::after {
+  content: none !important;
+  display: none !important;
+}
+
+/* Subtle micro-scale tactile response on button click */
+button:not(:disabled):not(.no-bounce):active,
+[role="button"]:not(:disabled):not(.no-bounce):active {
+  transform: scale(0.98);
+  transition: transform 0.08s ease;
+}

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useOutletContext, useLocation } from "react-router-dom";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
@@ -46,6 +46,8 @@ export default function Dashboard() {
   const [totalEquipBorrows, setTotalEquipBorrows] = useState(cachedData?.totalEquipBorrows || 0);
   const [totalDamaged, setTotalDamaged] = useState(cachedData?.totalDamaged || 0);
   const [totalLost, setTotalLost] = useState(cachedData?.totalLost || 0);
+  const [equipmentInventory, setEquipmentInventory] = useState(cachedData?.equipmentInventory || { total_active: 0, available: 0, damaged: 0, lost: 0, released: 0, disabled: 0 });
+  const [recentInventoryChanges, setRecentInventoryChanges] = useState([]);
 
   // Dynamic Real Analytics Calculations
   const [topBookedDepartments, setTopBookedDepartments] = useState(cachedData?.topBookedDepartments || []);
@@ -65,22 +67,26 @@ export default function Dashboard() {
   const [calYear, setCalYear] = useState(today.getFullYear());
   const [calMonth, setCalMonth] = useState(initialMonth);
 
-  const prevMonth = () => {
-    if (calMonth === 0) { setCalYear(y => y - 1); setCalMonth(11); }
-    else setCalMonth(m => m - 1);
-  };
+  const prevMonth = useCallback(() => {
+    setCalMonth(m => {
+      if (m === 0) { setCalYear(y => y - 1); return 11; }
+      return m - 1;
+    });
+  }, []);
 
-  const nextMonth = () => {
-    if (calMonth === 11) { setCalYear(y => y + 1); setCalMonth(0); }
-    else setCalMonth(m => m + 1);
-  };
+  const nextMonth = useCallback(() => {
+    setCalMonth(m => {
+      if (m === 11) { setCalYear(y => y + 1); return 0; }
+      return m + 1;
+    });
+  }, []);
 
   const monthLabel = new Date(calYear, calMonth).toLocaleString("default", { month: "short", year: "numeric" });
   const firstDayOfWeek = new Date(calYear, calMonth, 1).getDay();
   const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
   const pad = (n) => String(n).padStart(2, "0");
 
-  const fetchData = async (showLoading = true) => {
+  const fetchData = useCallback(async (showLoading = true) => {
     if (showLoading && !cachedData) setLoading(true);
     setError(null);
     try {
@@ -125,6 +131,12 @@ export default function Dashboard() {
 
       // Violating Students
       setViolatingStudents(statsData.violating_students || []);
+
+      // Equipment Inventory Breakdown
+      setEquipmentInventory(statsData.equipment_inventory || { total_active: 0, available: 0, damaged: 0, lost: 0, released: 0, disabled: 0 });
+
+      // Recent Inventory Changes
+      setRecentInventoryChanges(statsData.recent_inventory_changes || []);
 
       // Calendar & Staff Tasks
       const calBookings = statsData.calendar_bookings || [];
@@ -181,6 +193,7 @@ export default function Dashboard() {
           totalEquipBorrows: q.total_equip_borrows || 0,
           totalDamaged: q.total_equipment_damages || q.damage_reports || 0,
           totalLost: q.total_equipment_lost || 0,
+          equipmentInventory: statsData.equipment_inventory || {},
           topBookedDepartments: finalDepts,
           topViolatingDepartments: rawViolations,
         }));
@@ -191,20 +204,32 @@ export default function Dashboard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [cachedData, isSysadRoute]);
 
   useRealtimeSync(fetchData, { interval: 30000 });
 
-  // Calendar Day Details helper
-  const getDayDetails = (day) => {
-    const dateStr = `${calYear}-${pad(calMonth + 1)}-${pad(day)}`;
-    const bookedOnDate = calendarBookings.filter(b => {
+  // Pre-index calendar bookings by day of current month for O(1) cell lookup
+  const calendarDayMap = useMemo(() => {
+    const map = {};
+    const curMonthPrefix = `${calYear}-${pad(calMonth + 1)}`;
+    calendarBookings.forEach(b => {
       const startD = (b.date_of_usage || b.date_of_use || b.date || "").substring(0, 10);
       const endD = (b.reservation_end_date || b.date_of_usage_end || b.end_date || startD).substring(0, 10);
-      if (!startD) return false;
-      return dateStr >= startD && dateStr <= endD;
+      if (!startD) return;
+      for (let d = 1; d <= daysInMonth; d++) {
+        const dateStr = `${curMonthPrefix}-${pad(d)}`;
+        if (dateStr >= startD && dateStr <= endD) {
+          if (!map[d]) map[d] = [];
+          map[d].push(b);
+        }
+      }
     });
+    return map;
+  }, [calendarBookings, calYear, calMonth, daysInMonth]);
 
+  // Calendar Day Details helper
+  const getDayDetails = useCallback((day) => {
+    const bookedOnDate = calendarDayMap[day] || [];
     const isBooked = bookedOnDate.length > 0;
     const isPending = bookedOnDate.some(b => (b.status || "").toLowerCase() === "pending");
     const isOngoing = bookedOnDate.some(b => ["ongoing", "on-going", "approved"].includes((b.status || "").toLowerCase()));
@@ -217,7 +242,9 @@ export default function Dashboard() {
       isCompleted,
       bookings: bookedOnDate,
     };
-  };
+  }, [calendarDayMap]);
+
+  const handleRefresh = useCallback(() => fetchData(true), [fetchData]);
 
   // ──────────────────────────────────────────────────────────────────────────
   // VIEW 1: STUDENT ASSISTANT SHIFT DASHBOARD
@@ -230,7 +257,7 @@ export default function Dashboard() {
         setStaffTaskFilter={setStaffTaskFilter}
         loading={loading}
         error={error}
-        onRefresh={() => fetchData(true)}
+        onRefresh={handleRefresh}
         isSysadRoute={isSysadRoute}
       />
     );
@@ -249,6 +276,8 @@ export default function Dashboard() {
       totalEquipBorrows={totalEquipBorrows}
       totalDamaged={totalDamaged}
       totalLost={totalLost}
+      equipmentInventory={equipmentInventory}
+      recentInventoryChanges={recentInventoryChanges}
       topBookedDepartments={topBookedDepartments}
       mostUsedEquipment={mostUsedEquipment}
       topViolatingDepartments={topViolatingDepartments}

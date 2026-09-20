@@ -1,13 +1,17 @@
-import { X, AlertTriangle, LogOut, Archive, Ban, CheckCircle2 } from "lucide-react";
+import { X, AlertTriangle, LogOut, Archive, Ban, CheckCircle2, CircleCheck } from "lucide-react";
+
 
 const ICONS = {
-  archive:  { icon: Archive,       bg: "bg-amber-50 dark:bg-amber-500/15",  border: "border-amber-200 dark:border-amber-500/30", color: "text-amber-600 dark:text-amber-400",  btn: "bg-amber-600 hover:bg-amber-700 text-white" },
-  logout:   { icon: LogOut,        bg: "bg-rose-50 dark:bg-rose-500/15",    border: "border-rose-200 dark:border-rose-500/30",   color: "text-rose-600 dark:text-rose-400",    btn: "bg-rose-600 hover:bg-rose-700 text-white"     },
-  disable:  { icon: Ban,           bg: "bg-rose-50 dark:bg-rose-500/15",    border: "border-rose-200 dark:border-rose-500/30",   color: "text-rose-600 dark:text-rose-400",    btn: "bg-rose-600 hover:bg-rose-700 text-white"     },
-  delete:   { icon: Ban,           bg: "bg-rose-50 dark:bg-rose-500/15",    border: "border-rose-200 dark:border-rose-500/30",   color: "text-rose-600 dark:text-rose-400",    btn: "bg-rose-600 hover:bg-rose-700 text-white"     },
-  save:     { icon: CheckCircle2,  bg: "bg-blue-50 dark:bg-blue-500/15",   border: "border-blue-200 dark:border-blue-500/30",  color: "text-blue-600 dark:text-blue-400",   btn: "bg-blue-600 hover:bg-blue-700 text-white"   },
-  warning:  { icon: AlertTriangle, bg: "bg-amber-50 dark:bg-amber-500/15",  border: "border-amber-200 dark:border-amber-500/30", color: "text-amber-600 dark:text-amber-400",  btn: "bg-amber-600 hover:bg-amber-700 text-white" },
+  archive:  { icon: Archive,       bg: "bg-amber-50 dark:bg-amber-500/15",   border: "border-amber-200 dark:border-amber-500/30",  color: "text-amber-600 dark:text-amber-400",   btn: "bg-amber-600 hover:bg-amber-700 text-white" },
+  logout:   { icon: LogOut,        bg: "bg-rose-50 dark:bg-rose-500/15",     border: "border-rose-200 dark:border-rose-500/30",    color: "text-rose-600 dark:text-rose-400",     btn: "bg-rose-600 hover:bg-rose-700 text-white"     },
+  disable:  { icon: Ban,           bg: "bg-rose-50 dark:bg-rose-500/15",     border: "border-rose-200 dark:border-rose-500/30",    color: "text-rose-600 dark:text-rose-400",     btn: "bg-rose-600 hover:bg-rose-700 text-white"     },
+  delete:   { icon: Ban,           bg: "bg-rose-50 dark:bg-rose-500/15",     border: "border-rose-200 dark:border-rose-500/30",    color: "text-rose-600 dark:text-rose-400",     btn: "bg-rose-600 hover:bg-rose-700 text-white"     },
+  save:     { icon: CheckCircle2,  bg: "bg-blue-50 dark:bg-blue-500/15",    border: "border-blue-200 dark:border-blue-500/30",   color: "text-blue-600 dark:text-blue-400",    btn: "bg-blue-600 hover:bg-blue-700 text-white"   },
+  warning:  { icon: AlertTriangle, bg: "bg-amber-50 dark:bg-amber-500/15",   border: "border-amber-200 dark:border-amber-500/30",  color: "text-amber-600 dark:text-amber-400",   btn: "bg-amber-600 hover:bg-amber-700 text-white" },
+  enable:   { icon: CircleCheck,   bg: "bg-emerald-50 dark:bg-emerald-500/15", border: "border-emerald-200 dark:border-emerald-500/30", color: "text-emerald-600 dark:text-emerald-400", btn: "bg-emerald-600 hover:bg-emerald-700 text-white" },
+  confirm:  { icon: CheckCircle2,  bg: "bg-emerald-50 dark:bg-emerald-500/15", border: "border-emerald-200 dark:border-emerald-500/30", color: "text-emerald-600 dark:text-emerald-400", btn: "bg-emerald-600 hover:bg-emerald-700 text-white" },
 };
+
 
 /**
  * Reusable institutional confirmation modal.

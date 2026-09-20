@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Loader2, FileText, Download } from "lucide-react";
 import api from "@/lib/axios";
 import Hero from "./components/Hero";
@@ -27,15 +27,21 @@ export default function LandingPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const uniqueRequirements = requirements.filter(
-    (req, idx, arr) => arr.findIndex((r) => r.label?.trim()?.toLowerCase() === req.label?.trim()?.toLowerCase()) === idx
-  );
+  const uniqueRequirements = useMemo(() => {
+    const seen = new Set();
+    return requirements.filter((req) => {
+      const key = req.label?.trim()?.toLowerCase();
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [requirements]);
 
-  const handleOpenTemplate = (req) => {
+  const handleOpenTemplate = useCallback((req) => {
     setSelectedTemplateRequirement(req);
     setSelectedTemplateType(req.classification || "organization");
     setShowTemplateModal(true);
-  };
+  }, []);
 
   return (
     <div className="w-full text-foreground relative">

@@ -19,6 +19,7 @@ const EquipmentBorrowing = lazy(() => import("./pages/public/EquipmentBorrowing/
 const StaffLogin         = lazy(() => import("./pages/auth/StaffLogin"));
 const GoogleCallback     = lazy(() => import("./pages/auth/GoogleCallback"));
 const AccountActivation  = lazy(() => import("./pages/auth/AccountActivation"));
+const ForgotPassword     = lazy(() => import("./pages/auth/ForgotPassword"));
 
 // Super Admin pages
 const SysadLayout        = lazy(() => import("./pages/superadmin/SysadLayout"));
@@ -57,7 +58,7 @@ function ProtectedInterfaceRoute({ children }) {
 function AppContent() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, token, logout } = useAuth();
+  const { user, token, logout, isValidating } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const isDark = theme === "dark";
   const userRole = user?.role?.name || user?.role || "staff";
@@ -69,19 +70,25 @@ function AppContent() {
     cleanupLocalStorage();
   }, []);
 
-  // When user is logged in and tries to navigate to the public landing page "/"
+  // When user is confirmed logged in and tries to navigate to the public landing page "/"
   useEffect(() => {
-    if ((user || token) && location.pathname === "/") {
+    // If still validating token with backend on boot, suppress modal to avoid flash/ghost modals
+    if (isValidating) {
+      setShowHomeLogoutConfirm(false);
+      return;
+    }
+
+    if (user && token && location.pathname === "/") {
       setShowHomeLogoutConfirm(true);
     } else {
       setShowHomeLogoutConfirm(false);
     }
-  }, [location.pathname, user, token]);
+  }, [location.pathname, user, token, isValidating]);
 
   const handleConfirmLogoutForHome = async () => {
     setIsLoggingOut(true);
     try {
-      await logout();
+      await logout("/");
       setShowHomeLogoutConfirm(false);
     } catch {
       setShowHomeLogoutConfirm(false);
@@ -99,7 +106,7 @@ function AppContent() {
     }
   };
 
-  const isAuthPage     = location.pathname.startsWith("/login") || location.pathname.startsWith("/auth") || location.pathname.startsWith("/activate");
+  const isAuthPage     = location.pathname.startsWith("/login") || location.pathname.startsWith("/auth") || location.pathname.startsWith("/activate") || location.pathname.startsWith("/forgot-password") || location.pathname.startsWith("/reset-password");
   const isGeneralPage  = location.pathname.startsWith("/general") || location.pathname.startsWith("/admin");
   const isSysadPage    = location.pathname.startsWith("/sysad");
   const hideHeaderFooter = isAuthPage || isGeneralPage || isSysadPage;
@@ -315,6 +322,8 @@ function AppContent() {
 
             {/* Auth */}
             <Route path="/login"                 element={<StaffLogin />} />
+            <Route path="/forgot-password"       element={<ForgotPassword />} />
+            <Route path="/reset-password"        element={<ForgotPassword />} />
             <Route path="/auth/google/callback"  element={<GoogleCallback />} />
             <Route path="/activate/:token"       element={<AccountActivation />} />
 

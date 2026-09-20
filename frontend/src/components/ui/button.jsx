@@ -1,6 +1,7 @@
 import { Button as ButtonPrimitive } from "@base-ui/react/button"
 import { cva } from "class-variance-authority";
 
+import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils"
 
 const buttonVariants = cva(
@@ -38,18 +39,43 @@ const buttonVariants = cva(
   }
 )
 
+function hasChildSpinner(node) {
+  if (!node) return false;
+  if (Array.isArray(node)) return node.some(hasChildSpinner);
+  if (typeof node === "object" && node !== null && node.props) {
+    const cls = node.props.className;
+    if (typeof cls === "string" && cls.includes("animate-spin")) return true;
+    return hasChildSpinner(node.props.children);
+  }
+  return false;
+}
+
 function Button({
   className,
   variant = "default",
   size = "default",
   asChild,
+  loading = false,
+  disabled,
+  children,
   ...props
 }) {
+  const showSpinner = loading && !hasChildSpinner(children);
+
   return (
     <ButtonPrimitive
       data-slot="button"
-      className={cn(buttonVariants({ variant, size, className }))}
-      {...props} />
+      data-loading={loading ? "true" : undefined}
+      disabled={disabled || loading}
+      className={cn(
+        buttonVariants({ variant, size, className }),
+        loading && "opacity-80 pointer-events-none"
+      )}
+      {...props}
+    >
+      {showSpinner && <Loader2 className="animate-spin size-4 shrink-0" />}
+      {children}
+    </ButtonPrimitive>
   );
 }
 

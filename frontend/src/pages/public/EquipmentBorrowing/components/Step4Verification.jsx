@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { ShieldCheck, PackageOpen, User, Calendar, MapPin, Mail, Phone, CheckCircle2 } from "lucide-react";
+import { ShieldCheck, PackageOpen, User, Calendar, MapPin, Mail, Phone, CheckCircle2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default function Step4Verification({
@@ -189,7 +189,11 @@ export default function Step4Verification({
           disabled={isSubmitting || !agreedToTerms}
           className="bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-5 rounded-xl font-extrabold text-xs shadow-xl shadow-emerald-600/20 transition-all hover:scale-105 disabled:opacity-50 disabled:hover:scale-100 flex items-center gap-2 cursor-pointer"
         >
-          <ShieldCheck size={18} />
+          {isSubmitting ? (
+            <Loader2 size={18} className="animate-spin" />
+          ) : (
+            <ShieldCheck size={18} />
+          )}
           <span>{isSubmitting ? "Submitting Request…" : "Submit Equipment Request"}</span>
         </Button>
       </div>

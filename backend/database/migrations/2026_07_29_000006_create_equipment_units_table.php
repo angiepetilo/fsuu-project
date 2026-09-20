@@ -20,6 +20,7 @@ return new class extends Migration
             $table->string('status')->default('available');
             $table->string('condition')->default('Good');
             $table->text('description')->nullable();
+            $table->json('built_in_units')->nullable();
             $table->timestamps();
             $table->timestamp('archived_at')->nullable();
         });

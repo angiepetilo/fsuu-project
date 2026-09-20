@@ -461,6 +461,20 @@ function BuiltInUnitsSelector({
                 </div>
               </div>
 
+              <div>
+                <label className={labelClasses}>Reason / Trigger Note (Optional)</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Broken lens, Repaired and functional, Routine inspection, Lost during event..."
+                  value={editFormData.reason || ""}
+                  onChange={e => setEditFormData({ ...editFormData, reason: e.target.value })}
+                  className={inputClasses}
+                />
+                <p className="mt-1 text-[10.5px] text-slate-400 font-medium">
+                  Recorded in the Dashboard audit feed to document what triggered this inventory stat change.
+                </p>
+              </div>
+
               {/* Built-in Physical Units Selector (Dropdown + / - buttons to add/remove raw physical units) */}
               <BuiltInUnitsSelector
                 builtInList={editFormData.built_in_units}

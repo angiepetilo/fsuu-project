@@ -22,6 +22,12 @@ export function cleanupLocalStorage() {
       localStorage.removeItem(key);
     });
 
+    // If user did NOT explicitly select "Remember Me", purge any legacy or leftover staff credentials in localStorage
+    if (localStorage.getItem("fsuu_remember_me") !== "true") {
+      localStorage.removeItem("staff_token");
+      localStorage.removeItem("staff_user");
+    }
+
     // Also remove any key starting with fsuu_assigned_units_
     for (let i = localStorage.length - 1; i >= 0; i--) {
       const k = localStorage.key(i);

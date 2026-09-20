@@ -22,11 +22,14 @@ export function useRealtimeSync(fetchCallback, options = {}) {
   callbackRef.current = fetchCallback;
 
   const lastFetchTimeRef = useRef(0);
+  const eventsKey = JSON.stringify(customEvents);
 
   useEffect(() => {
     if (!enabled) return;
 
+    let isMounted = true;
     const executeFetch = () => {
+      if (!isMounted) return;
       lastFetchTimeRef.current = Date.now();
       callbackRef.current?.();
     };
@@ -40,7 +43,7 @@ export function useRealtimeSync(fetchCallback, options = {}) {
       executeFetch();
     }, interval);
 
-    // Event handler for window focus and custom events with a cooldown to prevent spam
+    // Event handler for window focus and custom events with cooldown
     const handleSyncEvent = (evt) => {
       if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
       
@@ -56,19 +59,24 @@ export function useRealtimeSync(fetchCallback, options = {}) {
     window.addEventListener("focus", handleSyncEvent);
     window.addEventListener("visibilitychange", handleSyncEvent);
 
-    customEvents.forEach((evtName) => {
+    const parsedEvents = (() => {
+      try { return JSON.parse(eventsKey); } catch { return ["equipment_inventory_updated"]; }
+    })();
+
+    parsedEvents.forEach((evtName) => {
       window.addEventListener(evtName, handleSyncEvent);
     });
 
     return () => {
+      isMounted = false;
       clearInterval(timer);
       window.removeEventListener("focus", handleSyncEvent);
       window.removeEventListener("visibilitychange", handleSyncEvent);
-      customEvents.forEach((evtName) => {
+      parsedEvents.forEach((evtName) => {
         window.removeEventListener(evtName, handleSyncEvent);
       });
     };
-  }, [enabled, interval, ...deps]);
+  }, [enabled, interval, eventsKey, ...deps]);
 }
 
 export default useRealtimeSync;

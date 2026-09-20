@@ -27,7 +27,8 @@ export const clearApiCache = () => {
 
 // Intercept requests
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('staff_token');
+  const isRemembered = localStorage.getItem('fsuu_remember_me') === 'true';
+  const token = sessionStorage.getItem('staff_token') || (isRemembered ? localStorage.getItem('staff_token') : null);
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -89,10 +90,12 @@ api.interceptors.response.use(
     const isAdminRoute = window.location.pathname.startsWith('/general') || window.location.pathname.startsWith('/admin') || window.location.pathname.startsWith('/sysad');
 
     if (status === 401 || (status === 500 && typeof msg === 'string' && (msg.includes('Unauthenticated') || msg.includes('encryption key')))) {
+      localStorage.removeItem('staff_token');
+      localStorage.removeItem('staff_user');
+      sessionStorage.removeItem('staff_token');
+      sessionStorage.removeItem('staff_user');
+      clearApiCache();
       if (isAdminRoute) {
-        localStorage.removeItem('staff_token');
-        localStorage.removeItem('staff_user');
-        clearApiCache();
         window.location.href = '/login';
       }
     }

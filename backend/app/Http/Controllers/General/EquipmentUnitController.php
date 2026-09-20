@@ -21,10 +21,18 @@ class EquipmentUnitController extends Controller
     {
         \App\Services\EquipmentCategoryService::autoSyncUnitConditions();
 
-        $query = EquipmentUnit::with('equipmentType')
-            ->whereNull('equipment_units.archived_at');
+        // Include disabled (soft-deleted) units so the UI can show them greyed out.
+        $units = EquipmentUnit::withTrashed()
+            ->with('equipmentType')
+            ->latest()
+            ->get()
+            ->map(function ($unit) {
+                $arr = $unit->toArray();
+                $arr['is_disabled'] = !is_null($unit->archived_at);
+                return $arr;
+            });
 
-        return response()->json($query->latest()->get());
+        return response()->json($units);
     }
 
     /**
@@ -297,9 +305,13 @@ class EquipmentUnitController extends Controller
             'condition'         => 'nullable|string|max:100',
             'built_in_units'    => 'nullable',
             'description'       => 'nullable|string',
+            'reason'            => 'nullable|string|max:500',
         ], [
             'barcode.unique' => 'This barcode is already assigned to another physical unit. Barcodes must be unique.',
         ]);
+
+        $userReason = trim($request->input('reason', ''));
+        unset($validated['reason']);
 
         if (isset($validated['condition'])) {
             $validated['condition'] = match(strtolower(trim($validated['condition']))) {
@@ -335,7 +347,13 @@ class EquipmentUnitController extends Controller
             unset($validated['built_in_units']);
         }
 
-        $oldTypeId = $unit->equipment_type_id;
+        $oldTypeId    = $unit->equipment_type_id;
+        $oldStatus    = $unit->status;
+        $oldCondition = $unit->condition;
+
+        if ($userReason && empty($validated['description'])) {
+            $validated['description'] = $userReason;
+        }
 
         $unit->update($validated);
 
@@ -345,6 +363,29 @@ class EquipmentUnitController extends Controller
             $this->syncCategoryStock($unit->equipment_type_id);
         }
 
+        // Determine what triggered the stats change
+        $triggerParts = [];
+        $newCond = $unit->condition;
+        $newStat = $unit->status;
+
+        $conditionChanged = $newCond && strcasecmp((string)$newCond, (string)($oldCondition ?? '')) !== 0;
+        $statusChanged    = $newStat && strcasecmp((string)$newStat, (string)($oldStatus ?? '')) !== 0;
+
+        if ($conditionChanged && $statusChanged) {
+            $triggerParts[] = "Condition: '{$oldCondition}' → '{$newCond}', Status: '{$oldStatus}' → '{$newStat}'";
+        } elseif ($conditionChanged) {
+            $triggerParts[] = "Condition: '{$oldCondition}' → '{$newCond}'";
+        } elseif ($statusChanged) {
+            $triggerParts[] = "Status: '{$oldStatus}' → '{$newStat}'";
+        }
+
+        if ($userReason) {
+            $triggerParts[] = "Reason: {$userReason}";
+        }
+
+        $triggerSummary = count($triggerParts) > 0 ? implode(' | ', $triggerParts) : "Unit details updated";
+        $descriptionText = "{$triggerSummary} (Unit {$unit->barcode}) by " . (auth()->user()?->name ?? 'Staff');
+
         try {
             AuditLog::create([
                 'user_id'        => auth()->id(),
@@ -352,10 +393,14 @@ class EquipmentUnitController extends Controller
                 'auditable_type' => 'equipment_units',
                 'auditable_id'   => $unit->id,
                 'metadata'       => [
-                    'barcode'     => $unit->barcode,
-                    'condition'   => $unit->condition,
-                    'status'      => $unit->status,
-                    'description' => "Equipment unit {$unit->barcode} updated by " . (auth()->user()?->name ?? 'Staff'),
+                    'barcode'            => $unit->barcode,
+                    'condition'          => $unit->condition,
+                    'previous_condition' => $oldCondition,
+                    'status'             => $unit->status,
+                    'previous_status'    => $oldStatus,
+                    'trigger'            => $triggerSummary,
+                    'reason'             => $userReason ?: null,
+                    'description'        => $descriptionText,
                 ],
                 'ip_address'     => request()->ip(),
                 'created_at'     => now(),
@@ -386,14 +431,53 @@ class EquipmentUnitController extends Controller
                 'auditable_id'   => $unit->id,
                 'metadata'       => [
                     'barcode'     => $unit->barcode,
-                    'description' => "Equipment unit {$unit->barcode} archived/deleted by " . (auth()->user()?->name ?? 'Staff'),
+                    'condition'   => $unit->condition,
+                    'status'      => 'disabled',
+                    'trigger'     => "Unit disabled (Barcode: {$unit->barcode})",
+                    'description' => "Equipment unit {$unit->barcode} disabled by " . (auth()->user()?->name ?? 'Staff'),
                 ],
                 'ip_address'     => request()->ip(),
                 'created_at'     => now(),
             ]);
         } catch (\Throwable $e) {}
 
-        return response()->json(['message' => 'Equipment unit archived successfully']);
+        return response()->json(['message' => 'Equipment unit disabled successfully']);
+    }
+
+    /**
+     * Re-enable a previously disabled (soft-deleted) equipment unit.
+     */
+    public function enable(Request $request, int $id): JsonResponse
+    {
+        $unit = EquipmentUnit::withTrashed()->findOrFail($id);
+
+        if (is_null($unit->archived_at)) {
+            return response()->json(['message' => 'Unit is already active.'], 422);
+        }
+
+        $unit->restore(); // clears archived_at via SoftDeletes
+
+        $this->syncCategoryStock($unit->equipment_type_id);
+
+        try {
+            AuditLog::create([
+                'user_id'        => auth()->id(),
+                'action'         => 'EQUIPMENT_UNIT_ENABLED',
+                'auditable_type' => 'equipment_units',
+                'auditable_id'   => $unit->id,
+                'metadata'       => [
+                    'barcode'     => $unit->barcode,
+                    'condition'   => $unit->condition,
+                    'status'      => $unit->status,
+                    'trigger'     => "Unit re-enabled into active inventory (Barcode: {$unit->barcode})",
+                    'description' => "Equipment unit {$unit->barcode} re-enabled by " . (auth()->user()?->name ?? 'Staff'),
+                ],
+                'ip_address'     => request()->ip(),
+                'created_at'     => now(),
+            ]);
+        } catch (\Throwable $e) {}
+
+        return response()->json(['message' => 'Equipment unit enabled successfully', 'unit' => $unit->load('equipmentType')]);
     }
 
     /**

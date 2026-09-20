@@ -11,6 +11,7 @@ export default function StaffLogin() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -26,7 +27,7 @@ export default function StaffLogin() {
 
     try {
       const { data } = await api.post("/login", { email: email.trim(), password });
-      login(data.user, data.token);
+      login(data.user, data.token, rememberMe);
 
       const userRoleName = typeof data.user?.role === "object" ? data.user?.role?.name : data.user?.role;
       const isSuper = userRoleName === "super_admin" || userRoleName === "superadmin" || email.toLowerCase() === "admin@fsuu.edu.ph" || email.toLowerCase() === "superadmin@fsuu.edu.ph";
@@ -119,6 +120,25 @@ export default function StaffLogin() {
                 {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
               </button>
             </div>
+          </div>
+
+          <div className="flex items-center justify-between text-xs pt-1 pb-1">
+            <label className="flex items-center gap-2 cursor-pointer select-none text-slate-600 hover:text-slate-900">
+              <input
+                type="checkbox"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                className="w-4 h-4 rounded-md border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+              />
+              <span className="font-medium">Remember me</span>
+            </label>
+
+            <Link
+              to="/forgot-password"
+              className="font-bold text-blue-600 hover:text-blue-700 transition-colors"
+            >
+              Forgot password?
+            </Link>
           </div>
 
           <button

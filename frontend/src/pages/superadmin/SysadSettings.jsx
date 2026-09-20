@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import notify from "@/lib/notify";
 import api from "@/lib/axios";
@@ -85,6 +85,14 @@ const SYSAD_CATEGORIES = [
 
 const SYSAD_TABS = SYSAD_CATEGORIES.flatMap((c) => c.items);
 
+const resolveTab = (urlTab) => {
+  return urlTab && SYSAD_TABS.some((t) => t.id === urlTab) ? urlTab : "users";
+};
+
+const getCategoryForTab = (tabId) => {
+  return SYSAD_CATEGORIES.find((cat) => cat.items.some((it) => it.id === tabId))?.id || SYSAD_CATEGORIES[0].id;
+};
+
 const PROTECTED_TAB_NAMES = {
   pin:             "Verification PIN",
   system_settings: "System Settings",
@@ -93,24 +101,9 @@ const PROTECTED_TAB_NAMES = {
 export default function SysadSettings() {
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // Determine tab from URL param or default to "users"
-  const getInitialTab = () => {
-    const urlTab = searchParams.get("tab");
-    if (urlTab && SYSAD_TABS.some((t) => t.id === urlTab)) {
-      return urlTab;
-    }
-    return "users";
-  };
-
-  const [activeTab, setActiveTab] = useState(getInitialTab);
-  const [mountedTabs, setMountedTabs] = useState(() => new Set([getInitialTab()]));
-
-  // Find parent category for a tab
-  const getCategoryForTab = (tabId) => {
-    return SYSAD_CATEGORIES.find((cat) => cat.items.some((it) => it.id === tabId))?.id || SYSAD_CATEGORIES[0].id;
-  };
-
-  const [activeParentCategory, setActiveParentCategory] = useState(() => getCategoryForTab(getInitialTab()));
+  const [activeTab, setActiveTab] = useState(() => resolveTab(searchParams.get("tab")));
+  const [mountedTabs, setMountedTabs] = useState(() => new Set([resolveTab(searchParams.get("tab"))]));
+  const [activeParentCategory, setActiveParentCategory] = useState(() => getCategoryForTab(resolveTab(searchParams.get("tab"))));
 
   useEffect(() => {
     const parentId = getCategoryForTab(activeTab);
@@ -120,7 +113,7 @@ export default function SysadSettings() {
   // When user navigates from other features to /sysad/settings, always reset to default tab if no ?tab= in URL
   useEffect(() => {
     const urlTab = searchParams.get("tab");
-    const targetTab = urlTab && SYSAD_TABS.some((t) => t.id === urlTab) ? urlTab : "users";
+    const targetTab = resolveTab(urlTab);
     setActiveTab(targetTab);
     setMountedTabs((prev) => new Set([...prev, targetTab]));
   }, [searchParams]);
@@ -133,7 +126,7 @@ export default function SysadSettings() {
   const [pwError, setPwError]           = useState("");
   const [verifying, setVerifying]       = useState(false);
 
-  const showMsg = (msg) => {
+  const showMsg = useCallback((msg) => {
     const errCheck = typeof msg === "string" && (msg.includes("❌") || msg.toLowerCase().includes("fail") || msg.toLowerCase().includes("error"));
     const cleanMsg = (msg || "").replace(/^✅\s*|^❌\s*/, "").trim();
     if (errCheck) {
@@ -141,12 +134,12 @@ export default function SysadSettings() {
     } else {
       notify.success("Success", cleanMsg);
     }
-  };
+  }, []);
 
   // Track which protected tabs have been unlocked this session
   const [unlockedTabs, setUnlockedTabs] = useState(new Set());
 
-  const switchTab = (tabId) => {
+  const switchTab = useCallback((tabId) => {
     setActiveTab(tabId);
     setMountedTabs((prev) => new Set([...prev, tabId]));
     setSearchParams((prev) => {
@@ -154,9 +147,9 @@ export default function SysadSettings() {
       next.set("tab", tabId);
       return next;
     }, { replace: true });
-  };
+  }, [setSearchParams]);
 
-  const handleTabClick = (tabId) => {
+  const handleTabClick = useCallback((tabId) => {
     if (PROTECTED_TABS.includes(tabId) && !unlockedTabs.has(tabId)) {
       setPendingTab(tabId);
       setPwInput("");
@@ -166,9 +159,9 @@ export default function SysadSettings() {
       return;
     }
     switchTab(tabId);
-  };
+  }, [unlockedTabs, switchTab]);
 
-  const handleVerifyPassword = async (e) => {
+  const handleVerifyPassword = useCallback(async (e) => {
     e.preventDefault();
     if (!pwInput.trim()) {
       setPwError("Please enter your password.");
@@ -190,16 +183,18 @@ export default function SysadSettings() {
     } finally {
       setVerifying(false);
     }
-  };
+  }, [pwInput, pendingTab, switchTab]);
 
-  const handleModalClose = () => {
+  const handleModalClose = useCallback(() => {
     setShowPwModal(false);
     setPendingTab(null);
     setPwInput("");
     setPwError("");
-  };
+  }, []);
 
-  const currentCategory = SYSAD_CATEGORIES.find((c) => c.id === activeParentCategory) || SYSAD_CATEGORIES[0];
+  const currentCategory = useMemo(() => {
+    return SYSAD_CATEGORIES.find((c) => c.id === activeParentCategory) || SYSAD_CATEGORIES[0];
+  }, [activeParentCategory]);
 
   return (
     <div className="space-y-3 font-sans">

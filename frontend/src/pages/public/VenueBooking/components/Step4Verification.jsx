@@ -1,4 +1,4 @@
-import { UploadCloud, X, FileText, Image, CheckCircle2, ShieldCheck, Download } from "lucide-react";
+import { UploadCloud, X, FileText, Image, CheckCircle2, ShieldCheck, Download, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useRef, useState, useEffect } from "react";
 import api from "@/lib/axios";
@@ -311,7 +311,11 @@ export default function Step4Verification({
           disabled={isSubmitting || !agreedToPolicy}
           className="bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-5 rounded-xl font-extrabold text-xs shadow-xl shadow-emerald-600/20 transition-all hover:scale-105 disabled:opacity-50 disabled:hover:scale-100 flex items-center gap-2 cursor-pointer"
         >
-          <ShieldCheck size={18} />
+          {isSubmitting ? (
+            <Loader2 size={18} className="animate-spin" />
+          ) : (
+            <ShieldCheck size={18} />
+          )}
           <span>{isSubmitting ? "Submitting Request…" : "Submit Reservation Request"}</span>
         </Button>
       </div>

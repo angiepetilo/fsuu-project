@@ -10,7 +10,10 @@ return new class extends Migration
     {
         Schema::create('documents', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('venue_booking_id')->constrained('venue_bookings')->cascadeOnDelete();
+            $table->foreignId('venue_booking_id')->nullable()->constrained('venue_bookings')->cascadeOnDelete();
+            $table->string('reservation_type')->nullable();
+            $table->unsignedBigInteger('reservation_id')->nullable();
+            $table->unsignedBigInteger('equipment_borrow_id')->nullable();
             $table->string('document_type'); // vp_acad_dsa_letter, adviser_org_endorsement, dsa_letter, dean_endorsement, letter_of_request_external
             $table->string('file_path');
             $table->string('status')->default('pending'); // pending, approved, rejected

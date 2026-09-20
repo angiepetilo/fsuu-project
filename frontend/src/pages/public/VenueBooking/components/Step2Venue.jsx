@@ -2,7 +2,7 @@ import { MapPin, ChevronLeft, ChevronRight, Clock, Calendar as CalendarIcon, Cal
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
 import CustomTimePicker from "@/components/ui/custom-time-picker";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import api from "@/lib/axios";
 import { getTodayISO, isPastDate, isPastTimeToday, isPastDateTime } from "@/lib/dateTimeUtils";
 import IosToggle from "@/components/ui/ios-toggle";
@@ -86,13 +86,13 @@ export default function Step2Venue({
       .catch(() => { });
   }, []);
 
-  const formatTime12 = (tStr) => {
+  const formatTime12 = useCallback((tStr) => {
     if (!tStr) return "";
     const [h, m] = tStr.split(":").map(Number);
     const ampm = h >= 12 ? "PM" : "AM";
     const h12 = h % 12 || 12;
     return `${h12}:${String(m || 0).padStart(2, '0')} ${ampm}`;
-  };
+  }, []);
 
   const pad = (n) => String(n).padStart(2, "0");
 
@@ -110,14 +110,16 @@ export default function Step2Venue({
   // Search state
   const [venueSearch, setVenueSearch] = useState("");
 
-  const searchedVenues = filteredVenues.filter(v => {
-    if (!venueSearch.trim()) return true;
+  const searchedVenues = useMemo(() => {
+    if (!venueSearch.trim()) return filteredVenues;
     const q = venueSearch.toLowerCase();
-    const name = (v.name || "").toLowerCase();
-    const loc = (v.office?.location || v.office?.name || v.location || "").toLowerCase();
-    const cap = String(v.capacity || "");
-    return name.includes(q) || loc.includes(q) || cap.includes(q);
-  });
+    return filteredVenues.filter(v => {
+      const name = (v.name || "").toLowerCase();
+      const loc = (v.office?.location || v.office?.name || v.location || "").toLowerCase();
+      const cap = String(v.capacity || "");
+      return name.includes(q) || loc.includes(q) || cap.includes(q);
+    });
+  }, [filteredVenues, venueSearch]);
 
   // Responsive venue pagination: 1 card on mobile, 4 cards on desktop/tablet
   const [isMobile, setIsMobile] = useState(() => typeof window !== "undefined" ? window.innerWidth < 640 : false);
@@ -134,25 +136,44 @@ export default function Step2Venue({
   const pageSize = isMobile ? 1 : 4;
   const totalPages = Math.ceil(searchedVenues.length / pageSize) || 1;
   const safeVenuePage = Math.min(venuePage, totalPages - 1);
-  const paginatedVenues = searchedVenues.slice(safeVenuePage * pageSize, (safeVenuePage + 1) * pageSize);
+  const paginatedVenues = useMemo(() => {
+    return searchedVenues.slice(safeVenuePage * pageSize, (safeVenuePage + 1) * pageSize);
+  }, [searchedVenues, safeVenuePage, pageSize]);
 
   // Calendar navigation state
   const [calYear, setCalYear] = useState(today.getFullYear());
   const [calMonth, setCalMonth] = useState(today.getMonth());
 
-  const prevMonth = () => {
-    if (calMonth === 0) { setCalYear(y => y - 1); setCalMonth(11); }
-    else setCalMonth(m => m - 1);
-  };
+  const prevMonth = useCallback(() => {
+    setCalMonth(m => {
+      if (m === 0) { setCalYear(y => y - 1); return 11; }
+      return m - 1;
+    });
+  }, []);
 
-  const nextMonth = () => {
-    if (calMonth === 11) { setCalYear(y => y + 1); setCalMonth(0); }
-    else setCalMonth(m => m + 1);
-  };
+  const nextMonth = useCallback(() => {
+    setCalMonth(m => {
+      if (m === 11) { setCalYear(y => y + 1); return 0; }
+      return m + 1;
+    });
+  }, []);
 
   const monthLabel = new Date(calYear, calMonth).toLocaleString("default", { month: "long", year: "numeric" });
   const firstDayOfWeek = new Date(calYear, calMonth, 1).getDay();
   const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+
+  // Pre-filter bookings for the selected venue to avoid O(N) scanning across all global bookings on every calendar day cell
+  const relevantBookings = useMemo(() => {
+    if (!selectedVenue) return [];
+    const vIdStr = String(selectedVenue.id);
+    const vName = (selectedVenue.name || "").toLowerCase();
+    return existingBookings.filter(b => {
+      const bStatus = String(b.status || b.tracking_number?.status || "").toLowerCase();
+      if (!BLOCKING_STATUSES.includes(bStatus)) return false;
+      const bVenueName = (b.venue?.name || b.venue_name || "").toLowerCase();
+      return String(b.venue_id) === vIdStr || (bVenueName && (bVenueName.includes(vName) || vName.includes(bVenueName)));
+    });
+  }, [existingBookings, selectedVenue]);
 
   // Automatically pre-select earliest valid booking date if none is selected
   useEffect(() => {
@@ -187,7 +208,7 @@ export default function Step2Venue({
     };
   };
 
-  const feeRates = getVenueFeeRates(selectedVenue);
+  const feeRates = useMemo(() => getVenueFeeRates(selectedVenue), [selectedVenue]);
   const isExternalUser = (identity || "").toLowerCase() === "external";
 
   // Helper to compute booking details for a specific day and selected venue
@@ -252,16 +273,11 @@ export default function Step2Venue({
     }
 
     // 2. Filter bookings strictly for the SELECTED venue & date (including multi-day spans)
-    // Per SPEC: Pending requests do NOT lock the calendar. Only approved/ongoing bookings block availability.
-    const dayBookings = existingBookings.filter(b => {
-      const bStatus = String(b.status || b.tracking_number?.status || "").toLowerCase();
-      if (!BLOCKING_STATUSES.includes(bStatus)) return false; // Pending/inactive slots remain available
-      const bVenueName = (b.venue?.name || b.venue_name || "").toLowerCase();
-      const matchVenue = String(b.venue_id) === String(selectedVenue.id) ||
-        (bVenueName && (bVenueName.includes(vName) || vName.includes(bVenueName)));
+    // relevantBookings is already pre-filtered by venue & blocking status
+    const dayBookings = relevantBookings.filter(b => {
       const bStartDate = b.date_of_usage ? b.date_of_usage.substring(0, 10) : (b.date_of_use || "");
       const bEndDate = b.reservation_end_date ? b.reservation_end_date.substring(0, 10) : bStartDate;
-      return matchVenue && bStartDate <= dateStr && bEndDate >= dateStr;
+      return bStartDate <= dateStr && bEndDate >= dateStr;
     });
 
     if (dayBookings.length === 0) {

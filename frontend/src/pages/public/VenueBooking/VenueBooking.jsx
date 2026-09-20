@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { Sparkles, KeyRound, Lock, X, AlertCircle, ShieldCheck, Download, Copy, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -21,6 +21,36 @@ const VENUE_STEPS = [
   { title: "FILL DETAILS", subtitle: "Reservation form" },
   { title: "UPLOAD & SUBMIT", subtitle: "Upload & submit" },
 ];
+
+const formatVenues = (apiVenues = []) => {
+  return apiVenues.map(v => {
+    const avatarPhoto = v.avatar || v.photo || v.image || v.avatar_url || v.photo_url || null;
+    let allowed = v.allowed_equipment;
+    if (typeof allowed === "string") {
+      try { allowed = JSON.parse(allowed); } catch { allowed = []; }
+    }
+    let maxQtys = v.equipment_max_qtys;
+    if (typeof maxQtys === "string") {
+      try { maxQtys = JSON.parse(maxQtys); } catch { maxQtys = {}; }
+    }
+    return {
+      id: v.id,
+      name: v.name,
+      type: v.type || "avr",
+      capacity: v.capacity,
+      photo: avatarPhoto,
+      location: v.location || (v.office ? v.office.name : "Main Campus"),
+      status: v.status || "available",
+      allowed_equipment: Array.isArray(allowed) ? allowed : [],
+      equipment_max_qtys: maxQtys || {},
+      operating_hours: v.operating_hours || (v.time_open && v.time_close ? `${v.time_open} - ${v.time_close}` : "07:30 - 17:00"),
+      rate_per_hour: v.rate_per_hour || (v.type === "avr" ? 500 : 300),
+      schedule: v.schedule || (v.time_open && v.time_close ? `Mon - Sat (${v.time_open} - ${v.time_close})` : "Mon - Sat (7:30 AM - 5:00 PM)"),
+      price_per_hour: v.price_per_hour || (v.type === "avr" ? 500 : 300),
+      raw: v
+    };
+  });
+};
 
 export default function VenueBooking({ isPortal: isPortalProp }) {
   const { user, token } = useAuth();
@@ -128,39 +158,9 @@ export default function VenueBooking({ isPortal: isPortalProp }) {
       .catch(() => setEquipmentCatalog([]));
   }, [selectedDate, startTime, endTime]);
 
-  const handleContactChange = (e) => {
+  const handleContactChange = useCallback((e) => {
     setContactNumber(e.target.value.replace(/\D/g, '').slice(0, 11));
-  };
-
-  const formatVenues = (apiVenues = []) => {
-    return apiVenues.map(v => {
-      const avatarPhoto = v.avatar || v.photo || v.image || v.avatar_url || v.photo_url || null;
-      let allowed = v.allowed_equipment;
-      if (typeof allowed === "string") {
-        try { allowed = JSON.parse(allowed); } catch { allowed = []; }
-      }
-      let maxQtys = v.equipment_max_qtys;
-      if (typeof maxQtys === "string") {
-        try { maxQtys = JSON.parse(maxQtys); } catch { maxQtys = {}; }
-      }
-      return {
-        id: v.id,
-        name: v.name,
-        type: v.type || "avr",
-        capacity: v.capacity,
-        photo: avatarPhoto,
-        location: v.location || (v.office ? v.office.name : "Main Campus"),
-        status: v.status || "available",
-        allowed_equipment: Array.isArray(allowed) ? allowed : [],
-        equipment_max_qtys: maxQtys || {},
-        operating_hours: v.operating_hours || (v.time_open && v.time_close ? `${v.time_open} - ${v.time_close}` : "07:30 - 17:00"),
-        rate_per_hour: v.rate_per_hour || (v.type === "avr" ? 500 : 300),
-        schedule: v.schedule || (v.time_open && v.time_close ? `Mon - Sat (${v.time_open} - ${v.time_close})` : "Mon - Sat (7:30 AM - 5:00 PM)"),
-        price_per_hour: v.price_per_hour || (v.type === "avr" ? 500 : 300),
-        raw: v
-      };
-    });
-  };
+  }, []);
 
   useEffect(() => {
     const fetchVenues = () => {
@@ -201,11 +201,13 @@ export default function VenueBooking({ isPortal: isPortalProp }) {
     };
   }, []);
 
-  const filteredVenues = venueCategory === "all"
-    ? venues
-    : venues.filter(v => v.type === venueCategory);
+  const filteredVenues = useMemo(() => {
+    return venueCategory === "all"
+      ? venues
+      : venues.filter(v => v.type === venueCategory);
+  }, [venues, venueCategory]);
 
-  const handleIdentitySelect = (id) => {
+  const handleIdentitySelect = useCallback((id) => {
     const norm = (id || "").toLowerCase();
     setIdentity(norm);
 
@@ -223,27 +225,27 @@ export default function VenueBooking({ isPortal: isPortalProp }) {
       }
     }
 
-    if (!completedSteps.includes(1)) setCompletedSteps([...completedSteps, 1]);
+    setCompletedSteps(prev => (!prev.includes(1) ? [...prev, 1] : prev));
     setActiveStep(2);
-  };
+  }, [isPortal, pinRules, isPinVerified]);
 
-  const handleVenueSelect = (v) => {
+  const handleVenueSelect = useCallback((v) => {
     setSelectedVenue(v);
-  };
+  }, []);
 
-  const handleDateSelect = (dateStr) => {
+  const handleDateSelect = useCallback((dateStr) => {
     setSelectedDate(dateStr);
-  };
+  }, []);
 
-  const formatTime12 = (tStr) => {
+  const formatTime12 = useCallback((tStr) => {
     if (!tStr) return "";
     const [h, m] = tStr.split(":").map(Number);
     const ampm = h >= 12 ? "PM" : "AM";
     const h12 = h % 12 || 12;
     return `${h12}:${String(m || 0).padStart(2, '0')} ${ampm}`;
-  };
+  }, []);
 
-  const handleStep2Next = () => {
+  const handleStep2Next = useCallback(() => {
     if (!selectedVenue) {
       notify.warning("Venue Required", "Please select a venue first.");
       return;
@@ -384,25 +386,25 @@ export default function VenueBooking({ isPortal: isPortalProp }) {
       }
     }
 
-    if (!completedSteps.includes(2)) setCompletedSteps([...completedSteps, 2]);
+    setCompletedSteps(prev => (!prev.includes(2) ? [...prev, 2] : prev));
     setActiveStep(3);
-  };
+  }, [selectedVenue, selectedDate, startTime, selectedEndDate, endTime, existingBookings, opHours, isPortal, pinRules, identity, isPinVerified, formatTime12]);
 
-  const handleConfirmPin = (e) => {
+  const handleConfirmPin = useCallback((e) => {
     e.preventDefault();
     if (pinInput.trim() === "123456" || pinInput.trim().length >= 4) {
       setIsPinVerified(true);
       setShowPinModal(false);
       setPinError(false);
 
-      if (!completedSteps.includes(2)) setCompletedSteps([...completedSteps, 2]);
+      setCompletedSteps(prev => (!prev.includes(2) ? [...prev, 2] : prev));
       setActiveStep(3);
     } else {
       setPinError(true);
     }
-  };
+  }, [pinInput]);
 
-  const handleDetailsSubmit = (e) => {
+  const handleDetailsSubmit = useCallback((e) => {
     e.preventDefault();
     const requireEmailVerify = pinRules ? (pinRules.isEnabled !== false && pinRules.venueVerifyEmail === true) : false;
 
@@ -410,11 +412,11 @@ export default function VenueBooking({ isPortal: isPortalProp }) {
       alert("Please verify your personal email address via OTP before proceeding to the next step.");
       return;
     }
-    if (!completedSteps.includes(3)) setCompletedSteps([...completedSteps, 3]);
+    setCompletedSteps(prev => (!prev.includes(3) ? [...prev, 3] : prev));
     setActiveStep(4);
-  };
+  }, [pinRules, isEmailVerified]);
 
-  const handleVerifySubmit = async (e) => {
+  const handleVerifySubmit = useCallback(async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
     try {
@@ -497,16 +499,55 @@ export default function VenueBooking({ isPortal: isPortalProp }) {
     } finally {
       setIsSubmitting(false);
     }
-  };
+  }, [selectedEndDate, selectedDate, firstName, middleName, lastName, suffix, fullName, selectedVenue, email, contactNumber, department, classification, purpose, persons, startTime, endTime, isPinVerified, avrEquipment, equipmentCatalog, equipmentRemarks, endorsementFile]);
 
   const [copiedTrack, setCopiedTrack] = useState(false);
 
-  const handleCopyTrack = () => {
+  const handleCopyTrack = useCallback(() => {
     if (!referenceCode) return;
     navigator.clipboard.writeText(referenceCode);
     setCopiedTrack(true);
     setTimeout(() => setCopiedTrack(false), 2000);
-  };
+  }, [referenceCode]);
+
+  // Kiosk Inactivity Reset: in public mode, if terminal is left unattended for 3 minutes, reset to Step 1
+  useEffect(() => {
+    if (isPortal || showSuccess || activeStep === 1) return;
+
+    let timeout;
+    const resetKiosk = () => {
+      setActiveStep(1);
+      setCompletedSteps([]);
+      setSelectedVenue(null);
+      setSelectedDate("");
+      setSelectedEndDate("");
+      setFirstName("");
+      setMiddleName("");
+      setLastName("");
+      setSuffix("");
+      setFullName("");
+      setEmail("");
+      setContactNumber("");
+      setDepartment("");
+      setPurpose("");
+      setPersons("");
+      setClassification("");
+    };
+
+    const handleActivity = () => {
+      clearTimeout(timeout);
+      timeout = setTimeout(resetKiosk, 3 * 60 * 1000);
+    };
+
+    timeout = setTimeout(resetKiosk, 3 * 60 * 1000);
+    const events = ["mousedown", "mousemove", "keydown", "touchstart", "scroll"];
+    events.forEach(e => window.addEventListener(e, handleActivity, { passive: true }));
+
+    return () => {
+      clearTimeout(timeout);
+      events.forEach(e => window.removeEventListener(e, handleActivity));
+    };
+  }, [isPortal, showSuccess, activeStep]);
 
   return (
     <div className="w-full flex flex-col items-center">

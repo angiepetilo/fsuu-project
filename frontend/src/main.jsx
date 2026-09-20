@@ -4,6 +4,10 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import './index.css'
 import App from './App.jsx'
 import { AuthProvider } from './context/AuthContext.jsx'
+import { initButtonSpinFeedback } from './lib/buttonSpinFeedback'
+
+// Initialize universal button click spin micro-interaction
+initButtonSpinFeedback();
 
 const queryClient = new QueryClient({
   defaultOptions: {

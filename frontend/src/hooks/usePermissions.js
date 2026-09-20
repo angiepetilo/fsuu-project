@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useCallback } from "react";
 import { useAuth } from "@/context/AuthContext";
 
 /**
@@ -52,22 +52,21 @@ export function usePermissions() {
     return [];
   }, [user?.permissions]);
 
+  const permissionSet = useMemo(() => new Set(userPermissions), [userPermissions]);
+
   /**
    * Check if user has permission for a specific feature/module key or granular action.
    * Super Admins always have all permissions.
-   * Supports:
-   * - Module-level check: hasPermission("venue_bookings") -> true if user has "venue_bookings" OR any "venue_bookings.*"
-   * - Granular action check: hasPermission("venue_bookings.approve")
    */
-  const hasPermission = (permissionKey) => {
+  const hasPermission = useCallback((permissionKey) => {
     if (isSuperAdmin) return true;
     if (!permissionKey) return true;
 
     // 1. Wildcard access
-    if (userPermissions.includes("*")) return true;
+    if (permissionSet.has("*")) return true;
 
-    // 2. Exact match
-    if (userPermissions.includes(permissionKey)) return true;
+    // 2. Exact match (O(1))
+    if (permissionSet.has(permissionKey)) return true;
 
     // 3. Module check: If checking module key (e.g. "venue_bookings"), check if user has any action in that module
     const hasAnyActionInModule = userPermissions.some(
@@ -78,20 +77,20 @@ export function usePermissions() {
     // 4. Action check: If checking action key (e.g. "venue_bookings.approve"), check if user has parent module access
     if (permissionKey.includes(".")) {
       const parentModule = permissionKey.split(".")[0];
-      if (userPermissions.includes(parentModule)) return true;
+      if (permissionSet.has(parentModule)) return true;
     }
 
     return false;
-  };
+  }, [isSuperAdmin, permissionSet, userPermissions]);
 
   /**
    * Check if user can directly edit a settings module or needs to request approval.
    */
-  const canDirectEdit = (moduleKey) => {
+  const canDirectEdit = useCallback((moduleKey) => {
     if (isSuperAdmin) return true;
     if (!moduleKey) return false;
     return hasPermission(moduleKey) || hasPermission(`${moduleKey}.edit`);
-  };
+  }, [isSuperAdmin, hasPermission]);
 
   return {
     user,

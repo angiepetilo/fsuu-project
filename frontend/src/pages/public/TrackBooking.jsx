@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Search, Hash, CheckCircle2, Loader2, AlertCircle, Building2, PackageOpen, AlertTriangle, ArrowLeft, Clock, UploadCloud, FileText, Check, Hourglass } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -34,7 +34,7 @@ export default function TrackBooking() {
       .catch(() => {});
   }, []);
 
-  const getRemainingTime = (deadline) => {
+  const getRemainingTime = useCallback((deadline) => {
     if (!deadline) return null;
     const end = new Date(deadline).getTime();
     const now = new Date().getTime();
@@ -43,9 +43,40 @@ export default function TrackBooking() {
     const hours = Math.floor(diff / (1000 * 60 * 60));
     const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
     return `${hours}h ${minutes}m remaining`;
-  };
+  }, []);
 
-  const handleResubmit = async (e) => {
+  const executeTrack = useCallback(async (codeToSearch) => {
+    const query = (codeToSearch || trackCode).trim().toUpperCase();
+    if (!query) return;
+    setLoading(true);
+    setHasSearched(false);
+    setBooking(null);
+
+    let foundRecord = null;
+
+    // Try Backend API
+    try {
+      const { data } = await api.post('/public/track', {
+        reference_code: query,
+      });
+      if (data && (data.reference_code || data.tracking_number || data.id)) {
+        foundRecord = data;
+      }
+    } catch {}
+
+    if (foundRecord) {
+      setIsFound(true);
+      setBooking(foundRecord);
+    } else {
+      setIsFound(false);
+      setBooking(null);
+    }
+
+    setHasSearched(true);
+    setLoading(false);
+  }, [trackCode]);
+
+  const handleResubmit = useCallback(async (e) => {
     e.preventDefault();
     if (!resubmitFile) {
       setResubmitError("Please select a document or file to upload.");
@@ -80,43 +111,12 @@ export default function TrackBooking() {
     } finally {
       setResubmitLoading(false);
     }
-  };
+  }, [resubmitFile, resubmitRemarks, booking?.reference_code, trackCode, executeTrack]);
 
-  const executeTrack = async (codeToSearch) => {
-    const query = (codeToSearch || trackCode).trim().toUpperCase();
-    if (!query) return;
-    setLoading(true);
-    setHasSearched(false);
-    setBooking(null);
-
-    let foundRecord = null;
-
-    // Try Backend API
-    try {
-      const { data } = await api.post('/public/track', {
-        reference_code: query,
-      });
-      if (data && (data.reference_code || data.tracking_number || data.id)) {
-        foundRecord = data;
-      }
-    } catch {}
-
-    if (foundRecord) {
-      setIsFound(true);
-      setBooking(foundRecord);
-    } else {
-      setIsFound(false);
-      setBooking(null);
-    }
-
-    setHasSearched(true);
-    setLoading(false);
-  };
-
-  const handleTrack = (e) => {
+  const handleTrack = useCallback((e) => {
     if (e) e.preventDefault();
     executeTrack(trackCode);
-  };
+  }, [executeTrack, trackCode]);
 
   useEffect(() => {
     const urlRef = searchParams.get("ref") || searchParams.get("code");
@@ -124,7 +124,7 @@ export default function TrackBooking() {
       setTrackCode(urlRef);
       executeTrack(urlRef);
     }
-  }, [searchParams]);
+  }, [searchParams, executeTrack]);
 
   // Real-time status update via Pusher WebSockets
   useEffect(() => {
@@ -146,21 +146,24 @@ export default function TrackBooking() {
     };
   }, [booking?.reference_code, trackCode]);
 
+  const isEquipment = useMemo(() => {
+    return booking?.tracking_number?.reservation_type === 'equipment_borrowing' ||
+      booking?.tracking_number?.reservation_type === 'equipment_borrow' ||
+      (Array.isArray(booking?.items) && booking?.items.length > 0) ||
+      Boolean(booking?.equipment_name) ||
+      (booking?.reference_code || trackCode).toUpperCase().startsWith('EQ');
+  }, [booking, trackCode]);
 
-  const isEquipment = booking?.tracking_number?.reservation_type === 'equipment_borrowing' ||
-    booking?.tracking_number?.reservation_type === 'equipment_borrow' ||
-    (Array.isArray(booking?.items) && booking?.items.length > 0) ||
-    Boolean(booking?.equipment_name) ||
-    (booking?.reference_code || trackCode).toUpperCase().startsWith('EQ');
-
-  const isVenue = !isEquipment && (
-    booking?.type === 'venue' ||
-    booking?.tracking_number?.reservation_type === 'venue_booking' ||
-    Boolean(booking?.venue_id) ||
-    Boolean(booking?.venue) ||
-    (booking?.reference_code || trackCode).toUpperCase().startsWith('VN') ||
-    (booking?.reference_code || trackCode).toUpperCase().startsWith('TRK-AVR')
-  );
+  const isVenue = useMemo(() => {
+    return !isEquipment && (
+      booking?.type === 'venue' ||
+      booking?.tracking_number?.reservation_type === 'venue_booking' ||
+      Boolean(booking?.venue_id) ||
+      Boolean(booking?.venue) ||
+      (booking?.reference_code || trackCode).toUpperCase().startsWith('VN') ||
+      (booking?.reference_code || trackCode).toUpperCase().startsWith('TRK-AVR')
+    );
+  }, [isEquipment, booking, trackCode]);
 
   // Timeline Step calculation:
   // Venue steps: Pending (1) -> Approved (2) -> On-going (3) -> Inspection (4) -> Completed (5)

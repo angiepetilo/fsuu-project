@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useOutletContext, useSearchParams } from "react-router-dom";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
@@ -42,11 +42,13 @@ export default function Reports() {
     { id: "equipment_out",     label: "Equipment Out",               permissionKey: "reports.equipment_out" },
   ];
 
-  const visibleReportTabs = ALL_REPORT_TABS.filter((tab) => {
-    if (isSuperAdmin) return true;
-    if (!hasPermission("reports")) return false;
-    return hasPermission(tab.permissionKey);
-  });
+  const visibleReportTabs = useMemo(() => {
+    return ALL_REPORT_TABS.filter((tab) => {
+      if (isSuperAdmin) return true;
+      if (!hasPermission("reports")) return false;
+      return hasPermission(tab.permissionKey);
+    });
+  }, [isSuperAdmin, hasPermission]);
 
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -67,7 +69,7 @@ export default function Reports() {
     }
   }, [visibleReportTabs, activeTab]);
 
-  const switchTab = (tabId) => {
+  const switchTab = useCallback((tabId) => {
     setActiveTab(tabId);
     setMountedTabs((prev) => new Set([...prev, tabId]));
     try {
@@ -78,7 +80,7 @@ export default function Reports() {
       next.set("tab", tabId);
       return next;
     }, { replace: true });
-  };
+  }, [setSearchParams]);
   const [feedback, setFeedback] = useState(null);
   const [showPdfModal, setShowPdfModal] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
