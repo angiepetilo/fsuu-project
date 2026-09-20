@@ -1,12 +1,12 @@
 import { useState, useCallback, useMemo } from "react";
 import { useOutletContext, useLocation } from "react-router-dom";
+import { AlertCircle } from "lucide-react";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 import api from "@/lib/axios";
 import { formatTimeRange12 } from "@/lib/dateUtils";
-import { AlertCircle } from "lucide-react";
-import StudentStaffDashboard from "./dashboard/StudentStaffDashboard";
 import StaffAnalyticsDashboard from "./dashboard/StaffAnalyticsDashboard";
+import StudentAssistantDashboard from "./dashboard/StudentAssistantDashboard";
 
 export default function Dashboard() {
   const context = useOutletContext();
@@ -14,20 +14,6 @@ export default function Dashboard() {
   const { user, isSuperAdmin, isStudentAssistant, isStaff, hasPermission } = usePermissions();
 
   const isSysadRoute = location.pathname.startsWith("/sysad");
-
-  if (!isSuperAdmin && !hasPermission("dashboard")) {
-    return (
-      <div className="p-8 max-w-md mx-auto text-center space-y-3 mt-12 bg-white rounded-3xl border border-slate-200 shadow-xs">
-        <div className="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center mx-auto">
-          <AlertCircle size={24} />
-        </div>
-        <h3 className="text-sm font-extrabold text-slate-900">Access Restricted</h3>
-        <p className="text-xs text-slate-500 font-medium">
-          You do not have permission to view the Dashboard.
-        </p>
-      </div>
-    );
-  }
 
   const [cachedData] = useState(() => {
     try {
@@ -87,6 +73,7 @@ export default function Dashboard() {
   const pad = (n) => String(n).padStart(2, "0");
 
   const fetchData = useCallback(async (showLoading = true) => {
+    if (isStudentAssistant) return;
     if (showLoading && !cachedData) setLoading(true);
     setError(null);
     try {
@@ -246,31 +233,32 @@ export default function Dashboard() {
 
   const handleRefresh = useCallback(() => fetchData(true), [fetchData]);
 
-  // ──────────────────────────────────────────────────────────────────────────
-  // VIEW 1: STUDENT ASSISTANT SHIFT DASHBOARD
-  // ──────────────────────────────────────────────────────────────────────────
-  if (isStudentAssistant) {
+  // Guard: User must have dashboard permission
+  if (!isSuperAdmin && !hasPermission("dashboard")) {
     return (
-      <StudentStaffDashboard
-        staffTasks={staffTasks}
-        staffTaskFilter={staffTaskFilter}
-        setStaffTaskFilter={setStaffTaskFilter}
-        loading={loading}
-        error={error}
-        onRefresh={handleRefresh}
-        isSysadRoute={isSysadRoute}
-      />
+      <div className="p-8 max-w-md mx-auto text-center space-y-3 mt-12 bg-card rounded-3xl border border-border shadow-xs">
+        <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center mx-auto">
+          <AlertCircle size={24} />
+        </div>
+        <h3 className="text-sm font-extrabold text-foreground">Access Restricted</h3>
+        <p className="text-xs text-muted-foreground font-medium">
+          You do not have permission to view the Dashboard.
+        </p>
+      </div>
     );
   }
 
-  // ──────────────────────────────────────────────────────────────────────────
-  // VIEW 2: STAFF & SUPER ADMIN EXECUTIVE ANALYTICS DASHBOARD
-  // ──────────────────────────────────────────────────────────────────────────
+  // Student Assistant Shift Dashboard (Quick buttons for 3 user types + Today's Reservations filter)
+  if (isStudentAssistant) {
+    return <StudentAssistantDashboard />;
+  }
+
+  // Staff & Super Admin Executive Analytics Dashboard
   return (
     <StaffAnalyticsDashboard
       loading={loading}
       error={error}
-      onRefresh={() => fetchData(true)}
+      onRefresh={handleRefresh}
       totalVenueBookings={totalVenueBookings}
       pendingApproval={pendingApproval}
       totalEquipBorrows={totalEquipBorrows}

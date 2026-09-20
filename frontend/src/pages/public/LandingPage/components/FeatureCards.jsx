@@ -29,14 +29,8 @@ export default function FeatureCards() {
             </h2>
 
             <p className="text-sm font-medium text-slate-600 dark:text-slate-300 leading-relaxed text-center mx-auto max-w-sm w-full">
-              Reserve campus auditoriums, AVR facilities, halls, webcast studios, or conference rooms for university events and academic activities.
+              Reserve campus auditoriums for university events and academic activities.
             </p>
-          </div>
-
-          <div className="mt-6 pt-4 border-t border-border/60 w-full flex items-center justify-center">
-            <span className="text-xs font-semibold text-primary group-hover:underline">
-              Submit Venue Request →
-            </span>
           </div>
         </Link>
 
@@ -62,14 +56,8 @@ export default function FeatureCards() {
             </h2>
 
             <p className="text-sm font-medium text-slate-600 dark:text-slate-300 leading-relaxed text-center mx-auto max-w-sm w-full">
-              Borrow audiovisual equipment, projectors, portable sound systems, microphones, and presentation accessories.
+              Borrow audiovisual equipment presentation accessories.
             </p>
-          </div>
-
-          <div className="mt-6 pt-4 border-t border-border/60 w-full flex items-center justify-center">
-            <span className="text-xs font-semibold text-primary group-hover:underline">
-              Submit Equipment Request →
-            </span>
           </div>
         </Link>
 

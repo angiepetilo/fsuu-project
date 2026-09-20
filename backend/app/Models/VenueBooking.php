@@ -68,7 +68,33 @@ class VenueBooking extends Model
         'resubmitted_at'              => 'datetime',
     ];
 
-    protected $appends = ['reference_code', 'status', 'endorsement_url', 'filer_name', 'extend_reservation_end_date'];
+    protected $appends = ['reference_code', 'status', 'endorsement_url', 'filer_name', 'extend_reservation_end_date', 'is_email_verified', 'is_phone_verified'];
+
+    public function getIsEmailVerifiedAttribute(): bool
+    {
+        if (empty($this->email_address)) {
+            return false;
+        }
+        $record = \App\Models\EmailVerification::where('email', strtolower(trim($this->email_address)))
+            ->whereNotNull('verified_at')
+            ->exists();
+        if ($record) {
+            return true;
+        }
+        // Online self-service bookings strictly require verified email OTP
+        return in_array($this->submission_channel, ['online_self', 'online', null], true);
+    }
+
+    public function getIsPhoneVerifiedAttribute(): bool
+    {
+        if (empty($this->contact_number)) {
+            return false;
+        }
+        $clean = \App\Models\PhoneVerification::normalizePhoneNumber($this->contact_number);
+        return \App\Models\PhoneVerification::where('phone_number', $clean)
+            ->whereNotNull('verified_at')
+            ->exists();
+    }
 
     public function getReferenceCodeAttribute(): ?string
     {

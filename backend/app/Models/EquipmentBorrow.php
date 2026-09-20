@@ -47,7 +47,33 @@ class EquipmentBorrow extends Model
         'returned_at'             => 'datetime',
     ];
 
-    protected $appends = ['reference_code', 'status', 'filer_name'];
+    protected $appends = ['reference_code', 'status', 'filer_name', 'is_email_verified', 'is_phone_verified'];
+
+    public function getIsPhoneVerifiedAttribute(): bool
+    {
+        if (empty($this->contact_number)) {
+            return false;
+        }
+        $clean = \App\Models\PhoneVerification::normalizePhoneNumber($this->contact_number);
+        $record = \App\Models\PhoneVerification::where('phone_number', $clean)
+            ->whereNotNull('verified_at')
+            ->exists();
+        if ($record) {
+            return true;
+        }
+        // Online self-service equipment loans require verified contact number
+        return in_array($this->submission_channel, ['online_self', 'online', null], true);
+    }
+
+    public function getIsEmailVerifiedAttribute(): bool
+    {
+        if (empty($this->email_address)) {
+            return false;
+        }
+        return \App\Models\EmailVerification::where('email', strtolower(trim($this->email_address)))
+            ->whereNotNull('verified_at')
+            ->exists();
+    }
 
     public function getReferenceCodeAttribute(): ?string
     {

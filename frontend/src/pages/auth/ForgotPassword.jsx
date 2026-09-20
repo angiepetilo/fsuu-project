@@ -14,6 +14,7 @@ import {
   AlertCircle,
   RefreshCw
 } from "lucide-react";
+import PasswordSecurityStrength, { checkPasswordSecurity } from "@/components/ui/PasswordSecurityStrength";
 
 export default function ForgotPassword() {
   const navigate = useNavigate();
@@ -167,8 +168,19 @@ export default function ForgotPassword() {
   // --- Step 3: Set New Password ---
   const handleResetPassword = async (e) => {
     e?.preventDefault();
-    if (newPassword.length < 8) {
-      setError("Password must be at least 8 characters long.");
+    const security = checkPasswordSecurity(newPassword);
+    if (!security.isValid) {
+      if (!security.hasLength) {
+        setError("Password must be at least 8 characters long.");
+      } else if (!security.hasMixedCase) {
+        setError("Password must include both uppercase and lowercase letters.");
+      } else if (!security.hasAlphaNumeric) {
+        setError("Password must include both letters and numbers.");
+      } else if (security.isDictionaryWord) {
+        setError("Password is too common. Avoid dictionary words and sequential patterns.");
+      } else {
+        setError("Password does not satisfy the university security criteria.");
+      }
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -195,10 +207,7 @@ export default function ForgotPassword() {
     }
   };
 
-  // Password requirements calculation
-  const hasMinLength = newPassword.length >= 8;
-  const hasLetter = /[a-zA-Z]/.test(newPassword);
-  const hasNumber = /[0-9]/.test(newPassword);
+  const isPasswordValid = checkPasswordSecurity(newPassword).isValid;
   const passwordsMatch = newPassword.length > 0 && newPassword === confirmPassword;
 
   return (
@@ -415,25 +424,28 @@ export default function ForgotPassword() {
               </div>
             </div>
 
-            {/* Live Password Checklist */}
-            <div className="bg-slate-50 rounded-xl p-3 border border-slate-200/80 text-[11px] space-y-1.5 font-medium">
-              <div className={`flex items-center gap-1.5 ${hasMinLength ? "text-emerald-600 font-bold" : "text-slate-500"}`}>
-                <CheckCircle2 size={12} className={hasMinLength ? "text-emerald-600" : "text-slate-300"} />
-                <span>At least 8 characters long</span>
+            {/* Password Security Strength, Criteria & Passphrase Guidance */}
+            <PasswordSecurityStrength password={newPassword} showGuidance={true} />
+
+            {newPassword.length > 0 && confirmPassword.length > 0 && (
+              <div className={`flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1.5 rounded-lg border ${passwordsMatch ? "text-emerald-700 bg-emerald-50 border-emerald-200" : "text-rose-700 bg-rose-50 border-rose-200"}`}>
+                {passwordsMatch ? (
+                  <>
+                    <CheckCircle2 size={13} className="text-emerald-600 shrink-0" />
+                    <span>Passwords match perfectly</span>
+                  </>
+                ) : (
+                  <>
+                    <AlertCircle size={13} className="text-rose-600 shrink-0" />
+                    <span>Passwords do not match yet</span>
+                  </>
+                )}
               </div>
-              <div className={`flex items-center gap-1.5 ${hasLetter && hasNumber ? "text-emerald-600 font-bold" : "text-slate-500"}`}>
-                <CheckCircle2 size={12} className={hasLetter && hasNumber ? "text-emerald-600" : "text-slate-300"} />
-                <span>Contains letters and numbers</span>
-              </div>
-              <div className={`flex items-center gap-1.5 ${passwordsMatch ? "text-emerald-600 font-bold" : "text-slate-500"}`}>
-                <CheckCircle2 size={12} className={passwordsMatch ? "text-emerald-600" : "text-slate-300"} />
-                <span>Passwords match</span>
-              </div>
-            </div>
+            )}
 
             <button
               type="submit"
-              disabled={loading || !hasMinLength || !passwordsMatch}
+              disabled={loading || !isPasswordValid || !passwordsMatch}
               className="w-full py-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-sm font-extrabold transition-all disabled:opacity-60 flex items-center justify-center gap-2 cursor-pointer shadow-md mt-2"
             >
               {loading ? (

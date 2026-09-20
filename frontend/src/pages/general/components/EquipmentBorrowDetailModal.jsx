@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import {
-  X, CheckCircle, Clock, Play, Check, Loader2,
+  X, CheckCircle, CheckCircle2, Clock, Play, Check, Loader2,
   FileText, Mail, FileCheck, BellRing, ShieldAlert
 } from "lucide-react";
 import api from "@/lib/axios";
@@ -997,9 +997,9 @@ export default function EquipmentBorrowDetailModal({
                   <span className="text-slate-500 font-bold">Department</span>
                   <span className="col-span-2 font-extrabold text-slate-900">{selected.requestor_program_office || selected.program_office || selected.department || "Academic Dept"}</span>
                 </div>
-                <div className="grid grid-cols-3 py-1 border-t border-slate-200/60">
+                <div className="grid grid-cols-1 sm:grid-cols-3 py-1 border-t border-slate-200/60 gap-1">
                   <span className="text-slate-500 font-bold">Contact</span>
-                  <div className="col-span-2 flex items-center gap-2">
+                  <div className="sm:col-span-2 flex items-center gap-1.5 flex-wrap">
                     <span className="font-extrabold text-slate-900 font-mono">
                       {formatPhilippineNumber(selected.requestor_contact_number || selected.contact_number || selected.contact_no) || "—"}
                     </span>
@@ -1012,11 +1012,25 @@ export default function EquipmentBorrowDetailModal({
                         </span>
                       ) : null;
                     })()}
+                    {(selected.is_phone_verified ?? true) && (
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0" title="Contact phone number verified via SMS OTP">
+                        <CheckCircle2 size={11} className="text-emerald-600" />
+                        Verified
+                      </span>
+                    )}
                   </div>
                 </div>
-                <div className="grid grid-cols-3 py-1 border-t border-slate-200/60">
+                <div className="grid grid-cols-1 sm:grid-cols-3 py-1 border-t border-slate-200/60 gap-1">
                   <span className="text-slate-500 font-bold">Email</span>
-                  <span className="col-span-2 font-bold text-slate-800 break-all">{selected.requestor_email || selected.email_address || selected.email || "—"}</span>
+                  <div className="sm:col-span-2 flex items-center gap-1.5 flex-wrap">
+                    <span className="font-bold text-slate-800 break-all">{selected.requestor_email || selected.email_address || selected.email || "—"}</span>
+                    {(selected.is_email_verified) && (
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0" title="Email address verified via OTP">
+                        <CheckCircle2 size={11} className="text-emerald-600" />
+                        Verified
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <div className="grid grid-cols-3 py-1 border-t border-slate-200/60">
                   <span className="text-slate-500 font-bold">Usage Schedule</span>

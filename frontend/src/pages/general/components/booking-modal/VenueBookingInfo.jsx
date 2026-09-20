@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { FileText, ExternalLink, Upload, CheckCircle, HardDrive, Check } from "lucide-react";
+import { FileText, ExternalLink, Upload, CheckCircle, CheckCircle2, HardDrive, Check } from "lucide-react";
 import { resolveStorageUrl, openFileInNewTab } from "@/lib/utils";
 import { formatDateRange, formatTime12 } from "@/lib/dateUtils";
 import api from "@/lib/axios";
@@ -133,9 +133,17 @@ export default function VenueBookingInfo({
           <span className="font-mono text-slate-800 uppercase font-bold">{displayClassification}</span>
         </div>
 
-        <div className="flex justify-between items-baseline py-1 border-b border-slate-100">
-          <span className="text-slate-500">Email Address :</span>
-          <span className="font-mono text-slate-800">{selected.email_address || selected.email || "—"}</span>
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-baseline py-1 border-b border-slate-100 gap-1">
+          <span className="text-slate-500 shrink-0">Email Address :</span>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="font-mono text-slate-800 break-all">{selected.email_address || selected.email || "—"}</span>
+            {(selected.is_email_verified ?? true) && (
+              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0" title="Email address verified via OTP">
+                <CheckCircle2 size={11} className="text-emerald-600" />
+                Verified
+              </span>
+            )}
+          </div>
         </div>
 
         <div className="flex justify-between items-baseline py-1 border-b border-slate-100">

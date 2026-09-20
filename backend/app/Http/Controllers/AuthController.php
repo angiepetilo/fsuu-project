@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Validation\Rules\Password;
 
 class AuthController extends Controller
 {
@@ -177,7 +178,7 @@ class AuthController extends Controller
             'last_name'   => 'nullable|string|max:255',
             'suffix'      => 'nullable|string|max:50',
             'name'        => 'nullable|string|max:255',
-            'password'    => 'required|string|min:6',
+            'password'    => ['required', 'string', Password::min(8)->letters()->mixedCase()->numbers()],
         ]);
 
         $user = \App\Models\User::where('invite_token', $validated['token'])->first();
@@ -288,7 +289,7 @@ class AuthController extends Controller
     {
         $request->validate([
             'current_password' => 'required',
-            'new_password' => 'required|min:8|confirmed'
+            'new_password' => ['required', 'string', 'confirmed', Password::min(8)->letters()->mixedCase()->numbers()]
         ]);
 
         $user = auth()->user();
@@ -596,7 +597,7 @@ class AuthController extends Controller
         $request->validate([
             'email'                 => ['required', 'string', 'email'],
             'token'                 => ['required', 'string', 'min:32'],
-            'password'              => ['required', 'string', 'min:8', 'confirmed'],
+            'password'              => ['required', 'string', 'confirmed', Password::min(8)->letters()->mixedCase()->numbers()],
         ]);
 
         $email = strtolower(trim($request->email));

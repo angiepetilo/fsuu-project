@@ -12,6 +12,9 @@ export function ThemeProvider({ children }) {
     try {
       const saved = localStorage.getItem("fsuu_theme");
       if (saved === "dark" || saved === "light") return saved;
+      if (typeof document !== "undefined" && document.documentElement.classList.contains("dark")) {
+        return "dark";
+      }
       return "light";
     } catch {
       return "light";

@@ -114,7 +114,7 @@ const getFeatureDetails = (path) => {
 export default function SysadLayout() {
   const { logout } = useAuth();
   const { user } = usePermissions();
-  const { theme, toggleTheme } = useTheme();
+  const { theme, setTheme, toggleTheme } = useTheme();
   const isDark = theme === "dark";
   const navigate = useNavigate();
   const location = useLocation();
@@ -128,12 +128,12 @@ export default function SysadLayout() {
 
   useEffect(() => {
     if (!localStorage.getItem("fsuu_theme")) {
-      document.documentElement.classList.add("dark");
+      setTheme("dark");
     }
     if (!user) {
       navigate("/login", { replace: true });
     }
-  }, [user, navigate]);
+  }, [user, navigate, setTheme]);
 
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
@@ -283,7 +283,7 @@ export default function SysadLayout() {
         className={`
           fixed inset-y-0 left-0 z-40 flex flex-col transition-all duration-300 ease-in-out overflow-hidden
           bg-sidebar text-sidebar-foreground border-r border-sidebar-border shadow-xs
-          ${sidebarOpen ? "w-64" : "w-[68px]"}
+          w-64 ${sidebarOpen ? "lg:w-64" : "lg:w-[68px]"}
           ${mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
         `}
       >
@@ -306,7 +306,8 @@ export default function SysadLayout() {
             <div key={group.title} className="space-y-1.5 overflow-hidden">
               <div className="px-3 pb-1 pt-1 overflow-hidden">
                 <p className="text-[10px] font-bold tracking-widest text-muted-foreground uppercase truncate leading-none overflow-hidden whitespace-nowrap">
-                  {sidebarOpen ? group.title : "—"}
+                  <span className={sidebarOpen ? "inline" : "inline lg:hidden"}>{group.title}</span>
+                  {!sidebarOpen && <span className="hidden lg:inline">—</span>}
                 </p>
               </div>
               <div className="space-y-1">
@@ -353,39 +354,41 @@ export default function SysadLayout() {
 
         {/* User Card */}
         <div className="border-t border-sidebar-border p-2.5 overflow-hidden whitespace-nowrap bg-sidebar">
-          {sidebarOpen ? (
-            <>
-              <div
-                onClick={() => setUserMenuOpen(v => !v)}
-                className="flex items-center gap-2.5 p-1.5 rounded-lg transition-colors cursor-pointer overflow-hidden w-full hover:bg-muted"
-              >
-                <div className="w-8 h-8 rounded-full border border-sidebar-border bg-muted flex items-center justify-center text-xs font-semibold flex-shrink-0 overflow-hidden text-foreground">
-                  {adminAvatar ? (
-                    <img src={adminAvatar} alt={adminName} className="w-full h-full object-cover" />
-                  ) : (
-                    adminName?.charAt(0)?.toUpperCase() ?? "S"
-                  )}
-                </div>
-                <div className="flex-1 min-w-0 overflow-hidden">
-                  <p className="text-xs font-medium truncate text-foreground">{adminName}</p>
-                </div>
-                <ChevronDown size={13} className={`flex-shrink-0 transition-transform ${userMenuOpen ? "rotate-180" : ""} text-muted-foreground`} />
+          {/* Full Card View: Always on mobile, or desktop when sidebarOpen is true */}
+          <div className={sidebarOpen ? "block" : "block lg:hidden"}>
+            <div
+              onClick={() => setUserMenuOpen(v => !v)}
+              className="flex items-center gap-2.5 p-1.5 rounded-lg transition-colors cursor-pointer overflow-hidden w-full hover:bg-muted"
+            >
+              <div className="w-8 h-8 rounded-full border border-sidebar-border bg-muted flex items-center justify-center text-xs font-semibold flex-shrink-0 overflow-hidden text-foreground">
+                {adminAvatar ? (
+                  <img src={adminAvatar} alt={adminName} className="w-full h-full object-cover" />
+                ) : (
+                  adminName?.charAt(0)?.toUpperCase() ?? "S"
+                )}
               </div>
+              <div className="flex-1 min-w-0 overflow-hidden">
+                <p className="text-xs font-medium truncate text-foreground">{adminName}</p>
+              </div>
+              <ChevronDown size={13} className={`flex-shrink-0 transition-transform ${userMenuOpen ? "rotate-180" : ""} text-muted-foreground`} />
+            </div>
 
-              {userMenuOpen && (
-                <div className="pt-1.5 border-t border-sidebar-border mt-1">
-                  <button
-                    type="button"
-                    onClick={() => setShowLogoutConfirm(true)}
-                    className="w-full flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-destructive hover:bg-destructive/10 rounded-lg transition-colors cursor-pointer"
-                  >
-                    <LogOut size={13} /> Sign Out
-                  </button>
-                </div>
-              )}
-            </>
-          ) : (
-            <div className="flex flex-col items-center gap-2 py-0.5">
+            {userMenuOpen && (
+              <div className="pt-1.5 border-t border-sidebar-border mt-1">
+                <button
+                  type="button"
+                  onClick={() => setShowLogoutConfirm(true)}
+                  className="w-full flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-destructive hover:bg-destructive/10 rounded-lg transition-colors cursor-pointer"
+                >
+                  <LogOut size={13} /> Sign Out
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Desktop-only icon rail when collapsed */}
+          {!sidebarOpen && (
+            <div className="hidden lg:flex flex-col items-center gap-2 py-0.5">
               <button
                 type="button"
                 onClick={() => setShowLogoutConfirm(true)}

@@ -11,7 +11,7 @@ import {
   LayoutDashboard, Building2, PackageOpen, Box, CalendarCheck,
   FileBarChart2, Settings, ShieldCheck, ChevronRight,
   ChevronDown, Menu, X, LogOut, Globe, Monitor, Loader2, Sun, Moon,
-  PackageCheck, RotateCcw, User, History
+  User, History
 } from "lucide-react";
 import NotificationDropdown from "@/components/notifications/NotificationDropdown";
 import IncidentDetailModal from "@/components/notifications/IncidentDetailModal";
@@ -20,62 +20,36 @@ import ConfirmModal from "@/components/ui/ConfirmModal";
 import { useIdleTimeout } from "@/hooks/useIdleTimeout";
 import SessionTimeoutModal from "@/components/ui/SessionTimeoutModal";
 
-const STUDENT_ASSISTANT_NAV_GROUPS = [
+const GENERAL_OPERATIONS_NAV_GROUPS = [
   {
     title: "WORKSPACE",
     items: [
-      { label: "Dashboard",           icon: LayoutDashboard, path: "/general/dashboard" },
-      { label: "Today's Reservations", icon: CalendarCheck,   path: "/general/today-reservations" },
-    ],
-  },
-  {
-    title: "TRANSACTIONS",
-    items: [
-      { label: "Equipment Release",   icon: PackageCheck,    path: "/general/equipment-release" },
-      { label: "Equipment Return",    icon: RotateCcw,       path: "/general/equipment-return" },
-    ],
-  },
-  {
-    title: "INVENTORY",
-    items: [
-      { label: "Equipment",           icon: Box,             path: "/general/manage-equipments" },
-      { label: "Equipment Status",    icon: PackageOpen,     path: "/general/equipment-borrowing" },
-    ],
-  },
-  {
-    title: "ACTIVITY",
-    items: [
-      { label: "Transaction History", icon: History,         path: "/general/history-log" },
-    ],
-  },
-  {
-    title: "ACCOUNT",
-    items: [
-      { label: "Profile",             icon: User,            path: "/general/settings?tab=profile" },
-    ],
-  },
-];
-
-const STAFF_NAV_GROUPS = [
-  {
-    title: "GLOBAL OVERVIEW",
-    items: [
       { label: "Dashboard",           icon: LayoutDashboard, path: "/general/dashboard",           permissionKey: "dashboard" },
+    ],
+  },
+  {
+    title: "OPERATIONS",
+    items: [
       { label: "Venue Booking",       icon: Building2,        path: "/general/venue-bookings",      permissionKey: "venue_bookings" },
       { label: "Equipment Borrowing", icon: PackageOpen,      path: "/general/equipment-borrowing", permissionKey: "equipment_borrowing" },
     ],
   },
   {
-    title: "RECORDS & INVENTORY",
+    title: "INVENTORY & VENUES",
     items: [
       { label: "Manage Equipment",    icon: Box,              path: "/general/manage-equipments",   permissionKey: "manage_equipments" },
       { label: "Manage Venue",        icon: CalendarCheck,    path: "/general/manage-venues",       permissionKey: "manage_venues" },
+    ],
+  },
+  {
+    title: "REPORTS & LOGS",
+    items: [
       { label: "Report",              icon: FileBarChart2,    path: "/general/reports",             permissionKey: "reports" },
       { label: "History Log",         icon: History,          path: "/general/history-log",         permissionKey: "history_log" },
     ],
   },
   {
-    title: "ACCOUNT",
+    title: "ACCOUNT & SETTINGS",
     items: [
       { label: "Profile",             icon: User,            path: "/general/settings?tab=profile" },
       { label: "Settings",            icon: Settings,        path: "/general/settings",            permissionKey: "settings" },
@@ -86,7 +60,7 @@ const STAFF_NAV_GROUPS = [
 export default function GeneralLayout() {
   const { logout } = useAuth();
   const { user, isSuperAdmin, isStudentAssistant, hasPermission } = usePermissions();
-  const { theme, toggleTheme } = useTheme();
+  const { theme, setTheme, toggleTheme } = useTheme();
   const isDark = theme === "dark";
   const navigate = useNavigate();
   const location = useLocation();
@@ -109,9 +83,9 @@ export default function GeneralLayout() {
   useEffect(() => {
     // Keep user's preferred theme or default to dark for internal management if not set
     if (!localStorage.getItem("fsuu_theme")) {
-      document.documentElement.classList.add("dark");
+      setTheme("dark");
     }
-  }, []);
+  }, [setTheme]);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [showNotifDropdown, setShowNotifDropdown] = useState(false);
   const [selectedOffice, setSelectedOffice] = useState("All Offices");
@@ -404,7 +378,7 @@ export default function GeneralLayout() {
         className={`
           fixed inset-y-0 left-0 z-40 flex flex-col transition-all duration-300 ease-in-out overflow-hidden
           bg-sidebar text-sidebar-foreground border-r border-sidebar-border shadow-xs
-          ${sidebarOpen ? "w-64" : "w-[68px]"}
+          w-64 ${sidebarOpen ? "lg:w-64" : "lg:w-[68px]"}
           ${mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
         `}
       >
@@ -421,11 +395,10 @@ export default function GeneralLayout() {
           </div>
         </div>
 
-        {/* Grouped Navigation */}
+        {/* Grouped Navigation — strictly driven by Super Admin configured permissions */}
         <nav className="flex-1 overflow-y-auto py-5 px-3 space-y-6 scrollbar-none overflow-x-hidden">
-          {(isStudentAssistant ? STUDENT_ASSISTANT_NAV_GROUPS : STAFF_NAV_GROUPS).map((group) => {
+          {GENERAL_OPERATIONS_NAV_GROUPS.map((group) => {
             const filteredItems = group.items.filter(item => {
-              if (isStudentAssistant) return true;
               if (isSuperAdmin) return true;
               if (item.permissionKey) {
                 return hasPermission(item.permissionKey);
@@ -438,7 +411,8 @@ export default function GeneralLayout() {
               <div key={group.title} className="space-y-1.5 overflow-hidden">
                 <div className="px-3 pb-1 pt-1 overflow-hidden">
                   <p className="text-[10px] font-bold tracking-widest uppercase truncate leading-none overflow-hidden whitespace-nowrap text-muted-foreground">
-                    {sidebarOpen ? group.title : "—"}
+                    <span className={sidebarOpen ? "inline" : "inline lg:hidden"}>{group.title}</span>
+                    {!sidebarOpen && <span className="hidden lg:inline">—</span>}
                   </p>
                 </div>
                 <div className="space-y-1">
@@ -485,40 +459,42 @@ export default function GeneralLayout() {
 
         {/* User Card */}
         <div className="border-t border-sidebar-border p-2.5 overflow-hidden whitespace-nowrap bg-sidebar">
-          {sidebarOpen ? (
-            <>
-              <div
-                onClick={() => setUserMenuOpen(v => !v)}
-                className="flex items-center gap-2.5 p-1.5 rounded-lg transition-colors cursor-pointer overflow-hidden w-full hover:bg-muted"
-              >
-                <div className="w-8 h-8 rounded-full border border-sidebar-border bg-muted flex items-center justify-center text-xs font-semibold flex-shrink-0 overflow-hidden text-foreground">
-                  {adminAvatar ? (
-                    <img src={adminAvatar} alt={adminName} className="w-full h-full object-cover" />
-                  ) : (
-                    adminName?.charAt(0)?.toUpperCase() ?? "U"
-                  )}
-                </div>
-                <div className="flex-1 min-w-0 overflow-hidden">
-                  <p className="text-xs font-medium truncate text-foreground">{adminName}</p>
-                  <p className="text-[10.5px] truncate capitalize text-muted-foreground">{userRole.replace("_", " ")}</p>
-                </div>
-                <ChevronDown size={13} className={`flex-shrink-0 transition-transform ${userMenuOpen ? "rotate-180" : ""} text-muted-foreground`} />
+          {/* Full Card View: Always on mobile, or desktop when sidebarOpen is true */}
+          <div className={sidebarOpen ? "block" : "block lg:hidden"}>
+            <div
+              onClick={() => setUserMenuOpen(v => !v)}
+              className="flex items-center gap-2.5 p-1.5 rounded-lg transition-colors cursor-pointer overflow-hidden w-full hover:bg-muted"
+            >
+              <div className="w-8 h-8 rounded-full border border-sidebar-border bg-muted flex items-center justify-center text-xs font-semibold flex-shrink-0 overflow-hidden text-foreground">
+                {adminAvatar ? (
+                  <img src={adminAvatar} alt={adminName} className="w-full h-full object-cover" />
+                ) : (
+                  adminName?.charAt(0)?.toUpperCase() ?? "U"
+                )}
               </div>
+              <div className="flex-1 min-w-0 overflow-hidden">
+                <p className="text-xs font-medium truncate text-foreground">{adminName}</p>
+                <p className="text-[10.5px] truncate capitalize text-muted-foreground">{userRole.replace("_", " ")}</p>
+              </div>
+              <ChevronDown size={13} className={`flex-shrink-0 transition-transform ${userMenuOpen ? "rotate-180" : ""} text-muted-foreground`} />
+            </div>
 
-              {userMenuOpen && (
-                <div className="pt-1.5 border-t border-sidebar-border mt-1">
-                  <button
-                    type="button"
-                    onClick={() => setShowLogoutConfirm(true)}
-                    className="w-full flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-destructive hover:bg-destructive/10 rounded-lg transition-colors cursor-pointer"
-                  >
-                    <LogOut size={13} /> Sign Out
-                  </button>
-                </div>
-              )}
-            </>
-          ) : (
-            <div className="flex flex-col items-center gap-2 py-0.5">
+            {userMenuOpen && (
+              <div className="pt-1.5 border-t border-sidebar-border mt-1">
+                <button
+                  type="button"
+                  onClick={() => setShowLogoutConfirm(true)}
+                  className="w-full flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-destructive hover:bg-destructive/10 rounded-lg transition-colors cursor-pointer"
+                >
+                  <LogOut size={13} /> Sign Out
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Desktop-only icon rail when collapsed */}
+          {!sidebarOpen && (
+            <div className="hidden lg:flex flex-col items-center gap-2 py-0.5">
               <button
                 type="button"
                 onClick={() => setShowLogoutConfirm(true)}

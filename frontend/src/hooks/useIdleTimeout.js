@@ -90,13 +90,15 @@ export function useIdleTimeout({
     let lastThrottled = Date.now();
     const handleUserActivity = () => {
       const now = Date.now();
-      // Throttle activity checks to once every 2 seconds
-      if (now - lastThrottled > 2000) {
+      // Throttle activity checks to once every 1.5 seconds
+      if (now - lastThrottled > 1500) {
         lastThrottled = now;
         lastActivityRef.current = now;
 
-        // If the warning is NOT currently visible, reset the cycle
-        if (!showWarning) {
+        // Active interaction automatically cancels any warning and extends the session
+        if (showWarning) {
+          stayLoggedIn();
+        } else {
           startIdleCycle();
         }
       }
@@ -105,18 +107,16 @@ export function useIdleTimeout({
     const events = ["mousedown", "mousemove", "keydown", "scroll", "touchstart", "wheel"];
     events.forEach((evt) => window.addEventListener(evt, handleUserActivity, { passive: true }));
 
-    // Detect when tab/window visibility changes (e.g. user minimized browser or switched tabs)
+    // Detect when tab/window visibility changes
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
         const elapsed = Date.now() - lastActivityRef.current;
         if (elapsed >= idleTimeoutMs) {
-          // Exceeded full timeout while in background
-          logoutNow();
+          // Exceeded full timeout while in background: present warning modal with grace period
+          triggerWarning();
         } else if (elapsed >= idleTimeoutMs - warningTimeMs) {
-          // Inside warning window
           triggerWarning();
         } else {
-          // Still active
           startIdleCycle();
         }
       }

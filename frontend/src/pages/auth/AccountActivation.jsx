@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { ShieldCheck, CheckCircle2, AlertCircle, Loader2, Building2, User, Key, Eye, EyeOff } from "lucide-react";
 import api from "@/lib/axios";
+import PasswordSecurityStrength, { checkPasswordSecurity } from "@/components/ui/PasswordSecurityStrength";
 
 export default function AccountActivation() {
   const { token: urlToken } = useParams();
@@ -52,12 +53,23 @@ export default function AccountActivation() {
       setError("First Name and Last Name are required.");
       return;
     }
-    if (password !== confirmPassword) {
-      setError("Passwords do not match.");
+    const security = checkPasswordSecurity(password);
+    if (!security.isValid) {
+      if (!security.hasLength) {
+        setError("Password must be at least 8 characters long.");
+      } else if (!security.hasMixedCase) {
+        setError("Password must include both uppercase and lowercase letters.");
+      } else if (!security.hasAlphaNumeric) {
+        setError("Password must include both letters and numbers.");
+      } else if (security.isDictionaryWord) {
+        setError("Password is too common. Avoid dictionary words and common patterns.");
+      } else {
+        setError("Password does not meet university security criteria.");
+      }
       return;
     }
-    if (password.length < 6) {
-      setError("Password must be at least 6 characters long.");
+    if (password !== confirmPassword) {
+      setError("Passwords do not match.");
       return;
     }
 
@@ -212,7 +224,7 @@ export default function AccountActivation() {
                   type={showPassword ? "text" : "password"}
                   required
                   autoComplete="new-password"
-                  placeholder="Minimum 6 characters"
+                  placeholder="At least 8 characters, letters & numbers"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white transition-all pr-10"
@@ -227,6 +239,9 @@ export default function AccountActivation() {
               </div>
             </div>
 
+            {/* Live Password Security Checklist & Passphrase tips */}
+            <PasswordSecurityStrength password={password} showGuidance={true} />
+
             <div>
               <label className="block text-xs font-bold text-slate-900 mb-1">Confirm Password *</label>
               <input
@@ -240,13 +255,29 @@ export default function AccountActivation() {
               />
             </div>
 
+            {password.length > 0 && confirmPassword.length > 0 && (
+              <div className={`flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1.5 rounded-lg border ${password === confirmPassword ? "text-emerald-700 bg-emerald-50 border-emerald-200" : "text-rose-700 bg-rose-50 border-rose-200"}`}>
+                {password === confirmPassword ? (
+                  <>
+                    <CheckCircle2 size={13} className="text-emerald-600 shrink-0" />
+                    <span>Passwords match</span>
+                  </>
+                ) : (
+                  <>
+                    <AlertCircle size={13} className="text-rose-600 shrink-0" />
+                    <span>Passwords do not match yet</span>
+                  </>
+                )}
+              </div>
+            )}
+
             <button
               type="submit"
-              disabled={submitLoading}
+              disabled={submitLoading || !checkPasswordSecurity(password).isValid || password !== confirmPassword || !firstName.trim() || !lastName.trim()}
               className="w-full py-3 mt-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-extrabold text-xs rounded-xl shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer"
             >
               {submitLoading && <Loader2 size={15} className="animate-spin" />}
-              <span>Complete Activation & Sign In</span>
+              <span>Complete Activation &amp; Sign In</span>
             </button>
           </form>
         )}

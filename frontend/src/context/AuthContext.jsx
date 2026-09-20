@@ -96,28 +96,8 @@ export function AuthProvider({ children }) {
     }
   }, [user, rememberMe]);
 
-  // Browser Exit Detection: Send Beacon on tab/window close if not "Remember Me"
-  useEffect(() => {
-    const handlePageHide = () => {
-      const currentTok = tokenRef.current;
-      const isRemembered = rememberMeRef.current;
-
-      // If session is NOT configured to persist across browser restarts, revoke token on exit
-      if (currentTok && !isRemembered) {
-        try {
-          const beaconUrl = `${api.defaults.baseURL || '/api'}/auth/logout-beacon`;
-          const formData = new FormData();
-          formData.append("token", currentTok);
-          if (navigator.sendBeacon) {
-            navigator.sendBeacon(beaconUrl, formData);
-          }
-        } catch {}
-      }
-    };
-
-    window.addEventListener("pagehide", handlePageHide);
-    return () => window.removeEventListener("pagehide", handlePageHide);
-  }, []);
+  // Note: Tokens are persisted in session/local storage and naturally expire via Sanctum.
+  // Destructive pagehide beacons were removed to prevent unwanted logouts on tab switches or page reloads.
 
   // Cross-tab sync: if another tab logs out, sync immediately
   useEffect(() => {

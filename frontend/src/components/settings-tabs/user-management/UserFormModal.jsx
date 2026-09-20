@@ -4,6 +4,7 @@ import {
   AlertCircle, Lock, Eye, EyeOff, ShieldCheck, KeyRound
 } from "lucide-react";
 import api from "@/lib/axios";
+import PasswordSecurityStrength, { checkPasswordSecurity } from "@/components/ui/PasswordSecurityStrength";
 
 export default function UserFormModal({
   showModal,
@@ -101,8 +102,19 @@ export default function UserFormModal({
 
     // If editUser and password fields are filled
     if (editUser && (newPassword || confirmPassword)) {
-      if (newPassword.length < 6) {
-        setPwValidationError("New password must be at least 6 characters.");
+      const security = checkPasswordSecurity(newPassword);
+      if (!security.isValid) {
+        if (!security.hasLength) {
+          setPwValidationError("New password must be at least 8 characters.");
+        } else if (!security.hasMixedCase) {
+          setPwValidationError("Password must include both uppercase and lowercase letters.");
+        } else if (!security.hasAlphaNumeric) {
+          setPwValidationError("Password must include both letters and numbers.");
+        } else if (security.isDictionaryWord) {
+          setPwValidationError("Password is too common. Avoid dictionary words and common sequences.");
+        } else {
+          setPwValidationError("Password does not satisfy the university security criteria.");
+        }
         return;
       }
       if (newPassword !== confirmPassword) {
@@ -298,7 +310,7 @@ export default function UserFormModal({
                     <div className="relative">
                       <input
                         type={showNewPw ? "text" : "password"}
-                        placeholder="Enter new password (min. 6 characters)"
+                        placeholder="At least 8 characters, letters & numbers"
                         value={newPassword}
                         onChange={(e) => {
                           setNewPassword(e.target.value);
@@ -315,6 +327,9 @@ export default function UserFormModal({
                       </button>
                     </div>
                   </div>
+
+                  {/* Password Security Strength checklist & meter */}
+                  <PasswordSecurityStrength password={newPassword} showGuidance={true} />
 
                   {/* Confirm New Password */}
                   <div>
@@ -341,6 +356,12 @@ export default function UserFormModal({
                       </button>
                     </div>
                   </div>
+
+                  {newPassword.length > 0 && confirmPassword.length > 0 && (
+                    <div className={`p-2 rounded-xl text-[11px] font-semibold border ${newPassword === confirmPassword ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-rose-50 text-rose-700 border-rose-200"}`}>
+                      {newPassword === confirmPassword ? "✓ Passwords match" : "✕ Passwords do not match yet"}
+                    </div>
+                  )}
                 </div>
               </div>
             )}

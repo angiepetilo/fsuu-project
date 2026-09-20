@@ -61,7 +61,7 @@ export default function LandingPage() {
             Requirements Needed Before Venue Booking
           </h2>
           <p className="text-xs sm:text-sm text-muted-foreground font-normal mt-1">
-            Review official endorsement letter structures and signatory clearance requirements.
+            Review official endorsement letter format and signatory clearance requirements.
           </p>
         </div>
 
@@ -157,7 +157,7 @@ export default function LandingPage() {
           className="flex items-center gap-2 hover:text-foreground transition-colors group py-2 px-3 rounded-lg min-h-[44px]"
         >
           <span className="w-1.5 h-1.5 rounded-full bg-primary group-hover:scale-125 transition-transform" />
-          <span>Staff & Administrative Access</span>
+          <span>Access Portal</span>
         </Link>
       </div>
 

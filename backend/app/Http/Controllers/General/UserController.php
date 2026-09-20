@@ -14,6 +14,7 @@ use Illuminate\Support\Str;
 use App\Jobs\SendNewUserCredentialsJob;
 use App\Rules\ActiveDeliverableEmail;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Password;
 
 class UserController extends Controller
 {
@@ -208,7 +209,7 @@ class UserController extends Controller
             'status'         => 'nullable|string',
             'is_active'      => 'nullable',
             'location'       => 'nullable|string|max:255',
-            'new_password'   => 'nullable|string|min:6',
+            'new_password'   => ['nullable', 'string', Password::min(8)->letters()->mixedCase()->numbers()],
             'permissions'    => 'nullable',
         ]);
 
