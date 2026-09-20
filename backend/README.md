@@ -65,9 +65,13 @@ RESEND_API_KEY=your_resend_api_key
 MAIL_FROM_ADDRESS=noreply@fsuu.edu.ph
 ```
 
-### 3. Database Migration & Seeding
+### 3. Database Migration & Setup
 ```bash
-php artisan migrate:fresh --seed
+# Safe migration for Staging/Production (preserves all existing data):
+php artisan migrate --force
+
+# Local Development Only (resets local test database):
+# php artisan migrate:fresh --seed
 ```
 
 ### 4. Run Development Server

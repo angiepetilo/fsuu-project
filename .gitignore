@@ -18,6 +18,8 @@ tmp/
 temp/
 *.ps1
 !backend/database/seeders/*.php
+.force_fresh_migrate
+*.force_fresh_migrate
 
 # Log Files & Debugging Output
 *.log

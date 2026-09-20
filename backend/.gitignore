@@ -37,3 +37,5 @@ Homestead.json
 Homestead.yaml
 Thumbs.db
 resend_mail.php
+.force_fresh_migrate
+*.force_fresh_migrate

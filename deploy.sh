@@ -22,13 +22,8 @@ cp frontend/dist/index.html backend/resources/views/app.blade.php
 echo "⚡ Optimizing Laravel Backend..."
 cd backend
 composer install --optimize-autoloader --no-dev --prefer-dist
-if [ "$MIGRATE_FRESH" = "true" ] || [ "$FORCE_FRESH_MIGRATE" = "true" ] || [ -f "database/.force_fresh_migrate" ]; then
-    echo "⚠️ Running force migrate:fresh --seed --force..."
-    php artisan migrate:fresh --seed --force
-    rm -f database/.force_fresh_migrate || true
-else
-    php artisan migrate --force
-fi
+echo "🛡️ Running safe database migrations (preserving production data)..."
+php artisan migrate --force
 php artisan optimize
 php artisan up
 cd ..
