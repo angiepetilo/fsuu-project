@@ -121,6 +121,7 @@ export default function PermissionsSubTab() {
   const ROLE_DISPLAY = {
     staff: "Staff",
     student_assistant: "Student Assistant",
+    assistant: "Assistant",
   };
 
   return (

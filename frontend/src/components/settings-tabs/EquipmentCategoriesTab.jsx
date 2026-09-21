@@ -10,9 +10,9 @@ import IosToggle from "@/components/ui/ios-toggle";
 
 export default function EquipmentCategoriesTab({ showMsg }) {
   const { isSuperAdmin, hasPermission, isStudentAssistant } = usePermissions();
-  const canAdd = isSuperAdmin || hasPermission("settings.add") || hasPermission("manage_equipments.add");
-  const canEdit = isSuperAdmin || hasPermission("settings.edit") || hasPermission("manage_equipments.edit");
-  const canDisable = isSuperAdmin || hasPermission("settings.disable") || hasPermission("manage_equipments.disable");
+  const canAdd = isSuperAdmin || hasPermission("settings.equipment") || hasPermission("settings.add") || hasPermission("manage_equipments.add");
+  const canEdit = isSuperAdmin || hasPermission("settings.equipment") || hasPermission("settings.edit") || hasPermission("manage_equipments.edit");
+  const canDisable = isSuperAdmin || hasPermission("settings.equipment") || hasPermission("settings.disable") || hasPermission("manage_equipments.disable");
   const canDirectEdit = canAdd;
 
   const [categories, setCategories] = useState([]);

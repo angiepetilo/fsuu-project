@@ -24,8 +24,9 @@ export function usePermissions() {
 
   const isStudentAssistant = useMemo(() => {
     return (
-      roleName.includes("student") ||
-      roleName.includes("assistant") ||
+      roleName === "student_assistant" ||
+      roleName === "student assistant" ||
+      (roleName.includes("student") && roleName.includes("assistant")) ||
       user?.role_id === 3
     );
   }, [roleName, user?.role_id]);
@@ -67,6 +68,10 @@ export function usePermissions() {
 
     // 2. Exact match (O(1))
     if (permissionSet.has(permissionKey)) return true;
+
+    // 2b. Seamless backward-compat alias mapping for account / profile
+    if (permissionKey === "settings.account" && (permissionSet.has("account.profile") || permissionSet.has("settings.profile") || permissionSet.has("account"))) return true;
+    if (permissionKey === "account.profile" && (permissionSet.has("settings.account") || permissionSet.has("settings.profile") || permissionSet.has("account"))) return true;
 
     // 3. Module check: If checking module key (e.g. "venue_bookings"), check if user has any action in that module
     const hasAnyActionInModule = userPermissions.some(

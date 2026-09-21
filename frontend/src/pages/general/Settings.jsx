@@ -4,24 +4,23 @@ import { usePermissions } from "@/hooks/usePermissions";
 import notify from "@/lib/notify";
 import api from "@/lib/axios";
 import {
-  ShieldCheck, Package, Building, DollarSign, BookOpen, Clock,
-  GraduationCap, Key, Sliders, User, Mail, ChevronRight, ChevronDown,
-  Lock, Eye, EyeOff, ShieldAlert, Loader2, X, Tag, Laptop, Activity,
-  Building2, Users
+  Users, Building2, Package, BookOpen, Clock,
+  DollarSign, Key, User, Sliders, Building, GraduationCap,
+  Lock, Eye, EyeOff, ShieldAlert, Loader2, X, Tag, Laptop, Activity
 } from "lucide-react";
 
 import {
-  UserManagementTab,
   EquipmentCategoriesTab,
   VenuesTab,
-  FeeMatrixTab,
+  UserManagementTab,
   DepartmentsTab,
   OperatingHoursTab,
-  AcademicTermsTab,
+  FeeMatrixTab,
   VerificationPinTab,
+  ProfileConfigTab,
+  AcademicTermsTab,
   SystemSettingsTab,
   CommunicationLogsTab,
-  ProfileConfigTab,
   AuditLogsTab,
   BrandsTab,
   ActiveSessionsTab,
@@ -36,15 +35,36 @@ const PROTECTED_TAB_NAMES = {
   system_settings: "System Settings",
 };
 
-const SETTINGS_CATEGORIES = [
+export const SETTINGS_CATEGORIES = [
   {
     id: "user_access",
     label: "User & Access Management",
     icon: Users,
     items: [
-      { id: "roles", label: "User Management", desc: "Staff accounts & RBAC permissions", icon: ShieldCheck, superAdminOnly: true },
-      { id: "active_sessions", label: "Active Sessions", desc: "Monitor & remotely terminate terminals", icon: Laptop, permissionKey: "settings.active_sessions" },
-      { id: "pin", label: "Verification PIN", desc: "6-digit emergency overrides", icon: Key, permissionKey: "settings.pin", staffOnly: true, protected: true },
+      {
+        id: "users",
+        label: "User Management",
+        desc: "Staff accounts & RBAC permissions",
+        icon: Users,
+        permissionKey: "settings.users",
+        superAdminOnly: true,
+      },
+      {
+        id: "active_sessions",
+        label: "Active Sessions",
+        desc: "Monitor and remotely terminate terminals",
+        icon: Laptop,
+        permissionKey: "settings.active_sessions",
+        superAdminOnly: true,
+      },
+      {
+        id: "pin",
+        label: "Verification PIN",
+        desc: "6-digit emergency overrides",
+        icon: Key,
+        permissionKey: "settings.pin",
+        protected: true,
+      },
     ]
   },
   {
@@ -52,9 +72,30 @@ const SETTINGS_CATEGORIES = [
     label: "System & Security Logs",
     icon: ShieldAlert,
     items: [
-      { id: "security_alerts", label: "Security Alerts", desc: "Rate limits, lockouts & terminations", icon: ShieldAlert, permissionKey: "settings.security_alerts" },
-      { id: "audit_logs", label: "Activity Audit Trail", desc: "System transactions & action trail", icon: Activity, permissionKey: "settings.audit_logs" },
-      { id: "communication_logs", label: "SMS and Email Log", desc: "Brevo & iProg SMS dispatch log", icon: Mail, permissionKey: "settings.communication_logs" },
+      {
+        id: "security_alerts",
+        label: "Security Alerts",
+        desc: "Rate limits, lockouts & terminations",
+        icon: ShieldAlert,
+        permissionKey: "settings.security_alerts",
+        superAdminOnly: true,
+      },
+      {
+        id: "audit_logs",
+        label: "Activity Audit Trail",
+        desc: "System transactions & action trail",
+        icon: Activity,
+        permissionKey: "settings.audit_logs",
+        altPermissionKeys: ["history_log.view"],
+        superAdminOnly: true,
+      },
+      {
+        id: "communication_logs",
+        label: "SMS and Email Log",
+        desc: "Brevo & iProg SMS dispatch log",
+        icon: Building2,
+        permissionKey: "settings.communication_logs",
+      },
     ]
   },
   {
@@ -62,10 +103,34 @@ const SETTINGS_CATEGORIES = [
     label: "Organization Setup",
     icon: Building2,
     items: [
-      { id: "brands", label: "Brands", desc: "Equipment manufacturer brands", icon: Tag, permissionKey: "settings.brands" },
-      { id: "equipment", label: "Equipment Category", desc: "Equipment item catalog groups", icon: Package, permissionKey: "settings.equipment" },
-      { id: "venues", label: "Venue Creation", desc: "Campus rooms & capacity setup", icon: Building, permissionKey: "settings.venues" },
-      { id: "departments", label: "Departments", desc: "University academic units", icon: BookOpen, permissionKey: "settings.departments" },
+      {
+        id: "brands",
+        label: "Brands",
+        desc: "Equipment manufacturer brands",
+        icon: Tag,
+        permissionKey: "settings.brands",
+      },
+      {
+        id: "equipment",
+        label: "Equipment Category",
+        desc: "Physical item types & groupings",
+        icon: Package,
+        permissionKey: "settings.equipment",
+      },
+      {
+        id: "venues",
+        label: "Venue Creation",
+        desc: "Campus rooms & capacity setup",
+        icon: Building,
+        permissionKey: "settings.venues",
+      },
+      {
+        id: "departments",
+        label: "Departments",
+        desc: "Colleges & academic departments",
+        icon: BookOpen,
+        permissionKey: "settings.departments",
+      },
     ]
   },
   {
@@ -73,9 +138,27 @@ const SETTINGS_CATEGORIES = [
     label: "Operations & Billing",
     icon: Clock,
     items: [
-      { id: "fee_matrix", label: "Fee Matrix", desc: "Facility rental fee schedule", icon: DollarSign, permissionKey: "settings.fee_matrix", staffOnly: true },
-      { id: "operating_hours", label: "Operating Hours", desc: "Campus hours & reservation cutoffs", icon: Clock, permissionKey: "settings.operating_hours", staffOnly: true },
-      { id: "academic_terms", label: "Academic Terms", desc: "Semester terms & archiving", icon: GraduationCap, permissionKey: "settings.academic_terms", staffOnly: true },
+      {
+        id: "fee_matrix",
+        label: "Fee Matrix",
+        desc: "Facility rental rates & policy",
+        icon: DollarSign,
+        permissionKey: "settings.fee_matrix",
+      },
+      {
+        id: "operating_hours",
+        label: "Operating Hours",
+        desc: "Reservation hours & campus cutoff",
+        icon: Clock,
+        permissionKey: "settings.operating_hours",
+      },
+      {
+        id: "academic_terms",
+        label: "Academic Terms",
+        desc: "Semester archiving & terms",
+        icon: GraduationCap,
+        permissionKey: "settings.academic_terms",
+      },
     ]
   },
   {
@@ -83,16 +166,28 @@ const SETTINGS_CATEGORIES = [
     label: "Account",
     icon: User,
     items: [
-      { id: "profile", label: "Profile", desc: "Account credentials & password", icon: User },
-      { id: "system_settings", label: "System Settings", desc: "Branding and portal parameters", icon: Sliders, permissionKey: "settings.system_settings", staffOnly: true, protected: true },
+      {
+        id: "profile",
+        label: "Profile",
+        desc: "Account credentials & password",
+        icon: User,
+        permissionKey: "settings.account",
+        altPermissionKeys: ["settings.profile", "account.profile", "account"],
+      },
+      {
+        id: "system_settings",
+        label: "System Settings",
+        desc: "Brevo SMTP & portal branding",
+        icon: Sliders,
+        permissionKey: "settings.system_settings",
+        protected: true,
+      },
     ]
   }
 ];
 
-const ALL_SETTINGS_TABS = SETTINGS_CATEGORIES.flatMap((c) => c.items);
-
 export default function Settings() {
-  const { user, isSuperAdmin, isStudentAssistant, isStaff, hasPermission } = usePermissions();
+  const { isSuperAdmin, hasPermission } = usePermissions();
   const context = useOutletContext();
   const selectedOffice = context?.selectedOffice ?? "All Offices";
 
@@ -102,68 +197,70 @@ export default function Settings() {
       const items = cat.items.filter((tab) => {
         if (isSuperAdmin) return true;
         if (tab.superAdminOnly) return false;
-        if (tab.id === "profile") return true;
 
-        // Student Assistants only have access to their personal Profile tab
-        if (isStudentAssistant) {
-          return false;
-        }
-
-        if (tab.permissionKey && !hasPermission(tab.permissionKey)) {
-          return false;
+        if (tab.permissionKey) {
+          const keys = [tab.permissionKey, ...(tab.altPermissionKeys || [])];
+          if (!keys.some((k) => hasPermission(k))) {
+            return false;
+          }
         }
 
         return true;
       });
       return { ...cat, items };
     }).filter((cat) => cat.items.length > 0);
-  }, [isSuperAdmin, isStudentAssistant, hasPermission]);
+  }, [isSuperAdmin, hasPermission]);
 
   const visibleTabs = useMemo(() => visibleCategories.flatMap((c) => c.items), [visibleCategories]);
 
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // Determine tab from URL param or default to profile
-  const getInitialTab = () => {
-    const urlTab = searchParams.get("tab");
+  const resolveTab = useCallback((urlTab) => {
     if (urlTab && visibleTabs.some((t) => t.id === urlTab)) {
       return urlTab;
+    }
+    if (isSuperAdmin && visibleTabs.some((t) => t.id === "users")) {
+      return "users";
     }
     if (visibleTabs.some((t) => t.id === "profile")) {
       return "profile";
     }
-    return visibleTabs[0]?.id || "profile";
-  };
+    return visibleTabs[0]?.id || "";
+  }, [visibleTabs, isSuperAdmin]);
 
-  const [activeTab, setActiveTab] = useState(getInitialTab);
-  const [mountedTabs, setMountedTabs] = useState(() => new Set([getInitialTab()]));
+  const getCategoryForTab = useCallback((tabId) => {
+    return visibleCategories.find((cat) => cat.items.some((it) => it.id === tabId))?.id || visibleCategories[0]?.id || "";
+  }, [visibleCategories]);
 
-  // Track expanded accordion categories (default expands category of active tab)
-  const [openCategories, setOpenCategories] = useState(() => {
-    const initTab = getInitialTab();
-    const state = {};
-    SETTINGS_CATEGORIES.forEach((cat) => {
-      state[cat.id] = cat.items.some((it) => it.id === initTab);
-    });
-    return state;
+  const [activeTab, setActiveTab] = useState(() => resolveTab(searchParams.get("tab")));
+  const [mountedTabs, setMountedTabs] = useState(() => {
+    const init = resolveTab(searchParams.get("tab"));
+    return new Set(init ? [init] : []);
+  });
+  const [activeParentCategory, setActiveParentCategory] = useState(() => {
+    const init = resolveTab(searchParams.get("tab"));
+    return getCategoryForTab(init);
   });
 
-  // Automatically expand category when activeTab changes
+  // Keep state in sync with URL search params and permissions
   useEffect(() => {
-    const parentCat = SETTINGS_CATEGORIES.find((cat) =>
-      cat.items.some((it) => it.id === activeTab)
-    );
-    if (parentCat) {
-      setOpenCategories((prev) => ({ ...prev, [parentCat.id]: true }));
+    const urlTab = searchParams.get("tab");
+    const targetTab = resolveTab(urlTab);
+    if (targetTab) {
+      setActiveTab(targetTab);
+      setMountedTabs((prev) => new Set([...prev, targetTab]));
+      setActiveParentCategory(getCategoryForTab(targetTab));
     }
-  }, [activeTab]);
+  }, [searchParams, resolveTab, getCategoryForTab]);
 
-  const toggleCategory = useCallback((catId) => {
-    setOpenCategories((prev) => ({
-      ...prev,
-      [catId]: !prev[catId],
-    }));
-  }, []);
+  useEffect(() => {
+    if (activeTab) {
+      const parentId = getCategoryForTab(activeTab);
+      if (parentId && parentId !== activeParentCategory) {
+        setActiveParentCategory(parentId);
+      }
+    }
+  }, [activeTab, getCategoryForTab, activeParentCategory]);
 
   // Track which protected tabs have been unlocked this session
   const [unlockedTabs, setUnlockedTabs] = useState(new Set());
@@ -175,14 +272,6 @@ export default function Settings() {
   const [showPw, setShowPw] = useState(false);
   const [pwError, setPwError] = useState("");
   const [verifying, setVerifying] = useState(false);
-
-  // When user navigates from other features to /settings, reset to permitted tab
-  useEffect(() => {
-    const urlTab = searchParams.get("tab");
-    const targetTab = urlTab && visibleTabs.some((t) => t.id === urlTab) ? urlTab : (visibleTabs[0]?.id || "equipment");
-    setActiveTab(targetTab);
-    setMountedTabs((prev) => new Set([...prev, targetTab]));
-  }, [searchParams, visibleTabs]);
 
   const switchTab = useCallback((tabId) => {
     setActiveTab(tabId);
@@ -205,6 +294,16 @@ export default function Settings() {
     }
     switchTab(tabId);
   }, [unlockedTabs, switchTab]);
+
+  const handleCategoryClick = useCallback((catId) => {
+    setActiveParentCategory(catId);
+    const cat = visibleCategories.find((c) => c.id === catId);
+    if (cat && cat.items.length > 0) {
+      if (!cat.items.some((it) => it.id === activeTab)) {
+        handleTabClick(cat.items[0].id);
+      }
+    }
+  }, [visibleCategories, activeTab, handleTabClick]);
 
   const handleVerifyPassword = useCallback(async (e) => {
     e.preventDefault();
@@ -247,222 +346,203 @@ export default function Settings() {
     }
   }, []);
 
+  const currentCategory = useMemo(() => {
+    return visibleCategories.find((c) => c.id === activeParentCategory) || visibleCategories[0];
+  }, [visibleCategories, activeParentCategory]);
+
+  if (visibleCategories.length === 0) {
+    return (
+      <div className="bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-slate-800 p-12 text-center font-sans">
+        <ShieldAlert className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
+        <h3 className="text-base font-bold text-slate-800 dark:text-slate-200">No Settings Access</h3>
+        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-md mx-auto">
+          You do not have permission to access any administrative settings modules. Please contact your administrator if you require access.
+        </p>
+      </div>
+    );
+  }
+
   return (
-    <div className="bg-white dark:bg-[#111827] rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col lg:flex-row overflow-visible font-sans">
-      {/* ── Left Sidebar: Integrated Collapsible Accordion Navigation ── */}
-      <aside className="w-full lg:w-64 xl:w-72 shrink-0 bg-slate-50/70 dark:bg-slate-900/60 border-b lg:border-b-0 lg:border-r border-slate-200/80 dark:border-slate-800 p-3 flex flex-col justify-between">
-        <nav className="space-y-2 pr-0.5">
-          {visibleCategories.map((category) => {
-            const CatIcon = category.icon;
-            const isOpen = Boolean(openCategories[category.id]);
-            const hasActiveChild = category.items.some((it) => it.id === activeTab);
+    <div className="space-y-3 font-sans">
+      {/* ── Top Horizontal Parent Category Navigation ── */}
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 border-b border-slate-200 dark:border-slate-800">
+        {visibleCategories.map((cat) => {
+          const isParentActive = activeParentCategory === cat.id;
+          return (
+            <button
+              key={cat.id}
+              type="button"
+              onClick={() => handleCategoryClick(cat.id)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap cursor-pointer select-none ${
+                isParentActive
+                  ? "bg-blue-600 text-white font-semibold shadow-xs"
+                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/60"
+              }`}
+            >
+              {cat.label}
+            </button>
+          );
+        })}
+      </div>
 
-            return (
-              <div key={category.id} className="space-y-1">
-                <button
-                  type="button"
-                  onClick={() => toggleCategory(category.id)}
-                  className={`w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-left transition-all cursor-pointer group select-none ${
-                    hasActiveChild
-                      ? "bg-blue-50/80 dark:bg-blue-950/60 text-blue-900 dark:text-blue-200 font-black"
-                      : "hover:bg-slate-100/70 dark:hover:bg-slate-800/60 text-slate-700 dark:text-slate-200 font-extrabold"
-                  }`}
-                  title={`${isOpen ? "Collapse" : "Expand"} ${category.label}`}
-                >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <div
-                      className={`p-1 rounded-lg shrink-0 transition-colors ${
-                        hasActiveChild
-                          ? "bg-blue-600 text-white shadow-2xs"
-                          : "bg-slate-200/70 dark:bg-slate-800 text-slate-600 dark:text-slate-300 group-hover:bg-slate-300 dark:group-hover:bg-slate-700"
-                      }`}
-                    >
-                      <CatIcon size={13} />
-                    </div>
-                    <span className="truncate text-[11px] uppercase tracking-wider font-extrabold">
-                      {category.label}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <span
-                      className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-full border ${
-                        hasActiveChild
-                          ? "bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-700"
-                          : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700"
-                      }`}
-                    >
-                      {category.items.length}
-                    </span>
-                    <ChevronDown
-                      size={14}
-                      className={`transition-transform duration-200 shrink-0 ${
-                        isOpen ? "rotate-0 text-slate-700 dark:text-slate-200" : "-rotate-90 text-slate-400 dark:text-slate-500"
-                      }`}
-                    />
-                  </div>
-                </button>
-
-                {isOpen && (
-                  <div className="space-y-1 pl-2.5 ml-3 border-l-2 border-slate-200/90 dark:border-slate-800 pt-0.5 pb-1 animate-in fade-in slide-in-from-top-1 duration-150">
-                    {category.items.map((tab) => {
-                      const IconComp = tab.icon;
-                      const active = activeTab === tab.id;
-                      const isProtected = PROTECTED_TABS.includes(tab.id) && !unlockedTabs.has(tab.id);
-
-                      return (
-                        <button
-                          key={tab.id}
-                          type="button"
-                          onClick={() => handleTabClick(tab.id)}
-                          className={`w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-left text-xs font-bold transition-all cursor-pointer ${
-                            active
-                              ? "bg-blue-600 text-white shadow-xs"
-                              : "text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white"
-                          }`}
-                        >
-                          <div className="flex items-center gap-2 min-w-0">
-                            <IconComp
-                              size={14}
-                              className={`shrink-0 ${active ? "text-white" : "text-slate-400 dark:text-slate-500"}`}
-                            />
-                            <span className="truncate">{tab.label}</span>
-                          </div>
-                          <div className="flex items-center gap-1 shrink-0">
-                            {isProtected && (
-                              <Lock size={11} className={active ? "text-blue-200" : "text-slate-400 dark:text-slate-500"} />
-                            )}
-                            <ChevronRight
-                              size={12}
-                              className={`shrink-0 transition-transform ${
-                                active ? "text-white" : "text-slate-300 dark:text-slate-600 opacity-0 group-hover:opacity-100"
-                              }`}
-                            />
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
+      {/* ── Main Container: Left Sub-Menu + Right Content Canvas ── */}
+      <div className="bg-white dark:bg-[#111827] rounded-xl border border-slate-200 dark:border-slate-800 flex flex-col md:flex-row overflow-hidden min-h-[580px]">
+        {/* Left Sub-Menu Navigation */}
+        <aside className="w-full md:w-56 shrink-0 bg-white dark:bg-slate-900/60 border-b md:border-b-0 md:border-r border-slate-100 dark:border-slate-800 py-3 px-2">
+          {currentCategory && (
+            <>
+              <div className="px-2.5 pb-2 mb-1.5 border-b border-slate-100 dark:border-slate-800">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                  {currentCategory.label}
+                </span>
               </div>
-            );
-          })}
-        </nav>
-      </aside>
+              <nav className="space-y-0.5">
+                {currentCategory.items.map((item) => {
+                  const ItemIcon = item.icon;
+                  const isActive = activeTab === item.id;
+                  const isProtected = item.protected && !unlockedTabs.has(item.id);
 
-      {/* ── Right Content Canvas: Inlined & Aligned ── */}
-      <main className="flex-1 min-w-0 p-6 lg:p-7 bg-white dark:bg-[#111827]">
-        {/* Active Tab Content Render — persistent tab states to prevent reload/unmount */}
-        {mountedTabs.has("roles") && (
-          <div className={activeTab === "roles" ? "block" : "hidden"}>
-            <UserManagementTab />
-          </div>
-        )}
-        {mountedTabs.has("active_sessions") && (
-          <div className={activeTab === "active_sessions" ? "block" : "hidden"}>
-            <ActiveSessionsTab />
-          </div>
-        )}
-        {mountedTabs.has("security_alerts") && (
-          <div className={activeTab === "security_alerts" ? "block" : "hidden"}>
-            <SecurityAlertsTab />
-          </div>
-        )}
-        {mountedTabs.has("audit_logs") && (
-          <div className={activeTab === "audit_logs" ? "block" : "hidden"}>
-            <AuditLogsTab />
-          </div>
-        )}
-        {mountedTabs.has("brands") && (
-          <div className={activeTab === "brands" ? "block" : "hidden"}>
-            <BrandsTab />
-          </div>
-        )}
-        {mountedTabs.has("equipment") && (
-          <div className={activeTab === "equipment" ? "block" : "hidden"}>
-            <EquipmentCategoriesTab showMsg={showMsg} />
-          </div>
-        )}
-        {mountedTabs.has("venues") && (
-          <div className={activeTab === "venues" ? "block" : "hidden"}>
-            <VenuesTab showMsg={showMsg} />
-          </div>
-        )}
-        {mountedTabs.has("fee_matrix") && (
-          <div className={activeTab === "fee_matrix" ? "block" : "hidden"}>
-            <FeeMatrixTab officeScope={selectedOffice} showMsg={showMsg} />
-          </div>
-        )}
-        {mountedTabs.has("departments") && (
-          <div className={activeTab === "departments" ? "block" : "hidden"}>
-            <DepartmentsTab showMsg={showMsg} />
-          </div>
-        )}
-        {mountedTabs.has("operating_hours") && (
-          <div className={activeTab === "operating_hours" ? "block" : "hidden"}>
-            <OperatingHoursTab showMsg={showMsg} />
-          </div>
-        )}
-        {mountedTabs.has("academic_terms") && (
-          <div className={activeTab === "academic_terms" ? "block" : "hidden"}>
-            <AcademicTermsTab showMsg={showMsg} />
-          </div>
-        )}
-        {mountedTabs.has("pin") && (
-          <div className={activeTab === "pin" ? "block" : "hidden"}>
-            <VerificationPinTab showMsg={showMsg} />
-          </div>
-        )}
-        {mountedTabs.has("communication_logs") && (
-          <div className={activeTab === "communication_logs" ? "block" : "hidden"}>
-            <CommunicationLogsTab />
-          </div>
-        )}
-        {mountedTabs.has("system_settings") && (
-          <div className={activeTab === "system_settings" ? "block" : "hidden"}>
-            <SystemSettingsTab showMsg={showMsg} />
-          </div>
-        )}
-        {mountedTabs.has("profile") && (
-          <div className={activeTab === "profile" ? "block" : "hidden"}>
-            <ProfileConfigTab showMsg={showMsg} />
-          </div>
-        )}
-      </main>
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => handleTabClick(item.id)}
+                      className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-left text-xs transition-colors cursor-pointer select-none ${
+                        isActive
+                          ? "border-l-2 border-blue-600 bg-blue-50/70 dark:bg-blue-950/60 text-blue-600 dark:text-blue-300 font-semibold"
+                          : "border-l-2 border-transparent text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/60 font-normal"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <ItemIcon
+                          size={14}
+                          className={`shrink-0 ${isActive ? "text-blue-600 dark:text-blue-400" : "text-slate-400 dark:text-slate-500"}`}
+                        />
+                        <span className="truncate">{item.label}</span>
+                      </div>
+                      {isProtected && (
+                        <Lock size={11} className={isActive ? "text-blue-500" : "text-slate-400 dark:text-slate-500"} />
+                      )}
+                    </button>
+                  );
+                })}
+              </nav>
+            </>
+          )}
+        </aside>
+
+        {/* ── Right Content Canvas: Inlined & Aligned ── */}
+        <main className="flex-1 min-w-0 p-5 lg:p-6 bg-white dark:bg-[#111827]">
+          {mountedTabs.has("users") && (
+            <div className={activeTab === "users" ? "block" : "hidden"}>
+              <UserManagementTab showMsg={showMsg} />
+            </div>
+          )}
+          {mountedTabs.has("active_sessions") && (
+            <div className={activeTab === "active_sessions" ? "block" : "hidden"}>
+              <ActiveSessionsTab />
+            </div>
+          )}
+          {mountedTabs.has("security_alerts") && (
+            <div className={activeTab === "security_alerts" ? "block" : "hidden"}>
+              <SecurityAlertsTab />
+            </div>
+          )}
+          {mountedTabs.has("audit_logs") && (
+            <div className={activeTab === "audit_logs" ? "block" : "hidden"}>
+              <AuditLogsTab />
+            </div>
+          )}
+          {mountedTabs.has("brands") && (
+            <div className={activeTab === "brands" ? "block" : "hidden"}>
+              <BrandsTab />
+            </div>
+          )}
+          {mountedTabs.has("equipment") && (
+            <div className={activeTab === "equipment" ? "block" : "hidden"}>
+              <EquipmentCategoriesTab showMsg={showMsg} />
+            </div>
+          )}
+          {mountedTabs.has("venues") && (
+            <div className={activeTab === "venues" ? "block" : "hidden"}>
+              <VenuesTab showMsg={showMsg} />
+            </div>
+          )}
+          {mountedTabs.has("fee_matrix") && (
+            <div className={activeTab === "fee_matrix" ? "block" : "hidden"}>
+              <FeeMatrixTab officeScope={selectedOffice} showMsg={showMsg} />
+            </div>
+          )}
+          {mountedTabs.has("departments") && (
+            <div className={activeTab === "departments" ? "block" : "hidden"}>
+              <DepartmentsTab showMsg={showMsg} />
+            </div>
+          )}
+          {mountedTabs.has("operating_hours") && (
+            <div className={activeTab === "operating_hours" ? "block" : "hidden"}>
+              <OperatingHoursTab showMsg={showMsg} />
+            </div>
+          )}
+          {mountedTabs.has("academic_terms") && (
+            <div className={activeTab === "academic_terms" ? "block" : "hidden"}>
+              <AcademicTermsTab showMsg={showMsg} />
+            </div>
+          )}
+          {activeTab === "pin" && (
+            <div className="block">
+              <VerificationPinTab showMsg={showMsg} />
+            </div>
+          )}
+          {mountedTabs.has("communication_logs") && (
+            <div className={activeTab === "communication_logs" ? "block" : "hidden"}>
+              <CommunicationLogsTab />
+            </div>
+          )}
+          {mountedTabs.has("system_settings") && (
+            <div className={activeTab === "system_settings" ? "block" : "hidden"}>
+              <SystemSettingsTab showMsg={showMsg} />
+            </div>
+          )}
+          {mountedTabs.has("profile") && (
+            <div className={activeTab === "profile" ? "block" : "hidden"}>
+              <ProfileConfigTab showMsg={showMsg} />
+            </div>
+          )}
+        </main>
+      </div>
 
       {/* Password Verification Modal */}
       {showPwModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-md p-6 animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-start justify-between pb-4 border-b border-slate-100">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600 shrink-0">
-                  <ShieldAlert size={20} />
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-md p-6 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-start justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 rounded-xl">
+                  <Lock size={18} />
                 </div>
                 <div>
-                  <h4 className="text-sm font-black text-slate-900">
-                    Authentication Required
-                  </h4>
-                  <p className="text-xs text-slate-500 font-medium mt-0.5">
-                    Unlocking {PROTECTED_TAB_NAMES[pendingTab] || "Protected Settings"}
+                  <h3 className="font-extrabold text-slate-900 dark:text-white text-sm">Security Verification</h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                    Accessing {PROTECTED_TAB_NAMES[pendingTab] || "Protected Section"}
                   </p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={handleModalClose}
-                className="text-slate-400 hover:text-slate-600 rounded-lg p-1 hover:bg-slate-100 transition-colors"
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg p-1 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
               >
                 <X size={16} />
               </button>
             </div>
 
             <form onSubmit={handleVerifyPassword} className="mt-4 space-y-4">
-              <p className="text-xs text-slate-600 font-medium">
+              <p className="text-xs text-slate-600 dark:text-slate-300 font-medium">
                 Please enter your password to unlock this protected settings module.
               </p>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
                   Password
                 </label>
                 <div className="relative">
@@ -472,14 +552,14 @@ export default function Settings() {
                     onChange={(e) => { setPwInput(e.target.value); setPwError(""); }}
                     placeholder="Enter your password"
                     autoFocus
-                    className={`w-full pl-3 pr-10 py-2.5 bg-slate-50 border rounded-xl text-xs font-medium text-slate-900 focus:bg-white focus:outline-none transition-colors ${
-                      pwError ? "border-red-400 focus:border-red-500" : "border-slate-200 focus:border-blue-500"
+                    className={`w-full pl-3 pr-10 py-2.5 bg-slate-50 dark:bg-slate-800 border rounded-xl text-xs font-medium text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:outline-none transition-colors ${
+                      pwError ? "border-red-400 focus:border-red-500" : "border-slate-200 dark:border-slate-700 focus:border-blue-500"
                     }`}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPw((v) => !v)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 cursor-pointer"
                     tabIndex={-1}
                   >
                     {showPw ? <EyeOff size={14} /> : <Eye size={14} />}
@@ -496,7 +576,7 @@ export default function Settings() {
                 <button
                   type="button"
                   onClick={handleModalClose}
-                  className="flex-1 py-2.5 border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-xl text-xs font-bold transition-colors cursor-pointer"
+                  className="flex-1 py-2.5 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl text-xs font-bold transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>

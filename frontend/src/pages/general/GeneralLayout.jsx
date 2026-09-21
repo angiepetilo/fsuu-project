@@ -51,8 +51,7 @@ const GENERAL_OPERATIONS_NAV_GROUPS = [
   {
     title: "ACCOUNT & SETTINGS",
     items: [
-      { label: "Profile",             icon: User,            path: "/general/settings?tab=profile" },
-      { label: "Settings",            icon: Settings,        path: "/general/settings",            permissionKey: "settings" },
+      { label: "Settings", icon: Settings, path: "/general/settings", permissionKeys: ["settings", "account"] },
     ],
   },
 ];
@@ -67,14 +66,18 @@ export default function GeneralLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  // Automatic Session Idle Timeout (30 mins for staff, with 60s countdown warning)
+  // Role-tailored Inactivity Limits (NIST SP 800-63B & OWASP Standard):
+  // - Student Assistants (shared terminal / front desk): 15 minutes (14m idle + 60s countdown)
+  // - Staff (operational office desk): 30 minutes (29m idle + 60s countdown)
+  const idleTimeoutMs = isStudentAssistant ? 15 * 60 * 1000 : 30 * 60 * 1000;
+
   const {
     showWarning: showIdleWarning,
     secondsRemaining: idleSecondsRemaining,
     stayLoggedIn,
     logoutNow: logoutDueToIdle,
   } = useIdleTimeout({
-    idleTimeoutMs: 30 * 60 * 1000,
+    idleTimeoutMs,
     warningTimeMs: 60 * 1000,
     enabled: Boolean(user),
   });
@@ -400,6 +403,9 @@ export default function GeneralLayout() {
           {GENERAL_OPERATIONS_NAV_GROUPS.map((group) => {
             const filteredItems = group.items.filter(item => {
               if (isSuperAdmin) return true;
+              if (item.permissionKeys) {
+                return item.permissionKeys.some(k => hasPermission(k));
+              }
               if (item.permissionKey) {
                 return hasPermission(item.permissionKey);
               }

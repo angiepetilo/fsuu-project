@@ -7,9 +7,9 @@ import IosToggle from "@/components/ui/ios-toggle";
 
 export default function VenuesTab({ showMsg }) {
   const { isSuperAdmin, hasPermission } = usePermissions();
-  const canAdd = isSuperAdmin || hasPermission("settings.add") || hasPermission("manage_venues.add");
-  const canEdit = isSuperAdmin || hasPermission("settings.edit") || hasPermission("manage_venues.edit");
-  const canDisable = isSuperAdmin || hasPermission("settings.disable") || hasPermission("manage_venues.disable");
+  const canAdd = isSuperAdmin || hasPermission("settings.venues") || hasPermission("settings.add") || hasPermission("manage_venues.add");
+  const canEdit = isSuperAdmin || hasPermission("settings.venues") || hasPermission("settings.edit") || hasPermission("manage_venues.edit");
+  const canDisable = isSuperAdmin || hasPermission("settings.venues") || hasPermission("settings.disable") || hasPermission("manage_venues.disable");
 
   const [venues, setVenues] = useState([]);
   const [equipmentCatalog, setEquipmentCatalog] = useState([]);

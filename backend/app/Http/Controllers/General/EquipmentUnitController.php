@@ -511,12 +511,14 @@ class EquipmentUnitController extends Controller
                 'Description',
             ]);
 
-            // Sample rows to guide the client
+            // Sample rows to guide the client (including auto-barcode example)
             fputcsv($handle, ['Projector', 'Epson', 'PowerLite 1780W', 'PRJ-EPS-001', '2025-06-15', '5', 'Good', 'available', 'AVR Storage Cabinet 1']);
             fputcsv($handle, ['Projector', 'Epson', 'PowerLite 1780W', 'PRJ-EPS-002', '2025-06-15', '5', 'Good', 'available', 'AVR Storage Cabinet 1']);
             fputcsv($handle, ['Sound System', 'Yamaha', 'StagePas 400BT', 'SND-YAM-001', '2025-08-20', '5', 'Good', 'available', 'Audio Rack System A']);
-            fputcsv($handle, ['Camera', 'Sony', 'Alpha A7 IV', 'CAM-SNY-001', '2026-01-10', '4', 'Good', 'available', 'Media Production Bag #1']);
+            fputcsv($handle, ['Camera', 'Sony', 'Alpha A7 IV', 'CAM-SNY-001', '2026-01-10', '4', 'Minor Wear', 'available', 'Media Production Bag #1']);
             fputcsv($handle, ['Microphone', 'Shure', 'SM58 Wireless', 'MIC-SHU-001', '2025-11-05', '3', 'Good', 'available', 'Wireless Mic Set Alpha']);
+            fputcsv($handle, ['HDMI Cable', 'Belkin', 'Ultra High Speed 4K 2m', '', '2026-02-01', '3', 'Good', 'available', 'AV Cabinet - Cable Box B (Auto Barcode)']);
+            fputcsv($handle, ['Amplifier', 'Pioneer', 'A-10AE', 'AMP-PIO-001', '2025-03-10', '5', 'Under Repair', 'unavailable', 'Maintenance Bench - Channel 2 Check']);
 
             fclose($handle);
         }, 200, $headers);
@@ -562,23 +564,23 @@ class EquipmentUnitController extends Controller
             $h = strtolower(trim((string)$rawHeader));
             $h = preg_replace('/[^a-z0-9]/', '', $h); // normalize e.g. "lifespan (years)" -> "lifespanyears"
 
-            if (in_array($h, ['category', 'categoryname', 'equipmentcategory', 'eqname', 'type'], true)) {
+            if (in_array($h, ['category', 'categoryname', 'equipmentcategory', 'eqname', 'type', 'equipmenttype', 'eqtype'], true)) {
                 $colMap['category'] = $idx;
-            } elseif (in_array($h, ['brand', 'brandname', 'make'], true)) {
+            } elseif (in_array($h, ['brand', 'brandname', 'make', 'manufacturer'], true)) {
                 $colMap['brand'] = $idx;
-            } elseif (in_array($h, ['model', 'modelname'], true)) {
+            } elseif (in_array($h, ['model', 'modelname', 'modelno', 'modelnumber'], true)) {
                 $colMap['model'] = $idx;
-            } elseif (in_array($h, ['barcode', 'barcodeid', 'unitcode', 'serial', 'serialnumber', 'serialno', 'code'], true)) {
+            } elseif (in_array($h, ['barcode', 'barcodeid', 'unitcode', 'serial', 'serialnumber', 'serialno', 'code', 'assettag', 'propertynumber'], true)) {
                 $colMap['barcode'] = $idx;
-            } elseif (in_array($h, ['datepurchased', 'purchasedat', 'purchasedate', 'date', 'purchase'], true)) {
+            } elseif (in_array($h, ['datepurchased', 'purchasedat', 'purchasedate', 'date', 'purchase', 'acquisitiondate', 'dateacquired'], true)) {
                 $colMap['date_purchased'] = $idx;
-            } elseif (in_array($h, ['lifespanyears', 'lifespan', 'eqlifespan', 'years'], true)) {
+            } elseif (in_array($h, ['lifespanyears', 'lifespan', 'eqlifespan', 'years', 'lifespaninyears', 'usablelifespan'], true)) {
                 $colMap['lifespan'] = $idx;
-            } elseif (in_array($h, ['condition'], true)) {
+            } elseif (in_array($h, ['condition', 'state', 'health', 'unitcondition'], true)) {
                 $colMap['condition'] = $idx;
-            } elseif (in_array($h, ['status'], true)) {
+            } elseif (in_array($h, ['status', 'availability', 'availablestatus', 'unitstatus'], true)) {
                 $colMap['status'] = $idx;
-            } elseif (in_array($h, ['description', 'notes', 'remarks'], true)) {
+            } elseif (in_array($h, ['description', 'notes', 'remarks', 'location', 'storagelocation', 'cabinet'], true)) {
                 $colMap['description'] = $idx;
             }
         }
@@ -748,17 +750,18 @@ class EquipmentUnitController extends Controller
             $description = isset($colMap['description']) ? trim((string)$row[$colMap['description']]) : null;
 
             $rowsToInsert[] = [
-                'equipment_type_id' => $category->id,
-                'brand'             => $brand ?: null,
-                'model'             => $model ?: null,
-                'barcode'           => $rawBarcode,
-                'purchased_at'      => $parsedDate,
-                'eq_lifespan'       => $rawLifespan,
-                'status'            => $canonicalStatus,
-                'condition'         => $canonicalCondition,
-                'description'       => $description ?: null,
-                'created_at'        => now(),
-                'updated_at'        => now(),
+                'equipment_type_id'  => $category->id,
+                'equipment_types_id' => $category->id,
+                'brand'              => $brand ?: null,
+                'model'              => $model ?: null,
+                'barcode'            => $rawBarcode,
+                'purchased_at'       => $parsedDate,
+                'eq_lifespan'        => $rawLifespan,
+                'status'             => $canonicalStatus,
+                'condition'          => $canonicalCondition,
+                'description'        => $description ?: null,
+                'created_at'         => now(),
+                'updated_at'         => now(),
             ];
         }
 

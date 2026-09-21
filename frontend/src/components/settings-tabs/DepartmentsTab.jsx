@@ -7,9 +7,9 @@ import IosToggle from "@/components/ui/ios-toggle";
 
 export default function DepartmentsTab({ showMsg }) {
   const { isSuperAdmin, hasPermission } = usePermissions();
-  const canAdd = isSuperAdmin || hasPermission("settings.add");
-  const canEdit = isSuperAdmin || hasPermission("settings.edit");
-  const canDisable = isSuperAdmin || hasPermission("settings.disable");
+  const canAdd = isSuperAdmin || hasPermission("settings.departments") || hasPermission("settings.add");
+  const canEdit = isSuperAdmin || hasPermission("settings.departments") || hasPermission("settings.edit");
+  const canDisable = isSuperAdmin || hasPermission("settings.departments") || hasPermission("settings.disable");
 
   const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(true);

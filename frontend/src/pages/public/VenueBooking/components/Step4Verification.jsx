@@ -22,11 +22,13 @@ export default function Step4Verification({
   setEndorsementFile,
   avrEquipment = [],
   equipmentCatalog = [],
+  classification = "",
   onBack,
 }) {
   const fileInputRef = useRef(null);
   const [showTemplateModal, setShowTemplateModal] = useState(false);
   const [templateType, setTemplateType] = useState("organization");
+  const [requirementsList, setRequirementsList] = useState([]);
 
   const [contactPhone, setContactPhone] = useState(() => {
     try {
@@ -53,11 +55,29 @@ export default function Step4Verification({
     api.get("/public/booking-requirements")
       .then((res) => {
         const list = Array.isArray(res.data) ? res.data : [];
-        const found = list.find(r => r.template_file_url);
-        if (found) setActiveTemplate(found);
+        setRequirementsList(list);
+
+        const userClass = (classification || "").toLowerCase().trim();
+        const matching = list.filter(r => {
+          if (!userClass) return true;
+          const rClass = (r.classification || "").toLowerCase().trim();
+          if (rClass === "all" || !rClass) return true;
+          if (userClass.includes("acad") && rClass.includes("acad")) return true;
+          if ((userClass.includes("org") || userClass.includes("student")) && (rClass.includes("org") || rClass.includes("student"))) return true;
+          if (userClass.includes("external") && rClass.includes("external")) return true;
+          return false;
+        });
+
+        const templateMatch = matching.find(r => r.template_file_url) || list.find(r => r.template_file_url);
+        if (templateMatch) {
+          setActiveTemplate(templateMatch);
+          if (templateMatch.classification) {
+            setTemplateType(templateMatch.classification);
+          }
+        }
       })
       .catch(() => {});
-  }, []);
+  }, [classification]);
 
   const handleFileChange = (e) => {
     const file = e.target.files?.[0];
@@ -102,6 +122,19 @@ export default function Step4Verification({
     return `${h12}:${String(m || 0).padStart(2, '0')} ${ampm}`;
   };
 
+  const userClass = (classification || "").toLowerCase().trim();
+  const filteredRequirements = requirementsList.filter(r => {
+    if (!userClass) return true;
+    const rClass = (r.classification || "").toLowerCase().trim();
+    if (rClass === "all" || !rClass) return true;
+    if (userClass.includes("acad") && rClass.includes("acad")) return true;
+    if ((userClass.includes("org") || userClass.includes("student")) && (rClass.includes("org") || rClass.includes("student"))) return true;
+    if (userClass.includes("external") && rClass.includes("external")) return true;
+    return false;
+  });
+
+  const downloadableTemplates = (filteredRequirements.length > 0 ? filteredRequirements : requirementsList).filter(r => Boolean(r.template_file_url));
+
   return (
     <div className="p-6 sm:p-8 animate-in slide-in-from-top-2 duration-300">
       
@@ -139,6 +172,40 @@ export default function Step4Verification({
               </button>
             </div>
           </div>
+
+          {/* Downloadable Requirements Banner */}
+          {downloadableTemplates.length > 0 && (
+            <div className="p-3.5 bg-blue-50/70 dark:bg-blue-950/40 border border-blue-200/80 dark:border-blue-900/60 rounded-2xl space-y-2.5">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-extrabold text-blue-900 dark:text-blue-200 flex items-center gap-1.5">
+                  <Download size={14} className="text-blue-600 dark:text-blue-400" />
+                  Official Template Form{downloadableTemplates.length > 1 ? "s" : ""} to Download:
+                </span>
+                <span className="text-[10px] font-bold text-blue-700 bg-white dark:bg-slate-800 px-2 py-0.5 rounded-md border border-blue-200 dark:border-blue-800 shadow-2xs">
+                  Required Documents
+                </span>
+              </div>
+              <p className="text-[11px] text-blue-800/80 dark:text-blue-300/80 leading-relaxed font-medium">
+                Download the official template below, fill in your activity details, gather required signatures (Adviser, Dean, OISAA/OVPASA, PMO), and upload the signed copy.
+              </p>
+              <div className="flex flex-wrap gap-2 pt-0.5">
+                {downloadableTemplates.map((item, idx) => (
+                  <a
+                    key={item.id || idx}
+                    href={item.template_file_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    download
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-slate-900 hover:bg-blue-50 dark:hover:bg-slate-800 text-blue-800 dark:text-blue-300 border border-blue-300 dark:border-blue-800 rounded-xl text-xs font-extrabold shadow-2xs transition-all cursor-pointer"
+                    title={item.template_file_name || item.label}
+                  >
+                    <Download size={13} className="text-blue-600 dark:text-blue-400 shrink-0" />
+                    <span className="truncate max-w-[220px]">{item.template_file_name || item.label}</span>
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
 
           <p className="text-xs text-slate-500 font-semibold leading-relaxed">
             Attach your signed endorsement letter or authorization document below:

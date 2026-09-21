@@ -654,6 +654,7 @@ export default function VenueBooking({ isPortal: isPortalProp }) {
             setEndorsementFile={setEndorsementFile}
             avrEquipment={avrEquipment}
             equipmentCatalog={equipmentCatalog}
+            classification={classification}
             onBack={() => setActiveStep(3)}
           />
         )}

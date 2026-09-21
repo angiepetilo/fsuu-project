@@ -6,12 +6,11 @@ import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 import api from "@/lib/axios";
 import { formatTimeRange12 } from "@/lib/dateUtils";
 import StaffAnalyticsDashboard from "./dashboard/StaffAnalyticsDashboard";
-import StudentAssistantDashboard from "./dashboard/StudentAssistantDashboard";
 
 export default function Dashboard() {
   const context = useOutletContext();
   const location = useLocation();
-  const { user, isSuperAdmin, isStudentAssistant, isStaff, hasPermission } = usePermissions();
+  const { user, isSuperAdmin, hasPermission } = usePermissions();
 
   const isSysadRoute = location.pathname.startsWith("/sysad");
 
@@ -42,199 +41,113 @@ export default function Dashboard() {
   const [topLateDepartment, setTopLateDepartment] = useState("None");
   const [violatingStudents, setViolatingStudents] = useState([]);
 
-  // Active Venue Bookings across ALL Venues for Calendar & Staff Tasks
-  const [calendarBookings, setCalendarBookings] = useState([]);
-  const [staffTasks, setStaffTasks] = useState([]);
-  const [staffTaskFilter, setStaffTaskFilter] = useState("all"); // "all" | "venue" | "equipment"
+  // Active Venue Bookings & Equipment Borrowings for Today's Scheduled Reservations
+  const [venueBookings, setVenueBookings] = useState([]);
+  const [equipBorrowings, setEquipBorrowings] = useState([]);
 
-  // Side Calendar State
-  const today = new Date();
-  const initialMonth = (today.getFullYear() === 2026 && today.getMonth() === 6) ? 7 : today.getMonth();
-  const [calYear, setCalYear] = useState(today.getFullYear());
-  const [calMonth, setCalMonth] = useState(initialMonth);
+  // Granular Section Permissions Calculation
+  const hasSpecificSubPermission = useMemo(() => {
+    return [
+      "dashboard.quick_venue",
+      "dashboard.quick_equipment",
+      "dashboard.metrics",
+      "dashboard.analytics",
+      "dashboard.inventory_status",
+      "dashboard.inventory_changes",
+      "dashboard.late_returns",
+      "dashboard.today_reservations",
+    ].some((p) => hasPermission(p));
+  }, [hasPermission]);
 
-  const prevMonth = useCallback(() => {
-    setCalMonth(m => {
-      if (m === 0) { setCalYear(y => y - 1); return 11; }
-      return m - 1;
-    });
-  }, []);
-
-  const nextMonth = useCallback(() => {
-    setCalMonth(m => {
-      if (m === 11) { setCalYear(y => y + 1); return 0; }
-      return m + 1;
-    });
-  }, []);
-
-  const monthLabel = new Date(calYear, calMonth).toLocaleString("default", { month: "short", year: "numeric" });
-  const firstDayOfWeek = new Date(calYear, calMonth, 1).getDay();
-  const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
-  const pad = (n) => String(n).padStart(2, "0");
+  const canQuickVenue = isSuperAdmin || hasPermission("dashboard.quick_venue") || (!hasSpecificSubPermission && hasPermission("dashboard"));
+  const canQuickEquipment = isSuperAdmin || hasPermission("dashboard.quick_equipment") || (!hasSpecificSubPermission && hasPermission("dashboard"));
+  const canMetrics = isSuperAdmin || hasPermission("dashboard.metrics") || (!hasSpecificSubPermission && hasPermission("dashboard"));
+  const canAnalytics = isSuperAdmin || hasPermission("dashboard.analytics") || (!hasSpecificSubPermission && hasPermission("dashboard"));
+  const canInventoryStatus = isSuperAdmin || hasPermission("dashboard.inventory_status") || (!hasSpecificSubPermission && hasPermission("dashboard"));
+  const canInventoryChanges = isSuperAdmin || hasPermission("dashboard.inventory_changes") || (!hasSpecificSubPermission && hasPermission("dashboard"));
+  const canLateReturns = isSuperAdmin || hasPermission("dashboard.late_returns") || (!hasSpecificSubPermission && hasPermission("dashboard"));
+  const canTodayReservations = isSuperAdmin || hasPermission("dashboard.today_reservations") || (!hasSpecificSubPermission && hasPermission("dashboard"));
 
   const fetchData = useCallback(async (showLoading = true) => {
-    if (isStudentAssistant) return;
     if (showLoading && !cachedData) setLoading(true);
     setError(null);
     try {
-      const res = await api.get(`/dashboard/stats?_t=${Date.now()}`);
-      const statsData = res.data;
+      const [statsRes, vRes, eRes] = await Promise.allSettled([
+        api.get(`/dashboard/stats?_t=${Date.now()}`),
+        api.get(`/avr-venue-bookings?_t=${Date.now()}`),
+        api.get(`/avr-equipment-borrowings?_t=${Date.now()}`),
+      ]);
 
-      if (!statsData) {
-        setLoading(false);
-        return;
+      if (statsRes.status === "fulfilled" && statsRes.value.data) {
+        const statsData = statsRes.value.data;
+        const q = statsData.quick_stats || {};
+        setTotalVenueBookings(q.total_venue_bookings || 0);
+        setTotalEquipBorrows(q.total_equip_borrows || 0);
+        setPendingApproval(q.pending_approval !== undefined ? q.pending_approval : ((q.pending_bookings || 0) + (q.pending_borrowings || 0)));
+        setPendingEquipBorrowings(q.pending_borrowings || 0);
+        setTotalDamaged(q.total_equipment_damages || q.damage_reports || 0);
+        setTotalLost(q.total_equipment_lost || 0);
+        setTopLateDepartment(q.top_late_department || "None");
+
+        const rawDepts = statsData.top_departments || [];
+        const totalAllBookings = rawDepts.reduce((sum, d) => sum + (d.bookings || d.count || 0), 0) || 1;
+        const finalDepts = rawDepts.map(d => ({
+          name: d.name || d.program || "Department",
+          count: d.bookings || d.count || 0,
+          pct: Math.round(((d.bookings || d.count || 0) / totalAllBookings) * 100)
+        }));
+        setTopBookedDepartments(finalDepts);
+        setMostUsedEquipment(statsData.top_equipment || []);
+
+        const rawViolations = (statsData.programs_with_violations || []).map(p => ({
+          dept: p.program || p.dept || "Academic Dept",
+          count: (p.violations || 0) + (p.late || 0) || p.count || 0,
+          late: p.late || 0,
+          violations: p.violations || 0,
+        }));
+        setTopViolatingDepartments(rawViolations);
+        setViolatingStudents(statsData.violating_students || []);
+        setEquipmentInventory(statsData.equipment_inventory || { total_active: 0, available: 0, damaged: 0, lost: 0, released: 0, disabled: 0 });
+        setRecentInventoryChanges(statsData.recent_inventory_changes || []);
+
+        try {
+          localStorage.setItem("fsuu_cache_admin_dashboard", JSON.stringify({
+            totalVenueBookings: q.total_venue_bookings || 0,
+            pendingApproval: q.pending_approval !== undefined ? q.pending_approval : ((q.pending_bookings || 0) + (q.pending_borrowings || 0)),
+            pendingEquipBorrowings: q.pending_borrowings || 0,
+            totalEquipBorrows: q.total_equip_borrows || 0,
+            totalDamaged: q.total_equipment_damages || q.damage_reports || 0,
+            totalLost: q.total_equipment_lost || 0,
+            equipmentInventory: statsData.equipment_inventory || {},
+            topBookedDepartments: finalDepts,
+            topViolatingDepartments: rawViolations,
+          }));
+        } catch {}
       }
 
-      const q = statsData.quick_stats || {};
-      setTotalVenueBookings(q.total_venue_bookings || 0);
-      setTotalEquipBorrows(q.total_equip_borrows || 0);
-      setPendingApproval(q.pending_approval !== undefined ? q.pending_approval : ((q.pending_bookings || 0) + (q.pending_borrowings || 0)));
-      setPendingEquipBorrowings(q.pending_borrowings || 0);
-      setTotalDamaged(q.total_equipment_damages || q.damage_reports || 0);
-      setTotalLost(q.total_equipment_lost || 0);
-      setTopLateDepartment(q.top_late_department || "None");
+      if (vRes.status === "fulfilled") {
+        const vData = vRes.value.data?.data ?? (Array.isArray(vRes.value.data) ? vRes.value.data : []);
+        setVenueBookings(vData);
+      }
 
-      // Top Departments
-      const rawDepts = statsData.top_departments || [];
-      const totalAllBookings = rawDepts.reduce((sum, d) => sum + (d.bookings || d.count || 0), 0) || 1;
-      const finalDepts = rawDepts.map(d => ({
-        name: d.name || d.program || "Department",
-        count: d.bookings || d.count || 0,
-        pct: Math.round(((d.bookings || d.count || 0) / totalAllBookings) * 100)
-      }));
-      setTopBookedDepartments(finalDepts);
-
-      // Top Equipment
-      setMostUsedEquipment(statsData.top_equipment || []);
-
-      // Top Violations
-      const rawViolations = (statsData.programs_with_violations || []).map(p => ({
-        dept: p.program || p.dept || "Academic Dept",
-        count: (p.violations || 0) + (p.late || 0) || p.count || 0,
-        late: p.late || 0,
-        violations: p.violations || 0,
-      }));
-      setTopViolatingDepartments(rawViolations);
-
-      // Violating Students
-      setViolatingStudents(statsData.violating_students || []);
-
-      // Equipment Inventory Breakdown
-      setEquipmentInventory(statsData.equipment_inventory || { total_active: 0, available: 0, damaged: 0, lost: 0, released: 0, disabled: 0 });
-
-      // Recent Inventory Changes
-      setRecentInventoryChanges(statsData.recent_inventory_changes || []);
-
-      // Calendar & Staff Tasks
-      const calBookings = statsData.calendar_bookings || [];
-      setCalendarBookings(calBookings);
-
-      const tasks = [];
-      calBookings.forEach((b, idx) => {
-        const s = (b.status || "").toLowerCase();
-        const ref = b.reference_code || `TRK-${b.id}`;
-        const filer = b.filer_name || "FSUU Filer";
-        const isEquipment = b.venue_name === "Equipment Loan" || !b.venue_name || b.venue_name.toLowerCase().includes("equipment");
-        const vName = isEquipment ? (b.purpose || "Equipment Borrowing") : (b.venue_name || "AVR Facility");
-        const tRange = formatTimeRange12(b.time_start || b.start_time, b.time_end || b.end_time);
-
-        if (s === "pending") {
-          tasks.push({
-            id: `task-${b.id || idx}`,
-            type: isEquipment ? "equipment" : "venue",
-            tracking_no: ref,
-            borrower: filer,
-            equipment: vName,
-            time: tRange,
-            task: isEquipment ? "Review Equipment Borrowing" : "Verify Venue Reservation",
-            action_label: "Review",
-            link: isEquipment 
-              ? (isSysadRoute ? "/sysad/equipment-borrowing" : "/general/equipment-borrowing")
-              : (isSysadRoute ? "/sysad/venue-bookings" : "/general/venue-bookings"),
-          });
-        } else if (s === "ongoing" || s === "on-going" || s === "approved") {
-          tasks.push({
-            id: `task-${b.id || idx}`,
-            type: isEquipment ? "equipment" : "venue",
-            tracking_no: ref,
-            borrower: filer,
-            equipment: vName,
-            time: tRange,
-            task: isEquipment
-              ? (s === "approved" ? "Release Equipment" : "Check In Returned Equipment")
-              : (s === "approved" ? "Pre-Event Inspection" : "Inspect Returned Venue"),
-            action_label: isEquipment ? (s === "approved" ? "Release" : "Receive") : "Inspect",
-            link: isEquipment 
-              ? (isSysadRoute ? "/sysad/equipment-borrowing" : "/general/equipment-borrowing")
-              : (isSysadRoute ? "/sysad/venue-bookings" : "/general/venue-bookings"),
-          });
-        }
-      });
-      setStaffTasks(tasks);
-
-      try {
-        localStorage.setItem("fsuu_cache_admin_dashboard", JSON.stringify({
-          totalVenueBookings: q.total_venue_bookings || 0,
-          pendingApproval: q.pending_approval !== undefined ? q.pending_approval : ((q.pending_bookings || 0) + (q.pending_borrowings || 0)),
-          pendingEquipBorrowings: q.pending_borrowings || 0,
-          totalEquipBorrows: q.total_equip_borrows || 0,
-          totalDamaged: q.total_equipment_damages || q.damage_reports || 0,
-          totalLost: q.total_equipment_lost || 0,
-          equipmentInventory: statsData.equipment_inventory || {},
-          topBookedDepartments: finalDepts,
-          topViolatingDepartments: rawViolations,
-        }));
-      } catch {}
+      if (eRes.status === "fulfilled") {
+        const eData = eRes.value.data?.data ?? (Array.isArray(eRes.value.data) ? eRes.value.data : []);
+        setEquipBorrowings(eData);
+      }
 
     } catch {
       setError("Unable to sync dashboard data.");
     } finally {
       setLoading(false);
     }
-  }, [cachedData, isSysadRoute]);
+  }, [cachedData]);
 
   useRealtimeSync(fetchData, { interval: 30000 });
-
-  // Pre-index calendar bookings by day of current month for O(1) cell lookup
-  const calendarDayMap = useMemo(() => {
-    const map = {};
-    const curMonthPrefix = `${calYear}-${pad(calMonth + 1)}`;
-    calendarBookings.forEach(b => {
-      const startD = (b.date_of_usage || b.date_of_use || b.date || "").substring(0, 10);
-      const endD = (b.reservation_end_date || b.date_of_usage_end || b.end_date || startD).substring(0, 10);
-      if (!startD) return;
-      for (let d = 1; d <= daysInMonth; d++) {
-        const dateStr = `${curMonthPrefix}-${pad(d)}`;
-        if (dateStr >= startD && dateStr <= endD) {
-          if (!map[d]) map[d] = [];
-          map[d].push(b);
-        }
-      }
-    });
-    return map;
-  }, [calendarBookings, calYear, calMonth, daysInMonth]);
-
-  // Calendar Day Details helper
-  const getDayDetails = useCallback((day) => {
-    const bookedOnDate = calendarDayMap[day] || [];
-    const isBooked = bookedOnDate.length > 0;
-    const isPending = bookedOnDate.some(b => (b.status || "").toLowerCase() === "pending");
-    const isOngoing = bookedOnDate.some(b => ["ongoing", "on-going", "approved"].includes((b.status || "").toLowerCase()));
-    const isCompleted = bookedOnDate.some(b => ["completed", "late return", "returned late", "damaged", "lost"].includes((b.status || "").toLowerCase()));
-
-    return {
-      isBooked,
-      isPending,
-      isOngoing,
-      isCompleted,
-      bookings: bookedOnDate,
-    };
-  }, [calendarDayMap]);
 
   const handleRefresh = useCallback(() => fetchData(true), [fetchData]);
 
   // Guard: User must have dashboard permission
-  if (!isSuperAdmin && !hasPermission("dashboard")) {
+  if (!isSuperAdmin && !hasPermission("dashboard") && !hasSpecificSubPermission) {
     return (
       <div className="p-8 max-w-md mx-auto text-center space-y-3 mt-12 bg-card rounded-3xl border border-border shadow-xs">
         <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center mx-auto">
@@ -248,19 +161,23 @@ export default function Dashboard() {
     );
   }
 
-  // Student Assistant Shift Dashboard (Quick buttons for 3 user types + Today's Reservations filter)
-  if (isStudentAssistant) {
-    return <StudentAssistantDashboard />;
-  }
-
-  // Staff & Super Admin Executive Analytics Dashboard
+  // Unified Dashboard for All Roles (widgets dynamically toggled via permissions)
   return (
     <StaffAnalyticsDashboard
       loading={loading}
       error={error}
       onRefresh={handleRefresh}
+      canQuickVenue={canQuickVenue}
+      canQuickEquipment={canQuickEquipment}
+      canMetrics={canMetrics}
+      canAnalytics={canAnalytics}
+      canInventoryStatus={canInventoryStatus}
+      canInventoryChanges={canInventoryChanges}
+      canLateReturns={canLateReturns}
+      canTodayReservations={canTodayReservations}
       totalVenueBookings={totalVenueBookings}
       pendingApproval={pendingApproval}
+      postInspectionPending={0}
       totalEquipBorrows={totalEquipBorrows}
       totalDamaged={totalDamaged}
       totalLost={totalLost}
@@ -271,16 +188,9 @@ export default function Dashboard() {
       topViolatingDepartments={topViolatingDepartments}
       topLateDepartment={topLateDepartment}
       violatingStudents={violatingStudents}
-      monthLabel={monthLabel}
-      prevMonth={prevMonth}
-      nextMonth={nextMonth}
-      firstDayOfWeek={firstDayOfWeek}
-      daysInMonth={daysInMonth}
-      getDayDetails={getDayDetails}
-      calMonth={calMonth}
-      setCalMonth={setCalMonth}
-      calYear={calYear}
-      setCalYear={setCalYear}
+      venueBookings={venueBookings}
+      equipBorrowings={equipBorrowings}
+      isSysadRoute={isSysadRoute}
     />
   );
 }

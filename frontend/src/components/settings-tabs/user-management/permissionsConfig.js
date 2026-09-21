@@ -5,9 +5,16 @@ export const PERMISSION_MODULES = [
   {
     key: "dashboard",
     label: "Dashboard",
-    desc: "View overview counters and real-time statistics",
+    desc: "Operational shortcuts, overview counters, department analytics, and reservation schedules",
     actions: [
-      { key: "view", label: "View Dashboard" },
+      { key: "quick_venue",        label: "Quick Action: Venue Booking" },
+      { key: "quick_equipment",    label: "Quick Action: Equipment Borrowing" },
+      { key: "metrics",            label: "Overview Counters" },
+      { key: "analytics",          label: "Department & Equipment Analytics" },
+      { key: "inventory_status",   label: "Equipment Inventory Status" },
+      { key: "inventory_changes",  label: "Recent Inventory Changes" },
+      { key: "late_returns",       label: "Borrowers With Late Returns" },
+      { key: "today_reservations", label: "Today's Scheduled Reservations" },
     ],
   },
   {
@@ -75,7 +82,6 @@ export const PERMISSION_MODULES = [
       { key: "inventory",         label: "Equipment Stock & Availability" },
       { key: "equipment_out",     label: "Equipment Out" },
       { key: "export_pdf",        label: "Export PDF / Print" },
-      { key: "send_email",        label: "Send Email Report" },
     ],
   },
   {
@@ -93,12 +99,14 @@ export const PERMISSION_MODULES = [
     label: "Settings",
     desc: "Access individual administrative configuration tabs",
     actions: [
+      { key: "account",            label: "Account" },
       { key: "equipment",          label: "Equipment Category" },
       { key: "venues",             label: "Venue Creation" },
       { key: "fee_matrix",         label: "Fee Matrix" },
       { key: "departments",        label: "Departments" },
       { key: "operating_hours",    label: "Operating Hours" },
       { key: "academic_terms",     label: "Academic Terms" },
+      { key: "brands",             label: "Brands" },
       { key: "pin",                label: "Verification PIN" },
       { key: "communication_logs", label: "Communications Log" },
       { key: "system_settings",    label: "System Settings" },
@@ -116,6 +124,16 @@ export const ALL_ACTION_KEYS = PERMISSION_MODULES.flatMap(m =>
 export function expandPermissions(rawPerms = []) {
   const expanded = new Set();
   for (const p of rawPerms) {
+    // Ignore obsolete/removed permission keys
+    if (p === "dashboard.view" || p === "reports.send_email") {
+      continue;
+    }
+    // Backward compatibility: map legacy account permission format to settings.account
+    if (p === "account" || p === "account.profile" || p === "settings.profile") {
+      expanded.add("settings.account");
+      continue;
+    }
+
     const mod = PERMISSION_MODULES.find(m => m.key === p);
     if (mod) {
       mod.actions.forEach(a => expanded.add(`${mod.key}.${a.key}`));

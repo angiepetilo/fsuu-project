@@ -11,7 +11,11 @@ import {
   Info,
   Layers,
   ArrowRight,
-  Tag
+  Tag,
+  ChevronDown,
+  ChevronUp,
+  HelpCircle,
+  Check
 } from "lucide-react";
 import api from "@/lib/axios";
 
@@ -24,6 +28,7 @@ export default function EquipmentImportModal({
   const [isDragging, setIsDragging] = useState(false);
   const [autoCreateCategory, setAutoCreateCategory] = useState(true);
   const [duplicateAction, setDuplicateAction] = useState("skip");
+  const [showGuidelines, setShowGuidelines] = useState(false);
   
   const [previewRows, setPreviewRows] = useState([]);
   const [totalRowsCount, setTotalRowsCount] = useState(0);
@@ -127,8 +132,10 @@ export default function EquipmentImportModal({
         "Projector,Epson,PowerLite 1780W,PRJ-EPS-001,2025-06-15,5,Good,available,AVR Storage Cabinet 1\n" +
         "Projector,Epson,PowerLite 1780W,PRJ-EPS-002,2025-06-15,5,Good,available,AVR Storage Cabinet 1\n" +
         "Sound System,Yamaha,StagePas 400BT,SND-YAM-001,2025-08-20,5,Good,available,Audio Rack System A\n" +
-        "Camera,Sony,Alpha A7 IV,CAM-SNY-001,2026-01-10,4,Good,available,Media Production Bag #1\n" +
-        "Microphone,Shure,SM58 Wireless,MIC-SHU-001,2025-11-05,3,Good,available,Wireless Mic Set Alpha\n";
+        "Camera,Sony,Alpha A7 IV,CAM-SNY-001,2026-01-10,4,Minor Wear,available,Media Production Bag #1\n" +
+        "Microphone,Shure,SM58 Wireless,MIC-SHU-001,2025-11-05,3,Good,available,Wireless Mic Set Alpha\n" +
+        "HDMI Cable,Belkin,Ultra High Speed 4K 2m,,2026-02-01,3,Good,available,AV Cabinet - Cable Box B (Auto Barcode)\n" +
+        "Amplifier,Pioneer,A-10AE,AMP-PIO-001,2025-03-10,5,Under Repair,unavailable,Maintenance Bench - Channel 2 Check\n";
 
       const blob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8;" });
       const url = URL.createObjectURL(blob);
@@ -334,25 +341,109 @@ export default function EquipmentImportModal({
             <form onSubmit={handleImportSubmit} className="space-y-6">
 
               {/* Step 1: Template Download Banner */}
-              <div className="p-4 bg-gradient-to-r from-blue-50/80 to-indigo-50/60 dark:from-blue-950/30 dark:to-indigo-950/30 border border-blue-200/80 dark:border-blue-900/60 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-2xs">
-                <div className="space-y-0.5">
-                  <div className="flex items-center gap-1.5 text-xs font-extrabold text-blue-900 dark:text-blue-200">
-                    <Info size={14} className="text-blue-600 dark:text-blue-400 shrink-0" />
-                    <span>Step 1: Download Standard Template</span>
+              <div className="space-y-2">
+                <div className="p-4 bg-gradient-to-r from-blue-50/80 to-indigo-50/60 dark:from-blue-950/30 dark:to-indigo-950/30 border border-blue-200/80 dark:border-blue-900/60 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-2xs">
+                  <div className="space-y-0.5">
+                    <div className="flex items-center gap-1.5 text-xs font-extrabold text-blue-900 dark:text-blue-200">
+                      <Info size={14} className="text-blue-600 dark:text-blue-400 shrink-0" />
+                      <span>Step 1: Download Standard Template</span>
+                    </div>
+                    <p className="text-[11px] text-blue-800/80 dark:text-blue-300/80 leading-relaxed max-w-md">
+                      Pre-filled with correct column headers (Category, Brand, Model, Barcode, Date Purchased, Lifespan, Condition, Status, Description).
+                    </p>
                   </div>
-                  <p className="text-[11px] text-blue-800/80 dark:text-blue-300/80 leading-relaxed max-w-md">
-                    Pre-filled with correct column headers (Category, Brand, Model, Barcode, Date Purchased, Lifespan, Condition).
-                  </p>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setShowGuidelines(!showGuidelines)}
+                      className="px-3 py-2 bg-white/80 dark:bg-slate-800/80 hover:bg-white dark:hover:bg-slate-700 border border-blue-200 dark:border-blue-800 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs"
+                    >
+                      <HelpCircle size={13} className="text-blue-600 dark:text-blue-400" />
+                      <span>Field Guide</span>
+                      {showGuidelines ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleDownloadTemplate}
+                      className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-extrabold shadow-md shadow-blue-600/20 flex items-center gap-1.5 transition-all cursor-pointer"
+                    >
+                      <Download size={14} />
+                      <span>Download .CSV</span>
+                    </button>
+                  </div>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={handleDownloadTemplate}
-                  className="px-3.5 py-2 bg-white dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-slate-700 border border-blue-300 dark:border-blue-800 rounded-xl text-xs font-extrabold text-blue-700 dark:text-blue-300 shadow-2xs flex items-center gap-1.5 transition-all cursor-pointer shrink-0"
-                >
-                  <Download size={14} />
-                  <span>Download .CSV</span>
-                </button>
+                {/* Collapsible Column Guide */}
+                {showGuidelines && (
+                  <div className="p-4 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-2xl space-y-3 text-xs animate-in fade-in duration-200">
+                    <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-700 pb-2">
+                      <span className="font-extrabold text-slate-900 dark:text-white uppercase tracking-wider text-[11px]">
+                        Required & Optional CSV Columns:
+                      </span>
+                      <span className="text-[11px] text-slate-500 font-medium">Headers are case-insensitive</span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-[11px]">
+                      <div className="p-2.5 bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span className="font-mono font-black text-slate-900 dark:text-white">Category</span>
+                          <span className="text-[10px] font-extrabold text-rose-600 bg-rose-50 dark:bg-rose-950 px-1.5 py-0.2 rounded border border-rose-200 dark:border-rose-900">Required</span>
+                        </div>
+                        <p className="text-slate-500 dark:text-slate-400">Equipment classification (e.g., Projector, Sound System, Camera, Microphone). Can auto-create if missing.</p>
+                      </div>
+
+                      <div className="p-2.5 bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span className="font-mono font-black text-slate-900 dark:text-white">Barcode</span>
+                          <span className="text-[10px] font-extrabold text-blue-600 bg-blue-50 dark:bg-blue-950 px-1.5 py-0.2 rounded border border-blue-200 dark:border-blue-900">Optional</span>
+                        </div>
+                        <p className="text-slate-500 dark:text-slate-400">Unique tracking code. <strong>Leave empty to auto-generate</strong> a unique system barcode (e.g., BC-20260921-XXXX).</p>
+                      </div>
+
+                      <div className="p-2.5 bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span className="font-mono font-black text-slate-900 dark:text-white">Brand & Model</span>
+                          <span className="text-[10px] font-extrabold text-slate-500 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.2 rounded">Optional</span>
+                        </div>
+                        <p className="text-slate-500 dark:text-slate-400">Manufacturer & model designation (e.g., Brand: Epson, Model: PowerLite 1780W). Brands auto-register in brand catalog.</p>
+                      </div>
+
+                      <div className="p-2.5 bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span className="font-mono font-black text-slate-900 dark:text-white">Date Purchased</span>
+                          <span className="text-[10px] font-extrabold text-slate-500 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.2 rounded">Optional</span>
+                        </div>
+                        <p className="text-slate-500 dark:text-slate-400">Date acquired in <code>YYYY-MM-DD</code> format. Defaults to current date if left empty.</p>
+                      </div>
+
+                      <div className="p-2.5 bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span className="font-mono font-black text-slate-900 dark:text-white">Lifespan (Years)</span>
+                          <span className="text-[10px] font-extrabold text-slate-500 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.2 rounded">Optional</span>
+                        </div>
+                        <p className="text-slate-500 dark:text-slate-400">Usable lifespan in years (1 to 50). Defaults to 5 years.</p>
+                      </div>
+
+                      <div className="p-2.5 bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span className="font-mono font-black text-slate-900 dark:text-white">Condition & Status</span>
+                          <span className="text-[10px] font-extrabold text-slate-500 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.2 rounded">Optional</span>
+                        </div>
+                        <p className="text-slate-500 dark:text-slate-400">Condition: <code>Good</code>, <code>Minor Wear</code>, <code>Under Repair</code>, <code>Damaged</code>, <code>Lost</code>. Status: <code>available</code> or <code>unavailable</code>.</p>
+                      </div>
+
+                      <div className="p-2.5 bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 space-y-1 sm:col-span-2">
+                        <div className="flex items-center justify-between">
+                          <span className="font-mono font-black text-slate-900 dark:text-white">Description</span>
+                          <span className="text-[10px] font-extrabold text-slate-500 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.2 rounded">Optional</span>
+                        </div>
+                        <p className="text-slate-500 dark:text-slate-400">Physical storage location, cabinet/shelf designation, accessory inclusions, or maintenance notes.</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Step 2: File Upload Box */}
@@ -448,11 +539,57 @@ export default function EquipmentImportModal({
                         {previewRows.map((row, rIdx) => (
                           <tr key={rIdx} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
                             <td className="px-3 py-1.5 text-slate-400 font-mono">{rIdx + 1}</td>
-                            {row.map((cell, cIdx) => (
-                              <td key={cIdx} className="px-3 py-1.5 whitespace-nowrap max-w-[150px] truncate" title={cell}>
-                                {cell || <span className="text-slate-400 italic">auto-generated</span>}
-                              </td>
-                            ))}
+                            {row.map((cell, cIdx) => {
+                              const headerName = (previewHeaders[cIdx] || "").toLowerCase().trim();
+                              const isBarcodeCol = headerName.includes("barcode") || headerName.includes("code") || headerName.includes("serial");
+                              const isConditionCol = headerName.includes("condition");
+                              const isCategoryCol = headerName.includes("cat");
+
+                              if (isCategoryCol && !cell) {
+                                return (
+                                  <td key={cIdx} className="px-3 py-1.5 whitespace-nowrap">
+                                    <span className="px-1.5 py-0.5 rounded bg-rose-50 text-rose-700 border border-rose-200 font-bold text-[10px]">
+                                      Required Missing
+                                    </span>
+                                  </td>
+                                );
+                              }
+
+                              if (isBarcodeCol && !cell) {
+                                return (
+                                  <td key={cIdx} className="px-3 py-1.5 whitespace-nowrap">
+                                    <span className="px-1.5 py-0.5 rounded bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 font-mono text-[10px] font-bold border border-blue-200 dark:border-blue-800">
+                                      Auto-Barcode
+                                    </span>
+                                  </td>
+                                );
+                              }
+
+                              if (isConditionCol && cell) {
+                                const cLower = cell.toLowerCase();
+                                const condColor = cLower === "good"
+                                  ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300"
+                                  : cLower.includes("wear")
+                                  ? "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300"
+                                  : cLower.includes("repair")
+                                  ? "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-300"
+                                  : "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950 dark:text-rose-300";
+
+                                return (
+                                  <td key={cIdx} className="px-3 py-1.5 whitespace-nowrap">
+                                    <span className={`px-2 py-0.5 rounded text-[10.5px] font-bold border ${condColor}`}>
+                                      {cell}
+                                    </span>
+                                  </td>
+                                );
+                              }
+
+                              return (
+                                <td key={cIdx} className="px-3 py-1.5 whitespace-nowrap max-w-[150px] truncate" title={cell}>
+                                  {cell || <span className="text-slate-400 italic">auto-generated</span>}
+                                </td>
+                              );
+                            })}
                           </tr>
                         ))}
                       </tbody>
