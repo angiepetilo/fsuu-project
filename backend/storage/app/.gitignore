@@ -1,4 +1,5 @@
 *
 !private/
 !public/
+!disposable_domains.txt
 !.gitignore

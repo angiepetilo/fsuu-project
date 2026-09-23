@@ -42,6 +42,7 @@ export default function Step3Details({
   const [emailCheckStatus, setEmailCheckStatus] = useState("idle"); // idle | checking | valid | invalid
   const [emailCheckMessage, setEmailCheckMessage] = useState("");
   const [lastCheckedEmail, setLastCheckedEmail] = useState("");
+  const [emailSuggestion, setEmailSuggestion] = useState("");
 
   const [isOtpRequested, setIsOtpRequested] = useState(false);
   const [isSendingOtp, setIsSendingOtp] = useState(false);
@@ -93,39 +94,50 @@ export default function Step3Details({
   }, [otpExpiresIn, isOtpRequested, isEmailVerified]);
 
   // Non-blocking Email Check Handler
-  const handleEmailBlur = async () => {
-    const trimmed = (email || "").trim().toLowerCase();
+  const handleEmailBlur = async (overrideVal = null) => {
+    const rawVal = typeof overrideVal === "string" ? overrideVal : (email || "");
+    const trimmed = rawVal.trim().toLowerCase();
     if (!trimmed) {
       setEmailCheckStatus("idle");
       setEmailCheckMessage("");
+      setEmailSuggestion("");
       return;
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
       setEmailCheckStatus("invalid");
-      setEmailCheckMessage("Please enter a valid email format.");
+      setEmailCheckMessage("Please enter a valid email format (e.g. name@example.com).");
+      setEmailSuggestion("");
       return;
     }
-    if (trimmed === lastCheckedEmail && emailCheckStatus !== "idle") {
+    if (typeof overrideVal !== "string" && trimmed === lastCheckedEmail && emailCheckStatus !== "idle") {
       return;
     }
 
     setEmailCheckStatus("checking");
-    setEmailCheckMessage("Checking email domain deliverability...");
+    setEmailCheckMessage("Checking email deliverability & temporary domain list...");
+    setEmailSuggestion("");
     try {
       const res = await api.post("/public/verify-email-active", { email: trimmed });
       if (res.data?.valid) {
         setEmailCheckStatus("valid");
-        setEmailCheckMessage(res.data.message || "Email domain is active and deliverable.");
+        setEmailCheckMessage(res.data.message || "Email address is active and deliverable.");
+        setEmailSuggestion("");
         setLastCheckedEmail(trimmed);
       } else {
         setEmailCheckStatus("invalid");
-        setEmailCheckMessage(res.data?.message || "This email domain doesn't appear able to receive mail.");
+        setEmailCheckMessage(res.data?.message || "This email address is not deliverable or has been flagged.");
+        if (res.data?.autocorrect) {
+          setEmailSuggestion(res.data.autocorrect);
+        }
       }
     } catch (err) {
       setEmailCheckStatus("invalid");
       setEmailCheckMessage(
-        err.response?.data?.message || "The email domain could not be verified. Disposable or temporary email addresses are not accepted."
+        err.response?.data?.message || "Disposable, temporary, or invalid email addresses are not accepted."
       );
+      if (err.response?.data?.autocorrect) {
+        setEmailSuggestion(err.response.data.autocorrect);
+      }
     }
   };
 
@@ -143,6 +155,7 @@ export default function Step3Details({
     }
     setDuplicateRef(null);
     setOtpError("");
+    setEmailSuggestion("");
     setEmailCheckStatus("idle");
     setEmailCheckMessage("");
   };
@@ -173,11 +186,56 @@ export default function Step3Details({
         payload.phone_number = contactNumber;
       } else {
         const trimmed = (email || "").trim().toLowerCase();
-        if (!trimmed || emailCheckStatus !== "valid") {
-          setOtpError("Please enter an active email address and complete domain check.");
+        if (!trimmed) {
+          setEmailCheckStatus("invalid");
+          setEmailCheckMessage("Please enter your email address first.");
+          setOtpError("");
           setIsSendingOtp(false);
           return;
         }
+
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+          setEmailCheckStatus("invalid");
+          setEmailCheckMessage("Please enter a valid email format (e.g. name@example.com).");
+          setOtpError("");
+          setIsSendingOtp(false);
+          return;
+        }
+
+        // If email deliverability hasn't been verified yet or was flagged, verify now on click!
+        if (emailCheckStatus !== "valid" || trimmed !== lastCheckedEmail) {
+          setEmailCheckStatus("checking");
+          setEmailCheckMessage("Checking email deliverability & temporary domain list...");
+          try {
+            const verifyRes = await api.post("/public/verify-email-active", { email: trimmed });
+            if (verifyRes.data?.valid) {
+              setEmailCheckStatus("valid");
+              setEmailCheckMessage(verifyRes.data.message || "Email address is active and deliverable.");
+              setLastCheckedEmail(trimmed);
+            } else {
+              setEmailCheckStatus("invalid");
+              const errorMsg = verifyRes.data?.message || "This email address is randomized, temporary, or invalid.";
+              setEmailCheckMessage(errorMsg);
+              setOtpError("");
+              if (verifyRes.data?.autocorrect) {
+                setEmailSuggestion(verifyRes.data.autocorrect);
+              }
+              setIsSendingOtp(false);
+              return;
+            }
+          } catch (checkErr) {
+            setEmailCheckStatus("invalid");
+            const errorMsg = checkErr.response?.data?.message || "Disposable, temporary, or randomized email addresses are not accepted. Please provide a real email.";
+            setEmailCheckMessage(errorMsg);
+            setOtpError("");
+            if (checkErr.response?.data?.autocorrect) {
+              setEmailSuggestion(checkErr.response.data.autocorrect);
+            }
+            setIsSendingOtp(false);
+            return;
+          }
+        }
+
         payload.email = trimmed;
       }
 
@@ -542,12 +600,12 @@ export default function Step3Details({
                   <Button
                     type="button"
                     size="sm"
-                    disabled={emailCheckStatus !== "valid" || isSendingOtp}
+                    disabled={isSendingOtp}
                     onClick={() => handleRequestOtp("email")}
                     className={`h-8 px-3 rounded-lg text-xs font-black shadow-xs transition-all cursor-pointer ${
-                      emailCheckStatus === "valid"
-                        ? "bg-blue-600 hover:bg-blue-700 text-white shadow-blue-600/20"
-                        : "bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed shadow-none"
+                      !email || !email.trim()
+                        ? "bg-slate-100 text-slate-400 border border-slate-200"
+                        : "bg-blue-600 hover:bg-blue-700 text-white shadow-blue-600/20 active:scale-95"
                     }`}
                   >
                     {isSendingOtp ? (
@@ -566,37 +624,57 @@ export default function Step3Details({
             )}
           </div>
 
-          {/* Inline Domain Feedback */}
+          {/* Inline Domain & Deliverability Feedback below placeholder */}
           {requireVerification && otpChannel === "email" && !isEmailVerified && (
-            <div className="min-h-[18px]">
+            <div className="min-h-[20px] space-y-1 mt-0.5">
               {emailCheckStatus === "checking" && (
-                <p className="text-[11px] text-blue-600 font-medium flex items-center gap-1 animate-pulse">
-                  <Loader2 size={11} className="animate-spin shrink-0" />
-                  <span>Checking email deliverability...</span>
-                </p>
+                <div className="flex items-center gap-1.5 text-[11px] text-blue-600 font-medium animate-pulse py-0.5">
+                  <Loader2 size={12} className="animate-spin shrink-0 text-blue-600" />
+                  <span>Checking mailbox deliverability & 75k+ temporary email blacklist...</span>
+                </div>
               )}
               {emailCheckStatus === "valid" && !isOtpRequested && (
-                <p className="text-[11px] text-emerald-600 font-semibold flex items-center gap-1">
-                  <CheckCircle2 size={12} className="shrink-0" />
-                  <span>{emailCheckMessage || "Email domain is deliverable. Click 'Verify' to receive OTP code."}</span>
-                </p>
+                <div className="flex items-center gap-1.5 text-[11px] text-emerald-700 font-semibold bg-emerald-50 border border-emerald-200/80 px-2.5 py-1 rounded-lg">
+                  <CheckCircle2 size={13} className="shrink-0 text-emerald-600" />
+                  <span>{emailCheckMessage || "Email address is deliverable. Click 'Verify' to receive OTP code."}</span>
+                </div>
               )}
               {emailCheckStatus === "invalid" && (
-                <p className="text-[11px] text-rose-600 font-semibold flex items-start gap-1">
-                  <AlertCircle size={12} className="shrink-0 mt-0.5" />
-                  <span>{emailCheckMessage}</span>
-                </p>
+                <div className="flex flex-col gap-1.5 pt-0.5">
+                  <div className="flex items-start gap-1.5 text-[11px] text-rose-700 font-semibold bg-rose-50 border border-rose-200 px-2.5 py-1.5 rounded-lg shadow-2xs">
+                    <AlertCircle size={14} className="shrink-0 text-rose-600 mt-0.5" />
+                    <span className="leading-tight">{emailCheckMessage}</span>
+                  </div>
+                  {emailSuggestion && (
+                    <div className="flex items-center gap-1.5 text-[11px] text-amber-900 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-lg">
+                      <span>Did you mean</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const sug = emailSuggestion;
+                          setEmail(sug);
+                          setEmailSuggestion("");
+                          handleEmailBlur(sug);
+                        }}
+                        className="font-bold underline text-blue-700 hover:text-blue-900 cursor-pointer"
+                      >
+                        {emailSuggestion}
+                      </button>
+                      <span className="text-slate-500 font-normal">? (Click to apply)</span>
+                    </div>
+                  )}
+                </div>
               )}
               {emailCheckStatus === "idle" && !email && (
                 <p className="text-[10.5px] text-slate-400">
-                  Enter your email address and click outside the box to run domain check.
+                  Enter your email address and click outside the box to run deliverability check.
                 </p>
               )}
             </div>
           )}
 
           {/* Duplicate / OTP Error Alert Banner */}
-          {requireVerification && otpChannel === "email" && otpError && !isOtpRequested && (
+          {requireVerification && otpChannel === "email" && otpError && !isOtpRequested && otpError !== emailCheckMessage && (
             <div className="mt-2.5 p-3.5 bg-rose-50 border-2 border-rose-300 rounded-2xl text-xs font-bold text-rose-800 flex items-start gap-2.5 shadow-sm animate-in fade-in">
               <AlertCircle size={16} className="text-rose-600 shrink-0 mt-0.5" />
               <div className="flex-1 space-y-1">

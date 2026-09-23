@@ -54,4 +54,10 @@ return [
         'sender_name' => env('IPROG_SMS_SENDER_NAME'),
     ],
 
+    'abstract' => [
+        'email_validation_key' => env('ABSTRACT_EMAIL_API_KEY'),
+        'api_url'              => env('ABSTRACT_EMAIL_API_URL', 'https://emailvalidation.abstractapi.com/v1/'),
+    ],
+
 ];
+

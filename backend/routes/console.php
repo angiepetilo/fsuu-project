@@ -14,3 +14,5 @@ Artisan::command('bookings:auto-release-no-shows {--grace=15}', function () {
     $this->info("Cancelled " . count($result['venue_bookings']) . " venue bookings and " . count($result['equipment_borrows']) . " equipment borrows.");
 })->purpose('Auto-release unclaimed reservations past grace period and restock equipment');
 
+\Illuminate\Support\Facades\Schedule::command('email:update-disposable-domains')->weekly();
+
