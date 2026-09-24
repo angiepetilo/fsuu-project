@@ -1,23 +1,6 @@
 /**
- * Philippine Mobile Phone Number Validation & Telco Detection Utility
+ * Philippine Mobile Phone Number Validation & Formatting Utility
  */
-
-export const PH_TELCO_PREFIXES = {
-  Globe: [
-    "0905", "0906", "0915", "0916", "0917", "0926", "0927", "0935", "0936", "0945",
-    "0953", "0954", "0955", "0956", "0965", "0966", "0967", "0975", "0976", "0977",
-    "0978", "0979", "0995", "0996", "0997"
-  ],
-  Smart: [
-    "0907", "0908", "0909", "0910", "0911", "0912", "0914", "0918", "0919", "0920",
-    "0921", "0928", "0929", "0930", "0938", "0939", "0946", "0947", "0948", "0949",
-    "0950", "0951", "0961", "0963", "0968", "0969", "0970", "0971", "0981", "0989",
-    "0992", "0998", "0999"
-  ],
-  DITO: [
-    "0991", "0992", "0993", "0994", "0895", "0896", "0897", "0898"
-  ]
-};
 
 const DUMMY_PATTERNS = [
   "09123456789", "09876543210", "09000000000", "09111111111", "09222222222",
@@ -50,22 +33,15 @@ export function formatPhilippineNumber(raw = "") {
 }
 
 /**
- * Detect Philippine Telecom Network based on 4-digit prefix.
+ * Deprecated: Telco network detection is removed due to Mobile Number Portability (MNP)
+ * and inaccuracy with modern ported prefixes. Kept as stub for backward compatibility.
  */
 export function detectTelcoNetwork(raw = "") {
-  const clean = normalizePhilippineNumber(raw);
-  if (clean.length < 4) return null;
-  const prefix = clean.slice(0, 4);
-
-  if (PH_TELCO_PREFIXES.Globe.includes(prefix)) return "Globe / TM";
-  if (PH_TELCO_PREFIXES.Smart.includes(prefix)) return "Smart / TNT";
-  if (PH_TELCO_PREFIXES.DITO.includes(prefix)) return "DITO";
-
   return null;
 }
 
 /**
- * Comprehensive client-side Philippine mobile validation.
+ * Comprehensive client-side Philippine mobile validation (format & pattern checks without carrier detection).
  */
 export function validatePhilippineMobile(raw = "") {
   const clean = normalizePhilippineNumber(raw);
@@ -107,20 +83,11 @@ export function validatePhilippineMobile(raw = "") {
     };
   }
 
-  const telco = detectTelcoNetwork(clean);
-  if (!telco) {
-    return {
-      isValid: false,
-      telco: null,
-      message: `Prefix '${clean.slice(0, 4)}' is not a recognized Philippine telco carrier.`
-    };
-  }
-
   return {
     isValid: true,
-    telco,
+    telco: null,
     cleanNumber: clean,
     formatted: formatPhilippineNumber(clean),
-    message: `Valid ${telco} mobile number.`
+    message: "Valid Philippine mobile number."
   };
 }

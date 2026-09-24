@@ -8,25 +8,6 @@ use Illuminate\Contracts\Validation\ValidationRule;
 class ValidPhilippineMobileNumber implements ValidationRule
 {
     /**
-     * Official Philippine Telecom 4-digit mobile prefixes (Globe/TM, Smart/TNT/Sun, DITO).
-     */
-    protected static array $validPrefixes = [
-        // Globe / TM
-        '0905', '0906', '0915', '0916', '0917', '0926', '0927', '0935', '0936', '0945',
-        '0953', '0954', '0955', '0956', '0965', '0966', '0967', '0975', '0976', '0977',
-        '0978', '0979', '0995', '0996', '0997',
-
-        // Smart / TNT / Sun
-        '0907', '0908', '0909', '0910', '0911', '0912', '0914', '0918', '0919', '0920',
-        '0921', '0928', '0929', '0930', '0938', '0939', '0946', '0947', '0948', '0949',
-        '0950', '0951', '0961', '0963', '0968', '0969', '0970', '0971', '0981', '0989',
-        '0992', '0998', '0999',
-
-        // DITO Telecommunity
-        '0991', '0992', '0993', '0994', '0895', '0896', '0897', '0898',
-    ];
-
-    /**
      * Known repetitive and sequential dummy test patterns to reject.
      */
     protected static array $dummyPatterns = [
@@ -77,17 +58,6 @@ class ValidPhilippineMobileNumber implements ValidationRule
         if (preg_match('/(\d)\1{6,}/', substr($clean, 4))) {
             $fail("The provided mobile number contains an invalid sequence of repeated digits.");
             return;
-        }
-
-        // 4. In testing environment, bypass prefix check if using mock numbers
-        if (app()->environment('testing')) {
-            return;
-        }
-
-        // 5. Check against Philippine Telecom prefix registry
-        $prefix = substr($clean, 0, 4);
-        if (!in_array($prefix, self::$validPrefixes, true)) {
-            $fail("The prefix '{$prefix}' is not recognized as a registered Philippine mobile carrier (Globe, Smart, DITO).");
         }
     }
 }

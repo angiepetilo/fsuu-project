@@ -4,7 +4,7 @@ import { resolveStorageUrl, openFileInNewTab } from "@/lib/utils";
 import { formatDateRange, formatTime12 } from "@/lib/dateUtils";
 import api from "@/lib/axios";
 import notify from "@/lib/notify";
-import { detectTelcoNetwork, formatPhilippineNumber } from "@/lib/phoneValidation";
+import { formatPhilippineNumber } from "@/lib/phoneValidation";
 
 export default function VenueBookingInfo({
   selected,
@@ -152,15 +152,6 @@ export default function VenueBookingInfo({
             <span className="font-mono text-slate-800 font-bold">
               {formatPhilippineNumber(selected.contact_number || selected.contact_no || selected.phone) || "—"}
             </span>
-            {(() => {
-              const num = selected.contact_number || selected.contact_no || selected.phone;
-              const telco = detectTelcoNetwork(num);
-              return telco ? (
-                <span className="text-[9.5px] font-bold px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">
-                  {telco}
-                </span>
-              ) : null;
-            })()}
           </div>
         </div>
 

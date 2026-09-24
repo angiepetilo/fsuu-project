@@ -653,13 +653,6 @@ export default function Step3Details({
             </label>
             {(() => {
               const info = validatePhilippineMobile(contactNumber);
-              if (info.isValid && info.telco) {
-                return (
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200">
-                    {info.telco}
-                  </span>
-                );
-              }
               if (contactNumber && contactNumber.length >= 4 && !info.isValid) {
                 return (
                   <span className="text-[10px] font-semibold text-amber-600">

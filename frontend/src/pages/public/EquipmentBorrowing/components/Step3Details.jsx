@@ -788,10 +788,6 @@ export default function Step3Details({
                   <Check size={12} className="stroke-[3]" />
                   Verified via SMS
                 </span>
-              ) : phoneInfo.isValid && phoneInfo.telco ? (
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200">
-                  {phoneInfo.telco}
-                </span>
               ) : contactNumber && contactNumber.length >= 4 && !phoneInfo.isValid ? (
                 <span className="text-[10px] font-semibold text-amber-600">
                   {phoneInfo.message}

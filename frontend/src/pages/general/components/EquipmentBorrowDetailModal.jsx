@@ -9,7 +9,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { formatTime12, formatTimeRange12, formatDateTime } from "@/lib/dateUtils";
 import { getOverdueMinutes } from "@/lib/dateTimeUtils";
 import { resolveStorageUrl } from "@/lib/utils";
-import { detectTelcoNetwork, formatPhilippineNumber } from "@/lib/phoneValidation";
+import { formatPhilippineNumber } from "@/lib/phoneValidation";
 import EquipBorrowHeader from "../borrow-modal/EquipBorrowHeader";
 import EquipBorrowInspectionForm from "../borrow-modal/EquipBorrowInspectionForm";
 import EquipBorrowUnitAssignment from "../borrow-modal/EquipBorrowUnitAssignment";
@@ -1003,15 +1003,6 @@ export default function EquipmentBorrowDetailModal({
                     <span className="font-extrabold text-slate-900 font-mono">
                       {formatPhilippineNumber(selected.requestor_contact_number || selected.contact_number || selected.contact_no) || "—"}
                     </span>
-                    {(() => {
-                      const num = selected.requestor_contact_number || selected.contact_number || selected.contact_no;
-                      const telco = detectTelcoNetwork(num);
-                      return telco ? (
-                        <span className="text-[9.5px] font-bold px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">
-                          {telco}
-                        </span>
-                      ) : null;
-                    })()}
                     {(selected.is_phone_verified ?? true) && (
                       <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0" title="Contact phone number verified via SMS OTP">
                         <CheckCircle2 size={11} className="text-emerald-600" />
