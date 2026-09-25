@@ -571,6 +571,23 @@ export default function EquipmentBorrowDetailModal({
     return qtyMap;
   }, [selected, allVenueBookings, allEquipmentBorrows]);
 
+  // Physical units that are bundled as built-in components inside another parent unit
+  const bundledUnitIds = useMemo(() => {
+    const ids = new Set();
+    (physicalUnits || []).forEach((parent) => {
+      let rawList = parent.built_in_units;
+      if (typeof rawList === "string") {
+        try { rawList = JSON.parse(rawList); } catch { rawList = []; }
+      }
+      if (Array.isArray(rawList)) {
+        rawList.forEach((biId) => {
+          if (biId) ids.add(String(biId).trim().toUpperCase());
+        });
+      }
+    });
+    return ids;
+  }, [physicalUnits]);
+
   const getAvailableUnitsForCategory = (catName, eqTypeId) => {
     if (!catName || catName === "NONE") return physicalUnits;
 
@@ -615,6 +632,22 @@ export default function EquipmentBorrowDetailModal({
 
       const uStat = String(unit.status || "available").toLowerCase();
       if (uStat === "damaged" || uStat === "lost" || uStat === "decommissioned" || uStat === "under_maintenance") return false;
+
+      // 4b. Exclude units that are bundled inside another equipment unit (they are not standalone available)
+      const uIdStr = String(unit.id).trim().toUpperCase();
+      const uBarcodeStr = unit.barcode ? String(unit.barcode).trim().toUpperCase() : null;
+      const uSerialStr = unit.serial_number ? String(unit.serial_number).trim().toUpperCase() : null;
+      if (
+        bundledUnitIds.has(uIdStr) ||
+        (uBarcodeStr && bundledUnitIds.has(uBarcodeStr)) ||
+        (uSerialStr && bundledUnitIds.has(uSerialStr))
+      ) {
+        // If it's already assigned to a slot in THIS modal, keep it visible
+        const isCurrentSlotAssignment = Object.values(assignedUnitSelections || {}).some(
+          (v) => String(v).trim().toUpperCase() === uBarcodeStr || String(v).trim().toUpperCase() === uIdStr
+        );
+        if (!isCurrentSlotAssignment) return false;
+      }
 
       const bCode = String(unit.barcode || unit.serial_number || unit.code || unit.id || "").trim().toUpperCase();
       if (bCode && overlappingReservedBarcodes.has(bCode)) {

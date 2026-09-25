@@ -112,10 +112,27 @@ class OtpController extends Controller
 
         // Default: Email OTP Flow
         $request->validate([
-            'email' => ['required', 'string', 'email', 'max:255', new ActiveDeliverableEmail],
+            'email' => [
+                'required',
+                'string',
+                'email',
+                'max:255',
+                function ($attribute, $value, $fail) {
+                    if (!str_ends_with(strtolower(trim((string)$value)), '@urios.edu.ph')) {
+                        $fail('Only official university email addresses ending with @urios.edu.ph are accepted for verification.');
+                    }
+                },
+                new ActiveDeliverableEmail,
+            ],
         ]);
 
         $email = strtolower(trim($request->input('email')));
+
+        if (!str_ends_with($email, '@urios.edu.ph')) {
+            return response()->json([
+                'message' => 'Only official university email addresses ending with @urios.edu.ph are accepted for verification.',
+            ], 422);
+        }
 
         // Upfront Duplicate Reservation Check (prevents duplicate submission & unnecessary OTP sending)
         $venueId = $request->input('venue_id');

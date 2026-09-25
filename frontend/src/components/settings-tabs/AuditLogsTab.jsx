@@ -258,17 +258,6 @@ export default function AuditLogsTab() {
               </button>
             )}
           </div>
-
-          <button
-            type="button"
-            onClick={() => fetchAuditLogs(page, searchTerm)}
-            disabled={loading}
-            className="flex items-center gap-1.5 px-3.5 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition-all cursor-pointer shadow-2xs shrink-0"
-            title="Refresh audit log"
-          >
-            <RefreshCw size={13} className={loading ? "animate-spin text-blue-600" : "text-slate-500"} />
-            <span>Refresh</span>
-          </button>
         </form>
       </div>
 

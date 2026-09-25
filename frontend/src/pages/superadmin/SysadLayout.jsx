@@ -246,7 +246,7 @@ export default function SysadLayout() {
   if (!user) return <Navigate to="/login" replace />;
 
   return (
-    <div className="min-h-screen flex font-sans antialiased relative bg-background text-foreground">
+    <div className="h-screen flex font-sans antialiased relative bg-background text-foreground overflow-hidden">
       {/* ── Inactivity Auto-Logout Warning Modal ── */}
       <SessionTimeoutModal
         isOpen={showIdleWarning}
@@ -411,7 +411,7 @@ export default function SysadLayout() {
       )}
 
       {/* ── Main Content Canvas ── */}
-      <div className={`flex-1 flex flex-col min-h-screen min-w-0 overflow-x-hidden transition-all duration-300 ${sidebarOpen ? "lg:ml-64" : "lg:ml-[68px]"}`}>
+      <div className={`flex-1 flex flex-col h-screen min-w-0 overflow-hidden transition-all duration-300 ${sidebarOpen ? "lg:ml-64" : "lg:ml-[68px]"}`}>
 
         {/* Top Header */}
         <header className="sticky top-0 z-20 border-b border-border bg-card/95 backdrop-blur-xs text-foreground shadow-2xs">
@@ -466,7 +466,7 @@ export default function SysadLayout() {
         </header>
 
         {/* Page Main Canvas */}
-        <main className="flex-1 p-3 sm:p-5 lg:p-8 overflow-auto overflow-x-hidden">
+        <main className="flex-1 p-3 sm:p-5 lg:p-8 overflow-y-auto overflow-x-hidden">
           <Outlet context={{ 
             isSuperAdmin: true, 
             adminOffice: "Main Campus" 

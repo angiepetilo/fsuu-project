@@ -28,6 +28,7 @@ class EquipmentCategoryService
 
         // 1. Grouped physical units statistics
         $unitsStats = [];
+        $bundledCounts = [];
         if (Schema::hasTable('equipment_units')) {
             try {
                 $rawUnits = DB::table('equipment_units')
@@ -52,6 +53,40 @@ class EquipmentCategoryService
                         'damaged'  => (int) $row->physical_damaged,
                         'lost'     => (int) $row->physical_lost,
                     ];
+                }
+
+                // Extract all units bundled as built-in inside any parent unit
+                if (Schema::hasColumn('equipment_units', 'built_in_units')) {
+                    $allBundledUnitIds = [];
+                    $parentRows = DB::table('equipment_units')
+                        ->whereNotNull('built_in_units')
+                        ->whereNull('archived_at')
+                        ->pluck('built_in_units');
+                    foreach ($parentRows as $raw) {
+                        if (empty($raw)) continue;
+                        $decoded = is_string($raw) ? json_decode($raw, true) : $raw;
+                        if (is_array($decoded)) {
+                            foreach ($decoded as $id) {
+                                if (!empty($id)) $allBundledUnitIds[] = (string)$id;
+                            }
+                        }
+                    }
+                    $allBundledUnitIds = array_values(array_unique($allBundledUnitIds));
+
+                    if (!empty($allBundledUnitIds)) {
+                        $rawBundled = DB::table('equipment_units')
+                            ->whereIn('equipment_type_id', $typeIds)
+                            ->whereNull('archived_at')
+                            ->where(function($q) use ($allBundledUnitIds) {
+                                $q->whereIn('id', $allBundledUnitIds)
+                                  ->orWhereIn('barcode', $allBundledUnitIds)
+                                  ->orWhereIn('serial_number', $allBundledUnitIds);
+                            })
+                            ->select('equipment_type_id', DB::raw('COUNT(*) as bundled_total'))
+                            ->groupBy('equipment_type_id')
+                            ->pluck('bundled_total', 'equipment_type_id');
+                        $bundledCounts = $rawBundled->toArray();
+                    }
                 }
             } catch (\Throwable $th) {}
         }
@@ -150,6 +185,8 @@ class EquipmentCategoryService
             }
 
             $presentCount = max(0, $totalQty - $releasedTotal - $damagedCount - $lostCount);
+            $bndCount = (int) ($bundledCounts[$e->id] ?? 0);
+            $standaloneAvailable = max(0, $presentCount - $bndCount);
             $reservedCapped = min($presentCount, $reservedTotal);
 
             $results[] = [
@@ -162,7 +199,8 @@ class EquipmentCategoryService
                 'avatar'          => $e->avatar,
                 'total_quantity'  => $totalQty,
                 'present_count'   => $presentCount,
-                'available_count' => $presentCount,
+                'bundled_count'   => $bndCount,
+                'available_count' => $standaloneAvailable,
                 'released_count'  => $releasedTotal,
                 'reserved_count'  => $reservedCapped,
                 'damaged_count'   => $damagedCount,
@@ -332,8 +370,43 @@ class EquipmentCategoryService
             $totalQty = 0;
         }
 
+        // Extract bundled count for single category
+        $singleBundledCount = 0;
+        if ($hasUnitsTable && Schema::hasColumn('equipment_units', 'built_in_units')) {
+            try {
+                $allBundledUnitIds = [];
+                $parentRows = DB::table('equipment_units')
+                    ->whereNotNull('built_in_units')
+                    ->whereNull('archived_at')
+                    ->pluck('built_in_units');
+                foreach ($parentRows as $raw) {
+                    if (empty($raw)) continue;
+                    $decoded = is_string($raw) ? json_decode($raw, true) : $raw;
+                    if (is_array($decoded)) {
+                        foreach ($decoded as $id) {
+                            if (!empty($id)) $allBundledUnitIds[] = (string)$id;
+                        }
+                    }
+                }
+                $allBundledUnitIds = array_values(array_unique($allBundledUnitIds));
+
+                if (!empty($allBundledUnitIds)) {
+                    $singleBundledCount = DB::table('equipment_units')
+                        ->where('equipment_type_id', $e->id)
+                        ->whereNull('archived_at')
+                        ->where(function($q) use ($allBundledUnitIds) {
+                            $q->whereIn('id', $allBundledUnitIds)
+                              ->orWhereIn('barcode', $allBundledUnitIds)
+                              ->orWhereIn('serial_number', $allBundledUnitIds);
+                        })
+                        ->count();
+                }
+            } catch (\Throwable $th) {}
+        }
+
         // Physical units currently sitting on the shelf (Total - Checked Out/Released - Damaged - Lost)
         $presentCount = max(0, $totalQty - $releasedTotal - $damagedCount - $lostCount);
+        $standaloneAvailable = max(0, $presentCount - $singleBundledCount);
         $reservedCapped = min($presentCount, $reservedTotal);
 
         return [
@@ -346,7 +419,8 @@ class EquipmentCategoryService
             'avatar'          => $e->avatar,
             'total_quantity'  => $totalQty,
             'present_count'   => $presentCount,
-            'available_count' => $presentCount,
+            'bundled_count'   => $singleBundledCount,
+            'available_count' => $standaloneAvailable,
             'released_count'  => $releasedTotal,
             'reserved_count'  => $reservedCapped,
             'damaged_count'   => $damagedCount,

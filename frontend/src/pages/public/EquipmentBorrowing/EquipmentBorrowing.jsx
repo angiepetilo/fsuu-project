@@ -340,6 +340,11 @@ export default function EquipmentBorrowing({ isPortal: isPortalProp }) {
 
   const handleDetailsSubmit = useCallback((e) => {
     e.preventDefault();
+    const cleanEmail = (email || "").trim().toLowerCase();
+    if (!cleanEmail.endsWith("@urios.edu.ph")) {
+      alert("Only official university email addresses ending with @urios.edu.ph are accepted for borrowing.");
+      return;
+    }
     const requireVerify = pinRules ? (pinRules.isEnabled !== false && (pinRules.equipmentVerifyEmail === true || pinRules.equipmentVerifyPhone === true)) : false;
 
     if (requireVerify && !isEmailVerified) {
@@ -348,7 +353,7 @@ export default function EquipmentBorrowing({ isPortal: isPortalProp }) {
     }
     setCompletedSteps(prev => (!prev.includes(3) ? [...prev, 3] : prev));
     setActiveStep(4);
-  }, [pinRules, isEmailVerified]);
+  }, [pinRules, isEmailVerified, email]);
 
   const handleVerifySubmit = useCallback(async (e) => {
     e.preventDefault();

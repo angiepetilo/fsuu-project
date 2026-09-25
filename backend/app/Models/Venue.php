@@ -32,4 +32,9 @@ class Venue extends Model
     {
         return $this->hasMany(VenueBooking::class);
     }
+
+    public function overrides(): HasMany
+    {
+        return $this->hasMany(VenueOverride::class);
+    }
 }

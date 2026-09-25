@@ -749,6 +749,23 @@ export default function VenueBookingDetailModal({
   const formatTime12h = formatTime12;
   const formatDateTimeFiled = formatDateTime;
 
+  // Physical units that are bundled as built-in components inside another parent unit
+  const bundledUnitIds = useMemo(() => {
+    const ids = new Set();
+    (physicalUnits || []).forEach((parent) => {
+      let rawList = parent.built_in_units;
+      if (typeof rawList === "string") {
+        try { rawList = JSON.parse(rawList); } catch { rawList = []; }
+      }
+      if (Array.isArray(rawList)) {
+        rawList.forEach((biId) => {
+          if (biId) ids.add(String(biId).trim().toUpperCase());
+        });
+      }
+    });
+    return ids;
+  }, [physicalUnits]);
+
   const getAvailableUnitsForCategory = (catName, eqTypeId) => {
     if (!catName || catName === "NONE") return physicalUnits;
 
@@ -809,6 +826,22 @@ export default function VenueBookingDetailModal({
       const uStat = String(unit.status || "available").toLowerCase();
       if (uStat === "damaged" || uStat === "lost" || uStat === "decommissioned" || uStat === "under_maintenance") {
         return false;
+      }
+
+      // 4b. Exclude units that are bundled inside another equipment unit (they are not standalone available)
+      const uIdStr = String(unit.id).trim().toUpperCase();
+      const uBarcodeStr = unit.barcode ? String(unit.barcode).trim().toUpperCase() : null;
+      const uSerialStr = unit.serial_number ? String(unit.serial_number).trim().toUpperCase() : null;
+      if (
+        bundledUnitIds.has(uIdStr) ||
+        (uBarcodeStr && bundledUnitIds.has(uBarcodeStr)) ||
+        (uSerialStr && bundledUnitIds.has(uSerialStr))
+      ) {
+        // If it's already assigned to a slot in THIS modal, keep it visible
+        const isCurrentSlotAssignment = Object.values(assignedUnitSelections || {}).some(
+          v => String(v).trim().toUpperCase() === uBarcodeStr || String(v).trim().toUpperCase() === uIdStr
+        );
+        if (!isCurrentSlotAssignment) return false;
       }
 
       const bCode = String(unit.barcode || unit.serial_number || unit.code || unit.id || "").trim().toUpperCase();
@@ -1481,21 +1514,21 @@ export default function VenueBookingDetailModal({
 
           {/* Mark Incomplete Drawer / Form */}
           {showIncompleteForm && (
-            <div className="p-4 bg-amber-50/90 border-2 border-amber-300 rounded-2xl space-y-3.5 shadow-md animate-in fade-in slide-in-from-top-2">
-              <div className="flex items-center justify-between border-b border-amber-200 pb-2">
+            <div className="p-4 bg-amber-50/90 dark:bg-amber-950/40 border-2 border-amber-300 dark:border-amber-700/60 rounded-2xl space-y-3.5 shadow-md animate-in fade-in slide-in-from-top-2">
+              <div className="flex items-center justify-between border-b border-amber-200 dark:border-amber-800/60 pb-2">
                 <div className="flex items-center gap-2">
                   <div className="w-7 h-7 rounded-lg bg-amber-500 text-white flex items-center justify-center font-black">
                     !
                   </div>
                   <div>
-                    <h4 className="text-xs font-black text-amber-950">Mark Reservation Incomplete</h4>
-                    <p className="text-[11px] text-amber-800 font-medium">Specify missing requirements and set review grace period (24h or 48h)</p>
+                    <h4 className="text-xs font-black text-amber-950 dark:text-amber-200">Mark Reservation Incomplete</h4>
+                    <p className="text-[11px] text-amber-800 dark:text-amber-300 font-medium">Specify missing requirements and set review grace period (24h or 48h)</p>
                   </div>
                 </div>
                 <button
                   type="button"
                   onClick={() => setShowIncompleteForm(false)}
-                  className="text-amber-800 hover:text-amber-950 font-bold text-xs p-1"
+                  className="text-amber-800 dark:text-amber-300 hover:text-amber-950 dark:hover:text-white font-bold text-xs p-1"
                 >
                   ✕
                 </button>
@@ -1503,7 +1536,7 @@ export default function VenueBookingDetailModal({
 
               {/* Missing Requirements Checklist */}
               <div className="space-y-1.5">
-                <label className="block text-[11px] font-extrabold text-amber-950 uppercase tracking-wide">
+                <label className="block text-[11px] font-extrabold text-amber-950 dark:text-amber-200 uppercase tracking-wide">
                   Missing Requirements Checklist
                 </label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -1521,8 +1554,8 @@ export default function VenueBookingDetailModal({
                         key={idx}
                         className={`flex items-center gap-2 p-2 rounded-xl border text-xs font-bold cursor-pointer transition-all ${
                           isChecked
-                            ? "bg-amber-100 border-amber-400 text-amber-950 shadow-2xs"
-                            : "bg-white border-amber-200 text-slate-700 hover:bg-amber-50"
+                            ? "bg-amber-100 dark:bg-amber-900/50 border-amber-400 dark:border-amber-600 text-amber-950 dark:text-amber-100 shadow-2xs"
+                            : "bg-white dark:bg-slate-900 border-amber-200 dark:border-amber-900/50 text-slate-700 dark:text-slate-300 hover:bg-amber-50 dark:hover:bg-slate-800"
                         }`}
                       >
                         <input
@@ -1546,7 +1579,7 @@ export default function VenueBookingDetailModal({
 
               {/* Remarks Textarea */}
               <div className="space-y-1">
-                <label className="block text-[11px] font-extrabold text-amber-950 uppercase tracking-wide">
+                <label className="block text-[11px] font-extrabold text-amber-950 dark:text-amber-200 uppercase tracking-wide">
                   Reviewer Remarks / Clear Instructions for Applicant <span className="text-red-500">*</span>
                 </label>
                 <textarea
@@ -1554,13 +1587,13 @@ export default function VenueBookingDetailModal({
                   value={incompleteRemarks}
                   onChange={(e) => setIncompleteRemarks(e.target.value)}
                   placeholder="e.g. Please upload your signed Endorsement Letter from the Dean's Office..."
-                  className="w-full p-2.5 bg-white border border-amber-300 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+                  className="w-full p-2.5 bg-white dark:bg-slate-900 border border-amber-300 dark:border-amber-700 rounded-xl text-xs font-medium text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500/20"
                 />
               </div>
 
               {/* Grace Period Selection (24 Hours vs 48 Hours) */}
               <div className="space-y-1.5 pt-1">
-                <label className="block text-[11px] font-extrabold text-amber-950 uppercase tracking-wide">
+                <label className="block text-[11px] font-extrabold text-amber-950 dark:text-amber-200 uppercase tracking-wide">
                   Review Grace Period Deadline
                 </label>
                 <div className="grid grid-cols-2 gap-2.5">
@@ -1569,15 +1602,15 @@ export default function VenueBookingDetailModal({
                     onClick={() => setGraceHoursChoice(24)}
                     className={`p-2.5 rounded-xl border text-left cursor-pointer transition-all ${
                       graceHoursChoice === 24
-                        ? "bg-white border-amber-500 ring-2 ring-amber-500/20 shadow-xs"
-                        : "bg-amber-100/50 border-amber-200 text-slate-700 hover:bg-white"
+                        ? "bg-white dark:bg-slate-900 border-amber-500 dark:border-amber-400 ring-2 ring-amber-500/20 shadow-xs"
+                        : "bg-amber-100/50 dark:bg-slate-900/40 border-amber-200 dark:border-amber-900/50 text-slate-700 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-800"
                     }`}
                   >
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-black text-slate-900">24 Hours</span>
-                      {graceHoursChoice === 24 && <span className="w-2 h-2 rounded-full bg-amber-600" />}
+                      <span className="text-xs font-bold text-slate-900 dark:text-white">24 Hours</span>
+                      {graceHoursChoice === 24 && <span className="w-2 h-2 rounded-full bg-amber-600 dark:bg-amber-400" />}
                     </div>
-                    <p className="text-[10.5px] text-slate-500 mt-0.5">Applicant has 1 day to upload missing files</p>
+                    <p className="text-[10.5px] text-slate-500 dark:text-slate-400 mt-0.5">Applicant has 1 day to upload missing files</p>
                   </button>
 
                   <button
@@ -1585,18 +1618,18 @@ export default function VenueBookingDetailModal({
                     onClick={() => setGraceHoursChoice(48)}
                     className={`p-2.5 rounded-xl border text-left cursor-pointer transition-all ${
                       graceHoursChoice === 48
-                        ? "bg-white border-amber-500 ring-2 ring-amber-500/20 shadow-xs"
-                        : "bg-amber-100/50 border-amber-200 text-slate-700 hover:bg-white"
+                        ? "bg-white dark:bg-slate-900 border-amber-500 dark:border-amber-400 ring-2 ring-amber-500/20 shadow-xs"
+                        : "bg-amber-100/50 dark:bg-slate-900/40 border-amber-200 dark:border-amber-900/50 text-slate-700 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-800"
                     }`}
                   >
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-black text-slate-900">48 Hours</span>
-                      {graceHoursChoice === 48 && <span className="w-2 h-2 rounded-full bg-amber-600" />}
+                      <span className="text-xs font-bold text-slate-900 dark:text-white">48 Hours</span>
+                      {graceHoursChoice === 48 && <span className="w-2 h-2 rounded-full bg-amber-600 dark:bg-amber-400" />}
                     </div>
-                    <p className="text-[10.5px] text-slate-500 mt-0.5">Applicant has 2 days to upload missing files</p>
+                    <p className="text-[10.5px] text-slate-500 dark:text-slate-400 mt-0.5">Applicant has 2 days to upload missing files</p>
                   </button>
                 </div>
-                <p className="text-[10.5px] text-amber-800">
+                <p className="text-[10.5px] text-amber-800 dark:text-amber-300/90">
                   ⚠️ If the applicant does not submit requirements within this period, competing bookings with complete requirements for this schedule may take the slot.
                 </p>
               </div>

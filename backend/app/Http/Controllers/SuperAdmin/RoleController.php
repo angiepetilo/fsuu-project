@@ -14,8 +14,8 @@ use Illuminate\Http\Request;
  */
 class RoleController extends Controller
 {
-    // Fixed system roles that cannot be deleted
-    private const PROTECTED_ROLES = ['staff', 'student_assistant', 'super_admin', 'sysad'];
+    // Fixed system roles that cannot be deleted or managed in general roles table
+    private const PROTECTED_ROLES = ['super_admin', 'sysad'];
 
     /**
      * List all roles with their user count.
@@ -23,7 +23,7 @@ class RoleController extends Controller
     public function index(): JsonResponse
     {
         $roles = Role::withCount('users')
-            ->whereNotIn('name', ['super_admin', 'sysad'])
+            ->whereNotIn('name', self::PROTECTED_ROLES)
             ->orderBy('id')
             ->get()
             ->map(function ($role) {
@@ -33,7 +33,7 @@ class RoleController extends Controller
                     'description' => $role->description,
                     'permissions' => $role->permissions ?? [],
                     'users_count' => $role->users_count,
-                    'is_protected'=> in_array(str_replace(' ', '_', strtolower(trim($role->name))), ['staff', 'student_assistant', 'super_admin', 'sysad']),
+                    'is_protected'=> in_array(str_replace(' ', '_', strtolower(trim($role->name))), self::PROTECTED_ROLES),
                 ];
             });
 
@@ -46,7 +46,7 @@ class RoleController extends Controller
     public function store(Request $request): JsonResponse
     {
         $authUser = $request->user() ?? auth()->user();
-        if (!$authUser || !$authUser->isSuperAdmin()) {
+        if (!$authUser || (!$authUser->isSuperAdmin() && !$authUser->hasPermission('settings', 'users') && !$authUser->hasPermission('settings.users'))) {
             return response()->json(['message' => 'Unauthorized.'], 403);
         }
 
@@ -91,15 +91,12 @@ class RoleController extends Controller
     public function update(Request $request, int $id): JsonResponse
     {
         $authUser = $request->user() ?? auth()->user();
-        if (!$authUser || !$authUser->isSuperAdmin()) {
+        if (!$authUser || (!$authUser->isSuperAdmin() && !$authUser->hasPermission('settings', 'users') && !$authUser->hasPermission('settings.users'))) {
             return response()->json(['message' => 'Unauthorized.'], 403);
         }
 
         $role = Role::findOrFail($id);
-
-        if (in_array(strtolower($role->name), ['staff', 'student_assistant', 'super_admin', 'sysad'])) {
-            return response()->json(['message' => 'System roles cannot be renamed.'], 422);
-        }
+        $isSystemRole = in_array(strtolower($role->name), self::PROTECTED_ROLES);
 
         $validated = $request->validate([
             'name'          => 'nullable|string|max:100|unique:roles,name,' . $id,
@@ -109,9 +106,19 @@ class RoleController extends Controller
         ]);
 
         if (!empty($validated['name'])) {
-            $role->name = strtolower(trim($validated['name']));
+            $cleanName = preg_replace('/\s+/', '_', strtolower(trim($validated['name'])));
+            if ($isSystemRole && $cleanName !== strtolower($role->name)) {
+                return response()->json(['message' => 'System roles cannot be renamed.'], 422);
+            }
+            if (!$isSystemRole) {
+                $role->name = $cleanName;
+            }
         }
-        $role->description = $validated['description'] ?? $role->description;
+
+        if (array_key_exists('description', $validated)) {
+            $role->description = $validated['description'];
+        }
+
         if (array_key_exists('permissions', $validated)) {
             $role->permissions = $validated['permissions'] ?? [];
             User::where('role_id', $id)->update(['permissions' => json_encode($role->permissions)]);
@@ -130,7 +137,7 @@ class RoleController extends Controller
     public function destroy(Request $request, int $id): JsonResponse
     {
         $authUser = $request->user() ?? auth()->user();
-        if (!$authUser || !$authUser->isSuperAdmin()) {
+        if (!$authUser || (!$authUser->isSuperAdmin() && !$authUser->hasPermission('settings', 'users') && !$authUser->hasPermission('settings.users'))) {
             return response()->json(['message' => 'Unauthorized.'], 403);
         }
 
@@ -176,7 +183,7 @@ class RoleController extends Controller
     public function savePermissions(Request $request, int $id): JsonResponse
     {
         $authUser = $request->user() ?? auth()->user();
-        if (!$authUser || !$authUser->isSuperAdmin()) {
+        if (!$authUser || (!$authUser->isSuperAdmin() && !$authUser->hasPermission('settings', 'users') && !$authUser->hasPermission('settings.users'))) {
             return response()->json(['message' => 'Unauthorized.'], 403);
         }
 

@@ -47,7 +47,6 @@ export const SETTINGS_CATEGORIES = [
         desc: "Staff accounts & RBAC permissions",
         icon: Users,
         permissionKey: "settings.users",
-        superAdminOnly: true,
       },
       {
         id: "active_sessions",
@@ -55,14 +54,14 @@ export const SETTINGS_CATEGORIES = [
         desc: "Monitor and remotely terminate terminals",
         icon: Laptop,
         permissionKey: "settings.active_sessions",
-        superAdminOnly: true,
       },
       {
         id: "pin",
         label: "Verification PIN",
-        desc: "6-digit emergency overrides",
+        desc: "Master security authorization & override rules",
         icon: Key,
         permissionKey: "settings.pin",
+        superAdminOnly: true,
         protected: true,
       },
     ]
@@ -78,7 +77,6 @@ export const SETTINGS_CATEGORIES = [
         desc: "Rate limits, lockouts & terminations",
         icon: ShieldAlert,
         permissionKey: "settings.security_alerts",
-        superAdminOnly: true,
       },
       {
         id: "audit_logs",
@@ -87,7 +85,6 @@ export const SETTINGS_CATEGORIES = [
         icon: Activity,
         permissionKey: "settings.audit_logs",
         altPermissionKeys: ["history_log.view"],
-        superAdminOnly: true,
       },
       {
         id: "communication_logs",

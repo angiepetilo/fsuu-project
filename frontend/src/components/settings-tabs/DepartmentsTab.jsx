@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { BookOpen, Plus, Edit2, Ban, X, Loader2, Lock } from "lucide-react";
+import { BookOpen, Plus, Edit2, Ban, Power, CheckCircle2, X, Loader2, Lock } from "lucide-react";
 import { usePermissions } from "@/hooks/usePermissions";
 import api from "@/lib/axios";
 import ConfirmModal from "@/components/ui/ConfirmModal";
@@ -174,9 +174,10 @@ export default function DepartmentsTab({ showMsg }) {
                     <td className="px-4 py-3.5">
                       <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ${
                         !isItemDisabled
-                          ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                          : "bg-rose-50 text-rose-700 border-rose-200"
+                          ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800"
+                          : "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-800"
                       }`}>
+                        {isItemDisabled && <Ban size={10} className="mr-1" />}
                         {!isItemDisabled ? "ACTIVE" : "DISABLED"}
                       </span>
                     </td>
@@ -184,17 +185,18 @@ export default function DepartmentsTab({ showMsg }) {
                       {canEdit || canDisable ? (
                         <div className="flex items-center justify-end gap-2.5">
                           {canDisable && (
-                            <div className="flex items-center gap-1.5">
-                              <IosToggle
-                                checked={!isItemDisabled}
-                                onChange={() => setDisableTarget({ id: dept.id, code: dept.code, status: dept.status })}
-                                size="sm"
-                                title={isItemDisabled ? "Click to Enable Department" : "Click to Disable Department"}
-                              />
-                              <span className={`text-[10.5px] font-extrabold w-12 text-left select-none ${!isItemDisabled ? 'text-emerald-600' : 'text-slate-400'}`}>
-                                {!isItemDisabled ? 'Active' : 'Disabled'}
-                              </span>
-                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setDisableTarget({ id: dept.id, code: dept.code, status: dept.status })}
+                              className={`p-1.5 rounded-xl border transition-all cursor-pointer shadow-2xs ${
+                                !isItemDisabled
+                                  ? "text-rose-600 bg-rose-50 border-rose-200 hover:bg-rose-100 dark:text-rose-400/80 dark:bg-rose-950/40 dark:border-rose-900/40 hover:dark:bg-rose-900/40 hover:dark:text-rose-300"
+                                  : "text-emerald-600 bg-emerald-50 border-emerald-200 hover:bg-emerald-100 dark:text-emerald-400/80 dark:bg-emerald-950/40 dark:border-emerald-900/40 hover:dark:bg-emerald-900/40 hover:dark:text-emerald-300"
+                              }`}
+                              title={isItemDisabled ? "Click to Enable Department" : "Click to Disable Department"}
+                            >
+                              {!isItemDisabled ? <Ban size={13} /> : <CheckCircle2 size={13} />}
+                            </button>
                           )}
                           {canEdit && (
                             <button

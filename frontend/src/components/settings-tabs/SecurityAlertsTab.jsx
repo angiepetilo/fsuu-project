@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import {
   ShieldAlert, ShieldCheck, AlertTriangle, AlertCircle, Lock, 
-  Search, RefreshCw, X, Clock, CheckCircle2, Eye, 
+  Search, X, Clock, CheckCircle2, Eye, 
   Terminal, ShieldX, Globe, Laptop, Activity, AlertOctagon,
   Filter, Calendar, ChevronLeft, ChevronRight, Loader2
 } from "lucide-react";
@@ -189,17 +189,6 @@ export default function SecurityAlertsTab() {
             <option value="unresolved">Needs Attention</option>
             <option value="resolved">Resolved</option>
           </select>
-
-          <button
-            type="button"
-            onClick={() => fetchAlerts(page)}
-            disabled={loading}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-lg text-xs font-medium transition-colors cursor-pointer"
-            title="Refresh alerts"
-          >
-            <RefreshCw size={13} className={loading ? "animate-spin text-blue-600" : "text-slate-500"} />
-            <span>Refresh</span>
-          </button>
         </div>
       </div>
 

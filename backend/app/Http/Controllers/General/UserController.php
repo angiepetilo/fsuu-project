@@ -39,7 +39,7 @@ class UserController extends Controller
                 $r->whereIn('name', ['super_admin', 'super-admin', 'superadmin', 'sysad', 'Super Admin', 'Superadmin', 'SYSAD']);
             });
 
-            if ($user && !$user->isSuperAdmin()) {
+            if ($user && !$user->isSuperAdmin() && !$user->hasPermission('settings', 'users') && !$user->hasPermission('settings.users')) {
                 $userId = $user->id;
 
                 $query->where('id', '!=', $userId)
@@ -238,6 +238,9 @@ class UserController extends Controller
             $r = Role::find($validated['role_id']);
             if ($r && ($isSuperAdmin || !in_array(strtolower($r->name), ['super_admin', 'superadmin', 'sysad']))) {
                 $targetUser->role_id = $r->id;
+                if (!$request->has('permissions') && !empty($r->permissions)) {
+                    $targetUser->permissions = $r->permissions;
+                }
             }
         } elseif (!empty($validated['role'])) {
             $rawRole = trim($validated['role']);
@@ -245,6 +248,9 @@ class UserController extends Controller
               ?? Role::firstOrCreate(['name' => strtolower($rawRole)]);
             if ($r && ($isSuperAdmin || !in_array(strtolower($r->name), ['super_admin', 'superadmin', 'sysad']))) {
                 $targetUser->role_id = $r->id;
+                if (!$request->has('permissions') && !empty($r->permissions)) {
+                    $targetUser->permissions = $r->permissions;
+                }
             }
         }
 

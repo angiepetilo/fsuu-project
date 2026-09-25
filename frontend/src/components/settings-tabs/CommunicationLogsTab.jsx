@@ -131,14 +131,6 @@ export default function CommunicationLogsTab() {
             Audit history of automated and manual emails, SMS notices, booking confirmations, overdue reminders, and credentials.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => { setPage(1); fetchLogs(); }}
-          disabled={loading}
-          className="px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-bold rounded-xl transition-colors cursor-pointer self-start sm:self-auto disabled:opacity-50"
-        >
-          {loading ? "Refreshing..." : "Refresh"}
-        </button>
       </div>
 
       {/* Filter & Search Bar */}

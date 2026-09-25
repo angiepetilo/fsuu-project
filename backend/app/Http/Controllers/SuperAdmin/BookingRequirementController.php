@@ -15,8 +15,6 @@ class BookingRequirementController extends Controller
     public function publicIndex(): JsonResponse
     {
         try {
-            $this->ensureDefaultRequirements();
-
             $reqs = BookingRequirement::orderBy('sort_order')->orderBy('id')->get();
             $unique = $reqs->unique(function ($item) {
                 return strtolower(trim($item->label));
@@ -25,22 +23,7 @@ class BookingRequirementController extends Controller
             return response()->json($unique);
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::error('publicIndex booking-requirements failed: ' . $e->getMessage());
-            return response()->json([
-                [
-                    'id' => 1,
-                    'classification' => 'Organization Purposes',
-                    'label' => 'Formal request letter signed and endorsed by the Director of OISAA',
-                    'description' => 'Mandatory endorsement for all student organization venue activities.',
-                    'sort_order' => 1,
-                ],
-                [
-                    'id' => 2,
-                    'classification' => 'Academic Purposes',
-                    'label' => 'Formal request letter signed and endorsed by the OVPASA',
-                    'description' => 'Mandatory endorsement for academic events and examinations.',
-                    'sort_order' => 2,
-                ]
-            ]);
+            return response()->json([]);
         }
     }
 
@@ -49,8 +32,6 @@ class BookingRequirementController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $this->ensureDefaultRequirements();
-
         $query = BookingRequirement::orderBy('sort_order')->orderBy('id');
 
         $all = $query->get()->unique(function ($item) {
@@ -63,15 +44,22 @@ class BookingRequirementController extends Controller
     public function store(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'classification'     => 'required|string|max:50',
-            'label'              => 'required|string|max:255',
-            'description'        => 'nullable|string|max:500',
-            'sort_order'         => 'nullable|integer|min:0',
-            'template_file'      => 'nullable|file|mimes:pdf,doc,docx,xls,xlsx,png,jpg,jpeg|max:10240',
-            'template_file_url'  => 'nullable|string',
-            'template_file_name' => 'nullable|string|max:255',
-            'format_content'     => 'nullable',
+            'classification'        => 'nullable|string|max:100',
+            'label'                 => 'required|string|max:255',
+            'description'           => 'nullable|string|max:10000',
+            'sort_order'            => 'nullable|integer|min:0',
+            'template_file'         => 'nullable|file|max:25600',
+            'template_file_url'     => 'nullable|string',
+            'template_file_name'    => 'nullable|string|max:255',
+            'template_display_mode' => 'nullable|string',
+            'format_content'        => 'nullable',
         ]);
+
+        $data['classification'] = !empty($data['classification']) ? $data['classification'] : 'all';
+
+        if (empty($data['template_display_mode']) || !in_array($data['template_display_mode'], ['uploaded_file', 'digital_format', 'both'])) {
+            $data['template_display_mode'] = 'uploaded_file';
+        }
 
         if ($request->hasFile('template_file')) {
             $file = $request->file('template_file');
@@ -99,16 +87,27 @@ class BookingRequirementController extends Controller
         $req = BookingRequirement::findOrFail($id);
 
         $data = $request->validate([
-            'classification'     => 'sometimes|string|max:50',
-            'label'              => 'sometimes|string|max:255',
-            'description'        => 'nullable|string|max:500',
-            'sort_order'         => 'nullable|integer|min:0',
-            'template_file'      => 'nullable|file|mimes:pdf,doc,docx,xls,xlsx,png,jpg,jpeg|max:10240',
-            'template_file_url'  => 'nullable|string',
-            'template_file_name' => 'nullable|string|max:255',
-            'remove_template'    => 'nullable|boolean',
-            'format_content'     => 'nullable',
+            'classification'        => 'sometimes|nullable|string|max:100',
+            'label'                 => 'sometimes|required|string|max:255',
+            'description'           => 'nullable|string|max:10000',
+            'sort_order'            => 'nullable|integer|min:0',
+            'template_file'         => 'nullable|file|max:25600',
+            'template_file_url'     => 'nullable|string',
+            'template_file_name'    => 'nullable|string|max:255',
+            'template_display_mode' => 'nullable|string',
+            'remove_template'       => 'nullable',
+            'format_content'        => 'nullable',
         ]);
+
+        if (isset($data['classification']) && empty($data['classification'])) {
+            $data['classification'] = 'all';
+        }
+
+        if (isset($data['template_display_mode'])) {
+            if (empty($data['template_display_mode']) || !in_array($data['template_display_mode'], ['uploaded_file', 'digital_format', 'both'])) {
+                $data['template_display_mode'] = 'uploaded_file';
+            }
+        }
 
         if ($request->boolean('remove_template')) {
             $data['template_file_url'] = null;
@@ -164,25 +163,7 @@ class BookingRequirementController extends Controller
                 ->orWhere('label', 'like', '%(VP Acad)%')
                 ->update(['label' => 'Formal request letter signed and endorsed by the OVPASA']);
 
-            BookingRequirement::firstOrCreate(
-                ['label' => 'Formal request letter signed and endorsed by the Director of OISAA'],
-                [
-                    'classification' => 'Organization Purposes',
-                    'description'    => 'Mandatory endorsement for all student organization venue activities.',
-                    'sort_order'     => 1,
-                ]
-            );
-
-            BookingRequirement::firstOrCreate(
-                ['label' => 'Formal request letter signed and endorsed by the OVPASA'],
-                [
-                    'classification' => 'Academic Purposes',
-                    'description'    => 'Mandatory endorsement for academic events and examinations.',
-                    'sort_order'     => 2,
-                ]
-            );
-
-            // Clean up any duplicate records with identical labels
+            // No auto-seeding of hardcoded requirements; let administrators create and upload templates
             $all = BookingRequirement::orderBy('id')->get();
             $seen = [];
             foreach ($all as $item) {

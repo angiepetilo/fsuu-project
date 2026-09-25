@@ -138,62 +138,62 @@ export default function OperatingHoursTab({ showMsg }) {
 
       <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
         <div>
-          <h3 className="font-extrabold text-slate-900 text-sm">Grace Periods & Auto-Cancel Rules</h3>
+          <h3 className="font-extrabold text-slate-900 dark:text-white text-sm">Grace Periods & Auto-Cancel Rules</h3>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2 border-t border-slate-100">
-          <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
-            <label className="block text-xs font-extrabold text-slate-900">Arrival Grace Period (Minutes)</label>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2 border-t border-slate-100 dark:border-slate-800">
+          <div className="p-4 bg-slate-50 dark:bg-slate-900/60 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-2">
+            <label className="block text-xs font-bold text-slate-900 dark:text-slate-200">Arrival Grace Period (Minutes)</label>
             <input
               type="number"
               min={0}
               max={120}
               value={operatingHours.arrival_grace_mins}
               onChange={(e) => setOperatingHours({ ...operatingHours, arrival_grace_mins: parseInt(e.target.value, 10) || 0 })}
-              className="w-full p-3 bg-white border border-slate-200 rounded-xl font-bold text-slate-900 text-xs"
+              className="w-full p-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-900 dark:text-white text-xs"
             />
-            <p className="text-[10px] text-slate-400 font-medium">Lead time required before event start.</p>
+            <p className="text-[10px] text-slate-400 dark:text-slate-400 font-medium">Lead time required before event start.</p>
           </div>
 
-          <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
-            <label className="block text-xs font-extrabold text-slate-900">Return Grace Period (Minutes)</label>
+          <div className="p-4 bg-slate-50 dark:bg-slate-900/60 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-2">
+            <label className="block text-xs font-bold text-slate-900 dark:text-slate-200">Return Grace Period (Minutes)</label>
             <input
               type="number"
               min={0}
               max={120}
               value={operatingHours.return_grace_mins}
               onChange={(e) => setOperatingHours({ ...operatingHours, return_grace_mins: parseInt(e.target.value, 10) || 0 })}
-              className="w-full p-3 bg-white border border-slate-200 rounded-xl font-bold text-slate-900 text-xs"
+              className="w-full p-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-900 dark:text-white text-xs"
             />
-            <p className="text-[10px] text-slate-400 font-medium">Time client has to return borrowed items after end time.</p>
+            <p className="text-[10px] text-slate-400 dark:text-slate-400 font-medium">Time client has to return borrowed items after end time.</p>
           </div>
 
-          <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
-            <label className="block text-xs font-extrabold text-slate-900">Auto-Cancel Threshold (Minutes)</label>
+          <div className="p-4 bg-slate-50 dark:bg-slate-900/60 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-2">
+            <label className="block text-xs font-bold text-slate-900 dark:text-slate-200">Auto-Cancel Threshold (Minutes)</label>
             <input
               type="number"
               min={0}
               max={120}
               value={operatingHours.auto_cancel_mins}
               onChange={(e) => setOperatingHours({ ...operatingHours, auto_cancel_mins: parseInt(e.target.value, 10) || 0 })}
-              className="w-full p-3 bg-white border border-slate-200 rounded-xl font-bold text-slate-900 text-xs"
+              className="w-full p-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-900 dark:text-white text-xs"
             />
-            <p className="text-[10px] text-slate-400 font-medium">Auto cancels if client fails to arrive after event start.</p>
+            <p className="text-[10px] text-slate-400 dark:text-slate-400 font-medium">Auto cancels if client fails to arrive after event start.</p>
           </div>
         </div>
 
         {/* Missing Requirements Review Grace Period */}
-        <div className="mt-4 p-4.5 bg-blue-50/50 rounded-2xl border border-blue-200/80 space-y-3">
+        <div className="mt-4 p-4.5 bg-blue-50/50 dark:bg-slate-900/80 rounded-2xl border border-blue-200/80 dark:border-blue-900/50 space-y-3">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div>
-              <label className="block text-xs font-extrabold text-slate-900">
+              <label className="block text-xs font-bold text-slate-900 dark:text-white">
                 Missing Requirements Review Grace Period
               </label>
-              <p className="text-[11px] text-slate-500 font-medium mt-0.5">
+              <p className="text-[11px] text-slate-600 dark:text-slate-300 font-medium mt-0.5">
                 Allowed window for requestors to submit missing requirements before competing complete bookings can claim the reserved slot.
               </p>
             </div>
-            <span className="px-2.5 py-1 bg-blue-100 text-blue-800 text-[11px] font-bold rounded-lg self-start sm:self-auto border border-blue-300">
+            <span className="px-2.5 py-1 bg-blue-100 dark:bg-blue-950/80 text-blue-800 dark:text-blue-300 text-[11px] font-bold rounded-lg self-start sm:self-auto border border-blue-300 dark:border-blue-800">
               Active: {operatingHours.requirement_grace_hours || 24} Hours
             </span>
           </div>
@@ -204,17 +204,17 @@ export default function OperatingHoursTab({ showMsg }) {
               onClick={() => setOperatingHours({ ...operatingHours, requirement_grace_hours: 24 })}
               className={`p-3 rounded-xl border text-left cursor-pointer transition-all ${
                 (operatingHours.requirement_grace_hours || 24) === 24
-                  ? "bg-white border-blue-600 ring-2 ring-blue-500/20 shadow-xs"
-                  : "bg-white/60 border-slate-200 hover:bg-white text-slate-600"
+                  ? "bg-white dark:bg-slate-800 border-blue-600 dark:border-blue-500 ring-2 ring-blue-500/20 shadow-xs"
+                  : "bg-white/60 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700 hover:bg-white dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400"
               }`}
             >
               <div className="flex items-center justify-between">
-                <span className="text-xs font-extrabold text-slate-900">24 Hours (1 Day)</span>
+                <span className="text-xs font-bold text-slate-900 dark:text-white">24 Hours (1 Day)</span>
                 {(operatingHours.requirement_grace_hours || 24) === 24 && (
-                  <span className="w-2.5 h-2.5 rounded-full bg-blue-600"></span>
+                  <span className="w-2.5 h-2.5 rounded-full bg-blue-600 dark:bg-blue-400"></span>
                 )}
               </div>
-              <p className="text-[10.5px] text-slate-500 mt-1">
+              <p className="text-[10.5px] text-slate-600 dark:text-slate-300 mt-1">
                 Standard review window for on-campus student organizations and academic activities.
               </p>
             </button>
@@ -224,17 +224,17 @@ export default function OperatingHoursTab({ showMsg }) {
               onClick={() => setOperatingHours({ ...operatingHours, requirement_grace_hours: 48 })}
               className={`p-3 rounded-xl border text-left cursor-pointer transition-all ${
                 operatingHours.requirement_grace_hours === 48
-                  ? "bg-white border-blue-600 ring-2 ring-blue-500/20 shadow-xs"
-                  : "bg-white/60 border-slate-200 hover:bg-white text-slate-600"
+                  ? "bg-white dark:bg-slate-800 border-blue-600 dark:border-blue-500 ring-2 ring-blue-500/20 shadow-xs"
+                  : "bg-white/60 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700 hover:bg-white dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400"
               }`}
             >
               <div className="flex items-center justify-between">
-                <span className="text-xs font-extrabold text-slate-900">48 Hours (2 Days)</span>
+                <span className="text-xs font-bold text-slate-900 dark:text-white">48 Hours (2 Days)</span>
                 {operatingHours.requirement_grace_hours === 48 && (
-                  <span className="w-2.5 h-2.5 rounded-full bg-blue-600"></span>
+                  <span className="w-2.5 h-2.5 rounded-full bg-blue-600 dark:bg-blue-400"></span>
                 )}
               </div>
-              <p className="text-[10.5px] text-slate-500 mt-1">
+              <p className="text-[10.5px] text-slate-600 dark:text-slate-300 mt-1">
                 Extended review window recommended for external client reservations or weekend filings.
               </p>
             </button>

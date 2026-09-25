@@ -4,7 +4,7 @@ import { useOutletContext, useLocation } from "react-router-dom";
 import api from "@/lib/axios";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 import {
-  History, RefreshCw, CheckCircle, Building2, PackageOpen, Search, Loader2,
+  History, CheckCircle, Building2, PackageOpen, Search, Loader2,
   Eye, Pencil, CheckCircle2, X, AlertTriangle, ChevronLeft, ChevronRight, RotateCcw, MoreVertical,
   ArrowUpDown
 } from "lucide-react";
@@ -133,7 +133,11 @@ export default function HistoryLog() {
   const [editLoading, setEditLoading] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
 
-  const fetchHistory = useCallback(async (isSilent = false) => {
+  const fetchHistory = useCallback(async (opts = false) => {
+    const isSilent = typeof opts === "object" && opts !== null
+      ? Boolean(opts.isSilent || opts.silent || opts.showLoading === false)
+      : Boolean(opts);
+
     if (!isSilent) setIsSyncing(true);
     try {
       const termParam = selectedTermId ? `&academic_term_id=${selectedTermId}` : "";
@@ -174,7 +178,7 @@ export default function HistoryLog() {
       }
     } finally {
       setLoading(false);
-      setIsSyncing(false);
+      if (!isSilent) setIsSyncing(false);
     }
   }, [selectedTermId]);
 
@@ -431,18 +435,6 @@ export default function HistoryLog() {
 
   return (
     <div className="space-y-6">
-      {/* Action Toolbar */}
-      <div className="flex items-center justify-end gap-4">
-        <button
-          type="button"
-          onClick={() => fetchHistory(false)}
-          disabled={loading || isSyncing}
-          className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 hover:bg-blue-700 hover:text-white hover:border-blue-700 transition-colors cursor-pointer disabled:opacity-60 shadow-xs"
-        >
-          <RefreshCw size={14} className={isSyncing ? "animate-spin" : ""} />
-          <span>{isSyncing ? "Refreshing..." : "Refresh"}</span>
-        </button>
-      </div>
 
       {feedback && (
         <div className="fixed bottom-6 right-6 z-[3000] bg-white text-slate-900 text-xs font-bold px-5 py-3 rounded-xl flex items-center gap-2 shadow-2xl border border-slate-300 max-w-md">

@@ -53,76 +53,80 @@ export default function LandingPage() {
       <FeatureCards />
 
       {/* Booking Requirements Section */}
-      <section className="bg-card border border-border rounded-2xl p-6 sm:p-8 mb-10 shadow-xs relative overflow-hidden transition-colors">
-        <div className="absolute top-0 left-0 w-1 h-full bg-primary" />
-
-        <div className="mb-6">
-          <h2 className="text-lg sm:text-xl font-bold text-foreground">
+      <section className="bg-card border border-border rounded-lg p-4 sm:p-5 mb-6 transition-colors">
+        <div className="mb-3">
+          <h2 className="text-sm font-medium text-foreground">
             Requirements Needed Before Venue Booking
           </h2>
-          <p className="text-xs sm:text-sm text-muted-foreground font-normal mt-1">
-            Review official endorsement letter format and signatory clearance requirements.
+          <p className="text-[11px] text-muted-foreground font-normal mt-0.5">
+            Endorsement letter format and signatory clearance.
           </p>
         </div>
 
         {loading ? (
-          <div className="py-8 text-center text-muted-foreground text-xs font-medium">
-            <Loader2 className="animate-spin inline mr-2" size={16} /> Loading booking requirements...
+          <div className="py-4 text-center text-muted-foreground text-[11px] font-normal">
+            <Loader2 className="animate-spin inline mr-2" size={13} /> Loading booking requirements...
           </div>
         ) : uniqueRequirements.length === 0 ? (
-          <div className="bg-muted/40 border border-border p-5 rounded-xl text-center text-xs text-muted-foreground font-medium">
+          <div className="bg-muted/30 border border-border p-3 rounded-md text-center text-[11px] text-muted-foreground font-normal">
             No specific venue booking requirements configured.
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {uniqueRequirements.map((req, idx) => {
               const isAcad = String(req.classification || "").toLowerCase().includes("acad");
+              const mode = req.template_display_mode || (req.template_file_url ? "both" : "digital_format");
+              const showUploaded = (mode === "uploaded_file" || mode === "both") && Boolean(req.template_file_url);
+              const showDigital = (mode === "digital_format" || mode === "both") || !req.template_file_url;
+
               return (
-                <div key={req.id || idx} className="bg-muted/30 border border-border/80 p-5 rounded-xl transition-all duration-200 hover:border-border flex flex-col justify-between space-y-3">
+                <div key={req.id || idx} className="bg-card border border-border p-3 rounded-md flex flex-col justify-between space-y-2">
                   <div>
-                    <div className="flex items-center justify-between gap-2 mb-2">
-                      <p className="text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200/60 dark:bg-emerald-500/15 dark:text-emerald-400 dark:border-emerald-500/30 inline-block px-2.5 py-0.5 rounded-md capitalize">
+                    <div className="flex items-center justify-between gap-2 mb-1">
+                      <span className="text-[10px] font-normal text-muted-foreground bg-muted border border-border/60 px-1.5 py-0.5 rounded capitalize">
                         {req.classification || "General Requirement"}
-                      </p>
+                      </span>
                     </div>
 
-                    <p className="text-sm font-semibold text-foreground mb-1.5 leading-snug">
+                    <p className="text-xs font-medium text-foreground mb-0.5 leading-snug">
                       {req.label}
                     </p>
 
                     {req.description && (
-                      <p className="text-xs text-muted-foreground font-normal">
+                      <p className="text-[11px] text-muted-foreground font-normal leading-relaxed">
                         {req.description}
                       </p>
                     )}
                   </div>
 
-                  <div className="pt-2.5 border-t border-border/60 flex items-center justify-between gap-2 flex-wrap sm:flex-nowrap">
-                    <span className="text-[11px] font-normal text-muted-foreground">
+                  <div className="pt-1.5 border-t border-border flex items-center justify-between gap-2 flex-wrap sm:flex-nowrap">
+                    <span className="text-[10px] font-normal text-muted-foreground">
                       Signatures: Dean, {isAcad ? "OVPASA" : "OISAA"}, PMO
                     </span>
-                    <div className="flex items-center gap-2">
-                      {req.template_file_url && (
+                    <div className="flex items-center gap-1.5">
+                      {showUploaded && (
                         <a
                           href={req.template_file_url}
                           target="_blank"
                           rel="noopener noreferrer"
                           download
-                          className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 dark:hover:bg-blue-900/50 border border-blue-200 dark:border-blue-800 rounded-lg text-xs font-semibold transition-all shadow-2xs min-h-[36px]"
+                          className="flex items-center gap-1 px-2 py-1 bg-muted/60 hover:bg-muted text-foreground border border-border rounded text-[11px] font-normal transition-colors"
                           title={req.template_file_name || "Download Template File"}
                         >
-                          <Download size={13} className="text-blue-600 dark:text-blue-400" />
-                          <span>Download Template</span>
+                          <Download size={11} className="text-muted-foreground" />
+                          <span>Download</span>
                         </a>
                       )}
-                      <button
-                        type="button"
-                        onClick={() => handleOpenTemplate(req)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-card hover:bg-muted text-foreground border border-border rounded-lg text-xs font-semibold transition-all shadow-2xs cursor-pointer min-h-[36px]"
-                      >
-                        <FileText size={13} className="text-primary" />
-                        <span>View Format</span>
-                      </button>
+                      {showDigital && (
+                        <button
+                          type="button"
+                          onClick={() => handleOpenTemplate(req)}
+                          className="flex items-center gap-1 px-2 py-1 bg-card hover:bg-muted text-foreground border border-border rounded text-[11px] font-normal transition-colors cursor-pointer"
+                        >
+                          <FileText size={11} className="text-muted-foreground" />
+                          <span>View Format</span>
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -132,10 +136,11 @@ export default function LandingPage() {
         )}
 
         {/* Important Payment Notice */}
-        <div className="mt-6 p-4 bg-primary/10 border-l-4 border-primary rounded-r-xl text-xs text-foreground font-normal leading-relaxed">
-          <span className="font-semibold text-foreground">Important Payment Notice for external users:</span> Payment scheduling and transaction details will be finalized only after the request receives administrative approval.
+        <div className="mt-3 p-2.5 bg-muted/30 border border-border rounded-md text-[11px] text-muted-foreground font-normal leading-relaxed">
+          <span className="font-medium text-foreground">Important Payment Notice for external users:</span> Payment scheduling and transaction details will be finalized only after the request receives administrative approval.
         </div>
       </section>
+
 
       {/* Endorsement Letter Format Preview Modal */}
       <EndorsementLetterTemplateModal
@@ -157,7 +162,7 @@ export default function LandingPage() {
           className="flex items-center gap-2 hover:text-foreground transition-colors group py-2 px-3 rounded-lg min-h-[44px]"
         >
           <span className="w-1.5 h-1.5 rounded-full bg-primary group-hover:scale-125 transition-transform" />
-          <span>Access Portal</span>
+          <span>Authorized Users</span>
         </Link>
       </div>
 

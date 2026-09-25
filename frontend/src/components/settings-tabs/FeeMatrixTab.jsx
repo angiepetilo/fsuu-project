@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { Printer, Save, PlusCircle, Trash2, Loader2 } from "lucide-react";
+import { Printer, Save, PlusCircle, Trash2, Loader2, Power, Ban, CheckCircle2 } from "lucide-react";
 import api from "@/lib/axios";
 import { downloadReportAsPdf } from "@/pages/general/reports/exportPdfHelper";
 import IosToggle from "@/components/ui/ios-toggle";
@@ -369,14 +369,20 @@ export default function FeeMatrixTab({ officeScope = "All Offices", showMsg }) {
                         <label className="text-xs font-medium text-slate-700">Description</label>
                         <div className="flex items-center gap-2">
                           <div className="flex items-center gap-1.5">
-                            <IosToggle
-                              size="sm"
-                              checked={item.enabled}
-                              onChange={() => handleToggleRateItem(rIdx)}
+                            <button
+                              type="button"
+                              onClick={() => handleToggleRateItem(rIdx)}
+                              className={`p-1 rounded-lg border transition-all cursor-pointer shadow-2xs ${
+                                item.enabled
+                                  ? "text-rose-600 bg-rose-50 border-rose-200 hover:bg-rose-100 dark:text-rose-400/80 dark:bg-rose-950/40 dark:border-rose-900/40 hover:dark:bg-rose-900/40 hover:dark:text-rose-300"
+                                  : "text-emerald-600 bg-emerald-50 border-emerald-200 hover:bg-emerald-100 dark:text-emerald-400/80 dark:bg-emerald-950/40 dark:border-emerald-900/40 hover:dark:bg-emerald-900/40 hover:dark:text-emerald-300"
+                              }`}
                               title={item.enabled ? "Disable rate item" : "Enable rate item"}
-                            />
-                            <span className={`text-[10px] font-bold ${item.enabled ? "text-emerald-600" : "text-slate-400"}`}>
-                              {item.enabled ? "Enabled" : "Disabled"}
+                            >
+                              {item.enabled ? <Ban size={12} /> : <CheckCircle2 size={12} />}
+                            </button>
+                            <span className={`text-[10px] font-bold ${item.enabled ? "text-emerald-600 dark:text-emerald-400" : "text-slate-400 dark:text-slate-500"}`}>
+                              {item.enabled ? "Active" : "Disabled"}
                             </span>
                           </div>
                           {rateItems.length > 1 && (

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { 
-  Tag, Plus, Search, Filter, RefreshCw, Edit2, Trash2, 
-  CheckCircle2, XCircle, AlertCircle, Package, Layers, X, Loader2
+  Tag, Plus, Search, Edit2, Ban, CheckCircle2,
+  AlertCircle, X, Loader2
 } from "lucide-react";
 import api from "@/lib/axios";
 import notify from "@/lib/notify";
@@ -16,7 +16,7 @@ export default function BrandsTab() {
   });
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [categoryFilter, setCategoryFilter] = useState("all");
 
   // Modal states
   const [showAddModal, setShowAddModal] = useState(false);
@@ -25,9 +25,18 @@ export default function BrandsTab() {
   const [selectedBrand, setSelectedBrand] = useState(null);
 
   // Form states
-  const [formData, setFormData] = useState({ name: "", description: "", status: "active" });
+  const [formData, setFormData] = useState({ name: "", description: "", status: "active", equipment_type_id: "" });
+  const [categories, setCategories] = useState([]);
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState("");
+
+  const fetchCategories = async () => {
+    try {
+      const res = await api.get("/general/equipment-types");
+      const list = res.data?.data || (Array.isArray(res.data) ? res.data : []);
+      setCategories(list);
+    } catch {}
+  };
 
   const fetchBrands = async () => {
     setLoading(true);
@@ -36,7 +45,9 @@ export default function BrandsTab() {
         all: 1,
       };
       if (searchTerm.trim()) params.search = searchTerm.trim();
-      if (statusFilter !== "all") params.status = statusFilter;
+      if (categoryFilter !== "all" && categoryFilter) {
+        params.equipment_type_id = categoryFilter;
+      }
 
       const res = await api.get("/general/brands", { params });
       const list = res.data?.brands?.data || (Array.isArray(res.data?.brands) ? res.data.brands : []);
@@ -52,8 +63,12 @@ export default function BrandsTab() {
   };
 
   useEffect(() => {
+    fetchCategories();
+  }, []);
+
+  useEffect(() => {
     fetchBrands();
-  }, [statusFilter]);
+  }, [categoryFilter]);
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -61,7 +76,7 @@ export default function BrandsTab() {
   };
 
   const handleOpenAdd = () => {
-    setFormData({ name: "", description: "", status: "active" });
+    setFormData({ name: "", description: "", status: "active", equipment_type_id: "" });
     setFormError("");
     setShowAddModal(true);
   };
@@ -72,6 +87,7 @@ export default function BrandsTab() {
       name: brand.name,
       description: brand.description || "",
       status: brand.status || "active",
+      equipment_type_id: brand.equipment_type_id ? String(brand.equipment_type_id) : "",
     });
     setFormError("");
     setShowEditModal(true);
@@ -84,6 +100,10 @@ export default function BrandsTab() {
 
   const handleSaveAdd = async (e) => {
     e.preventDefault();
+    if (!formData.equipment_type_id) {
+      setFormError("Equipment category is required.");
+      return;
+    }
     if (!formData.name.trim()) {
       setFormError("Brand name is required.");
       return;
@@ -104,6 +124,10 @@ export default function BrandsTab() {
 
   const handleSaveEdit = async (e) => {
     e.preventDefault();
+    if (!formData.equipment_type_id) {
+      setFormError("Equipment category is required.");
+      return;
+    }
     if (!formData.name.trim()) {
       setFormError("Brand name is required.");
       return;
@@ -125,8 +149,8 @@ export default function BrandsTab() {
   const handleToggleStatus = async (brand) => {
     try {
       await api.patch(`/general/brands/${brand.id}/toggle-status`);
-      const nextStatus = brand.status === "active" ? "inactive" : "active";
-      notify.success("Status Updated", `Brand is now ${nextStatus}.`);
+      const nextStatus = brand.status === "active" ? "Disabled" : "Enabled";
+      notify.success("Status Updated", `Brand is now ${nextStatus.toLowerCase()}.`);
       fetchBrands();
     } catch (err) {
       notify.error("Error", "Could not toggle brand status.");
@@ -173,30 +197,22 @@ export default function BrandsTab() {
         </form>
 
         <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-          {/* Status Filter */}
-          <div className="flex items-center bg-slate-100 p-1 rounded-xl text-xs font-semibold">
-            {["all", "active", "inactive"].map((st) => (
-              <button
-                key={st}
-                type="button"
-                onClick={() => setStatusFilter(st)}
-                className={`px-3 py-1 rounded-lg capitalize cursor-pointer transition-all ${
-                  statusFilter === st ? "bg-blue-600 text-white shadow-xs" : "text-slate-500 hover:text-slate-800"
-                }`}
-              >
-                {st}
-              </button>
-            ))}
+          {/* Category Filter */}
+          <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 px-3 py-1.5 rounded-xl">
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Category:</span>
+            <select
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
+              className="bg-transparent text-xs font-semibold text-slate-800 dark:text-slate-100 focus:outline-none cursor-pointer"
+            >
+              <option value="all" className="bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100">All</option>
+              {categories.map((cat) => (
+                <option key={cat.id} value={cat.id} className="bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100">
+                  {cat.eq_name || cat.name}
+                </option>
+              ))}
+            </select>
           </div>
-
-          <button
-            type="button"
-            onClick={fetchBrands}
-            className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl transition-all cursor-pointer"
-            title="Refresh Brands"
-          >
-            <RefreshCw size={15} className={loading ? "animate-spin text-blue-600" : ""} />
-          </button>
 
           <button
             type="button"
@@ -216,16 +232,14 @@ export default function BrandsTab() {
             <thead className="bg-slate-50/80 border-b border-slate-200 text-slate-500 uppercase text-[11px] font-semibold">
               <tr>
                 <th className="px-4 py-3.5">Brand Name</th>
-                <th className="px-4 py-3.5">Description</th>
                 <th className="px-4 py-3.5">Associated Equipment</th>
-                <th className="px-4 py-3.5">Status</th>
                 <th className="px-4 py-3.5 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 font-medium">
               {loading ? (
                 <tr>
-                  <td colSpan={5} className="text-center py-12">
+                  <td colSpan={3} className="text-center py-12">
                     <div className="flex items-center justify-center gap-2 text-slate-400">
                       <div className="w-4 h-4 rounded-full border-2 border-slate-200 border-t-blue-500 animate-spin" />
                       <span className="text-xs font-semibold italic">Loading equipment brands...</span>
@@ -234,7 +248,7 @@ export default function BrandsTab() {
                 </tr>
               ) : brands.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="text-center py-12 text-slate-400">
+                  <td colSpan={3} className="text-center py-12 text-slate-400">
                     <Tag size={32} className="mx-auto text-slate-300 mb-2" />
                     <p className="text-xs font-semibold">No equipment brands found.</p>
                     <p className="text-[11px] text-slate-400 mt-0.5">Click "Add Brand" above to register manufacturer brands.</p>
@@ -250,45 +264,20 @@ export default function BrandsTab() {
                         </div>
                         <div>
                           <p className="font-bold text-slate-900">{brand.name}</p>
-                          <p className="text-[10px] text-slate-400">ID #{brand.id}</p>
+                          <div className="flex items-center gap-1.5 text-[10px] text-slate-400">
+                            <span>ID #{brand.id}</span>
+                            {brand.equipment_category_name && (
+                              <span className="font-medium text-slate-500">• {brand.equipment_category_name}</span>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </td>
 
-                    <td className="px-4 py-3.5 text-slate-600 max-w-xs truncate">
-                      {brand.description || <span className="text-slate-400 italic">No description provided</span>}
-                    </td>
-
                     <td className="px-4 py-3.5">
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-100">
-                        <Layers size={12} className="text-indigo-500" />
+                      <span className="text-xs text-slate-700 font-medium">
                         {brand.equipment_units_count ?? 0} physical unit(s)
                       </span>
-                    </td>
-
-                    <td className="px-4 py-3.5">
-                      <button
-                        type="button"
-                        onClick={() => handleToggleStatus(brand)}
-                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold cursor-pointer transition-all ${
-                          brand.status === "active"
-                            ? "bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100"
-                            : "bg-slate-100 text-slate-600 border border-slate-200 hover:bg-slate-200"
-                        }`}
-                        title="Click to toggle status"
-                      >
-                        {brand.status === "active" ? (
-                          <>
-                            <CheckCircle2 size={12} className="text-emerald-600" />
-                            Active
-                          </>
-                        ) : (
-                          <>
-                            <XCircle size={12} className="text-slate-500" />
-                            Inactive
-                          </>
-                        )}
-                      </button>
                     </td>
 
                     <td className="px-4 py-3.5 text-right">
@@ -303,11 +292,15 @@ export default function BrandsTab() {
                         </button>
                         <button
                           type="button"
-                          onClick={() => handleOpenDelete(brand)}
-                          className="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                          title="Delete Brand"
+                          onClick={() => handleToggleStatus(brand)}
+                          className={`p-1.5 rounded-lg border transition-all cursor-pointer shadow-2xs ${
+                            brand.status === "active"
+                              ? "text-rose-600 bg-rose-50 border-rose-200 hover:bg-rose-100 dark:text-rose-400/80 dark:bg-rose-950/40 dark:border-rose-900/40 hover:dark:bg-rose-900/40 hover:dark:text-rose-300"
+                              : "text-emerald-600 bg-emerald-50 border-emerald-200 hover:bg-emerald-100 dark:text-emerald-400/80 dark:bg-emerald-950/40 dark:border-emerald-900/40 hover:dark:bg-emerald-900/40 hover:dark:text-emerald-300"
+                          }`}
+                          title={brand.status === "active" ? "Disable brand" : "Enable brand"}
                         >
-                          <Trash2 size={14} />
+                          {brand.status === "active" ? <Ban size={14} /> : <CheckCircle2 size={14} />}
                         </button>
                       </div>
                     </td>
@@ -349,6 +342,25 @@ export default function BrandsTab() {
             <form onSubmit={handleSaveAdd} className="space-y-4">
               <div>
                 <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+                  Equipment Category <span className="text-rose-500">*</span>
+                </label>
+                <select
+                  value={formData.equipment_type_id || ""}
+                  onChange={(e) => setFormData({ ...formData, equipment_type_id: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:border-blue-600 cursor-pointer"
+                  required
+                >
+                  <option value="">-- Select Equipment Category --</option>
+                  {categories.map((cat) => (
+                    <option key={cat.id} value={cat.id}>
+                      {cat.eq_name || cat.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1.5">
                   Brand Name <span className="text-rose-500">*</span>
                 </label>
                 <input
@@ -363,28 +375,15 @@ export default function BrandsTab() {
 
               <div>
                 <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1.5">
-                  Description
-                </label>
-                <textarea
-                  rows={3}
-                  placeholder="Brief details about manufacturer products or origin..."
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:outline-none focus:border-blue-600"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1.5">
                   Status
                 </label>
                 <select
                   value={formData.status}
                   onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:border-blue-600"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:border-blue-600 cursor-pointer"
                 >
-                  <option value="active">Active (Available in Equipment selection)</option>
-                  <option value="inactive">Inactive (Hidden from selection)</option>
+                  <option value="active">Enable</option>
+                  <option value="inactive">Disable</option>
                 </select>
               </div>
 
@@ -440,6 +439,25 @@ export default function BrandsTab() {
             <form onSubmit={handleSaveEdit} className="space-y-4">
               <div>
                 <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+                  Equipment Category <span className="text-rose-500">*</span>
+                </label>
+                <select
+                  value={formData.equipment_type_id || ""}
+                  onChange={(e) => setFormData({ ...formData, equipment_type_id: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:border-blue-600 cursor-pointer"
+                  required
+                >
+                  <option value="">-- Select Equipment Category --</option>
+                  {categories.map((cat) => (
+                    <option key={cat.id} value={cat.id}>
+                      {cat.eq_name || cat.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1.5">
                   Brand Name <span className="text-rose-500">*</span>
                 </label>
                 <input
@@ -453,27 +471,15 @@ export default function BrandsTab() {
 
               <div>
                 <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1.5">
-                  Description
-                </label>
-                <textarea
-                  rows={3}
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:outline-none focus:border-blue-600"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1.5">
                   Status
                 </label>
                 <select
                   value={formData.status}
                   onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:border-blue-600"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:border-blue-600 cursor-pointer"
                 >
-                  <option value="active">Active (Available in Equipment selection)</option>
-                  <option value="inactive">Inactive (Hidden from selection)</option>
+                  <option value="active">Enable</option>
+                  <option value="inactive">Disable</option>
                 </select>
               </div>
 
@@ -499,39 +505,7 @@ export default function BrandsTab() {
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
-      {showDeleteModal && selectedBrand && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-sm w-full p-6 animate-in fade-in zoom-in-95 duration-150">
-            <div className="w-11 h-11 rounded-2xl bg-rose-50 border border-rose-100 text-rose-600 flex items-center justify-center mb-4">
-              <Trash2 size={22} />
-            </div>
-            <h3 className="text-sm font-bold text-slate-900">Delete Brand "{selectedBrand.name}"?</h3>
-            <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
-              Are you sure you want to remove this brand? If equipment units are actively assigned to this brand, deletion will be blocked and you should deactivate it instead.
-            </p>
-
-            <div className="flex items-center justify-end gap-2 mt-5">
-              <button
-                type="button"
-                onClick={() => setShowDeleteModal(false)}
-                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                disabled={submitting}
-                onClick={handleDeleteConfirm}
-                className="flex items-center gap-1.5 px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-semibold shadow-xs cursor-pointer disabled:opacity-50"
-              >
-                {submitting && <Loader2 size={14} className="animate-spin" />}
-                <span>Confirm Delete</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Disable Confirmation is handled inline via PowerOff icon — no separate modal needed */}
     </div>
   );
 }

@@ -3,7 +3,7 @@ import { useOutletContext, useLocation } from "react-router-dom";
 import api from "@/lib/axios";
 import notify from "@/lib/notify";
 import {
-  Loader2, RefreshCw, AlertCircle, Eye, Building2, ChevronLeft, ChevronRight,
+  Loader2, AlertCircle, Eye, Building2, ChevronLeft, ChevronRight,
   Search, Calendar, X, Filter
 } from "lucide-react";
 import { PageLoader } from "@/components/ui/page-loader";
@@ -103,7 +103,11 @@ export default function VenueBookings() {
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 10;
 
-  const fetchBookings = useCallback(async (isSilent = false) => {
+  const fetchBookings = useCallback(async (opts = false) => {
+    const isSilent = typeof opts === "object" && opts !== null
+      ? Boolean(opts.isSilent || opts.silent || opts.showLoading === false)
+      : Boolean(opts);
+
     if (!isSilent) setIsSyncing(true);
     setError(null);
     try {
@@ -111,10 +115,10 @@ export default function VenueBookings() {
       const data = res.data?.data ?? (Array.isArray(res.data) ? res.data : []);
       setBookings(data);
     } catch {
-      setError("Unable to sync venue bookings data.");
+      if (!isSilent) setError("Unable to sync venue bookings data.");
     } finally {
       setLoading(false);
-      setIsSyncing(false);
+      if (!isSilent) setIsSyncing(false);
     }
   }, []);
 
@@ -305,17 +309,6 @@ export default function VenueBookings() {
 
   return (
     <div className="space-y-6">
-      {/* Action Toolbar */}
-      <div className="flex items-center justify-end gap-4">
-        <button
-          onClick={() => fetchBookings(false)}
-          disabled={loading || isSyncing}
-          className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-blue-700 hover:text-white hover:border-blue-700 transition-colors cursor-pointer disabled:opacity-60 shadow-xs shrink-0"
-        >
-          <RefreshCw size={14} className={isSyncing ? "animate-spin" : ""} />
-          <span>{isSyncing ? "Refreshing..." : "Refresh"}</span>
-        </button>
-      </div>
 
       {error && (
         <div className="bg-rose-50 border border-rose-200 rounded-2xl p-4 flex items-center gap-3 text-rose-700 text-xs font-bold">

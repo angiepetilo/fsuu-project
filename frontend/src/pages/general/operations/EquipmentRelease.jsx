@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { 
   Search, ShieldCheck, CheckCircle2, AlertCircle, PackageCheck, 
-  Clock, Calendar, User, ArrowRight, RefreshCw, CheckSquare, Square,
+  Clock, Calendar, User, ArrowRight, CheckSquare, Square,
   Building2, Check, Loader2
 } from "lucide-react";
 import api from "@/lib/axios";
@@ -18,18 +18,22 @@ export default function EquipmentRelease() {
   const [selectedBorrowing, setSelectedBorrowing] = useState(null);
   const [inspectedChecklist, setInspectedChecklist] = useState({});
 
-  const fetchBorrowings = useCallback(async () => {
-    setLoading(true);
+  const fetchBorrowings = useCallback(async (opts = false) => {
+    const isSilent = typeof opts === "object" && opts !== null
+      ? Boolean(opts.isSilent || opts.silent || opts.showLoading === false)
+      : Boolean(opts);
+
+    if (!isSilent && borrowings.length === 0) setLoading(true);
     try {
       const res = await api.get("/avr-equipment-borrowings");
       const list = res.data?.data ?? (Array.isArray(res.data) ? res.data : []);
       setBorrowings(list);
     } catch {
-      notify.error("Data Sync Failed", "Unable to load equipment reservations.");
+      if (!isSilent) notify.error("Data Sync Failed", "Unable to load equipment reservations.");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [borrowings.length]);
 
   useRealtimeSync(fetchBorrowings, { interval: 30000 });
 
@@ -163,16 +167,6 @@ export default function EquipmentRelease() {
             Verify reservation reference, inspect units with physical checklist, and dispatch equipment.
           </p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={fetchBorrowings}
-          disabled={loading}
-          className="self-start sm:self-auto gap-2"
-        >
-          <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
-          <span>Refresh Records</span>
-        </Button>
       </div>
 
       {/* Search & Verification Bar */}

@@ -54,14 +54,13 @@ class EquipmentUnitController extends Controller
             }
         }
 
-        // 2. Normalize barcode from aliases (unit_code, code) or generate unique fallback
+        // 2. Normalize serial_number and barcode
+        $rawSerial = trim((string)($request->input('serial_number') ?? $request->input('serial_no') ?? ''));
         $rawBarcode = trim((string)($request->input('barcode') ?? $request->input('unit_code') ?? $request->input('code') ?? ''));
-        if ($rawBarcode === '') {
-            $prefix = 'BC-' . date('Ymd') . '-';
-            $rand = strtoupper(bin2hex(random_bytes(3)));
-            $rawBarcode = $prefix . $rand;
-        }
-        $request->merge(['barcode' => $rawBarcode]);
+        $request->merge([
+            'serial_number' => $rawSerial !== '' ? $rawSerial : null,
+            'barcode'       => $rawBarcode !== '' ? $rawBarcode : null,
+        ]);
 
         // 3. Normalize dates and numeric lifespans
         if ($request->input('purchased_at') === '' || $request->input('date_purchased') === '') {
@@ -186,22 +185,23 @@ class EquipmentUnitController extends Controller
             'equipment_type_id' => 'required|exists:equipment_types,id',
             'brand'             => 'nullable|string|max:255',
             'model'             => 'nullable|string|max:255',
+            'serial_number'     => 'nullable|string|max:255',
             'barcode'           => [
-                'required',
+                'nullable',
                 'string',
                 'max:255',
-                Rule::unique('equipment_units', 'barcode'),
+                Rule::unique('equipment_units', 'barcode')->whereNull('archived_at'),
             ],
             'purchased_at'      => 'nullable|date',
             'eq_lifespan'       => 'nullable|integer|min:1',
             'status'            => 'nullable|string|max:50',
             'condition'         => 'nullable|string|max:100',
             'built_in_units'    => 'nullable',
+            'built_in_models'   => 'nullable',
             'description'       => 'nullable|string',
         ], [
             'equipment_type_id.required' => 'The equipment category is required.',
             'equipment_type_id.exists'   => 'The selected equipment category does not exist.',
-            'barcode.required'          => 'The barcode field is required.',
             'barcode.unique'            => 'This barcode is already assigned to another physical unit. Barcodes must be unique.',
         ]);
 
@@ -221,13 +221,16 @@ class EquipmentUnitController extends Controller
         if (!is_array($builtInUnits)) {
             $builtInUnits = [];
         }
-        $builtInUnits = array_values(array_filter($builtInUnits, fn($val) => !empty($val)));
+        $finalBuiltInUnits = array_values(array_filter($builtInUnits, fn($val) => !empty($val)));
+
+        $finalBarcode = !empty($validated['barcode']) ? trim($validated['barcode']) : ($serialNo ?: null);
 
         $unitData = [
             'equipment_type_id' => $validated['equipment_type_id'],
             'brand'             => $validated['brand'] ?? null,
             'model'             => $validated['model'] ?? null,
-            'barcode'           => trim($validated['barcode']),
+            'serial_number'     => $serialNo ?: null,
+            'barcode'           => $finalBarcode,
             'purchased_at'      => $validated['purchased_at'] ?? now()->toDateString(),
             'eq_lifespan'       => $validated['eq_lifespan'] ?? 5,
             'status'            => isset($validated['status']) ? strtolower(trim($validated['status'])) : 'available',
@@ -235,7 +238,10 @@ class EquipmentUnitController extends Controller
             'description'       => $validated['description'] ?? null,
         ];
         if (\Illuminate\Support\Facades\Schema::hasColumn('equipment_units', 'built_in_units')) {
-            $unitData['built_in_units'] = !empty($builtInUnits) ? $builtInUnits : null;
+            $unitData['built_in_units'] = !empty($finalBuiltInUnits) ? $finalBuiltInUnits : null;
+        }
+        if (\Illuminate\Support\Facades\Schema::hasColumn('equipment_units', 'built_in_models')) {
+            $unitData['built_in_models'] = !empty($builtInModels) ? $builtInModels : null;
         }
 
         $unit = EquipmentUnit::create($unitData);
@@ -293,17 +299,19 @@ class EquipmentUnitController extends Controller
             'equipment_type_id' => 'sometimes|exists:equipment_types,id',
             'brand'             => 'nullable|string|max:255',
             'model'             => 'nullable|string|max:255',
+            'serial_number'     => 'nullable|string|max:255',
             'barcode'           => [
-                'sometimes',
+                'nullable',
                 'string',
                 'max:255',
-                Rule::unique('equipment_units', 'barcode')->ignore($unit->id),
+                Rule::unique('equipment_units', 'barcode')->whereNull('archived_at')->ignore($unit->id),
             ],
             'purchased_at'      => 'nullable|date',
             'eq_lifespan'       => 'nullable|integer|min:1',
             'status'            => 'nullable|string|max:50',
             'condition'         => 'nullable|string|max:100',
             'built_in_units'    => 'nullable',
+            'built_in_models'   => 'nullable',
             'description'       => 'nullable|string',
             'reason'            => 'nullable|string|max:500',
         ], [
@@ -312,6 +320,14 @@ class EquipmentUnitController extends Controller
 
         $userReason = trim($request->input('reason', ''));
         unset($validated['reason']);
+
+        if ($request->has('serial_number') || $request->has('serial_no')) {
+            $serialVal = trim((string)($request->input('serial_number') ?? $request->input('serial_no') ?? '')) ?: null;
+            $validated['serial_number'] = $serialVal;
+            if (!$request->filled('barcode')) {
+                $validated['barcode'] = $serialVal;
+            }
+        }
 
         if (isset($validated['condition'])) {
             $validated['condition'] = match(strtolower(trim($validated['condition']))) {
@@ -323,8 +339,8 @@ class EquipmentUnitController extends Controller
             };
         }
 
-        if (isset($validated['barcode'])) {
-            $validated['barcode'] = trim($validated['barcode']);
+        if (array_key_exists('barcode', $validated)) {
+            $validated['barcode'] = !empty($validated['barcode']) ? trim($validated['barcode']) : null;
         }
 
         if (isset($validated['status'])) {
@@ -343,8 +359,19 @@ class EquipmentUnitController extends Controller
             }
         }
 
+        if ($request->has('built_in_models')) {
+            $rawModels = $request->input('built_in_models');
+            if (is_string($rawModels)) {
+                $rawModels = json_decode($rawModels, true) ?: [];
+            }
+            $validated['built_in_models'] = is_array($rawModels) ? $rawModels : null;
+        }
+
         if (!\Illuminate\Support\Facades\Schema::hasColumn('equipment_units', 'built_in_units')) {
             unset($validated['built_in_units']);
+        }
+        if (!\Illuminate\Support\Facades\Schema::hasColumn('equipment_units', 'built_in_models')) {
+            unset($validated['built_in_models']);
         }
 
         $oldTypeId    = $unit->equipment_type_id;
@@ -356,6 +383,13 @@ class EquipmentUnitController extends Controller
         }
 
         $unit->update($validated);
+
+        // Keep child built-in units in sync with parent's serial number
+        if (!empty($unit->built_in_units) && is_array($unit->built_in_units) && !empty($unit->serial_number)) {
+            EquipmentUnit::whereIn('id', $unit->built_in_units)->update([
+                'serial_number' => $unit->serial_number,
+            ]);
+        }
 
         // Sync category stock counts for old and new category
         $this->syncCategoryStock($oldTypeId);
@@ -478,348 +512,6 @@ class EquipmentUnitController extends Controller
         } catch (\Throwable $e) {}
 
         return response()->json(['message' => 'Equipment unit enabled successfully', 'unit' => $unit->load('equipmentType')]);
-    }
-
-    /**
-     * Download sample CSV template for equipment units bulk import.
-     */
-    public function downloadTemplate(): \Symfony\Component\HttpFoundation\StreamedResponse
-    {
-        $headers = [
-            'Content-Type'        => 'text/csv; charset=UTF-8',
-            'Content-Disposition' => 'attachment; filename="equipment_units_import_template.csv"',
-            'Pragma'              => 'no-cache',
-            'Cache-Control'       => 'must-revalidate, post-check=0, pre-check=0',
-            'Expires'             => '0',
-        ];
-
-        return response()->stream(function () {
-            $handle = fopen('php://output', 'w');
-            // Write UTF-8 BOM for Microsoft Excel compatibility
-            fputs($handle, "\xEF\xBB\xBF");
-
-            // Header columns
-            fputcsv($handle, [
-                'Category',
-                'Brand',
-                'Model',
-                'Barcode',
-                'Date Purchased',
-                'Lifespan (Years)',
-                'Condition',
-                'Status',
-                'Description',
-            ]);
-
-            // Sample rows to guide the client (including auto-barcode example)
-            fputcsv($handle, ['Projector', 'Epson', 'PowerLite 1780W', 'PRJ-EPS-001', '2025-06-15', '5', 'Good', 'available', 'AVR Storage Cabinet 1']);
-            fputcsv($handle, ['Projector', 'Epson', 'PowerLite 1780W', 'PRJ-EPS-002', '2025-06-15', '5', 'Good', 'available', 'AVR Storage Cabinet 1']);
-            fputcsv($handle, ['Sound System', 'Yamaha', 'StagePas 400BT', 'SND-YAM-001', '2025-08-20', '5', 'Good', 'available', 'Audio Rack System A']);
-            fputcsv($handle, ['Camera', 'Sony', 'Alpha A7 IV', 'CAM-SNY-001', '2026-01-10', '4', 'Minor Wear', 'available', 'Media Production Bag #1']);
-            fputcsv($handle, ['Microphone', 'Shure', 'SM58 Wireless', 'MIC-SHU-001', '2025-11-05', '3', 'Good', 'available', 'Wireless Mic Set Alpha']);
-            fputcsv($handle, ['HDMI Cable', 'Belkin', 'Ultra High Speed 4K 2m', '', '2026-02-01', '3', 'Good', 'available', 'AV Cabinet - Cable Box B (Auto Barcode)']);
-            fputcsv($handle, ['Amplifier', 'Pioneer', 'A-10AE', 'AMP-PIO-001', '2025-03-10', '5', 'Under Repair', 'unavailable', 'Maintenance Bench - Channel 2 Check']);
-
-            fclose($handle);
-        }, 200, $headers);
-    }
-
-    /**
-     * Bulk import equipment units from a CSV file.
-     */
-    public function importCsv(Request $request): JsonResponse
-    {
-        $request->validate([
-            'file'                  => 'required|file|max:10240', // max 10MB
-            'auto_create_category'  => 'nullable',
-            'duplicate_action'      => 'nullable|string|in:skip,error',
-        ]);
-
-        $file = $request->file('file');
-        $autoCreateCat = filter_var($request->input('auto_create_category', true), FILTER_VALIDATE_BOOLEAN);
-        $duplicateAction = $request->input('duplicate_action', 'skip');
-
-        $path = $file->getRealPath();
-        $handle = fopen($path, 'r');
-        if ($handle === false) {
-            return response()->json(['message' => 'Unable to read the uploaded CSV file.'], 422);
-        }
-
-        // Detect and skip UTF-8 BOM if present
-        $bom = fread($handle, 3);
-        if ($bom !== "\xEF\xBB\xBF") {
-            rewind($handle);
-        }
-
-        // Read header row
-        $headerRow = fgetcsv($handle, 4096, ',');
-        if ($headerRow === false || empty($headerRow)) {
-            fclose($handle);
-            return response()->json(['message' => 'The uploaded CSV file is empty.'], 422);
-        }
-
-        // Map header column indexes
-        $colMap = [];
-        foreach ($headerRow as $idx => $rawHeader) {
-            $h = strtolower(trim((string)$rawHeader));
-            $h = preg_replace('/[^a-z0-9]/', '', $h); // normalize e.g. "lifespan (years)" -> "lifespanyears"
-
-            if (in_array($h, ['category', 'categoryname', 'equipmentcategory', 'eqname', 'type', 'equipmenttype', 'eqtype'], true)) {
-                $colMap['category'] = $idx;
-            } elseif (in_array($h, ['brand', 'brandname', 'make', 'manufacturer'], true)) {
-                $colMap['brand'] = $idx;
-            } elseif (in_array($h, ['model', 'modelname', 'modelno', 'modelnumber'], true)) {
-                $colMap['model'] = $idx;
-            } elseif (in_array($h, ['barcode', 'barcodeid', 'unitcode', 'serial', 'serialnumber', 'serialno', 'code', 'assettag', 'propertynumber'], true)) {
-                $colMap['barcode'] = $idx;
-            } elseif (in_array($h, ['datepurchased', 'purchasedat', 'purchasedate', 'date', 'purchase', 'acquisitiondate', 'dateacquired'], true)) {
-                $colMap['date_purchased'] = $idx;
-            } elseif (in_array($h, ['lifespanyears', 'lifespan', 'eqlifespan', 'years', 'lifespaninyears', 'usablelifespan'], true)) {
-                $colMap['lifespan'] = $idx;
-            } elseif (in_array($h, ['condition', 'state', 'health', 'unitcondition'], true)) {
-                $colMap['condition'] = $idx;
-            } elseif (in_array($h, ['status', 'availability', 'availablestatus', 'unitstatus'], true)) {
-                $colMap['status'] = $idx;
-            } elseif (in_array($h, ['description', 'notes', 'remarks', 'location', 'storagelocation', 'cabinet'], true)) {
-                $colMap['description'] = $idx;
-            }
-        }
-
-        if (!isset($colMap['category'])) {
-            fclose($handle);
-            return response()->json([
-                'message' => 'Missing required "Category" column in CSV header. Please download the template for reference.',
-            ], 422);
-        }
-
-        // Preload categories mapped by lowercase name
-        $existingCategories = EquipmentType::all()->keyBy(function ($c) {
-            return strtolower(trim($c->eq_name ?? $c->name ?? ''));
-        });
-
-        // Preload existing barcodes from DB
-        $existingDbBarcodes = EquipmentUnit::pluck('barcode')
-            ->map(fn($b) => strtolower(trim((string)$b)))
-            ->flip()
-            ->all();
-
-        // Preload existing brands
-        $existingBrands = Brand::pluck('name')
-            ->map(fn($b) => strtolower(trim((string)$b)))
-            ->flip()
-            ->all();
-
-        $batchSeenBarcodes = [];
-        $rowsToInsert = [];
-        $categoriesCreated = [];
-        $brandsCreated = [];
-        $affectedCategoryIds = [];
-        $skippedDetails = [];
-        $rowNumber = 1; // row 1 was header
-
-        while (($row = fgetcsv($handle, 4096, ',')) !== false) {
-            $rowNumber++;
-
-            // Skip entirely blank rows
-            if (empty(array_filter($row, fn($v) => trim((string)$v) !== ''))) {
-                continue;
-            }
-
-            $catRaw = isset($colMap['category']) ? trim((string)($row[$colMap['category']] ?? '')) : '';
-            if ($catRaw === '') {
-                $skippedDetails[] = [
-                    'row'     => $rowNumber,
-                    'barcode' => isset($colMap['barcode']) ? ($row[$colMap['barcode']] ?? 'N/A') : 'N/A',
-                    'reason'  => 'Category is required and was empty.',
-                ];
-                continue;
-            }
-
-            $catKey = strtolower($catRaw);
-            if (!isset($existingCategories[$catKey])) {
-                if (!$autoCreateCat) {
-                    $skippedDetails[] = [
-                        'row'     => $rowNumber,
-                        'barcode' => isset($colMap['barcode']) ? ($row[$colMap['barcode']] ?? 'N/A') : 'N/A',
-                        'reason'  => "Category '{$catRaw}' does not exist and auto-create is disabled.",
-                    ];
-                    continue;
-                }
-
-                // Auto-create category
-                $newCat = EquipmentType::create([
-                    'eq_name'              => $catRaw,
-                    'name'                 => $catRaw,
-                    'equipment_types_name' => $catRaw,
-                    'status'               => 'active',
-                    'total_quantity'       => 0,
-                    'available_count'      => 0,
-                    'lifespan_years'       => 5,
-                ]);
-
-                $existingCategories[$catKey] = $newCat;
-                $categoriesCreated[] = $newCat->eq_name;
-            }
-
-            $category = $existingCategories[$catKey];
-            $affectedCategoryIds[$category->id] = true;
-
-            // Barcode processing
-            $rawBarcode = isset($colMap['barcode']) ? trim((string)($row[$colMap['barcode']] ?? '')) : '';
-            if ($rawBarcode === '') {
-                $rawBarcode = 'BC-' . date('Ymd') . '-' . strtoupper(bin2hex(random_bytes(3)));
-            }
-
-            $barcodeKey = strtolower($rawBarcode);
-
-            // Duplicate check (against DB and within current CSV batch)
-            if (isset($existingDbBarcodes[$barcodeKey]) || isset($batchSeenBarcodes[$barcodeKey])) {
-                if ($duplicateAction === 'error') {
-                    fclose($handle);
-                    return response()->json([
-                        'message' => "Duplicate barcode detected at row {$rowNumber}: '{$rawBarcode}'. Barcodes must be unique.",
-                    ], 422);
-                }
-
-                $skippedDetails[] = [
-                    'row'     => $rowNumber,
-                    'barcode' => $rawBarcode,
-                    'reason'  => "Barcode '{$rawBarcode}' already exists in database or earlier row in file.",
-                ];
-                continue;
-            }
-
-            $batchSeenBarcodes[$barcodeKey] = true;
-
-            // Date processing
-            $rawDate = isset($colMap['date_purchased']) ? trim((string)($row[$colMap['date_purchased']] ?? '')) : '';
-            $parsedDate = null;
-            if ($rawDate !== '') {
-                $ts = strtotime($rawDate);
-                if ($ts !== false) {
-                    $parsedDate = date('Y-m-d', $ts);
-                }
-            }
-            if (!$parsedDate) {
-                $parsedDate = now()->toDateString();
-            }
-
-            // Lifespan
-            $rawLifespan = isset($colMap['lifespan']) ? (int)trim((string)$row[$colMap['lifespan']]) : 5;
-            if ($rawLifespan <= 0 || $rawLifespan > 50) {
-                $rawLifespan = 5;
-            }
-
-            // Condition
-            $rawCond = isset($colMap['condition']) ? strtolower(trim((string)$row[$colMap['condition']])) : 'good';
-            $canonicalCondition = match ($rawCond) {
-                'damaged'                       => 'Damaged',
-                'lost'                          => 'Lost',
-                'under repair', 'under_repair'  => 'Under Repair',
-                'minor wear', 'worn'            => 'Minor Wear',
-                default                         => 'Good',
-            };
-
-            // Status
-            $rawStatus = isset($colMap['status']) ? strtolower(trim((string)$row[$colMap['status']])) : 'available';
-            if (in_array($canonicalCondition, ['Damaged', 'Lost', 'Under Repair'], true)) {
-                $canonicalStatus = 'unavailable';
-            } else {
-                $canonicalStatus = ($rawStatus === 'unavailable') ? 'unavailable' : 'available';
-            }
-
-            $brand = isset($colMap['brand']) ? trim((string)$row[$colMap['brand']]) : null;
-            if ($brand !== null && $brand !== '') {
-                $bKey = strtolower($brand);
-                if (!isset($existingBrands[$bKey])) {
-                    try {
-                        Brand::create([
-                            'name'        => $brand,
-                            'status'      => 'active',
-                            'description' => 'Auto-registered from equipment CSV import',
-                        ]);
-                        $existingBrands[$bKey] = true;
-                        $brandsCreated[] = $brand;
-                    } catch (\Throwable $th) {
-                        // Brand might already exist due to case insensitivity or concurrent process
-                    }
-                }
-            }
-
-            $model = isset($colMap['model']) ? trim((string)$row[$colMap['model']]) : null;
-            $description = isset($colMap['description']) ? trim((string)$row[$colMap['description']]) : null;
-
-            $rowsToInsert[] = [
-                'equipment_type_id'  => $category->id,
-                'equipment_types_id' => $category->id,
-                'brand'              => $brand ?: null,
-                'model'              => $model ?: null,
-                'barcode'            => $rawBarcode,
-                'purchased_at'       => $parsedDate,
-                'eq_lifespan'        => $rawLifespan,
-                'status'             => $canonicalStatus,
-                'condition'          => $canonicalCondition,
-                'description'        => $description ?: null,
-                'created_at'         => now(),
-                'updated_at'         => now(),
-            ];
-        }
-
-        fclose($handle);
-
-        if (empty($rowsToInsert)) {
-            return response()->json([
-                'success'           => false,
-                'message'           => 'No valid equipment unit rows were found to import.',
-                'imported_count'    => 0,
-                'skipped_count'     => count($skippedDetails),
-                'skipped_details'   => $skippedDetails,
-                'categories_created'=> array_values(array_unique($categoriesCreated)),
-                'brands_created'    => array_values(array_unique($brandsCreated)),
-            ], 422);
-        }
-
-        // Insert records inside database transaction
-        DB::transaction(function () use ($rowsToInsert) {
-            // Chunk inserts by 100 for optimal performance
-            foreach (array_chunk($rowsToInsert, 100) as $chunk) {
-                EquipmentUnit::insert($chunk);
-            }
-        });
-
-        // Sync stock counts for all affected categories
-        foreach (array_keys($affectedCategoryIds) as $typeId) {
-            $this->syncCategoryStock($typeId);
-        }
-
-        $importedCount = count($rowsToInsert);
-        $skippedCount = count($skippedDetails);
-
-        try {
-            AuditLog::create([
-                'user_id'        => auth()->id(),
-                'action'         => 'EQUIPMENT_UNIT_BULK_IMPORTED',
-                'auditable_type' => 'equipment_units',
-                'auditable_id'   => null,
-                'metadata'       => [
-                    'imported_count' => $importedCount,
-                    'skipped_count'  => $skippedCount,
-                    'description'    => "Bulk imported {$importedCount} equipment units by " . (auth()->user()?->name ?? 'Staff'),
-                ],
-                'ip_address'     => request()->ip(),
-                'created_at'     => now(),
-            ]);
-        } catch (\Throwable $e) {}
-
-        return response()->json([
-            'success'            => true,
-            'message'            => "Successfully imported {$importedCount} equipment " . ($importedCount === 1 ? 'unit' : 'units') . '.',
-            'imported_count'     => $importedCount,
-            'skipped_count'      => $skippedCount,
-            'skipped_details'    => $skippedDetails,
-            'categories_created' => array_values(array_unique($categoriesCreated)),
-            'brands_created'     => array_values(array_unique($brandsCreated)),
-        ], 200);
     }
 
     /**

@@ -176,22 +176,18 @@ class User extends Authenticatable
     {
         if (!is_null($value)) {
             $decoded = is_string($value) ? json_decode($value, true) : $value;
-            if (is_array($decoded)) {
+            if (is_array($decoded) && !empty($decoded)) {
                 return $decoded;
             }
         }
 
-        // If user has a role, look up permissions saved for that role
+        // Inherit directly from the assigned role if user permissions are empty/null
         if (!empty($this->role_id)) {
-            $sampleUser = User::where('role_id', $this->role_id)
-                ->whereNotNull('permissions')
-                ->where('id', '!=', $this->id ?? 0)
-                ->first();
-            if ($sampleUser && !is_null($sampleUser->getRawOriginal('permissions'))) {
-                $p = $sampleUser->getRawOriginal('permissions');
-                $decoded = is_string($p) ? json_decode($p, true) : $p;
-                if (is_array($decoded)) {
-                    return $decoded;
+            $role = $this->relationLoaded('role') ? $this->role : Role::find($this->role_id);
+            if ($role && !empty($role->permissions)) {
+                $rolePerms = is_string($role->permissions) ? json_decode($role->permissions, true) : $role->permissions;
+                if (is_array($rolePerms) && !empty($rolePerms)) {
+                    return $rolePerms;
                 }
             }
         }
@@ -209,6 +205,14 @@ class User extends Authenticatable
         $actionStr = is_object($action) && isset($action->value) ? $action->value : (string)$action;
 
         $perms = $this->permissions ?? [];
+        if (empty($perms) && !empty($this->role_id)) {
+            $role = $this->relationLoaded('role') ? $this->role : Role::find($this->role_id);
+            $perms = $role?->permissions ?? [];
+            if (is_string($perms)) {
+                $perms = json_decode($perms, true) ?: [];
+            }
+        }
+
         if (empty($perms)) {
             return false;
         }

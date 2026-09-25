@@ -5,7 +5,7 @@ export default function Hero() {
         What would you like <span className="text-primary">to reserve?</span>
       </h1>
       <p className="text-sm sm:text-base text-muted-foreground max-w-xl mx-auto leading-relaxed font-normal text-center tracking-normal text-balance">
-        Official reservation system for University venues and technical equipment. Select a category below to submit or track your request.
+        Select a category below to submit your request.
       </p>
     </section>
   );

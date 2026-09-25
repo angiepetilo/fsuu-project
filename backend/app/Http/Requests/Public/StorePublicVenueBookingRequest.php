@@ -24,7 +24,17 @@ class StorePublicVenueBookingRequest extends FormRequest
             'last_name' => ['nullable', 'string', 'max:255'],
             'suffix' => ['nullable', 'string', 'max:50'],
             'requestor_name' => ['required', 'string', 'max:255'],
-            'requestor_email' => ['required', 'email', 'max:255', new ActiveDeliverableEmail],
+            'requestor_email' => [
+                'required',
+                'email',
+                'max:255',
+                function ($attribute, $value, $fail) {
+                    if (!str_ends_with(strtolower(trim((string)$value)), '@urios.edu.ph')) {
+                        $fail('The requestor email must be an official university email ending with @urios.edu.ph.');
+                    }
+                },
+                new ActiveDeliverableEmail,
+            ],
             'requestor_contact_number' => ['required', 'string', new ValidPhilippineMobileNumber],
             'requestor_program_office' => ['nullable', 'string'],
             'requestor_identity_type' => ['nullable', 'string'],

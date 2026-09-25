@@ -83,11 +83,11 @@ export default function TimeSlotMatrix({
         <div className="flex items-center gap-3 text-[11px] font-bold text-slate-600 dark:text-slate-300 flex-wrap">
           <div className="flex items-center gap-1.5">
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-600 shrink-0 inline-block shadow-2xs" />
-            <span>Available / Reserved</span>
+            <span>Available</span>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="w-2.5 h-2.5 rounded-full bg-blue-600 shrink-0 inline-block shadow-2xs" />
-            <span>On-Going</span>
+            <span>Booked / On-Going</span>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="w-2.5 h-2.5 rounded-full bg-amber-500 shrink-0 inline-block shadow-2xs" />
@@ -195,7 +195,10 @@ export default function TimeSlotMatrix({
                         const isOngoing =
                           rawStatus === "ongoing" ||
                           rawStatus === "on-going" ||
-                          rawStatus === "borrowed";
+                          rawStatus === "borrowed" ||
+                          rawStatus === "booked" ||
+                          rawStatus === "approved" ||
+                          rawStatus === "reserved";
                         const isPending =
                           rawStatus === "pending" ||
                           rawStatus === "pending_approval";
@@ -212,7 +215,7 @@ export default function TimeSlotMatrix({
                           statusBadgeLabel = "MAINTENANCE";
                         } else if (isOngoing) {
                           blockStyle = "bg-blue-600 border-blue-700 text-white shadow-xs";
-                          statusBadgeLabel = "ON-GOING";
+                          statusBadgeLabel = rawStatus === "booked" ? "BOOKED" : "ON-GOING";
                         } else if (isPending) {
                           blockStyle = "bg-amber-500/90 border-amber-600 text-white shadow-xs";
                           statusBadgeLabel = "PENDING";

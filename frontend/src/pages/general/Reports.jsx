@@ -114,8 +114,12 @@ export default function Reports() {
 
   const [equipmentUnits, setEquipmentUnits] = useState([]);
 
-  const fetchReportsData = async (silent = false) => {
-    if (!silent) setLoading(true);
+  const fetchReportsData = async (opts = false) => {
+    const isSilent = typeof opts === "object" && opts !== null
+      ? Boolean(opts.isSilent || opts.silent || opts.showLoading === false)
+      : Boolean(opts);
+
+    if (!isSilent) setLoading(true);
     try {
       const termParam = selectedTermId ? `?academic_term_id=${selectedTermId}` : "";
       const [histRes, daRes, eqData, unitsRes, activeEbRes] = await Promise.all([
@@ -150,7 +154,7 @@ export default function Reports() {
     } catch {
       // Fallback
     } finally {
-      if (!silent) setLoading(false);
+      if (!isSilent) setLoading(false);
     }
   };
 

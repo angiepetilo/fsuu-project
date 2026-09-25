@@ -11,10 +11,14 @@ class UserSeeder extends Seeder
 {
     public function run(): void
     {
-        // Ensure standard roles exist
-        $superAdminRole       = Role::firstOrCreate(['name' => 'super_admin']);
-        Role::firstOrCreate(['name' => 'staff']);
-        Role::firstOrCreate(['name' => 'student_assistant']);
+        // Ensure standard roles exist with default descriptions
+        $superAdminRole = Role::firstOrCreate(
+            ['name' => 'super_admin'],
+            [
+                'description' => 'Unrestricted system access with full administrative privileges.',
+                'permissions' => ['*'],
+            ]
+        );
         $defaultPassword = Hash::make(env('INITIAL_SUPERADMIN_PASSWORD', 'password123'));
 
         // 1. Super Administrator

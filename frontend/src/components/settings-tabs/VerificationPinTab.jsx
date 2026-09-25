@@ -61,6 +61,7 @@ export default function VerificationPinTab({
     template_file: null,
     template_file_name: "",
     template_file_url: "",
+    template_display_mode: "uploaded_file",
     remove_template: false,
   });
 
@@ -233,6 +234,7 @@ export default function VerificationPinTab({
     formData.append("classification", reqForm.classification);
     formData.append("label", reqForm.label);
     formData.append("description", reqForm.description || "");
+    formData.append("template_display_mode", reqForm.template_display_mode || "uploaded_file");
     formData.append("office_id", "1");
 
     if (reqForm.template_file) {
@@ -249,6 +251,7 @@ export default function VerificationPinTab({
         classification: reqForm.classification,
         label: reqForm.label,
         description: reqForm.description,
+        template_display_mode: reqForm.template_display_mode || "uploaded_file",
         template_file_name: reqForm.remove_template ? null : (reqForm.template_file ? reqForm.template_file.name : x.template_file_name),
         template_file_url: reqForm.remove_template ? null : x.template_file_url,
       } : x));
@@ -262,11 +265,14 @@ export default function VerificationPinTab({
         const updated = res.data;
         setRequirements(r => r.map(x => x.id === editReq.id ? updated : x));
         notify.success("Requirement updated.");
-      } catch {
+      } catch (err) {
         setRequirements(prev);
         setEditReq(editReq);
         setShowReqModal(true);
-        notify.error("Failed to update requirement.");
+        const errDetail = err.response?.data?.errors
+          ? Object.values(err.response.data.errors).flat().join(" ")
+          : (err.response?.data?.message || "Failed to update requirement.");
+        notify.error(errDetail);
       } finally {
         setReqFormLoading(false);
       }
@@ -278,6 +284,7 @@ export default function VerificationPinTab({
         classification: reqForm.classification,
         label: reqForm.label,
         description: reqForm.description,
+        template_display_mode: reqForm.template_display_mode || "uploaded_file",
         template_file_name: reqForm.template_file ? reqForm.template_file.name : null,
       }]);
       setShowReqModal(false);
@@ -288,10 +295,13 @@ export default function VerificationPinTab({
         const saved = res.data;
         setRequirements(r => r.map(x => x.id === tempId ? saved : x));
         notify.success("Requirement added.");
-      } catch {
+      } catch (err) {
         setRequirements(prev);
         setShowReqModal(true);
-        notify.error("Failed to add requirement.");
+        const errDetail = err.response?.data?.errors
+          ? Object.values(err.response.data.errors).flat().join(" ")
+          : (err.response?.data?.message || "Failed to add requirement.");
+        notify.error(errDetail);
       } finally {
         setReqFormLoading(false);
       }
@@ -305,9 +315,10 @@ export default function VerificationPinTab({
     try {
       await api.delete(`/general/booking-requirements/${id}`);
       notify.success("Requirement removed.");
-    } catch {
+    } catch (err) {
       setRequirements(prev);
-      notify.error("Failed to remove requirement.");
+      const errDetail = err.response?.data?.message || "Failed to remove requirement.";
+      notify.error(errDetail);
     }
   };
 
@@ -315,23 +326,31 @@ export default function VerificationPinTab({
     if (!selectedReqForFormat) return;
     const reqId = selectedReqForFormat.id;
 
-    const formData = new FormData();
-    formData.append("_method", "PUT");
-    formData.append("format_content", JSON.stringify(updatedFormat));
+    try {
+      const formData = new FormData();
+      formData.append("_method", "PUT");
+      formData.append("format_content", JSON.stringify(updatedFormat));
 
-    const res = await api.post(`/general/booking-requirements/${reqId}`, formData, {
-      headers: { "Content-Type": "multipart/form-data" },
-    });
+      const res = await api.post(`/general/booking-requirements/${reqId}`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
 
-    const updated = res.data;
-    setRequirements((prev) =>
-      prev.map((r) =>
-        r.id === reqId ? { ...r, format_content: updated.format_content || updatedFormat } : r
-      )
-    );
-    setSelectedReqForFormat((prev) =>
-      prev ? { ...prev, format_content: updated.format_content || updatedFormat } : null
-    );
+      const updated = res.data;
+      setRequirements((prev) =>
+        prev.map((r) =>
+          r.id === reqId ? { ...r, format_content: updated.format_content || updatedFormat } : r
+        )
+      );
+      setSelectedReqForFormat((prev) =>
+        prev ? { ...prev, format_content: updated.format_content || updatedFormat } : null
+      );
+      notify.success("Document format saved.");
+    } catch (err) {
+      const errDetail = err.response?.data?.errors
+        ? Object.values(err.response.data.errors).flat().join(" ")
+        : (err.response?.data?.message || "Failed to save format.");
+      notify.error(errDetail);
+    }
   };
 
   const handleOtpSettingChange = (field, newValue) => {
@@ -403,35 +422,33 @@ export default function VerificationPinTab({
           </div>
         )}
 
-        {/* Section 1: Master PIN Input */}
+        {/* Section 1: Master Password / PIN Input */}
         <div className={`space-y-2 transition-opacity ${!pinSettings.isEnabled ? "opacity-40 pointer-events-none select-none" : ""}`}>
-          <label className="block text-xs font-semibold text-slate-900">
-            Master Security PIN (6-Digit Code)
+          <label className="block text-xs font-semibold text-slate-900 dark:text-white">
+            Super Administrator Master Password / Verification PIN
           </label>
           <div className="flex items-center gap-3">
             <input
               type={showPin ? "text" : "password"}
-              maxLength={6}
               value={pinSettings.masterPin || ""}
               disabled={!isEditing || !pinSettings.isEnabled}
               onChange={(e) => {
-                const val = e.target.value.replace(/\D/g, "").slice(0, 6);
-                setPinSettings({ ...pinSettings, masterPin: val });
+                setPinSettings({ ...pinSettings, masterPin: e.target.value });
               }}
-              placeholder="123456"
-              className="w-48 p-2 text-sm font-mono tracking-widest bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-blue-500 disabled:bg-slate-100 disabled:cursor-not-allowed"
+              placeholder="Enter master password or PIN"
+              className="w-64 p-2 text-xs sm:text-sm bg-white dark:bg-[#1E293B] border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white focus:outline-none focus:border-blue-500 disabled:bg-slate-100 dark:disabled:bg-slate-800 disabled:cursor-not-allowed"
             />
             <button
               type="button"
               disabled={!pinSettings.isEnabled}
               onClick={() => setShowPin(!showPin)}
-              className="px-3 py-2 text-xs text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50 disabled:cursor-not-allowed cursor-pointer"
+              className="px-3 py-2 text-xs text-slate-600 dark:text-slate-300 border border-slate-300 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 disabled:cursor-not-allowed cursor-pointer"
             >
-              {showPin ? "Hide PIN" : "Show PIN"}
+              {showPin ? "Hide" : "Show"}
             </button>
           </div>
-          <p className="text-[11px] text-slate-500">
-            Issued by the AVR Head / Administrator to authorize special booking requests.
+          <p className="text-[11px] text-slate-500 dark:text-slate-400">
+            Master authorization password used by the Super Administrator to verify overrides. Regular staff and users can authorize using their own account credentials.
           </p>
         </div>
 
@@ -824,6 +841,7 @@ export default function VerificationPinTab({
                 template_file: null,
                 template_file_name: "",
                 template_file_url: "",
+                template_display_mode: "uploaded_file",
                 remove_template: false,
               });
               setShowReqModal(true);
@@ -844,20 +862,23 @@ export default function VerificationPinTab({
                 <th className="p-2.5">Scope</th>
                 <th className="p-2.5">Description</th>
                 <th className="p-2.5">Downloadable Template</th>
+                <th className="p-2.5">Display Format</th>
                 <th className="p-2.5 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
               {reqLoading ? (
                 <tr>
-                  <td colSpan={6} className="p-4 text-center text-slate-400">
+                  <td colSpan={7} className="p-4 text-center text-slate-400">
                     Loading requirements...
                   </td>
                 </tr>
               ) : requirements.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="p-4 text-center text-slate-400">
-                    No requirements configured.
+                  <td colSpan={7} className="p-8 text-center text-slate-400">
+                    <FileText size={28} className="mx-auto text-slate-300 mb-2" />
+                    <p className="text-xs font-semibold text-slate-600">No booking requirements configured.</p>
+                    <p className="text-[11px] text-slate-400 mt-0.5">Click "Add Requirement" above to create requirements and upload your template form.</p>
                   </td>
                 </tr>
               ) : (
@@ -890,6 +911,21 @@ export default function VerificationPinTab({
                           <span className="text-slate-400 text-xs italic">No file attached</span>
                         )}
                       </td>
+                      <td className="p-2.5">
+                        <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-semibold ${
+                          req.template_display_mode === 'digital_format'
+                            ? 'bg-purple-50 text-purple-700 border border-purple-200'
+                            : req.template_display_mode === 'both'
+                            ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
+                            : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                        }`}>
+                          {req.template_display_mode === 'digital_format'
+                            ? 'Digital Format'
+                            : req.template_display_mode === 'both'
+                            ? 'Both (File & Digital)'
+                            : 'Uploaded File Only'}
+                        </span>
+                      </td>
                       <td className="p-2.5 text-right">
                         <div className="inline-flex items-center gap-2">
                           <button
@@ -915,6 +951,7 @@ export default function VerificationPinTab({
                                 template_file: null,
                                 template_file_name: req.template_file_name || "",
                                 template_file_url: req.template_file_url || "",
+                                template_display_mode: req.template_display_mode || "uploaded_file",
                                 remove_template: false,
                               });
                               setShowReqModal(true);
@@ -944,134 +981,197 @@ export default function VerificationPinTab({
       {/* Requirement Modal */}
       {showReqModal && (
         <div className="fixed inset-0 bg-black/40 z-[1500] flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl p-5 max-w-md w-full border border-slate-200 space-y-4 shadow-lg">
-            <div className="flex justify-between items-center pb-2 border-b border-slate-100">
-              <h3 className="text-sm font-semibold text-slate-900">
-                {editReq ? "Edit Requirement" : "Add Requirement"}
-              </h3>
+          <div className="bg-white rounded-xl p-5 max-w-2xl w-full border border-slate-200 shadow-lg space-y-4">
+            <div className="flex justify-between items-center pb-2.5 border-b border-slate-100">
+              <div>
+                <h3 className="text-sm font-semibold text-slate-900">
+                  {editReq ? "Edit Requirement" : "Add Requirement"}
+                </h3>
+                <p className="text-xs text-slate-500 font-normal mt-0.5">
+                  Configure submission guidelines, signatory requirements, and template file options.
+                </p>
+              </div>
               <button
+                type="button"
                 onClick={() => setShowReqModal(false)}
-                className="text-slate-400 hover:text-slate-600 text-sm cursor-pointer"
+                className="text-slate-400 hover:text-slate-600 text-sm cursor-pointer p-1"
               >
                 ✕
               </button>
             </div>
 
-            <form onSubmit={handleSaveReq} className="space-y-3 text-xs">
-              <div>
-                <label className="block font-medium text-slate-700 mb-1">
-                  Requirement Title *
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. OISAA Endorsement Letter"
-                  value={reqForm.label}
-                  onChange={(e) => setReqForm({ ...reqForm, label: e.target.value })}
-                  className="w-full p-2 bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-slate-500"
-                />
-              </div>
-
-              <div>
-                <label className="block font-medium text-slate-700 mb-1">
-                  Classification Scope *
-                </label>
-                <select
-                  value={reqForm.classification}
-                  onChange={(e) => setReqForm({ ...reqForm, classification: e.target.value })}
-                  className="w-full p-2 bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none"
-                >
-                  <option value="all">All Classifications</option>
-                  <option value="organization">Student Organization</option>
-                  <option value="academic">Academic Department</option>
-                  <option value="external">External Client</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block font-medium text-slate-700 mb-1">
-                  Description / Instructions
-                </label>
-                <textarea
-                  rows={2}
-                  placeholder="e.g. Must be signed by the Director of OISAA"
-                  value={reqForm.description}
-                  onChange={(e) => setReqForm({ ...reqForm, description: e.target.value })}
-                  className="w-full p-2 bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none"
-                />
-              </div>
-
-              {/* Downloadable Template File Upload */}
-              <div>
-                <label className="block font-medium text-slate-700 mb-1">
-                  Downloadable Template Form (Optional)
-                </label>
-                {reqForm.template_file_url && !reqForm.remove_template ? (
-                  <div className="flex items-center justify-between p-2.5 bg-slate-50 border border-slate-200 rounded-lg">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <FileText className="w-4 h-4 text-blue-600 shrink-0" />
-                      <a
-                        href={reqForm.template_file_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="font-medium text-blue-600 hover:underline truncate max-w-[200px]"
-                        title={reqForm.template_file_name || "Existing Template File"}
-                      >
-                        {reqForm.template_file_name || "Attached Template File"}
-                      </a>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setReqForm(prev => ({ ...prev, remove_template: true, template_file: null }))}
-                      className="text-rose-600 hover:text-rose-800 font-semibold ml-2 shrink-0 cursor-pointer"
-                    >
-                      Remove
-                    </button>
-                  </div>
-                ) : (
-                  <div className="space-y-1.5">
+            <form onSubmit={handleSaveReq} className="space-y-4 text-xs">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+                {/* Left Column: Core Details */}
+                <div className="space-y-3">
+                  <div>
+                    <label className="block font-medium text-slate-700 mb-1">
+                      Requirement Title *
+                    </label>
                     <input
-                      type="file"
-                      accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          setReqForm(prev => ({
-                            ...prev,
-                            template_file: file,
-                            template_file_name: file.name,
-                            remove_template: false,
-                          }));
-                        }
-                      }}
-                      className="w-full text-xs text-slate-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
+                      type="text"
+                      required
+                      placeholder="e.g. OISAA Endorsement Letter"
+                      value={reqForm.label}
+                      onChange={(e) => setReqForm({ ...reqForm, label: e.target.value })}
+                      className="w-full p-2 bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-slate-500"
                     />
-                    {reqForm.template_file && (
-                      <p className="text-[11px] text-emerald-600 font-medium flex items-center gap-1">
-                        ✓ Selected: {reqForm.template_file.name}
-                      </p>
-                    )}
-                    <p className="text-[10.5px] text-slate-400">
-                      Attach printable or fillable form (PDF, Word, Excel, Images up to 10MB).
-                    </p>
                   </div>
-                )}
+
+                  <div>
+                    <label className="block font-medium text-slate-700 mb-1">
+                      Classification Scope *
+                    </label>
+                    <select
+                      value={reqForm.classification}
+                      onChange={(e) => setReqForm({ ...reqForm, classification: e.target.value })}
+                      className="w-full p-2 bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none"
+                    >
+                      <option value="all">All Classifications</option>
+                      <option value="organization">Student Organization</option>
+                      <option value="academic">Academic Department</option>
+                      <option value="external">External Client</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block font-medium text-slate-700 mb-1">
+                      Description / Instructions
+                    </label>
+                    <textarea
+                      rows={4}
+                      placeholder="e.g. Must be signed by the Dean and Director of OISAA"
+                      value={reqForm.description}
+                      onChange={(e) => setReqForm({ ...reqForm, description: e.target.value })}
+                      className="w-full p-2 bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                {/* Right Column: Display Mode & Template Attachment */}
+                <div className="space-y-3">
+                  <div>
+                    <label className="block font-medium text-slate-700 mb-1">
+                      Template Display Mode *
+                    </label>
+                    <div className="space-y-1.5">
+                      <label className="flex items-start gap-2 p-2 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="template_display_mode"
+                          value="uploaded_file"
+                          checked={reqForm.template_display_mode === "uploaded_file"}
+                          onChange={(e) => setReqForm({ ...reqForm, template_display_mode: e.target.value })}
+                          className="mt-0.5 text-blue-600 focus:ring-blue-500"
+                        />
+                        <div>
+                          <span className="block font-medium text-slate-900 text-xs">Uploaded File Only</span>
+                          <span className="block text-[11px] text-slate-500 font-normal">Only provide download of your uploaded custom document.</span>
+                        </div>
+                      </label>
+                      <label className="flex items-start gap-2 p-2 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="template_display_mode"
+                          value="digital_format"
+                          checked={reqForm.template_display_mode === "digital_format"}
+                          onChange={(e) => setReqForm({ ...reqForm, template_display_mode: e.target.value })}
+                          className="mt-0.5 text-blue-600 focus:ring-blue-500"
+                        />
+                        <div>
+                          <span className="block font-medium text-slate-900 text-xs">Digital Letter Format</span>
+                          <span className="block text-[11px] text-slate-500 font-normal">Display digital letter format with university letterhead and body text.</span>
+                        </div>
+                      </label>
+                      <label className="flex items-start gap-2 p-2 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="template_display_mode"
+                          value="both"
+                          checked={reqForm.template_display_mode === "both"}
+                          onChange={(e) => setReqForm({ ...reqForm, template_display_mode: e.target.value })}
+                          className="mt-0.5 text-blue-600 focus:ring-blue-500"
+                        />
+                        <div>
+                          <span className="block font-medium text-slate-900 text-xs">Both (Download File &amp; Digital Format)</span>
+                          <span className="block text-[11px] text-slate-500 font-normal">Allow users to both download the uploaded file and view the digital letter.</span>
+                        </div>
+                      </label>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block font-medium text-slate-700 mb-1">
+                      Downloadable Template Form (Optional)
+                    </label>
+                    {reqForm.template_file_url && !reqForm.remove_template ? (
+                      <div className="flex items-center justify-between p-2 bg-slate-50 border border-slate-200 rounded-lg">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <FileText className="w-4 h-4 text-blue-600 shrink-0" />
+                          <a
+                            href={reqForm.template_file_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="font-medium text-blue-600 hover:underline truncate max-w-[150px]"
+                            title={reqForm.template_file_name || "Existing Template File"}
+                          >
+                            {reqForm.template_file_name || "Attached Template File"}
+                          </a>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setReqForm(prev => ({ ...prev, remove_template: true, template_file: null }))}
+                          className="text-rose-600 hover:text-rose-800 font-medium ml-2 shrink-0 cursor-pointer text-xs"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="space-y-1">
+                        <input
+                          type="file"
+                          accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              setReqForm(prev => ({
+                                ...prev,
+                                template_file: file,
+                                template_file_name: file.name,
+                                remove_template: false,
+                              }));
+                            }
+                          }}
+                          className="w-full text-xs text-slate-500 file:mr-2 file:py-1 file:px-2.5 file:rounded-md file:border-0 file:text-xs file:font-normal file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200 cursor-pointer"
+                        />
+                        {reqForm.template_file && (
+                          <p className="text-[11px] text-emerald-600 font-medium flex items-center gap-1">
+                            ✓ Selected: {reqForm.template_file.name}
+                          </p>
+                        )}
+                        <p className="text-[10.5px] text-slate-400 font-normal">
+                          PDF, Word, Excel, or Image up to 10MB.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
 
               <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setShowReqModal(false)}
-                  className="px-3 py-1.5 border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 cursor-pointer"
+                  className="px-3.5 py-1.5 border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 cursor-pointer font-normal text-xs"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={reqFormLoading}
-                  className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium cursor-pointer"
+                  className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium cursor-pointer text-xs"
                 >
-                  {reqFormLoading ? "Saving..." : "Save"}
+                  {reqFormLoading ? "Saving..." : (editReq ? "Save Changes" : "Save Requirement")}
                 </button>
               </div>
             </form>

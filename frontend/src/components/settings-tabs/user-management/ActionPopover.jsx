@@ -32,8 +32,9 @@ export default function ActionPopover({ anchorEl, isOpen, onClose, children }) {
         }}
       />
       <div
+        role="menu"
         style={{ position: "fixed", top: pos.top, left: pos.left, zIndex: 9999 }}
-        className="w-40 bg-white border border-slate-200 rounded-xl shadow-xl py-1 text-xs"
+        className="w-40 popover-content bg-white dark:bg-[#1E293B] border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl py-1 text-xs"
         onClick={(e) => e.stopPropagation()}
       >
         {children}

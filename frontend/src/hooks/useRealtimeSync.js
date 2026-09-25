@@ -1,12 +1,13 @@
 import { useEffect, useRef } from "react";
 
 /**
- * useRealtimeSync - Unified real-time polling and window event synchronization hook.
+ * useRealtimeSync - Unified silent real-time polling and window event synchronization hook.
  * 
- * @param {Function} fetchCallback - Function to call to refresh data
+ * @param {Function} fetchCallback - Function to call to refresh data (receives isSilent boolean)
  * @param {Object} options - Configuration options
- * @param {number} [options.interval=10000] - Polling interval in ms (default: 10s)
+ * @param {number} [options.interval=30000] - Polling interval in ms (default: 30s)
  * @param {boolean} [options.enabled=true] - Whether synchronization is active
+ * @param {boolean} [options.initialSilent=false] - Whether initial fetch on mount should be silent
  * @param {string[]} [options.customEvents=["equipment_inventory_updated"]] - Window events that trigger sync
  * @param {Array} [options.deps=[]] - Extra dependencies to re-trigger initial fetch
  */
@@ -14,6 +15,7 @@ export function useRealtimeSync(fetchCallback, options = {}) {
   const {
     interval = 30000,
     enabled = true,
+    initialSilent = false,
     customEvents = ["equipment_inventory_updated"],
     deps = [],
   } = options;
@@ -22,25 +24,37 @@ export function useRealtimeSync(fetchCallback, options = {}) {
   callbackRef.current = fetchCallback;
 
   const lastFetchTimeRef = useRef(0);
+  const isFetchingRef = useRef(false);
   const eventsKey = JSON.stringify(customEvents);
 
   useEffect(() => {
     if (!enabled) return;
 
     let isMounted = true;
-    const executeFetch = () => {
+    const executeFetch = async (isSilent = false) => {
       if (!isMounted) return;
+      if (isFetchingRef.current) return;
+
+      isFetchingRef.current = true;
       lastFetchTimeRef.current = Date.now();
-      callbackRef.current?.();
+      try {
+        await callbackRef.current?.(isSilent);
+      } catch (err) {
+        // Suppress unhandled errors during background sync
+      } finally {
+        if (isMounted) {
+          isFetchingRef.current = false;
+        }
+      }
     };
 
     // Trigger initial fetch
-    executeFetch();
+    executeFetch(initialSilent);
 
-    // Recurring timer — pause when tab is hidden
+    // Recurring timer — pause when tab is hidden, run silently
     const timer = setInterval(() => {
       if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
-      executeFetch();
+      executeFetch(true);
     }, interval);
 
     // Event handler for window focus and custom events with cooldown
@@ -53,7 +67,7 @@ export function useRealtimeSync(fetchCallback, options = {}) {
         if (now - lastFetchTimeRef.current < 25000) return;
       }
       
-      executeFetch();
+      executeFetch(true);
     };
 
     window.addEventListener("focus", handleSyncEvent);
@@ -76,7 +90,7 @@ export function useRealtimeSync(fetchCallback, options = {}) {
         window.removeEventListener(evtName, handleSyncEvent);
       });
     };
-  }, [enabled, interval, eventsKey, ...deps]);
+  }, [enabled, interval, eventsKey, initialSilent, ...deps]);
 }
 
 export default useRealtimeSync;

@@ -59,6 +59,7 @@ export default function VenueBooking({ isPortal: isPortalProp }) {
   const [completedSteps, setCompletedSteps] = useState([]);
   const [venues, setVenues] = useState([]);
   const [venuesLoading, setVenuesLoading] = useState(true);
+  const [venueOverrides, setVenueOverrides] = useState([]);
 
   const isPortal = isAuthenticated && (isPortalProp ?? (
     typeof window !== "undefined" && (
@@ -189,6 +190,28 @@ export default function VenueBooking({ isPortal: isPortalProp }) {
     fetchVenues();
     window.addEventListener("venues_updated", fetchVenues);
 
+    const fetchOverrides = () => {
+      api.get('/public/venue-overrides')
+        .then(res => {
+          const data = Array.isArray(res.data) ? res.data : (res.data?.data ?? []);
+          setVenueOverrides(data);
+          try {
+            localStorage.setItem("fsuu_venue_overrides", JSON.stringify(data));
+          } catch { }
+        })
+        .catch(() => {
+          try {
+            const saved = JSON.parse(localStorage.getItem("fsuu_venue_overrides") || "[]");
+            setVenueOverrides(Array.isArray(saved) ? saved : Object.values(saved));
+          } catch {
+            setVenueOverrides([]);
+          }
+        });
+    };
+
+    fetchOverrides();
+    window.addEventListener("venue_availability_updated", fetchOverrides);
+
     api.get('/public/venue-bookings')
       .then(res => {
         const data = Array.isArray(res.data) ? res.data : (res.data?.data ?? []);
@@ -198,6 +221,7 @@ export default function VenueBooking({ isPortal: isPortalProp }) {
 
     return () => {
       window.removeEventListener("venues_updated", fetchVenues);
+      window.removeEventListener("venue_availability_updated", fetchOverrides);
     };
   }, []);
 
@@ -315,6 +339,23 @@ export default function VenueBooking({ isPortal: isPortalProp }) {
       return;
     }
 
+    // Hard block if venue override (maintenance or closed) exists for the venue in this date range
+    const overrideBlock = venueOverrides.find(o => {
+      const oVenueId = o.venue_id || o.venue?.id;
+      const oDate = o.override_date ? o.override_date.substring(0, 10) : null;
+      if (String(oVenueId) !== String(selectedVenue.id)) return false;
+      const tEnd = targetEndDate || selectedDate;
+      return oDate && oDate >= selectedDate && oDate <= tEnd && (o.status === "maintenance" || o.status === "closed");
+    });
+
+    if (overrideBlock) {
+      notify.error(
+        `Venue ${overrideBlock.status === "maintenance" ? "Under Maintenance" : "Closed"}`,
+        `${selectedVenue.name} is unavailable on ${overrideBlock.override_date?.substring(0, 10)} due to scheduled ${overrideBlock.status}. ${overrideBlock.notes || ''}`
+      );
+      return;
+    }
+
     const venueOpen = opHours?.venue_open?.substring(0, 5) || "07:30";
     const venueClose = opHours?.venue_close?.substring(0, 5) || "17:00";
     const isOutsideHours = (startTime && startTime < venueOpen) || (endTime && endTime > venueClose);
@@ -388,7 +429,7 @@ export default function VenueBooking({ isPortal: isPortalProp }) {
 
     setCompletedSteps(prev => (!prev.includes(2) ? [...prev, 2] : prev));
     setActiveStep(3);
-  }, [selectedVenue, selectedDate, startTime, selectedEndDate, endTime, existingBookings, opHours, isPortal, pinRules, identity, isPinVerified, formatTime12]);
+  }, [selectedVenue, selectedDate, startTime, selectedEndDate, endTime, existingBookings, venueOverrides, opHours, isPortal, pinRules, identity, isPinVerified, formatTime12]);
 
   const handleConfirmPin = useCallback((e) => {
     e.preventDefault();
@@ -406,15 +447,20 @@ export default function VenueBooking({ isPortal: isPortalProp }) {
 
   const handleDetailsSubmit = useCallback((e) => {
     e.preventDefault();
+    const cleanEmail = (email || "").trim().toLowerCase();
+    if (!cleanEmail.endsWith("@urios.edu.ph")) {
+      alert("Only official university email addresses ending with @urios.edu.ph are accepted for reservations.");
+      return;
+    }
     const requireEmailVerify = pinRules ? (pinRules.isEnabled !== false && pinRules.venueVerifyEmail === true) : false;
 
     if (requireEmailVerify && !isEmailVerified) {
-      alert("Please verify your personal email address via OTP before proceeding to the next step.");
+      alert("Please verify your university email address via OTP before proceeding to the next step.");
       return;
     }
     setCompletedSteps(prev => (!prev.includes(3) ? [...prev, 3] : prev));
     setActiveStep(4);
-  }, [pinRules, isEmailVerified]);
+  }, [pinRules, isEmailVerified, email]);
 
   const handleVerifySubmit = useCallback(async (e) => {
     e.preventDefault();
@@ -602,6 +648,7 @@ export default function VenueBooking({ isPortal: isPortalProp }) {
             onNext={handleStep2Next}
             venuesLoading={venuesLoading}
             isPortal={isPortal}
+            venueOverrides={venueOverrides}
           />
         )}
 

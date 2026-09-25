@@ -124,16 +124,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/admin/equipment-types/{id}',      [EquipmentTypeController::class, 'update']);
     Route::delete('/admin/equipment-types/{id}',   [EquipmentTypeController::class, 'destroy']);
 
-    Route::get('/general/equipment-units/import-template', [EquipmentUnitController::class, 'downloadTemplate']);
-    Route::post('/general/equipment-units/import-csv',      [EquipmentUnitController::class, 'importCsv']);
     Route::post('/general/equipment-units/{id}/enable',     [EquipmentUnitController::class, 'enable']);
     Route::get('/general/equipment-units',                 [EquipmentUnitController::class, 'index']);
     Route::post('/general/equipment-units',                [EquipmentUnitController::class, 'store']);
     Route::put('/general/equipment-units/{id}',            [EquipmentUnitController::class, 'update']);
     Route::delete('/general/equipment-units/{id}',         [EquipmentUnitController::class, 'destroy']);
 
-    Route::get('/admin/equipment-units/import-template',   [EquipmentUnitController::class, 'downloadTemplate']);
-    Route::post('/admin/equipment-units/import-csv',        [EquipmentUnitController::class, 'importCsv']);
     Route::post('/admin/equipment-units/{id}/enable',       [EquipmentUnitController::class, 'enable']);
     Route::get('/admin/equipment-units',                   [EquipmentUnitController::class, 'index']);
     Route::post('/admin/equipment-units',                  [EquipmentUnitController::class, 'store']);
@@ -366,14 +362,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/admin/verification-pin',        [VerificationPinController::class, 'update']);
 
     // ── General: Booking Requirements & Fee Matrix ────────────────────────────
-    Route::get('/general/booking-requirements',         [BookingRequirementController::class, 'index']);
-    Route::post('/general/booking-requirements',        [BookingRequirementController::class, 'store']);
-    Route::put('/general/booking-requirements/{id}',    [BookingRequirementController::class, 'update']);
-    Route::delete('/general/booking-requirements/{id}', [BookingRequirementController::class, 'destroy']);
-    Route::get('/admin/booking-requirements',           [BookingRequirementController::class, 'index']);
-    Route::post('/admin/booking-requirements',          [BookingRequirementController::class, 'store']);
-    Route::put('/admin/booking-requirements/{id}',      [BookingRequirementController::class, 'update']);
-    Route::delete('/admin/booking-requirements/{id}',   [BookingRequirementController::class, 'destroy']);
+    Route::get('/general/booking-requirements',                 [BookingRequirementController::class, 'index']);
+    Route::post('/general/booking-requirements',                [BookingRequirementController::class, 'store']);
+    Route::match(['put', 'post'], '/general/booking-requirements/{id}', [BookingRequirementController::class, 'update']);
+    Route::delete('/general/booking-requirements/{id}',         [BookingRequirementController::class, 'destroy']);
+    Route::get('/admin/booking-requirements',                   [BookingRequirementController::class, 'index']);
+    Route::post('/admin/booking-requirements',                  [BookingRequirementController::class, 'store']);
+    Route::match(['put', 'post'], '/admin/booking-requirements/{id}',   [BookingRequirementController::class, 'update']);
+    Route::delete('/admin/booking-requirements/{id}',           [BookingRequirementController::class, 'destroy']);
 
     Route::get('/general/fee-matrix',         [\App\Http\Controllers\SuperAdmin\FeeMatrixController::class, 'index']);
     Route::post('/general/fee-matrix',        [\App\Http\Controllers\SuperAdmin\FeeMatrixController::class, 'store']);

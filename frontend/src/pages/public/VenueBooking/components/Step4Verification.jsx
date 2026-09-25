@@ -133,7 +133,9 @@ export default function Step4Verification({
     return false;
   });
 
-  const downloadableTemplates = (filteredRequirements.length > 0 ? filteredRequirements : requirementsList).filter(r => Boolean(r.template_file_url));
+  const downloadableTemplates = (filteredRequirements.length > 0 ? filteredRequirements : requirementsList).filter(
+    r => Boolean(r.template_file_url) && r.template_display_mode !== "digital_format"
+  );
 
   return (
     <div className="p-6 sm:p-8 animate-in slide-in-from-top-2 duration-300">
@@ -144,32 +146,34 @@ export default function Step4Verification({
         {/* ── Left Column: Booking Requirements ── */}
         <div className="bg-slate-50/70 p-6 rounded-2xl border border-slate-200/80 space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-extrabold text-slate-900 uppercase tracking-wide flex items-center gap-2">
+            <h3 className="text-sm font-semibold text-slate-900 uppercase tracking-wide flex items-center gap-2">
               1. Booking Requirements
             </h3>
             <div className="flex items-center gap-1.5 shrink-0">
-              {activeTemplate?.template_file_url && (
+              {activeTemplate?.template_file_url && activeTemplate?.template_display_mode !== "digital_format" && (
                 <a
                   href={activeTemplate.template_file_url}
                   target="_blank"
                   rel="noopener noreferrer"
                   download
-                  className="flex items-center gap-1.5 text-[11px] font-extrabold text-emerald-700 bg-emerald-50 hover:bg-emerald-100/80 border border-emerald-200 px-2.5 py-1 rounded-lg transition-colors cursor-pointer shadow-2xs shrink-0"
+                  className="flex items-center gap-1.5 text-[11px] font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100/80 border border-emerald-200 px-2.5 py-1 rounded-lg transition-colors cursor-pointer shadow-2xs shrink-0"
                   title={activeTemplate.template_file_name || "Download official booking template"}
                 >
                   <Download size={12} className="text-emerald-600" />
                   <span>Download Form</span>
                 </a>
               )}
-              <button
-                type="button"
-                onClick={() => setShowTemplateModal(true)}
-                className="flex items-center gap-1.5 text-[11px] font-extrabold text-blue-700 bg-blue-50 hover:bg-blue-100/80 border border-blue-200 px-2.5 py-1 rounded-lg transition-colors cursor-pointer shadow-2xs shrink-0"
-                title="View and copy approved endorsement letter format"
-              >
-                <FileText size={12} />
-                <span>View Letter Format</span>
-              </button>
+              {(!activeTemplate || activeTemplate?.template_display_mode === "digital_format" || activeTemplate?.template_display_mode === "both" || !activeTemplate?.template_file_url) && (
+                <button
+                  type="button"
+                  onClick={() => setShowTemplateModal(true)}
+                  className="flex items-center gap-1.5 text-[11px] font-medium text-blue-700 bg-blue-50 hover:bg-blue-100/80 border border-blue-200 px-2.5 py-1 rounded-lg transition-colors cursor-pointer shadow-2xs shrink-0"
+                  title="View and copy approved endorsement letter format"
+                >
+                  <FileText size={12} />
+                  <span>View Letter Format</span>
+                </button>
+              )}
             </div>
           </div>
 

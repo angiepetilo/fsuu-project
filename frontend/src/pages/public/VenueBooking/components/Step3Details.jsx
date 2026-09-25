@@ -148,7 +148,13 @@ export default function Step3Details({
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
       setEmailCheckStatus("invalid");
-      setEmailCheckMessage("Please enter a valid email address (e.g. name@example.com).");
+      setEmailCheckMessage("Please enter a valid email address (e.g. name@urios.edu.ph).");
+      setEmailSuggestion("");
+      return;
+    }
+    if (!trimmed.endsWith("@urios.edu.ph")) {
+      setEmailCheckStatus("invalid");
+      setEmailCheckMessage("Only official university email addresses ending with @urios.edu.ph are accepted for reservations.");
       setEmailSuggestion("");
       return;
     }
@@ -214,8 +220,15 @@ export default function Step3Details({
 
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
       setEmailCheckStatus("invalid");
-      setEmailCheckMessage("Please enter a valid email address (e.g. name@example.com).");
+      setEmailCheckMessage("Please enter a valid email address (e.g. name@urios.edu.ph).");
       setOtpError("");
+      return;
+    }
+
+    if (!trimmed.endsWith("@urios.edu.ph")) {
+      setEmailCheckStatus("invalid");
+      setEmailCheckMessage("Only official university email addresses ending with @urios.edu.ph are accepted for reservations.");
+      setOtpError("Please use your official university email (@urios.edu.ph).");
       return;
     }
 
@@ -413,7 +426,7 @@ export default function Step3Details({
         <div className="flex flex-col gap-1.5 sm:col-span-1">
           <div className="flex items-center justify-between">
             <label className="text-xs font-bold text-slate-900">
-              Personal Email <span className="text-red-500">*</span>
+              University Email (@urios.edu.ph) <span className="text-red-500">*</span>
             </label>
             {isEmailVerified ? (
               <span className="inline-flex items-center gap-1 text-[11px] font-extrabold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
@@ -436,7 +449,7 @@ export default function Step3Details({
               value={email} 
               onChange={handleEmailChange}
               onBlur={handleEmailBlur}
-              placeholder="example@gmail.com" 
+              placeholder="username@urios.edu.ph" 
               className={`w-full p-3 ${requireEmailVerify ? 'pr-24' : ''} border rounded-xl text-sm transition-all focus:outline-none ${
                 (requireEmailVerify && isEmailVerified)
                   ? "bg-emerald-50/40 border-emerald-300 text-slate-800 font-semibold cursor-not-allowed" 

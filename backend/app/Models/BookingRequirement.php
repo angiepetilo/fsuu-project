@@ -18,6 +18,7 @@ class BookingRequirement extends Model
         'description',
         'template_file_url',
         'template_file_name',
+        'template_display_mode',
         'format_content',
         'sort_order',
     ];

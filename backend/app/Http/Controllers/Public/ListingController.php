@@ -280,7 +280,7 @@ class ListingController extends Controller
 
         $bookings = DB::table('venue_bookings')
             ->join('tracking_numbers', 'venue_bookings.tracking_number_id', '=', 'tracking_numbers.id')
-            ->whereIn('tracking_numbers.status', ['pending', 'approved'])
+            ->whereIn('tracking_numbers.status', ['pending', 'approved', 'ongoing', 'on-going', 'reserved'])
             ->select(
                 'venue_bookings.id',
                 'venue_bookings.venue_id',

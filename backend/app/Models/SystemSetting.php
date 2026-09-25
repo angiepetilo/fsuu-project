@@ -53,7 +53,8 @@ class SystemSetting extends Model
         try {
             return \Illuminate\Support\Facades\Crypt::decryptString($value);
         } catch (\Throwable $e) {
-            // Gracefully return raw value if unencrypted or encrypted under different key
+            // Gracefully reset json_last_error that Crypt's internal json_decode may have set
+            json_decode('[]');
             return $value;
         }
     }
@@ -70,6 +71,7 @@ class SystemSetting extends Model
         try {
             $this->attributes['smtp_password'] = \Illuminate\Support\Facades\Crypt::encryptString($value);
         } catch (\Throwable $e) {
+            json_decode('[]');
             $this->attributes['smtp_password'] = $value;
         }
     }

@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { X, AlertCircle, Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { X, AlertCircle, Loader2, Eye, EyeOff, Lock } from "lucide-react";
 import api from "@/lib/axios";
 
 export function PinModal({
@@ -10,14 +9,15 @@ export function PinModal({
   title,
   description
 }) {
-  const [digits, setDigits] = useState(["", "", "", "", "", ""]);
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [activePin, setActivePin] = useState("123456");
-  const [activeTitle, setActiveTitle] = useState(title || "PIN Required");
-  const [activeDesc, setActiveDesc] = useState(description || "AVR Head PIN Required");
-  const inputRefs = useRef([]);
+  const [activeTitle, setActiveTitle] = useState(title || "Authorization Required");
+  const [activeDesc, setActiveDesc] = useState(description || "Please enter your password or the Super Administrator password to authorize this action.");
+  const inputRef = useRef(null);
 
   useEffect(() => {
     const syncPinSettings = () => {
@@ -33,16 +33,17 @@ export function PinModal({
     };
 
     if (isOpen) {
-      setDigits(["", "", "", "", "", ""]);
+      setPassword("");
+      setShowPassword(false);
       setError(false);
       setErrorMessage("");
       setLoading(false);
-      setActiveTitle(title || "PIN Required");
-      setActiveDesc(description || "AVR Head PIN Required");
+      setActiveTitle(title || "Authorization Required");
+      setActiveDesc(description || "Please enter your password or the Super Administrator password to authorize this action.");
       syncPinSettings();
 
       setTimeout(() => {
-        inputRefs.current[0]?.focus();
+        inputRef.current?.focus();
       }, 100);
     }
 
@@ -52,42 +53,12 @@ export function PinModal({
 
   if (!isOpen) return null;
 
-  const handleChange = (index, value) => {
-    if (!/^\d*$/.test(value)) return;
-    const newDigits = [...digits];
-
-    // Handle paste of full PIN
-    if (value.length > 1) {
-      const pasted = value.slice(0, 6).split("");
-      pasted.forEach((char, i) => {
-        if (i < 6) newDigits[i] = char;
-      });
-      setDigits(newDigits);
-      inputRefs.current[Math.min(pasted.length, 5)]?.focus();
-      return;
-    }
-
-    newDigits[index] = value.slice(-1);
-    setDigits(newDigits);
-
-    // Auto advance focus to next digit input box
-    if (value && index < 5) {
-      inputRefs.current[index + 1]?.focus();
-    }
-  };
-
-  const handleKeyDown = (index, e) => {
-    if (e.key === "Backspace" && !digits[index] && index > 0) {
-      inputRefs.current[index - 1]?.focus();
-    }
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const pin = digits.join("");
-    if (pin.length < 4) {
+    const pin = password.trim();
+    if (!pin) {
       setError(true);
-      setErrorMessage("Please enter a valid PIN code.");
+      setErrorMessage("Please enter your password or verification code.");
       return;
     }
 
@@ -104,11 +75,11 @@ export function PinModal({
         return;
       }
     } catch (err) {
-      // If API returns 422 with invalid message, or network offline, test fallback
+      // If API returns 422 with invalid message, display error
       if (err.response?.status === 422) {
         setLoading(false);
         setError(true);
-        setErrorMessage(err.response?.data?.message || "Invalide Pin Code. please try again");
+        setErrorMessage(err.response?.data?.message || "Invalid password or verification code. Please try again.");
         return;
       }
 
@@ -124,73 +95,87 @@ export function PinModal({
 
     setLoading(false);
     setError(true);
-    setErrorMessage("Invalide Pin Code. please try again");
+    setErrorMessage("Invalid password or verification code. Please try again.");
   };
 
   return (
-    <div className="fixed inset-0 bg-black/10 z-[2500] flex items-center justify-center p-4 animate-in fade-in duration-150">
-      <div className="bg-white rounded-2xl p-6 sm:p-7 max-w-sm w-full text-center shadow-2xl relative border border-slate-200 animate-in zoom-in-95 duration-150">
+    <div className="fixed inset-0 bg-black/40 dark:bg-black/70 backdrop-blur-xs z-[2500] flex items-center justify-center p-4 animate-in fade-in duration-150">
+      <div className="bg-white dark:bg-[#131C2E] rounded-2xl p-6 sm:p-7 max-w-sm w-full text-center shadow-2xl relative border border-slate-200 dark:border-slate-800 animate-in zoom-in-95 duration-150">
         <button
           type="button"
           onClick={onClose}
-          className="absolute top-4 right-4 text-slate-400 hover:text-slate-700 transition-colors p-1"
+          className="absolute top-4 right-4 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors p-1 rounded-lg cursor-pointer"
         >
           <X size={18} />
         </button>
 
-        {/* Plain Text Title */}
-        <h3 className="text-sm sm:text-base font-bold text-slate-900 mb-1">
+        <div className="mx-auto w-10 h-10 rounded-full bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 flex items-center justify-center mb-3">
+          <Lock size={20} />
+        </div>
+
+        {/* Title */}
+        <h3 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white mb-1">
           {activeTitle}
         </h3>
 
-        {/* Plain Text Description */}
-        <p className="text-xs text-slate-600 font-normal mb-5 leading-relaxed">
+        {/* Description */}
+        <p className="text-xs text-slate-600 dark:text-slate-400 font-normal mb-5 leading-relaxed">
           {activeDesc}
         </p>
 
         {error && (
-          <div className="mb-4 p-2.5 bg-red-50 border border-red-200 text-red-600 text-xs font-semibold rounded-lg flex items-center justify-center gap-2 animate-in fade-in">
-            <AlertCircle size={14} className="shrink-0 text-red-600" />
-            <span className="text-red-600 font-bold">{errorMessage || "Invalide Pin Code. please try again"}</span>
+          <div className="mb-4 p-2.5 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-600 dark:text-rose-400 text-xs font-semibold rounded-lg flex items-center justify-center gap-2 animate-in fade-in">
+            <AlertCircle size={14} className="shrink-0 text-rose-600 dark:text-rose-400" />
+            <span className="font-bold">{errorMessage || "Invalid password or verification code. Please try again."}</span>
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-          {/* 6 Digit Input Boxes */}
-          <div className="flex items-center justify-center gap-2 sm:gap-2.5">
-            {digits.map((digit, idx) => (
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4 text-left">
+          <div className="space-y-1.5">
+            <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300">
+              Password or Verification PIN
+            </label>
+            <div className="relative">
               <input
-                key={idx}
-                ref={(el) => (inputRefs.current[idx] = el)}
-                type="password"
-                inputMode="numeric"
-                maxLength={6}
-                value={digit}
+                ref={inputRef}
+                type={showPassword ? "text" : "password"}
+                value={password}
                 disabled={loading}
-                onChange={(e) => handleChange(idx, e.target.value)}
-                onKeyDown={(e) => handleKeyDown(idx, e)}
-                className="w-9 h-11 sm:w-10 sm:h-12 bg-white border border-slate-300 rounded-lg text-center text-base font-mono font-bold text-slate-900 focus:outline-none focus:border-slate-600 focus:ring-1 focus:ring-slate-400 transition-all disabled:opacity-50"
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  if (error) setError(false);
+                }}
+                placeholder="Enter password or PIN"
+                className="w-full px-3.5 py-2.5 pr-10 bg-white dark:bg-[#1E293B] border border-slate-300 dark:border-slate-700 rounded-lg text-xs sm:text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 transition-all disabled:opacity-50"
               />
-            ))}
+              <button
+                type="button"
+                tabIndex={-1}
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors cursor-pointer"
+              >
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
           </div>
 
           {/* Action Buttons */}
-          <div className="flex gap-2.5 pt-1">
+          <div className="flex gap-2.5 pt-2">
             <button
               type="button"
               disabled={loading}
               onClick={onClose}
-              className="flex-1 py-2.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-100 hover:text-slate-900 active:bg-slate-200 active:scale-[0.99] text-slate-700 font-semibold text-xs cursor-pointer transition-all disabled:opacity-50"
+              className="flex-1 py-2.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-semibold text-xs cursor-pointer transition-all disabled:opacity-50"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold text-xs cursor-pointer shadow-sm active:scale-[0.99] transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
+              className="flex-1 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold text-xs cursor-pointer shadow-xs active:scale-[0.99] transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
             >
               {loading && <Loader2 size={13} className="animate-spin" />}
-              <span>{loading ? "Verifying..." : "Verify Pin"}</span>
+              <span>{loading ? "Verifying..." : "Verify Authorization"}</span>
             </button>
           </div>
         </form>

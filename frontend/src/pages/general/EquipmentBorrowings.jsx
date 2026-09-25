@@ -3,7 +3,7 @@ import { useOutletContext, useLocation } from "react-router-dom";
 import api from "@/lib/axios";
 import notify from "@/lib/notify";
 import {
-  Loader2, RefreshCw, AlertCircle, Eye, PackageOpen, ChevronLeft, ChevronRight,
+  Loader2, AlertCircle, Eye, PackageOpen, ChevronLeft, ChevronRight,
   Search, Calendar, X, Clock, Filter
 } from "lucide-react";
 import { PageLoader } from "@/components/ui/page-loader";
@@ -308,17 +308,6 @@ export default function EquipmentBorrowings() {
 
   return (
     <div className="space-y-6">
-      {/* Action Toolbar */}
-      <div className="flex items-center justify-end gap-4">
-        <button
-          onClick={() => fetchBorrowings(false)}
-          disabled={loading || isSyncing}
-          className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 hover:bg-blue-700 hover:text-white hover:border-blue-700 transition-colors cursor-pointer disabled:opacity-60 shadow-xs"
-        >
-          <RefreshCw size={14} className={isSyncing ? "animate-spin" : ""} />
-          <span>{isSyncing ? "Refreshing..." : "Refresh"}</span>
-        </button>
-      </div>
 
       {feedbackMsg && (
         <div className="bg-emerald-500 text-white text-xs font-bold px-4 py-3 rounded-2xl flex items-center gap-2 shadow-sm animate-in fade-in">

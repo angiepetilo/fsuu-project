@@ -7,7 +7,7 @@ import api from "@/lib/axios";
 import { getTodayISO, isPastDate, isPastTimeToday, isPastDateTime } from "@/lib/dateTimeUtils";
 import IosToggle from "@/components/ui/ios-toggle";
 
-const BLOCKING_STATUSES = ["approved", "ongoing", "on-going"];
+const BLOCKING_STATUSES = ["approved", "ongoing", "on-going", "reserved"];
 
 export default function Step2Venue({
   identity,
@@ -33,6 +33,7 @@ export default function Step2Venue({
   onNext,
   venuesLoading = false,
   isPortal = false,
+  venueOverrides: propOverrides,
 }) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -40,8 +41,14 @@ export default function Step2Venue({
   const [, setVersion] = useState(0);
   const [opHours, setOpHours] = useState(propOpHours || null);
   const [pinRules, setPinRules] = useState(propPinRules || null);
-  const [dbOverrides, setDbOverrides] = useState([]);
+  const [dbOverrides, setDbOverrides] = useState(propOverrides || []);
   const [isMultiDay, setIsMultiDay] = useState(() => Boolean(selectedEndDate && selectedEndDate !== selectedDate));
+
+  useEffect(() => {
+    if (propOverrides && propOverrides.length > 0) {
+      setDbOverrides(propOverrides);
+    }
+  }, [propOverrides]);
 
   useEffect(() => {
     if (selectedEndDate && selectedEndDate !== selectedDate) {
@@ -57,11 +64,54 @@ export default function Step2Venue({
     if (propPinRules) setPinRules(propPinRules);
   }, [propPinRules]);
 
+  const fetchOverrides = useCallback(() => {
+    api.get("/public/venue-overrides")
+      .then(res => {
+        let list = Array.isArray(res.data) ? res.data : [];
+        try {
+          const local = JSON.parse(localStorage.getItem("fsuu_venue_overrides") || "{}");
+          const localEntries = Object.values(local).map(ov => ({
+            id: ov.id || `local-${ov.venueId || ov.venue_id}-${ov.override_date}`,
+            venue_id: ov.venue_id || ov.venueId,
+            override_date: ov.override_date,
+            status: ov.status,
+            notes: ov.notes || ov.reason,
+            start_time: ov.startTime || ov.start_time || "07:30",
+            end_time: ov.endTime || ov.end_time || "17:00",
+          }));
+          const existingKeys = new Set(list.map(o => `${o.venue_id}_${(o.override_date || '').substring(0, 10)}`));
+          localEntries.forEach(lo => {
+            const k = `${lo.venue_id}_${(lo.override_date || '').substring(0, 10)}`;
+            if (!existingKeys.has(k)) {
+              list.push(lo);
+            }
+          });
+        } catch {}
+        setDbOverrides(list);
+      })
+      .catch(() => {
+        try {
+          const local = JSON.parse(localStorage.getItem("fsuu_venue_overrides") || "{}");
+          setDbOverrides(Object.values(local).map(ov => ({
+            id: ov.id || `local-${ov.venueId || ov.venue_id}-${ov.override_date}`,
+            venue_id: ov.venue_id || ov.venueId,
+            override_date: ov.override_date,
+            status: ov.status,
+            notes: ov.notes || ov.reason,
+            start_time: ov.startTime || ov.start_time || "07:30",
+            end_time: ov.endTime || ov.end_time || "17:00",
+          })));
+        } catch {}
+      });
+  }, []);
+
   useEffect(() => {
+    fetchOverrides();
     const handleUpdate = (e) => {
       if (e?.type === "storage" && e.key && e.key !== "fsuu_venue_overrides" && e.key !== "fsuu_venue_maintenance") {
         return;
       }
+      fetchOverrides();
       setVersion(v => v + 1);
     };
     window.addEventListener("venue_availability_updated", handleUpdate);
@@ -70,18 +120,12 @@ export default function Step2Venue({
       window.removeEventListener("venue_availability_updated", handleUpdate);
       window.removeEventListener("storage", handleUpdate);
     };
-  }, []);
+  }, [fetchOverrides]);
 
   useEffect(() => {
     api.get("/public/operating-hours")
       .then(res => {
         if (res?.data) setOpHours(res.data);
-      })
-      .catch(() => { });
-
-    api.get("/public/venue-overrides")
-      .then(res => {
-        if (Array.isArray(res.data)) setDbOverrides(res.data);
       })
       .catch(() => { });
   }, []);
@@ -260,13 +304,13 @@ export default function Step2Venue({
     if (dbMatch && (dbMatch.status === "maintenance" || dbMatch.status === "closed")) {
       const isMaint = dbMatch.status === "maintenance";
       return {
-        status: "maintenance",
-        tooltip: `${monthLabel} ${day}: ${selectedVenue.name} is under ${dbMatch.status.toUpperCase()} (${dbMatch.notes || 'Blocked by Admin'})`,
+        status: isMaint ? "maintenance" : "closed",
+        tooltip: `${monthLabel} ${day}: ${selectedVenue.name} is ${isMaint ? 'Under Maintenance' : 'Closed'} (${dbMatch.notes || 'Blocked by Admin'})`,
         box: {
           status: isMaint ? "Maintenance" : "Closed",
-          badgeClass: isMaint ? "bg-amber-600 text-white" : "bg-red-600 text-white",
-          time: "All Day Blocked",
-          details: `${selectedVenue.name} (${dbMatch.notes || 'Blocked by Admin'})`,
+          badgeClass: isMaint ? "bg-amber-500 text-white" : "bg-rose-600 text-white",
+          time: dbMatch.start_time && dbMatch.end_time ? `${formatTime12(dbMatch.start_time)} - ${formatTime12(dbMatch.end_time)}` : "All Day Blocked",
+          details: `${selectedVenue.name} (${dbMatch.notes || (isMaint ? 'Under Maintenance' : 'Closed by Admin')})`,
         },
         bookings: [],
       };
@@ -315,10 +359,9 @@ export default function Step2Venue({
       return `${formatTime12(startTime.substring(0, 5))} - ${formatTime12(endTime.substring(0, 5))}`;
     });
 
-    const isFully = totalBookedMins >= 540 || dayBookings.length >= 2;
-    const status = isFully ? "fully" : "partial";
-    const statusText = isFully ? "Fully Booked" : "Partially Booked";
-    const badgeClass = isFully ? "bg-rose-600 text-white" : "bg-amber-500 text-white";
+    const status = "booked";
+    const statusText = "Booked";
+    const badgeClass = "bg-rose-600 text-white";
 
     return {
       status,
@@ -379,6 +422,16 @@ export default function Step2Venue({
     })
     : null;
 
+  const selectedDateOverride = (selectedVenue && selectedDate)
+    ? dbOverrides.find(o => {
+        const oVenueId = o.venue_id || o.venue?.id;
+        const oDate = o.override_date ? o.override_date.substring(0, 10) : null;
+        if (String(oVenueId) !== String(selectedVenue.id)) return false;
+        const tEnd = targetEndDate || selectedDate;
+        return oDate && oDate >= selectedDate && oDate <= tEnd && (o.status === "maintenance" || o.status === "closed");
+      })
+    : null;
+
   const isInvalidEndDate = Boolean(selectedEndDate && selectedEndDate < selectedDate);
   const isInvalidTimeRange = Boolean(timeStart && timeEnd && timeEnd <= timeStart);
   const isPastSelection = isPastDateTime(selectedDate, timeStart);
@@ -394,6 +447,7 @@ export default function Step2Venue({
     selectedDate &&
     timeStart &&
     timeEnd &&
+    !selectedDateOverride &&
     !isPastSelection &&
     !isInvalidEndDate &&
     !isInvalidTimeRange &&
@@ -409,7 +463,7 @@ export default function Step2Venue({
       {/* Header Section with Search Bar aligned to the right */}
       <div className="mb-6 pb-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h3 className="font-black text-slate-900 text-xl tracking-tight mb-1">Select Venue</h3>
+          <h3 className="font-bold text-slate-900 text-lg tracking-tight mb-1">Select Venue</h3>
           <p className="text-xs text-slate-500 font-medium">Choose from available university venues</p>
         </div>
 
@@ -583,7 +637,7 @@ export default function Step2Venue({
                 <span>Prev</span>
               </button>
 
-              <span className="text-xs font-black text-slate-700 px-2">
+              <span className="text-xs font-semibold text-slate-700 px-2">
                 {safeVenuePage + 1} / {totalPages}
               </span>
 
@@ -591,7 +645,7 @@ export default function Step2Venue({
                 type="button"
                 onClick={() => setVenuePage(p => Math.min(totalPages - 1, p + 1))}
                 disabled={safeVenuePage >= totalPages - 1}
-                className="px-4 py-1.5 rounded-full bg-white border border-slate-200 text-xs font-extrabold text-slate-700 hover:bg-slate-50 disabled:opacity-40 flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
+                className="px-4 py-1.5 rounded-full bg-white border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40 flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
               >
                 <span>Next</span>
                 <ChevronRight size={14} />
@@ -611,7 +665,7 @@ export default function Step2Venue({
 
             {/* Panel Header */}
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-[#1e2d56] pb-3">
-              <h4 className="font-extrabold text-slate-900 dark:text-[#f8fafc] text-xs uppercase tracking-wider">
+              <h4 className="font-bold text-slate-900 dark:text-[#f8fafc] text-xs uppercase tracking-wider">
                 Date & Time Selection
               </h4>
               <span className="text-xs font-semibold text-slate-500 dark:text-[#94a3b8] truncate max-w-[180px] sm:max-w-xs text-right">
@@ -693,12 +747,13 @@ export default function Step2Venue({
                   const hasRange = Boolean(selectedEndDate && selectedEndDate > selectedDate);
                   const isInBetween = hasRange && dateStr > selectedDate && dateStr < selectedEndDate;
 
-                  const isFullyBooked = info.status === "fully";
-                  const isPartialBooked = info.status === "partial";
-                  const isMaintenanceOrClosed = info.status === "maintenance" || info.status === "closed";
+                  const isBooked = info.status === "booked" || info.status === "fully" || info.status === "partial";
+                  const isMaintenance = info.status === "maintenance";
+                  const isClosed = info.status === "closed";
+                  const isMaintenanceOrClosed = isMaintenance || isClosed;
 
-                  // Disabled state for past dates, short notice (in public view), or maintenance/full
-                  const isDisabled = isPast || isPublicBlockedNotice || isMaintenanceOrClosed || isFullyBooked;
+                  // Disabled state for past dates, short notice (in public view), maintenance/closed, or booked
+                  const isDisabled = isPast || isPublicBlockedNotice || isMaintenanceOrClosed || isBooked;
 
                   return (
                     <div
@@ -746,20 +801,22 @@ export default function Step2Venue({
                             setShowPinModal && setShowPinModal(true);
                           }
                         }}
-                        className={`w-9 h-9 rounded-full text-xs font-extrabold flex items-center justify-center mx-auto transition-all relative z-10 ${
+                        className={`w-9 h-9 rounded-full text-xs font-semibold flex items-center justify-center mx-auto transition-all relative z-10 ${
                           isStart || isEnd
-                            ? "bg-blue-600 text-white font-black shadow-sm scale-105 cursor-pointer"
+                            ? "bg-blue-600 text-white font-bold shadow-xs scale-105 cursor-pointer"
                             : isToday
-                              ? "border-2 border-blue-600 text-blue-700 dark:text-[#93c5fd] font-extrabold bg-blue-50/40 dark:bg-blue-500/10 cursor-pointer"
-                              : isFullyBooked
-                                ? "border-2 border-rose-400 dark:border-rose-500/50 text-rose-600 dark:text-[#fca5a5] font-bold bg-rose-50/40 dark:bg-rose-500/15 cursor-not-allowed"
-                                : isPartialBooked
-                                  ? "border-2 border-amber-400 dark:border-amber-500/50 text-amber-700 dark:text-[#fcd34d] font-bold bg-amber-50/40 dark:bg-amber-500/15 hover:bg-amber-100 dark:hover:bg-amber-500/25 cursor-pointer"
-                                  : isShortNotice
-                                    ? `border-2 border-slate-300 dark:border-slate-600 text-slate-500 dark:text-slate-400 font-bold bg-slate-50/50 dark:bg-slate-800/40 ${isPublicBlockedNotice ? "cursor-not-allowed opacity-80" : "hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"}`
-                                    : isPast || isMaintenanceOrClosed
-                                      ? "text-slate-300 dark:text-slate-600 font-semibold cursor-not-allowed select-none"
-                                      : "text-slate-800 dark:text-[#cbd5e1] font-bold hover:bg-slate-100 dark:hover:bg-[#172447] cursor-pointer"
+                              ? "border-2 border-blue-600 text-blue-700 dark:text-[#93c5fd] font-bold bg-blue-50/40 dark:bg-blue-500/10 cursor-pointer"
+                              : isClosed
+                                ? "border-2 border-rose-600 bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400 font-semibold cursor-not-allowed"
+                                : isMaintenance
+                                  ? "border-2 border-amber-500 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 font-semibold cursor-not-allowed"
+                                  : isBooked
+                                    ? "border-2 border-blue-500 bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 font-semibold cursor-not-allowed"
+                                    : isShortNotice
+                                      ? `border-2 border-slate-300 dark:border-slate-600 text-slate-500 dark:text-slate-400 font-medium bg-slate-50/50 dark:bg-slate-800/40 ${isPublicBlockedNotice ? "cursor-not-allowed opacity-80" : "hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"}`
+                                      : isPast
+                                        ? "text-slate-300 dark:text-slate-600 font-normal cursor-not-allowed select-none"
+                                        : "border border-emerald-300/80 dark:border-emerald-700/60 bg-emerald-50/20 dark:bg-emerald-950/20 text-slate-700 dark:text-[#cbd5e1] font-medium hover:bg-emerald-100/50 dark:hover:bg-emerald-900/30 hover:border-emerald-400 cursor-pointer"
                         }`}
                         title={
                           isToday
@@ -768,41 +825,59 @@ export default function Step2Venue({
                               ? "Date already passed"
                               : isPublicBlockedNotice
                                 ? `${dateStr} (Requires at least 3 days advance booking)`
-                                : isMaintenanceOrClosed
-                                  ? `${dateStr} (${info.box?.status || 'Maintenance / Closed'})`
-                                  : isFullyBooked
-                                    ? `${dateStr} (Fully Booked)`
-                                    : isPartialBooked
-                                      ? `${dateStr} (Partially Booked: ${info.box?.time || 'Reserved slots'})`
+                                : isClosed
+                                  ? `${dateStr} (Closed: ${info.box?.details || 'Closed by Admin'})`
+                                  : isMaintenance
+                                    ? `${dateStr} (Maintenance: ${info.box?.details || 'Under Maintenance'})`
+                                    : isBooked
+                                      ? `${dateStr} (Booked: ${info.box?.time || 'Reserved slots'})`
                                       : isShortNotice
                                         ? `${dateStr} (Short-Notice: PIN Authorization Required)`
                                         : `${dateStr} (Available)`
                         }
                       >
-                        <span>{day}</span>
+                        <span className="relative">
+                          {day}
+                          {isClosed && (
+                            <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-rose-600" />
+                          )}
+                          {isBooked && (
+                            <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-blue-600" />
+                          )}
+                          {isMaintenance && (
+                            <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-amber-500" />
+                          )}
+                          {!isClosed && !isBooked && !isMaintenance && !isPast && !isShortNotice && !isToday && !isStart && !isEnd && (
+                            <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                          )}
+                        </span>
                       </button>
                     </div>
                   );
                 })}
               </div>
 
-              {/* Calendar Quick Legend matching Screenshot 1 */}
-              <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] font-semibold text-slate-500 pt-3 border-t border-slate-100/60">
+              {/* Calendar Quick Legend */}
+              <div className="flex flex-wrap items-center justify-between gap-2.5 text-xs font-medium text-slate-600 dark:text-slate-400 pt-3 border-t border-slate-100 dark:border-slate-800">
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full border-2 border-emerald-500 bg-emerald-100 dark:bg-emerald-950 inline-block"></span>
+                  <span className="text-emerald-700 dark:text-emerald-400 font-semibold">Available</span>
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full border-2 border-blue-500 bg-blue-100 dark:bg-blue-950 inline-block"></span>
+                  <span className="text-blue-700 dark:text-blue-400 font-semibold">Booked</span>
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full border-2 border-rose-600 bg-rose-200 dark:bg-rose-900 inline-block"></span>
+                  <span className="text-rose-700 dark:text-rose-400 font-semibold">Closed</span>
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full border-2 border-amber-500 bg-amber-100 dark:bg-amber-950 inline-block"></span>
+                  <span className="text-amber-700 dark:text-amber-400 font-semibold">Maintenance</span>
+                </span>
                 <span className="flex items-center gap-1.5">
                   <span className="w-2.5 h-2.5 rounded-full bg-blue-600 inline-block"></span>
                   <span>Selected</span>
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full border-2 border-amber-400 bg-transparent inline-block"></span>
-                  <span>Partially Booked</span>
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full border-2 border-rose-400 bg-transparent inline-block"></span>
-                  <span>Fully Booked</span>
-                </span>
-                <span className="flex items-center gap-1.5 text-slate-400">
-                  <span className="w-2.5 h-2.5 rounded-full border-2 border-slate-300 bg-transparent inline-block"></span>
-                  <span>3-day notice</span>
                 </span>
               </div>
             </div>
@@ -832,6 +907,22 @@ export default function Step2Venue({
 
               {selectedDate && timeStart && timeEnd && (
                 <div className="space-y-2 pt-1">
+                  {selectedDateOverride ? (
+                    <div className={`p-3.5 border-2 rounded-2xl text-xs font-bold space-y-1.5 shadow-sm ${
+                      selectedDateOverride.status === "maintenance"
+                        ? "bg-amber-50 border-amber-300 text-amber-900"
+                        : "bg-rose-50 border-rose-300 text-rose-900"
+                    }`}>
+                      <div className="flex items-center gap-1.5 font-extrabold">
+                        <AlertTriangle size={16} className={selectedDateOverride.status === "maintenance" ? "text-amber-600 shrink-0" : "text-rose-600 shrink-0"} />
+                        <span>Venue is {selectedDateOverride.status === "maintenance" ? "Under Maintenance" : "Closed"}!</span>
+                      </div>
+                      <p className="text-[11px] font-semibold leading-snug">
+                        <strong>{selectedVenue?.name}</strong> is currently unavailable on <strong>{selectedDateOverride.override_date?.substring(0, 10)}</strong> due to scheduled <strong>{selectedDateOverride.status}</strong>.
+                        {selectedDateOverride.notes ? ` Reason: ${selectedDateOverride.notes}` : ""}
+                      </p>
+                    </div>
+                  ) : null}
                   {isInvalidEndDate ? (
                     <div className="p-3 bg-rose-50 border border-rose-200 rounded-2xl text-xs font-bold text-rose-800 space-y-1">
                       <div className="flex items-center gap-1.5 text-rose-700">
@@ -957,7 +1048,7 @@ export default function Step2Venue({
           type="button"
           disabled={!canProceed}
           onClick={() => canProceed && onNext && onNext()}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-5 sm:px-7 py-3 rounded-full font-extrabold text-xs flex items-center justify-center gap-2 shadow-md shadow-blue-600/20 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+          className="bg-blue-600 hover:bg-blue-700 text-white px-5 sm:px-7 py-3 rounded-full font-semibold text-xs flex items-center justify-center gap-2 shadow-xs disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
         >
           <span className="sm:hidden">Next Step</span>
           <span className="hidden sm:inline">Next: Fill Details</span>

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import {
   Monitor, ShieldAlert, Clock, CheckCircle2, AlertTriangle, 
-  Search, RefreshCw, X, ShieldX, Laptop, UserCheck, AlertCircle, 
+  Search, X, ShieldX, Laptop, UserCheck, AlertCircle, 
   Loader2, Wifi, WifiOff, PowerOff
 } from "lucide-react";
 import api from "@/lib/axios";
@@ -200,34 +200,23 @@ export default function ActiveSessionsTab() {
               <span className={`w-1.5 h-1.5 rounded-full ${autoRefresh ? "bg-blue-600 animate-pulse" : "bg-slate-400"}`} />
               <span>{autoRefresh ? "Live (15s)" : "Paused"}</span>
             </button>
-
-            {/* Manual Refresh Button */}
-            <button
-              type="button"
-              onClick={() => fetchSessions()}
-              disabled={loading}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition-all cursor-pointer"
-            >
-              <RefreshCw size={13} className={loading ? "animate-spin text-blue-600" : "text-slate-500"} />
-              <span>Refresh</span>
-            </button>
           </div>
         </div>
 
         {/* Security Notice Banner */}
-        <div className="p-3 bg-blue-50/70 border border-blue-100 rounded-xl flex items-start gap-2.5 text-xs text-blue-800">
-          <ShieldAlert size={16} className="text-blue-600 shrink-0 mt-0.5" />
+        <div className="p-3.5 bg-blue-50/80 dark:bg-blue-950/40 border border-blue-200/80 dark:border-blue-900/60 rounded-xl flex items-start gap-2.5 text-xs text-blue-900 dark:text-blue-200 shadow-xs">
+          <ShieldAlert size={16} className="text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
           <p className="leading-relaxed">
-            <span className="font-bold">Real-time Terminal Security:</span> You can monitor and remotely terminate unauthorized or unattended cashier and admin terminals in real time. Terminating an active terminal immediately invalidates its authentication token and locks the workstation out.
+            <span className="font-bold text-blue-950 dark:text-blue-100">Real-time Terminal Security:</span> You can monitor and remotely terminate unauthorized or unattended cashier and admin terminals in real time. Terminating an active terminal immediately invalidates its authentication token and locks the workstation out.
           </p>
         </div>
       </div>
 
       {/* Active Sessions Table */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+      <div className="bg-white dark:bg-[#111827] rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-xs text-left">
-            <thead className="bg-slate-50/80 border-b border-slate-200 text-slate-500 uppercase text-[11px] font-semibold">
+            <thead className="bg-slate-50/80 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 uppercase text-[11px] font-semibold">
               <tr>
                 <th className="px-4 py-3.5">User / Account</th>
                 <th className="px-4 py-3.5">Role</th>
@@ -261,24 +250,24 @@ export default function ActiveSessionsTab() {
                   const isTerminated = sess.session_status === "terminated";
 
                   return (
-                    <tr key={sess.id} className="hover:bg-slate-50/70 transition-colors">
+                    <tr key={sess.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors">
                       {/* User / Account */}
                       <td className="px-4 py-3.5 whitespace-nowrap">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center font-bold text-slate-700 text-xs shrink-0">
+                          <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center font-bold text-slate-700 dark:text-slate-200 text-xs shrink-0">
                             {sess.user.name ? sess.user.name.charAt(0).toUpperCase() : "U"}
                           </div>
                           <div>
                             <div className="flex items-center gap-1.5">
-                              <span className="font-bold text-slate-900">{sess.user.name}</span>
+                              <span className="font-bold text-slate-900 dark:text-white">{sess.user.name}</span>
                               {isCurrent && (
-                                <span className="px-1.5 py-0.5 text-[9px] font-extrabold uppercase bg-blue-100 text-blue-700 rounded-md">
+                                <span className="px-1.5 py-0.5 text-[9px] font-extrabold uppercase bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 rounded-md">
                                   This Device
                                 </span>
                               )}
                             </div>
-                            <p className="text-[10.5px] text-slate-400">{sess.user.email}</p>
-                            <div className="flex items-center gap-1.5 text-[10px] text-slate-400 mt-0.5">
+                            <p className="text-[10.5px] text-slate-400 dark:text-slate-500">{sess.user.email}</p>
+                            <div className="flex items-center gap-1.5 text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">
                               <span>IP: {sess.ip_address}</span>
                               <span>•</span>
                               <span>{sess.device_name}</span>
@@ -291,12 +280,12 @@ export default function ActiveSessionsTab() {
                       <td className="px-4 py-3.5 whitespace-nowrap">
                         <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold ${
                           sess.role_raw === "super_admin"
-                            ? "bg-purple-50 text-purple-700 border border-purple-200"
+                            ? "bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800"
                             : sess.role_raw === "admin"
-                            ? "bg-blue-50 text-blue-700 border border-blue-200"
+                            ? "bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800"
                             : sess.role_raw?.includes("cashier")
-                            ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                            : "bg-slate-100 text-slate-700 border border-slate-200"
+                            ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800"
+                            : "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700"
                         }`}>
                           {sess.role}
                         </span>
@@ -305,10 +294,10 @@ export default function ActiveSessionsTab() {
                       {/* Session Started */}
                       <td className="px-4 py-3.5 whitespace-nowrap">
                         <div className="flex flex-col">
-                          <span className="font-semibold text-slate-800">
+                          <span className="font-semibold text-slate-800 dark:text-slate-200">
                             {formatExactTime(sess.session_started)}
                           </span>
-                          <span className="text-[10.5px] text-slate-400">
+                          <span className="text-[10.5px] text-slate-400 dark:text-slate-500">
                             {formatRelativeTime(sess.session_started)}
                           </span>
                         </div>
@@ -317,10 +306,10 @@ export default function ActiveSessionsTab() {
                       {/* Last Active */}
                       <td className="px-4 py-3.5 whitespace-nowrap">
                         <div className="flex flex-col">
-                          <span className="font-bold text-slate-900">
+                          <span className="font-bold text-slate-900 dark:text-white">
                             {formatRelativeTime(sess.last_active)}
                           </span>
-                          <span className="text-[10.5px] text-slate-400">
+                          <span className="text-[10.5px] text-slate-400 dark:text-slate-500">
                             {sess.last_active ? new Date(sess.last_active).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : "N/A"}
                           </span>
                         </div>
@@ -334,21 +323,21 @@ export default function ActiveSessionsTab() {
                       {/* Action */}
                       <td className="px-4 py-3.5 whitespace-nowrap text-right">
                         {isTerminated ? (
-                          <span className="text-xs text-slate-400 font-semibold italic">
+                          <span className="text-xs text-slate-400 dark:text-slate-500 font-semibold italic">
                             Terminated
                           </span>
                         ) : isCurrent ? (
-                          <span className="text-xs text-slate-400 font-semibold italic">
+                          <span className="text-xs text-slate-400 dark:text-slate-500 font-semibold italic">
                             Current Session
                           </span>
                         ) : (
                           <button
                             type="button"
                             onClick={() => handleOpenTerminate(sess)}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-2xs hover:shadow-xs"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 dark:bg-rose-950/30 dark:border-rose-900/40 dark:text-rose-300 dark:hover:bg-rose-900/40 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-2xs hover:shadow-xs"
                             title="Remotely terminate unauthorized or unattended terminal"
                           >
-                            <ShieldX size={13} className="text-rose-600" />
+                            <ShieldX size={13} className="text-rose-600 dark:text-rose-400" />
                             <span>Terminate</span>
                           </button>
                         )}

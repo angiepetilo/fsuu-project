@@ -818,6 +818,8 @@ export default function EndorsementLetterTemplateModal({
           </button>
         </div>
 
+
+
         {/* Controls Bar */}
         <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-50 p-2 rounded-xl border border-slate-200">
           
@@ -918,6 +920,18 @@ export default function EndorsementLetterTemplateModal({
                   <span>{saving ? "Saving..." : "Save Changes"}</span>
                 </button>
               </>
+            ) : requirement?.template_file_url ? (
+              <a
+                href={requirement.template_file_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                download
+                className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all cursor-pointer shadow-xs"
+                title={requirement.template_file_name || "Download Template"}
+              >
+                <Download size={13} />
+                <span>Download Template</span>
+              </a>
             ) : (
               <button
                 type="button"
@@ -1683,6 +1697,34 @@ export default function EndorsementLetterTemplateModal({
               </div>
             )}
 
+          </div>
+        ) : !isEditing && requirement?.template_display_mode === "uploaded_file" && requirement?.template_file_url ? (
+          /* ── Uploaded File Official Template View (Suppresses Digital Format) ── */
+          <div className="flex-1 min-h-[400px] flex flex-col items-center justify-center p-6 bg-slate-50 rounded-xl border border-slate-200 text-center space-y-4">
+            <div className="w-16 h-16 rounded-2xl bg-blue-50 border border-blue-200 text-blue-600 flex items-center justify-center shadow-xs">
+              <Download size={32} />
+            </div>
+            <div className="max-w-md space-y-1">
+              <h4 className="text-sm font-extrabold text-slate-900">
+                Official Template Document Attached
+              </h4>
+              <p className="text-xs text-slate-500 font-medium">
+                This requirement requires downloading the official uploaded form provided by the office.
+              </p>
+              <p className="text-[11px] font-mono text-slate-500 bg-white px-3 py-1.5 rounded-lg border border-slate-200 inline-block mt-2">
+                {requirement.template_file_name || "Official Form Document"}
+              </p>
+            </div>
+            <a
+              href={requirement.template_file_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              download
+              className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-xl text-xs font-black shadow-xs transition-all flex items-center gap-2 cursor-pointer"
+            >
+              <Download size={15} />
+              <span>Download Official Template</span>
+            </a>
           </div>
         ) : (
           /* ── Compact 1-Page Sheet Preview ── */

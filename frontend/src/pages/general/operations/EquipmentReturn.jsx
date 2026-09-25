@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { 
   RotateCcw, Search, AlertCircle, CheckCircle2, ShieldAlert,
-  Clock, Calendar, User, FileText, RefreshCw, AlertTriangle, Loader2
+  Clock, Calendar, User, FileText, AlertTriangle, Loader2
 } from "lucide-react";
 import api from "@/lib/axios";
 import { notify } from "@/lib/notify";
@@ -26,18 +26,22 @@ export default function EquipmentReturn() {
   const [unitConditions, setUnitConditions] = useState({});
   const [returnNotes, setReturnNotes] = useState("");
 
-  const fetchBorrowings = useCallback(async () => {
-    setLoading(true);
+  const fetchBorrowings = useCallback(async (opts = false) => {
+    const isSilent = typeof opts === "object" && opts !== null
+      ? Boolean(opts.isSilent || opts.silent || opts.showLoading === false)
+      : Boolean(opts);
+
+    if (!isSilent && borrowings.length === 0) setLoading(true);
     try {
       const res = await api.get("/avr-equipment-borrowings");
       const list = res.data?.data ?? (Array.isArray(res.data) ? res.data : []);
       setBorrowings(list);
     } catch {
-      notify.error("Data Sync Failed", "Unable to load equipment reservations.");
+      if (!isSilent) notify.error("Data Sync Failed", "Unable to load equipment reservations.");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [borrowings.length]);
 
   useRealtimeSync(fetchBorrowings, { interval: 30000 });
 
@@ -169,16 +173,6 @@ export default function EquipmentReturn() {
             Inspect physical condition of returned units, flag damages/missing items, and reconcile inventory.
           </p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={fetchBorrowings}
-          disabled={loading}
-          className="self-start sm:self-auto gap-2"
-        >
-          <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
-          <span>Refresh List</span>
-        </Button>
       </div>
 
       {/* Search & Scan Bar */}

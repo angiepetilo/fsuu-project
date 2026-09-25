@@ -29,8 +29,10 @@ export function ThemeProvider({ children }) {
     } catch {}
     if (val === "dark") {
       document.documentElement.classList.add("dark");
+      document.body?.classList.add("dark");
     } else {
       document.documentElement.classList.remove("dark");
+      document.body?.classList.remove("dark");
     }
   };
 
@@ -41,8 +43,10 @@ export function ThemeProvider({ children }) {
   useEffect(() => {
     if (theme === "dark") {
       document.documentElement.classList.add("dark");
+      document.body?.classList.add("dark");
     } else {
       document.documentElement.classList.remove("dark");
+      document.body?.classList.remove("dark");
     }
 
     const handleStorage = (e) => {
@@ -50,8 +54,10 @@ export function ThemeProvider({ children }) {
         setThemeState(e.newValue);
         if (e.newValue === "dark") {
           document.documentElement.classList.add("dark");
+          document.body?.classList.add("dark");
         } else {
           document.documentElement.classList.remove("dark");
+          document.body?.classList.remove("dark");
         }
       }
     };

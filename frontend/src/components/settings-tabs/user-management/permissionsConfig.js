@@ -97,19 +97,65 @@ export const PERMISSION_MODULES = [
   {
     key: "settings",
     label: "Settings",
-    desc: "Access individual administrative configuration tabs",
+    desc: "Access administrative configuration categories and tabs",
+    categories: [
+      {
+        name: "User & Access Management",
+        actions: [
+          { key: "users",           label: "User Management" },
+          { key: "active_sessions", label: "Active Sessions" },
+          { key: "pin",             label: "Verification PIN" },
+        ],
+      },
+      {
+        name: "System & Security Logs",
+        actions: [
+          { key: "security_alerts",    label: "Security Alerts" },
+          { key: "audit_logs",         label: "Activity Audit Trail" },
+          { key: "communication_logs", label: "SMS and Email Log" },
+        ],
+      },
+      {
+        name: "Organization Setup",
+        actions: [
+          { key: "brands",      label: "Brands" },
+          { key: "equipment",   label: "Equipment Category" },
+          { key: "venues",      label: "Venue Creation" },
+          { key: "departments", label: "Departments" },
+        ],
+      },
+      {
+        name: "Operations & Billing",
+        actions: [
+          { key: "fee_matrix",      label: "Fee Matrix" },
+          { key: "operating_hours", label: "Operating Hours" },
+          { key: "academic_terms",  label: "Academic Terms" },
+        ],
+      },
+      {
+        name: "Account",
+        actions: [
+          { key: "account",         label: "Profile" },
+          { key: "system_settings", label: "System Settings" },
+        ],
+      },
+    ],
     actions: [
-      { key: "account",            label: "Account" },
-      { key: "equipment",          label: "Equipment Category" },
-      { key: "venues",             label: "Venue Creation" },
-      { key: "fee_matrix",         label: "Fee Matrix" },
-      { key: "departments",        label: "Departments" },
-      { key: "operating_hours",    label: "Operating Hours" },
-      { key: "academic_terms",     label: "Academic Terms" },
-      { key: "brands",             label: "Brands" },
-      { key: "pin",                label: "Verification PIN" },
-      { key: "communication_logs", label: "Communications Log" },
-      { key: "system_settings",    label: "System Settings" },
+      { key: "users",              label: "User Management",       category: "User & Access Management" },
+      { key: "active_sessions",    label: "Active Sessions",       category: "User & Access Management" },
+      { key: "pin",                label: "Verification PIN",      category: "User & Access Management" },
+      { key: "security_alerts",    label: "Security Alerts",       category: "System & Security Logs" },
+      { key: "audit_logs",         label: "Activity Audit Trail",  category: "System & Security Logs" },
+      { key: "communication_logs", label: "SMS and Email Log",     category: "System & Security Logs" },
+      { key: "brands",             label: "Brands",                category: "Organization Setup" },
+      { key: "equipment",          label: "Equipment Category",    category: "Organization Setup" },
+      { key: "venues",             label: "Venue Creation",        category: "Organization Setup" },
+      { key: "departments",        label: "Departments",           category: "Organization Setup" },
+      { key: "fee_matrix",         label: "Fee Matrix",            category: "Operations & Billing" },
+      { key: "operating_hours",    label: "Operating Hours",       category: "Operations & Billing" },
+      { key: "academic_terms",     label: "Academic Terms",        category: "Operations & Billing" },
+      { key: "account",            label: "Profile",               category: "Account" },
+      { key: "system_settings",    label: "System Settings",       category: "Account" },
     ],
   },
 ];

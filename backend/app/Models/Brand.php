@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Brand extends Model
 {
@@ -13,6 +14,7 @@ class Brand extends Model
 
     protected $fillable = [
         'name',
+        'equipment_type_id',
         'description',
         'status',
     ];
@@ -21,6 +23,18 @@ class Brand extends Model
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
+
+    protected $appends = ['equipment_category_name'];
+
+    public function equipmentType(): BelongsTo
+    {
+        return $this->belongsTo(EquipmentType::class, 'equipment_type_id');
+    }
+
+    public function getEquipmentCategoryNameAttribute(): ?string
+    {
+        return $this->equipmentType?->eq_name ?? $this->equipmentType?->name;
+    }
 
     public function equipmentUnits()
     {

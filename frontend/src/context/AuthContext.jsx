@@ -2,6 +2,21 @@ import { createContext, useContext, useState, useEffect, useCallback, useRef } f
 import api, { clearApiCache } from "@/lib/axios";
 import echoInstance from "@/lib/echo";
 
+/**
+ * AuthContext — Dynamic RBAC-aware Auth Provider
+ *
+ * Permissions are NEVER hardcoded here. The `user` object returned by
+ * GET /api/user carries: role, role_id, permissions[], and any other
+ * server-authoritative fields. Consumers should use usePermissions()
+ * which derives all flags dynamically from this live user object.
+ *
+ * Sync mechanisms (in order of priority):
+ *  1. On login — immediate /api/user fetch sets authoritative user state
+ *  2. On token change — triggers a fresh /api/user fetch
+ *  3. WebSocket broadcast — Echo listens for permission-changed events
+ *  4. Heartbeat poll — every 5 min re-validates session + refreshes permissions
+ */
+
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
@@ -144,22 +159,14 @@ export function AuthProvider({ children }) {
   }, [token]);
 
   const clearAdminCaches = () => {
-    // Flush in-memory axios cache
     clearApiCache();
-
-    // Leave any active Echo WebSocket channels
     try {
       echoInstance?.leave("admin-notifications");
       echoInstance?.leave("equipment-inventory");
     } catch {}
-
-    // Flush all staff auth session storage cache keys (preserve catalog data)
     const keysToClean = [
-      "staff_user",
-      "staff_token",
-      "fsuu_remember_me",
-      "fsuu_admin_profile",
-      "fsuu_sysad_profile",
+      "staff_user", "staff_token", "fsuu_remember_me",
+      "fsuu_admin_profile", "fsuu_sysad_profile",
       "fsuu_venue_availability",
       "fsuu_cache_admin_venue_bookings",
       "fsuu_cache_admin_equipment_borrowings",
@@ -169,24 +176,81 @@ export function AuthProvider({ children }) {
       "fsuu_venue_overrides",
       "fsuu_venue_maintenance",
     ];
-
     keysToClean.forEach(k => {
-      try {
-        localStorage.removeItem(k);
-        sessionStorage.removeItem(k);
-      } catch {}
+      try { localStorage.removeItem(k); sessionStorage.removeItem(k); } catch {}
     });
-
-    try {
-      sessionStorage.clear();
-    } catch {}
-
-    // Broadcast logout to any other open tabs
+    try { sessionStorage.clear(); } catch {}
     try {
       localStorage.setItem("fsuu_auth_broadcast", "logout");
       localStorage.removeItem("fsuu_auth_broadcast");
     } catch {}
   };
+
+  /**
+   * Fetches the latest user object (including role + permissions) from the
+   * server and syncs it into React state and storage.
+   * Called on: token change, WebSocket push, and heartbeat poll.
+   */
+  const refreshUser = useCallback(async () => {
+    if (!tokenRef.current) return;
+    try {
+      const res = await api.get("/user");
+      if (res.data) {
+        setUser(prev => {
+          const next = { ...prev, ...res.data };
+          const serialized = JSON.stringify(next);
+          if (rememberMeRef.current) {
+            localStorage.setItem("staff_user", serialized);
+          } else {
+            sessionStorage.setItem("staff_user", serialized);
+          }
+          return next;
+        });
+      }
+    } catch (err) {
+      if (err.response?.status === 401 || err.response?.status === 403) {
+        clearAdminCaches();
+        setUser(null);
+        setToken(null);
+      }
+    }
+  }, []);
+
+  /**
+   * Permission Heartbeat Poll — re-validates every 5 minutes.
+   * Ensures that if an admin changes a user's role or permissions
+   * server-side, the UI reflects that within 5 minutes without a reload.
+   */
+  const HEARTBEAT_MS = 5 * 60 * 1000; // 5 minutes
+  useEffect(() => {
+    if (!token) return;
+    const intervalId = setInterval(() => {
+      refreshUser();
+    }, HEARTBEAT_MS);
+    return () => clearInterval(intervalId);
+  }, [token, refreshUser]);
+
+  /**
+   * WebSocket Real-Time Permission Sync
+   * Listens on the user's private channel for server-pushed events:
+   *  - PermissionsChanged: admin updated this user's permissions
+   *  - RoleChanged: admin changed this user's role
+   *  - UserUpdated: general profile/data refresh needed
+   */
+  useEffect(() => {
+    if (!token || !user?.id) return;
+    try {
+      const channel = echoInstance?.private(`user.${user.id}`);
+      if (!channel) return;
+      channel
+        .listen(".PermissionsChanged", () => { refreshUser(); })
+        .listen(".RoleChanged",        () => { refreshUser(); })
+        .listen(".UserUpdated",        () => { refreshUser(); });
+      return () => {
+        try { echoInstance?.leave(`user.${user.id}`); } catch {}
+      };
+    } catch {}
+  }, [token, user?.id, refreshUser]);
 
   const login = useCallback((userData, tokenValue, shouldRemember = false) => {
     clearAdminCaches();
@@ -228,13 +292,28 @@ export function AuthProvider({ children }) {
     });
   }, []);
 
-  const isAdmin  = user ? ["admin", "head", "super_admin"].includes(user.role) : false;
-  const isStaff  = user?.role === "staff";
+  const isAdmin  = user ? ["admin", "head", "super_admin", "superadmin"].includes(
+    (user.role?.name || user.role || "").toLowerCase()
+  ) : false;
+  const isStaff  = user?.role?.name === "staff" || user?.role === "staff";
   const officeId = user?.office_id ?? null;
-  const officeType = user?.office?.type ?? null; // 'avr' | 'sco'
+  const officeType = user?.office?.type ?? null;
 
   return (
-    <AuthContext.Provider value={{ user, token, rememberMe, isValidating, isAdmin, isStaff, officeId, officeType, login, logout, updateAuthUser }}>
+    <AuthContext.Provider value={{
+      user,
+      token,
+      rememberMe,
+      isValidating,
+      isAdmin,
+      isStaff,
+      officeId,
+      officeType,
+      login,
+      logout,
+      updateAuthUser,
+      refreshUser,
+    }}>
       {children}
     </AuthContext.Provider>
   );

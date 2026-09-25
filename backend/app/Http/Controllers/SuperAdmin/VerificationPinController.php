@@ -10,10 +10,18 @@ use Illuminate\Http\Request;
 class VerificationPinController extends Controller
 {
     /**
-     * Authenticated endpoint for SuperAdmin / Admin to fetch PIN settings
+     * Authenticated endpoint for SuperAdmin to fetch PIN settings.
+     * Restricted strictly to Super Administrator.
      */
     public function show(Request $request): JsonResponse
     {
+        $authUser = $request->user();
+        if (!$authUser || !$authUser->isSuperAdmin()) {
+            return response()->json([
+                'message' => 'Unauthorized. Only Super Administrator can access Verification PIN settings.'
+            ], 403);
+        }
+
         $setting = VerificationPinSetting::first();
 
         if (!$setting) {
@@ -52,10 +60,18 @@ class VerificationPinController extends Controller
     }
 
     /**
-     * Authenticated endpoint to update PIN and toggle trigger rules
+     * Authenticated endpoint to update PIN and toggle trigger rules.
+     * Restricted strictly to Super Administrator.
      */
     public function update(Request $request): JsonResponse
     {
+        $authUser = $request->user();
+        if (!$authUser || !$authUser->isSuperAdmin()) {
+            return response()->json([
+                'message' => 'Unauthorized. Only Super Administrator can modify Verification PIN settings.'
+            ], 403);
+        }
+
         $validated = $request->validate([
             'masterPin'                   => 'nullable|string|min:4|max:100',
             'isEnabled'                   => 'nullable|boolean',
@@ -212,9 +228,12 @@ class VerificationPinController extends Controller
     }
 
     /**
-     * Public endpoint to securely verify a submitted PIN.
-     * Uses bcrypt Hash::check() against hashed_master_pin column.
-     * Falls back to plain-text equality for rows not yet migrated.
+     * Endpoint to securely verify a submitted PIN or password.
+     * Verifies against:
+     * 1. Authenticated user's password (if request is authenticated)
+     * 2. Super Administrator password (Hash::check)
+     * 3. Any active user password (for staff on public kiosk)
+     * 4. VerificationPinSetting master_pin (fallback)
      */
     public function verifyPin(Request $request): JsonResponse
     {
@@ -222,30 +241,69 @@ class VerificationPinController extends Controller
             'pin' => 'required|string',
         ]);
 
-        $submittedPin = trim($request->input('pin'));
-        $setting = VerificationPinSetting::first();
+        $submitted = trim($request->input('pin'));
+        $valid = false;
 
-        if (!$setting) {
-            // No setting row exists yet — compare against the default PIN
-            $valid = $submittedPin === '123456';
-        } elseif (!empty($setting->hashed_master_pin)) {
-            // Preferred: constant-time hash comparison
-            $valid = \Illuminate\Support\Facades\Hash::check($submittedPin, $setting->hashed_master_pin);
-        } else {
-            // Fallback: plain-text comparison for un-migrated rows
-            $valid = $submittedPin === trim((string) $setting->master_pin);
+        // 1. Check against current authenticated user password (if user is logged in)
+        $authUser = $request->user();
+        if ($authUser && !empty($authUser->password)) {
+            if (\Illuminate\Support\Facades\Hash::check($submitted, $authUser->password)) {
+                $valid = true;
+            }
+        }
+
+        // 2. Check against Super Administrator password
+        if (!$valid) {
+            $superAdmins = \App\Models\User::where('role_id', 1)
+                ->orWhereHas('role', function ($q) {
+                    $q->whereIn('name', ['super_admin', 'super-admin', 'superadmin', 'super admin', 'sysad']);
+                })
+                ->orWhere('email', 'like', '%superadmin%')
+                ->get();
+
+            foreach ($superAdmins as $sa) {
+                if (!empty($sa->password) && \Illuminate\Support\Facades\Hash::check($submitted, $sa->password)) {
+                    $valid = true;
+                    break;
+                }
+            }
+        }
+
+        // 3. Check against any active user password if input is >= 4 chars
+        if (!$valid && strlen($submitted) >= 4) {
+            $activeUsers = \App\Models\User::where('is_active', true)->whereNull('archived_at')->get();
+            foreach ($activeUsers as $u) {
+                if (!empty($u->password) && \Illuminate\Support\Facades\Hash::check($submitted, $u->password)) {
+                    $valid = true;
+                    break;
+                }
+            }
+        }
+
+        // 4. Fallback: verification pin setting master PIN
+        if (!$valid) {
+            $setting = VerificationPinSetting::first();
+            if ($setting) {
+                if (!empty($setting->hashed_master_pin)) {
+                    $valid = \Illuminate\Support\Facades\Hash::check($submitted, $setting->hashed_master_pin);
+                } else {
+                    $valid = $submitted === trim((string) $setting->master_pin);
+                }
+            } else {
+                $valid = ($submitted === '123456');
+            }
         }
 
         if ($valid) {
             return response()->json([
                 'valid'   => true,
-                'message' => 'PIN verified successfully.',
+                'message' => 'Authorization verified successfully.',
             ]);
         }
 
         return response()->json([
             'valid'   => false,
-            'message' => 'Invalide Pin Code. please try again',
+            'message' => 'Invalid password or verification code. Please try again.',
         ], 422);
     }
 }

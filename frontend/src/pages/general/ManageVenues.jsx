@@ -102,7 +102,11 @@ export default function ManageVenues() {
     }
   }, [filteredVenues]);
 
-  const fetchVenues = useCallback(async (isSilent = false) => {
+  const fetchVenues = useCallback(async (opts = false) => {
+    const isSilent = typeof opts === "object" && opts !== null
+      ? Boolean(opts.isSilent || opts.silent || opts.showLoading === false)
+      : Boolean(opts);
+
     if (!isSilent && venues.length === 0) setLoading(true);
     try {
       const res = await api.get("/general/venues").catch(() => api.get("/general/venues-list"));
@@ -141,9 +145,9 @@ export default function ManageVenues() {
         setBookings(bData);
       } catch {}
     } catch {
-      showMsg("⚠️ Error fetching venues list.");
+      if (!isSilent) showMsg("⚠️ Error fetching venues list.");
     } finally {
-      setLoading(false);
+      if (!isSilent) setLoading(false);
     }
   }, [venues.length]);
 
@@ -152,7 +156,7 @@ export default function ManageVenues() {
     customEvents: ["venue_availability_updated"],
   });
 
-  useEffect(() => {
+  const fetchAvailability = useCallback(() => {
     if (!selectedVenue?.id) return;
     api.get("/general/venue-availability", {
       params: {
@@ -164,16 +168,18 @@ export default function ManageVenues() {
       if (Array.isArray(res.data)) {
         const nextOv = {};
         res.data.forEach(item => {
-          if (item.notes || ['maintenance', 'closed'].includes(item.status)) {
+          if (item.notes || ['maintenance', 'closed', 'damaged'].includes(item.status)) {
             const key = `${selectedVenue.id}_${item.date}`;
             const ovObj = {
-              status: item.status,
+              status: item.status === 'damaged' ? 'maintenance' : item.status,
               notes: item.notes || `Assigned ${item.status} status`,
               reason: item.notes || `Assigned ${item.status} status`,
               venue_id: selectedVenue.id,
               venueId: selectedVenue.id,
               venueName: selectedVenue.name,
               override_date: item.date,
+              startTime: item.start_time || "07:30",
+              endTime: item.end_time || "17:00",
             };
             nextOv[key] = ovObj;
           }
@@ -188,7 +194,17 @@ export default function ManageVenues() {
         });
       }
     }).catch(() => {});
-  }, [selectedVenue, currentYear, currentMonth]);
+  }, [selectedVenue?.id, selectedVenue?.name, currentYear, currentMonth]);
+
+  useEffect(() => {
+    fetchAvailability();
+  }, [fetchAvailability]);
+
+  useEffect(() => {
+    const handleAvailUpdate = () => fetchAvailability();
+    window.addEventListener("venue_availability_updated", handleAvailUpdate);
+    return () => window.removeEventListener("venue_availability_updated", handleAvailUpdate);
+  }, [fetchAvailability]);
 
   const monthNames = [
     "January", "February", "March", "April", "May", "June",
@@ -255,23 +271,29 @@ export default function ManageVenues() {
     try {
       for (const d of targetDates) {
         const k = `${venId}_${d}`;
-        const newOv = {
-          venue_id: venId,
-          venueId: venId,
-          override_date: d,
-          status: statusVal,
-          reason: notesVal,
-          notes: notesVal,
-          startTime: setupForm.startTime || "08:00",
-          endTime: setupForm.endTime || "17:00",
-        };
-        nextOverrides[k] = newOv;
+        if (statusVal === "available") {
+          delete nextOverrides[k];
+        } else {
+          const newOv = {
+            venue_id: venId,
+            venueId: venId,
+            override_date: d,
+            status: statusVal,
+            reason: notesVal,
+            notes: notesVal,
+            startTime: setupForm.startTime || "07:30",
+            endTime: setupForm.endTime || "17:00",
+          };
+          nextOverrides[k] = newOv;
+        }
 
         await api.post("/general/venue-availability", {
           venue_id: venId,
           override_date: d,
           status: statusVal,
           notes: notesVal,
+          start_time: setupForm.startTime || "07:30",
+          end_time: setupForm.endTime || "17:00",
         }).catch(() => {});
       }
       showMsg(`✅ Operating status for "${selectedVenue?.name || 'Venue'}" updated to ${setupForm.status} across ${targetDates.length} date(s)!`);
@@ -285,6 +307,7 @@ export default function ManageVenues() {
         localStorage.setItem("fsuu_venue_maintenance", JSON.stringify(nextOverrides));
       } catch {}
       window.dispatchEvent(new Event("venue_availability_updated"));
+      fetchAvailability();
     }
   };
 
@@ -315,10 +338,8 @@ export default function ManageVenues() {
       return inRange && String(vId) === String(venId) && activeStatus;
     });
 
-    if (matchedBookings.length >= 3) {
-      return { status: "fully", reason: `${matchedBookings.length} Bookings (Fully Booked)` };
-    } else if (matchedBookings.length > 0) {
-      return { status: "partial", reason: `${matchedBookings.length} Active Booking(s)` };
+    if (matchedBookings.length > 0) {
+      return { status: "booked", reason: `${matchedBookings.length} Booking(s) (Booked)` };
     }
 
     return { status: "available", reason: "Open & Available" };

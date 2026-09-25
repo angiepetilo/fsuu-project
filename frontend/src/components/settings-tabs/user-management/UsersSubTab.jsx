@@ -7,6 +7,7 @@ import {
   Search,
   Mail,
   Ban,
+  Power,
   GraduationCap,
   MoreVertical,
   AlertCircle,
@@ -78,13 +79,15 @@ export default function UsersSubTab({ showMsg }) {
 
   const openCreate = () => {
     setEditUser(null);
+    const defaultRole = availableRoles[0];
     setForm({
       first_name: "",
       middle_name: "",
       last_name: "",
       suffix: "",
       email_address: "",
-      role: "staff",
+      role: defaultRole?.name || "staff",
+      role_id: defaultRole?.id || null,
       isDisabled: false,
     });
     setShowModal(true);
@@ -96,9 +99,8 @@ export default function UsersSubTab({ showMsg }) {
       u.status === "inactive" ||
       u.is_active === false ||
       u.is_active === 0;
-    const roleStr = (u.role?.name || "staff").toLowerCase();
-    const isSA =
-      roleStr.includes("student") || roleStr.includes("assistant") || u.role_id === 3;
+    const userRoleName = u.role?.name || (typeof u.role === "string" ? u.role : "staff");
+    const userRoleId = u.role_id || u.role?.id || null;
     setEditUser(u);
     setForm({
       first_name: u.first_name || "",
@@ -106,7 +108,8 @@ export default function UsersSubTab({ showMsg }) {
       last_name: u.last_name || "",
       suffix: u.suffix || "",
       email_address: u.email_address || u.email || "",
-      role: isSA ? "student_assistant" : "staff",
+      role: userRoleName,
+      role_id: userRoleId,
       isDisabled,
     });
     setShowModal(true);
@@ -274,7 +277,7 @@ export default function UsersSubTab({ showMsg }) {
           className="px-3 py-2 border border-slate-200 rounded-lg text-xs font-medium text-slate-700 focus:outline-none focus:border-slate-400 bg-white cursor-pointer"
         >
           <option value="all">All Statuses</option>
-          <option value="active">Active</option>
+          <option value="active">Enable</option>
           <option value="pending">Pending</option>
           <option value="disabled">Disabled</option>
         </select>
@@ -409,103 +412,115 @@ export default function UsersSubTab({ showMsg }) {
                     </td>
 
                     {/* Status */}
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <IosToggle
-                          size="sm"
-                          enabled={!isDisabled}
-                          onChange={() => handleToggleDisable(u)}
-                          title={isDisabled ? "Account is disabled. Click to enable." : "Account is active. Click to disable."}
-                        />
-                        {isDisabled ? (
-                          <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-rose-50 text-rose-600 border border-rose-200">
-                            Disabled
-                          </span>
-                        ) : isPending ? (
-                          <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-amber-50 text-amber-600 border border-amber-200">
-                            Pending
-                          </span>
-                        ) : (
-                          <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-50 text-emerald-600 border border-emerald-200">
-                            Active
-                          </span>
-                        )}
-                      </div>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      {isDisabled ? (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-[10px] font-bold bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900/40">
+                          <Ban size={10} className="mr-1 text-rose-500 dark:text-rose-400/80" />
+                          Inactive
+                        </span>
+                      ) : isPending ? (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-[10px] font-bold bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-900/40">
+                          Pending
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/40">
+                          Active
+                        </span>
+                      )}
                     </td>
 
                     {/* Date Added */}
-                    <td className="px-4 py-3 text-slate-500">{dateAdded}</td>
+                    <td className="px-4 py-3 text-slate-500 dark:text-slate-400 whitespace-nowrap">{dateAdded}</td>
 
                     {/* Actions */}
                     <td className="px-4 py-3 text-right">
-                      <div className="action-menu-wrap inline-block">
+                      <div className="flex items-center justify-end gap-1.5">
                         <button
                           type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (openActionId === u.id) {
-                              setOpenActionId(null);
-                              setActionAnchorEl(null);
-                            } else {
-                              setOpenActionId(u.id);
-                              setActionAnchorEl(e.currentTarget);
-                            }
-                          }}
-                          className={`p-1.5 rounded-lg border text-xs transition-all cursor-pointer ${
-                            openActionId === u.id
-                              ? "bg-blue-600 border-blue-600 text-white"
-                              : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                          onClick={() => handleToggleDisable(u)}
+                          className={`p-1.5 rounded-lg border text-xs transition-all cursor-pointer shadow-2xs ${
+                            !isDisabled
+                              ? "text-rose-600 bg-rose-50 border-rose-200 hover:bg-rose-100 dark:text-rose-400/80 dark:bg-rose-950/40 dark:border-rose-900/40 hover:dark:bg-rose-900/40 hover:dark:text-rose-300"
+                              : "text-emerald-600 bg-emerald-50 border-emerald-200 hover:bg-emerald-100 dark:text-emerald-400/80 dark:bg-emerald-950/40 dark:border-emerald-900/40 hover:dark:bg-emerald-900/40 hover:dark:text-emerald-300"
                           }`}
+                          title={isDisabled ? "Enable Account" : "Disable Account"}
                         >
-                          <MoreVertical size={13} />
+                          {!isDisabled ? <Ban size={13} /> : <CheckCircle2 size={13} />}
                         </button>
 
-                        <ActionPopover
-                          isOpen={openActionId === u.id}
-                          anchorEl={actionAnchorEl}
-                          onClose={() => {
-                            setOpenActionId(null);
-                            setActionAnchorEl(null);
-                          }}
-                        >
+                        <div className="action-menu-wrap inline-block">
                           <button
                             type="button"
-                            onClick={() => {
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (openActionId === u.id) {
+                                setOpenActionId(null);
+                                setActionAnchorEl(null);
+                              } else {
+                                setOpenActionId(u.id);
+                                setActionAnchorEl(e.currentTarget);
+                              }
+                            }}
+                            className={`p-1.5 rounded-lg border text-xs transition-all cursor-pointer ${
+                              openActionId === u.id
+                                ? "bg-blue-600 border-blue-600 text-white"
+                                : "border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
+                            }`}
+                          >
+                            <MoreVertical size={13} />
+                          </button>
+
+                          <ActionPopover
+                            isOpen={openActionId === u.id}
+                            anchorEl={actionAnchorEl}
+                            onClose={() => {
                               setOpenActionId(null);
                               setActionAnchorEl(null);
-                              openEdit(u);
                             }}
-                            className="w-full px-3.5 py-2 text-left text-xs font-medium text-slate-700 hover:bg-slate-50 flex items-center gap-2 transition-colors cursor-pointer"
                           >
-                            <Edit2 size={12} /> Edit Account
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setOpenActionId(null);
-                              setActionAnchorEl(null);
-                              handleResend(u);
-                            }}
-                            disabled={resendingId === u.id}
-                            className="w-full px-3.5 py-2 text-left text-xs font-medium text-slate-700 hover:bg-slate-50 flex items-center gap-2 transition-colors cursor-pointer"
-                          >
-                            <Mail size={12} />{" "}
-                            {resendingId === u.id ? "Sending..." : "Resend Invite"}
-                          </button>
-                          <div className="border-t border-slate-100 my-0.5" />
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setOpenActionId(null);
-                              setActionAnchorEl(null);
-                              handleToggleDisable(u);
-                            }}
-                            className="w-full px-3.5 py-2 text-left text-xs font-medium text-rose-600 hover:bg-rose-50 flex items-center gap-2 transition-colors cursor-pointer"
-                          >
-                            <Ban size={12} />{" "}
-                            {isDisabled ? "Enable Account" : "Disable Account"}
-                          </button>
-                        </ActionPopover>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setOpenActionId(null);
+                                setActionAnchorEl(null);
+                                openEdit(u);
+                              }}
+                              className="w-full px-3.5 py-2 text-left text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:text-blue-600 dark:hover:text-blue-300 flex items-center gap-2 transition-colors cursor-pointer"
+                            >
+                              <Edit2 size={12} /> Edit Account
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setOpenActionId(null);
+                                setActionAnchorEl(null);
+                                handleResend(u);
+                              }}
+                              disabled={resendingId === u.id}
+                              className="w-full px-3.5 py-2 text-left text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:text-blue-600 dark:hover:text-blue-300 flex items-center gap-2 transition-colors cursor-pointer"
+                            >
+                              <Mail size={12} />{" "}
+                              {resendingId === u.id ? "Sending..." : "Resend Invite"}
+                            </button>
+                            <div className="border-t border-slate-100 dark:border-slate-800 my-0.5" />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setOpenActionId(null);
+                                setActionAnchorEl(null);
+                                handleToggleDisable(u);
+                              }}
+                              className={`w-full px-3.5 py-2 text-left text-xs font-medium flex items-center gap-2 transition-colors cursor-pointer ${
+                                !isDisabled
+                                  ? "text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/30"
+                                  : "text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950/30"
+                              }`}
+                            >
+                              <Power size={12} />{" "}
+                              {isDisabled ? "Enable Account" : "Disable Account"}
+                            </button>
+                          </ActionPopover>
+                        </div>
                       </div>
                     </td>
                   </tr>

@@ -17,19 +17,22 @@ class EquipmentUnit extends Model
         'equipment_type_id',
         'brand',
         'model',
+        'serial_number',
         'barcode',
         'purchased_at',
         'eq_lifespan',
         'status',
         'condition',
         'built_in_units',
+        'built_in_models',
         'description',
     ];
 
     protected $casts = [
-        'purchased_at'   => 'date',
-        'eq_lifespan'    => 'integer',
-        'built_in_units' => 'array',
+        'purchased_at'    => 'date',
+        'eq_lifespan'     => 'integer',
+        'built_in_units'  => 'array',
+        'built_in_models' => 'array',
     ];
 
     public function equipmentType(): BelongsTo

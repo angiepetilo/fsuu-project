@@ -5,13 +5,12 @@ import notify from "@/lib/notify";
 import { fetchWithCache, invalidateCache } from "@/lib/apiCache";
 import {
   PackageOpen, Plus, Search, Filter, Edit3, Ban, CheckCircle2,
-  AlertTriangle, RefreshCw, Barcode, Eye, Copy, Check,
+  AlertTriangle, Barcode, Eye, Copy, Check,
   ChevronLeft, ChevronRight, LayoutGrid, Loader2, MoreVertical,
-  FileSpreadsheet, CircleCheck
+  CircleCheck, Layers, PackageCheck
 } from "lucide-react";
 import EquipmentDetailModal from "./components/EquipmentDetailModal";
 import EquipmentModal, { generateSequentialBarcodes } from "./components/EquipmentModal";
-import EquipmentImportModal from "./components/EquipmentImportModal";
 import ActionPopover from "@/components/ui/action-popover";
 import ConfirmModal from "@/components/ui/ConfirmModal";
 import { PageLoader } from "@/components/ui/page-loader";
@@ -43,7 +42,6 @@ export default function ManageEquipments() {
   const [activeCategory, setActiveCategory] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
-  const [showImportModal, setShowImportModal] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [selectedItem, setSelectedItem] = useState(null);
   const [openActionId, setOpenActionId] = useState(null);
@@ -79,6 +77,7 @@ export default function ManageEquipments() {
   const [formData, setFormData] = useState({
     brand: "",
     model: "",
+    serial_number: "",
     barcode: "",
     category: "",
     date_purchased: new Date().toISOString().split("T")[0],
@@ -87,11 +86,13 @@ export default function ManageEquipments() {
     condition: "Good",
     description: "",
     built_in_units: [""],
+    built_in_models: {},
   });
 
   const [editFormData, setEditFormData] = useState({
     brand: "",
     model: "",
+    serial_number: "",
     barcode: "",
     category: "",
     date_purchased: "2026-03-15",
@@ -100,11 +101,16 @@ export default function ManageEquipments() {
     condition: "Good",
     description: "",
     built_in_units: [""],
+    built_in_models: {},
   });
 
   const [isSyncing, setIsSyncing] = useState(false);
 
-  const fetchEquipments = useCallback(async (isSilent = false) => {
+  const fetchEquipments = useCallback(async (opts = false) => {
+    const isSilent = typeof opts === "object" && opts !== null
+      ? Boolean(opts.isSilent || opts.silent || opts.showLoading === false)
+      : Boolean(opts);
+
     if (!isSilent) setIsSyncing(true);
     try {
       const [catData, unitRes] = await Promise.all([
@@ -159,6 +165,7 @@ export default function ManageEquipments() {
           equipment_type_id: u.equipment_type_id,
           brand: u.brand || '',
           model: u.model || '',
+          serial_number: u.serial_number || u.barcode || '',
           barcode: bCode,
           name: derivedName,
           category: catName,
@@ -177,6 +184,11 @@ export default function ManageEquipments() {
             : (typeof u.built_in_units === 'string'
                 ? (() => { try { return JSON.parse(u.built_in_units); } catch { return []; } })()
                 : []),
+          built_in_models: (u.built_in_models && typeof u.built_in_models === 'object')
+            ? u.built_in_models
+            : (typeof u.built_in_models === 'string'
+                ? (() => { try { return JSON.parse(u.built_in_models); } catch { return {}; } })()
+                : {}),
         };
       }));
 
@@ -188,7 +200,7 @@ export default function ManageEquipments() {
       setCategories([]);
     } finally {
       setLoading(false);
-      setIsSyncing(false);
+      if (!isSilent) setIsSyncing(false);
     }
   }, []);
 
@@ -215,6 +227,7 @@ export default function ManageEquipments() {
     setFormData({
       brand: "",
       model: "",
+      serial_number: "",
       barcode: "",
       category: defaultCatName,
       status: "available",
@@ -223,6 +236,7 @@ export default function ManageEquipments() {
       lifespan_years: 5,
       description: "",
       built_in_units: [""],
+      built_in_models: {},
     });
 
     setIsSubmitting(false);
@@ -236,9 +250,24 @@ export default function ManageEquipments() {
       return;
     }
 
+    const enteredSerial = (formData.serial_number || formData.barcode || "").trim();
     const enteredBarcode = (formData.barcode || "").trim();
 
-    // Duplicate check
+    // Duplicate check for Serial No.
+    if (enteredSerial) {
+      const duplicateSerial = units.find(u =>
+        (u.serial_number || u.barcode || "").trim().toLowerCase() === enteredSerial.toLowerCase()
+      );
+      if (duplicateSerial) {
+        notify.error(
+          "Duplicate Serial No.",
+          `Serial No. "${enteredSerial}" is already assigned to an equipment unit. Every unit must have a unique Serial No.`
+        );
+        return;
+      }
+    }
+
+    // Duplicate check for Barcode (if provided)
     if (enteredBarcode) {
       const duplicateBarcode = units.find(u =>
         (u.barcode || "").trim().toLowerCase() === enteredBarcode.toLowerCase()
@@ -275,7 +304,8 @@ export default function ManageEquipments() {
       equipment_type_id: matchedCat.id,
       brand: formData.brand || "",
       model: formData.model || "",
-      barcode: enteredBarcode || `BC-${Date.now().toString().slice(-6)}`,
+      serial_number: enteredSerial || `SN-${Date.now().toString().slice(-6)}`,
+      barcode: enteredBarcode || "",
       name: unitDisplayName,
       category: matchedCat.eq_name || matchedCat.name || "AV Equipment",
       status: "Available",
@@ -299,12 +329,14 @@ export default function ManageEquipments() {
         equipment_type_id: matchedCat.id,
         brand: formData.brand || undefined,
         model: formData.model || undefined,
-        barcode: enteredBarcode,
+        serial_number: enteredSerial || undefined,
+        barcode: enteredBarcode || undefined,
         purchased_at: formData.date_purchased || undefined,
         eq_lifespan: parseInt(formData.lifespan_years, 10) || 5,
         status: formData.status || "available",
         condition: formData.condition || "Good",
         built_in_units: validBuiltIns,
+        built_in_models: formData.built_in_models || {},
       };
 
       const res = await api.post("/general/equipment-units", payload);
@@ -316,6 +348,7 @@ export default function ManageEquipments() {
             ? {
                 ...optimisticUnit,
                 id: saved.id,
+                serial_number: saved.serial_number || optimisticUnit.serial_number,
                 barcode: saved.barcode || optimisticUnit.barcode,
                 built_in_units: Array.isArray(saved.built_in_units) ? saved.built_in_units : validBuiltIns,
                 _optimistic: false,
@@ -332,6 +365,7 @@ export default function ManageEquipments() {
       setFormData({
         brand: "",
         model: "",
+        serial_number: "",
         barcode: "",
         category: matchedCat.eq_name || matchedCat.name || "",
         status: "available",
@@ -340,6 +374,7 @@ export default function ManageEquipments() {
         lifespan_years: 5,
         description: "",
         built_in_units: [""],
+        built_in_models: {},
       });
 
       // Background sync
@@ -361,7 +396,25 @@ export default function ManageEquipments() {
     e.preventDefault();
     if (!editingItem) return;
 
+    const enteredSerial = (editFormData.serial_number || editFormData.barcode || "").trim();
     const enteredBarcode = (editFormData.barcode || "").trim();
+
+    // Duplicate check for Serial No.
+    if (enteredSerial) {
+      const duplicateSerial = units.find(u =>
+        u.id !== editingItem.id &&
+        (u.serial_number || u.barcode || "").trim().toLowerCase() === enteredSerial.toLowerCase()
+      );
+      if (duplicateSerial) {
+        notify.error(
+          "Duplicate Serial No.",
+          `Serial No. "${enteredSerial}" is already assigned to "${duplicateSerial.name || duplicateSerial.brand || 'another unit'}". Every unit must have a unique Serial No.`
+        );
+        return;
+      }
+    }
+
+    // Duplicate check for Barcode (if provided)
     if (enteredBarcode) {
       const duplicateUnit = units.find(u =>
         u.id !== editingItem.id && (u.barcode || "").trim().toLowerCase() === enteredBarcode.toLowerCase()
@@ -391,13 +444,15 @@ export default function ManageEquipments() {
       name: unitDisplayName,
       brand: editFormData.brand || "",
       model: editFormData.model || "",
-      barcode: editFormData.barcode,
+      serial_number: enteredSerial || editFormData.serial_number,
+      barcode: enteredBarcode,
       category: matchedCat.eq_name || matchedCat.name || editingItem.category,
       status: editFormData.status === "available" ? "Available" : "Unavailable",
       condition: editFormData.condition || "Good",
       date_purchased: editFormData.date_purchased,
       lifespan_years: parseInt(editFormData.lifespan_years, 10) || 5,
       built_in_units: validBuiltIns,
+      built_in_models: editFormData.built_in_models || {},
       description: editFormData.description,
       _optimistic: true,
     };
@@ -410,12 +465,14 @@ export default function ManageEquipments() {
         equipment_type_id: matchedCat.id,
         brand: editFormData.brand || undefined,
         model: editFormData.model || undefined,
-        barcode: editFormData.barcode,
+        serial_number: enteredSerial || undefined,
+        barcode: enteredBarcode || undefined,
         purchased_at: editFormData.date_purchased,
         eq_lifespan: parseInt(editFormData.lifespan_years, 10) || 5,
         status: editFormData.status || "available",
         condition: editFormData.condition || "Good",
         built_in_units: validBuiltIns,
+        built_in_models: editFormData.built_in_models || {},
         description: editFormData.description,
         reason: editFormData.reason || undefined,
       };
@@ -512,10 +569,31 @@ export default function ManageEquipments() {
       }
       const matchCategory = activeCategory === "all" || (item.category || "").toLowerCase() === activeCategory.toLowerCase();
       const q = searchQuery.toLowerCase();
-      const matchSearch = !searchQuery || (item.name || "").toLowerCase().includes(q) || (item.barcode || "").toLowerCase().includes(q);
+      const matchSearch = !searchQuery ||
+        (item.name || "").toLowerCase().includes(q) ||
+        (item.serial_number || "").toLowerCase().includes(q) ||
+        (item.barcode || "").toLowerCase().includes(q);
       return matchCategory && matchSearch;
     });
   }, [units, selectedOfficeId, officeScope, activeCategory, searchQuery]);
+
+  const parentUnitMap = useMemo(() => {
+    const map = new Map();
+    units.forEach((parent) => {
+      let rawList = parent.built_in_units;
+      if (typeof rawList === "string") {
+        try { rawList = JSON.parse(rawList); } catch { rawList = []; }
+      }
+      if (Array.isArray(rawList)) {
+        rawList.forEach((childId) => {
+          if (childId) {
+            map.set(String(childId), parent);
+          }
+        });
+      }
+    });
+    return map;
+  }, [units]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -556,24 +634,6 @@ export default function ManageEquipments() {
       {/* Action Toolbar */}
       <div className="flex items-center justify-end gap-3">
         <button
-          onClick={() => fetchEquipments(false)}
-          disabled={loading || isSyncing}
-          className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 shadow-xs cursor-pointer"
-        >
-          <RefreshCw size={14} className={isSyncing ? "animate-spin" : ""} />
-          {isSyncing ? "Refreshing..." : "Refresh"}
-        </button>
-
-        <button
-          onClick={() => setShowImportModal(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-extrabold shadow-md shadow-emerald-600/20 transition-all cursor-pointer"
-          title="Bulk import equipment units from CSV spreadsheet"
-        >
-          <FileSpreadsheet size={15} />
-          <span>Import CSV</span>
-        </button>
-
-        <button
           onClick={handleOpenAddModal}
           className="flex items-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-extrabold shadow-md transition-all cursor-pointer"
         >
@@ -602,7 +662,7 @@ export default function ManageEquipments() {
       )}
 
       {/* Search & Category Filter */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white p-3 rounded-2xl border border-slate-200/80 shadow-xs">
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white dark:bg-[#111827] p-3 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
         <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 shadow-xs text-xs font-bold text-slate-700 dark:text-slate-200">
           <Filter size={14} className="text-blue-600 dark:text-blue-400 flex-shrink-0" />
           <select
@@ -620,7 +680,7 @@ export default function ManageEquipments() {
           <Search size={14} className="absolute left-3 top-2.5 text-slate-400" />
           <input
             type="text"
-            placeholder="Search unit name, barcode..."
+            placeholder="Search unit name, serial no., barcode..."
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             className="w-full pl-9 pr-3 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
@@ -634,7 +694,7 @@ export default function ManageEquipments() {
           <table className="w-full text-sm min-w-[760px]">
             <thead>
               <tr className="bg-slate-50/80 dark:bg-slate-800/80 border-b border-slate-100 dark:border-slate-800">
-                {["#", "Unit Barcode", "Equipment Unit Name", "Assigned Category", "Date Purchased", "Lifespan vs Current", "Action"].map((h, i) => (
+                {["#", "Serial No.", "Equipment Unit Name", "Assigned Category", "Date Purchased", "Lifespan vs Current", "Action"].map((h, i) => (
                   <th key={h} className={`px-4 py-3.5 text-left text-[11px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap ${i === 0 ? 'rounded-tl-2xl' : i === 6 ? 'rounded-tr-2xl' : ''}`}>
                     {h}
                   </th>
@@ -671,17 +731,22 @@ export default function ManageEquipments() {
                       <td className="px-4 py-3.5 font-bold text-slate-400 dark:text-slate-500">{displayIndex}</td>
                       <td className="px-4 py-3.5 font-mono text-xs font-bold whitespace-nowrap">
                         <div className="flex items-center gap-1.5">
-                          <div className="flex items-center gap-1.5 bg-blue-50/80 dark:bg-blue-950/80 border border-blue-200 dark:border-blue-800 px-2.5 py-1 rounded-lg w-fit text-blue-700 dark:text-blue-300 font-bold shadow-2xs">
-                            <Barcode size={14} className="text-blue-600 dark:text-blue-400 shrink-0" />
-                            <span>{item.barcode}</span>
+                          <div className="flex flex-col gap-0.5">
+                            <div className="flex items-center gap-1.5 bg-blue-50/80 dark:bg-blue-950/80 border border-blue-200 dark:border-blue-800 px-2.5 py-1 rounded-lg w-fit text-blue-700 dark:text-blue-300 font-bold shadow-2xs">
+                              <Barcode size={14} className="text-blue-600 dark:text-blue-400 shrink-0" />
+                              <span>{item.serial_number || item.barcode}</span>
+                            </div>
+                            {item.barcode && item.serial_number && item.barcode !== item.serial_number && (
+                              <span className="text-[10px] text-slate-400 font-mono pl-1">BC: {item.barcode}</span>
+                            )}
                           </div>
                           <button
                             type="button"
-                            onClick={() => handleCopyBarcode(item.barcode)}
+                            onClick={() => handleCopyBarcode(item.serial_number || item.barcode)}
                             className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer"
-                            title="Copy Barcode"
+                            title="Copy Serial / Barcode"
                           >
-                            {copiedBarcode === item.barcode ? (
+                            {copiedBarcode === (item.serial_number || item.barcode) ? (
                               <Check size={13} className="text-emerald-600 font-extrabold" />
                             ) : (
                               <Copy size={13} />
@@ -689,7 +754,40 @@ export default function ManageEquipments() {
                           </button>
                         </div>
                       </td>
-                      <td className="px-4 py-3.5 font-extrabold text-slate-900 dark:text-white max-w-[200px] truncate" title={item.name}>{item.name}</td>
+                      <td className="px-4 py-3.5 max-w-[240px]">
+                        {(() => {
+                          const parentUnit =
+                            parentUnitMap.get(String(item.id)) ||
+                            (item.barcode ? parentUnitMap.get(String(item.barcode)) : null) ||
+                            (item.serial_number ? parentUnitMap.get(String(item.serial_number)) : null);
+
+                          return (
+                            <div className="flex flex-col gap-1">
+                              <span className="font-extrabold text-slate-900 dark:text-white truncate block" title={item.name}>
+                                {item.name}
+                              </span>
+                              {parentUnit && (
+                                <span
+                                  className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10.5px] font-bold bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 shadow-2xs w-fit max-w-full"
+                                  title={`Packaged inside ${parentUnit.name || parentUnit.category} [${parentUnit.serial_number || parentUnit.barcode || ''}]`}
+                                >
+                                  <Layers size={11} className="text-amber-600 dark:text-amber-400 shrink-0" />
+                                  <span className="truncate">Bundled with {parentUnit.name || parentUnit.category || "Parent Kit"}</span>
+                                </span>
+                              )}
+                              {!parentUnit && Array.isArray(item.built_in_units) && item.built_in_units.length > 0 && (
+                                <span
+                                  className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 w-fit max-w-full"
+                                  title={`Includes ${item.built_in_units.length} built-in component(s)`}
+                                >
+                                  <PackageCheck size={11} className="text-blue-600 dark:text-blue-400 shrink-0" />
+                                  <span className="truncate">Kit includes {item.built_in_units.length} built-in {item.built_in_units.length === 1 ? "unit" : "units"}</span>
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })()}
+                      </td>
                       <td className="px-4 py-3.5 font-bold text-blue-700 dark:text-blue-300 max-w-[180px]">
                         <span className="bg-blue-50 dark:bg-blue-950/60 px-2.5 py-1 rounded-lg border border-blue-200/60 dark:border-blue-800/60 block w-fit max-w-full truncate" title={item.category}>
                           {item.category}
@@ -736,10 +834,10 @@ export default function ManageEquipments() {
                                 setActionAnchorEl(null);
                                 setSelectedItem(item);
                               }}
-                              className="w-full px-3.5 py-2 text-left text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-blue-950/60 hover:text-blue-600 dark:hover:text-blue-300 flex items-center gap-2.5 transition-colors cursor-pointer"
+                              className="w-full px-3.5 py-2.5 text-left text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-blue-600 hover:text-white dark:hover:bg-blue-600 dark:hover:text-white flex items-center gap-2.5 transition-colors cursor-pointer rounded-xl group"
                             >
-                              <Eye size={14} className="text-blue-500" />
-                              <span>View Details</span>
+                              <Eye size={14} className="text-blue-500 group-hover:text-white transition-colors" />
+                              <span className="transition-colors">View Details</span>
                             </button>
 
                             <button
@@ -751,6 +849,7 @@ export default function ManageEquipments() {
                                 setEditFormData({
                                   brand: item.brand || "",
                                   model: item.model || "",
+                                  serial_number: item.serial_number || item.barcode || "",
                                   barcode: item.barcode || "",
                                   category: item.category || "",
                                   date_purchased: item.date_purchased || "",
@@ -760,6 +859,7 @@ export default function ManageEquipments() {
                                   description: item.description || "",
                                   reason: "",
                                   built_in_units: Array.isArray(item.built_in_units) && item.built_in_units.length > 0 ? item.built_in_units : [""],
+                                  built_in_models: item.built_in_models || {},
                                 });
                               }}
                               className="w-full px-3.5 py-2 text-left text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white flex items-center gap-2.5 transition-colors cursor-pointer"
@@ -777,6 +877,7 @@ export default function ManageEquipments() {
                                 setEditFormData({
                                   brand: item.brand || "",
                                   model: item.model || "",
+                                  serial_number: item.serial_number || item.barcode || "",
                                   barcode: item.barcode || "",
                                   category: item.category || "",
                                   date_purchased: item.date_purchased || "",
@@ -786,6 +887,7 @@ export default function ManageEquipments() {
                                   description: item.description || "",
                                   reason: "",
                                   built_in_units: Array.isArray(item.built_in_units) && item.built_in_units.length > 0 ? item.built_in_units : [""],
+                                  built_in_models: item.built_in_models || {},
                                 });
                               }}
                               className="w-full px-3.5 py-2 text-left text-xs font-bold text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/60 flex items-center gap-2.5 transition-colors cursor-pointer"
@@ -836,22 +938,22 @@ export default function ManageEquipments() {
 
         {/* Pagination Footer */}
         {filtered.length > 0 && (
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-6 py-4 bg-slate-50/80 border-t border-slate-100 text-xs font-semibold text-slate-600">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-6 py-4 bg-slate-50/80 dark:bg-slate-800/60 border-t border-slate-100 dark:border-slate-800 text-xs font-semibold text-slate-600 dark:text-slate-400">
             <div>
-              Showing <span className="font-extrabold text-slate-900">{startIndex + 1}</span> to{" "}
-              <span className="font-extrabold text-slate-900">{Math.min(startIndex + ITEMS_PER_PAGE, filtered.length)}</span> of{" "}
-              <span className="font-extrabold text-slate-900">{filtered.length}</span> equipment units
+              Showing <span className="font-extrabold text-slate-900 dark:text-white">{startIndex + 1}</span> to{" "}
+              <span className="font-extrabold text-slate-900 dark:text-white">{Math.min(startIndex + ITEMS_PER_PAGE, filtered.length)}</span> of{" "}
+              <span className="font-extrabold text-slate-900 dark:text-white">{filtered.length}</span> equipment units
             </div>
 
             <div className="flex items-center gap-2">
-              <span className="text-slate-500 font-bold mr-2">
+              <span className="text-slate-500 dark:text-slate-400 font-bold mr-2">
                 Page {currentPage} of {totalPages}
               </span>
               <button
                 type="button"
                 disabled={currentPage === 1}
                 onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                className="flex items-center gap-1 px-3.5 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all shadow-xs font-bold text-xs"
+                className="flex items-center gap-1 px-3.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all shadow-xs font-bold text-xs"
               >
                 <ChevronLeft size={14} /> Previous
               </button>
@@ -860,7 +962,7 @@ export default function ManageEquipments() {
                 type="button"
                 disabled={currentPage >= totalPages}
                 onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                className="flex items-center gap-1 px-3.5 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all shadow-xs font-bold text-xs"
+                className="flex items-center gap-1 px-3.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all shadow-xs font-bold text-xs"
               >
                 Next <ChevronRight size={14} />
               </button>
@@ -891,20 +993,6 @@ export default function ManageEquipments() {
         selectedItem={selectedItem}
         setSelectedItem={setSelectedItem}
         allUnits={units}
-      />
-
-      {/* Bulk CSV Import Modal */}
-      <EquipmentImportModal
-        isOpen={showImportModal}
-        onClose={() => setShowImportModal(false)}
-        onImportSuccess={(result) => {
-          invalidateCache("equipment_types_list");
-          fetchEquipments(false);
-          notify.success(
-            "Import Successful",
-            result?.message || `Imported ${result?.imported_count || 0} physical units.`
-          );
-        }}
       />
 
       {/* Disable Unit Confirmation Modal */}

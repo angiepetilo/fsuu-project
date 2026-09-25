@@ -270,12 +270,12 @@ export default function EquipmentStockTab({
       {/* ═══════════════════════════════════════════════════════════════════════ */}
       <div className="space-y-4">
         {/* Header Bar */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-[#111827] p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
           <div>
-            <h3 className="font-extrabold text-slate-900 text-sm">
+            <h3 className="font-extrabold text-slate-900 dark:text-white text-sm">
               Stock by Category
             </h3>
-            <p className="text-xs text-slate-400 font-medium mt-0.5">
+            <p className="text-xs text-slate-400 dark:text-slate-500 font-medium mt-0.5">
               Aggregated stock balance of physical units across equipment categories
             </p>
           </div>
@@ -289,12 +289,12 @@ export default function EquipmentStockTab({
         )}
 
         {/* Category Audit Table with Mobile Responsive Card Grid */}
-        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+        <div className="bg-white dark:bg-[#111827] rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs overflow-hidden">
           {/* Desktop View */}
           <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-xs text-left">
               <thead>
-                <tr className="bg-slate-50/80 border-b border-slate-100 text-slate-400 font-bold uppercase text-[10px] tracking-wider">
+                <tr className="bg-slate-50/80 dark:bg-slate-800/80 border-b border-slate-100 dark:border-slate-800 text-slate-400 dark:text-slate-500 font-bold uppercase text-[10px] tracking-wider">
                   <th className="px-4 py-3.5 w-16">Photo</th>
                   <th className="px-4 py-3.5">Category Name</th>
                   <th className="px-4 py-3.5 text-center">Total</th>
@@ -305,10 +305,10 @@ export default function EquipmentStockTab({
                   <th className="px-4 py-3.5 text-center">Lost</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium text-slate-700 dark:text-slate-300">
                 {loading ? (
                   <tr>
-                    <td colSpan={8} className="text-center py-12 text-slate-400">
+                    <td colSpan={8} className="text-center py-12 text-slate-400 dark:text-slate-500">
                       <div className="flex items-center justify-center gap-2">
                         <Loader2 size={18} className="animate-spin text-blue-600" />
                         <span>Loading inventory items...</span>
@@ -317,7 +317,7 @@ export default function EquipmentStockTab({
                   </tr>
                 ) : filteredInventory.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="text-center py-12 text-slate-400">
+                    <td colSpan={8} className="text-center py-12 text-slate-400 dark:text-slate-500">
                       📦 No inventory items registered yet.
                     </td>
                   </tr>
@@ -371,9 +371,9 @@ export default function EquipmentStockTab({
                     };
 
                     return (
-                      <tr key={key || idx} className="hover:bg-slate-50/80 transition-colors">
+                      <tr key={key || idx} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
                         <td className="px-4 py-3">
-                          <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 overflow-hidden flex items-center justify-center shadow-inner shrink-0">
+                          <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 overflow-hidden flex items-center justify-center shadow-inner shrink-0">
                             {displayPhoto ? (
                               <img src={displayPhoto} alt={categoryName} className="w-full h-full object-contain p-0.5" />
                             ) : (
@@ -382,50 +382,38 @@ export default function EquipmentStockTab({
                           </div>
                         </td>
                         <td className="px-4 py-3">
-                          <div className="font-extrabold text-xs text-slate-900">
+                          <div className="font-extrabold text-xs text-slate-900 dark:text-white">
                             {categoryName}
                           </div>
                           {item.description && (
-                            <div className="text-[11px] text-slate-400 truncate max-w-xs">{item.description}</div>
+                            <div className="text-[11px] text-slate-400 dark:text-slate-500 truncate max-w-xs">{item.description}</div>
                           )}
                         </td>
-                        <td className="px-4 py-3 text-center font-mono font-bold text-slate-900">
-                          <span className="px-2.5 py-0.5 rounded-lg bg-slate-100 border border-slate-200 inline-flex items-center justify-center min-w-[32px]">
-                            {expectedQty}
-                          </span>
+                        <td className="px-4 py-3 text-center font-mono font-extrabold text-slate-700 dark:text-slate-200">
+                          {expectedQty}
                         </td>
-                        <td className="px-4 py-3 text-center font-mono font-bold text-emerald-700">
-                          <span className="px-2.5 py-0.5 rounded-lg bg-emerald-50 border border-emerald-200 inline-flex items-center justify-center min-w-[32px]">
-                            {availablePresent}
-                          </span>
+                        <td className="px-4 py-3 text-center font-mono font-extrabold text-emerald-600 dark:text-emerald-400">
+                          {availablePresent}
                         </td>
-                        <td className="px-4 py-3 text-center font-mono font-bold text-indigo-700">
-                          <span className={`px-2.5 py-0.5 rounded-lg border inline-flex items-center justify-center min-w-[32px] ${
-                            reservedCount > 0 ? "bg-indigo-50 border-indigo-200 text-indigo-700 font-extrabold" : "bg-slate-50 border-slate-200 text-slate-400"
-                          }`}>
-                            {reservedCount}
-                          </span>
+                        <td className={`px-4 py-3 text-center font-mono font-extrabold ${
+                          reservedCount > 0 ? "text-indigo-600 dark:text-indigo-400" : "text-slate-400 dark:text-slate-600"
+                        }`}>
+                          {reservedCount}
                         </td>
-                        <td className="px-4 py-3 text-center font-mono font-bold text-blue-700">
-                          <span className={`px-2.5 py-0.5 rounded-lg border inline-flex items-center justify-center min-w-[32px] ${
-                            currentDraft.qty_released > 0 ? "bg-blue-50 border-blue-200 text-blue-700 font-extrabold" : "bg-slate-50 border-slate-200 text-slate-400"
-                          }`}>
-                            {currentDraft.qty_released}
-                          </span>
+                        <td className={`px-4 py-3 text-center font-mono font-extrabold ${
+                          currentDraft.qty_released > 0 ? "text-blue-600 dark:text-blue-400" : "text-slate-400 dark:text-slate-600"
+                        }`}>
+                          {currentDraft.qty_released}
                         </td>
-                        <td className="px-4 py-3 text-center font-mono font-bold text-rose-700">
-                          <span className={`px-2.5 py-0.5 rounded-lg border inline-flex items-center justify-center min-w-[32px] ${
-                            currentDraft.qty_damaged > 0 ? "bg-rose-50 border-rose-200 text-rose-700 font-extrabold" : "bg-slate-50 border-slate-200 text-slate-400"
-                          }`}>
-                            {currentDraft.qty_damaged}
-                          </span>
+                        <td className={`px-4 py-3 text-center font-mono font-extrabold ${
+                          currentDraft.qty_damaged > 0 ? "text-rose-600 dark:text-rose-400" : "text-slate-400 dark:text-slate-600"
+                        }`}>
+                          {currentDraft.qty_damaged}
                         </td>
-                        <td className="px-4 py-3 text-center font-mono font-bold text-amber-700">
-                          <span className={`px-2.5 py-0.5 rounded-lg border inline-flex items-center justify-center min-w-[32px] ${
-                            currentDraft.qty_lost > 0 ? "bg-amber-50 border-amber-200 text-amber-700 font-extrabold" : "bg-slate-50 border-slate-200 text-slate-400"
-                          }`}>
-                            {currentDraft.qty_lost}
-                          </span>
+                        <td className={`px-4 py-3 text-center font-mono font-extrabold ${
+                          currentDraft.qty_lost > 0 ? "text-amber-600 dark:text-amber-400" : "text-slate-400 dark:text-slate-600"
+                        }`}>
+                          {currentDraft.qty_lost}
                         </td>
                       </tr>
                     );
@@ -511,22 +499,22 @@ export default function EquipmentStockTab({
 
           {/* Pagination Footer */}
           {filteredInventory.length > 0 && (
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-6 py-4 bg-slate-50/80 border-t border-slate-100 text-xs font-semibold text-slate-600">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-6 py-4 bg-slate-50/80 dark:bg-slate-800/60 border-t border-slate-100 dark:border-slate-800 text-xs font-semibold text-slate-600 dark:text-slate-400">
               <div>
-                Showing <span className="font-extrabold text-slate-900">{startCategoryIndex + 1}</span> to{" "}
-                <span className="font-extrabold text-slate-900">{Math.min(startCategoryIndex + CATEGORY_ITEMS_PER_PAGE, filteredInventory.length)}</span> of{" "}
-                <span className="font-extrabold text-slate-900">{filteredInventory.length}</span> inventory stock items
+                Showing <span className="font-extrabold text-slate-900 dark:text-white">{startCategoryIndex + 1}</span> to{" "}
+                <span className="font-extrabold text-slate-900 dark:text-white">{Math.min(startCategoryIndex + CATEGORY_ITEMS_PER_PAGE, filteredInventory.length)}</span> of{" "}
+                <span className="font-extrabold text-slate-900 dark:text-white">{filteredInventory.length}</span> inventory stock items
               </div>
 
               <div className="flex items-center gap-2">
-                <span className="text-slate-500 font-bold mr-2">
+                <span className="text-slate-500 dark:text-slate-400 font-bold mr-2">
                   Page {categoryPage} of {totalCategoryPages}
                 </span>
                 <button
                   type="button"
                   disabled={categoryPage === 1}
                   onClick={() => setCategoryPage(prev => Math.max(prev - 1, 1))}
-                  className="flex items-center gap-1 px-3.5 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all shadow-xs font-bold text-xs"
+                  className="flex items-center gap-1 px-3.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all shadow-xs font-bold text-xs"
                 >
                   <ChevronLeft size={14} /> Previous
                 </button>
@@ -535,7 +523,7 @@ export default function EquipmentStockTab({
                   type="button"
                   disabled={categoryPage >= totalCategoryPages}
                   onClick={() => setCategoryPage(prev => Math.min(prev + 1, totalCategoryPages))}
-                  className="flex items-center gap-1 px-3.5 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all shadow-xs font-bold text-xs"
+                  className="flex items-center gap-1 px-3.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all shadow-xs font-bold text-xs"
                 >
                   Next <ChevronRight size={14} />
                 </button>
@@ -551,24 +539,24 @@ export default function EquipmentStockTab({
       <div className="space-y-4 pt-2">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <h4 className="font-extrabold text-slate-900 text-sm">Physical Equipment Units</h4>
-            <p className="text-xs text-slate-400 font-medium mt-0.5">
+            <h4 className="font-extrabold text-slate-900 dark:text-white text-sm">Physical Equipment Units</h4>
+            <p className="text-xs text-slate-400 dark:text-slate-500 font-medium mt-0.5">
               Individual serialized units, barcodes, and current operational conditions
             </p>
           </div>
         </div>
 
         {/* Search & Category Filter */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white p-3 rounded-2xl border border-slate-200/80 shadow-xs">
-          <div className="flex items-center gap-2 bg-slate-50 px-3.5 py-2 rounded-xl border border-slate-200 shadow-xs text-xs font-bold text-slate-700">
-            <Filter size={14} className="text-blue-600 flex-shrink-0" />
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white dark:bg-[#111827] p-3 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
+          <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 shadow-xs text-xs font-bold text-slate-700 dark:text-slate-200">
+            <Filter size={14} className="text-blue-600 dark:text-blue-400 flex-shrink-0" />
             <select
               value={activeCategory}
               onChange={(e) => setActiveCategory(e.target.value)}
-              className="bg-transparent font-bold text-slate-900 focus:outline-none cursor-pointer text-xs pr-2"
+              className="bg-transparent font-bold text-slate-900 dark:text-white focus:outline-none cursor-pointer text-xs pr-2"
             >
               {categoryList.map(t => (
-                <option key={t.id} value={t.id}>{t.label}</option>
+                <option key={t.id} value={t.id} className="dark:bg-slate-900">{t.label}</option>
               ))}
             </select>
           </div>
@@ -580,25 +568,25 @@ export default function EquipmentStockTab({
               placeholder="Search unit name, barcode..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:border-blue-600"
+              className="w-full pl-9 pr-3 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
             />
           </div>
         </div>
 
         {/* Physical Units Table */}
-        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+        <div className="bg-white dark:bg-[#111827] rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-slate-50/80 border-b border-slate-100">
+                <tr className="bg-slate-50/80 dark:bg-slate-800/80 border-b border-slate-100 dark:border-slate-800">
                   {["#", "UNIT BARCODE", "EQUIPMENT UNIT NAME", "ASSIGNED CATEGORY", "STATUS", "CONDITION", "DATE PURCHASED", "LIFESPAN VS CURRENT", "ACTION"].map((h, i) => (
-                    <th key={h} className={`px-4 py-3.5 text-left text-[11px] font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap ${i === 0 ? 'rounded-tl-2xl' : i === 8 ? 'rounded-tr-2xl' : ''}`}>
+                    <th key={h} className={`px-4 py-3.5 text-left text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider whitespace-nowrap ${i === 0 ? 'rounded-tl-2xl' : i === 8 ? 'rounded-tr-2xl' : ''}`}>
                       {h}
                     </th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 text-xs font-semibold">
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-xs font-semibold">
                 {unitsLoading ? (
                   <tr>
                     <td colSpan={9} className="text-center py-12 text-slate-400">
@@ -622,18 +610,18 @@ export default function EquipmentStockTab({
                     const isOpen = openActionId === item.id;
 
                     return (
-                      <tr key={item.id} className={`hover:bg-slate-50/60 transition-colors ${isOpen ? 'relative z-30' : ''}`}>
-                        <td className="px-4 py-3.5 font-bold text-slate-400">{displayIndex}</td>
-                        <td className="px-4 py-3.5 font-mono text-xs font-bold text-blue-600 whitespace-nowrap">
+                      <tr key={item.id} className={`hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors ${isOpen ? 'relative z-30' : ''}`}>
+                        <td className="px-4 py-3.5 font-bold text-slate-400 dark:text-slate-600">{displayIndex}</td>
+                        <td className="px-4 py-3.5 font-mono text-xs font-bold text-blue-600 dark:text-blue-400 whitespace-nowrap">
                           <div className="flex items-center gap-1.5">
-                            <div className="flex items-center gap-1.5 bg-blue-50/60 border border-blue-200/60 px-2.5 py-1 rounded-xl w-fit">
+                            <div className="flex items-center gap-1.5 bg-blue-50/60 dark:bg-blue-950/60 border border-blue-200/60 dark:border-blue-800/60 px-2.5 py-1 rounded-xl w-fit">
                               <Barcode size={14} className="text-blue-500" />
                               <span>{item.barcode}</span>
                             </div>
                             <button
                               type="button"
                               onClick={() => handleCopyBarcode(item.barcode)}
-                              className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-500 hover:text-slate-900 transition-all cursor-pointer"
+                              className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer"
                               title="Copy Barcode"
                             >
                               {copiedBarcode === item.barcode ? (
@@ -644,30 +632,40 @@ export default function EquipmentStockTab({
                             </button>
                           </div>
                         </td>
-                        <td className="px-4 py-3.5 font-extrabold text-slate-900 max-w-[200px] truncate" title={item.name}>
+                        <td className="px-4 py-3.5 font-extrabold text-slate-900 dark:text-white max-w-[200px] truncate" title={item.name}>
                           {item.name}
                         </td>
-                        <td className="px-4 py-3.5 font-bold text-blue-700 max-w-[180px]">
-                          <span className="bg-blue-50 px-3 py-1 rounded-full border border-blue-200/60 block w-fit max-w-full truncate text-xs" title={item.category}>
+                        <td className="px-4 py-3.5 font-bold text-blue-700 dark:text-blue-300 max-w-[180px]">
+                          <span className="bg-blue-50 dark:bg-blue-950/50 px-3 py-1 rounded-full border border-blue-200/60 dark:border-blue-800/60 block w-fit max-w-full truncate text-xs" title={item.category}>
                             {item.category}
                           </span>
                         </td>
-                        <td className="px-4 py-3.5">
-                          <StatusBadge status={item.status} />
+                        <td className="px-4 py-3.5 whitespace-nowrap">
+                          <span className={`font-bold text-xs uppercase tracking-wider ${
+                            String(item.status).toLowerCase() === 'available'
+                              ? 'text-emerald-600 dark:text-emerald-400'
+                              : String(item.status).toLowerCase() === 'booked' || String(item.status).toLowerCase() === 'in use' || String(item.status).toLowerCase() === 'reserved'
+                              ? 'text-blue-600 dark:text-blue-400'
+                              : String(item.status).toLowerCase() === 'maintenance' || String(item.status).toLowerCase() === 'under repair'
+                              ? 'text-amber-600 dark:text-amber-400'
+                              : 'text-rose-600 dark:text-rose-400'
+                          }`}>
+                            {item.status || "AVAILABLE"}
+                          </span>
                         </td>
                         <td className="px-4 py-3.5 whitespace-nowrap">
-                          <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold border ${
+                          <span className={`font-semibold text-xs ${
                             item.condition === "Damaged" || item.condition === "Lost"
-                              ? "bg-rose-50 text-rose-700 border-rose-200"
+                              ? "text-rose-600 dark:text-rose-400"
                               : item.condition === "Under Repair" || item.condition === "Minor Wear"
-                              ? "bg-amber-50 text-amber-700 border-amber-200"
-                              : "bg-emerald-50 text-emerald-700 border-emerald-200"
+                              ? "text-amber-600 dark:text-amber-400"
+                              : "text-emerald-600 dark:text-emerald-400"
                           }`}>
                             {item.condition || "Good"}
                           </span>
                         </td>
-                        <td className="px-4 py-3.5 text-slate-600 whitespace-nowrap">{item.date_purchased}</td>
-                        <td className="px-4 py-3.5 text-slate-600 whitespace-nowrap">{ageYears.toFixed(1)} / {lifespanYears} yrs</td>
+                        <td className="px-4 py-3.5 text-slate-600 dark:text-slate-300 whitespace-nowrap">{item.date_purchased}</td>
+                        <td className="px-4 py-3.5 text-slate-600 dark:text-slate-300 whitespace-nowrap">{ageYears.toFixed(1)} / {lifespanYears} yrs</td>
                         <td className="px-4 py-3.5 relative">
                           <div className="relative action-menu-container inline-block">
                             <button
@@ -685,7 +683,7 @@ export default function EquipmentStockTab({
                               className={`p-1.5 rounded-full border transition-all cursor-pointer shadow-2xs ${
                                 isOpen
                                   ? "bg-blue-600 border-blue-600 text-white shadow-md shadow-blue-600/20"
-                                  : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                                  : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white"
                               }`}
                               title="Actions"
                             >
@@ -707,10 +705,10 @@ export default function EquipmentStockTab({
                                   setActionAnchorEl(null);
                                   setSelectedItem(item);
                                 }}
-                                className="w-full px-3.5 py-2 text-left text-xs font-bold text-slate-700 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-2.5 transition-colors cursor-pointer"
+                                className="w-full px-3.5 py-2.5 text-left text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-blue-600 hover:text-white dark:hover:bg-blue-600 dark:hover:text-white flex items-center gap-2.5 transition-colors cursor-pointer rounded-xl group"
                               >
-                                <Eye size={14} className="text-blue-500" />
-                                <span>View Details</span>
+                                <Eye size={14} className="text-blue-500 group-hover:text-white transition-colors" />
+                                <span className="transition-colors">View Details</span>
                               </button>
                             </ActionPopover>
                           </div>
@@ -725,22 +723,22 @@ export default function EquipmentStockTab({
 
           {/* Pagination Footer */}
           {filteredUnits.length > 0 && (
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-6 py-4 bg-slate-50/80 border-t border-slate-100 text-xs font-semibold text-slate-600">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-6 py-4 bg-slate-50/80 dark:bg-slate-800/60 border-t border-slate-100 dark:border-slate-800 text-xs font-semibold text-slate-600 dark:text-slate-400">
               <div>
-                Showing <span className="font-extrabold text-slate-900">{startUnitIndex + 1}</span> to{" "}
-                <span className="font-extrabold text-slate-900">{Math.min(startUnitIndex + UNIT_ITEMS_PER_PAGE, filteredUnits.length)}</span> of{" "}
-                <span className="font-extrabold text-slate-900">{filteredUnits.length}</span> equipment units
+                Showing <span className="font-extrabold text-slate-900 dark:text-white">{startUnitIndex + 1}</span> to{" "}
+                <span className="font-extrabold text-slate-900 dark:text-white">{Math.min(startUnitIndex + UNIT_ITEMS_PER_PAGE, filteredUnits.length)}</span> of{" "}
+                <span className="font-extrabold text-slate-900 dark:text-white">{filteredUnits.length}</span> equipment units
               </div>
 
               <div className="flex items-center gap-2">
-                <span className="text-slate-500 font-bold mr-2">
+                <span className="text-slate-500 dark:text-slate-400 font-bold mr-2">
                   Page {unitPage} of {totalUnitPages}
                 </span>
                 <button
                   type="button"
                   disabled={unitPage === 1}
                   onClick={() => setUnitPage(prev => Math.max(prev - 1, 1))}
-                  className="flex items-center gap-1 px-3.5 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all shadow-xs font-bold text-xs"
+                  className="flex items-center gap-1 px-3.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all shadow-xs font-bold text-xs"
                 >
                   <ChevronLeft size={14} /> Previous
                 </button>
@@ -749,7 +747,7 @@ export default function EquipmentStockTab({
                   type="button"
                   disabled={unitPage >= totalUnitPages}
                   onClick={() => setUnitPage(prev => Math.min(prev + 1, totalUnitPages))}
-                  className="flex items-center gap-1 px-3.5 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all shadow-xs font-bold text-xs"
+                  className="flex items-center gap-1 px-3.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all shadow-xs font-bold text-xs"
                 >
                   Next <ChevronRight size={14} />
                 </button>

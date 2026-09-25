@@ -152,6 +152,11 @@ class AppServiceProvider extends ServiceProvider
                     $table->json('built_in_units')->nullable();
                 });
             }
+            if (\Illuminate\Support\Facades\Schema::hasTable('equipment_units') && !\Illuminate\Support\Facades\Schema::hasColumn('equipment_units', 'serial_number')) {
+                \Illuminate\Support\Facades\Schema::table('equipment_units', function (\Illuminate\Database\Schema\Blueprint $table) {
+                    $table->string('serial_number')->nullable()->after('model');
+                });
+            }
             if (\Illuminate\Support\Facades\Schema::hasTable('email_verifications')) {
                 if (!\Illuminate\Support\Facades\Schema::hasColumn('email_verifications', 'channel')) {
                     \Illuminate\Support\Facades\Schema::table('email_verifications', function (\Illuminate\Database\Schema\Blueprint $table) {

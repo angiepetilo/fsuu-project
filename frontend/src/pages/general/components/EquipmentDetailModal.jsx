@@ -101,11 +101,23 @@ export default function EquipmentDetailModal({
                         <span className="font-bold text-xs text-slate-900 truncate block">
                           {found?.name || "Physical Unit"}
                         </span>
-                        {found?.category && (
-                          <span className="text-[10px] text-slate-400 font-medium truncate block">
-                            {found.category}
-                          </span>
-                        )}
+                        {(() => {
+                          const specificModel = (selectedItem.built_in_models && (selectedItem.built_in_models[found?.category] || selectedItem.built_in_models[found?.name])) || found?.model;
+                          return (
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              {found?.category && (
+                                <span className="text-[10px] text-slate-400 font-medium truncate block">
+                                  {found.category}
+                                </span>
+                              )}
+                              {specificModel && (
+                                <span className="text-[10px] text-blue-600 font-semibold bg-blue-50/80 px-1.5 py-0.2 rounded border border-blue-100 truncate block">
+                                  Model: {specificModel}
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </div>
                     </div>
                   );

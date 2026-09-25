@@ -1,6 +1,5 @@
 import { Link } from "react-router-dom";
 import {
-  RefreshCw,
   AlertCircle,
   Package,
   Wrench,
@@ -92,18 +91,6 @@ export default function StaffAnalyticsDashboard({
 
   return (
     <div className="space-y-6">
-      {/* Top action bar: Sync button */}
-      <div className="flex items-center justify-end">
-        <button
-          type="button"
-          onClick={onRefresh}
-          disabled={loading}
-          className="flex items-center gap-2 px-3.5 py-2 bg-card border border-border rounded-xl text-foreground font-bold text-xs shadow-2xs hover:bg-muted transition-colors cursor-pointer disabled:opacity-50"
-        >
-          <RefreshCw size={13} className={loading ? "animate-spin" : ""} />
-          <span>{loading ? "Syncing..." : "Refresh"}</span>
-        </button>
-      </div>
 
       {error && (
         <div className="py-2.5 px-4 rounded-xl border border-rose-200 text-rose-700 text-xs font-bold flex items-center gap-2 bg-rose-50 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-900">

@@ -16,7 +16,7 @@ class BrandController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $query = Brand::query()->withCount('equipmentUnits');
+        $query = Brand::query()->with('equipmentType')->withCount('equipmentUnits');
 
         if ($request->filled('search')) {
             $search = trim($request->query('search'));
@@ -32,6 +32,10 @@ class BrandController extends Controller
 
         if ($request->boolean('active_only')) {
             $query->where('status', 'active');
+        }
+
+        if ($request->filled('equipment_type_id')) {
+            $query->where('equipment_type_id', $request->query('equipment_type_id'));
         }
 
         // Return unpaginated if all=1 (ideal for dropdowns in Manage Equipment)
@@ -59,15 +63,19 @@ class BrandController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:100|unique:brands,name',
+            'equipment_type_id' => 'nullable|exists:equipment_types,id',
             'description' => 'nullable|string|max:500',
             'status' => 'nullable|in:active,inactive',
         ]);
 
         $brand = Brand::create([
             'name' => strtoupper(trim($validated['name'])),
+            'equipment_type_id' => $validated['equipment_type_id'] ?? null,
             'description' => $validated['description'] ?? null,
             'status' => $validated['status'] ?? 'active',
         ]);
+
+        $brand->load('equipmentType');
 
         // Log to audit trail
         try {
@@ -79,6 +87,7 @@ class BrandController extends Controller
                 'ip_address' => $request->ip(),
                 'metadata' => [
                     'brand_name' => $brand->name,
+                    'equipment_type_id' => $brand->equipment_type_id,
                     'status' => $brand->status,
                 ],
             ]);
@@ -86,7 +95,7 @@ class BrandController extends Controller
 
         return response()->json([
             'message' => 'Brand created successfully.',
-            'brand' => $brand,
+            'brand' => $brand->loadCount('equipmentUnits'),
         ], 201);
     }
 
@@ -102,6 +111,7 @@ class BrandController extends Controller
                 'max:100',
                 Rule::unique('brands', 'name')->ignore($brand->id),
             ],
+            'equipment_type_id' => 'nullable|exists:equipment_types,id',
             'description' => 'nullable|string|max:500',
             'status' => 'nullable|in:active,inactive',
         ]);
@@ -111,6 +121,7 @@ class BrandController extends Controller
 
         $brand->update([
             'name' => $newName,
+            'equipment_type_id' => array_key_exists('equipment_type_id', $validated) ? $validated['equipment_type_id'] : $brand->equipment_type_id,
             'description' => $validated['description'] ?? $brand->description,
             'status' => $validated['status'] ?? $brand->status,
         ]);
@@ -130,6 +141,7 @@ class BrandController extends Controller
                 'metadata' => [
                     'old_name' => $oldName,
                     'new_name' => $newName,
+                    'equipment_type_id' => $brand->equipment_type_id,
                     'status' => $brand->status,
                 ],
             ]);
@@ -137,7 +149,7 @@ class BrandController extends Controller
 
         return response()->json([
             'message' => 'Brand updated successfully.',
-            'brand' => $brand->loadCount('equipmentUnits'),
+            'brand' => $brand->load('equipmentType')->loadCount('equipmentUnits'),
         ]);
     }
 
@@ -151,7 +163,7 @@ class BrandController extends Controller
 
         return response()->json([
             'message' => "Brand status updated to {$newStatus}.",
-            'brand' => $brand->loadCount('equipmentUnits'),
+            'brand' => $brand->load('equipmentType')->loadCount('equipmentUnits'),
         ]);
     }
 

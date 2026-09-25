@@ -68,8 +68,12 @@ export default function Dashboard() {
   const canLateReturns = isSuperAdmin || hasPermission("dashboard.late_returns") || (!hasSpecificSubPermission && hasPermission("dashboard"));
   const canTodayReservations = isSuperAdmin || hasPermission("dashboard.today_reservations") || (!hasSpecificSubPermission && hasPermission("dashboard"));
 
-  const fetchData = useCallback(async (showLoading = true) => {
-    if (showLoading && !cachedData) setLoading(true);
+  const fetchData = useCallback(async (opts = false) => {
+    const isSilent = typeof opts === "object" && opts !== null
+      ? Boolean(opts.isSilent || opts.silent || opts.showLoading === false)
+      : Boolean(opts);
+
+    if (!isSilent && !cachedData) setLoading(true);
     setError(null);
     try {
       const [statsRes, vRes, eRes] = await Promise.allSettled([
@@ -136,15 +140,15 @@ export default function Dashboard() {
       }
 
     } catch {
-      setError("Unable to sync dashboard data.");
+      if (!isSilent) setError("Unable to sync dashboard data.");
     } finally {
-      setLoading(false);
+      if (!isSilent) setLoading(false);
     }
   }, [cachedData]);
 
   useRealtimeSync(fetchData, { interval: 30000 });
 
-  const handleRefresh = useCallback(() => fetchData(true), [fetchData]);
+  const handleRefresh = useCallback(() => fetchData(false), [fetchData]);
 
   // Guard: User must have dashboard permission
   if (!isSuperAdmin && !hasPermission("dashboard") && !hasSpecificSubPermission) {

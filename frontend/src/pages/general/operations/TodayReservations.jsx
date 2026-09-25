@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { 
   CalendarCheck, Building2, PackageOpen, Clock, User, 
-  ArrowUpRight, RefreshCw, Search, CheckCircle2, ShieldAlert,
+  ArrowUpRight, Search, CheckCircle2, ShieldAlert,
   PackageCheck, RotateCcw
 } from "lucide-react";
 import api from "@/lib/axios";
@@ -18,8 +18,14 @@ export default function TodayReservations() {
   const [equipBorrowings, setEquipBorrowings] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchTodayData = useCallback(async () => {
-    setLoading(true);
+  const fetchTodayData = useCallback(async (opts = false) => {
+    const isSilent = typeof opts === "object" && opts !== null
+      ? Boolean(opts.isSilent || opts.silent || opts.showLoading === false)
+      : Boolean(opts);
+
+    if (!isSilent && venueBookings.length === 0 && equipBorrowings.length === 0) {
+      setLoading(true);
+    }
     try {
       const [vRes, eRes] = await Promise.allSettled([
         api.get("/avr-venue-bookings"),
@@ -35,11 +41,11 @@ export default function TodayReservations() {
         setEquipBorrowings(eData);
       }
     } catch {
-      notify.error("Data Sync Failed", "Unable to load today's reservations.");
+      if (!isSilent) notify.error("Data Sync Failed", "Unable to load today's reservations.");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [venueBookings.length, equipBorrowings.length]);
 
   useRealtimeSync(fetchTodayData, { interval: 30000 });
 
@@ -97,16 +103,6 @@ export default function TodayReservations() {
         </div>
 
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={fetchTodayData}
-            disabled={loading}
-            className="gap-2"
-          >
-            <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
-            <span>Sync</span>
-          </Button>
           <Link to="/general/equipment-release">
             <Button size="sm" className="gap-2 font-semibold">
               <PackageCheck size={15} />
