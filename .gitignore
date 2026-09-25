@@ -20,6 +20,7 @@ temp/
 !backend/database/seeders/*.php
 .force_fresh_migrate
 *.force_fresh_migrate
+deploy_fresh.sh
 
 # Log Files & Debugging Output
 *.log
