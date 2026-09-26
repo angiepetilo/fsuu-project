@@ -10,6 +10,19 @@ const getNotificationColorConfig = (n) => {
   const title = String(n.title || "").toLowerCase();
   const msg = String(n.message || "").toLowerCase();
 
+  // 0. Urgent Approval
+  if (incType.includes("urgent") || title.includes("urgent") || msg.includes("urgent")) {
+    return {
+      border: "border-l-4 border-l-amber-500",
+      bgUnread: "bg-amber-50/50 hover:bg-amber-50/80",
+      badgeBg: "bg-amber-100 text-amber-900 border-amber-300 font-black",
+      badgeText: "URGENT APPROVAL",
+      iconBg: "bg-amber-100 text-amber-700",
+      dot: "bg-amber-600",
+      Icon: AlertCircle,
+    };
+  }
+
   // 1. Damaged Physical Unit / Damage Incident
   if (incType.includes("damage") || title.includes("damage") || msg.includes("damaged")) {
     return {

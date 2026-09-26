@@ -272,8 +272,13 @@ class OtpController extends Controller
         // Set 60-second cooldown
         Cache::put($cooldownKey, time() + 60, 60);
 
+        $resType = 'venue';
+        if ($request->input('reservation_type') === 'equipment' || $request->has('borrow_date') || $request->input('type') === 'equipment') {
+            $resType = 'equipment';
+        }
+
         // Dispatch async email job
-        SendOtpEmailJob::dispatch($email, $code);
+        SendOtpEmailJob::dispatch($email, $code, $resType);
 
         return response()->json([
             'message'    => 'Verification code sent successfully. Please check your inbox.',

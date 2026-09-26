@@ -633,7 +633,68 @@ class EquipmentCategoryService
                         $q->whereNotIn('id', array_map('intval', $occNumIds));
                     }
                 })
-                ->update(['status' => 'available', 'updated_at' => now()]);
+                ->update(['status' => 'available']);
+
+            // 6. Ensure bundle integrity: If a built-in child unit is damaged or lost, the parent unit CANNOT be available (must be unavailable).
+            // Conversely, if a parent unit is damaged or lost, all its built-in child units CANNOT be available (must be unavailable).
+            $damagedOrLostUnits = DB::table('equipment_units')
+                ->where(function($q) {
+                    $q->whereIn(DB::raw("LOWER(COALESCE(equipment_units.condition, 'good'))"), ['lost', 'damaged'])
+                      ->orWhereIn(DB::raw("LOWER(COALESCE(equipment_units.status, 'available'))"), ['lost', 'damaged', 'unavailable']);
+                })
+                ->whereNull('archived_at')
+                ->get();
+
+            $damagedOrLostCodes = [];
+            foreach ($damagedOrLostUnits as $dUnit) {
+                $damagedOrLostCodes[] = (string)$dUnit->id;
+                if (!empty($dUnit->barcode)) $damagedOrLostCodes[] = trim((string)$dUnit->barcode);
+                if (!empty($dUnit->serial_number)) $damagedOrLostCodes[] = trim((string)$dUnit->serial_number);
+            }
+            $damagedOrLostCodes = array_values(array_unique(array_filter($damagedOrLostCodes)));
+
+            if (!empty($damagedOrLostCodes)) {
+                $parentsWithBuiltIns = DB::table('equipment_units')
+                    ->whereNotNull('built_in_units')
+                    ->whereNull('archived_at')
+                    ->get();
+
+                foreach ($parentsWithBuiltIns as $pUnit) {
+                    $built = is_string($pUnit->built_in_units) ? json_decode($pUnit->built_in_units, true) : $pUnit->built_in_units;
+                    if (!is_array($built)) continue;
+
+                    $hasDamagedChild = false;
+                    foreach ($built as $cRef) {
+                        if ($cRef && in_array(trim((string)$cRef), $damagedOrLostCodes)) {
+                            $hasDamagedChild = true;
+                            break;
+                        }
+                    }
+
+                    if ($hasDamagedChild) {
+                        DB::table('equipment_units')
+                            ->where('id', $pUnit->id)
+                            ->where('status', '!=', 'unavailable')
+                            ->update(['status' => 'unavailable', 'updated_at' => now()]);
+                    }
+
+                    $pIsDamaged = in_array((string)$pUnit->id, $damagedOrLostCodes) ||
+                                  (!empty($pUnit->barcode) && in_array(trim((string)$pUnit->barcode), $damagedOrLostCodes));
+                    if ($pIsDamaged) {
+                        $cIds = array_values(array_filter($built, fn($v) => is_numeric($v) && (int)$v > 0));
+                        $cCodes = array_values(array_filter($built, fn($v) => !empty($v)));
+                        DB::table('equipment_units')
+                            ->where(function($q) use ($cCodes, $cIds) {
+                                $q->whereIn('barcode', $cCodes);
+                                if (!empty($cIds)) {
+                                    $q->orWhereIn('id', array_map('intval', $cIds));
+                                }
+                            })
+                            ->where('status', '!=', 'unavailable')
+                            ->update(['status' => 'unavailable', 'updated_at' => now()]);
+                    }
+                }
+            }
 
         } catch (\Throwable $e) {}
     }

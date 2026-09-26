@@ -71,8 +71,38 @@
 <p>You can monitor the review progress at any time via the official tracking portal.</p>
 
 @elseif(($type ?? 'venue') === 'equipment' && $normStatus === 'approved')
-<p>Good day, {{ $requestorName }}. Use reference code <strong>{{ $ref }}</strong> to claim your item.</p>
-<p>Please proceed to the office and present your physical <strong>School ID</strong>. Reminder: Arrive at least 15 minutes before your scheduled start time. Thank you.</p>
+<div style="border-bottom: 2px solid #dcfce7; padding-bottom: 12px; margin-bottom: 16px;">
+  <p style="font-size: 16px; font-weight: bold; color: #15803d; margin: 0;">EQUIPMENT BORROWING APPROVED</p>
+  <span style="font-size: 12px; color: #64748b;">Father Saturnino Urios University &bull; AVR Custodial Services</span>
+</div>
+<p>Good day, <strong>{{ $requestorName }}</strong>.</p>
+<p>Your equipment borrowing request has been <strong style="color: #15803d;">APPROVED</strong>! Please present your official reference code below at the AVR counter to claim your requested equipment units:</p>
+
+<div style="background-color: #f0fdf4; border: 2px dashed #22c55e; border-radius: 10px; padding: 14px; text-align: center; margin: 18px 0;">
+  <div style="font-size: 11px; text-transform: uppercase; font-weight: bold; color: #166534; letter-spacing: 1px;">Equipment Release Tracking Code</div>
+  <div style="font-size: 24px; font-weight: 900; color: #15803d; letter-spacing: 2px; margin-top: 4px;">{{ $ref }}</div>
+</div>
+
+<div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; margin: 16px 0;">
+  <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+    <tr>
+      <td style="padding: 4px 0; color: #475569; font-weight: bold; width: 40%;">Borrow Schedule:</td>
+      <td style="padding: 4px 0; color: #0f172a; font-weight: 600;">{{ $formattedSchedule ?? ($formattedStart ?? 'Scheduled Time') }}</td>
+    </tr>
+    @if(!empty($remarks))
+    <tr>
+      <td style="padding: 4px 0; color: #475569; font-weight: bold;">Staff Remarks:</td>
+      <td style="padding: 4px 0; color: #0f172a; font-weight: 600;">{{ $remarks }}</td>
+    </tr>
+    @endif
+  </table>
+</div>
+
+<div style="background-color: #eff6ff; border-left: 4px solid #3b82f6; padding: 12px 16px; margin: 16px 0; border-radius: 4px;">
+  <p style="margin: 0; color: #1e40af; font-size: 13px; font-weight: 600;">
+    📌 <strong>Pickup Requirements:</strong> Please proceed to the AVR counter and present your physical <strong>School ID</strong>. Reminder: Arrive at least 15 minutes before your scheduled start time.
+  </p>
+</div>
 
 @elseif($normStatus === 'approved')
 <p>Reminder: Please ensure you arrive at least 15 minutes before your scheduled start time.</p>
@@ -95,6 +125,28 @@ Scheduled date: {{ $formattedSchedule ?? ($formattedStart ?? 'Scheduled Time') }
 </div>
 <p>You can upload your missing documents directly on the tracking portal:</p>
 <p><a href="{{ $trackUrl }}" style="display: inline-block; background-color: #2563eb; color: #ffffff; padding: 10px 18px; border-radius: 8px; text-decoration: none; font-weight: bold;">Upload Missing Documents &rarr;</a></p>
+
+@elseif(in_array($normStatus, ['urgent approval', 'urgent_approval']))
+<p style="font-size: 16px; font-weight: bold; color: #ea580c;">🚨 URGENT APPROVAL EXPEDITED</p>
+<p>Good day, {{ $requestorName }}.</p>
+<p>An urgent approval notification has been expedited for your {{ $itemType }} [<strong>{{ $ref }}</strong>].</p>
+<div style="background-color: #fff7ed; border-left: 4px solid #f97316; padding: 12px 16px; margin: 16px 0;">
+  <p style="margin: 0; color: #9a3412; font-weight: 600;">{{ $remarks ?? 'An expedited Urgent Approval alert has been sent to Staff and Super Admin for rapid review.' }}</p>
+</div>
+<p>You can monitor real-time review progress at any time via the official tracking portal.</p>
+
+@elseif(($type ?? 'venue') === 'equipment' && $normStatus === 'rejected')
+<div style="border-bottom: 2px solid #fee2e2; padding-bottom: 12px; margin-bottom: 16px;">
+  <p style="font-size: 16px; font-weight: bold; color: #dc2626; margin: 0;">EQUIPMENT BORROWING NOT APPROVED</p>
+  <span style="font-size: 12px; color: #64748b;">Father Saturnino Urios University &bull; AVR Custodial Services</span>
+</div>
+<p>Good day, <strong>{{ $requestorName }}</strong>.</p>
+<p>We regret to inform you that your equipment borrowing request (Reference: <strong>{{ $ref }}</strong>) was not approved.</p>
+<div style="background-color: #fef2f2; border-left: 4px solid #ef4444; padding: 12px 16px; margin: 16px 0; border-radius: 4px;">
+  <p style="margin: 0 0 4px 0; font-weight: bold; color: #991b1b; font-size: 12px; text-transform: uppercase;">Reason / Custodial Remarks:</p>
+  <p style="margin: 0; color: #7f1d1d; font-size: 13px;">{{ $remarks ?? 'Schedule conflict or requested equipment units currently unavailable.' }}</p>
+</div>
+<p style="font-size: 13px; color: #475569;">If you need assistance or wish to borrow alternative equipment items, please visit the AVR Office or file a new request.</p>
 
 @elseif($normStatus === 'rejected')
 <p>Good day, {{ $requestorName }}.</p>

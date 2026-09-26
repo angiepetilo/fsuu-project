@@ -22,7 +22,8 @@ class SendOtpEmailJob implements ShouldQueue
 
     public function __construct(
         public readonly string $email,
-        public readonly string $otpCode
+        public readonly string $otpCode,
+        public readonly string $type = 'venue'
     ) {}
 
     public function handle(): void
@@ -38,8 +39,11 @@ class SendOtpEmailJob implements ShouldQueue
         // Dynamically apply database-configured SMTP settings
         SystemSetting::configureMailer();
 
-        $subject = 'FSUU Booking System — Your Email Verification Code';
-        $html = $this->buildEmailHtml($code, $email);
+        $isEquipment = strtolower($this->type) === 'equipment';
+        $subject = $isEquipment 
+            ? 'FSUU Equipment Borrowing — Your Email Verification Code' 
+            : 'FSUU Venue Reservation — Your Email Verification Code';
+        $html = $this->buildEmailHtml($code, $email, $this->type);
 
         $mailSent = false;
         $mailError = null;
@@ -70,12 +74,12 @@ class SendOtpEmailJob implements ShouldQueue
         CommunicationLog::record([
             'channel'         => 'email',
             'category'        => 'email_verification',
-            'recipient_name'  => 'Venue Booking Requestor',
+            'recipient_name'  => $isEquipment ? 'Equipment Borrowing Requestor' : 'Venue Booking Requestor',
             'recipient_email' => $email,
             'recipient_phone' => null,
-            'reference_code'  => 'OTP-EMAIL',
+            'reference_code'  => $isEquipment ? 'OTP-EQUIPMENT' : 'OTP-VENUE',
             'subject'         => $subject,
-            'message_preview' => "6-digit OTP code dispatched to {$email}",
+            'message_preview' => "6-digit OTP code dispatched to {$email} for " . ($isEquipment ? 'equipment borrowing' : 'venue booking'),
             'status'          => $mailSent ? 'sent' : 'failed',
             'error_message'   => $mailError,
         ]);
@@ -89,8 +93,14 @@ class SendOtpEmailJob implements ShouldQueue
         ]);
     }
 
-    private function buildEmailHtml(string $code, string $email): string
+    private function buildEmailHtml(string $code, string $email, string $type = 'venue'): string
     {
+        $isEquipment = strtolower($type) === 'equipment';
+        $title = $isEquipment ? 'Equipment Borrowing Email Verification' : 'Venue Reservation Email Verification';
+        $sub = $isEquipment
+            ? 'You requested a verification code for your equipment borrowing request.<br>Enter the 6-digit code below in your borrowing form to proceed.'
+            : 'You requested a verification code for your venue booking submission.<br>Enter the 6-digit code below in your booking form to proceed.';
+
         return <<<HTML
 <!DOCTYPE html>
 <html lang="en">
@@ -120,10 +130,9 @@ class SendOtpEmailJob implements ShouldQueue
       <p>Father Saturnino Urios University, Butuan City</p>
     </div>
     <div class="body">
-      <p class="greeting">Venue Reservation Email Verification</p>
+      <p class="greeting">{$title}</p>
       <p class="sub">
-        You requested a verification code for your venue booking submission.<br>
-        Enter the 6-digit code below in your booking form to proceed.
+        {$sub}
       </p>
       <div class="code-box">
         <div class="code">{$code}</div>

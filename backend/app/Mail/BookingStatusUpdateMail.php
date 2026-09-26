@@ -49,6 +49,7 @@ class BookingStatusUpdateMail extends Mailable
             'incomplete' => 'Action Required: Incomplete Requirements',
             'cancelled' => 'Cancelled',
             'reassigned' => 'Venue Referral & Reassignment',
+            'urgent approval', 'urgent_approval' => 'Urgent Approval Requested',
             default => ucfirst($this->status),
         };
 

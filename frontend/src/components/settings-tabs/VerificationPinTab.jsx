@@ -208,7 +208,7 @@ export default function VerificationPinTab({
       if (externalShowMsg) {
         externalShowMsg(msg);
       } else {
-        notify.success("Settings Saved", msg);
+        notify.success("Successfully Saved", msg);
       }
 
       if (setExternalPinConfig) {
@@ -425,7 +425,7 @@ export default function VerificationPinTab({
         {/* Section 1: Master Password / PIN Input */}
         <div className={`space-y-2 transition-opacity ${!pinSettings.isEnabled ? "opacity-40 pointer-events-none select-none" : ""}`}>
           <label className="block text-xs font-semibold text-slate-900 dark:text-white">
-            Super Administrator Master Password / Verification PIN
+            Verification Pin
           </label>
           <div className="flex items-center gap-3">
             <input

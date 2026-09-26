@@ -32,15 +32,25 @@ export default function VenueModalFooter({
 
   const handleNotifyUrgent = async () => {
     if (!selected?.id) return;
+    const ref = selected?.tracking_number?.reference_code || selected?.reference_code || `TRK-AVR-${selected?.id}`;
     setNotifyingUrgent(true);
     try {
       const res = await api.post(`/avr-venue-bookings/${selected.id}/notify-urgent`, {
         reason: "Urgent approval requested by Student Assistant for event release."
       });
-      notify.success(
-        "Urgent Notification Sent",
-        res.data?.message || "Urgent approval notification dispatched to Staff & Super Admin."
+      const trackingNumber = res.data?.tracking_number || ref;
+      notify.warning(
+        `Urgent Approval with (${trackingNumber})`,
+        res.data?.message || `Urgent approval notification dispatched for ${trackingNumber}. Notified Staff & Super Admin.`
       );
+      window.dispatchEvent(new CustomEvent("urgent_approval_notified", {
+        detail: {
+          tracking_number: trackingNumber,
+          reference_code: trackingNumber,
+          type: "venue_booking",
+          id: selected.id
+        }
+      }));
     } catch (err) {
       notify.error("Notification Failed", err.response?.data?.message || "Failed to dispatch urgent notification.");
     } finally {
@@ -73,10 +83,10 @@ export default function VenueModalFooter({
               onClick={handleNotifyUrgent}
               disabled={notifyingUrgent}
               className="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white font-extrabold text-xs rounded-xl shadow-xs transition-all duration-150 cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
-              title="Notify Staff and Super Admin for urgent approval"
+              title="Urgent Approval"
             >
               {notifyingUrgent ? <Loader2 size={14} className="animate-spin" /> : <BellRing size={14} />}
-              <span>Notify Staff &amp; Super Admin (Urgent Approval)</span>
+              <span>Urgent Approval</span>
             </button>
           ) : (
             <>

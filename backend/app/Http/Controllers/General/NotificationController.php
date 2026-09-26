@@ -557,6 +557,39 @@ class NotificationController extends Controller
                 }
             }
 
+            // 7. Urgent Approval requests escalated by Student Assistants / Staff
+            if (Schema::hasTable('notifications')) {
+                $urgentRows = DB::table('notifications')
+                    ->where('type', 'urgent_approval')
+                    ->orderByDesc('id')
+                    ->limit(30)
+                    ->get();
+
+                foreach ($urgentRows as $ur) {
+                    $ref = $ur->reference_code ?? ('URG-' . $ur->id);
+                    $key = 'urgent-approval-' . ($ur->id ?? $ref);
+                    $rawDate = $ur->created_at ?? now()->toDateTimeString();
+                    $isVenue = str_starts_with($ref, 'TRK-AVR') || str_contains($ref, 'AVR');
+
+                    $notifs->push([
+                        'id'             => $key,
+                        'target_id'      => $ur->id,
+                        'target_type'    => $isVenue ? 'venue_booking' : 'equipment_borrow',
+                        'incident_type'  => 'urgent',
+                        'url'            => $isVenue ? ('/general/venue-booking?trk=' . $ref) : ('/general/equipment-borrowing?trk=' . $ref),
+                        'type'           => 'urgent_approval',
+                        'priority'       => 'urgent',
+                        'title'          => "Urgent Approval with ({$ref})",
+                        'message'        => $ur->message ?? $ur->text ?? "Urgent approval requested for booking {$ref}.",
+                        'person_name'    => 'Requestor',
+                        'ref'            => $ref,
+                        'time'           => 'Urgent Approval',
+                        'rawDate'        => $rawDate,
+                        'is_read'        => $checkIsRead($key, $rawDate),
+                    ]);
+                }
+            }
+
             $sorted = $notifs->sortByDesc('rawDate')->values();
 
             // Persist notifications into database table

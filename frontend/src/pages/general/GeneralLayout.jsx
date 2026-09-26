@@ -151,23 +151,36 @@ export default function GeneralLayout() {
     if (!user) return;
 
     // Listen on real-time Pusher WebSockets
-    const notifChannel = echoInstance?.channel("general-notifications") || echoInstance?.channel("admin-notifications");
-    if (notifChannel?.listen) {
-      notifChannel.listen(".booking.created", (data) => {
-        const title = data.type === "venue_booking" ? "New Venue Reservation" : "New Equipment Borrow";
-        notify.info(
-          `${title} • ${data.reference_code || ''}`,
-          `${data.filer_name || 'Applicant'} (${data.program_office || 'Department'}) - ${data.place_of_use || 'Campus'}`
-        );
-        fetchNotifs();
-        window.dispatchEvent(new Event("equipment_inventory_updated"));
-      });
+    const adminChannel = echoInstance?.channel("admin-notifications");
+    const generalChannel = echoInstance?.channel("general-notifications");
 
-      notifChannel.listen(".booking.status_updated", () => {
-        fetchNotifs();
-        window.dispatchEvent(new Event("equipment_inventory_updated"));
-      });
-    }
+    const handleBookingCreated = (data) => {
+      const title = data.type === "venue_booking" ? "New Venue Reservation" : "New Equipment Borrow";
+      notify.info(
+        `${title} • ${data.reference_code || ''}`,
+        `${data.filer_name || 'Applicant'} (${data.program_office || 'Department'}) - ${data.place_of_use || 'Campus'}`
+      );
+      fetchNotifs();
+      window.dispatchEvent(new Event("equipment_inventory_updated"));
+    };
+
+    const handleStatusUpdate = (data) => {
+      if (data?.status === "urgent_approval" || data?.extra?.is_urgent) {
+        const trk = data?.reference_code || data?.extra?.tracking_number || "";
+        notify.warning(
+          `Urgent Approval with (${trk})`,
+          data?.remarks || `Urgent approval notification dispatched for ${trk}.`
+        );
+      }
+      fetchNotifs();
+      window.dispatchEvent(new Event("equipment_inventory_updated"));
+    };
+
+    adminChannel?.listen?.(".booking.created", handleBookingCreated);
+    generalChannel?.listen?.(".booking.created", handleBookingCreated);
+
+    adminChannel?.listen?.(".booking.status_updated", handleStatusUpdate);
+    generalChannel?.listen?.(".booking.status_updated", handleStatusUpdate);
 
     const eqChannel = echoInstance?.channel("equipment-inventory");
     if (eqChannel?.listen) {
@@ -176,7 +189,13 @@ export default function GeneralLayout() {
       });
     }
 
+    const handleUrgentNotified = () => {
+      fetchNotifs();
+    };
+    window.addEventListener("urgent_approval_notified", handleUrgentNotified);
+
     return () => {
+      window.removeEventListener("urgent_approval_notified", handleUrgentNotified);
       echoInstance?.leave("general-notifications");
       echoInstance?.leave("admin-notifications");
       echoInstance?.leave("equipment-inventory");

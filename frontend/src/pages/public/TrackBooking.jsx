@@ -268,7 +268,7 @@ export default function TrackBooking() {
   const equipmentSteps = [
     { label: "Pending", desc: "Awaiting staff review" },
     { label: "Claim", desc: "Ready to claim (Bring ID)" },
-    { label: "On-going", desc: "Released & in use (Kiosk return due)" },
+    { label: "On-going", desc: "Released & in use" },
     { label: "Inspection", desc: "Returned & condition check" },
     { label: "Completed", desc: "Cleared & log closed" },
   ];
@@ -688,7 +688,7 @@ export default function TrackBooking() {
             {/* 5-Step Timeline Tracker */}
             <div className="pt-6 space-y-6">
               <h4 className="text-xs font-bold text-foreground uppercase tracking-wider">
-                Progress Timeline ({isVenue ? "Venue Process" : "Equipment Kiosk Process"})
+                Progress Timeline
               </h4>
 
               {/* Desktop Horizontal Timeline (>= sm) */}
@@ -763,6 +763,19 @@ export default function TrackBooking() {
               {/* Special Requirement & Dynamic Status Callout Tags */}
               {!isVenue && (
                 <>
+                  {/* Past Due Warning Alert */}
+                  {isPastDue && (
+                    <div className="p-4 bg-rose-50 dark:bg-rose-950/40 border-2 border-rose-500 rounded-2xl text-rose-900 dark:text-rose-200 text-xs font-bold flex items-center gap-3 animate-pulse shadow-sm">
+                      <AlertCircle size={22} className="text-rose-600 dark:text-rose-400 shrink-0" />
+                      <div>
+                        <span className="font-black uppercase tracking-wider block text-rose-700 dark:text-rose-300">
+                          Return Past Due Notice
+                        </span>
+                        <span>This equipment borrowing is already past due. Please return the equipment immediately to the equipment kiosk / custodial office.</span>
+                      </div>
+                    </div>
+                  )}
+
                   {currentStep === 1 && (
                     <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-2xl text-amber-900 text-xs font-bold flex items-center gap-2">
                       <Clock size={18} className="text-amber-600 shrink-0" />
@@ -772,13 +785,22 @@ export default function TrackBooking() {
                   {currentStep === 2 && (
                     <div className="p-3.5 bg-blue-50 border border-blue-200 rounded-2xl text-blue-900 text-xs font-bold flex items-center gap-2">
                       <PackageOpen size={18} className="text-blue-600 shrink-0" />
-                      <span><strong>Ready for Claim:</strong> Your borrowing is approved! Please bring your <strong>Institutional Student/Employee ID</strong> to the equipment kiosk to collect items.</span>
+                      <span><strong>Ready for Claim:</strong> Your borrowing is approved! Please bring your <strong>Institutional ID and Screenshot Reference Code</strong></span>
                     </div>
                   )}
                   {currentStep === 3 && (
-                    <div className="p-3.5 bg-blue-50 border border-blue-200 rounded-2xl text-blue-900 text-xs font-bold flex items-center gap-2">
-                      <PackageOpen size={18} className="text-blue-600 shrink-0" />
-                      <span><strong>Equipment In Use (On-going):</strong> Physical equipment has been released to the borrower. Return is due at the kiosk before the scheduled return time ({usageTimeRange}).</span>
+                    <div className={`p-3.5 rounded-2xl text-xs font-bold flex items-center gap-2 ${
+                      isPastDue
+                        ? "bg-rose-50 border-2 border-rose-500 text-rose-900"
+                        : "bg-blue-50 border border-blue-200 text-blue-900"
+                    }`}>
+                      <PackageOpen size={18} className={isPastDue ? "text-rose-600 shrink-0" : "text-blue-600 shrink-0"} />
+                      <span>
+                        <strong>Equipment In Use (On-going):</strong> Physical equipment has been released to the borrower.
+                        {isPastDue
+                          ? " This equipment borrowing is already past due! Please return it immediately to the equipment kiosk."
+                          : ` Return is due at the kiosk before the scheduled return time (${usageTimeRange}).`}
+                      </span>
                     </div>
                   )}
                   {currentStep === 4 && (

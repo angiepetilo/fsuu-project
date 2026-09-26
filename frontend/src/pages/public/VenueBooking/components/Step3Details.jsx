@@ -347,11 +347,11 @@ export default function Step3Details({
   return (
     <div className="p-6 sm:p-8 animate-in slide-in-from-top-2 duration-300 space-y-6">
       {/* Context Banner indicating which form is active */}
-      <div className="p-4 sm:p-5 rounded-2xl border flex items-center justify-between bg-blue-50/90 border-blue-200 text-blue-950 shadow-2xs">
+      <div className="p-4 sm:p-5 rounded-2xl border flex items-center justify-between bg-blue-50/90 dark:bg-slate-900/80 border-blue-200 dark:border-blue-900/50 text-blue-950 dark:text-white shadow-2xs">
         <div>
-          <h4 className="font-black text-sm tracking-tight text-slate-900">Booking Form</h4>
-          <p className="text-xs text-blue-900 font-semibold mt-0.5">
-            Target Venue: <span className="font-extrabold text-blue-700">{selectedVenue?.name}</span> | Date: <span className="font-extrabold text-blue-700">{formatDateRange(selectedDate, selectedEndDate)}</span> ({formatTime12(startTime)} - {formatTime12(endTime)})
+          <h4 className="font-black text-sm tracking-tight text-slate-900 dark:text-white">Booking Form</h4>
+          <p className="text-xs text-blue-900 dark:text-slate-300 font-semibold mt-0.5">
+            Target Venue: <span className="font-extrabold text-blue-700 dark:text-blue-400">{selectedVenue?.name}</span> | Date: <span className="font-extrabold text-blue-700 dark:text-blue-400">{formatDateRange(selectedDate, selectedEndDate)}</span> ({formatTime12(startTime)} - {formatTime12(endTime)})
           </p>
         </div>
       </div>
@@ -362,7 +362,7 @@ export default function Step3Details({
         {/* COMMON REQUIRED FIELDS: Structured Name Inputs (Last Name First) */}
         <div className="col-span-1 sm:col-span-2 grid grid-cols-1 sm:grid-cols-4 gap-3">
           <div className="flex flex-col gap-1.5 sm:col-span-1">
-            <label className="text-xs font-bold text-slate-900">Last Name <span className="text-red-500">*</span></label>
+            <label className="text-xs font-bold text-slate-900 dark:text-white">Last Name <span className="text-red-500">*</span></label>
             <input 
               type="text" 
               required 
@@ -376,12 +376,12 @@ export default function Step3Details({
                 }
               }} 
               placeholder="e.g. Dela Cruz" 
-              className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all" 
+              className="w-full p-3 bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all" 
             />
           </div>
 
           <div className="flex flex-col gap-1.5 sm:col-span-1">
-            <label className="text-xs font-bold text-slate-900">First Name <span className="text-red-500">*</span></label>
+            <label className="text-xs font-bold text-slate-900 dark:text-white">First Name <span className="text-red-500">*</span></label>
             <input 
               type="text" 
               required 
@@ -395,12 +395,12 @@ export default function Step3Details({
                 }
               }} 
               placeholder="e.g. Juan" 
-              className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all" 
+              className="w-full p-3 bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all" 
             />
           </div>
 
           <div className="flex flex-col gap-1.5 sm:col-span-1">
-            <label className="text-xs font-bold text-slate-900">Middle Name <span className="text-slate-400 font-normal">(Optional)</span></label>
+            <label className="text-xs font-bold text-slate-900 dark:text-white">Middle Name <span className="text-slate-400 dark:text-slate-500 font-normal">(Optional)</span></label>
             <input 
               type="text" 
               value={middleName} 
@@ -413,12 +413,12 @@ export default function Step3Details({
                 }
               }} 
               placeholder="e.g. Santos" 
-              className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all" 
+              className="w-full p-3 bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all" 
             />
           </div>
 
           <div className="flex flex-col gap-1.5 sm:col-span-1">
-            <label className="text-xs font-bold text-slate-900">Suffix <span className="text-slate-400 font-normal">(Optional)</span></label>
+            <label className="text-xs font-bold text-slate-900 dark:text-white">Suffix <span className="text-slate-400 dark:text-slate-500 font-normal">(Optional)</span></label>
             <input 
               type="text" 
               value={suffix} 
@@ -431,7 +431,7 @@ export default function Step3Details({
                 }
               }} 
               placeholder="e.g. Jr., III" 
-              className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all" 
+              className="w-full p-3 bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all" 
             />
           </div>
         </div>
@@ -439,16 +439,16 @@ export default function Step3Details({
         {/* EMAIL FIELD WITH INLINE DOMAIN CHECK & ATTACHED OTP VERIFY BUTTON */}
         <div className="flex flex-col gap-1.5 sm:col-span-1">
           <div className="flex items-center justify-between">
-            <label className="text-xs font-bold text-slate-900">
+            <label className="text-xs font-bold text-slate-900 dark:text-white">
               University Email (@urios.edu.ph) <span className="text-red-500">*</span>
             </label>
             {isEmailVerified ? (
-              <span className="inline-flex items-center gap-1 text-[11px] font-extrabold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
+              <span className="inline-flex items-center gap-1 text-[11px] font-extrabold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 rounded-md">
                 <Check size={12} className="stroke-[3]" />
                 Verified
               </span>
             ) : emailCheckStatus === "valid" ? (
-              <span className="text-[10.5px] font-bold text-blue-600 flex items-center gap-1">
+              <span className="text-[10.5px] font-bold text-blue-600 dark:text-blue-400 flex items-center gap-1">
                 <Check size={12} />
                 Domain Active
               </span>
@@ -466,12 +466,12 @@ export default function Step3Details({
               placeholder="username@urios.edu.ph" 
               className={`w-full p-3 ${requireEmailVerify ? 'pr-24' : ''} border rounded-xl text-sm transition-all focus:outline-none ${
                 (requireEmailVerify && isEmailVerified)
-                  ? "bg-emerald-50/40 border-emerald-300 text-slate-800 font-semibold cursor-not-allowed" 
+                  ? "bg-emerald-50/40 dark:bg-emerald-950/30 border-emerald-300 dark:border-emerald-700 text-slate-800 dark:text-emerald-300 font-semibold cursor-not-allowed" 
                   : emailCheckStatus === "invalid"
-                    ? "bg-white border-rose-300 focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10 text-slate-900"
+                    ? "bg-white dark:bg-slate-900/80 border-rose-300 dark:border-rose-700 focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
                     : emailCheckStatus === "valid"
-                      ? "bg-white border-blue-400 focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 text-slate-900"
-                      : "bg-white border-slate-200 focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 text-slate-900"
+                      ? "bg-white dark:bg-slate-900/80 border-blue-400 dark:border-blue-700 focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                      : "bg-white dark:bg-slate-900/80 border-slate-200 dark:border-slate-700 focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
               }`} 
             />
 
@@ -486,7 +486,7 @@ export default function Step3Details({
                       setEmailCheckStatus("idle");
                       setEmailCheckMessage("");
                     }}
-                    className="px-2.5 py-1.5 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg text-[11px] font-bold text-slate-600 transition-colors shadow-2xs cursor-pointer flex items-center gap-1"
+                    className="px-2.5 py-1.5 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 rounded-lg text-[11px] font-bold text-slate-600 dark:text-slate-300 transition-colors shadow-2xs cursor-pointer flex items-center gap-1"
                     title="Unlock and change email address"
                   >
                     <Edit3 size={11} />
@@ -500,8 +500,8 @@ export default function Step3Details({
                     onClick={handleRequestOtp}
                     className={`h-8 px-3 rounded-lg text-xs font-black shadow-xs transition-all cursor-pointer ${
                       !email || !email.trim()
-                        ? "bg-slate-100 text-slate-400 border border-slate-200"
-                        : "bg-blue-600 hover:bg-blue-700 text-white shadow-blue-600/20 active:scale-95"
+                        ? "bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-200 dark:border-slate-700"
+                        : "bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500 text-white shadow-blue-600/20 active:scale-95"
                     }`}
                   >
                     {isSendingOtp ? (
@@ -524,25 +524,25 @@ export default function Step3Details({
           {!isEmailVerified && (
             <div className="min-h-[20px] space-y-1 mt-0.5">
               {emailCheckStatus === "checking" && (
-                <div className="flex items-center gap-1.5 text-[11px] text-blue-600 font-medium animate-pulse py-0.5">
-                  <Loader2 size={12} className="animate-spin shrink-0 text-blue-600" />
+                <div className="flex items-center gap-1.5 text-[11px] text-blue-600 dark:text-blue-400 font-medium animate-pulse py-0.5">
+                  <Loader2 size={12} className="animate-spin shrink-0 text-blue-600 dark:text-blue-400" />
                   <span>Checking mailbox deliverability & 75k+ temporary email blacklist...</span>
                 </div>
               )}
               {emailCheckStatus === "valid" && !isOtpRequested && (
-                <div className="flex items-center gap-1.5 text-[11px] text-emerald-700 font-semibold bg-emerald-50 border border-emerald-200/80 px-2.5 py-1 rounded-lg">
-                  <CheckCircle2 size={13} className="shrink-0 text-emerald-600" />
+                <div className="flex items-center gap-1.5 text-[11px] text-emerald-700 dark:text-emerald-300 font-semibold bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200/80 dark:border-emerald-800 px-2.5 py-1 rounded-lg">
+                  <CheckCircle2 size={13} className="shrink-0 text-emerald-600 dark:text-emerald-400" />
                   <span>{emailCheckMessage || "Email address is deliverable. Click 'Verify' to receive OTP code."}</span>
                 </div>
               )}
               {emailCheckStatus === "invalid" && (
                 <div className="flex flex-col gap-1.5 pt-0.5">
-                  <div className="flex items-start gap-1.5 text-[11px] text-rose-700 font-semibold bg-rose-50 border border-rose-200 px-2.5 py-1.5 rounded-lg shadow-2xs">
-                    <AlertCircle size={14} className="shrink-0 text-rose-600 mt-0.5" />
+                  <div className="flex items-start gap-1.5 text-[11px] text-rose-700 dark:text-rose-300 font-semibold bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 px-2.5 py-1.5 rounded-lg shadow-2xs">
+                    <AlertCircle size={14} className="shrink-0 text-rose-600 dark:text-rose-400 mt-0.5" />
                     <span className="leading-tight">{emailCheckMessage}</span>
                   </div>
                   {emailSuggestion && (
-                    <div className="flex items-center gap-1.5 text-[11px] text-amber-900 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-lg">
+                    <div className="flex items-center gap-1.5 text-[11px] text-amber-900 dark:text-amber-200 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 px-2.5 py-1 rounded-lg">
                       <span>Did you mean</span>
                       <button
                         type="button"
@@ -552,17 +552,17 @@ export default function Step3Details({
                           setEmailSuggestion("");
                           handleEmailBlur(sug);
                         }}
-                        className="font-bold underline text-blue-700 hover:text-blue-900 cursor-pointer"
+                        className="font-bold underline text-blue-700 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300 cursor-pointer"
                       >
                         {emailSuggestion}
                       </button>
-                      <span className="text-slate-500 font-normal">? (Click to apply)</span>
+                      <span className="text-slate-500 dark:text-slate-400 font-normal">? (Click to apply)</span>
                     </div>
                   )}
                 </div>
               )}
               {emailCheckStatus === "idle" && !email && (
-                <p className="text-[10.5px] text-slate-400">
+                <p className="text-[10.5px] text-slate-400 dark:text-slate-500">
                   Enter your email address and click outside the box to run deliverability check.
                 </p>
               )}
@@ -571,8 +571,8 @@ export default function Step3Details({
 
           {/* Duplicate / OTP Error Alert Banner */}
           {otpError && !isOtpRequested && otpError !== emailCheckMessage && (
-            <div className="mt-2.5 p-3.5 bg-rose-50 border-2 border-rose-300 rounded-2xl text-xs font-bold text-rose-800 flex items-start gap-2.5 shadow-sm animate-in fade-in">
-              <AlertCircle size={16} className="text-rose-600 shrink-0 mt-0.5" />
+            <div className="mt-2.5 p-3.5 bg-rose-50 dark:bg-rose-950/40 border-2 border-rose-300 dark:border-rose-800 rounded-2xl text-xs font-bold text-rose-800 dark:text-rose-200 flex items-start gap-2.5 shadow-sm animate-in fade-in">
+              <AlertCircle size={16} className="text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
               <div className="flex-1 space-y-1">
                 <p className="leading-snug">{otpError}</p>
                 {duplicateRef && (
@@ -580,7 +580,7 @@ export default function Step3Details({
                     href={`/track?ref=${encodeURIComponent(duplicateRef)}`}
                     target="_blank"
                     rel="noreferrer"
-                    className="inline-flex items-center gap-1 text-blue-700 hover:text-blue-900 font-extrabold text-xs underline mt-1"
+                    className="inline-flex items-center gap-1 text-blue-700 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300 font-extrabold text-xs underline mt-1"
                   >
                     <span>Track existing reservation ({duplicateRef})</span>
                     <span>→</span>
@@ -592,18 +592,18 @@ export default function Step3Details({
 
           {/* Part 2 Inline OTP Card (Rendered directly under field, NOT in a modal) */}
           {isOtpRequested && !isEmailVerified && (
-            <div className="mt-2 p-4 bg-blue-50/70 border border-blue-200 rounded-2xl space-y-3 animate-in fade-in zoom-in-95 duration-200 shadow-sm">
+            <div className="mt-2 p-4 bg-blue-50/70 dark:bg-slate-900/90 border border-blue-200 dark:border-blue-900/50 rounded-2xl space-y-3 animate-in fade-in zoom-in-95 duration-200 shadow-sm">
               <div className="flex items-center justify-between">
-                <label className="text-xs font-black text-blue-950 flex items-center gap-1.5">
-                  <KeyRound size={14} className="text-blue-600" />
+                <label className="text-xs font-black text-blue-950 dark:text-blue-200 flex items-center gap-1.5">
+                  <KeyRound size={14} className="text-blue-600 dark:text-blue-400" />
                   <span>Enter 6-Digit Email OTP</span>
                 </label>
                 {otpExpiresIn > 0 ? (
-                  <span className="text-[11px] font-mono font-bold text-amber-700 bg-amber-50 border border-amber-200/80 px-2 py-0.5 rounded-md">
+                  <span className="text-[11px] font-mono font-bold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/60 border border-amber-200/80 dark:border-amber-800 px-2 py-0.5 rounded-md">
                     ⏱ Expires in {formatTimer(otpExpiresIn)}
                   </span>
                 ) : (
-                  <span className="text-[11px] font-bold text-rose-600 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-md">
+                  <span className="text-[11px] font-bold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-900/60 px-2 py-0.5 rounded-md">
                     Code Expired
                   </span>
                 )}
@@ -616,13 +616,13 @@ export default function Step3Details({
                   value={otpCode}
                   onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                   placeholder="123456"
-                  className="flex-1 p-2.5 bg-white border border-blue-300 rounded-xl text-center text-base font-mono font-black tracking-widest text-blue-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 shadow-inner"
+                  className="flex-1 p-2.5 bg-white dark:bg-slate-800 border border-blue-300 dark:border-blue-700 rounded-xl text-center text-base font-mono font-black tracking-widest text-blue-900 dark:text-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 shadow-inner"
                 />
                 <Button
                   type="button"
                   disabled={otpCode.length !== 6 || isVerifyingOtp || otpExpiresIn <= 0}
                   onClick={handleVerifyOtp}
-                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black shadow-md shadow-blue-600/20 disabled:opacity-50 transition-all cursor-pointer shrink-0"
+                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500 text-white rounded-xl text-xs font-black shadow-md shadow-blue-600/20 disabled:opacity-50 transition-all cursor-pointer shrink-0"
                 >
                   {isVerifyingOtp ? (
                     <span className="flex items-center gap-1">
@@ -639,13 +639,13 @@ export default function Step3Details({
               <div className="flex items-center justify-between text-xs pt-0.5">
                 <div className="flex-1 min-w-0">
                   {otpError && (
-                    <span className="text-[11px] font-semibold text-rose-600 flex items-center gap-1">
+                    <span className="text-[11px] font-semibold text-rose-600 dark:text-rose-400 flex items-center gap-1">
                       <AlertCircle size={12} className="shrink-0" />
                       <span className="truncate">{otpError}</span>
                     </span>
                   )}
                   {otpSuccess && !otpError && (
-                    <span className="text-[11px] font-medium text-blue-800 truncate block">
+                    <span className="text-[11px] font-medium text-blue-800 dark:text-blue-300 truncate block">
                       {otpSuccess}
                     </span>
                   )}
@@ -653,7 +653,7 @@ export default function Step3Details({
 
                 <div className="shrink-0 pl-2">
                   {otpCooldown > 0 ? (
-                    <span className="text-[11px] text-slate-400 font-semibold">
+                    <span className="text-[11px] text-slate-400 dark:text-slate-500 font-semibold">
                       Resend in {otpCooldown}s
                     </span>
                   ) : (
@@ -661,7 +661,7 @@ export default function Step3Details({
                       type="button"
                       onClick={handleRequestOtp}
                       disabled={isSendingOtp}
-                      className="text-[11px] font-extrabold text-blue-700 hover:text-blue-800 underline cursor-pointer"
+                      className="text-[11px] font-extrabold text-blue-700 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 underline cursor-pointer"
                     >
                       Resend OTP Code
                     </button>
@@ -675,14 +675,14 @@ export default function Step3Details({
         {/* CONTACT NUMBER FIELD (NON-OTP GATED, FORMAT VALIDATION ONLY) */}
         <div className="flex flex-col gap-1.5">
           <div className="flex items-center justify-between">
-            <label className="text-xs font-bold text-slate-900">
+            <label className="text-xs font-bold text-slate-900 dark:text-white">
               Contact Number <span className="text-red-500">*</span>
             </label>
             {(() => {
               const info = validatePhilippineMobile(contactNumber);
               if (contactNumber && contactNumber.length >= 4 && !info.isValid) {
                 return (
-                  <span className="text-[10px] font-semibold text-amber-600">
+                  <span className="text-[10px] font-semibold text-amber-600 dark:text-amber-400">
                     {info.message}
                   </span>
                 );
@@ -698,16 +698,16 @@ export default function Step3Details({
             pattern="[0-9]{11}"
             title="Please enter an active 11-digit Philippine mobile number"
             placeholder="0917 123 4567" 
-            className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm font-mono focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all" 
+            className="w-full p-3 bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 rounded-xl text-sm font-mono focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all" 
           />
-          <p className="text-[10.5px] text-slate-400">
+          <p className="text-[10.5px] text-slate-400 dark:text-slate-500">
             Booking notifications and reminders will be sent via SMS and Email to this contact.
           </p>
         </div>
 
         {/* DEPARTMENT */}
         <div className="flex flex-col gap-1.5 sm:col-span-1">
-          <label className="text-xs font-bold text-slate-900">
+          <label className="text-xs font-bold text-slate-900 dark:text-white">
             {isExternal ? "Office / Organization" : "Department"} <span className="text-red-500">*</span>
           </label>
           {isExternal ? (
@@ -717,11 +717,11 @@ export default function Step3Details({
               value={department}
               onChange={e => setDepartment(e.target.value)}
               placeholder="e.g. DepEd / LGU Butuan / Partner Company"
-              className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all font-semibold"
+              className="w-full p-3 bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all font-semibold"
             />
           ) : (
-            <select required value={department} onChange={e => setDepartment(e.target.value)} className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all font-semibold">
-              <option value="">Select Department...</option>
+            <select required value={department} onChange={e => setDepartment(e.target.value)} className="w-full p-3 bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all font-semibold">
+              <option value="" className="dark:bg-slate-900 dark:text-white">Select Department...</option>
               {(() => {
                 const defaultDepts = [
                   { code: "CITE", name: "College of Information Tech Education (CITE)" },
@@ -741,7 +741,7 @@ export default function Step3Details({
                   const code = dept.code || dept.name;
                   const label = dept.name ? (dept.code && !dept.name.includes(dept.code) ? `${dept.code} - ${dept.name}` : dept.name) : code;
                   return (
-                    <option key={`dept-${dept.id || code}-${idx}`} value={code}>
+                    <option key={`dept-${dept.id || code}-${idx}`} value={code} className="dark:bg-slate-900 dark:text-white">
                       {label}
                     </option>
                   );
@@ -754,19 +754,19 @@ export default function Step3Details({
         {/* BOOKING CLASSIFICATION (SIDE BY SIDE WITH DEPARTMENT) */}
         {selectedVenue?.type === "avr" && (
           <div className="flex flex-col gap-1.5 sm:col-span-1">
-            <label className="text-xs font-bold text-slate-900">
+            <label className="text-xs font-bold text-slate-900 dark:text-white">
               Booking Classification <span className="text-red-500">*</span>
             </label>
             <select
               required
               value={classification}
               onChange={e => setClassification(e.target.value)}
-              className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all font-semibold"
+              className="w-full p-3 bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all font-semibold"
             >
-              <option value="">Select Classification...</option>
-              <option value="organization">Student Organization Event</option>
-              <option value="academic">Academic Class</option>
-              <option value="admin">Administrative Meeting</option>
+              <option value="" className="dark:bg-slate-900 dark:text-white">Select Classification...</option>
+              <option value="organization" className="dark:bg-slate-900 dark:text-white">Student Organization Event</option>
+              <option value="academic" className="dark:bg-slate-900 dark:text-white">Academic Class</option>
+              <option value="admin" className="dark:bg-slate-900 dark:text-white">Administrative Meeting</option>
             </select>
           </div>
         )}
@@ -776,7 +776,7 @@ export default function Step3Details({
           <>
             {/* Endorsement Letter Notice Based on Booking Classification */}
             {classification && (
-              <div className="sm:col-span-2 p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs font-semibold text-amber-900 animate-in fade-in">
+              <div className="sm:col-span-2 p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 rounded-xl text-xs font-semibold text-amber-900 dark:text-amber-200 animate-in fade-in">
                 {classification === "organization" && (
                   <span><strong>Mandatory Endorsement:</strong> Formal request letter signed and endorsed by the <strong>Director of OISAA</strong>.</span>
                 )}
@@ -790,10 +790,10 @@ export default function Step3Details({
             )}
 
             <div className="flex flex-col gap-1.5 sm:col-span-2">
-              <label className="text-xs font-bold text-slate-900">
+              <label className="text-xs font-bold text-slate-900 dark:text-white">
                 Expected Person Count <span className="text-red-500">*</span>
                 {selectedVenue?.capacity && (
-                  <span className="text-slate-500 font-normal ml-1">(Max capacity: {selectedVenue.capacity})</span>
+                  <span className="text-slate-500 dark:text-slate-400 font-normal ml-1">(Max capacity: {selectedVenue.capacity})</span>
                 )}
               </label>
               <input 
@@ -811,25 +811,25 @@ export default function Step3Details({
                   setPersons(val);
                 }} 
                 placeholder={`e.g. ${Math.min(75, selectedVenue?.capacity || 75)}`} 
-                className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all" 
+                className="w-full p-3 bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all" 
               />
             </div>
 
             <div className="sm:col-span-2 flex flex-col gap-1.5">
-              <label className="text-xs font-bold text-slate-900">Event Purpose & Brief Summary <span className="text-red-500">*</span></label>
-              <textarea rows="3" required value={purpose} onChange={e => setPurpose(e.target.value)} placeholder="State event title, nature of activity, and specific requirements..." className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600"></textarea>
+              <label className="text-xs font-bold text-slate-900 dark:text-white">Event Purpose & Brief Summary <span className="text-red-500">*</span></label>
+              <textarea rows="3" required value={purpose} onChange={e => setPurpose(e.target.value)} placeholder="State event title, nature of activity, and specific requirements..." className="w-full p-3 bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 rounded-xl text-sm focus:outline-none focus:border-blue-600"></textarea>
             </div>
 
-            <div className="sm:col-span-2 flex flex-col gap-2.5 bg-slate-50 p-4 rounded-2xl border border-slate-200/60">
+            <div className="sm:col-span-2 flex flex-col gap-2.5 bg-slate-50 dark:bg-slate-900/60 p-4 rounded-2xl border border-slate-200/60 dark:border-slate-800">
               <div className="flex items-center justify-between">
-                <label className="text-xs font-bold text-slate-900">
-                  Allowed Venue Equipment <span className="text-slate-500 font-semibold text-[11px]">(Optional)</span>
+                <label className="text-xs font-bold text-slate-900 dark:text-white">
+                  Allowed Venue Equipment <span className="text-slate-500 dark:text-slate-400 font-semibold text-[11px]">(Optional)</span>
                 </label>
               </div>
 
               {/* Informative Notice Banner for Venue Requisitions */}
-              <div className="p-2.5 rounded-xl bg-blue-50/80 border border-blue-200 text-[11px] text-blue-900 leading-relaxed">
-                ℹ️ <b>Event Setup Priority:</b> Requested equipment is secured upon booking approval and prepared inside the venue by AVR staff on your event date.
+              <div className="p-2.5 rounded-xl bg-blue-50/80 dark:bg-slate-900/80 border border-blue-200 dark:border-blue-900/50 text-[11px] text-blue-900 dark:text-slate-300 leading-relaxed">
+                ℹ️ <strong className="text-blue-950 dark:text-white">Event Setup Priority:</strong> Requested equipment is secured upon booking approval and prepared inside the venue by AVR staff on your event date.
               </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 text-xs pt-1">
@@ -858,7 +858,7 @@ export default function Step3Details({
                   }
 
                   if (!baseCatalog || baseCatalog.length === 0) {
-                    return <div className="col-span-full text-slate-500 italic text-center py-4 bg-white rounded-xl border border-dashed border-slate-200">No equipment configured or available for this venue.</div>;
+                    return <div className="col-span-full text-slate-500 dark:text-slate-400 italic text-center py-4 bg-white dark:bg-slate-900/60 rounded-xl border border-dashed border-slate-200 dark:border-slate-800">No equipment configured or available for this venue.</div>;
                   }
 
                   const catalogToRender = baseCatalog.map(e => ({
@@ -900,13 +900,13 @@ export default function Step3Details({
                         key={`eq-cat-${item.id || key}-${idx}`}
                         className={`flex items-center justify-between gap-2 p-2.5 rounded-xl border transition-all ${
                           isOutOfStock
-                            ? "bg-slate-100/70 border-slate-200 opacity-60"
+                            ? "bg-slate-100/70 dark:bg-slate-900/80 border-slate-200 dark:border-slate-800 opacity-60 text-slate-400 dark:text-slate-500"
                             : isChecked
-                              ? "bg-blue-50/70 border-blue-300 shadow-xs"
-                              : "bg-white border-slate-200 hover:border-slate-300"
+                              ? "bg-blue-50/70 dark:bg-blue-950/40 border-blue-300 dark:border-blue-800 shadow-xs"
+                              : "bg-white dark:bg-slate-900/80 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700"
                         }`}
                       >
-                        <label className={`flex items-center gap-2 font-semibold flex-1 min-w-0 ${isOutOfStock ? "cursor-not-allowed text-slate-400" : "cursor-pointer text-slate-800"}`}>
+                        <label className={`flex items-center gap-2 font-semibold flex-1 min-w-0 ${isOutOfStock ? "cursor-not-allowed text-slate-400 dark:text-slate-500" : "cursor-pointer text-slate-800 dark:text-slate-200"}`}>
                           <input
                             type="checkbox"
                             disabled={isOutOfStock}
@@ -919,12 +919,12 @@ export default function Step3Details({
                                 [key]: checked ? 1 : false
                               });
                             }}
-                            className="rounded text-blue-600 focus:ring-blue-500 accent-blue-600 w-4 h-4 cursor-pointer disabled:cursor-not-allowed"
+                            className="rounded text-blue-600 focus:ring-blue-500 accent-blue-600 dark:accent-blue-500 w-4 h-4 cursor-pointer disabled:cursor-not-allowed"
                           />
                           <div className="flex flex-col min-w-0">
-                            <span className="truncate text-xs font-bold">{item.name}</span>
+                            <span className="truncate text-xs font-bold text-slate-900 dark:text-white">{item.name}</span>
                             {!isOutOfStock && (
-                              <span className="text-[10px] text-slate-500 font-mono">
+                              <span className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">
                                 Max {effectiveMax} unit{effectiveMax === 1 ? "" : "s"} allowed
                               </span>
                             )}
@@ -932,12 +932,12 @@ export default function Step3Details({
                         </label>
 
                         {isOutOfStock ? (
-                          <span className="text-[10px] font-extrabold text-rose-600 bg-rose-50 border border-rose-200 px-1.5 py-0.5 rounded-md shrink-0">
+                          <span className="text-[10px] font-extrabold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-900/50 px-1.5 py-0.5 rounded-md shrink-0">
                             Out of Stock
                           </span>
                         ) : isChecked && (
                           <div className="flex items-center gap-1 shrink-0">
-                            <span className="text-[10px] font-extrabold text-blue-600">Qty:</span>
+                            <span className="text-[10px] font-extrabold text-blue-600 dark:text-blue-400">Qty:</span>
                             <input
                               type="number"
                               min="1"
@@ -948,7 +948,7 @@ export default function Step3Details({
                                 const newQty = Math.min(Math.max(1, inputVal), effectiveMax);
                                 setAvrEquipment({ ...avrEquipment, [key]: newQty });
                               }}
-                              className="w-11 py-0.5 px-1 bg-white border border-blue-300 rounded-lg text-xs font-black text-center text-blue-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                              className="w-11 py-0.5 px-1 bg-white dark:bg-slate-800 border border-blue-300 dark:border-blue-700/80 rounded-lg text-xs font-black text-center text-blue-900 dark:text-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                             />
                           </div>
                         )}
@@ -961,36 +961,36 @@ export default function Step3Details({
 
             {/* Optional Equipment Needed Remarks */}
             <div className="sm:col-span-2 space-y-1.5 pt-2">
-              <label className="block text-xs font-bold text-slate-800">
-                Equipment-Needed Remarks <span className="text-slate-500 font-semibold text-[11px]">(Optional)</span>
+              <label className="block text-xs font-bold text-slate-800 dark:text-slate-200">
+                Equipment-Needed Remarks <span className="text-slate-500 dark:text-slate-400 font-semibold text-[11px]">(Optional)</span>
               </label>
               <textarea
                 rows={2}
                 value={equipmentRemarks || ""}
                 onChange={(e) => setEquipmentRemarks && setEquipmentRemarks(e.target.value)}
                 placeholder="Explain why you require more units than the venue's allowed limit (e.g., expected high attendee count, workshop breakout activities, extra speakers)..."
-                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:border-blue-600 shadow-2xs"
+                className="w-full p-3 bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:border-blue-600 shadow-2xs"
               />
-              <p className="text-[11px] text-slate-400 font-medium">
+              <p className="text-[11px] text-slate-400 dark:text-slate-500 font-medium">
                 Note: If your event requires more units than the venue's default limit, provide your justification here for AVR administrator review and special allocation.
               </p>
             </div>
           </>
         )}
 
-        <div className="sm:col-span-2 flex items-center justify-between mt-6 pt-4 border-t border-slate-100">
+        <div className="sm:col-span-2 flex items-center justify-between mt-6 pt-4 border-t border-slate-100 dark:border-slate-800">
           <Button
             type="button"
             variant="outline"
             onClick={() => onBack && onBack()}
-            className="border-slate-200 text-slate-700 hover:bg-slate-50 px-5 py-5 rounded-xl font-bold text-xs"
+            className="border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/80 px-5 py-5 rounded-xl font-bold text-xs"
           >
             ← Back to Venue Selection
           </Button>
 
           <div className="flex items-center gap-3">
             {requireEmailVerify && !isEmailVerified && (
-              <span className="text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-xl hidden sm:inline-flex items-center gap-1.5">
+              <span className="text-[11px] font-semibold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 px-3 py-1.5 rounded-xl hidden sm:inline-flex items-center gap-1.5">
                 <AlertCircle size={13} />
                 Email OTP verification required to proceed
               </span>
@@ -1000,8 +1000,8 @@ export default function Step3Details({
               disabled={requireEmailVerify && !isEmailVerified}
               className={`px-8 py-5 rounded-xl font-extrabold text-white text-xs shadow-lg transition-all ${
                 (!requireEmailVerify || isEmailVerified) 
-                  ? "bg-blue-600 hover:bg-blue-700 shadow-blue-600/20 cursor-pointer" 
-                  : "bg-slate-300 text-slate-500 cursor-not-allowed shadow-none"
+                  ? "bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500 shadow-blue-600/20 cursor-pointer" 
+                  : "bg-slate-300 dark:bg-slate-800 text-slate-500 dark:text-slate-500 cursor-not-allowed shadow-none"
               }`}
             >
               Next: Review →

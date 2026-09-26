@@ -1,4 +1,4 @@
-import { Barcode, X, Edit3 } from "lucide-react";
+import { Barcode, X, Edit3, Layers } from "lucide-react";
 
 export default function EquipmentDetailModal({
   selectedItem,
@@ -11,6 +11,19 @@ export default function EquipmentDetailModal({
   const builtInUnitsList = Array.isArray(selectedItem.built_in_units)
     ? selectedItem.built_in_units.filter(Boolean)
     : [];
+
+  const parentUnit = (allUnits || []).find((parent) => {
+    let rawList = parent.built_in_units;
+    if (typeof rawList === "string") {
+      try { rawList = JSON.parse(rawList); } catch { rawList = []; }
+    }
+    if (!Array.isArray(rawList)) return false;
+    return rawList.some((childId) =>
+      String(childId) === String(selectedItem.id) ||
+      (selectedItem.barcode && String(childId).trim().toLowerCase() === String(selectedItem.barcode).trim().toLowerCase()) ||
+      (selectedItem.serial_number && String(childId).trim().toLowerCase() === String(selectedItem.serial_number).trim().toLowerCase())
+    );
+  });
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 sm:p-6 overflow-y-auto animate-in fade-in duration-200">
@@ -73,6 +86,26 @@ export default function EquipmentDetailModal({
 
           </div>
 
+          {/* Parent Kit Bundle Info if applicable */}
+          {parentUnit && (
+            <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <span className="p-2 rounded-xl bg-amber-100 text-amber-700">
+                  <Layers size={16} />
+                </span>
+                <div>
+                  <span className="text-[10px] font-bold text-amber-600 uppercase tracking-wider block">Packaged in Parent Bundle</span>
+                  <span className="font-extrabold text-slate-900 text-xs">
+                    {parentUnit.name || parentUnit.category} <span className="font-mono text-amber-700 font-bold">[{parentUnit.serial_number || parentUnit.barcode}]</span>
+                  </span>
+                </div>
+              </div>
+              <span className="px-2.5 py-1 bg-amber-100 text-amber-800 text-[10px] font-bold rounded-lg border border-amber-300">
+                Bundled Component
+              </span>
+            </div>
+          )}
+
           {/* Built-in Physical Units */}
           {builtInUnitsList.length > 0 && (
             <div className="p-4 bg-slate-50/80 border border-slate-200/80 rounded-2xl space-y-2.5">
@@ -87,7 +120,10 @@ export default function EquipmentDetailModal({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {builtInUnitsList.map((unitId, idx) => {
                   const found = (allUnits || []).find(
-                    (u) => String(u.id) === String(unitId) || String(u.barcode) === String(unitId)
+                    (u) =>
+                      String(u.id) === String(unitId) ||
+                      (u.barcode && String(u.barcode).trim().toLowerCase() === String(unitId).trim().toLowerCase()) ||
+                      (u.serial_number && String(u.serial_number).trim().toLowerCase() === String(unitId).trim().toLowerCase())
                   );
                   return (
                     <div

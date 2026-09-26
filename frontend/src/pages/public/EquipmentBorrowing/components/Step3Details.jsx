@@ -400,22 +400,22 @@ export default function Step3Details({
   return (
     <div className="p-6 sm:p-8 animate-in slide-in-from-top-2 duration-300">
       {/* Context Banner matching Venue Booking header */}
-      <div className="p-4 sm:p-5 rounded-2xl mb-6 border bg-blue-50/90 border-blue-200 text-blue-950 shadow-2xs">
+      <div className="p-4 sm:p-5 rounded-2xl mb-6 border bg-blue-50/90 dark:bg-slate-900/80 border-blue-200 dark:border-blue-900/50 text-blue-950 dark:text-white shadow-2xs">
         <div>
-          <h4 className="font-black text-sm tracking-tight text-slate-900">Borrowing Form</h4>
-          <div className="text-xs text-blue-900 font-semibold mt-0.5 space-y-1.5">
+          <h4 className="font-black text-sm tracking-tight text-slate-900 dark:text-white">Borrowing Form</h4>
+          <div className="text-xs text-blue-900 dark:text-slate-300 font-semibold mt-0.5 space-y-1.5">
             <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
-              <span>Total Selected: <span className="font-extrabold text-blue-700">{selectedCategoryNames}</span></span>
-              <span className="text-blue-300">|</span>
-              <span>Schedule: <span className="font-extrabold text-blue-700">{formatScheduleDisplay(startTime, endTime)}</span></span>
+              <span>Total Selected: <span className="font-extrabold text-blue-700 dark:text-blue-400">{selectedCategoryNames}</span></span>
+              <span className="text-blue-300 dark:text-blue-600">|</span>
+              <span>Schedule: <span className="font-extrabold text-blue-700 dark:text-blue-400">{formatScheduleDisplay(startTime, endTime)}</span></span>
             </p>
             {builtInNamesList.length > 0 && (
-              <div className="flex items-center flex-wrap gap-1.5 pt-1 border-t border-blue-200/60">
-                <span className="text-slate-700 font-extrabold text-xs">Built-in:</span>
+              <div className="flex items-center flex-wrap gap-1.5 pt-1 border-t border-blue-200/60 dark:border-slate-800">
+                <span className="text-slate-700 dark:text-slate-300 font-extrabold text-xs">Built-in:</span>
                 {builtInNamesList.map((bName, idx) => (
                   <span
                     key={idx}
-                    className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-blue-100/90 text-blue-900 text-[11px] font-bold border border-blue-300/80 shadow-2xs"
+                    className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-blue-100/90 dark:bg-blue-950/70 text-blue-900 dark:text-blue-300 text-[11px] font-bold border border-blue-300/80 dark:border-blue-800 shadow-2xs"
                   >
                     {bName}
                   </span>

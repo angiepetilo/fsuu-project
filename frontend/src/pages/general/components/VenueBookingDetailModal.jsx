@@ -62,6 +62,7 @@ export default function VenueBookingDetailModal({
   const [preEvidencePhoto, setPreEvidencePhoto] = useState([]);
   
   // Vacant Venues & Referral State
+  const [hasConflict, setHasConflict] = useState(false);
   const [vacantVenuesList, setVacantVenuesList] = useState([]);
   const [loadingVacantVenues, setLoadingVacantVenues] = useState(false);
   const [showReferralModal, setShowReferralModal] = useState(false);
@@ -79,11 +80,51 @@ export default function VenueBookingDetailModal({
   // Incomplete / Missing Requirements State
   const [showIncompleteForm, setShowIncompleteForm] = useState(false);
   const [incompleteRemarks, setIncompleteRemarks] = useState("");
+  const DEFAULT_MISSING_REQ_CATEGORIES = [
+    "Official Endorsement Letter",
+    "Dean / Department Chair Approval",
+    "Activity Permit / Campus Clearance",
+    "Faculty Adviser Endorsement",
+    "Valid Institutional ID Copy",
+    "Other Requirements",
+  ];
+  const [missingReqCategories, setMissingReqCategories] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem("fsuu_missing_req_categories"));
+      if (Array.isArray(saved) && saved.length > 0) return saved;
+    } catch {}
+    return DEFAULT_MISSING_REQ_CATEGORIES;
+  });
+  const [showEditMissingCategories, setShowEditMissingCategories] = useState(false);
+  const [newMissingCategoryInput, setNewMissingCategoryInput] = useState("");
   const [selectedMissingItems, setSelectedMissingItems] = useState([
     "Official Endorsement Letter"
   ]);
   const [graceHoursChoice, setGraceHoursChoice] = useState(24);
   const [submittingIncomplete, setSubmittingIncomplete] = useState(false);
+
+  const handleAddMissingCategory = (e) => {
+    if (e) e.preventDefault();
+    const clean = newMissingCategoryInput.trim();
+    if (!clean) return;
+    setMissingReqCategories(prev => {
+      const next = Array.from(new Set([...prev, clean]));
+      try { localStorage.setItem("fsuu_missing_req_categories", JSON.stringify(next)); } catch {}
+      return next;
+    });
+    setNewMissingCategoryInput("");
+    notify.success("Successfully Saved", `"${clean}" category added to missing requirements checklist.`);
+  };
+
+  const handleDeleteMissingCategory = (cat) => {
+    setMissingReqCategories(prev => {
+      const next = prev.filter(c => c !== cat);
+      try { localStorage.setItem("fsuu_missing_req_categories", JSON.stringify(next)); } catch {}
+      return next;
+    });
+    setSelectedMissingItems(prev => prev.filter(c => c !== cat));
+    notify.success("Successfully Saved", `"${cat}" category removed from checklist.`);
+  };
 
   // Fetch default grace hours from operating hours setting
   useEffect(() => {
@@ -151,9 +192,11 @@ export default function VenueBookingDetailModal({
       setDbRejectionReasons(prev => [...prev, res.data]);
       setRejectionReasons(prev => Array.from(new Set([...prev, cleanName])));
       setNewRejectionInput("");
+      notify.success("Successfully Saved", `"${cleanName}" category added to rejection reasons.`);
     } catch {
       setRejectionReasons(prev => Array.from(new Set([...prev, cleanName])));
       setNewRejectionInput("");
+      notify.success("Successfully Saved", `"${cleanName}" category added to rejection reasons.`);
     } finally {
       setSavingNewRejection(false);
     }
@@ -172,6 +215,7 @@ export default function VenueBookingDetailModal({
         setSelectedViolationType(nextOpt || "");
         setRejectionComments(nextOpt || "");
       }
+      notify.success("Successfully Saved", `"${catName}" category removed from rejection reasons.`);
     } catch (e) {
       setRejectionReasons(prev => prev.filter(c => c !== catName));
       if (selectedViolationType === catName) {
@@ -179,6 +223,7 @@ export default function VenueBookingDetailModal({
         setSelectedViolationType(nextOpt || "");
         setRejectionComments(nextOpt || "");
       }
+      notify.success("Successfully Saved", `"${catName}" category removed from rejection reasons.`);
     }
   };
 
@@ -664,6 +709,80 @@ export default function VenueBookingDetailModal({
     return qtyMap;
   }, [selected, allVenueBookings, allEquipmentBorrows]);
 
+  // Set of barcodes / unit IDs that are compromised (damaged, lost, under repair, unavailable)
+  // OR belong to a bundle where ANY component (parent or child) is damaged or lost.
+  const compromisedUnitKeys = useMemo(() => {
+    const directlyCompromised = new Set();
+    const parentToChildren = new Map();
+    const childToParents = new Map();
+
+    const isDirectlyBad = (u) => {
+      const cond = String(u.condition || "").toLowerCase().trim();
+      const stat = String(u.status || "").toLowerCase().trim();
+      return (
+        cond === "damaged" || cond === "lost" || cond === "under repair" ||
+        stat === "damaged" || stat === "lost" || stat === "decommissioned" ||
+        stat === "under_maintenance" || stat === "unavailable"
+      );
+    };
+
+    (physicalUnits || []).forEach((u) => {
+      const uKeys = [
+        String(u.id).trim().toUpperCase(),
+        u.barcode ? String(u.barcode).trim().toUpperCase() : null,
+        u.serial_number ? String(u.serial_number).trim().toUpperCase() : null,
+      ].filter(Boolean);
+
+      if (isDirectlyBad(u)) {
+        uKeys.forEach((k) => directlyCompromised.add(k));
+      }
+
+      let built = u.built_in_units;
+      if (typeof built === "string") {
+        try { built = JSON.parse(built); } catch { built = []; }
+      }
+      if (Array.isArray(built) && built.length > 0) {
+        const childKeys = built.map((c) => String(c).trim().toUpperCase()).filter(Boolean);
+        uKeys.forEach((pk) => {
+          if (!parentToChildren.has(pk)) parentToChildren.set(pk, new Set());
+          childKeys.forEach((ck) => parentToChildren.get(pk).add(ck));
+        });
+        childKeys.forEach((ck) => {
+          if (!childToParents.has(ck)) childToParents.set(ck, new Set());
+          uKeys.forEach((pk) => childToParents.get(ck).add(pk));
+        });
+      }
+    });
+
+    const allCompromised = new Set(directlyCompromised);
+    let changed = true;
+    while (changed) {
+      changed = false;
+      childToParents.forEach((parents, childKey) => {
+        if (allCompromised.has(childKey)) {
+          parents.forEach((pk) => {
+            if (!allCompromised.has(pk)) {
+              allCompromised.add(pk);
+              changed = true;
+            }
+          });
+        }
+      });
+      parentToChildren.forEach((children, parentKey) => {
+        if (allCompromised.has(parentKey)) {
+          children.forEach((ck) => {
+            if (!allCompromised.has(ck)) {
+              allCompromised.add(ck);
+              changed = true;
+            }
+          });
+        }
+      });
+    }
+
+    return allCompromised;
+  }, [physicalUnits]);
+
   // Parse Requested Categories from all potential data structures with equipment_type_id
   const getRequestedCategories = () => {
     if (!selected) return [];
@@ -756,13 +875,18 @@ export default function VenueBookingDetailModal({
     setLoadingVacantVenues(true);
     try {
       const res = await api.get(`/avr-venue-bookings/${idToUse}/vacant-venues`);
-      const list = res.data?.vacant_venues || [];
+      const conflict = !!res.data?.has_conflict;
+      const list = conflict ? (res.data?.vacant_venues || []) : [];
+      setHasConflict(conflict);
       setVacantVenuesList(list);
       if (list.length > 0) {
         setSelectedTargetVenueId(String(list[0].id));
+      } else {
+        setSelectedTargetVenueId("");
       }
     } catch (e) {
-      // Ignore background error
+      setHasConflict(false);
+      setVacantVenuesList([]);
     } finally {
       setLoadingVacantVenues(false);
     }
@@ -771,6 +895,9 @@ export default function VenueBookingDetailModal({
   useEffect(() => {
     if (selected?.id) {
       fetchVacantVenues(selected.id);
+    } else {
+      setHasConflict(false);
+      setVacantVenuesList([]);
     }
   }, [selected?.id, fetchVacantVenues]);
 
@@ -880,14 +1007,24 @@ export default function VenueBookingDetailModal({
       }
 
       const uStat = String(unit.status || "available").toLowerCase();
-      if (uStat === "damaged" || uStat === "lost" || uStat === "decommissioned" || uStat === "under_maintenance") {
+      if (uStat === "damaged" || uStat === "lost" || uStat === "decommissioned" || uStat === "under_maintenance" || uStat === "unavailable") {
+        return false;
+      }
+
+      // 4a. Cascade check: if unit itself or any of its built-ins or parent unit is damaged or lost, it cannot be available or assigned!
+      const uIdStr = String(unit.id).trim().toUpperCase();
+      const uBarcodeStr = unit.barcode ? String(unit.barcode).trim().toUpperCase() : null;
+      const uSerialStr = unit.serial_number ? String(unit.serial_number).trim().toUpperCase() : null;
+
+      if (
+        compromisedUnitKeys.has(uIdStr) ||
+        (uBarcodeStr && compromisedUnitKeys.has(uBarcodeStr)) ||
+        (uSerialStr && compromisedUnitKeys.has(uSerialStr))
+      ) {
         return false;
       }
 
       // 4b. Exclude units that are bundled inside another equipment unit (they are not standalone available)
-      const uIdStr = String(unit.id).trim().toUpperCase();
-      const uBarcodeStr = unit.barcode ? String(unit.barcode).trim().toUpperCase() : null;
-      const uSerialStr = unit.serial_number ? String(unit.serial_number).trim().toUpperCase() : null;
       if (
         bundledUnitIds.has(uIdStr) ||
         (uBarcodeStr && bundledUnitIds.has(uBarcodeStr)) ||
@@ -1262,7 +1399,7 @@ export default function VenueBookingDetailModal({
                       {selected.rejection_reason || selected.remarks || selected.comments || "Schedule conflict. Slot allocated per university policy."}
                     </p>
                   </div>
-                  {vacantVenuesList.length > 0 && (
+                  {hasConflict && vacantVenuesList.length > 0 && (
                     <div className="mt-2 p-2.5 bg-blue-50/90 border border-blue-200 rounded-xl text-xs space-y-1">
                       <span className="font-bold text-blue-900 flex items-center gap-1.5">
                         💡 Vacant Venues at this Slot:
@@ -1287,19 +1424,14 @@ export default function VenueBookingDetailModal({
               />
 
               {/* Vacant Venue Referral Option */}
-              {vacantVenuesList.length > 0 && canApprove && (
+              {hasConflict && vacantVenuesList.length > 0 && canApprove && (
                 <div className="p-3.5 bg-gradient-to-r from-blue-50 via-indigo-50/40 to-white border border-blue-200 rounded-xl text-xs shadow-2xs space-y-2.5">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="w-7 h-7 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold text-xs shadow-2xs">
-                        🏛️
-                      </div>
-                      <div>
-                        <span className="font-black text-blue-950 block">Vacant Alternative Venues Available</span>
-                        <span className="text-[11px] text-blue-700 font-medium">
-                          {vacantVenuesList.length} other room{vacantVenuesList.length > 1 ? 's are' : ' is'} vacant during this exact slot ({selected.date_of_usage} | {selected.time_start?.slice(0, 5)} - {selected.time_end?.slice(0, 5)}).
-                        </span>
-                      </div>
+                    <div>
+                      <span className="font-black text-blue-950 block">Vacant Alternative Venues Available</span>
+                      <span className="text-[11px] text-blue-700 font-medium">
+                        {vacantVenuesList.length} other room{vacantVenuesList.length > 1 ? 's are' : ' is'} vacant during this exact slot ({selected.date_of_usage} | {selected.time_start?.slice(0, 5)} - {selected.time_end?.slice(0, 5)}).
+                      </span>
                     </div>
                     <button
                       type="button"
@@ -1338,7 +1470,7 @@ export default function VenueBookingDetailModal({
                       </div>
 
                       <div className="space-y-1">
-                        <label className="text-[11px] font-bold text-slate-700 block">Referral Remarks / Notification for Requestor (Optional)</label>
+                        <label className="text-[11px] font-bold text-slate-700 block">Remarks</label>
                         <input
                           type="text"
                           value={referralRemarks}
@@ -1356,7 +1488,7 @@ export default function VenueBookingDetailModal({
                           className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-lg shadow-xs cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
                         >
                           {reassigningVenue ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
-                          <span>Confirm &amp; Reassign to Venue</span>
+                          <span>Confirm</span>
                         </button>
                       </div>
                     </div>
@@ -1592,14 +1724,16 @@ export default function VenueBookingDetailModal({
                       onChange={(e) => setNewRejectionInput(e.target.value)}
                       className="flex-1 px-2.5 py-1.5 text-xs border border-slate-200 rounded focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
                     />
-                    <button
-                      type="button"
-                      disabled={savingNewRejection || !newRejectionInput.trim()}
-                      onClick={handleAddRejection}
-                      className="px-3 py-1.5 bg-blue-600 text-white rounded text-xs font-bold hover:bg-blue-700 disabled:opacity-50 cursor-pointer flex items-center gap-1 transition-colors shadow-xs"
-                    >
-                      {savingNewRejection ? "..." : <><Plus size={12}/> Add</>}
-                    </button>
+                    {newRejectionInput.trim() && (
+                      <button
+                        type="button"
+                        disabled={savingNewRejection}
+                        onClick={handleAddRejection}
+                        className="px-3 py-1.5 bg-blue-600 text-white rounded text-xs font-bold hover:bg-blue-700 disabled:opacity-50 cursor-pointer flex items-center gap-1 transition-colors shadow-xs animate-in fade-in"
+                      >
+                        {savingNewRejection ? "..." : <><Plus size={12}/> Add Category</>}
+                      </button>
+                    )}
                   </div>
                 </div>
               ) : (
@@ -1636,62 +1770,40 @@ export default function VenueBookingDetailModal({
               {/* Quick Template Reasons */}
               <div className="space-y-1.5 pt-1">
                 <span className="text-[10.5px] font-extrabold uppercase text-slate-500 tracking-wider block">
-                  Quick Conflict &amp; Requirements Templates:
+                  Quick Conflict
                 </span>
                 <div className="flex flex-wrap gap-1.5">
                   <button
                     type="button"
                     onClick={() => {
-                      const msg = "Schedule Conflict: The venue slot was awarded to another applicant who completed all requirements first (First-Come, First-Served policy).";
-                      setSelectedViolationType(msg);
+                      let timeRange = "";
+                      if (selected?.time_start && selected?.time_end) {
+                        const formatTime = (t) => {
+                          try {
+                            const parts = String(t).split(":");
+                            const d = new Date();
+                            d.setHours(parseInt(parts[0], 10), parseInt(parts[1], 10));
+                            return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                          } catch {
+                            return t;
+                          }
+                        };
+                        timeRange = ` (${formatTime(selected.time_start)} - ${formatTime(selected.time_end)})`;
+                      }
+                      const msg = `Conflict : Timeslot already occupied. please come by to the office to settle the venue because there’s available venue to their selected time schedule${timeRange}`;
+                      setSelectedViolationType("Conflict : Timeslot already occupied");
                       setRejectionComments(msg);
                     }}
-                    className="px-2 py-1 rounded bg-slate-100 hover:bg-rose-50 hover:text-rose-700 text-slate-700 text-[11px] font-semibold border border-slate-200 transition-colors cursor-pointer text-left"
+                    className="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-rose-50 hover:text-rose-700 text-slate-700 text-xs font-semibold border border-slate-200 transition-colors cursor-pointer text-left"
                   >
-                    ⚡ Conflict: Awarded to applicant with complete requirements
+                    ⚡ Conflict : Timeslot already occupied
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const msg = `Schedule Conflict: ${selected.venue?.name || 'This venue'} is already reserved for another confirmed activity on this timeslot.`;
-                      setSelectedViolationType(msg);
-                      setRejectionComments(msg);
-                    }}
-                    className="px-2 py-1 rounded bg-slate-100 hover:bg-rose-50 hover:text-rose-700 text-slate-700 text-[11px] font-semibold border border-slate-200 transition-colors cursor-pointer text-left"
-                  >
-                    ⚡ Conflict: Timeslot already occupied
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const msg = "Incomplete Requirements: Endorsement letter or departmental authorization was not submitted within the allowable grace period.";
-                      setSelectedViolationType(msg);
-                      setRejectionComments(msg);
-                    }}
-                    className="px-2 py-1 rounded bg-slate-100 hover:bg-rose-50 hover:text-rose-700 text-slate-700 text-[11px] font-semibold border border-slate-200 transition-colors cursor-pointer text-left"
-                  >
-                    ⚡ Missing Requirements / Grace period expired
-                  </button>
-                  {vacantVenuesList.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const target = vacantVenuesList[0];
-                        const msg = `Schedule Conflict: ${selected.venue?.name || 'Requested venue'} is occupied for this timeslot. However, ${target.name} (Capacity: ${target.capacity_max || target.capacity || '—'}) is vacant at this time. Please re-book or contact PMO to transfer your reservation to ${target.name}.`;
-                        setSelectedViolationType(msg);
-                        setRejectionComments(msg);
-                      }}
-                      className="px-2 py-1 rounded bg-blue-50 hover:bg-blue-100 text-blue-800 text-[11px] font-bold border border-blue-200 transition-colors cursor-pointer text-left flex items-center gap-1"
-                    >
-                      💡 Reject with Referral to Vacant {vacantVenuesList[0].name}
-                    </button>
-                  )}
                 </div>
               </div>
 
               <div className="pt-1">
                 <label className="block text-[11px] font-bold text-slate-600 mb-1">
-                  Rejection Remarks / Explanation for Applicant *
+                  Rejection Remarks
                 </label>
                 <textarea
                   rows={3}
@@ -1730,19 +1842,14 @@ export default function VenueBookingDetailModal({
           {showIncompleteForm && (
             <div className="p-4 bg-amber-50/90 dark:bg-amber-950/40 border-2 border-amber-300 dark:border-amber-700/60 rounded-2xl space-y-3.5 shadow-md animate-in fade-in slide-in-from-top-2">
               <div className="flex items-center justify-between border-b border-amber-200 dark:border-amber-800/60 pb-2">
-                <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 rounded-lg bg-amber-500 text-white flex items-center justify-center font-black">
-                    !
-                  </div>
-                  <div>
-                    <h4 className="text-xs font-black text-amber-950 dark:text-amber-200">Mark Reservation Incomplete</h4>
-                    <p className="text-[11px] text-amber-800 dark:text-amber-300 font-medium">Specify missing requirements and set review grace period (24h or 48h)</p>
-                  </div>
+                <div>
+                  <h4 className="text-xs font-black text-amber-950 dark:text-amber-200">Mark Reservation Incomplete</h4>
+                  <p className="text-[11px] text-amber-800 dark:text-amber-300 font-medium">Specify missing requirements and set review grace period (24h or 48h)</p>
                 </div>
                 <button
                   type="button"
                   onClick={() => setShowIncompleteForm(false)}
-                  className="text-amber-800 dark:text-amber-300 hover:text-amber-950 dark:hover:text-white font-bold text-xs p-1"
+                  className="text-amber-800 dark:text-amber-300 hover:text-amber-950 dark:hover:white font-bold text-xs p-1"
                 >
                   ✕
                 </button>
@@ -1750,51 +1857,99 @@ export default function VenueBookingDetailModal({
 
               {/* Missing Requirements Checklist */}
               <div className="space-y-1.5">
-                <label className="block text-[11px] font-extrabold text-amber-950 dark:text-amber-200 uppercase tracking-wide">
-                  Missing Requirements Checklist
-                </label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {[
-                    "Official Endorsement Letter",
-                    "Dean / Department Chair Approval",
-                    "Activity Permit / Campus Clearance",
-                    "Faculty Adviser Endorsement",
-                    "Valid Institutional ID Copy",
-                    "Other Requirements",
-                  ].map((item, idx) => {
-                    const isChecked = selectedMissingItems.includes(item);
-                    return (
-                      <label
-                        key={idx}
-                        className={`flex items-center gap-2 p-2 rounded-xl border text-xs font-bold cursor-pointer transition-all ${
-                          isChecked
-                            ? "bg-amber-100 dark:bg-amber-900/50 border-amber-400 dark:border-amber-600 text-amber-950 dark:text-amber-100 shadow-2xs"
-                            : "bg-white dark:bg-slate-900 border-amber-200 dark:border-amber-900/50 text-slate-700 dark:text-slate-300 hover:bg-amber-50 dark:hover:bg-slate-800"
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={isChecked}
-                          onChange={() => {
-                            if (isChecked) {
-                              setSelectedMissingItems(prev => prev.filter(i => i !== item));
-                            } else {
-                              setSelectedMissingItems(prev => [...prev, item]);
-                            }
-                          }}
-                          className="w-4 h-4 text-amber-600 rounded border-amber-300 focus:ring-amber-500 cursor-pointer"
-                        />
-                        <span>{item}</span>
-                      </label>
-                    );
-                  })}
+                <div className="flex items-center justify-between">
+                  <label className="block text-[11px] font-extrabold text-amber-950 dark:text-amber-200 uppercase tracking-wide">
+                    Missing Requirements Checklist
+                  </label>
+                  {!isHistoryView && (
+                    <button
+                      type="button"
+                      onClick={() => setShowEditMissingCategories(!showEditMissingCategories)}
+                      className="text-[11px] font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 cursor-pointer transition-colors"
+                    >
+                      {showEditMissingCategories ? <X size={12} /> : <Edit size={12} />}
+                      <span>{showEditMissingCategories ? "Done" : "Edit Category"}</span>
+                    </button>
+                  )}
                 </div>
+
+                {showEditMissingCategories && !isHistoryView ? (
+                  <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-amber-300 dark:border-amber-700 shadow-2xs space-y-3 mb-2 animate-in fade-in zoom-in-95 duration-200">
+                    <div className="space-y-1 max-h-40 overflow-y-auto pr-1">
+                      {missingReqCategories.length === 0 && (
+                        <p className="text-xs text-slate-400 font-medium p-2 text-center">No missing requirement categories added yet.</p>
+                      )}
+                      {missingReqCategories.map((cat, idx) => (
+                        <div key={`miss-cat-${idx}`} className="flex justify-between items-center text-xs p-1.5 hover:bg-amber-50/50 dark:hover:bg-slate-800 rounded border border-transparent hover:border-amber-200 transition-colors">
+                          <span className="font-semibold text-slate-700 dark:text-slate-200">{cat}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteMissingCategory(cat)}
+                            className="text-slate-500 hover:text-rose-600 cursor-pointer p-1 rounded hover:bg-rose-50 transition-colors flex items-center gap-1 font-bold"
+                            title="Remove Category"
+                          >
+                            <Trash2 size={12} />
+                            <span>Remove</span>
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex items-center gap-2 border-t border-amber-100 dark:border-slate-800 pt-3">
+                      <input
+                        type="text"
+                        placeholder="Enter missing requirement category..."
+                        value={newMissingCategoryInput}
+                        onChange={(e) => setNewMissingCategoryInput(e.target.value)}
+                        className="flex-1 px-2.5 py-1.5 text-xs bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white focus:outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600"
+                      />
+                      {newMissingCategoryInput.trim() && (
+                        <button
+                          type="button"
+                          onClick={handleAddMissingCategory}
+                          className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold cursor-pointer flex items-center gap-1 transition-colors shadow-xs animate-in fade-in"
+                        >
+                          <Plus size={12}/> Add Category
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {missingReqCategories.map((item, idx) => {
+                      const isChecked = selectedMissingItems.includes(item);
+                      return (
+                        <label
+                          key={idx}
+                          className={`flex items-center gap-2 p-2 rounded-xl border text-xs font-bold cursor-pointer transition-all ${
+                            isChecked
+                              ? "bg-amber-100 dark:bg-amber-900/50 border-amber-400 dark:border-amber-600 text-amber-950 dark:text-amber-100 shadow-2xs"
+                              : "bg-white dark:bg-slate-900 border-amber-200 dark:border-amber-900/50 text-slate-700 dark:text-slate-300 hover:bg-amber-50 dark:hover:bg-slate-800"
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => {
+                              if (isChecked) {
+                                setSelectedMissingItems(prev => prev.filter(i => i !== item));
+                              } else {
+                                setSelectedMissingItems(prev => [...prev, item]);
+                              }
+                            }}
+                            className="w-4 h-4 text-amber-600 rounded border-amber-300 focus:ring-amber-500 cursor-pointer"
+                          />
+                          <span>{item}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
 
               {/* Remarks Textarea */}
               <div className="space-y-1">
                 <label className="block text-[11px] font-extrabold text-amber-950 dark:text-amber-200 uppercase tracking-wide">
-                  Reviewer Remarks / Clear Instructions for Applicant <span className="text-red-500">*</span>
+                  Remarks <span className="text-red-500">*</span>
                 </label>
                 <textarea
                   rows={2}

@@ -62,38 +62,16 @@ export default function EquipBorrowHeader({
                 </button>
 
                 {(isOngoing || isApproved) && (
-                  <div className="relative inline-flex items-center rounded-lg shadow-2xs border border-amber-300 bg-amber-50">
-                    <button
-                      type="button"
-                      onClick={() => handleSendReturnReminder ? handleSendReturnReminder("both") : handleSendOverdueSms()}
-                      disabled={smsLoading}
-                      className="px-2.5 py-1 text-amber-900 hover:bg-amber-100/90 rounded-l-lg text-[11px] font-extrabold flex items-center gap-1 cursor-pointer disabled:opacity-50 transition-colors"
-                      title="Send return equipment notice to borrower via SMS & Email"
-                    >
-                      {smsLoading ? <Loader2 size={12} className="animate-spin text-amber-700" /> : <Send size={12} className="text-amber-700" />}
-                      <span>Return Equipment (Send via SMS & Email)</span>
-                    </button>
-                    <div className="flex items-center border-l border-amber-300 divide-x divide-amber-300 text-[10.5px]">
-                      <button
-                        type="button"
-                        onClick={() => handleSendReturnReminder ? handleSendReturnReminder("sms") : handleSendOverdueSms()}
-                        disabled={smsLoading}
-                        className="px-1.5 py-1 text-amber-800 hover:bg-amber-100 font-bold cursor-pointer disabled:opacity-50"
-                        title="Send via SMS only"
-                      >
-                        SMS
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleSendReturnReminder ? handleSendReturnReminder("email") : handleSendOverdueSms()}
-                        disabled={smsLoading}
-                        className="px-1.5 py-1 text-amber-800 hover:bg-amber-100 font-bold rounded-r-lg cursor-pointer disabled:opacity-50"
-                        title="Send via Email only"
-                      >
-                        Email
-                      </button>
-                    </div>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleSendReturnReminder ? handleSendReturnReminder("both") : handleSendOverdueSms()}
+                    disabled={smsLoading}
+                    className="px-2.5 py-1 text-amber-900 bg-amber-50 hover:bg-amber-100/90 rounded-lg text-[11px] font-extrabold border border-amber-300 flex items-center gap-1 cursor-pointer disabled:opacity-50 transition-colors shadow-2xs"
+                    title="Send return equipment notice to borrower via SMS & Email"
+                  >
+                    {smsLoading ? <Loader2 size={12} className="animate-spin text-amber-700" /> : <Send size={12} className="text-amber-700" />}
+                    <span>Return Equipment</span>
+                  </button>
                 )}
 
                 {resendMsg && (

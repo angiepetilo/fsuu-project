@@ -25,20 +25,6 @@ export default function ManageEquipments() {
   const [units, setUnits] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
-
-  if (!hasPermission("manage_equipments")) {
-    return (
-      <div className="p-8 max-w-md mx-auto text-center space-y-3 mt-12 bg-white rounded-3xl border border-slate-200 shadow-xs">
-        <div className="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center mx-auto">
-          <AlertTriangle size={24} />
-        </div>
-        <h3 className="text-sm font-extrabold text-slate-900">Access Restricted</h3>
-        <p className="text-xs text-slate-500 font-medium">
-          You do not have permission to view or configure Equipment Inventory.
-        </p>
-      </div>
-    );
-  }
   const [activeCategory, setActiveCategory] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
@@ -192,9 +178,6 @@ export default function ManageEquipments() {
         };
       }));
 
-      if (catData.length > 0 && !formData.category) {
-        setFormData(prev => ({ ...prev, category: catData[0].eq_name || catData[0].name }));
-      }
     } catch {
       setUnits([]);
       setCategories([]);
@@ -204,7 +187,10 @@ export default function ManageEquipments() {
     }
   }, []);
 
-  useRealtimeSync(fetchEquipments, { interval: 30000 });
+  useRealtimeSync(fetchEquipments, {
+    interval: 30000,
+    enabled: !showAddModal && !editingItem,
+  });
 
   const handleOpenAddModal = async () => {
     let activeCats = categories;
@@ -565,6 +551,28 @@ export default function ManageEquipments() {
     return map;
   }, [units]);
 
+  const resolveBundledUnits = useCallback((item) => {
+    let rawList = item.built_in_units;
+    if (typeof rawList === "string") {
+      try { rawList = JSON.parse(rawList); } catch { rawList = []; }
+    }
+    if (!Array.isArray(rawList) || rawList.length === 0) return [];
+    return rawList.map(ref => {
+      if (!ref) return null;
+      if (typeof ref === "object" && ref !== null) {
+        return ref;
+      }
+      const strRef = String(ref).trim();
+      const matched = units.find(u => 
+        String(u.id) === strRef ||
+        (u.serial_number && String(u.serial_number).trim().toLowerCase() === strRef.toLowerCase()) ||
+        (u.barcode && String(u.barcode).trim().toLowerCase() === strRef.toLowerCase())
+      );
+      if (matched) return matched;
+      return { id: strRef, barcode: strRef, serial_number: strRef, name: strRef };
+    }).filter(Boolean);
+  }, [units]);
+
   useEffect(() => {
     setCurrentPage(1);
   }, [activeCategory, searchQuery]);
@@ -597,7 +605,19 @@ export default function ManageEquipments() {
     ...categoryNames.map(c => ({ id: c, label: c }))
   ], [categoryNames]);
 
-  if (loading && units.length === 0) return <PageLoader message="Loading Equipment Inventory..." />;
+  if (!hasPermission("manage_equipments")) {
+    return (
+      <div className="p-8 max-w-md mx-auto text-center space-y-3 mt-12 bg-white rounded-3xl border border-slate-200 shadow-xs">
+        <div className="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center mx-auto">
+          <AlertTriangle size={24} />
+        </div>
+        <h3 className="text-sm font-extrabold text-slate-900">Access Restricted</h3>
+        <p className="text-xs text-slate-500 font-medium">
+          You do not have permission to view or configure Equipment Inventory.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -721,16 +741,17 @@ export default function ManageEquipments() {
                           </button>
                         </div>
                       </td>
-                      <td className="px-4 py-3.5 max-w-[240px]">
+                      <td className="px-4 py-3.5 max-w-[280px]">
                         {(() => {
                           const parentUnit =
                             parentUnitMap.get(String(item.id)) ||
                             (item.barcode ? parentUnitMap.get(String(item.barcode)) : null) ||
                             (item.serial_number ? parentUnitMap.get(String(item.serial_number)) : null);
+                          const bundledChildren = resolveBundledUnits(item);
 
                           return (
-                            <div className="flex flex-col gap-1">
-                              <span className="font-extrabold text-slate-900 dark:text-white truncate block" title={item.name}>
+                            <div className="flex flex-col gap-1.5">
+                              <span className="font-extrabold text-slate-900 dark:text-white truncate block text-xs" title={item.name}>
                                 {item.name}
                               </span>
                               {parentUnit && (
@@ -739,17 +760,30 @@ export default function ManageEquipments() {
                                   title={`Packaged inside ${parentUnit.name || parentUnit.category} [${parentUnit.serial_number || parentUnit.barcode || ''}]`}
                                 >
                                   <Layers size={11} className="text-amber-600 dark:text-amber-400 shrink-0" />
-                                  <span className="truncate">Bundled with {parentUnit.name || parentUnit.category || "Parent Kit"}</span>
+                                  <span className="truncate">
+                                    Bundled with: <strong className="font-mono">{parentUnit.serial_number || parentUnit.barcode}</strong> ({parentUnit.name || parentUnit.category || "Parent Kit"})
+                                  </span>
                                 </span>
                               )}
-                              {!parentUnit && Array.isArray(item.built_in_units) && item.built_in_units.length > 0 && (
-                                <span
-                                  className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 w-fit max-w-full"
-                                  title={`Includes ${item.built_in_units.length} built-in component(s)`}
-                                >
-                                  <PackageCheck size={11} className="text-blue-600 dark:text-blue-400 shrink-0" />
-                                  <span className="truncate">Kit includes {item.built_in_units.length} built-in {item.built_in_units.length === 1 ? "unit" : "units"}</span>
-                                </span>
+                              {bundledChildren.length > 0 && (
+                                <div className="flex flex-col gap-1 mt-0.5">
+                                  <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                                    <PackageCheck size={11} className="text-blue-600 dark:text-blue-400 shrink-0" />
+                                    Bundled Units ({bundledChildren.length}):
+                                  </span>
+                                  <div className="flex flex-wrap gap-1 max-w-full">
+                                    {bundledChildren.map((child, cIdx) => (
+                                      <span
+                                        key={cIdx}
+                                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800/80"
+                                        title={`${child.name || 'Component'} [${child.serial_number || child.barcode || child.id || ''}]`}
+                                      >
+                                        <span className="font-mono text-[9px] font-bold opacity-80">{child.serial_number || child.barcode || `#${child.id}`}</span>
+                                        <span className="truncate max-w-[120px]">{child.name || child.category || "Item"}</span>
+                                      </span>
+                                    ))}
+                                  </div>
+                                </div>
                               )}
                             </div>
                           );

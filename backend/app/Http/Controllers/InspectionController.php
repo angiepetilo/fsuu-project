@@ -232,12 +232,49 @@ class InspectionController extends Controller
                         $nIds = array_values(array_filter($lookupKeys, fn($v) => is_numeric($v) && (int)$v > 0));
                         $uCodes = array_values(array_filter($lookupKeys, fn($v) => !empty($v)));
 
-                        EquipmentUnit::where(function($q) use ($uCodes, $nIds) {
+                        $matchedUnits = EquipmentUnit::where(function($q) use ($uCodes, $nIds) {
                             $q->whereIn('barcode', $uCodes);
                             if (!empty($nIds)) {
                                 $q->orWhereIn('id', array_map('intval', $nIds));
                             }
-                        })->update(['status' => $uStatus, 'condition' => $uCond]);
+                        })->get();
+
+                        foreach ($matchedUnits as $unit) {
+                            $unit->update(['status' => $uStatus, 'condition' => $uCond]);
+
+                            // If damaged or lost: ensure bundle integrity
+                            if ($condStr === 'damaged' || $condStr === 'lost') {
+                                // 1. If this is a child unit, find its parent unit and mark the parent unavailable too
+                                $uIdStr = (string)$unit->id;
+                                $uCode = $unit->barcode ?: $unit->serial_number;
+
+                                $parentUnits = EquipmentUnit::whereNotNull('built_in_units')->get()->filter(function($p) use ($uIdStr, $uCode) {
+                                    $built = is_array($p->built_in_units) ? $p->built_in_units : (is_string($p->built_in_units) ? json_decode($p->built_in_units, true) : []);
+                                    if (!is_array($built)) return false;
+                                    return in_array($uIdStr, array_map('strval', $built)) || ($uCode && in_array((string)$uCode, array_map('strval', $built)));
+                                });
+
+                                foreach ($parentUnits as $parent) {
+                                    $parent->update([
+                                        'status' => 'unavailable',
+                                        'condition' => $uCond,
+                                    ]);
+                                }
+
+                                // 2. If this is a parent unit, mark all its child units unavailable too
+                                $built = is_array($unit->built_in_units) ? $unit->built_in_units : (is_string($unit->built_in_units) ? json_decode($unit->built_in_units, true) : []);
+                                if (is_array($built) && !empty($built)) {
+                                    $cIds = array_values(array_filter($built, fn($v) => is_numeric($v) && (int)$v > 0));
+                                    $cCodes = array_values(array_filter($built, fn($v) => !empty($v)));
+                                    EquipmentUnit::where(function($q) use ($cCodes, $cIds) {
+                                        $q->whereIn('barcode', $cCodes);
+                                        if (!empty($cIds)) {
+                                            $q->orWhereIn('id', array_map('intval', $cIds));
+                                        }
+                                    })->update(['status' => 'unavailable', 'condition' => $uCond]);
+                                }
+                            }
+                        }
                     }
                 }
             }

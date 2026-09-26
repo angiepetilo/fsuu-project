@@ -200,6 +200,7 @@ export default function EquipBorrowUnitAssignment({
   unitReturnedConditions = {},
   inspectionStatus,
   timeliness,
+  compromisedUnitKeys,
   handleAction,
   actionLoading,
   resendMsg,
@@ -269,6 +270,14 @@ export default function EquipBorrowUnitAssignment({
   });
 
   const allUnitsAssigned = totalRequestedUnits > 0 && totalAssignedUnits >= totalRequestedUnits;
+
+  const hasCompromisedUnits = Object.values(assignedUnitSelections || {}).some((bCode) => {
+    if (!bCode || bCode === "—") return false;
+    const cleanCode = String(bCode).trim().toUpperCase();
+    return Boolean(compromisedUnitKeys && compromisedUnitKeys.has(cleanCode));
+  });
+
+  const canRelease = allUnitsAssigned && !hasCompromisedUnits;
 
   return (
     <div className="lg:col-span-5 p-6 space-y-4">
@@ -579,16 +588,32 @@ export default function EquipBorrowUnitAssignment({
           <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-xs text-slate-700 font-bold">Fulfillment:</span>
-              <span className={`text-xs font-extrabold ${allUnitsAssigned ? "text-emerald-600" : "text-amber-600"}`}>
-                {allUnitsAssigned ? "Ready for Release" : "Units Pending Assignment"}
+              <span className={`text-xs font-extrabold ${
+                hasCompromisedUnits
+                  ? "text-rose-600"
+                  : allUnitsAssigned
+                  ? "text-emerald-600"
+                  : "text-amber-600"
+              }`}>
+                {hasCompromisedUnits
+                  ? "Unit / Built-in Damaged or Lost"
+                  : allUnitsAssigned
+                  ? "Ready for Release"
+                  : "Units Pending Assignment"}
               </span>
             </div>
+            {hasCompromisedUnits && (
+              <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-xl text-[11px] font-semibold text-rose-800 flex items-start gap-2">
+                <AlertCircle size={14} className="text-rose-600 shrink-0 mt-0.5" />
+                <span>One or more assigned units or linked built-in components are damaged or lost. The equipment cannot be released until the damaged component or unit is replaced.</span>
+              </div>
+            )}
             <button
               type="button"
               onClick={() => handleAction(selected.id, "ongoing")}
-              disabled={!allUnitsAssigned || !!actionLoading}
+              disabled={!canRelease || !!actionLoading}
               className={`w-full py-2 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition-all shadow-xs ${
-                allUnitsAssigned
+                canRelease
                   ? "bg-slate-900 hover:bg-slate-800 text-white cursor-pointer"
                   : "bg-slate-200 text-slate-400 border border-slate-300 cursor-not-allowed"
               }`}

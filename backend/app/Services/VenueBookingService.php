@@ -449,7 +449,14 @@ class VenueBookingService
 
             foreach ($competingPendingBookings as $competing) {
                 $competingStatus = strtolower($competing->tracking_status ?? $competing->status ?? 'pending');
-                $autoRejectReason = "Schedule Conflict (First-Come, First-Served): Another verified reservation for " . ($booking->venue?->name ?? 'this venue') . " on {$rawDate} ({$timeStart} - {$timeEnd}) completed all requirements and was awarded the slot first. You may refer to an available vacant venue or select a different timeslot.";
+                try {
+                    $tStartFmt = \Carbon\Carbon::parse($competing->time_start)->format('h:i A');
+                    $tEndFmt = \Carbon\Carbon::parse($competing->time_end)->format('h:i A');
+                    $timeFormatted = "({$tStartFmt} - {$tEndFmt})";
+                } catch (\Throwable $e) {
+                    $timeFormatted = "({$timeStart} - {$timeEnd})";
+                }
+                $autoRejectReason = "please come by to the office to settle the venue because there’s available venue to their selected time schedule {$timeFormatted}";
 
                 if (\Illuminate\Support\Facades\Schema::hasColumn('venue_bookings', 'status')) {
                     $fillData = ['status' => 'rejected'];

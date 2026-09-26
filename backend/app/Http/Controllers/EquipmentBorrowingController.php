@@ -831,21 +831,59 @@ class EquipmentBorrowingController extends Controller
         $filer = $equipmentBorrowing->filer_name ?? $equipmentBorrowing->requestor_name ?? 'Borrower';
         $eqName = $equipmentBorrowing->equipment_name ?? ($equipmentBorrowing->items?->first()?->equipmentType?->name ?? 'Equipment');
         $reason = $request->input('reason', 'Immediate operational equipment dispatch requested.');
+        $email = $equipmentBorrowing->email_address ?? $equipmentBorrowing->borrower_email ?? $equipmentBorrowing->requestor_email ?? $equipmentBorrowing->email ?? null;
 
+        // 1. Send Email Notification to Email Used on equipment borrowing
+        if ($email) {
+            try {
+                \App\Jobs\SendBookingStatusUpdateJob::dispatch(
+                    'equipment',
+                    $equipmentBorrowing,
+                    'urgent_approval',
+                    "Urgent priority approval requested for borrowing {$ref} ({$eqName}). It has been escalated to Staff & Super Administrator for expedited clearance."
+                );
+            } catch (\Throwable $e) {}
+        }
+
+        // 2. Persist notification in database for Notification Bell
         if (\Illuminate\Support\Facades\Schema::hasTable('notifications')) {
             \Illuminate\Support\Facades\DB::table('notifications')->insert([
-                'title'      => "🚨 Urgent Equipment Approval: {$ref}",
-                'message'    => "Student Assistant " . ($user->name ?? 'Operations') . " marked {$ref} for {$filer} ({$eqName}) as URGENT. Reason: {$reason}",
-                'type'       => 'urgent_approval',
-                'created_at' => now(),
-                'updated_at' => now(),
+                'title'          => "Urgent Approval with ({$ref})",
+                'message'        => "Student Assistant " . ($user->name ?? 'Operations') . " marked {$ref} for {$filer} ({$eqName}) as URGENT. Reason: {$reason}",
+                'type'           => 'urgent_approval',
+                'target_type'    => 'equipment_borrow',
+                'target_id'      => $equipmentBorrowing->id,
+                'reference_code' => $ref,
+                'created_at'     => now(),
+                'updated_at'     => now(),
             ]);
         }
 
+        // 3. Broadcast real-time event to Staff & Super Admin accounts
+        try {
+            event(new \App\Events\BookingStatusUpdated(
+                'equipment_borrow',
+                $ref,
+                'urgent_approval',
+                $equipmentBorrowing->id,
+                $reason,
+                [
+                    'is_urgent'       => true,
+                    'tracking_number' => $ref,
+                    'reference_code'  => $ref,
+                    'equipment_name'  => $eqName,
+                    'filer_name'      => $filer,
+                ]
+            ));
+        } catch (\Throwable $e) {}
+
         return response()->json([
-            'message' => "Urgent approval notification dispatched to Staff & Super Admin for {$ref}.",
-            'borrowing_id' => $equipmentBorrowing->id,
-            'is_urgent' => true
+            'message'         => "Urgent approval notification dispatched for {$ref}.",
+            'borrowing_id'    => $equipmentBorrowing->id,
+            'reference_code'  => $ref,
+            'tracking_number' => $ref,
+            'email_used'      => $email,
+            'is_urgent'       => true
         ]);
     }
 }

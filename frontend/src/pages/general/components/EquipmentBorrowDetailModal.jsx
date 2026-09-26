@@ -39,15 +39,25 @@ export default function EquipmentBorrowDetailModal({
 
   const handleNotifyUrgent = async () => {
     if (!selected?.id) return;
+    const ref = selected?.tracking_number?.reference_code || selected?.reference_code || `EQ-2026-${selected?.id}`;
     setNotifyingUrgent(true);
     try {
       const res = await api.post(`/avr-equipment-borrowings/${selected.id}/notify-urgent`, {
         reason: "Urgent approval requested by Student Assistant for equipment dispatch."
       });
-      notify.success(
-        "Urgent Notification Sent",
-        res.data?.message || "Urgent approval notification dispatched to Staff & Super Admin."
+      const trackingNumber = res.data?.tracking_number || ref;
+      notify.warning(
+        `Urgent Approval with (${trackingNumber})`,
+        res.data?.message || `Urgent approval notification dispatched for ${trackingNumber}. Notified Staff & Super Admin.`
       );
+      window.dispatchEvent(new CustomEvent("urgent_approval_notified", {
+        detail: {
+          tracking_number: trackingNumber,
+          reference_code: trackingNumber,
+          type: "equipment_borrow",
+          id: selected.id
+        }
+      }));
     } catch (err) {
       notify.error("Notification Failed", err.response?.data?.message || "Failed to dispatch urgent notification.");
     } finally {
@@ -250,44 +260,34 @@ export default function EquipmentBorrowDetailModal({
       setAssignedUnitSelections(savedUnits);
 
       // Auto-detect late return by comparing scheduled end time against current time
-      // Reset inspection states to clean blank defaults for new records
-      setPreViolationNotes("");
-      setViolationNotes("");
-      setPreInspectionStatus("clean");
-      setInspectionStatus("clean");
-      setPreUnitReturnedConditions({});
-      setUnitReturnedConditions({});
-      setPreEvidencePhoto([]);
-      setEvidencePhoto([]);
-      setInitialPostState(null);
-
       const overdueMins = getOverdueMinutes(
         selected.date_of_usage || selected.start_datetime,
         selected.time_end || selected.end_datetime
       );
-      if (overdueMins > 0) {
-        setTimeliness("late");
-      } else {
-        setTimeliness("on_time");
-      }
+      const defaultTimeliness = (overdueMins > 0 || selected.is_late || (selected.status || "").toLowerCase().includes("late") || String(selected.violation_type || "").toLowerCase().includes("late") || String(selected.violation || "").toLowerCase().includes("late") || selected.timeliness === "late") ? "late" : (selected.timeliness || "on_time");
+      const defaultInspStatus = (selected.condition === "damaged" || selected.condition === "lost" || selected.inspection_condition === "damaged" || selected.inspection_condition === "lost") ? "violation" : "clean";
+      const defaultViolationNotes = selected.violation || selected.inspection_notes || "";
+      const defaultUnitConditions = (selected.unit_conditions && typeof selected.unit_conditions === "object") ? selected.unit_conditions : {};
 
-      if (selected.timeliness) {
-        setTimeliness(selected.timeliness);
-      }
-      if (selected.is_late || (selected.status || "").toLowerCase().includes("late") || String(selected.violation_type || "").toLowerCase().includes("late") || String(selected.violation || "").toLowerCase().includes("late")) {
-        setTimeliness("late");
-      }
-      if (selected.condition === "damaged" || selected.condition === "lost" || selected.inspection_condition === "damaged" || selected.inspection_condition === "lost") {
-        setInspectionStatus("violation");
-      } else if (selected.inspection_condition === "good" || selected.inspection_condition === "clean") {
-        setInspectionStatus("clean");
-      }
-      if (selected.violation || selected.inspection_notes) {
-        setViolationNotes(selected.violation || selected.inspection_notes || "");
-      }
-      if (selected.unit_conditions && typeof selected.unit_conditions === "object") {
-        setUnitReturnedConditions(selected.unit_conditions);
-      }
+      // Reset inspection states to clean blank defaults for new records
+      setPreViolationNotes("");
+      setViolationNotes(defaultViolationNotes);
+      setPreInspectionStatus("clean");
+      setInspectionStatus(defaultInspStatus);
+      setPreUnitReturnedConditions({});
+      setUnitReturnedConditions(defaultUnitConditions);
+      setPreEvidencePhoto([]);
+      setEvidencePhoto([]);
+      setTimeliness(defaultTimeliness);
+
+      // Initialize base initialPostState so hasInspectionChanges is false on mount
+      setInitialPostState({
+        status: defaultInspStatus,
+        timeliness: defaultTimeliness,
+        notes: defaultViolationNotes,
+        conditions: JSON.stringify(defaultUnitConditions),
+        photos: JSON.stringify([])
+      });
 
       // Check local storage backup first
       try {
@@ -299,16 +299,13 @@ export default function EquipmentBorrowDetailModal({
           else if (p.condition === "good" || p.condition === "clean") setPreInspectionStatus("clean");
           if (p.unit_conditions) setPreUnitReturnedConditions(p.unit_conditions);
         }
-        const isBorrowCompleted = ['completed', 'done', 'returned', 'damaged', 'lost'].includes(String(selected.status || selected.tracking_number?.status || '').toLowerCase());
-        if (isBorrowCompleted) {
-          const localPost = localStorage.getItem(`fsuu_inspection_post_use_eb_${selected.id}`);
-          if (localPost) {
-            const p = JSON.parse(localPost);
-            if (p.notes) setViolationNotes(p.notes);
-            if (p.condition === "damaged" || p.condition === "violation") setInspectionStatus("violation");
-            else if (p.condition === "good" || p.condition === "clean") setInspectionStatus("clean");
-            if (p.unit_conditions) setUnitReturnedConditions(p.unit_conditions);
-          }
+        const localPost = localStorage.getItem(`fsuu_inspection_post_use_eb_${selected.id}`);
+        if (localPost) {
+          const p = JSON.parse(localPost);
+          if (p.notes) setViolationNotes(p.notes);
+          if (p.condition === "damaged" || p.condition === "violation") setInspectionStatus("violation");
+          else if (p.condition === "good" || p.condition === "clean") setInspectionStatus("clean");
+          if (p.unit_conditions) setUnitReturnedConditions(p.unit_conditions);
         }
       } catch {}
 
@@ -325,11 +322,11 @@ export default function EquipmentBorrowDetailModal({
             || list.find(i => i.inspection_type === 'post_event')
             || list.find(i => i.inspection_type && i.inspection_type !== 'pre_use');
 
-          if (postUse && isBorrowCompleted) {
+          if (postUse) {
             // Parse assigned_units (may be JSON string or object from DB)
             let auData = postUse.assigned_units;
             if (typeof auData === 'string') { try { auData = JSON.parse(auData); } catch { auData = {}; } }
-            if (auData && typeof auData === 'object') {
+            if (auData && typeof auData === 'object' && isBorrowCompleted) {
               setAssignedUnitSelections((prev) => ({ ...prev, ...auData }));
             }
             // Parse unit_conditions (may be JSON string or object)
@@ -338,17 +335,12 @@ export default function EquipmentBorrowDetailModal({
             if (ucData && typeof ucData === 'object') {
               setUnitReturnedConditions((prev) => ({ ...prev, ...ucData }));
             }
-            if (postUse.condition === "damaged" || postUse.condition === "violation") {
-              setInspectionStatus("violation");
-            } else if (postUse.condition === "good" || postUse.condition === "clean") {
-              setInspectionStatus("clean");
-            }
-            if (postUse.timeliness) {
-              setTimeliness(postUse.timeliness);
-            }
-            if (postUse.notes) {
-              setViolationNotes(postUse.notes);
-            }
+            const postStatus = (postUse.condition === "damaged" || postUse.condition === "violation" || postUse.condition === "lost") ? "violation" : "clean";
+            setInspectionStatus(postStatus);
+            const postTimeliness = postUse.timeliness || defaultTimeliness;
+            setTimeliness(postTimeliness);
+            const postNotes = postUse.notes || "";
+            setViolationNotes(postNotes);
             
             // Hydrate multi-photo evidence
             const rawPhoto = postUse.evidence_photos || postUse.evidence_photo || postUse.evidence_image || selected.evidence_photos || selected.evidence_photo || selected.evidence_image;
@@ -368,9 +360,9 @@ export default function EquipmentBorrowDetailModal({
             setEvidencePhoto(photoList);
 
             setInitialPostState({
-              status: postUse.condition === "damaged" || postUse.condition === "violation" ? "violation" : "clean",
-              timeliness: postUse.timeliness || "on_time",
-              notes: postUse.notes || "",
+              status: postStatus,
+              timeliness: postTimeliness,
+              notes: postNotes,
               conditions: JSON.stringify(ucData || {}),
               photos: JSON.stringify(photoList || [])
             });
@@ -588,6 +580,80 @@ export default function EquipmentBorrowDetailModal({
     return ids;
   }, [physicalUnits]);
 
+  // Set of barcodes / unit IDs that are compromised (damaged, lost, under repair, unavailable)
+  // OR belong to a bundle where ANY component (parent or child) is damaged or lost.
+  const compromisedUnitKeys = useMemo(() => {
+    const directlyCompromised = new Set();
+    const parentToChildren = new Map();
+    const childToParents = new Map();
+
+    const isDirectlyBad = (u) => {
+      const cond = String(u.condition || "").toLowerCase().trim();
+      const stat = String(u.status || "").toLowerCase().trim();
+      return (
+        cond === "damaged" || cond === "lost" || cond === "under repair" ||
+        stat === "damaged" || stat === "lost" || stat === "decommissioned" ||
+        stat === "under_maintenance" || stat === "unavailable"
+      );
+    };
+
+    (physicalUnits || []).forEach((u) => {
+      const uKeys = [
+        String(u.id).trim().toUpperCase(),
+        u.barcode ? String(u.barcode).trim().toUpperCase() : null,
+        u.serial_number ? String(u.serial_number).trim().toUpperCase() : null,
+      ].filter(Boolean);
+
+      if (isDirectlyBad(u)) {
+        uKeys.forEach((k) => directlyCompromised.add(k));
+      }
+
+      let built = u.built_in_units;
+      if (typeof built === "string") {
+        try { built = JSON.parse(built); } catch { built = []; }
+      }
+      if (Array.isArray(built) && built.length > 0) {
+        const childKeys = built.map((c) => String(c).trim().toUpperCase()).filter(Boolean);
+        uKeys.forEach((pk) => {
+          if (!parentToChildren.has(pk)) parentToChildren.set(pk, new Set());
+          childKeys.forEach((ck) => parentToChildren.get(pk).add(ck));
+        });
+        childKeys.forEach((ck) => {
+          if (!childToParents.has(ck)) childToParents.set(ck, new Set());
+          uKeys.forEach((pk) => childToParents.get(ck).add(pk));
+        });
+      }
+    });
+
+    const allCompromised = new Set(directlyCompromised);
+    let changed = true;
+    while (changed) {
+      changed = false;
+      childToParents.forEach((parents, childKey) => {
+        if (allCompromised.has(childKey)) {
+          parents.forEach((pk) => {
+            if (!allCompromised.has(pk)) {
+              allCompromised.add(pk);
+              changed = true;
+            }
+          });
+        }
+      });
+      parentToChildren.forEach((children, parentKey) => {
+        if (allCompromised.has(parentKey)) {
+          children.forEach((ck) => {
+            if (!allCompromised.has(ck)) {
+              allCompromised.add(ck);
+              changed = true;
+            }
+          });
+        }
+      });
+    }
+
+    return allCompromised;
+  }, [physicalUnits]);
+
   const getAvailableUnitsForCategory = (catName, eqTypeId) => {
     if (!catName || catName === "NONE") return physicalUnits;
 
@@ -631,12 +697,22 @@ export default function EquipmentBorrowDetailModal({
       if (uCond === "damaged" || uCond === "lost" || uCond === "under repair") return false;
 
       const uStat = String(unit.status || "available").toLowerCase();
-      if (uStat === "damaged" || uStat === "lost" || uStat === "decommissioned" || uStat === "under_maintenance") return false;
+      if (uStat === "damaged" || uStat === "lost" || uStat === "decommissioned" || uStat === "under_maintenance" || uStat === "unavailable") return false;
 
-      // 4b. Exclude units that are bundled inside another equipment unit (they are not standalone available)
+      // 4a. Cascade check: if unit itself or any of its built-ins or parent unit is damaged or lost, it cannot be available or assigned!
       const uIdStr = String(unit.id).trim().toUpperCase();
       const uBarcodeStr = unit.barcode ? String(unit.barcode).trim().toUpperCase() : null;
       const uSerialStr = unit.serial_number ? String(unit.serial_number).trim().toUpperCase() : null;
+
+      if (
+        compromisedUnitKeys.has(uIdStr) ||
+        (uBarcodeStr && compromisedUnitKeys.has(uBarcodeStr)) ||
+        (uSerialStr && compromisedUnitKeys.has(uSerialStr))
+      ) {
+        return false;
+      }
+
+      // 4b. Exclude units that are bundled inside another equipment unit (they are not standalone available)
       if (
         bundledUnitIds.has(uIdStr) ||
         (uBarcodeStr && bundledUnitIds.has(uBarcodeStr)) ||
@@ -808,10 +884,26 @@ export default function EquipmentBorrowDetailModal({
       const successMsg = isPreUse ? "Pre-release inspection stored." : "Post-use equipment inspection stored.";
       setInspectionSuccessMsg(successMsg);
       notify.success("Inspection Saved", isPreUse ? "Pre-release equipment inspection record has been saved successfully." : "Post-use equipment inspection record has been saved successfully.");
+      
+      // Update baseline state so hasInspectionChanges evaluates to false and Save button disappears
+      setInitialPostState({
+        status: (activeInspStatus === "lost" || hasLostUnit || hasDamagedUnit) ? "violation" : activeInspStatus,
+        timeliness: timeliness,
+        notes: isPreUse ? preViolationNotes : (violationNotes || ""),
+        conditions: JSON.stringify(rawConditions || {}),
+        photos: JSON.stringify((isPreUse ? preEvidencePhoto : evidencePhoto) || [])
+      });
       setTimeout(() => setInspectionSuccessMsg(null), 3000);
     } catch {
       setInspectionSuccessMsg("Inspection record saved.");
       notify.success("Inspection Saved", "Equipment inspection record has been saved successfully.");
+      setInitialPostState({
+        status: activeInspStatus === "lost" ? "violation" : activeInspStatus,
+        timeliness: timeliness,
+        notes: isPreUse ? preViolationNotes : (violationNotes || ""),
+        conditions: JSON.stringify(rawConditions || {}),
+        photos: JSON.stringify((isPreUse ? preEvidencePhoto : evidencePhoto) || [])
+      });
       setTimeout(() => setInspectionSuccessMsg(null), 3000);
     } finally {
       setSavingInspection(false);
@@ -819,6 +911,20 @@ export default function EquipmentBorrowDetailModal({
   };
 
   const handleReleaseOngoing = async () => {
+    // Check if any assigned unit or linked built-in component is damaged or lost
+    const hasCompromisedUnit = Object.values(assignedUnitSelections || {}).some((bCode) => {
+      if (!bCode || bCode === "—") return false;
+      const cleanCode = String(bCode).trim().toUpperCase();
+      return compromisedUnitKeys.has(cleanCode);
+    });
+    if (hasCompromisedUnit) {
+      notify.error(
+        "Cannot Release Equipment",
+        "One or more assigned units or linked built-in components are damaged or lost. The equipment cannot be released until the damaged component or unit is replaced."
+      );
+      return;
+    }
+
     // Clear any stale post-use cache since equipment is newly being released now
     try {
       localStorage.removeItem(`fsuu_inspection_post_use_eb_${selected.id}`);
@@ -1134,6 +1240,7 @@ export default function EquipmentBorrowDetailModal({
                 isPending={isPending}
                 isOngoing={isOngoing}
                 isCompleted={isCompleted}
+                compromisedUnitKeys={compromisedUnitKeys}
                 handleAction={(id, action, customData) => action === "ongoing" ? handleReleaseOngoing() : handleAction(id, action, customData)}
                 actionLoading={actionLoading}
               />
@@ -1156,7 +1263,7 @@ export default function EquipmentBorrowDetailModal({
               {(() => {
                 const currentConditionsStr = JSON.stringify(unitReturnedConditions);
                 const currentPhotosStr = JSON.stringify(evidencePhoto);
-                const hasInspectionChanges = !initialPostState || (
+                const hasInspectionChanges = Boolean(initialPostState) && (
                    inspectionStatus !== initialPostState.status ||
                    timeliness !== initialPostState.timeliness ||
                    violationNotes !== initialPostState.notes ||
@@ -1230,10 +1337,10 @@ export default function EquipmentBorrowDetailModal({
                     onClick={handleNotifyUrgent}
                     disabled={notifyingUrgent}
                     className="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white font-extrabold text-xs rounded-xl shadow-xs transition-all duration-150 cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
-                    title="Notify Staff and Super Admin for urgent approval"
+                    title="Urgent Approval"
                   >
                     {notifyingUrgent ? <Loader2 size={14} className="animate-spin" /> : <BellRing size={14} />}
-                    <span>Notify Staff &amp; Super Admin (Urgent Approval)</span>
+                    <span>Urgent Approval</span>
                   </button>
                 </div>
               ) : (

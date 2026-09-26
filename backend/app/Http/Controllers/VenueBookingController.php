@@ -569,26 +569,65 @@ class VenueBookingController extends Controller
         $filer = $avrVenueBooking->filer_name ?? 'FSUU Filer';
         $venueName = $avrVenueBooking->venue?->name ?? 'AVR Facility';
         $reason = $request->input('reason', 'Immediate operational verification requested.');
+        $email = $avrVenueBooking->email_address ?? $avrVenueBooking->requestor_email ?? null;
 
+        // 1. Send Email Notification to Email Used on booking
+        if ($email) {
+            try {
+                \App\Jobs\SendBookingStatusUpdateJob::dispatch(
+                    'venue',
+                    $avrVenueBooking,
+                    'urgent_approval',
+                    "Urgent priority approval requested for reservation {$ref} ({$venueName}). It has been escalated to Staff & Super Administrator for expedited clearance."
+                );
+            } catch (\Throwable $e) {}
+        }
+
+        // 2. Persist notification in database for Notification Bell
         if (\Illuminate\Support\Facades\Schema::hasTable('notifications')) {
             \Illuminate\Support\Facades\DB::table('notifications')->insert([
-                'title'      => "🚨 Urgent Venue Approval: {$ref}",
-                'message'    => "Student Assistant " . ($user->name ?? 'Operations') . " marked {$ref} for {$filer} ({$venueName}) as URGENT. Reason: {$reason}",
-                'type'       => 'urgent_approval',
-                'created_at' => now(),
-                'updated_at' => now(),
+                'title'          => "Urgent Approval with ({$ref})",
+                'message'        => "Student Assistant " . ($user->name ?? 'Operations') . " marked {$ref} for {$filer} ({$venueName}) as URGENT. Reason: {$reason}",
+                'type'           => 'urgent_approval',
+                'target_type'    => 'venue_booking',
+                'target_id'      => $avrVenueBooking->id,
+                'reference_code' => $ref,
+                'created_at'     => now(),
+                'updated_at'     => now(),
             ]);
         }
 
+        // 3. Broadcast real-time event to Staff & Super Admin accounts
+        try {
+            event(new \App\Events\BookingStatusUpdated(
+                'venue_booking',
+                $ref,
+                'urgent_approval',
+                $avrVenueBooking->id,
+                $reason,
+                [
+                    'is_urgent'       => true,
+                    'tracking_number' => $ref,
+                    'reference_code'  => $ref,
+                    'venue_name'      => $venueName,
+                    'filer_name'      => $filer,
+                ]
+            ));
+        } catch (\Throwable $e) {}
+
         return response()->json([
-            'message' => "Urgent approval notification dispatched to Staff & Super Admin for {$ref}.",
-            'booking_id' => $avrVenueBooking->id,
-            'is_urgent' => true
+            'message'         => "Urgent approval notification dispatched for {$ref}.",
+            'booking_id'      => $avrVenueBooking->id,
+            'reference_code'  => $ref,
+            'tracking_number' => $ref,
+            'email_used'      => $email,
+            'is_urgent'       => true
         ]);
     }
 
     /**
      * Check vacant venues available during the booking's requested date & timeslot.
+     * Only appears if there is another booking having the same time & date for this venue (scheduling conflict).
      */
     public function vacantVenues(Request $request, VenueBooking $avrVenueBooking): JsonResponse
     {
@@ -597,6 +636,39 @@ class VenueBookingController extends Controller
         $timeStart  = $avrVenueBooking->time_start;
         $timeEnd    = $avrVenueBooking->time_end;
         $currentVenueId = $avrVenueBooking->venue_id;
+
+        // Check if there is ANOTHER booking for the SAME venue on this same date and overlapping timeslot
+        $hasConflictingBooking = VenueBooking::query()
+            ->join('tracking_numbers', 'venue_bookings.tracking_number_id', '=', 'tracking_numbers.id')
+            ->where('venue_bookings.id', '!=', $avrVenueBooking->id)
+            ->where('venue_bookings.venue_id', $currentVenueId)
+            ->whereNotIn('tracking_numbers.status', ['rejected', 'cancelled', 'completed'])
+            ->where(function ($q) use ($rawDate, $rawEndDate, $timeStart, $timeEnd) {
+                $q->where(function ($sub) use ($rawDate, $timeStart, $timeEnd) {
+                    $sub->where('venue_bookings.date_of_usage', '<=', $rawDate)
+                        ->whereRaw('COALESCE(venue_bookings.reservation_end_date, venue_bookings.date_of_usage) >= ?', [$rawDate])
+                        ->where('venue_bookings.time_start', '<', $timeEnd)
+                        ->where('venue_bookings.time_end', '>', $timeStart);
+                })->orWhere(function ($sub2) use ($rawDate, $rawEndDate, $timeStart, $timeEnd) {
+                    $sub2->where('venue_bookings.date_of_usage', '<=', $rawEndDate)
+                        ->whereRaw('COALESCE(venue_bookings.reservation_end_date, venue_bookings.date_of_usage) >= ?', [$rawDate])
+                        ->where('venue_bookings.time_start', '<', $timeEnd)
+                        ->where('venue_bookings.time_end', '>', $timeStart);
+                });
+            })
+            ->exists();
+
+        // If there is NO other booking on the requested venue, it is completely free; no referral needed!
+        if (!$hasConflictingBooking) {
+            return response()->json([
+                'date_of_usage' => $rawDate,
+                'time_start'    => $timeStart,
+                'time_end'      => $timeEnd,
+                'current_venue' => $avrVenueBooking->venue,
+                'has_conflict'  => false,
+                'vacant_venues' => [],
+            ]);
+        }
 
         // Find venues that have overlapping approved/ongoing reservations
         $busyVenueIds = VenueBooking::query()
@@ -636,6 +708,7 @@ class VenueBookingController extends Controller
             'time_start'    => $timeStart,
             'time_end'      => $timeEnd,
             'current_venue' => $avrVenueBooking->venue,
+            'has_conflict'  => true,
             'vacant_venues' => $vacantVenues,
         ]);
     }
