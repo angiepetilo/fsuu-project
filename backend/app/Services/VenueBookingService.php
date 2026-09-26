@@ -449,9 +449,7 @@ class VenueBookingService
 
             foreach ($competingPendingBookings as $competing) {
                 $competingStatus = strtolower($competing->tracking_status ?? $competing->status ?? 'pending');
-                $autoRejectReason = $isCompetingIncomplete
-                    ? "Schedule Conflict & Missing Requirements: This reservation was forfeited because required documents were not completed within the grace period. The venue slot was awarded to another applicant with complete requirements under university policy."
-                    : "Schedule Conflict (First-Come, First-Served): Another verified reservation for " . ($booking->venue?->name ?? 'this venue') . " on {$rawDate} ({$timeStart} - {$timeEnd}) completed all requirements and was awarded the slot first. You may refer to an available vacant venue or select a different timeslot.";
+                $autoRejectReason = "Schedule Conflict (First-Come, First-Served): Another verified reservation for " . ($booking->venue?->name ?? 'this venue') . " on {$rawDate} ({$timeStart} - {$timeEnd}) completed all requirements and was awarded the slot first. You may refer to an available vacant venue or select a different timeslot.";
 
                 if (\Illuminate\Support\Facades\Schema::hasColumn('venue_bookings', 'status')) {
                     $fillData = ['status' => 'rejected'];

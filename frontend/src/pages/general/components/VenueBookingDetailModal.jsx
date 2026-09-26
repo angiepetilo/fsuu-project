@@ -1259,7 +1259,7 @@ export default function VenueBookingDetailModal({
                       <span>Reason:</span>
                     </div>
                     <p className="font-semibold text-slate-800 leading-relaxed text-xs whitespace-pre-wrap">
-                      {selected.rejection_reason || selected.remarks || selected.comments || "Schedule conflict or missing requirements. Slot allocated per university policy."}
+                      {selected.rejection_reason || selected.remarks || selected.comments || "Schedule conflict. Slot allocated per university policy."}
                     </p>
                   </div>
                   {vacantVenuesList.length > 0 && (
@@ -1714,7 +1714,7 @@ export default function VenueBookingDetailModal({
                   type="button"
                   disabled={!!actionLoading || (!rejectionComments.trim() && !selectedViolationType)}
                   onClick={() => {
-                    const finalReason = rejectionComments.trim() || selectedViolationType || "Schedule conflict or missing documentation";
+                    const finalReason = rejectionComments.trim() || selectedViolationType || "Schedule conflict";
                     handleAction(selected.id, "reject", { remarks: finalReason, rejection_reason: finalReason, can_reappeal: true });
                   }}
                   className="px-4 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold cursor-pointer transition-colors shadow-xs flex items-center gap-1.5 disabled:opacity-50"

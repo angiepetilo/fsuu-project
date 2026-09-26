@@ -825,7 +825,7 @@ export default function TrackBooking() {
                           Reason for Rejection:
                         </span>
                         <p className="text-xs font-semibold text-foreground leading-relaxed whitespace-pre-wrap">
-                          {booking.rejection_reason || booking.remarks || "This request was not approved due to a schedule conflict or missing documentation. Please contact the PMO/AVR office."}
+                          {booking.rejection_reason || booking.remarks || "This request was not approved due to a schedule conflict. Another reservation was confirmed for this timeslot. Please contact the PMO/AVR office."}
                         </p>
                       </div>
 
