@@ -61,7 +61,6 @@ export const SETTINGS_CATEGORIES = [
         desc: "Master security authorization & override rules",
         icon: Key,
         permissionKey: "settings.pin",
-        superAdminOnly: true,
         protected: true,
       },
     ]
@@ -193,6 +192,7 @@ export default function Settings() {
     return SETTINGS_CATEGORIES.map((cat) => {
       const items = cat.items.filter((tab) => {
         if (isSuperAdmin) return true;
+        if (tab.id === "profile") return true;
         if (tab.superAdminOnly) return false;
 
         if (tab.permissionKey) {
@@ -305,13 +305,19 @@ export default function Settings() {
   const handleVerifyPassword = useCallback(async (e) => {
     e.preventDefault();
     if (!pwInput.trim()) {
-      setPwError("Please enter your password.");
+      setPwError("Please enter the Super Admin password.");
       return;
     }
     setVerifying(true);
     setPwError("");
     try {
-      await api.post("/verify-password", { password: pwInput });
+      const moduleName = PROTECTED_TAB_NAMES[pendingTab] || (pendingTab === "pin" ? "Verification PIN" : "System Settings");
+      await api.post("/verify-password", { 
+        password: pwInput, 
+        superadmin_only: true,
+        module: moduleName,
+        tab: pendingTab
+      });
       // Unlock the tab for this session
       setUnlockedTabs((prev) => new Set([...prev, pendingTab]));
       switchTab(pendingTab);
@@ -319,7 +325,7 @@ export default function Settings() {
       setPendingTab(null);
       setPwInput("");
     } catch (err) {
-      const msg = err.response?.data?.message || "Incorrect password. Please try again.";
+      const msg = err.response?.data?.message || "Incorrect Super Admin password. Only the Super Admin password can unlock this module.";
       setPwError(msg);
     } finally {
       setVerifying(false);
@@ -535,19 +541,19 @@ export default function Settings() {
 
             <form onSubmit={handleVerifyPassword} className="mt-4 space-y-4">
               <p className="text-xs text-slate-600 dark:text-slate-300 font-medium">
-                Please enter your password to unlock this protected settings module.
+                Please enter the Super Admin password to unlock this protected settings module.
               </p>
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-                  Password
+                  Super Admin Password
                 </label>
                 <div className="relative">
                   <input
                     type={showPw ? "text" : "password"}
                     value={pwInput}
                     onChange={(e) => { setPwInput(e.target.value); setPwError(""); }}
-                    placeholder="Enter your password"
+                    placeholder="Enter Super Admin password"
                     autoFocus
                     className={`w-full pl-3 pr-10 py-2.5 bg-slate-50 dark:bg-slate-800 border rounded-xl text-xs font-medium text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:outline-none transition-colors ${
                       pwError ? "border-red-400 focus:border-red-500" : "border-slate-200 dark:border-slate-700 focus:border-blue-500"

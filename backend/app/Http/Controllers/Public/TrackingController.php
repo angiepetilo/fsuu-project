@@ -156,20 +156,43 @@ class TrackingController extends Controller
             return response()->json(['message' => 'Reference code is required.'], 422);
         }
 
+        $refLower = strtolower($referenceCode);
         $tracking = \Illuminate\Support\Facades\DB::table('tracking_numbers')
-            ->where('reference_code', $referenceCode)
+            ->whereRaw('LOWER(reference_code) = ?', [$refLower])
             ->first();
 
-        $bookingId = $tracking ? $tracking->reservation_id : null;
-        $vb = $bookingId ? VenueBooking::find($bookingId) : VenueBooking::where('reference_code', $referenceCode)->first();
+        $type = 'venue';
+        $record = null;
 
-        if (!$vb) {
-            return response()->json(['message' => 'Venue reservation not found.'], 404);
+        if ($tracking) {
+            if (in_array($tracking->reservation_type, ['equipment_borrow', 'equipment_borrowing', 'equipment'])) {
+                $type = 'equipment';
+                $record = EquipmentBorrow::with(['items.equipmentType', 'trackingNumber', 'department'])->find($tracking->reservation_id);
+            } else {
+                $type = 'venue';
+                $record = VenueBooking::with(['venue', 'trackingNumber', 'department'])->find($tracking->reservation_id);
+            }
         }
 
-        $currentStatus = strtolower($vb->status ?? $vb->trackingNumber?->status ?? 'pending');
+        if (!$record) {
+            $record = VenueBooking::with(['venue', 'trackingNumber', 'department'])->where('reference_code', $referenceCode)->first();
+            if ($record) {
+                $type = 'venue';
+            } else {
+                $record = EquipmentBorrow::with(['items.equipmentType', 'trackingNumber', 'department'])->where('reference_code', $referenceCode)->first();
+                if ($record) {
+                    $type = 'equipment';
+                }
+            }
+        }
+
+        if (!$record) {
+            return response()->json(['message' => 'Reservation record not found.'], 404);
+        }
+
+        $currentStatus = strtolower($record->status ?? $record->trackingNumber?->status ?? 'pending');
         if (!in_array($currentStatus, ['incomplete', 'pending'])) {
-            return response()->json(['message' => "Cannot resubmit documents for a booking in status: {$currentStatus}."], 422);
+            return response()->json(['message' => "Cannot resubmit documents for a request in status: {$currentStatus}."], 422);
         }
 
         $uploadedUrls = [];
@@ -206,29 +229,39 @@ class TrackingController extends Controller
             $url = $mediaUploadService->upload($file, 'documents');
             $uploadedUrls[] = $url;
             \Illuminate\Support\Facades\DB::table('documents')->insert([
-                'venue_booking_id' => $vb->id,
-                'file_path'        => $url,
-                'document_type'    => 'resubmitted_requirement',
-                'status'           => 'pending',
-                'uploaded_at'      => now(),
-                'created_at'       => now(),
-                'updated_at'       => now(),
+                'venue_booking_id'    => $type === 'venue' ? $record->id : null,
+                'equipment_borrow_id' => $type === 'equipment' ? $record->id : null,
+                'reservation_type'    => $type === 'venue' ? 'venue_booking' : 'equipment_borrow',
+                'reservation_id'      => $record->id,
+                'file_path'           => $url,
+                'document_type'       => 'resubmitted_requirement',
+                'status'              => 'pending',
+                'uploaded_at'         => now(),
+                'created_at'          => now(),
+                'updated_at'          => now(),
             ]);
         }
 
         if ($request->hasFile('endorsement_file')) {
             $url = $mediaUploadService->upload($request->file('endorsement_file'), 'endorsements');
             $uploadedUrls[] = $url;
-            $vb->endorsement_url = $url;
-            $vb->endorsement_letter = $url;
+            if ($type === 'venue') {
+                $record->endorsement_url = $url;
+                $record->endorsement_letter = $url;
+            } else {
+                $record->endorsement_url = $url;
+            }
             \Illuminate\Support\Facades\DB::table('documents')->insert([
-                'venue_booking_id' => $vb->id,
-                'file_path'        => $url,
-                'document_type'    => 'endorsement_letter',
-                'status'           => 'pending',
-                'uploaded_at'      => now(),
-                'created_at'       => now(),
-                'updated_at'       => now(),
+                'venue_booking_id'    => $type === 'venue' ? $record->id : null,
+                'equipment_borrow_id' => $type === 'equipment' ? $record->id : null,
+                'reservation_type'    => $type === 'venue' ? 'venue_booking' : 'equipment_borrow',
+                'reservation_id'      => $record->id,
+                'file_path'           => $url,
+                'document_type'       => 'endorsement_letter',
+                'status'              => 'pending',
+                'uploaded_at'         => now(),
+                'created_at'          => now(),
+                'updated_at'          => now(),
             ]);
         }
 
@@ -237,10 +270,14 @@ class TrackingController extends Controller
         }
 
         // Transition back to pending / under review
-        $vb->status = 'pending';
-        $vb->is_complete = true;
-        $vb->resubmitted_at = now();
-        $vb->save();
+        $record->status = 'pending';
+        if (\Illuminate\Support\Facades\Schema::hasColumn($record->getTable(), 'is_complete')) {
+            $record->is_complete = true;
+        }
+        if (\Illuminate\Support\Facades\Schema::hasColumn($record->getTable(), 'resubmitted_at')) {
+            $record->resubmitted_at = now();
+        }
+        $record->save();
 
         if ($tracking) {
             \Illuminate\Support\Facades\DB::table('tracking_numbers')
@@ -250,22 +287,34 @@ class TrackingController extends Controller
 
         // Broadcast real-time status update
         try {
-            event(new \App\Events\BookingStatusUpdated('venue_booking', $referenceCode, 'pending', $vb->id, 'Missing requirements resubmitted by applicant'));
+            $eventName = $type === 'venue' ? 'venue_booking' : 'equipment_borrow';
+            event(new \App\Events\BookingStatusUpdated($eventName, $referenceCode, 'pending', $record->id, 'Missing requirements resubmitted by applicant'));
         } catch (\Throwable $e) {}
 
         // Notify Staff and Super Admin
         try {
+            $filerName = $record->filer_name ?? $record->requestor_name ?? 'Applicant';
             \App\Jobs\SendAdminPendingTaskNotificationJob::dispatch(
                 'requirements_resubmitted',
-                $vb,
-                "Applicant {$vb->filer_name} has uploaded missing requirements for reservation {$referenceCode}."
+                $record,
+                "Applicant {$filerName} has uploaded missing requirements for {$type} reservation {$referenceCode}."
+            );
+        } catch (\Throwable $e) {}
+
+        // Dispatch Email Notification to Requestor
+        try {
+            \App\Jobs\SendBookingStatusUpdateJob::dispatch(
+                $type,
+                $record->fresh(),
+                'requirements_resubmitted',
+                'Your missing requirement documents have been received successfully and your reservation has returned to PENDING REVIEW status.'
             );
         } catch (\Throwable $e) {}
 
         return response()->json([
             'message' => 'Missing requirements uploaded successfully! Your reservation has been returned to review.',
             'status'  => 'pending',
-            'booking' => $vb->fresh(['venue', 'trackingNumber', 'department', 'documents']),
+            'booking' => $record->fresh(),
         ]);
     }
 }

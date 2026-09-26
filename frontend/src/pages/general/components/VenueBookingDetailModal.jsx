@@ -59,7 +59,16 @@ export default function VenueBookingDetailModal({
   const [preInspectionStatus, setPreInspectionStatus] = useState("clean");
   const [preViolationNotes, setPreViolationNotes] = useState("");
   const [preSelectedViolationType, setPreSelectedViolationType] = useState("");
+  const [preEvidencePhoto, setPreEvidencePhoto] = useState([]);
   
+  // Vacant Venues & Referral State
+  const [vacantVenuesList, setVacantVenuesList] = useState([]);
+  const [loadingVacantVenues, setLoadingVacantVenues] = useState(false);
+  const [showReferralModal, setShowReferralModal] = useState(false);
+  const [reassigningVenue, setReassigningVenue] = useState(false);
+  const [selectedTargetVenueId, setSelectedTargetVenueId] = useState("");
+  const [referralRemarks, setReferralRemarks] = useState("");
+
   // Dynamic Rejection Reasons State
   const [rejectionReasons, setRejectionReasons] = useState([]);
   const [dbRejectionReasons, setDbRejectionReasons] = useState([]);
@@ -723,6 +732,70 @@ export default function VenueBookingDetailModal({
     return overrideCategories.filter(c => c.category && c.category !== "NONE" && c.quantity > 0);
   }, [isOverrideActive, requestedCategories, overrideCategories]);
 
+  // Physical units that are bundled as built-in components inside another parent unit
+  const bundledUnitIds = useMemo(() => {
+    const ids = new Set();
+    (physicalUnits || []).forEach((parent) => {
+      let rawList = parent.built_in_units;
+      if (typeof rawList === "string") {
+        try { rawList = JSON.parse(rawList); } catch { rawList = []; }
+      }
+      if (Array.isArray(rawList)) {
+        rawList.forEach((biId) => {
+          if (biId) ids.add(String(biId).trim().toUpperCase());
+        });
+      }
+    });
+    return ids;
+  }, [physicalUnits]);
+
+  // Fetch vacant venues available for this booking's date and timeslot
+  const fetchVacantVenues = useCallback(async (bId) => {
+    const idToUse = bId || selected?.id;
+    if (!idToUse) return;
+    setLoadingVacantVenues(true);
+    try {
+      const res = await api.get(`/avr-venue-bookings/${idToUse}/vacant-venues`);
+      const list = res.data?.vacant_venues || [];
+      setVacantVenuesList(list);
+      if (list.length > 0) {
+        setSelectedTargetVenueId(String(list[0].id));
+      }
+    } catch (e) {
+      // Ignore background error
+    } finally {
+      setLoadingVacantVenues(false);
+    }
+  }, [selected?.id]);
+
+  useEffect(() => {
+    if (selected?.id) {
+      fetchVacantVenues(selected.id);
+    }
+  }, [selected?.id, fetchVacantVenues]);
+
+  const handleReassignVenue = async (targetVenueId, customRemarks) => {
+    const vId = targetVenueId || selectedTargetVenueId;
+    if (!vId || !selected?.id) return;
+    setReassigningVenue(true);
+    try {
+      const res = await api.post(`/avr-venue-bookings/${selected.id}/reassign-venue`, {
+        venue_id: vId,
+        remarks: customRemarks || referralRemarks || "Referred and accommodated in available vacant venue for this schedule.",
+      });
+      notify.success("Venue Reassigned", res.data?.message || "Successfully referred reservation to vacant venue.");
+      if (setSelected) {
+        setSelected(res.data?.booking);
+      }
+      setShowReferralModal(false);
+      setReferralRemarks("");
+    } catch (err) {
+      notify.error("Reassign Failed", err.response?.data?.message || "Failed to reassign venue.");
+    } finally {
+      setReassigningVenue(false);
+    }
+  };
+
   if (!selected) return null;
 
   const currentStatus = (selected.status || selected.tracking_number?.status || "").toLowerCase();
@@ -748,23 +821,6 @@ export default function VenueBookingDetailModal({
 
   const formatTime12h = formatTime12;
   const formatDateTimeFiled = formatDateTime;
-
-  // Physical units that are bundled as built-in components inside another parent unit
-  const bundledUnitIds = useMemo(() => {
-    const ids = new Set();
-    (physicalUnits || []).forEach((parent) => {
-      let rawList = parent.built_in_units;
-      if (typeof rawList === "string") {
-        try { rawList = JSON.parse(rawList); } catch { rawList = []; }
-      }
-      if (Array.isArray(rawList)) {
-        rawList.forEach((biId) => {
-          if (biId) ids.add(String(biId).trim().toUpperCase());
-        });
-      }
-    });
-    return ids;
-  }, [physicalUnits]);
 
   const getAvailableUnitsForCategory = (catName, eqTypeId) => {
     if (!catName || catName === "NONE") return physicalUnits;
@@ -1180,16 +1236,40 @@ export default function VenueBookingDetailModal({
                 }`}>
                   <ShieldAlert size={20} />
                 </div>
-                <div className="space-y-1">
-                  <div className="text-xs font-black uppercase tracking-wider">
-                    {currentStatus.includes("reject") ? "Reservation Rejected" : "Reservation Cancelled"}
+                <div className="space-y-1.5 flex-1">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <span className="text-xs font-black uppercase tracking-wider text-rose-800">
+                      {currentStatus.includes("reject") ? "Reservation Rejected" : "Reservation Cancelled"}
+                    </span>
+                    {(selected.rejection_reason || selected.remarks || selected.comments) && (
+                      <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 border border-rose-200">
+                        {String(selected.rejection_reason || selected.remarks || '').toLowerCase().includes('conflict') 
+                          ? 'Schedule Conflict' 
+                          : String(selected.rejection_reason || selected.remarks || '').toLowerCase().includes('requirement') 
+                            ? 'Missing Requirements' 
+                            : 'Policy Review'}
+                      </span>
+                    )}
                   </div>
                   <p className="text-xs font-medium text-slate-600 leading-relaxed">
                     This venue reservation was {currentStatus.includes("reject") ? "rejected" : "cancelled"}. Under university facility policies, no facility or equipment inspection is conducted on cancelled or rejected reservations.
                   </p>
-                  {(selected.rejection_reason || selected.comments) && (
-                    <div className="mt-2 text-xs font-bold text-rose-700 bg-white/90 p-2.5 rounded-lg border border-rose-200">
-                      Reason: <span className="font-normal text-slate-800">{selected.rejection_reason || selected.comments}</span>
+                  <div className="mt-2 text-xs font-bold text-rose-900 bg-white/95 p-3 rounded-xl border border-rose-200 shadow-2xs space-y-1">
+                    <div className="text-[11px] font-black uppercase tracking-wider text-rose-700 flex items-center gap-1.5">
+                      <span>Reason:</span>
+                    </div>
+                    <p className="font-semibold text-slate-800 leading-relaxed text-xs whitespace-pre-wrap">
+                      {selected.rejection_reason || selected.remarks || selected.comments || "Schedule conflict or missing requirements. Slot allocated per university policy."}
+                    </p>
+                  </div>
+                  {vacantVenuesList.length > 0 && (
+                    <div className="mt-2 p-2.5 bg-blue-50/90 border border-blue-200 rounded-xl text-xs space-y-1">
+                      <span className="font-bold text-blue-900 flex items-center gap-1.5">
+                        💡 Vacant Venues at this Slot:
+                      </span>
+                      <p className="text-[11px] text-blue-700 font-medium">
+                        {vacantVenuesList.map(v => `${v.name} (Cap: ${v.capacity_min ? `${v.capacity_min}-${v.capacity_max}` : (v.capacity || '—')})`).join(', ')}
+                      </p>
                     </div>
                   )}
                 </div>
@@ -1205,6 +1285,84 @@ export default function VenueBookingDetailModal({
                 requestedCategories={requestedCategories}
                 setFullImageModal={setFullImageModal}
               />
+
+              {/* Vacant Venue Referral Option */}
+              {vacantVenuesList.length > 0 && canApprove && (
+                <div className="p-3.5 bg-gradient-to-r from-blue-50 via-indigo-50/40 to-white border border-blue-200 rounded-xl text-xs shadow-2xs space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold text-xs shadow-2xs">
+                        🏛️
+                      </div>
+                      <div>
+                        <span className="font-black text-blue-950 block">Vacant Alternative Venues Available</span>
+                        <span className="text-[11px] text-blue-700 font-medium">
+                          {vacantVenuesList.length} other room{vacantVenuesList.length > 1 ? 's are' : ' is'} vacant during this exact slot ({selected.date_of_usage} | {selected.time_start?.slice(0, 5)} - {selected.time_end?.slice(0, 5)}).
+                        </span>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowReferralModal(!showReferralModal)}
+                      className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-extrabold rounded-lg shadow-2xs transition-all cursor-pointer flex items-center gap-1"
+                    >
+                      <span>{showReferralModal ? "Hide Options" : "Refer to Vacant Venue"}</span>
+                    </button>
+                  </div>
+
+                  {showReferralModal && (
+                    <div className="pt-2 border-t border-blue-100 space-y-2.5 animate-in fade-in">
+                      <p className="text-[11px] text-slate-600 font-medium">
+                        Instead of rejecting due to a conflict, you can refer and transfer this reservation to an available vacant venue below:
+                      </p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {vacantVenuesList.map((v) => (
+                          <div
+                            key={v.id}
+                            className={`p-2.5 rounded-lg border transition-all cursor-pointer flex flex-col justify-between ${
+                              selectedTargetVenueId === String(v.id)
+                                ? "bg-blue-100/70 border-blue-500 ring-2 ring-blue-500/20"
+                                : "bg-white border-slate-200 hover:border-blue-300"
+                            }`}
+                            onClick={() => setSelectedTargetVenueId(String(v.id))}
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="font-bold text-slate-900 text-xs">{v.name}</span>
+                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 font-bold text-slate-700">
+                                Cap: {v.capacity_min ? `${v.capacity_min}-${v.capacity_max}` : (v.capacity || "—")}
+                              </span>
+                            </div>
+                            <span className="text-[10px] text-slate-500 mt-1 line-clamp-1">{v.location || v.description || "Campus Facility"}</span>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[11px] font-bold text-slate-700 block">Referral Remarks / Notification for Requestor (Optional)</label>
+                        <input
+                          type="text"
+                          value={referralRemarks}
+                          onChange={(e) => setReferralRemarks(e.target.value)}
+                          placeholder="e.g. Accommodated in AVR 2 to resolve scheduling conflict in AVR 1."
+                          className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500"
+                        />
+                      </div>
+
+                      <div className="flex justify-end gap-2 pt-1">
+                        <button
+                          type="button"
+                          disabled={reassigningVenue || !selectedTargetVenueId}
+                          onClick={() => handleReassignVenue()}
+                          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-lg shadow-xs cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+                        >
+                          {reassigningVenue ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
+                          <span>Confirm &amp; Reassign to Venue</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
               {currentStatus === "incomplete" ? (
                 <div className="py-3 px-4 bg-amber-50 border-2 border-amber-300 rounded-xl text-xs space-y-1.5 shadow-2xs">
                   <div className="flex items-center justify-between">
@@ -1475,18 +1633,74 @@ export default function VenueBookingDetailModal({
                 </div>
               )}
 
-              {selectedViolationType && selectedViolationType.toLowerCase().includes("other") && (
-                <div className="animate-in fade-in slide-in-from-top-2 duration-300">
-                  <label className="block text-[11px] font-bold text-slate-600 mb-1">Additional Remarks / Instructions for Applicant (Optional)</label>
-                  <textarea
-                    rows={2}
-                    value={rejectionComments}
-                    onChange={(e) => setRejectionComments(e.target.value)}
-                    placeholder="Provide specific notes or document instructions for the applicant..."
-                    className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-medium text-slate-800 focus:outline-none focus:border-rose-500"
-                  />
+              {/* Quick Template Reasons */}
+              <div className="space-y-1.5 pt-1">
+                <span className="text-[10.5px] font-extrabold uppercase text-slate-500 tracking-wider block">
+                  Quick Conflict &amp; Requirements Templates:
+                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const msg = "Schedule Conflict: The venue slot was awarded to another applicant who completed all requirements first (First-Come, First-Served policy).";
+                      setSelectedViolationType(msg);
+                      setRejectionComments(msg);
+                    }}
+                    className="px-2 py-1 rounded bg-slate-100 hover:bg-rose-50 hover:text-rose-700 text-slate-700 text-[11px] font-semibold border border-slate-200 transition-colors cursor-pointer text-left"
+                  >
+                    ⚡ Conflict: Awarded to applicant with complete requirements
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const msg = `Schedule Conflict: ${selected.venue?.name || 'This venue'} is already reserved for another confirmed activity on this timeslot.`;
+                      setSelectedViolationType(msg);
+                      setRejectionComments(msg);
+                    }}
+                    className="px-2 py-1 rounded bg-slate-100 hover:bg-rose-50 hover:text-rose-700 text-slate-700 text-[11px] font-semibold border border-slate-200 transition-colors cursor-pointer text-left"
+                  >
+                    ⚡ Conflict: Timeslot already occupied
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const msg = "Incomplete Requirements: Endorsement letter or departmental authorization was not submitted within the allowable grace period.";
+                      setSelectedViolationType(msg);
+                      setRejectionComments(msg);
+                    }}
+                    className="px-2 py-1 rounded bg-slate-100 hover:bg-rose-50 hover:text-rose-700 text-slate-700 text-[11px] font-semibold border border-slate-200 transition-colors cursor-pointer text-left"
+                  >
+                    ⚡ Missing Requirements / Grace period expired
+                  </button>
+                  {vacantVenuesList.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const target = vacantVenuesList[0];
+                        const msg = `Schedule Conflict: ${selected.venue?.name || 'Requested venue'} is occupied for this timeslot. However, ${target.name} (Capacity: ${target.capacity_max || target.capacity || '—'}) is vacant at this time. Please re-book or contact PMO to transfer your reservation to ${target.name}.`;
+                        setSelectedViolationType(msg);
+                        setRejectionComments(msg);
+                      }}
+                      className="px-2 py-1 rounded bg-blue-50 hover:bg-blue-100 text-blue-800 text-[11px] font-bold border border-blue-200 transition-colors cursor-pointer text-left flex items-center gap-1"
+                    >
+                      💡 Reject with Referral to Vacant {vacantVenuesList[0].name}
+                    </button>
+                  )}
                 </div>
-              )}
+              </div>
+
+              <div className="pt-1">
+                <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                  Rejection Remarks / Explanation for Applicant *
+                </label>
+                <textarea
+                  rows={3}
+                  value={rejectionComments}
+                  onChange={(e) => setRejectionComments(e.target.value)}
+                  placeholder="Explain why this reservation was rejected (e.g. Schedule conflict, missing endorsement, or vacant venue referral)..."
+                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-medium text-slate-800 focus:outline-none focus:border-rose-500 leading-relaxed"
+                />
+              </div>
 
               <div className="flex gap-2 justify-end">
                 <button
@@ -1500,7 +1714,7 @@ export default function VenueBookingDetailModal({
                   type="button"
                   disabled={!!actionLoading || (!rejectionComments.trim() && !selectedViolationType)}
                   onClick={() => {
-                    const finalReason = rejectionComments.trim() || selectedViolationType || "Missing required documentation";
+                    const finalReason = rejectionComments.trim() || selectedViolationType || "Schedule conflict or missing documentation";
                     handleAction(selected.id, "reject", { remarks: finalReason, rejection_reason: finalReason, can_reappeal: true });
                   }}
                   className="px-4 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold cursor-pointer transition-colors shadow-xs flex items-center gap-1.5 disabled:opacity-50"

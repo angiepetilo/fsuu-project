@@ -18,20 +18,69 @@
     $trackUrl = $baseUrl . '/track?tracking=' . urlencode($ref);
 @endphp
 
-@if(($status ?? '') === 'overdue')
+@php
+    $normStatus = strtolower(str_replace(['_', '-'], ' ', (string)($status ?? '')));
+@endphp
+
+@if(in_array($normStatus, ['overdue', 'passed due']))
 <p style="font-size: 16px; font-weight: bold; color: #dc2626;">URGENT FSUU OVERDUE NOTICE</p>
 <p>Good day, {{ $requestorName }}.</p>
-<p>Your {{ $itemType }} [<strong>{{ $ref }}</strong>] ({{ $formattedSchedule ?? ($formattedStart ?? 'Scheduled Time') }}) is now <strong>OVERDUE</strong> for return.</p>
-<p style="color: #b91c1c; font-weight: bold; background-color: #fef2f2; border-left: 4px solid #ef4444; padding: 12px 16px;">Please return all physical equipment units immediately to the AVR Center to avoid policy violation records and penalties.</p>
-@elseif(($type ?? 'venue') === 'equipment' && ($status ?? '') === 'approved')
-<p>Good day {{ $requestorName }}. Use reference code {{ $ref }} to claim your item.</p>
-<p>Please proceed to the office and present your School ID. Reminder: Arrive at least 15 minutes before your scheduled start time. Thank you.</p>
-@elseif(($status ?? '') === 'approved')
+@if(($type ?? 'venue') === 'equipment')
+<p>Your {{ $itemType }} [<strong>{{ $ref }}</strong>] (Scheduled: {{ $formattedSchedule ?? ($formattedStart ?? 'Scheduled Time') }}) is now <strong>OVERDUE</strong> for return.</p>
+<p style="color: #b91c1c; font-weight: bold; background-color: #fef2f2; border-left: 4px solid #ef4444; padding: 12px 16px;">Please return all physical equipment units immediately to the AVR Center to prevent administrative holds, policy violation records, and penalties.</p>
+@else
+<p>Your {{ $itemType }} [<strong>{{ $ref }}</strong>] (Scheduled: {{ $formattedSchedule ?? ($formattedStart ?? 'Scheduled Time') }}) has passed its scheduled reservation end time.</p>
+<p style="color: #b91c1c; font-weight: bold; background-color: #fef2f2; border-left: 4px solid #ef4444; padding: 12px 16px;">If your activity has concluded, please vacate the venue immediately or coordinate with the AVR Administrator for turnover inspection.</p>
+@endif
+
+@elseif(in_array($normStatus, ['exceed end time', 'exceeded end time', 'overtime']))
+<p style="font-size: 16px; font-weight: bold; color: #dc2626;">URGENT NOTICE: RESERVATION EXCEEDED SCHEDULED END TIME</p>
+<p>Good day, {{ $requestorName }}.</p>
+<p>Your {{ $itemType }} [<strong>{{ $ref }}</strong>] (Scheduled: {{ $formattedSchedule ?? ($formattedStart ?? 'Scheduled Time') }}) has <strong>exceeded its scheduled end time</strong>.</p>
+<div style="background-color: #fef2f2; border-left: 4px solid #ef4444; padding: 12px 16px; margin: 16px 0;">
+  <p style="margin: 0; color: #991b1b; font-weight: 600;">{{ $remarks ?? 'Please wrap up your activity immediately to avoid disrupting succeeding scheduled bookings and to complete post-use facility inspection.' }}</p>
+</div>
+<p>If you require an extension, please contact the AVR Center Administrator immediately.</p>
+
+@elseif(in_array($normStatus, ['late return', 'late']))
+<p style="font-size: 16px; font-weight: bold; color: #b45309;">NOTICE OF LATE RETURN TURNOVER</p>
+<p>Good day, {{ $requestorName }}.</p>
+<p>Your turnover for {{ $itemType }} [<strong>{{ $ref }}</strong>] has been received and logged as a <strong>Late Return</strong>.</p>
+<div style="background-color: #fffbeb; border-left: 4px solid #f59e0b; padding: 12px 16px; margin: 16px 0;">
+  <p style="margin: 0 0 6px 0; font-weight: bold; color: #92400e;">Turnover Record:</p>
+  <p style="margin: 0; color: #78350f;">{{ $remarks ?? 'Item returned after the scheduled end time.' }}</p>
+</div>
+<p>Please be reminded to adhere strictly to scheduled return times in future borrowings to ensure equipment availability for other university requestors.</p>
+
+@elseif(in_array($normStatus, ['completed', 'returned', 'done', 'cleared']))
+<p style="font-size: 16px; font-weight: bold; color: #15803d;">RESERVATION COMPLETED &amp; CLEARED</p>
+<p>Good day, {{ $requestorName }}.</p>
+<p>Your {{ $itemType }} [<strong>{{ $ref }}</strong>] ({{ $formattedSchedule ?? ($formattedStart ?? 'Scheduled Time') }}) has been marked as <strong>COMPLETED</strong>.</p>
+<div style="background-color: #f0fdf4; border-left: 4px solid #22c55e; padding: 12px 16px; margin: 16px 0;">
+  <p style="margin: 0; color: #166534; font-weight: 600;">{{ $remarks ?? 'All turnover procedures, condition checks, and equipment inspections have been successfully cleared.' }}</p>
+</div>
+<p>Thank you for your cooperation and for using Father Saturnino Urios University AVR facilities and equipment.</p>
+
+@elseif(in_array($normStatus, ['requirements resubmitted', 'resubmitted requirements', 'resubmitted']))
+<p style="font-size: 16px; font-weight: bold; color: #2563eb;">MISSING REQUIREMENTS RECEIVED — UNDER REVIEW</p>
+<p>Good day, {{ $requestorName }}.</p>
+<p>We have successfully received your re-uploaded requirement documents for {{ $itemType }} [<strong>{{ $ref }}</strong>].</p>
+<div style="background-color: #eff6ff; border-left: 4px solid #3b82f6; padding: 12px 16px; margin: 16px 0;">
+  <p style="margin: 0; color: #1e40af; font-weight: 600;">{{ $remarks ?? 'Your reservation status has been updated to PENDING REVIEW. Our administrative staff will re-evaluate your submitted documents shortly.' }}</p>
+</div>
+<p>You can monitor the review progress at any time via the official tracking portal.</p>
+
+@elseif(($type ?? 'venue') === 'equipment' && $normStatus === 'approved')
+<p>Good day, {{ $requestorName }}. Use reference code <strong>{{ $ref }}</strong> to claim your item.</p>
+<p>Please proceed to the office and present your physical <strong>School ID</strong>. Reminder: Arrive at least 15 minutes before your scheduled start time. Thank you.</p>
+
+@elseif($normStatus === 'approved')
 <p>Reminder: Please ensure you arrive at least 15 minutes before your scheduled start time.</p>
 <p>Good day, {{ $requestorName }}.</p>
-<p>Your {{ $itemType }} (Reference: {{ $ref }}) has been approved!<br>
+<p>Your {{ $itemType }} (Reference: <strong>{{ $ref }}</strong>) has been approved!<br>
 Scheduled date: {{ $formattedSchedule ?? ($formattedStart ?? 'Scheduled Time') }}.</p>
-@elseif(($status ?? '') === 'incomplete')
+
+@elseif($normStatus === 'incomplete')
 <p style="font-size: 16px; font-weight: bold; color: #d97706;">ACTION REQUIRED: MISSING REQUIREMENTS</p>
 <p>Good day, {{ $requestorName }}.</p>
 <p>Your {{ $itemType }} [<strong>{{ $ref }}</strong>] has been reviewed and requires additional documents before it can be finalized.</p>
@@ -46,13 +95,18 @@ Scheduled date: {{ $formattedSchedule ?? ($formattedStart ?? 'Scheduled Time') }
 </div>
 <p>You can upload your missing documents directly on the tracking portal:</p>
 <p><a href="{{ $trackUrl }}" style="display: inline-block; background-color: #2563eb; color: #ffffff; padding: 10px 18px; border-radius: 8px; text-decoration: none; font-weight: bold;">Upload Missing Documents &rarr;</a></p>
-@elseif(($status ?? '') === 'rejected')
+
+@elseif($normStatus === 'rejected')
 <p>Good day, {{ $requestorName }}.</p>
-<p>Your {{ $itemType }} (Reference: {{ $ref }}) was not approved.<br>
+<p>Your {{ $itemType }} (Reference: <strong>{{ $ref }}</strong>) was not approved.<br>
 Remarks: {{ $remarks ?? 'None provided' }}</p>
+
 @else
 <p>Good day, {{ $requestorName }}.</p>
-<p>Your {{ $itemType }} (Reference: {{ $ref }}) status has been updated to {{ ucfirst($status ?? 'updated') }}.</p>
+<p>Your {{ $itemType }} (Reference: <strong>{{ $ref }}</strong>) status has been updated to <strong>{{ ucfirst($status ?? 'updated') }}</strong>.</p>
+@if(!empty($remarks))
+<p>Remarks: {{ $remarks }}</p>
+@endif
 @endif
 
 <div class="summary-block">

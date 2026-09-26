@@ -36,7 +36,22 @@ class BookingStatusUpdateMail extends Mailable
     public function envelope(): Envelope
     {
         $label = $this->type === 'venue' ? 'Venue Reservation' : 'Equipment Borrowing';
-        $statusLabel = $this->status === 'overdue' ? 'URGENT OVERDUE REMINDER' : ucfirst($this->status);
+        $normalized = strtolower(str_replace(['_', '-'], ' ', (string)$this->status));
+
+        $statusLabel = match ($normalized) {
+            'approved' => 'Approved',
+            'rejected' => 'Reservation Not Approved',
+            'overdue', 'passed due' => 'URGENT OVERDUE NOTICE',
+            'late return', 'late' => 'Notice of Late Return',
+            'exceed end time', 'exceeded end time', 'overtime' => 'URGENT: Usage Exceeded Scheduled End Time',
+            'completed', 'returned', 'done', 'cleared' => 'Completed & Cleared',
+            'requirements resubmitted', 'resubmitted requirements' => 'Missing Requirements Received & Under Review',
+            'incomplete' => 'Action Required: Incomplete Requirements',
+            'cancelled' => 'Cancelled',
+            'reassigned' => 'Venue Referral & Reassignment',
+            default => ucfirst($this->status),
+        };
+
         return new Envelope(
             subject: "[{$this->refCode}] FSUU {$label} — {$statusLabel}"
         );

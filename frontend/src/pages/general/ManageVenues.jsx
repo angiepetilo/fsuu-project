@@ -12,6 +12,7 @@ import { PageLoader } from "@/components/ui/page-loader";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 import { AlertCircle } from "lucide-react";
+import notify from "@/lib/notify";
 
 export default function ManageVenues() {
   const { hasPermission } = usePermissions();
@@ -57,7 +58,6 @@ export default function ManageVenues() {
     venue_close: "17:00",
   });
 
-  const [feedback, setFeedback] = useState(null);
   const [saveLoading, setSaveLoading] = useState(false);
   const [overrides, setOverrides] = useState(() => {
     try {
@@ -68,11 +68,6 @@ export default function ManageVenues() {
     }
   });
   const [bookings, setBookings] = useState([]);
-
-  const showMsg = (msg) => {
-    setFeedback(msg);
-    setTimeout(() => setFeedback(null), 4000);
-  };
 
   const selectedOfficeId = context?.selectedOfficeId;
   const selectedOfficeName = context?.selectedOffice || officeScope;
@@ -145,7 +140,7 @@ export default function ManageVenues() {
         setBookings(bData);
       } catch {}
     } catch {
-      if (!isSilent) showMsg("⚠️ Error fetching venues list.");
+      if (!isSilent) notify.error("Fetch Error", "Error fetching venues list.");
     } finally {
       if (!isSilent) setLoading(false);
     }
@@ -258,8 +253,9 @@ export default function ManageVenues() {
         (statusVal === "maintenance" || statusVal === "closed") &&
         (currentDayStatus?.status === "partial" || currentDayStatus?.status === "fully")
       ) {
-        showMsg(
-          `❌ Action Blocked: Cannot set "${setupForm.status}" status on ${d}. The venue is already ${currentDayStatus.status} booked!`
+        notify.error(
+          "Action Blocked",
+          `Cannot set "${setupForm.status}" status on ${d}. The venue is already ${currentDayStatus.status} booked!`
         );
         return;
       }
@@ -296,9 +292,15 @@ export default function ManageVenues() {
           end_time: setupForm.endTime || "17:00",
         }).catch(() => {});
       }
-      showMsg(`✅ Operating status for "${selectedVenue?.name || 'Venue'}" updated to ${setupForm.status} across ${targetDates.length} date(s)!`);
+      notify.success(
+        "Status Updated",
+        `Operating status for "${selectedVenue?.name || 'Venue'}" updated to ${setupForm.status} across ${targetDates.length} date(s)!`
+      );
     } catch {
-      showMsg(`✅ Operating status override saved!`);
+      notify.success(
+        "Status Updated",
+        "Operating status override saved successfully."
+      );
     } finally {
       setSaveLoading(false);
       setOverrides(nextOverrides);
@@ -428,14 +430,6 @@ export default function ManageVenues() {
 
   return (
     <div className="space-y-6">
-
-
-      {feedback && (
-        <div className="fixed bottom-6 right-6 z-[3000] bg-slate-900 text-white text-xs font-extrabold px-5 py-3.5 rounded-2xl flex items-center gap-3 shadow-xl animate-in slide-in-from-bottom-5 duration-300 border border-slate-700 max-w-md">
-          <CheckCircle2 size={18} className="text-emerald-400 shrink-0" />
-          <span>{feedback}</span>
-        </div>
-      )}
 
       {/* Main Grid: Left Calendar & Right Availability Control Form with Equal Height Stretching */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">

@@ -113,23 +113,24 @@ class AbstractEmailValidationService
 
         $user = strtolower(trim($parts[0]));
         $domain = strtolower(trim($parts[1]));
+        $isInstitutional = in_array($domain, ['urios.edu.ph', 'fsuu.edu.ph'], true);
 
-        // 2. Institutional domain bypass
-        if (in_array($domain, ['urios.edu.ph', 'fsuu.edu.ph'], true)) {
+        // 2. Official institutional emails (@urios.edu.ph, @fsuu.edu.ph) contain NO numbers (e.g. student IDs like 202100452@urios.edu.ph are invalid)
+        if ($isInstitutional && preg_match('/[0-9]/', $user)) {
             return [
-                'valid'          => true,
+                'valid'          => false,
                 'email'          => $email,
                 'domain'         => $domain,
-                'deliverability' => 'DELIVERABLE',
+                'deliverability' => 'UNDELIVERABLE',
                 'is_disposable'  => false,
                 'autocorrect'    => null,
-                'quality_score'  => 1.0,
-                'message'        => "Official institutional email verified (@{$domain}).",
-                'source'         => 'institutional'
+                'quality_score'  => 0.0,
+                'message'        => 'Official institutional emails (@urios.edu.ph) do not contain numbers (e.g., student ID numbers like 202100452@urios.edu.ph are not valid). Please use your official name-based email (e.g., firstname.lastname@urios.edu.ph).',
+                'source'         => 'institutional_no_numbers_rule'
             ];
         }
 
-        // 3. Detect keyboard-mashed, randomized, or gibberish usernames (e.g. asdadadsa@gmail.com, asdfghjkl@gmail.com)
+        // 3. Detect keyboard-mashed, randomized, or gibberish usernames (e.g. aasdw, asdasd, asdfghjkl)
         if (self::isRandomOrGibberishUsername($user)) {
             return [
                 'valid'          => false,
@@ -139,7 +140,7 @@ class AbstractEmailValidationService
                 'is_disposable'  => false,
                 'autocorrect'    => null,
                 'quality_score'  => 0.0,
-                'message'        => 'This email address appears to be randomized or fake (keyboard mash detected). Please provide a real personal email.',
+                'message'        => 'This email address appears to be randomized or fake (keyboard mash detected). Please provide a real ' . ($isInstitutional ? 'official university' : 'personal') . ' email.',
                 'source'         => 'gibberish_detector'
             ];
         }
@@ -215,8 +216,8 @@ class AbstractEmailValidationService
                 'is_disposable'  => false,
                 'autocorrect'    => null,
                 'quality_score'  => 0.9,
-                'message'        => "Email domain @{$domain} is active and deliverable.",
-                'source'         => 'dns_fallback'
+                'message'        => $isInstitutional ? "Official institutional email verified (@{$domain})." : "Email domain @{$domain} is active and deliverable.",
+                'source'         => $isInstitutional ? 'institutional' : 'dns_fallback'
             ];
         }
 
@@ -237,8 +238,8 @@ class AbstractEmailValidationService
                 'is_disposable'  => false,
                 'autocorrect'    => null,
                 'quality_score'  => 0.85,
-                'message'        => "Email domain @{$domain} is active and deliverable.",
-                'source'         => 'dns_fallback'
+                'message'        => $isInstitutional ? "Official institutional email verified (@{$domain})." : "Email domain @{$domain} is active and deliverable.",
+                'source'         => $isInstitutional ? 'institutional' : 'dns_fallback'
             ];
         }
 
@@ -320,7 +321,7 @@ class AbstractEmailValidationService
                     'is_disposable'  => false,
                     'autocorrect'    => $autocorrect,
                     'quality_score'  => $qualityScore,
-                    'message'        => "Email address is active and deliverable.",
+                    'message'        => $isInstitutional ? "Official institutional email verified (@{$domain})." : "Email address is active and deliverable.",
                     'source'         => 'abstract_api'
                 ];
                 Cache::put($cacheKey, $result, 86400 * 14);
@@ -347,8 +348,8 @@ class AbstractEmailValidationService
                 'is_disposable'  => false,
                 'autocorrect'    => null,
                 'quality_score'  => 0.85,
-                'message'        => "Email domain @{$domain} is active and deliverable.",
-                'source'         => 'dns_fallback'
+                'message'        => $isInstitutional ? "Official institutional email verified (@{$domain})." : "Email domain @{$domain} is active and deliverable.",
+                'source'         => $isInstitutional ? 'institutional' : 'dns_fallback'
             ];
         } catch (\Throwable $e) {
             Log::warning("Abstract API email validation request exception: " . $e->getMessage());
@@ -362,8 +363,8 @@ class AbstractEmailValidationService
                 'is_disposable'  => false,
                 'autocorrect'    => null,
                 'quality_score'  => 0.85,
-                'message'        => "Email domain @{$domain} is active and deliverable.",
-                'source'         => 'dns_fallback'
+                'message'        => $isInstitutional ? "Official institutional email verified (@{$domain})." : "Email domain @{$domain} is active and deliverable.",
+                'source'         => $isInstitutional ? 'institutional' : 'dns_fallback'
             ];
         }
     }
@@ -375,24 +376,29 @@ class AbstractEmailValidationService
     {
         $user = strtolower(trim($user));
 
+        // 1. Obvious fake usernames
+        if (preg_match('/^(test|fake|dummy|sample|temp|random|nobody|void|anon|anonymous|asdf|qwerty|aasdw)[0-9_.-]*$/i', $user)) {
+            return true;
+        }
+
         // Strip numbers and common punctuation to analyze base alphabet pattern
         $clean = preg_replace('/[._\-0-9]/', '', $user);
         if (strlen($clean) < 4) {
-            return false; // Short usernames like 'dan', 'ana', 'ian' are allowed
+            return false; // Short real names like 'dan', 'ana', 'ian' are allowed
         }
 
         $len = strlen($clean);
 
-        // 1. QWERTY keyboard mash sequences
+        // 2. QWERTY / Gaming keyboard mash sequences
         $keyboardSequences = [
             'asdf', 'fdsa', 'qwer', 'rewq', 'zxcv', 'vcxz', 'hjkl', 'lkjh',
             'uiop', 'poiu', 'yuiop', 'tyui', 'ghjk', 'bnm', 'mnb',
-            'asda', 'dadad', 'adada', 'sasa', 'dsad', 'sdas', 'dsa', 'asd'
+            'asdw', 'wasd', 'sdwa', 'dwas', 'aasdw', 'asda', 'dadad', 'adada',
+            'sasa', 'dsad', 'sdas', 'dsa', 'asd', 'qwe', 'zxc', 'wsad'
         ];
         foreach ($keyboardSequences as $seq) {
             if (str_contains($clean, $seq) && $len <= 12) {
-                // If it contains keyboard sequence and matches common mash patterns
-                if (in_array($clean, ['casdas', 'asdasd', 'asdadadsa', 'asdadsa', 'asdfghjkl', 'asdf', 'asdfgh'])) {
+                if (in_array($clean, ['casdas', 'asdasd', 'asdadadsa', 'asdadsa', 'asdfghjkl', 'asdf', 'asdfgh', 'aasdw', 'asdw', 'wasd', 'wsad'])) {
                     return true;
                 }
                 if (strlen($seq) >= 4) {
@@ -401,40 +407,54 @@ class AbstractEmailValidationService
             }
         }
 
-        // 2. Low distinct character ratio (e.g. 'asdadadsa': length 9, but only 3 unique characters: 'a', 'd', 's')
+        // 3. Single-cluster keyboard mash patterns (e.g. aasdw, wasd, qwer, zxcv)
+        if ($len >= 4) {
+            if (preg_match('/^[asdw]+$/i', $clean)) return true;
+            if (preg_match('/^[qwer]+$/i', $clean)) return true;
+            if (preg_match('/^[zxcv]+$/i', $clean)) return true;
+            if (preg_match('/^[hjkl]+$/i', $clean)) return true;
+            if (preg_match('/^[uiop]+$/i', $clean)) return true;
+        }
+
+        // 4. Low distinct character ratio (e.g. 'asdadadsa': length 9, but only 3 unique characters)
         $uniqueCount = count(count_chars($clean, 1));
-        if ($len >= 6 && ($uniqueCount / $len) <= 0.38) {
+        if ($len >= 5 && ($uniqueCount / $len) <= 0.40) {
             return true;
         }
 
-        // 3. Repeating character clusters (e.g. 'aaaa', 'zzzzz', '1111')
+        // 5. Repeating character clusters (e.g. 'aaaa', 'zzzzz', '1111')
         if (preg_match('/(.)\1{3,}/', $user)) {
             return true;
         }
 
-        // 4. Repeated 2 or 3-char syllable loops (e.g. 'asdasd', 'dadada', 'ababab', 'xyxyxy')
+        // 6. Repeated 2 or 3-char syllable loops (e.g. 'asdasd', 'dadada', 'ababab', 'xyxyxy')
         if (preg_match('/^([a-z]{2,3})\1{2,}$/', $clean)) {
             return true;
         }
 
-        // 5. Unpronounceable consonant clusters (>= 5 consecutive consonants)
-        if (preg_match('/[bcdfghjklmnpqrstvwxz]{5,}/', $clean)) {
+        // 7. Unpronounceable consonant clusters (>= 4 consecutive consonants)
+        if (preg_match('/[bcdfghjklmnpqrstvwxz]{4,}/', $clean)) {
             return true;
         }
 
-        // 6. Long string with no vowels (>= 5 characters without a, e, i, o, u, y)
-        if ($len >= 5 && !preg_match('/[aeiouy]/', $clean)) {
+        // 8. Long string with no vowels (>= 4 characters without a, e, i, o, u, y)
+        if ($len >= 4 && !preg_match('/[aeiouy]/', $clean)) {
             return true;
         }
 
-        // 7. Alternating home-row / single row keyboard mash
-        if ($len >= 6 && preg_match('/^[asd]+$/', $clean)) {
+        // 9. Alternating home-row / single row keyboard mash
+        if ($len >= 5 && preg_match('/^[asd]+$/', $clean)) {
             return true;
         }
-        if ($len >= 6 && preg_match('/^[qwer]+$/', $clean)) {
+        if ($len >= 5 && preg_match('/^[qwer]+$/', $clean)) {
             return true;
         }
-        if ($len >= 6 && preg_match('/^[zxcv]+$/', $clean)) {
+        if ($len >= 5 && preg_match('/^[zxcv]+$/', $clean)) {
+            return true;
+        }
+
+        // 10. Non-natural ending consonant cluster (e.g. sdw, dfg, jkl)
+        if ($len >= 4 && preg_match('/[bcdfghjklmnpqrstvwxz]{3,}$/i', $clean) && !preg_match('/(ck|ch|sh|th|ng|ll|ss|tt|nt|nd|rt|rd|st|ld|lt|mp|rk|nk|sk)$/i', $clean)) {
             return true;
         }
 

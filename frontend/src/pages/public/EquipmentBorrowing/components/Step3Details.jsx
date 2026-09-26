@@ -115,6 +115,13 @@ export default function Step3Details({
       setEmailSuggestion("");
       return;
     }
+    const emailUser = trimmed.split("@")[0] || "";
+    if (/\d/.test(emailUser)) {
+      setEmailCheckStatus("invalid");
+      setEmailCheckMessage("Official institutional emails (@urios.edu.ph) do not contain numbers (e.g. 202100452@urios.edu.ph is not valid). Please use your official name-based email (e.g. firstname.lastname@urios.edu.ph).");
+      setEmailSuggestion("");
+      return;
+    }
     if (typeof overrideVal !== "string" && trimmed === lastCheckedEmail && emailCheckStatus !== "idle") {
       return;
     }
@@ -212,6 +219,15 @@ export default function Step3Details({
           setEmailCheckStatus("invalid");
           setEmailCheckMessage("Only official university email addresses ending with @urios.edu.ph are accepted for borrowing.");
           setOtpError("Please use your official university email (@urios.edu.ph).");
+          setIsSendingOtp(false);
+          return;
+        }
+
+        const otpUser = trimmed.split("@")[0] || "";
+        if (/\d/.test(otpUser)) {
+          setEmailCheckStatus("invalid");
+          setEmailCheckMessage("Official institutional emails (@urios.edu.ph) do not contain numbers (e.g. 202100452@urios.edu.ph is not valid). Please use your official name-based email.");
+          setOtpError("Official institutional emails do not contain numbers. Please use your name-based email.");
           setIsSendingOtp(false);
           return;
         }

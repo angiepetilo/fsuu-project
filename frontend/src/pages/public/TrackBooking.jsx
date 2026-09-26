@@ -224,6 +224,35 @@ export default function TrackBooking() {
 
   const isCompletedBooking = isCompletedStage;
 
+  // Check if borrowed equipment unit or facility usage is past due for return
+  const isPastDue = useMemo(() => {
+    if (!booking) return false;
+    const st = (booking.status || booking.tracking_number?.status || "").toLowerCase();
+    if (['completed', 'complete', 'done', 'returned', 'cleared', 'cancelled', 'rejected', 'cancelled_by_user'].includes(st)) {
+      return false;
+    }
+    const returnDate = booking.extend_of_date_returned || booking.extend_reservation_end_date || booking.reservation_end_date || booking.date_of_usage || booking.end_date || booking.start_datetime;
+    if (!returnDate) return false;
+
+    const returnTime = booking.time_end || (booking.end_datetime ? booking.end_datetime.slice(11, 19) : null) || "17:00:00";
+    const dStr = typeof returnDate === 'string' ? returnDate.split('T')[0] : new Date(returnDate).toISOString().split('T')[0];
+    
+    let tStr = "17:00:00";
+    if (returnTime.includes("AM") || returnTime.includes("PM")) {
+      try {
+        const d = new Date(`1970-01-01 ${returnTime.trim()}`);
+        if (!isNaN(d.getTime())) tStr = d.toTimeString().slice(0, 8);
+      } catch {}
+    } else {
+      const parts = returnTime.trim().split(":");
+      tStr = `${parts[0]?.padStart(2, '0') || '00'}:${parts[1]?.padStart(2, '0') || '00'}:00`;
+    }
+
+    const dueMs = new Date(`${dStr}T${tStr}`).getTime();
+    if (isNaN(dueMs)) return false;
+    return Date.now() > dueMs;
+  }, [booking]);
+
   const currentStep = booking
     ? (isVenue ? getVenueStepIndex(rawStatus) : getEquipmentStepIndex(rawStatus))
     : 1;
@@ -403,6 +432,28 @@ export default function TrackBooking() {
               <StatusBadge status={activeStatus} className="px-3 py-1 text-xs" />
             </div>
 
+            {/* OVERDUE EQUIPMENT RETURN BANNER */}
+            {isPastDue && (
+              <div className="p-4 bg-gradient-to-r from-rose-500/15 via-rose-500/10 to-transparent border-2 border-rose-500/40 rounded-2xl text-rose-950 dark:text-rose-200 shadow-sm flex items-start gap-3 animate-in fade-in slide-in-from-top-2">
+                <div className="p-2.5 bg-rose-500/20 text-rose-600 dark:text-rose-400 rounded-xl shrink-0 mt-0.5 shadow-2xs">
+                  <AlertTriangle size={22} className="animate-pulse" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <h4 className="text-xs font-black uppercase tracking-wider text-rose-700 dark:text-rose-300">
+                      {isVenue ? "Facility Usage & Equipment Return Overdue" : "Equipment Unit(s) Past Due for Return"}
+                    </h4>
+                    <span className="text-[11px] font-extrabold px-2.5 py-0.5 rounded-full bg-rose-500/20 text-rose-700 dark:text-rose-300 border border-rose-500/30">
+                      Scheduled End: {usageTimeRange}
+                    </span>
+                  </div>
+                  <p className="text-xs text-rose-800 dark:text-rose-200 mt-1 font-medium leading-relaxed">
+                    The scheduled return time for the equipment unit(s) borrowed under Reference Code <strong>{booking.reference_code || trackCode}</strong> has elapsed. Please return all physical units immediately to the PMO / AVR office or equipment kiosk to finalize condition clearance and prevent late policy penalties.
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* Details Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
               <div className="bg-muted/30 p-4 rounded-xl border border-border/60">
@@ -464,10 +515,17 @@ export default function TrackBooking() {
               </div>
               {booking.assigned_units && Object.keys(typeof booking.assigned_units === 'string' ? JSON.parse(booking.assigned_units || '{}') : booking.assigned_units).length > 0 ? (
                 <div className="bg-muted/30 p-4 rounded-xl border border-border/60">
-                  <span className="text-muted-foreground font-semibold uppercase text-[11px] block">Assigned Physical Unit(s)</span>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground font-semibold uppercase text-[11px] block">Assigned Physical Unit(s)</span>
+                    {isPastDue && (
+                      <span className="text-[10px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-700 dark:text-rose-300 border border-rose-500/30 flex items-center gap-1">
+                        <AlertTriangle size={10} /> Overdue
+                      </span>
+                    )}
+                  </div>
                   <div className="flex flex-wrap gap-1 mt-1">
                     {Object.values(typeof booking.assigned_units === 'string' ? JSON.parse(booking.assigned_units || '{}') : booking.assigned_units).map((code, uIdx) => (
-                      <span key={uIdx} className="px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 border border-purple-200 dark:bg-purple-500/15 dark:text-purple-300 dark:border-purple-500/30 text-xs font-semibold">
+                      <span key={uIdx} className={`px-2 py-0.5 rounded-md text-xs font-semibold ${isPastDue ? 'bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-500/15 dark:text-rose-300 dark:border-rose-500/30' : 'bg-purple-50 text-purple-700 border border-purple-200 dark:bg-purple-500/15 dark:text-purple-300 dark:border-purple-500/30'}`}>
                         Unit {code}
                       </span>
                     ))}
@@ -476,8 +534,13 @@ export default function TrackBooking() {
               ) : (
                 <div className="bg-muted/30 p-4 rounded-xl border border-border/60">
                   <span className="text-muted-foreground font-semibold uppercase text-[11px] block">Physical Unit Status</span>
-                  <span className="text-xs font-semibold text-muted-foreground">
-                    {['ongoing', 'on-going', 'released', 'in-use', 'borrowed'].includes((activeStatus || '').toLowerCase())
+                  <span className={`text-xs font-semibold ${isPastDue ? 'text-rose-600 dark:text-rose-400 font-bold flex items-center gap-1' : 'text-muted-foreground'}`}>
+                    {isPastDue ? (
+                      <>
+                        <AlertTriangle size={13} className="animate-pulse" />
+                        <span>Past Due for Return (Overdue)</span>
+                      </>
+                    ) : ['ongoing', 'on-going', 'released', 'in-use', 'borrowed'].includes((activeStatus || '').toLowerCase())
                       ? 'Released to Borrower'
                       : ['completed', 'done', 'cleared'].includes((activeStatus || '').toLowerCase())
                         ? 'Returned to Kiosk'
@@ -735,9 +798,43 @@ export default function TrackBooking() {
 
               {/* Rejection / Cancellation Callouts */}
               {(activeStatus || '').toLowerCase() === 'rejected' && (
-                <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-2xl text-rose-900 text-xs font-bold flex items-center gap-2">
-                  <AlertCircle size={18} className="text-rose-600 shrink-0" />
-                  <span><strong>Requisition Rejected:</strong> This request was not approved. {booking.rejection_reason || booking.remarks ? `Remarks: ${booking.rejection_reason || booking.remarks}` : "Please contact the PMO/AVR office."}</span>
+                <div className="p-4 bg-gradient-to-r from-rose-500/15 via-rose-500/10 to-transparent border-2 border-rose-500/40 rounded-2xl text-rose-950 dark:text-rose-200 shadow-sm space-y-2.5 animate-in fade-in slide-in-from-top-2">
+                  <div className="flex items-start gap-3">
+                    <div className="p-2 bg-rose-500/20 text-rose-600 dark:text-rose-400 rounded-xl shrink-0 mt-0.5 shadow-2xs">
+                      <AlertCircle size={22} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <h4 className="text-xs font-black uppercase tracking-wider text-rose-700 dark:text-rose-300">
+                          Requisition Rejected
+                        </h4>
+                        {(booking.rejection_reason || booking.remarks) && (
+                          <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-700 dark:text-rose-300 border border-rose-500/30">
+                            {String(booking.rejection_reason || booking.remarks).toLowerCase().includes('conflict') 
+                              ? 'Schedule Conflict' 
+                              : String(booking.rejection_reason || booking.remarks).toLowerCase().includes('requirement') 
+                                ? 'Incomplete Requirements' 
+                                : 'Administrative Review'}
+                          </span>
+                        )}
+                      </div>
+                      
+                      {/* Detailed Rejection Reason */}
+                      <div className="mt-2 p-3 bg-card/90 border border-rose-500/30 rounded-xl shadow-2xs space-y-1">
+                        <span className="text-[11px] font-extrabold uppercase tracking-wide text-rose-600 dark:text-rose-400 block">
+                          Reason for Rejection:
+                        </span>
+                        <p className="text-xs font-semibold text-foreground leading-relaxed whitespace-pre-wrap">
+                          {booking.rejection_reason || booking.remarks || "This request was not approved due to a schedule conflict or missing documentation. Please contact the PMO/AVR office."}
+                        </p>
+                      </div>
+
+                      {/* Conflict & Re-booking Policy Guidance */}
+                      <p className="text-[11.5px] text-rose-900/80 dark:text-rose-300/80 mt-2 font-medium leading-relaxed">
+                        Under university facility booking policies, reservations for the same venue and timeslot are processed on a First-Come, First-Served basis among applicants who have completed all required endorsements. You may submit a new reservation for an available vacant venue or alternative schedule.
+                      </p>
+                    </div>
+                  </div>
                 </div>
               )}
 

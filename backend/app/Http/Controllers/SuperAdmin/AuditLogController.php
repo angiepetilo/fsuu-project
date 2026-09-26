@@ -397,7 +397,9 @@ class AuditLogController extends Controller
                 } elseif ($action === 'change_password') {
                     $query->whereIn('action', ['PASSWORD_CHANGED', 'PASSWORD_UPDATED']);
                 } elseif ($action === 'verification_pin') {
-                    $query->whereIn('action', ['VERIFICATION_PIN_UPDATED', 'PIN_VERIFIED', 'verification_pin_updated']);
+                    $query->whereIn('action', ['VERIFICATION_PIN_UPDATED', 'PIN_VERIFIED', 'verification_pin_updated', 'VERIFICATION_PIN_ACCESS_GRANTED', 'VERIFICATION_PIN_ACCESS_DENIED']);
+                } elseif ($action === 'system_settings' || $action === 'security_verification') {
+                    $query->whereIn('action', ['SYSTEM_SETTINGS_ACCESS_GRANTED', 'SYSTEM_SETTINGS_ACCESS_DENIED', 'SECURITY_ACCESS_GRANTED', 'SECURITY_ACCESS_DENIED', 'SYSTEM_SETTINGS_UPDATED']);
                 } elseif ($action === 'equipment_category') {
                     $query->whereIn('action', [
                         'EQUIPMENT_CATEGORY_CREATED', 'EQUIPMENT_CATEGORY_UPDATED', 'EQUIPMENT_CATEGORY_DELETED',

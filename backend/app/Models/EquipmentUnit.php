@@ -35,6 +35,37 @@ class EquipmentUnit extends Model
         'built_in_models' => 'array',
     ];
 
+    protected $appends = ['serial_no'];
+
+    public function setSerialNumberAttribute($value)
+    {
+        $val = !is_null($value) ? trim((string)$value) : null;
+        $this->attributes['serial_number'] = $val;
+        $this->attributes['barcode'] = $val;
+    }
+
+    public function setBarcodeAttribute($value)
+    {
+        $val = !is_null($value) ? trim((string)$value) : null;
+        $this->attributes['barcode'] = $val;
+        $this->attributes['serial_number'] = $val;
+    }
+
+    public function getSerialNumberAttribute($value)
+    {
+        return $value ?: ($this->attributes['barcode'] ?? null);
+    }
+
+    public function getBarcodeAttribute($value)
+    {
+        return $value ?: ($this->attributes['serial_number'] ?? null);
+    }
+
+    public function getSerialNoAttribute(): ?string
+    {
+        return $this->serial_number ?: ($this->barcode ?? null);
+    }
+
     public function equipmentType(): BelongsTo
     {
         return $this->belongsTo(EquipmentType::class);

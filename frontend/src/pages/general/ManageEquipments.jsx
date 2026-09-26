@@ -251,7 +251,6 @@ export default function ManageEquipments() {
     }
 
     const enteredSerial = (formData.serial_number || formData.barcode || "").trim();
-    const enteredBarcode = (formData.barcode || "").trim();
 
     // Duplicate check for Serial No.
     if (enteredSerial) {
@@ -262,20 +261,6 @@ export default function ManageEquipments() {
         notify.error(
           "Duplicate Serial No.",
           `Serial No. "${enteredSerial}" is already assigned to an equipment unit. Every unit must have a unique Serial No.`
-        );
-        return;
-      }
-    }
-
-    // Duplicate check for Barcode (if provided)
-    if (enteredBarcode) {
-      const duplicateBarcode = units.find(u =>
-        (u.barcode || "").trim().toLowerCase() === enteredBarcode.toLowerCase()
-      );
-      if (duplicateBarcode) {
-        notify.error(
-          "Duplicate Barcode",
-          `Barcode "${enteredBarcode}" is already assigned to an equipment unit. Every unit must have a unique barcode.`
         );
         return;
       }
@@ -305,7 +290,7 @@ export default function ManageEquipments() {
       brand: formData.brand || "",
       model: formData.model || "",
       serial_number: enteredSerial || `SN-${Date.now().toString().slice(-6)}`,
-      barcode: enteredBarcode || "",
+      barcode: enteredSerial || `SN-${Date.now().toString().slice(-6)}`,
       name: unitDisplayName,
       category: matchedCat.eq_name || matchedCat.name || "AV Equipment",
       status: "Available",
@@ -330,7 +315,7 @@ export default function ManageEquipments() {
         brand: formData.brand || undefined,
         model: formData.model || undefined,
         serial_number: enteredSerial || undefined,
-        barcode: enteredBarcode || undefined,
+        barcode: enteredSerial || undefined,
         purchased_at: formData.date_purchased || undefined,
         eq_lifespan: parseInt(formData.lifespan_years, 10) || 5,
         status: formData.status || "available",
@@ -397,7 +382,6 @@ export default function ManageEquipments() {
     if (!editingItem) return;
 
     const enteredSerial = (editFormData.serial_number || editFormData.barcode || "").trim();
-    const enteredBarcode = (editFormData.barcode || "").trim();
 
     // Duplicate check for Serial No.
     if (enteredSerial) {
@@ -409,20 +393,6 @@ export default function ManageEquipments() {
         notify.error(
           "Duplicate Serial No.",
           `Serial No. "${enteredSerial}" is already assigned to "${duplicateSerial.name || duplicateSerial.brand || 'another unit'}". Every unit must have a unique Serial No.`
-        );
-        return;
-      }
-    }
-
-    // Duplicate check for Barcode (if provided)
-    if (enteredBarcode) {
-      const duplicateUnit = units.find(u =>
-        u.id !== editingItem.id && (u.barcode || "").trim().toLowerCase() === enteredBarcode.toLowerCase()
-      );
-      if (duplicateUnit) {
-        notify.error(
-          "Duplicate Barcode",
-          `Barcode "${enteredBarcode}" is already assigned to "${duplicateUnit.name || duplicateUnit.brand || 'another unit'}". Every unit must have a unique barcode.`
         );
         return;
       }
@@ -445,7 +415,7 @@ export default function ManageEquipments() {
       brand: editFormData.brand || "",
       model: editFormData.model || "",
       serial_number: enteredSerial || editFormData.serial_number,
-      barcode: enteredBarcode,
+      barcode: enteredSerial || editFormData.serial_number,
       category: matchedCat.eq_name || matchedCat.name || editingItem.category,
       status: editFormData.status === "available" ? "Available" : "Unavailable",
       condition: editFormData.condition || "Good",
@@ -466,7 +436,7 @@ export default function ManageEquipments() {
         brand: editFormData.brand || undefined,
         model: editFormData.model || undefined,
         serial_number: enteredSerial || undefined,
-        barcode: enteredBarcode || undefined,
+        barcode: enteredSerial || undefined,
         purchased_at: editFormData.date_purchased,
         eq_lifespan: parseInt(editFormData.lifespan_years, 10) || 5,
         status: editFormData.status || "available",
@@ -736,15 +706,12 @@ export default function ManageEquipments() {
                               <Barcode size={14} className="text-blue-600 dark:text-blue-400 shrink-0" />
                               <span>{item.serial_number || item.barcode}</span>
                             </div>
-                            {item.barcode && item.serial_number && item.barcode !== item.serial_number && (
-                              <span className="text-[10px] text-slate-400 font-mono pl-1">BC: {item.barcode}</span>
-                            )}
                           </div>
                           <button
                             type="button"
                             onClick={() => handleCopyBarcode(item.serial_number || item.barcode)}
                             className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer"
-                            title="Copy Serial / Barcode"
+                            title="Copy Serial No."
                           >
                             {copiedBarcode === (item.serial_number || item.barcode) ? (
                               <Check size={13} className="text-emerald-600 font-extrabold" />

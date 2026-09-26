@@ -441,6 +441,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/avr-venue-bookings/{avrVenueBooking}/undo',              [VenueBookingController::class, 'undo']);
     Route::post('/avr-venue-bookings/{avrVenueBooking}/cancel',    [VenueBookingController::class, 'cancel']);
     Route::post('/avr-venue-bookings/{avrVenueBooking}/upload-document', [VenueBookingController::class, 'uploadDocument']);
+    Route::get('/avr-venue-bookings/{avrVenueBooking}/vacant-venues',    [VenueBookingController::class, 'vacantVenues']);
+    Route::post('/avr-venue-bookings/{avrVenueBooking}/reassign-venue',  [VenueBookingController::class, 'reassignVenue']);
+    Route::post('/avr-venue-bookings/{id}/resend-email',                 [VenueBookingController::class, 'resendEmail']);
+    Route::post('/avr-venue-bookings/{id}/send-overtime-reminder',        [VenueBookingController::class, 'sendOvertimeReminder']);
     Route::put('/avr-venue-bookings/{avrVenueBooking}/assign-units', [VenueBookingController::class, 'assignUnits']);
     Route::put('/avr-venue-bookings/{avrVenueBooking}/override',     [VenueBookingController::class, 'override']);
 
@@ -459,6 +463,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/avr-equipment-borrowings/{id}/resend-email',            [EquipmentBorrowingController::class, 'resendEmail']);
     Route::post('/avr-equipment-borrowings/{id}/send-overdue-sms',        [EquipmentBorrowingController::class, 'sendOverdueSms']);
     Route::post('/avr-equipment-borrowings/{id}/send-return-reminder',    [EquipmentBorrowingController::class, 'sendReturnReminder']);
+    Route::post('/avr-equipment-borrowings/{id}/send-overtime-reminder',  [EquipmentBorrowingController::class, 'sendOvertimeReminder']);
     Route::put('/avr-equipment-borrowings/{equipmentBorrowing}/assign-units', [EquipmentBorrowingController::class, 'assignUnits']);
     Route::put('/avr-equipment-borrowings/{equipmentBorrowing}/override',     [EquipmentBorrowingController::class, 'override']);
 

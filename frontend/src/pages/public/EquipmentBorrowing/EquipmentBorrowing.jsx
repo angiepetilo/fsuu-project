@@ -345,6 +345,11 @@ export default function EquipmentBorrowing({ isPortal: isPortalProp }) {
       alert("Only official university email addresses ending with @urios.edu.ph are accepted for borrowing.");
       return;
     }
+    const cleanUser = cleanEmail.split("@")[0] || "";
+    if (/\d/.test(cleanUser)) {
+      alert("Official institutional emails (@urios.edu.ph) do not contain numbers (e.g. 202100452@urios.edu.ph is not valid). Please use your official name-based university email.");
+      return;
+    }
     const requireVerify = pinRules ? (pinRules.isEnabled !== false && (pinRules.equipmentVerifyEmail === true || pinRules.equipmentVerifyPhone === true)) : false;
 
     if (requireVerify && !isEmailVerified) {

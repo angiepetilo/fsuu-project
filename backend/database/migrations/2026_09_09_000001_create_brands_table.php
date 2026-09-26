@@ -16,6 +16,7 @@ return new class extends Migration
             Schema::create('brands', function (Blueprint $table) {
                 $table->id();
                 $table->string('name')->unique();
+                $table->foreignId('equipment_type_id')->nullable()->constrained('equipment_types')->nullOnDelete();
                 $table->text('description')->nullable();
                 $table->enum('status', ['active', 'inactive'])->default('active');
                 $table->timestamps();

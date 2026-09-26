@@ -51,6 +51,7 @@ class VenueBooking extends Model
         'incomplete_at',
         'incomplete_deadline_at',
         'resubmitted_at',
+        'rejection_reason',
     ];
 
     protected $casts = [
@@ -68,7 +69,30 @@ class VenueBooking extends Model
         'resubmitted_at'              => 'datetime',
     ];
 
-    protected $appends = ['reference_code', 'status', 'endorsement_url', 'filer_name', 'extend_reservation_end_date', 'is_email_verified', 'is_phone_verified'];
+    protected $appends = ['reference_code', 'status', 'endorsement_url', 'filer_name', 'extend_reservation_end_date', 'is_email_verified', 'is_phone_verified', 'rejection_reason'];
+
+    public function getRejectionReasonAttribute(): ?string
+    {
+        if (!empty($this->attributes['rejection_reason'])) {
+            return $this->attributes['rejection_reason'];
+        }
+        try {
+            $lastApproval = \Illuminate\Support\Facades\DB::table('approvals')
+                ->where(function ($q) {
+                    $q->where('reference_type', 'avr_venue_booking')
+                      ->orWhere('reference_type', 'venue_booking');
+                })
+                ->where('reference_id', $this->id)
+                ->where('action', 'rejected')
+                ->latest('id')
+                ->value('remarks');
+            if (!empty($lastApproval)) {
+                return $lastApproval;
+            }
+        } catch (\Throwable $t) {}
+
+        return null;
+    }
 
     public function getIsEmailVerifiedAttribute(): bool
     {

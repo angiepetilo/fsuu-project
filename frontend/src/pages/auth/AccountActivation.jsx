@@ -283,8 +283,8 @@ export default function AccountActivation() {
         )}
 
         <div className="text-center mt-6 pt-4 border-t border-slate-100">
-          <Link to="/login" className="text-xs font-extrabold text-blue-600 hover:underline">
-            Back to Sign In
+          <Link to="/" className="text-xs font-extrabold text-blue-600 hover:underline">
+            Back to Homepage
           </Link>
         </div>
       </div>

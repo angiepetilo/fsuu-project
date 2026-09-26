@@ -18,7 +18,7 @@ class DisposableEmailPreventionTest extends TestCase
     }
 
     /**
-     * Test that institutional emails (@urios.edu.ph, @fsuu.edu.ph) are always verified.
+     * Test that institutional emails (@urios.edu.ph, @fsuu.edu.ph) are verified when name-based.
      */
     public function test_institutional_emails_pass_verification(): void
     {
@@ -26,6 +26,7 @@ class DisposableEmailPreventionTest extends TestCase
             'student@urios.edu.ph',
             'faculty@fsuu.edu.ph',
             'ADMIN@URIOS.EDU.PH',
+            'angie.petilo@urios.edu.ph',
         ];
 
         foreach ($institutionalEmails as $email) {
@@ -36,7 +37,29 @@ class DisposableEmailPreventionTest extends TestCase
                     'valid'         => true,
                     'deliverability'=> 'DELIVERABLE',
                     'is_disposable' => false,
-                    'source'        => 'institutional',
+                ]);
+        }
+    }
+
+    /**
+     * Test that institutional emails containing numbers (e.g. 202100452@urios.edu.ph) are rejected.
+     */
+    public function test_institutional_emails_with_numbers_are_rejected(): void
+    {
+        $invalidNumberedEmails = [
+            '202100452@urios.edu.ph',
+            'student123@urios.edu.ph',
+            '202212345@fsuu.edu.ph',
+            'john.doe1@urios.edu.ph',
+        ];
+
+        foreach ($invalidNumberedEmails as $email) {
+            $response = $this->postJson('/api/public/verify-email-active', ['email' => $email]);
+
+            $response->assertStatus(422)
+                ->assertJson([
+                    'valid'          => false,
+                    'deliverability' => 'UNDELIVERABLE',
                 ]);
         }
     }

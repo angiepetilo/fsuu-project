@@ -18,15 +18,30 @@ class Venue extends Model
         'avatar',
         'location',
         'capacity',
+        'min_capacity',
+        'max_capacity',
         'status',
         'allowed_equipment',
         'equipment_max_qtys',
     ];
 
     protected $casts = [
-        'allowed_equipment' => 'array',
+        'capacity'           => 'integer',
+        'min_capacity'       => 'integer',
+        'max_capacity'       => 'integer',
+        'allowed_equipment'  => 'array',
         'equipment_max_qtys' => 'array',
     ];
+
+    public function getMaxCapacityAttribute($val)
+    {
+        return $val ?? $this->attributes['capacity'] ?? 100;
+    }
+
+    public function getMinCapacityAttribute($val)
+    {
+        return $val ?? 1;
+    }
 
     public function venueBookings(): HasMany
     {

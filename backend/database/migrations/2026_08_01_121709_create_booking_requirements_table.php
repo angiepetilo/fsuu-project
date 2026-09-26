@@ -15,6 +15,7 @@ return new class extends Migration
             $table->text('description')->nullable();
             $table->text('template_file_url')->nullable();
             $table->string('template_file_name')->nullable();
+            $table->string('template_display_mode')->default('download');
             $table->longText('format_content')->nullable();
             $table->unsignedSmallInteger('sort_order')->default(0);
             $table->timestamps();

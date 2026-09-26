@@ -556,6 +556,27 @@ class EquipmentBorrowingController extends Controller
                 ]);
             } catch (\Throwable $e) {}
 
+            // Dispatch completion or late return email notification to borrower
+            try {
+                $eqStatus = $isLate ? 'late return' : ($condition === 'damaged' ? 'damaged' : ($condition === 'lost' ? 'lost' : 'completed'));
+                $eqRemarks = $isLate
+                    ? "Equipment returned {$minutesLate} minutes late. Logged as Late Return."
+                    : ($condition === 'damaged' 
+                        ? "Equipment returned with reported damage. Inspection notes: {$notes}"
+                        : ($condition === 'lost' 
+                            ? "Equipment unit reported missing/lost."
+                            : "All borrowed equipment units returned safely and inspected in complete order. Thank you!"));
+
+                \App\Jobs\SendBookingStatusUpdateJob::dispatch(
+                    'equipment',
+                    $equipmentBorrowing->fresh(['items.equipmentType', 'trackingNumber']),
+                    $eqStatus,
+                    $eqRemarks
+                );
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning("Failed to dispatch equipment completion email: " . $e->getMessage());
+            }
+
             return response()->json($equipmentBorrowing->fresh(['items.equipmentType', 'trackingNumber']));
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::error("EquipmentBorrowingController::complete error: " . $e->getMessage() . " on line " . $e->getLine());
@@ -624,12 +645,26 @@ class EquipmentBorrowingController extends Controller
 
         // 2. Send Email Return Reminder
         if (in_array($channel, ['both', 'email']) && $email) {
+            $notificationType = $request->input('type');
+            if (!$notificationType) {
+                $isOverdue = false;
+                try {
+                    $endDt = $borrow->end_datetime ?? ($borrow->date_of_usage ? ($borrow->date_of_usage . ' ' . ($borrow->time_end ?? '17:00:00')) : null);
+                    if ($endDt && \Carbon\Carbon::parse($endDt)->isPast()) {
+                        $isOverdue = true;
+                    }
+                } catch (\Throwable $t) {}
+                $notificationType = $isOverdue ? 'overdue' : 'exceed end time';
+            }
+
             try {
                 \App\Jobs\SendBookingStatusUpdateJob::dispatch(
                     'equipment',
                     $borrow,
-                    'return_reminder',
-                    $customMessage ?: 'Please return all borrowed physical equipment units to the AVR Center promptly. Thank you!'
+                    $notificationType,
+                    $customMessage ?: ($notificationType === 'overdue'
+                        ? 'Your equipment borrowing period has passed due. Please return all borrowed physical units immediately to the AVR Center.'
+                        : 'Your equipment usage has exceeded its scheduled return end time. Please coordinate turnover immediately.')
                 );
                 $results[] = "Email sent to {$email}";
             } catch (\Throwable $e) {}
@@ -643,6 +678,12 @@ class EquipmentBorrowingController extends Controller
             'message' => '✅ Return reminder sent (' . implode(' & ', $results) . ')',
             'results' => $results,
         ]);
+    }
+
+    public function sendOvertimeReminder(\Illuminate\Http\Request $request, int $id): JsonResponse
+    {
+        $request->merge(['type' => 'exceed end time']);
+        return $this->sendReturnReminder($request, $id);
     }
 
     public function sendOverdueSms(\Illuminate\Http\Request $request, int $id): JsonResponse

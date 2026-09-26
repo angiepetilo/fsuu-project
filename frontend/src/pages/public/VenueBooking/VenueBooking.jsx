@@ -452,6 +452,11 @@ export default function VenueBooking({ isPortal: isPortalProp }) {
       alert("Only official university email addresses ending with @urios.edu.ph are accepted for reservations.");
       return;
     }
+    const cleanUser = cleanEmail.split("@")[0] || "";
+    if (/\d/.test(cleanUser)) {
+      alert("Official institutional emails (@urios.edu.ph) do not contain numbers (e.g. 202100452@urios.edu.ph is not valid). Please use your official name-based university email.");
+      return;
+    }
     const requireEmailVerify = pinRules ? (pinRules.isEnabled !== false && pinRules.venueVerifyEmail === true) : false;
 
     if (requireEmailVerify && !isEmailVerified) {

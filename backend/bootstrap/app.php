@@ -23,13 +23,16 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->render(function (\Throwable $e, \Illuminate\Http\Request $request) {
             if ($request->is('api/*')) {
-                $origin = $request->header('Origin') ?: '*';
+                $origin = $request->header('Origin');
+                $allowOrigin = $origin ?: '*';
                 $corsHeaders = [
-                    'Access-Control-Allow-Origin'      => $origin,
-                    'Access-Control-Allow-Methods'     => 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
-                    'Access-Control-Allow-Headers'     => 'Content-Type, Authorization, X-Requested-With, X-Idempotency-Key, Accept, Origin, Application',
-                    'Access-Control-Allow-Credentials' => 'true',
+                    'Access-Control-Allow-Origin'  => $allowOrigin,
+                    'Access-Control-Allow-Methods' => 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
+                    'Access-Control-Allow-Headers' => 'Content-Type, Authorization, X-Requested-With, X-Idempotency-Key, Accept, Origin, Application',
                 ];
+                if (!empty($origin)) {
+                    $corsHeaders['Access-Control-Allow-Credentials'] = 'true';
+                }
 
                 if ($e instanceof \Illuminate\Auth\AuthenticationException) {
                     return response()->json(['message' => 'Unauthenticated.'], 401, $corsHeaders);

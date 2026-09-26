@@ -121,11 +121,19 @@ export default function AuditLogsTab() {
         </span>
       );
     }
-    if (act.includes("PIN") || act.includes("VERIFICATION")) {
+    if (act.includes("SYSTEM_SETTINGS") || act.includes("SYSTEM_SETTING")) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+          <Lock size={12} className="text-indigo-600" />
+          System Settings
+        </span>
+      );
+    }
+    if (act.includes("PIN") || act.includes("VERIFICATION") || act.includes("SECURITY")) {
       return (
         <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-orange-50 text-orange-700 border border-orange-200">
           <Key size={12} className="text-orange-600" />
-          Verification PIN
+          {act.includes("PIN") ? "Verification PIN" : "Security Verification"}
         </span>
       );
     }
@@ -349,18 +357,18 @@ export default function AuditLogsTab() {
                         Policy Breach
                       </span>
                     );
-                  } else if (act.includes("APPROVED") || act.includes("SUCCESS") || act.includes("CREATED")) {
+                  } else if (act.includes("APPROVED") || act.includes("SUCCESS") || act.includes("GRANTED") || act.includes("CREATED")) {
                     statusBadge = (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10.5px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
                         <CheckCircle2 size={11} className="text-emerald-600" />
-                        Success
+                        {act.includes("GRANTED") ? "Access Granted" : "Success"}
                       </span>
                     );
-                  } else if (act.includes("REJECTED") || act.includes("FAILED") || act.includes("TERMINATED")) {
+                  } else if (act.includes("REJECTED") || act.includes("FAILED") || act.includes("DENIED") || act.includes("TERMINATED")) {
                     statusBadge = (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10.5px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
                         <XCircle size={11} className="text-rose-600" />
-                        {act.includes("TERMINATED") ? "Terminated" : "Rejected"}
+                        {act.includes("DENIED") ? "Access Denied" : act.includes("TERMINATED") ? "Terminated" : "Rejected"}
                       </span>
                     );
                   }
@@ -556,10 +564,25 @@ export default function AuditLogsTab() {
                     <div className="bg-white p-2.5 rounded-lg border border-slate-200">
                       <span className="text-[10px] text-slate-400 uppercase font-bold block">Facility / Module</span>
                       <span className="font-semibold text-slate-800 capitalize">
-                        {selectedLog.metadata.venue_name || selectedLog.metadata.equipment_name || selectedLog.metadata.target_type?.replace(/_/g, " ") || "Resource"}
+                        {selectedLog.metadata.venue_name || selectedLog.metadata.equipment_name || selectedLog.metadata.module || selectedLog.metadata.target_type?.replace(/_/g, " ") || "Resource"}
                       </span>
                     </div>
                   </div>
+
+                  {/* Password Verification Attempt Count if applicable */}
+                  {selectedLog.metadata.attempt_count && (
+                    <div className="bg-white p-2.5 rounded-lg border border-slate-200 flex items-center justify-between text-xs">
+                      <div>
+                        <span className="text-[10px] text-slate-400 uppercase font-bold block">Security Verification Attempts</span>
+                        <span className="font-semibold text-slate-800">
+                          {selectedLog.metadata.module || "Protected Module"}
+                        </span>
+                      </div>
+                      <span className={`px-2 py-1 rounded text-xs font-bold font-mono ${selectedLog.metadata.status === 'success' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'}`}>
+                        Attempt #{selectedLog.metadata.attempt_count} • {selectedLog.metadata.status === 'success' ? 'Access Granted' : 'Access Denied'}
+                      </span>
+                    </div>
+                  )}
 
                   {/* Responsible Person / Filer */}
                   {selectedLog.metadata.filer_name && (

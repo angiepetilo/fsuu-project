@@ -331,22 +331,164 @@ class AuthController extends Controller
     public function verifyPassword(Request $request)
     {
         $request->validate([
-            'password' => 'required|string',
+            'password'        => 'required|string',
+            'superadmin_only' => 'nullable|boolean',
+            'module'          => 'nullable|string',
+            'target_module'   => 'nullable|string',
         ]);
 
         $user = auth()->user();
+        $isSuperAdminOnly = $request->boolean('superadmin_only');
+        $module = $request->input('module') ?: $request->input('target_module') ?: ($isSuperAdminOnly ? 'Protected Settings' : 'Security Verification');
 
-        if (!\Illuminate\Support\Facades\Hash::check($request->password, $user->password)) {
-            return response()->json([
-                'valid'   => false,
-                'message' => 'Incorrect password. Please try again.',
-            ], 422);
+        // Track failed/total attempts per user and module in cache
+        $moduleSlug = Str::slug($module ?: 'security');
+        $cacheKey = "verify_pw_attempts_" . ($user?->id ?? 'guest') . "_{$moduleSlug}";
+        $attemptCount = (int)\Illuminate\Support\Facades\Cache::get($cacheKey, 0) + 1;
+
+        $isValid = false;
+
+        if ($isSuperAdminOnly) {
+            // Must verify against a Super Admin's password
+            if ($user && $user->isSuperAdmin()) {
+                if (\Illuminate\Support\Facades\Hash::check($request->password, $user->password)) {
+                    $isValid = true;
+                }
+            } else {
+                // If logged in as non-superadmin (e.g. staff with settings access),
+                // verify against active Super Admin accounts in the system
+                $superAdminRoleIds = \App\Models\Role::query()
+                    ->whereIn('name', ['super_admin', 'superadmin', 'super admin', 'sysad'])
+                    ->orWhere('name', 'like', '%super%admin%')
+                    ->pluck('id')
+                    ->push(1)
+                    ->unique();
+
+                $superAdmins = \App\Models\User::where(function ($q) use ($superAdminRoleIds) {
+                    $q->whereIn('role_id', $superAdminRoleIds)
+                      ->orWhere('id', 1)
+                      ->orWhere('email', 'like', '%superadmin%')
+                      ->orWhere('email_address', 'like', '%superadmin%');
+                })->get();
+
+                foreach ($superAdmins as $sa) {
+                    if (\Illuminate\Support\Facades\Hash::check($request->password, $sa->password)) {
+                        $isValid = true;
+                        break;
+                    }
+                }
+            }
+        } else {
+            if ($user && \Illuminate\Support\Facades\Hash::check($request->password, $user->password)) {
+                $isValid = true;
+            }
         }
 
+        // Determine specific action name for audit log
+        $modLower = strtolower($module);
+        if (str_contains($modLower, 'pin')) {
+            $actionGranted = 'VERIFICATION_PIN_ACCESS_GRANTED';
+            $actionDenied  = 'VERIFICATION_PIN_ACCESS_DENIED';
+        } elseif (str_contains($modLower, 'system')) {
+            $actionGranted = 'SYSTEM_SETTINGS_ACCESS_GRANTED';
+            $actionDenied  = 'SYSTEM_SETTINGS_ACCESS_DENIED';
+        } else {
+            $actionGranted = 'SECURITY_ACCESS_GRANTED';
+            $actionDenied  = 'SECURITY_ACCESS_DENIED';
+        }
+
+        $deviceSummary = self::parseDeviceSummary($request->header('User-Agent'));
+
+        if ($isValid) {
+            // Reset attempt counter on success
+            \Illuminate\Support\Facades\Cache::forget($cacheKey);
+
+            try {
+                \App\Models\AuditLog::create([
+                    'user_id'        => $user?->id,
+                    'action'         => $actionGranted,
+                    'auditable_type' => 'settings_module',
+                    'auditable_id'   => $user?->id,
+                    'ip_address'     => $request->ip() ?: '127.0.0.1',
+                    'metadata'       => [
+                        'module'          => $module,
+                        'attempt_count'   => $attemptCount,
+                        'status'          => 'success',
+                        'superadmin_only' => $isSuperAdminOnly,
+                        'actor_name'      => $user?->name ?: 'Staff User',
+                        'actor_email'     => $user?->email_address ?: $user?->email,
+                        'actor_role'      => $user?->role?->name ?: ($user?->role_id === 1 ? 'Super Admin' : 'Staff'),
+                        'remarks'         => "Unlocked [{$module}] after {$attemptCount} attempt(s). Super Admin credentials verified.",
+                        'device'          => $deviceSummary,
+                    ],
+                    'created_at'     => now(),
+                ]);
+            } catch (\Throwable $t) {
+                \Illuminate\Support\Facades\Log::error("Failed to write success audit log: " . $t->getMessage());
+            }
+
+            return response()->json([
+                'valid'   => true,
+                'message' => $isSuperAdminOnly ? 'Super Admin password verified.' : 'Password verified.',
+            ]);
+        }
+
+        // Failed verification: increment attempts in cache for 30 minutes
+        \Illuminate\Support\Facades\Cache::put($cacheKey, $attemptCount, now()->addMinutes(30));
+
+        try {
+            \App\Models\AuditLog::create([
+                'user_id'        => $user?->id,
+                'action'         => $actionDenied,
+                'auditable_type' => 'settings_module',
+                'auditable_id'   => $user?->id,
+                'ip_address'     => $request->ip() ?: '127.0.0.1',
+                'metadata'       => [
+                    'module'          => $module,
+                    'attempt_count'   => $attemptCount,
+                    'status'          => 'failed',
+                    'superadmin_only' => $isSuperAdminOnly,
+                    'actor_name'      => $user?->name ?: 'Staff User',
+                    'actor_email'     => $user?->email_address ?: $user?->email,
+                    'actor_role'      => $user?->role?->name ?: ($user?->role_id === 1 ? 'Super Admin' : 'Staff'),
+                    'remarks'         => "Failed security challenge for [{$module}] - Incorrect password entered (Attempt #{$attemptCount}).",
+                    'device'          => $deviceSummary,
+                ],
+                'created_at'     => now(),
+            ]);
+
+            // If 3 or more failed attempts, create a high-severity SecurityAlert
+            if ($attemptCount >= 3) {
+                \App\Models\SecurityAlert::create([
+                    'event_type'  => 'unauthorized_module_access',
+                    'severity'    => $attemptCount >= 5 ? 'critical' : 'high',
+                    'title'       => "Repeated failed attempts to unlock [{$module}] (Attempt {$attemptCount})",
+                    'description' => "User '{$user?->name}' ({$user?->email_address}) failed security verification {$attemptCount} times attempting to access protected module '{$module}'.",
+                    'ip_address'  => $request->ip() ?: '127.0.0.1',
+                    'user_agent'  => $request->header('User-Agent') ?: 'Web Browser',
+                    'metadata'    => [
+                        'module'       => $module,
+                        'attempts'     => $attemptCount,
+                        'user_id'      => $user?->id,
+                        'user_email'   => $user?->email_address ?: $user?->email,
+                        'device'       => $deviceSummary,
+                    ],
+                    'status'      => 'unresolved',
+                ]);
+            }
+        } catch (\Throwable $t) {
+            \Illuminate\Support\Facades\Log::error("Failed to write failure audit log: " . $t->getMessage());
+        }
+
+        $errorMsg = $isSuperAdminOnly
+            ? "Invalid Super Admin password. Only a Super Admin password can unlock this module (Attempt #{$attemptCount})."
+            : "Incorrect password. Please try again (Attempt #{$attemptCount}).";
+
         return response()->json([
-            'valid'   => true,
-            'message' => 'Password verified.',
-        ]);
+            'valid'         => false,
+            'message'       => $errorMsg,
+            'attempt_count' => $attemptCount,
+        ], 422);
     }
 
     public function updateProfile(Request $request)

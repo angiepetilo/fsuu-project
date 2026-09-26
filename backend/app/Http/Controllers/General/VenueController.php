@@ -50,6 +50,8 @@ class VenueController extends Controller
             'avatar'              => 'nullable|string',
             'location'            => 'nullable|string|max:255',
             'capacity'            => 'nullable|integer|min:1',
+            'min_capacity'        => 'nullable|integer|min:1',
+            'max_capacity'        => 'nullable|integer|min:1',
             'status'              => 'nullable|string',
             'allowed_equipment'   => 'nullable|array',
             'allowed_equipment.*' => 'nullable',
@@ -57,11 +59,19 @@ class VenueController extends Controller
         ]);
 
         if (empty($data['capacity'])) {
-            $data['capacity'] = 100;
+            $data['capacity'] = !empty($data['max_capacity']) ? (int)$data['max_capacity'] : 100;
+        }
+        if (empty($data['max_capacity'])) {
+            $data['max_capacity'] = (int)$data['capacity'];
+        }
+        if (empty($data['min_capacity'])) {
+            $data['min_capacity'] = 1;
         }
 
         if (!empty($data['avatar'])) {
-            $data['avatar'] = app(\App\Services\MediaUploadService::class)->upload($data['avatar'], 'venues');
+            try {
+                $data['avatar'] = app(\App\Services\MediaUploadService::class)->upload($data['avatar'], 'venues');
+            } catch (\Throwable $e) {}
         }
 
         if (array_key_exists('allowed_equipment', $data)) {
@@ -72,7 +82,22 @@ class VenueController extends Controller
             $data['equipment_max_qtys'] = is_array($data['equipment_max_qtys']) ? $data['equipment_max_qtys'] : (is_string($data['equipment_max_qtys']) ? json_decode($data['equipment_max_qtys'], true) : []);
         }
 
-        $venue = Venue::create($data);
+        // Filter keys against actual database columns to prevent SQL unknown column errors
+        try {
+            $safeData = [];
+            foreach ($data as $k => $v) {
+                if (Schema::hasColumn('venues', $k)) {
+                    $safeData[$k] = $v;
+                }
+            }
+            if (!isset($safeData['name'])) {
+                $safeData['name'] = $data['name'];
+            }
+            $venue = Venue::create($safeData);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('VenueController store error: ' . $e->getMessage());
+            return response()->json(['message' => 'Failed to save venue: ' . $e->getMessage()], 500);
+        }
 
         try {
             app(\App\Services\AuditLogService::class)->log(
@@ -97,14 +122,24 @@ class VenueController extends Controller
             'avatar'              => 'nullable|string',
             'location'            => 'nullable|string|max:255',
             'capacity'            => 'sometimes|integer|min:1',
+            'min_capacity'        => 'nullable|integer|min:1',
+            'max_capacity'        => 'nullable|integer|min:1',
             'status'              => 'sometimes|string',
             'allowed_equipment'   => 'nullable|array',
             'allowed_equipment.*' => 'nullable',
             'equipment_max_qtys'  => 'nullable',
         ]);
 
+        if (isset($data['max_capacity']) && !isset($data['capacity'])) {
+            $data['capacity'] = (int)$data['max_capacity'];
+        } elseif (isset($data['capacity']) && !isset($data['max_capacity'])) {
+            $data['max_capacity'] = (int)$data['capacity'];
+        }
+
         if (array_key_exists('avatar', $data) && !empty($data['avatar'])) {
-            $data['avatar'] = app(\App\Services\MediaUploadService::class)->upload($data['avatar'], 'venues');
+            try {
+                $data['avatar'] = app(\App\Services\MediaUploadService::class)->upload($data['avatar'], 'venues');
+            } catch (\Throwable $e) {}
         }
 
         if (array_key_exists('allowed_equipment', $data)) {
@@ -115,7 +150,18 @@ class VenueController extends Controller
             $data['equipment_max_qtys'] = is_array($data['equipment_max_qtys']) ? $data['equipment_max_qtys'] : (is_string($data['equipment_max_qtys']) ? json_decode($data['equipment_max_qtys'], true) : []);
         }
 
-        $venue->update($data);
+        try {
+            $safeData = [];
+            foreach ($data as $k => $v) {
+                if (Schema::hasColumn('venues', $k)) {
+                    $safeData[$k] = $v;
+                }
+            }
+            $venue->update($safeData);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('VenueController update error: ' . $e->getMessage());
+            return response()->json(['message' => 'Failed to update venue: ' . $e->getMessage()], 500);
+        }
 
         try {
             app(\App\Services\AuditLogService::class)->log(

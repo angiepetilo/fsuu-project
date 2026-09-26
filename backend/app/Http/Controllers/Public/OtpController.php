@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Public;
 use App\Http\Controllers\Controller;
 use App\Jobs\SendOtpEmailJob;
 use App\Models\EmailVerification;
+use App\Models\VerificationPinSetting;
 use App\Rules\ActiveDeliverableEmail;
 use App\Services\SmsService;
 use Illuminate\Http\JsonResponse;
@@ -20,8 +21,23 @@ class OtpController extends Controller
     public function send(Request $request): JsonResponse
     {
         $channel = strtolower(trim($request->input('channel', 'email')));
+        $isEquipment = $request->input('reservation_type') === 'equipment' || $request->filled('borrow_date');
+
+        $pinSettings = VerificationPinSetting::first();
+        $isSystemEnabled = $pinSettings ? (bool)$pinSettings->is_enabled : true;
 
         if ($channel === 'sms') {
+            $smsAllowed = $isSystemEnabled && ($pinSettings ? (
+                $isEquipment ? (bool)$pinSettings->equipment_verify_phone : (bool)$pinSettings->venue_verify_phone
+            ) : false);
+
+            if (!$smsAllowed) {
+                return response()->json([
+                    'message'  => 'SMS OTP verification is currently disabled in system settings.',
+                    'disabled' => true,
+                ], 403);
+            }
+
             $request->validate([
                 'phone_number' => ['required', 'string', 'max:20'],
             ]);
@@ -111,6 +127,17 @@ class OtpController extends Controller
         }
 
         // Default: Email OTP Flow
+        $emailAllowed = $isSystemEnabled && ($pinSettings ? (
+            $isEquipment ? (bool)$pinSettings->equipment_verify_email : (bool)$pinSettings->venue_verify_email
+        ) : true);
+
+        if (!$emailAllowed) {
+            return response()->json([
+                'message'  => 'Email OTP verification is currently disabled in system settings.',
+                'disabled' => true,
+            ], 403);
+        }
+
         $request->validate([
             'email' => [
                 'required',
@@ -118,8 +145,13 @@ class OtpController extends Controller
                 'email',
                 'max:255',
                 function ($attribute, $value, $fail) {
-                    if (!str_ends_with(strtolower(trim((string)$value)), '@urios.edu.ph')) {
+                    $clean = strtolower(trim((string)$value));
+                    if (!str_ends_with($clean, '@urios.edu.ph')) {
                         $fail('Only official university email addresses ending with @urios.edu.ph are accepted for verification.');
+                    }
+                    $username = explode('@', $clean)[0] ?? '';
+                    if (preg_match('/[0-9]/', $username)) {
+                        $fail('Official institutional emails (@urios.edu.ph) contain no numbers (e.g. student IDs like 202100452@urios.edu.ph are not valid). Please use your official name-based email.');
                     }
                 },
                 new ActiveDeliverableEmail,
@@ -131,6 +163,13 @@ class OtpController extends Controller
         if (!str_ends_with($email, '@urios.edu.ph')) {
             return response()->json([
                 'message' => 'Only official university email addresses ending with @urios.edu.ph are accepted for verification.',
+            ], 422);
+        }
+
+        $username = explode('@', $email)[0] ?? '';
+        if (preg_match('/[0-9]/', $username)) {
+            return response()->json([
+                'message' => 'Official institutional emails (@urios.edu.ph) do not contain numbers (e.g. student ID numbers like 202100452@urios.edu.ph are not valid). Please use your official name-based email.',
             ], 422);
         }
 

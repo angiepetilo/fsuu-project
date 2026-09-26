@@ -309,11 +309,12 @@ export default function EquipmentModal({
     const matched = brands.filter((b) => {
       if (b.equipment_type_id && String(b.equipment_type_id) === String(catId)) return true;
       if (b.equipment_type?.eq_name && b.equipment_type.eq_name.toLowerCase() === catName) return true;
+      if (b.equipment_category_name && b.equipment_category_name.toLowerCase() === catName) return true;
       return false;
     });
 
-    // Only return matched brands — never fall back to all brands (prevents cross-category bleed)
-    return matched;
+    // If specific brands are linked to this category, return them; otherwise allow general brands
+    return matched.length > 0 ? matched : brands;
   }, [brands, selectedCatObj]);
 
   // Duplicate checks for Serial No.
@@ -335,6 +336,23 @@ export default function EquipmentModal({
 
   // ── Early return after all hooks ──
   if (!showAddModal && !editingItem) return null;
+
+  const getBrandForCategory = (catName) => {
+    if (!catName) return "";
+    const norm = String(catName).trim().toLowerCase();
+    const foundCat = (categories || []).find((c) => {
+      const name = (typeof c === "string" ? c : (c.eq_name || c.name || "")).trim().toLowerCase();
+      return name === norm;
+    });
+    const catId = foundCat?.id;
+    const matched = brands.filter((b) => {
+      if (catId && b.equipment_type_id && String(b.equipment_type_id) === String(catId)) return true;
+      if (b.equipment_type?.eq_name && b.equipment_type.eq_name.toLowerCase() === norm) return true;
+      if (b.equipment_category_name && b.equipment_category_name.toLowerCase() === norm) return true;
+      return false;
+    });
+    return matched.length > 0 ? matched[0].name : (brands.length > 0 ? brands[0].name : "");
+  };
 
   const handleBarcodeKeyDown = (e) => {
     if (e.key === "Enter") {
@@ -373,7 +391,15 @@ export default function EquipmentModal({
                       <select
                         required
                         value={editFormData.category}
-                        onChange={e => setEditFormData({ ...editFormData, category: e.target.value })}
+                        onChange={e => {
+                          const newCat = e.target.value;
+                          const newBrand = getBrandForCategory(newCat);
+                          setEditFormData({
+                            ...editFormData,
+                            category: newCat,
+                            brand: newBrand || editFormData.brand,
+                          });
+                        }}
                         className={`${inputClasses} cursor-pointer`}
                       >
                         {categories && categories.length > 0 ? (
@@ -605,7 +631,15 @@ export default function EquipmentModal({
                       <select
                         required
                         value={formData.category}
-                        onChange={e => setFormData({ ...formData, category: e.target.value })}
+                        onChange={e => {
+                          const newCat = e.target.value;
+                          const newBrand = getBrandForCategory(newCat);
+                          setFormData({
+                            ...formData,
+                            category: newCat,
+                            brand: newBrand || formData.brand,
+                          });
+                        }}
                         className={`${inputClasses} cursor-pointer`}
                       >
                         {categories && categories.length > 0 ? (

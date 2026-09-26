@@ -586,4 +586,166 @@ class VenueBookingController extends Controller
             'is_urgent' => true
         ]);
     }
+
+    /**
+     * Check vacant venues available during the booking's requested date & timeslot.
+     */
+    public function vacantVenues(Request $request, VenueBooking $avrVenueBooking): JsonResponse
+    {
+        $rawDate    = $avrVenueBooking->date_of_usage;
+        $rawEndDate = $avrVenueBooking->reservation_end_date ?? $rawDate;
+        $timeStart  = $avrVenueBooking->time_start;
+        $timeEnd    = $avrVenueBooking->time_end;
+        $currentVenueId = $avrVenueBooking->venue_id;
+
+        // Find venues that have overlapping approved/ongoing reservations
+        $busyVenueIds = VenueBooking::query()
+            ->join('tracking_numbers', 'venue_bookings.tracking_number_id', '=', 'tracking_numbers.id')
+            ->where('venue_bookings.id', '!=', $avrVenueBooking->id)
+            ->whereIn('tracking_numbers.status', ['approved', 'ongoing', 'on-going'])
+            ->where(function ($q) use ($rawDate, $rawEndDate, $timeStart, $timeEnd) {
+                $q->where(function ($sub) use ($rawDate, $timeStart, $timeEnd) {
+                    $sub->where('venue_bookings.date_of_usage', '<=', $rawDate)
+                        ->whereRaw('COALESCE(venue_bookings.reservation_end_date, venue_bookings.date_of_usage) >= ?', [$rawDate])
+                        ->where('venue_bookings.time_start', '<', $timeEnd)
+                        ->where('venue_bookings.time_end', '>', $timeStart);
+                })->orWhere(function ($sub2) use ($rawDate, $rawEndDate, $timeStart, $timeEnd) {
+                    $sub2->where('venue_bookings.date_of_usage', '<=', $rawEndDate)
+                        ->whereRaw('COALESCE(venue_bookings.reservation_end_date, venue_bookings.date_of_usage) >= ?', [$rawDate])
+                        ->where('venue_bookings.time_start', '<', $timeEnd)
+                        ->where('venue_bookings.time_end', '>', $timeStart);
+                });
+            })
+            ->pluck('venue_bookings.venue_id')
+            ->unique()
+            ->toArray();
+
+        $vacantVenues = \App\Models\Venue::whereNotIn('id', $busyVenueIds)
+            ->where('id', '!=', $currentVenueId)
+            ->where(function ($q) {
+                $q->whereNull('status')->orWhere('status', 'available');
+            })
+            ->get()
+            ->map(function ($venue) use ($avrVenueBooking) {
+                $venue->fits_capacity = ($venue->capacity_max ?? $venue->capacity ?? 999) >= ($avrVenueBooking->no_of_person ?? 1);
+                return $venue;
+            });
+
+        return response()->json([
+            'date_of_usage' => $rawDate,
+            'time_start'    => $timeStart,
+            'time_end'      => $timeEnd,
+            'current_venue' => $avrVenueBooking->venue,
+            'vacant_venues' => $vacantVenues,
+        ]);
+    }
+
+    /**
+     * Refer/transfer this booking to an available vacant venue instead of rejecting.
+     */
+    public function reassignVenue(Request $request, VenueBooking $avrVenueBooking): JsonResponse
+    {
+        $this->authorize('approve', $avrVenueBooking);
+
+        $request->validate([
+            'venue_id' => 'required|exists:venues,id',
+            'remarks'  => 'nullable|string|max:500',
+        ]);
+
+        $newVenueId = (int)$request->input('venue_id');
+        $remarks = trim($request->input('remarks', 'Referred and accommodated in alternative venue due to scheduling conflict'));
+
+        $targetVenue = \App\Models\Venue::findOrFail($newVenueId);
+
+        $oldVenueName = $avrVenueBooking->venue?->name ?? 'Original Venue';
+        $avrVenueBooking->venue_id = $newVenueId;
+        $avrVenueBooking->save();
+
+        $ref = $avrVenueBooking->trackingNumber?->reference_code ?? "VB-{$avrVenueBooking->id}";
+
+        try {
+            AuditLog::create([
+                'user_id'        => auth()->id(),
+                'action'         => 'VENUE_BOOKING_REASSIGNED',
+                'auditable_type' => 'venue_bookings',
+                'auditable_id'   => $avrVenueBooking->id,
+                'metadata'       => [
+                    'reference_code' => $ref,
+                    'filer_name'     => $avrVenueBooking->filer_name,
+                    'old_venue'      => $oldVenueName,
+                    'new_venue'      => $targetVenue->name,
+                    'remarks'        => $remarks,
+                    'description'    => "Booking {$ref} transferred from {$oldVenueName} to {$targetVenue->name} by " . (auth()->user()?->name ?? 'Staff'),
+                ],
+                'ip_address'     => request()->ip(),
+                'created_at'     => now(),
+            ]);
+        } catch (\Throwable $e) {}
+
+        // Send status update notification to applicant
+        try {
+            \App\Jobs\SendBookingStatusUpdateJob::dispatch(
+                'venue',
+                $avrVenueBooking->fresh('venue'),
+                'reassigned',
+                "Your reservation has been successfully referred and accommodated in {$targetVenue->name}. {$remarks}"
+            );
+        } catch (\Throwable $e) {}
+
+        return response()->json([
+            'message' => "Reservation successfully referred and transferred to {$targetVenue->name}.",
+            'booking' => $avrVenueBooking->fresh(['venue', 'trackingNumber', 'department']),
+        ]);
+    }
+
+    public function sendOvertimeReminder(\Illuminate\Http\Request $request, int $id): JsonResponse
+    {
+        $booking = VenueBooking::with('venue', 'trackingNumber')->find($id);
+        if (!$booking) {
+            return response()->json(['message' => 'Venue booking record not found'], 404);
+        }
+
+        $channel = $request->input('channel', 'both'); // 'both', 'sms', 'email'
+        $customMessage = $request->input('message');
+
+        $email = $booking->email_address ?? $booking->requestor_email ?? '';
+        $contactNumber = $booking->contact_number 
+            ?? $booking->requestor_contact_number 
+            ?? null;
+
+        $results = [];
+
+        // 1. Send SMS Overtime Reminder
+        if (in_array($channel, ['both', 'sms']) && $contactNumber) {
+            try {
+                \App\Services\SmsService::send(
+                    $contactNumber,
+                    "FSUU AVR: Your venue reservation for " . ($booking->venue?->name ?? 'the AVR Facility') . " has exceeded its scheduled end time. Please conclude your activity or contact the AVR Center."
+                );
+                $results[] = "SMS sent to {$contactNumber}";
+            } catch (\Throwable $e) {}
+        }
+
+        // 2. Send Email Overtime Reminder
+        if (in_array($channel, ['both', 'email']) && $email) {
+            try {
+                \App\Jobs\SendBookingStatusUpdateJob::dispatch(
+                    'venue',
+                    $booking,
+                    'exceed_end_time',
+                    $customMessage ?: 'Your scheduled venue reservation has exceeded its end time. Please conclude your activity or coordinate with the AVR Administrator immediately.'
+                );
+                $results[] = "Email sent to {$email}";
+            } catch (\Throwable $e) {}
+        }
+
+        if (empty($results)) {
+            return response()->json(['message' => 'No requestor email address or valid phone number found.'], 422);
+        }
+
+        return response()->json([
+            'message' => '✅ Overtime / Exceeded End Time reminder sent (' . implode(' & ', $results) . ')',
+            'results' => $results,
+        ]);
+    }
 }

@@ -47,6 +47,7 @@ return new class extends Migration
             $table->longText('assigned_units')->nullable();
             $table->string('endorsement_url')->nullable();
             $table->string('endorsement_letter')->nullable();
+            $table->text('rejection_reason')->nullable();
             $table->timestamps();
             $table->timestamp('archived_at')->nullable();
 

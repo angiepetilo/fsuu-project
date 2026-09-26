@@ -12,48 +12,100 @@ use Illuminate\Validation\Rule;
 class BrandController extends Controller
 {
     /**
+     * Ensure table and columns exist before querying.
+     */
+    private function ensureSchema(): void
+    {
+        try {
+            if (!\Illuminate\Support\Facades\Schema::hasTable('brands')) {
+                \Illuminate\Support\Facades\Schema::create('brands', function ($table) {
+                    $table->id();
+                    $table->string('name')->unique();
+                    $table->unsignedBigInteger('equipment_type_id')->nullable();
+                    $table->text('description')->nullable();
+                    $table->string('status', 20)->default('active');
+                    $table->timestamps();
+                });
+            } else {
+                if (!\Illuminate\Support\Facades\Schema::hasColumn('brands', 'equipment_type_id')) {
+                    \Illuminate\Support\Facades\Schema::table('brands', function ($table) {
+                        $table->unsignedBigInteger('equipment_type_id')->nullable()->after('name');
+                    });
+                }
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('BrandController ensureSchema error: ' . $e->getMessage());
+        }
+    }
+
+    /**
      * List all brands with equipment unit count and filter support.
      */
     public function index(Request $request): JsonResponse
     {
-        $query = Brand::query()->with('equipmentType')->withCount('equipmentUnits');
+        $this->ensureSchema();
 
-        if ($request->filled('search')) {
-            $search = trim($request->query('search'));
-            $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('description', 'like', "%{$search}%");
-            });
-        }
+        try {
+            $hasEqTypeCol = \Illuminate\Support\Facades\Schema::hasColumn('brands', 'equipment_type_id');
+            $query = Brand::query();
 
-        if ($request->filled('status') && $request->query('status') !== 'all') {
-            $query->where('status', $request->query('status'));
-        }
+            if ($hasEqTypeCol) {
+                $query->with('equipmentType');
+            }
 
-        if ($request->boolean('active_only')) {
-            $query->where('status', 'active');
-        }
+            try {
+                $query->withCount('equipmentUnits');
+            } catch (\Throwable $e) {}
 
-        if ($request->filled('equipment_type_id')) {
-            $query->where('equipment_type_id', $request->query('equipment_type_id'));
-        }
+            if ($request->filled('search')) {
+                $search = trim($request->query('search'));
+                $query->where(function ($q) use ($search) {
+                    $q->where('name', 'like', "%{$search}%")
+                      ->orWhere('description', 'like', "%{$search}%");
+                });
+            }
 
-        // Return unpaginated if all=1 (ideal for dropdowns in Manage Equipment)
-        if ($request->boolean('all') || $request->query('per_page') === 'all') {
-            $brands = $query->orderBy('name', 'asc')->get();
+            if ($request->filled('status') && $request->query('status') !== 'all') {
+                $query->where('status', $request->query('status'));
+            }
+
+            if ($request->boolean('active_only')) {
+                $query->where('status', 'active');
+            }
+
+            if ($hasEqTypeCol && $request->filled('equipment_type_id')) {
+                $query->where('equipment_type_id', $request->query('equipment_type_id'));
+            }
+
+            // Return unpaginated if all=1 (ideal for dropdowns in Manage Equipment)
+            if ($request->boolean('all') || $request->query('per_page') === 'all') {
+                $brands = $query->orderBy('name', 'asc')->get();
+                return response()->json([
+                    'brands' => $brands,
+                    'stats' => $this->getStats(),
+                ]);
+            }
+
+            $perPage = min((int)$request->query('per_page', 25), 100);
+            $brands = $query->orderBy('name', 'asc')->paginate($perPage);
+
             return response()->json([
                 'brands' => $brands,
                 'stats' => $this->getStats(),
             ]);
+        } catch (\Throwable $err) {
+            \Illuminate\Support\Facades\Log::error('BrandController index error: ' . $err->getMessage());
+            return response()->json([
+                'brands' => [],
+                'stats' => [
+                    'total_brands' => 0,
+                    'active_brands' => 0,
+                    'inactive_brands' => 0,
+                    'total_linked_units' => 0,
+                ],
+                'error' => $err->getMessage(),
+            ]);
         }
-
-        $perPage = min((int)$request->query('per_page', 25), 100);
-        $brands = $query->orderBy('name', 'asc')->paginate($perPage);
-
-        return response()->json([
-            'brands' => $brands,
-            'stats' => $this->getStats(),
-        ]);
     }
 
     /**
@@ -61,6 +113,8 @@ class BrandController extends Controller
      */
     public function store(Request $request): JsonResponse
     {
+        $this->ensureSchema();
+
         $validated = $request->validate([
             'name' => 'required|string|max:100|unique:brands,name',
             'equipment_type_id' => 'nullable|exists:equipment_types,id',
@@ -68,14 +122,21 @@ class BrandController extends Controller
             'status' => 'nullable|in:active,inactive',
         ]);
 
-        $brand = Brand::create([
+        $brandData = [
             'name' => strtoupper(trim($validated['name'])),
-            'equipment_type_id' => $validated['equipment_type_id'] ?? null,
             'description' => $validated['description'] ?? null,
             'status' => $validated['status'] ?? 'active',
-        ]);
+        ];
 
-        $brand->load('equipmentType');
+        if (\Illuminate\Support\Facades\Schema::hasColumn('brands', 'equipment_type_id')) {
+            $brandData['equipment_type_id'] = $validated['equipment_type_id'] ?? null;
+        }
+
+        $brand = Brand::create($brandData);
+
+        if (\Illuminate\Support\Facades\Schema::hasColumn('brands', 'equipment_type_id')) {
+            $brand->load('equipmentType');
+        }
 
         // Log to audit trail
         try {
@@ -104,6 +165,8 @@ class BrandController extends Controller
      */
     public function update(Request $request, Brand $brand): JsonResponse
     {
+        $this->ensureSchema();
+
         $validated = $request->validate([
             'name' => [
                 'required',
@@ -119,12 +182,17 @@ class BrandController extends Controller
         $oldName = $brand->name;
         $newName = strtoupper(trim($validated['name']));
 
-        $brand->update([
+        $updateData = [
             'name' => $newName,
-            'equipment_type_id' => array_key_exists('equipment_type_id', $validated) ? $validated['equipment_type_id'] : $brand->equipment_type_id,
             'description' => $validated['description'] ?? $brand->description,
             'status' => $validated['status'] ?? $brand->status,
-        ]);
+        ];
+
+        if (\Illuminate\Support\Facades\Schema::hasColumn('brands', 'equipment_type_id') && array_key_exists('equipment_type_id', $validated)) {
+            $updateData['equipment_type_id'] = $validated['equipment_type_id'];
+        }
+
+        $brand->update($updateData);
 
         // If brand name changed, optionally sync with equipment_units referencing oldName
         if ($oldName !== $newName) {

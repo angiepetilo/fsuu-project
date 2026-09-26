@@ -29,23 +29,23 @@ class UserController extends Controller
     {
         try {
             $user = $request->user() ?? auth()->user();
-            $query = User::with(['role'])->where('id', '!=', 1);
+            $query = User::with(['role']);
 
-            // Exclude default superadmin email
-            $query->where('email', '!=', 'admin');
+            if (!$user || !$user->isSuperAdmin()) {
+                // For non-superadmin users, exclude superadmin master accounts
+                $query->where('id', '!=', 1)
+                      ->where('email', '!=', 'admin')
+                      ->whereDoesntHave('role', function ($r) {
+                          $r->whereIn('name', ['super_admin', 'super-admin', 'superadmin', 'sysad', 'Super Admin', 'Superadmin', 'SYSAD']);
+                      });
 
-            // Exclude superadmin roles safely across all SQL dialects
-            $query->whereDoesntHave('role', function ($r) {
-                $r->whereIn('name', ['super_admin', 'super-admin', 'superadmin', 'sysad', 'Super Admin', 'Superadmin', 'SYSAD']);
-            });
-
-            if ($user && !$user->isSuperAdmin() && !$user->hasPermission('settings', 'users') && !$user->hasPermission('settings.users')) {
-                $userId = $user->id;
-
-                $query->where('id', '!=', $userId)
-                ->where(function ($q) use ($userId) {
-                    $q->where('created_by', $userId);
-                });
+                if (!$user->hasPermission('settings', 'users') && !$user->hasPermission('settings.users')) {
+                    $userId = $user->id;
+                    $query->where(function ($q) use ($userId) {
+                        $q->where('id', $userId)
+                          ->orWhere('created_by', $userId);
+                    });
+                }
             }
 
             return response()->json($query->latest()->get());

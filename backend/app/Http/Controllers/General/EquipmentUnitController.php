@@ -54,12 +54,18 @@ class EquipmentUnitController extends Controller
             }
         }
 
-        // 2. Normalize serial_number and barcode
-        $rawSerial = trim((string)($request->input('serial_number') ?? $request->input('serial_no') ?? ''));
-        $rawBarcode = trim((string)($request->input('barcode') ?? $request->input('unit_code') ?? $request->input('code') ?? ''));
+        // 2. Normalize serial_number and barcode so barcode = serial no.
+        $rawSerial = trim((string)(
+            $request->input('serial_number') 
+            ?? $request->input('serial_no') 
+            ?? $request->input('barcode') 
+            ?? $request->input('unit_code') 
+            ?? $request->input('code') 
+            ?? ''
+        ));
         $request->merge([
             'serial_number' => $rawSerial !== '' ? $rawSerial : null,
-            'barcode'       => $rawBarcode !== '' ? $rawBarcode : null,
+            'barcode'       => $rawSerial !== '' ? $rawSerial : null,
         ]);
 
         // 3. Normalize dates and numeric lifespans
@@ -99,48 +105,53 @@ class EquipmentUnitController extends Controller
                 default => 'Good',
             };
 
-            // Determine barcodes to use
-            $inputBarcodes = $request->input('barcodes');
-            $barcodesToUse = [];
-            if (is_array($inputBarcodes) && count($inputBarcodes) === $quantity) {
-                $barcodesToUse = array_map(fn($b) => trim((string)$b), $inputBarcodes);
+            // Determine serial numbers to use
+            $inputSerials = $request->input('serials') ?? $request->input('serial_numbers') ?? $request->input('barcodes');
+            $serialsToUse = [];
+            if (is_array($inputSerials) && count($inputSerials) === $quantity) {
+                $serialsToUse = array_map(fn($b) => trim((string)$b), $inputSerials);
             } else {
-                $base = trim((string)($request->input('barcode') ?? $request->input('unit_code') ?? ''));
+                $base = $rawSerial;
                 if ($base === '') {
-                    $base = 'BC-' . date('Ymd') . '-' . strtoupper(bin2hex(random_bytes(2))) . '-01';
+                    $base = 'SN-' . date('Ymd') . '-' . strtoupper(bin2hex(random_bytes(2))) . '-01';
                 }
                 if (preg_match('/^(.*?)(\d+)$/', $base, $matches)) {
                     $prefix = $matches[1];
                     $startNum = (int)$matches[2];
                     $padLen = strlen($matches[2]);
                     for ($i = 0; $i < $quantity; $i++) {
-                        $barcodesToUse[] = $prefix . str_pad((string)($startNum + $i), $padLen, '0', STR_PAD_LEFT);
+                        $serialsToUse[] = $prefix . str_pad((string)($startNum + $i), $padLen, '0', STR_PAD_LEFT);
                     }
                 } else {
                     for ($i = 1; $i <= $quantity; $i++) {
-                        $barcodesToUse[] = $base . '-' . str_pad((string)$i, 2, '0', STR_PAD_LEFT);
+                        $serialsToUse[] = $base . '-' . str_pad((string)$i, 2, '0', STR_PAD_LEFT);
                     }
                 }
             }
 
-            // Uniqueness check across database
-            $existing = EquipmentUnit::whereIn('barcode', $barcodesToUse)->pluck('barcode')->toArray();
+            // Uniqueness check across database for both serial_number and barcode
+            $existing = EquipmentUnit::where(function ($q) use ($serialsToUse) {
+                $q->whereIn('barcode', $serialsToUse)
+                  ->orWhereIn('serial_number', $serialsToUse);
+            })->whereNull('archived_at')->pluck('barcode')->toArray();
+
             if (!empty($existing)) {
                 return response()->json([
-                    'message' => 'The following barcode(s) are already assigned: ' . implode(', ', $existing) . '. Each unit requires a unique barcode.',
-                    'errors'  => ['barcode' => ['Barcode(s) already in use: ' . implode(', ', $existing)]],
+                    'message' => 'The following Serial No.(s) are already assigned: ' . implode(', ', $existing) . '. Each unit requires a unique Serial No.',
+                    'errors'  => ['serial_number' => ['Serial No.(s) already in use: ' . implode(', ', $existing)]],
                 ], 422);
             }
 
             $createdUnits = [];
             DB::beginTransaction();
             try {
-                foreach ($barcodesToUse as $barcode) {
+                foreach ($serialsToUse as $sn) {
                     $createdUnits[] = EquipmentUnit::create([
                         'equipment_type_id' => $validated['equipment_type_id'],
                         'brand'             => $validated['brand'] ?? null,
                         'model'             => $validated['model'] ?? null,
-                        'barcode'           => $barcode,
+                        'serial_number'     => $sn,
+                        'barcode'           => $sn,
                         'purchased_at'      => $validated['purchased_at'] ?? now()->toDateString(),
                         'eq_lifespan'       => $validated['eq_lifespan'] ?? 5,
                         'status'            => isset($validated['status']) ? strtolower(trim($validated['status'])) : 'available',
@@ -162,12 +173,12 @@ class EquipmentUnitController extends Controller
                     'auditable_type' => 'equipment_units',
                     'auditable_id'   => $createdUnits[0]->id,
                     'metadata'       => [
-                        'count'       => count($createdUnits),
-                        'brand'       => $validated['brand'] ?? null,
-                        'model'       => $validated['model'] ?? null,
-                        'category_id' => $validated['equipment_type_id'],
-                        'barcodes'    => $barcodesToUse,
-                        'description' => count($createdUnits) . " physical equipment units registered by " . (auth()->user()?->name ?? 'Staff'),
+                        'count'         => count($createdUnits),
+                        'brand'         => $validated['brand'] ?? null,
+                        'model'         => $validated['model'] ?? null,
+                        'category_id'   => $validated['equipment_type_id'],
+                        'serial_numbers'=> $serialsToUse,
+                        'description'   => count($createdUnits) . " physical equipment units registered by " . (auth()->user()?->name ?? 'Staff'),
                     ],
                     'ip_address'     => request()->ip(),
                     'created_at'     => now(),
@@ -186,12 +197,7 @@ class EquipmentUnitController extends Controller
             'brand'             => 'nullable|string|max:255',
             'model'             => 'nullable|string|max:255',
             'serial_number'     => 'nullable|string|max:255',
-            'barcode'           => [
-                'nullable',
-                'string',
-                'max:255',
-                Rule::unique('equipment_units', 'barcode')->whereNull('archived_at'),
-            ],
+            'barcode'           => 'nullable|string|max:255',
             'purchased_at'      => 'nullable|date',
             'eq_lifespan'       => 'nullable|integer|min:1',
             'status'            => 'nullable|string|max:50',
@@ -202,8 +208,23 @@ class EquipmentUnitController extends Controller
         ], [
             'equipment_type_id.required' => 'The equipment category is required.',
             'equipment_type_id.exists'   => 'The selected equipment category does not exist.',
-            'barcode.unique'            => 'This barcode is already assigned to another physical unit. Barcodes must be unique.',
         ]);
+
+        $finalSerial = $rawSerial !== '' ? $rawSerial : null;
+
+        if ($finalSerial) {
+            $duplicate = EquipmentUnit::where(function ($q) use ($finalSerial) {
+                $q->where('barcode', $finalSerial)
+                  ->orWhere('serial_number', $finalSerial);
+            })->whereNull('archived_at')->first();
+
+            if ($duplicate) {
+                return response()->json([
+                    'message' => "The Serial No. '{$finalSerial}' is already assigned to another physical unit. Serial numbers must be unique.",
+                    'errors'  => ['serial_number' => ["Serial No. '{$finalSerial}' is already in use."]],
+                ], 422);
+            }
+        }
 
         $rawCondition = $request->input('condition', 'Good');
         $canonicalCondition = match(strtolower(trim((string)$rawCondition))) {
@@ -223,14 +244,12 @@ class EquipmentUnitController extends Controller
         }
         $finalBuiltInUnits = array_values(array_filter($builtInUnits, fn($val) => !empty($val)));
 
-        $finalBarcode = !empty($validated['barcode']) ? trim($validated['barcode']) : ($serialNo ?: null);
-
         $unitData = [
             'equipment_type_id' => $validated['equipment_type_id'],
             'brand'             => $validated['brand'] ?? null,
             'model'             => $validated['model'] ?? null,
-            'serial_number'     => $serialNo ?: null,
-            'barcode'           => $finalBarcode,
+            'serial_number'     => $finalSerial,
+            'barcode'           => $finalSerial,
             'purchased_at'      => $validated['purchased_at'] ?? now()->toDateString(),
             'eq_lifespan'       => $validated['eq_lifespan'] ?? 5,
             'status'            => isset($validated['status']) ? strtolower(trim($validated['status'])) : 'available',
@@ -300,12 +319,7 @@ class EquipmentUnitController extends Controller
             'brand'             => 'nullable|string|max:255',
             'model'             => 'nullable|string|max:255',
             'serial_number'     => 'nullable|string|max:255',
-            'barcode'           => [
-                'nullable',
-                'string',
-                'max:255',
-                Rule::unique('equipment_units', 'barcode')->whereNull('archived_at')->ignore($unit->id),
-            ],
+            'barcode'           => 'nullable|string|max:255',
             'purchased_at'      => 'nullable|date',
             'eq_lifespan'       => 'nullable|integer|min:1',
             'status'            => 'nullable|string|max:50',
@@ -314,19 +328,35 @@ class EquipmentUnitController extends Controller
             'built_in_models'   => 'nullable',
             'description'       => 'nullable|string',
             'reason'            => 'nullable|string|max:500',
-        ], [
-            'barcode.unique' => 'This barcode is already assigned to another physical unit. Barcodes must be unique.',
         ]);
 
         $userReason = trim($request->input('reason', ''));
         unset($validated['reason']);
 
-        if ($request->has('serial_number') || $request->has('serial_no')) {
-            $serialVal = trim((string)($request->input('serial_number') ?? $request->input('serial_no') ?? '')) ?: null;
-            $validated['serial_number'] = $serialVal;
-            if (!$request->filled('barcode')) {
-                $validated['barcode'] = $serialVal;
+        $serialVal = trim((string)(
+            $request->input('serial_number') 
+            ?? $request->input('serial_no') 
+            ?? $request->input('barcode') 
+            ?? $request->input('unit_code') 
+            ?? ''
+        ));
+
+        if ($serialVal !== '') {
+            $duplicate = EquipmentUnit::where('id', '!=', $unit->id)
+                ->where(function ($q) use ($serialVal) {
+                    $q->where('barcode', $serialVal)
+                      ->orWhere('serial_number', $serialVal);
+                })->whereNull('archived_at')->first();
+
+            if ($duplicate) {
+                return response()->json([
+                    'message' => "The Serial No. '{$serialVal}' is already assigned to another physical unit.",
+                    'errors'  => ['serial_number' => ["Serial No. '{$serialVal}' is already in use."]],
+                ], 422);
             }
+
+            $validated['serial_number'] = $serialVal;
+            $validated['barcode'] = $serialVal;
         }
 
         if (isset($validated['condition'])) {

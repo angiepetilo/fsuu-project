@@ -29,6 +29,8 @@ export default function VenuesTab({ showMsg }) {
     status: "available",
     location: "",
     capacity: 100,
+    min_capacity: 1,
+    max_capacity: 100,
     allowed_equipment: [],
     equipment_max_qtys: {}, // { [equipId]: maxQty }
   });
@@ -86,14 +88,18 @@ export default function VenuesTab({ showMsg }) {
     if (!form.name.trim()) return;
 
     setFormLoading(true);
-    const photoData = form.photo || form.avatar;
+    const photoData = form.photo || form.avatar || "";
+    const minCap = form.min_capacity ? Number(form.min_capacity) : 1;
+    const maxCap = (form.max_capacity ? Number(form.max_capacity) : null) || (form.capacity ? Number(form.capacity) : 100);
     const payload = {
-      name: form.name.trim(),
+      name: (form.name || "").trim(),
       photo: photoData,
       avatar: photoData,
-      status: form.status,
-      location: form.location,
-      capacity: form.capacity ? Number(form.capacity) : 100,
+      status: form.status || "available",
+      location: form.location || "",
+      min_capacity: minCap,
+      max_capacity: maxCap,
+      capacity: maxCap,
       allowed_equipment: form.allowed_equipment || [],
       allowed_equipment_types_id: JSON.stringify(form.allowed_equipment || []),
       equipment_max_qtys: form.equipment_max_qtys || {},
@@ -163,7 +169,9 @@ export default function VenuesTab({ showMsg }) {
       avatar: v.photo || v.avatar || "",
       status: v.status || "available",
       location: v.location || "",
-      capacity: v.capacity || 100,
+      capacity: v.capacity || v.max_capacity || 100,
+      min_capacity: v.min_capacity || 1,
+      max_capacity: v.max_capacity || v.capacity || 100,
       allowed_equipment: parsedAllowed,
       equipment_max_qtys: v.equipment_max_qtys || {},
     });
@@ -268,6 +276,8 @@ export default function VenuesTab({ showMsg }) {
                 status: "available",
                 location: "",
                 capacity: 100,
+                min_capacity: 1,
+                max_capacity: 100,
                 allowed_equipment: [],
                 equipment_max_qtys: {},
               });
@@ -415,7 +425,7 @@ export default function VenuesTab({ showMsg }) {
                       type="text"
                       required
                       placeholder="e.g. AVR 1, Main Auditorium"
-                      value={form.name}
+                      value={form.name || ""}
                       onChange={(e) => setForm({ ...form, name: e.target.value })}
                       className="w-full p-2 bg-white border border-slate-300 rounded-lg font-normal text-slate-900 focus:outline-none focus:border-blue-600 text-xs"
                     />
@@ -428,7 +438,7 @@ export default function VenuesTab({ showMsg }) {
                         type="text"
                         required
                         placeholder="e.g. 2nd Floor, Main Building"
-                        value={form.location}
+                        value={form.location || ""}
                         onChange={(e) => setForm({ ...form, location: e.target.value })}
                         className="w-full p-2 bg-white border border-slate-300 rounded-lg font-normal text-slate-900 focus:outline-none focus:border-blue-600 text-xs"
                       />
@@ -436,15 +446,26 @@ export default function VenuesTab({ showMsg }) {
 
                     <div>
                       <label className="block text-xs font-medium text-slate-700 mb-1">Capacity *</label>
-                      <input
-                        type="number"
-                        min="1"
-                        required
-                        placeholder="e.g. 100"
-                        value={form.capacity}
-                        onChange={(e) => setForm({ ...form, capacity: e.target.value })}
-                        className="w-full p-2 bg-white border border-slate-300 rounded-lg font-normal text-slate-900 focus:outline-none focus:border-blue-600 text-xs"
-                      />
+                      <div className="grid grid-cols-2 gap-1.5">
+                        <input
+                          type="number"
+                          min="1"
+                          required
+                          placeholder="Minimum"
+                          value={form.min_capacity ?? ""}
+                          onChange={(e) => setForm({ ...form, min_capacity: e.target.value })}
+                          className="w-full p-2 bg-white border border-slate-300 rounded-lg font-normal text-slate-900 focus:outline-none focus:border-blue-600 text-xs"
+                        />
+                        <input
+                          type="number"
+                          min="1"
+                          required
+                          placeholder="Maximum"
+                          value={form.max_capacity ?? form.capacity ?? ""}
+                          onChange={(e) => setForm({ ...form, max_capacity: e.target.value, capacity: e.target.value })}
+                          className="w-full p-2 bg-white border border-slate-300 rounded-lg font-normal text-slate-900 focus:outline-none focus:border-blue-600 text-xs"
+                        />
+                      </div>
                     </div>
                   </div>
 
@@ -455,7 +476,7 @@ export default function VenuesTab({ showMsg }) {
                     <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg max-h-44 overflow-y-auto space-y-1.5">
                       {equipmentCatalog.map(eq => {
                         const checked = isItemChecked(eq);
-                        const currentMax = form.equipment_max_qtys?.[eq.id] ?? (eq.total_quantity || 1);
+                        const currentMax = form.equipment_max_qtys?.[eq.id] ?? (eq.total_quantity || 1) ?? 1;
 
                         return (
                           <div key={eq.id} className="flex items-center justify-between p-1.5 rounded-md bg-white border border-slate-200">
@@ -474,7 +495,7 @@ export default function VenuesTab({ showMsg }) {
                                 <input
                                   type="number"
                                   min="1"
-                                  value={currentMax}
+                                  value={currentMax ?? ""}
                                   onChange={(e) => handleMaxQtyChange(eq.id, e.target.value)}
                                   className="w-14 p-1 bg-white border border-slate-300 rounded text-center font-medium text-slate-900 text-xs focus:outline-none focus:border-blue-600"
                                 />

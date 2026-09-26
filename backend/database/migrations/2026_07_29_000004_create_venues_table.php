@@ -14,9 +14,12 @@ return new class extends Migration
             $table->longText('avatar')->nullable();
             $table->string('location')->nullable();
             $table->integer('capacity')->default(100);
+            $table->integer('min_capacity')->nullable()->default(1);
+            $table->integer('max_capacity')->nullable()->default(100);
             $table->text('allowed_equipment_types_id')->nullable();
             $table->integer('allowed_equipment_units_qty')->nullable();
             $table->json('allowed_equipment')->nullable();
+            $table->json('equipment_max_qtys')->nullable();
             $table->string('status')->default('available');
             $table->timestamps();
             $table->timestamp('archived_at')->nullable();

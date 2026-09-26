@@ -49,6 +49,15 @@ export default function UserFormModal({
     const email = (form.email_address || "").trim();
     if (!email || !email.includes("@")) return;
 
+    const parts = email.toLowerCase().split("@");
+    if (parts.length === 2 && (parts[1] === "urios.edu.ph" || parts[1] === "fsuu.edu.ph") && /[0-9]/.test(parts[0])) {
+      setEmailStatus({
+        valid: false,
+        message: "Official institutional emails (@urios.edu.ph) do not contain numbers (e.g. 202100452@urios.edu.ph is not valid). Please use your official name-based email.",
+      });
+      return;
+    }
+
     setEmailChecking(true);
     try {
       const res = await api.post("/public/verify-email-active", { email });

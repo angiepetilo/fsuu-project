@@ -449,13 +449,16 @@ class VenueBookingService
 
             foreach ($competingPendingBookings as $competing) {
                 $competingStatus = strtolower($competing->tracking_status ?? $competing->status ?? 'pending');
-                $isCompetingIncomplete = $competingStatus === 'incomplete' || (isset($competing->is_complete) && !$competing->is_complete);
                 $autoRejectReason = $isCompetingIncomplete
-                    ? "This reservation was forfeited because required documents were not completed within the grace period, and the venue slot was awarded to another applicant with complete requirements."
-                    : "This date and timeslot was already confirmed and occupied by another reservation. Please re-book by selecting a different date and/or timeslot.";
+                    ? "Schedule Conflict & Missing Requirements: This reservation was forfeited because required documents were not completed within the grace period. The venue slot was awarded to another applicant with complete requirements under university policy."
+                    : "Schedule Conflict (First-Come, First-Served): Another verified reservation for " . ($booking->venue?->name ?? 'this venue') . " on {$rawDate} ({$timeStart} - {$timeEnd}) completed all requirements and was awarded the slot first. You may refer to an available vacant venue or select a different timeslot.";
 
                 if (\Illuminate\Support\Facades\Schema::hasColumn('venue_bookings', 'status')) {
-                    $competing->forceFill(['status' => 'rejected'])->save();
+                    $fillData = ['status' => 'rejected'];
+                    if (\Illuminate\Support\Facades\Schema::hasColumn('venue_bookings', 'rejection_reason')) {
+                        $fillData['rejection_reason'] = $autoRejectReason;
+                    }
+                    $competing->forceFill($fillData)->save();
                 }
 
                 DB::table('tracking_numbers')
@@ -590,7 +593,11 @@ class VenueBookingService
     {
         return DB::transaction(function () use ($booking, $actor, $remarks) {
             if (\Illuminate\Support\Facades\Schema::hasColumn('venue_bookings', 'status')) {
-                $booking->forceFill(['status' => 'rejected'])->save();
+                $fillData = ['status' => 'rejected'];
+                if (\Illuminate\Support\Facades\Schema::hasColumn('venue_bookings', 'rejection_reason')) {
+                    $fillData['rejection_reason'] = $remarks;
+                }
+                $booking->forceFill($fillData)->save();
             }
 
             DB::table('tracking_numbers')
@@ -950,6 +957,23 @@ class VenueBookingService
                     $this->auditLog->log($actor, 'booking_completed', 'avr_venue_booking', $booking->id);
                 }
             } catch (\Throwable $e) {}
+
+            // Dispatch completion or late return email notification to requestor
+            try {
+                $compStatus = $isLate ? 'late return' : 'completed';
+                $compRemarks = $isLate 
+                    ? "Your venue usage has concluded ({$minutesLate} minutes past scheduled end time). Inspection completed."
+                    : "Your venue reservation has concluded and has been cleared in good order.";
+
+                SendBookingStatusUpdateJob::dispatch(
+                    'venue',
+                    $booking->fresh(['venue', 'trackingNumber']),
+                    $compStatus,
+                    $compRemarks
+                );
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning("Failed to dispatch venue completion email: " . $e->getMessage());
+            }
 
             return $booking->fresh(['venue', 'trackingNumber', 'documents']);
         });

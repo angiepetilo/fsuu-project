@@ -61,8 +61,13 @@ class StorePublicEquipmentBorrowingRequest extends FormRequest
                 'required',
                 'email',
                 function ($attribute, $value, $fail) {
-                    if (!str_ends_with(strtolower(trim((string)$value)), '@urios.edu.ph')) {
+                    $clean = strtolower(trim((string)$value));
+                    if (!str_ends_with($clean, '@urios.edu.ph')) {
                         $fail('The requestor email must be an official university email ending with @urios.edu.ph.');
+                    }
+                    $username = explode('@', $clean)[0] ?? '';
+                    if (preg_match('/[0-9]/', $username)) {
+                        $fail('Official institutional emails (@urios.edu.ph) contain no numbers (e.g. student ID numbers like 202100452@urios.edu.ph are not valid). Please use your official name-based email.');
                     }
                 },
                 new ActiveDeliverableEmail,
@@ -90,8 +95,9 @@ class StorePublicEquipmentBorrowingRequest extends FormRequest
     {
         $validator->after(function ($validator) {
             $settings = \App\Models\VerificationPinSetting::first();
-            $requirePhone = $settings ? $settings->equipment_verify_phone : false;
-            $requireEmail = $settings ? $settings->equipment_verify_email : true; // Default to true historically
+            $isSystemEnabled = $settings ? (bool)$settings->is_enabled : true;
+            $requirePhone = ($settings && $isSystemEnabled) ? (bool)$settings->equipment_verify_phone : false;
+            $requireEmail = ($settings && $isSystemEnabled) ? (bool)$settings->equipment_verify_email : false;
 
             $phone = $this->input('requestor_contact_number');
             if ($requirePhone && $phone && !PhoneVerification::isPhoneVerified($phone)) {

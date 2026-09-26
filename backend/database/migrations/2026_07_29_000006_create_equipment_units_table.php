@@ -14,6 +14,7 @@ return new class extends Migration
             $table->foreignId('equipment_types_id')->nullable()->constrained('equipment_types')->cascadeOnDelete();
             $table->string('brand')->nullable();
             $table->string('model')->nullable();
+            $table->string('serial_number')->nullable();
             $table->string('barcode')->nullable();
             $table->date('purchased_at')->nullable();
             $table->integer('eq_lifespan')->default(5); // in years
@@ -21,6 +22,7 @@ return new class extends Migration
             $table->string('condition')->default('Good');
             $table->text('description')->nullable();
             $table->json('built_in_units')->nullable();
+            $table->json('built_in_models')->nullable();
             $table->timestamps();
             $table->timestamp('archived_at')->nullable();
         });
