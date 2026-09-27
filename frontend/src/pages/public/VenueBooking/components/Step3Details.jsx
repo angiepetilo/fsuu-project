@@ -1,4 +1,4 @@
-import { FileText, CheckCircle2, FileCheck, ShieldAlert, Check, ShieldCheck, AlertCircle, RefreshCw, KeyRound, Loader2, Edit3, Lock, Mail } from "lucide-react";
+import { FileText, CheckCircle2, FileCheck, ShieldAlert, Check, ShieldCheck, AlertCircle, RefreshCw, KeyRound, Loader2, Edit3, Lock, Mail, Phone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
 import { formatDateRange } from "@/lib/dateUtils";
@@ -33,8 +33,9 @@ export default function Step3Details({
 }) {
   const isSystemEnabled = pinRules ? pinRules.isEnabled !== false : false;
   const requireEmailVerify = pinRules ? (pinRules.isEnabled !== false && pinRules.venueVerifyEmail === true) : false;
-  // Note: Phone verify is currently not implemented in the frontend. It is just a placeholder setting.
   const requirePhoneVerify = pinRules ? (pinRules.isEnabled !== false && pinRules.venueVerifyPhone === true) : false;
+  const requireVerification = requireEmailVerify || requirePhoneVerify;
+  const showChannelChoices = requireEmailVerify && requirePhoneVerify;
 
   const [requirements, setRequirements] = useState([]);
   const [departmentsList, setDepartmentsList] = useState([]);
@@ -148,20 +149,7 @@ export default function Step3Details({
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
       setEmailCheckStatus("invalid");
-      setEmailCheckMessage("Please enter a valid email address (e.g. name@urios.edu.ph).");
-      setEmailSuggestion("");
-      return;
-    }
-    if (!trimmed.endsWith("@urios.edu.ph")) {
-      setEmailCheckStatus("invalid");
-      setEmailCheckMessage("Only official university email addresses ending with @urios.edu.ph are accepted for reservations.");
-      setEmailSuggestion("");
-      return;
-    }
-    const emailUser = trimmed.split("@")[0] || "";
-    if (/\d/.test(emailUser)) {
-      setEmailCheckStatus("invalid");
-      setEmailCheckMessage("Official institutional emails (@urios.edu.ph) do not contain numbers (e.g. 202100452@urios.edu.ph is not valid). Please use your official name-based email (e.g. firstname.lastname@urios.edu.ph).");
+      setEmailCheckMessage("Please enter a valid email address (e.g. name@gmail.com or name@urios.edu.ph).");
       setEmailSuggestion("");
       return;
     }
@@ -216,78 +204,28 @@ export default function Step3Details({
     setEmailCheckMessage("");
   };
 
-  const handleRequestOtp = async () => {
-    const trimmed = (email || "").trim().toLowerCase();
-    if (!trimmed) {
-      setEmailCheckStatus("invalid");
-      setEmailCheckMessage("Please enter your email address first.");
-      setOtpError("");
-      return;
+  const [otpChannel, setOtpChannel] = useState("email"); // "email" | "sms"
+  
+  useEffect(() => {
+    if (requirePhoneVerify && !requireEmailVerify) {
+      setOtpChannel("sms");
+    } else if (requireEmailVerify && !requirePhoneVerify) {
+      setOtpChannel("email");
     }
+  }, [requireEmailVerify, requirePhoneVerify]);
 
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
-      setEmailCheckStatus("invalid");
-      setEmailCheckMessage("Please enter a valid email address (e.g. name@urios.edu.ph).");
-      setOtpError("");
-      return;
-    }
+  const phoneInfo = validatePhilippineMobile(contactNumber);
 
-    if (!trimmed.endsWith("@urios.edu.ph")) {
-      setEmailCheckStatus("invalid");
-      setEmailCheckMessage("Only official university email addresses ending with @urios.edu.ph are accepted for reservations.");
-      setOtpError("Please use your official university email (@urios.edu.ph).");
-      return;
-    }
-    const otpUser = trimmed.split("@")[0] || "";
-    if (/\d/.test(otpUser)) {
-      setEmailCheckStatus("invalid");
-      setEmailCheckMessage("Official institutional emails (@urios.edu.ph) do not contain numbers (e.g. 202100452@urios.edu.ph is not valid). Please use your official name-based email.");
-      setOtpError("Official institutional emails do not contain numbers. Please use your name-based email.");
-      return;
-    }
-
+  const handleRequestOtp = async (overrideChannel = null) => {
+    const channel = overrideChannel || otpChannel;
     setIsSendingOtp(true);
     setOtpError("");
     setOtpSuccess("");
     setDuplicateRef(null);
 
-    // If email deliverability hasn't been verified yet or was flagged, verify now on click!
-    if (emailCheckStatus !== "valid" || trimmed !== lastCheckedEmail) {
-      setEmailCheckStatus("checking");
-      setEmailCheckMessage("Checking email deliverability & temporary domain list...");
-      try {
-        const verifyRes = await api.post("/public/verify-email-active", { email: trimmed });
-        if (verifyRes.data?.valid) {
-          setEmailCheckStatus("valid");
-          setEmailCheckMessage(verifyRes.data.message || "Email address is active and deliverable.");
-          setLastCheckedEmail(trimmed);
-        } else {
-          setEmailCheckStatus("invalid");
-          const errorMsg = verifyRes.data?.message || "This email address is randomized, temporary, or invalid.";
-          setEmailCheckMessage(errorMsg);
-          setOtpError("");
-          if (verifyRes.data?.autocorrect) {
-            setEmailSuggestion(verifyRes.data.autocorrect);
-          }
-          setIsSendingOtp(false);
-          return;
-        }
-      } catch (checkErr) {
-        setEmailCheckStatus("invalid");
-        const errorMsg = checkErr.response?.data?.message || "Disposable, temporary, or randomized email addresses are not accepted. Please provide a real email.";
-        setEmailCheckMessage(errorMsg);
-        setOtpError("");
-        if (checkErr.response?.data?.autocorrect) {
-          setEmailSuggestion(checkErr.response.data.autocorrect);
-        }
-        setIsSendingOtp(false);
-        return;
-      }
-    }
-
     try {
-      const res = await api.post("/public/send-otp", {
-        email: trimmed,
+      let payload = {
+        channel,
         venue_id: selectedVenue?.id,
         date_of_usage: selectedDate,
         reservation_end_date: selectedEndDate || selectedDate,
@@ -295,11 +233,76 @@ export default function Step3Details({
         time_end: endTime,
         first_name: firstName,
         last_name: lastName,
-      });
+      };
+
+      if (channel === "sms") {
+        const cleanPhone = (contactNumber || "").replace(/\D/g, "");
+        if (!cleanPhone || !phoneInfo.isValid) {
+          setOtpError("Please enter a valid 11-digit Philippine mobile number first.");
+          setIsSendingOtp(false);
+          return;
+        }
+        payload.phone_number = contactNumber;
+      } else {
+        const trimmed = (email || "").trim().toLowerCase();
+        if (!trimmed) {
+          setEmailCheckStatus("invalid");
+          setEmailCheckMessage("Please enter your email address first.");
+          setOtpError("");
+          setIsSendingOtp(false);
+          return;
+        }
+
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+          setEmailCheckStatus("invalid");
+          setEmailCheckMessage("Please enter a valid email address (e.g. name@gmail.com or name@urios.edu.ph).");
+          setOtpError("");
+          setIsSendingOtp(false);
+          return;
+        }
+
+        // If email deliverability hasn't been verified yet or was flagged, verify now on click!
+        if (emailCheckStatus !== "valid" || trimmed !== lastCheckedEmail) {
+          setEmailCheckStatus("checking");
+          setEmailCheckMessage("Checking email deliverability & temporary domain list...");
+          try {
+            const verifyRes = await api.post("/public/verify-email-active", { email: trimmed });
+            if (verifyRes.data?.valid) {
+              setEmailCheckStatus("valid");
+              setEmailCheckMessage(verifyRes.data.message || "Email address is active and deliverable.");
+              setLastCheckedEmail(trimmed);
+            } else {
+              setEmailCheckStatus("invalid");
+              const errorMsg = verifyRes.data?.message || "This email address is randomized, temporary, or invalid.";
+              setEmailCheckMessage(errorMsg);
+              setOtpError("");
+              if (verifyRes.data?.autocorrect) {
+                setEmailSuggestion(verifyRes.data.autocorrect);
+              }
+              setIsSendingOtp(false);
+              return;
+            }
+          } catch (checkErr) {
+            setEmailCheckStatus("invalid");
+            const errorMsg = checkErr.response?.data?.message || "Disposable, temporary, or randomized email addresses are not accepted. Please provide a real email.";
+            setEmailCheckMessage(errorMsg);
+            setOtpError("");
+            if (checkErr.response?.data?.autocorrect) {
+              setEmailSuggestion(checkErr.response.data.autocorrect);
+            }
+            setIsSendingOtp(false);
+            return;
+          }
+        }
+
+        payload.email = trimmed;
+      }
+
+      const res = await api.post("/public/send-otp", payload);
       setIsOtpRequested(true);
       setOtpCooldown(60);
       setOtpExpiresIn(600);
-      setOtpSuccess(res.data?.message || "6-digit verification code sent to your inbox.");
+      setOtpSuccess(res.data?.message || (channel === "sms" ? "6-digit verification code sent to your mobile phone via SMS." : "6-digit verification code sent to your inbox."));
     } catch (err) {
       if (err.response?.data?.duplicate) {
         setDuplicateRef(err.response.data.reference_code || null);
@@ -313,7 +316,6 @@ export default function Step3Details({
   };
 
   const handleVerifyOtp = async () => {
-    const trimmedEmail = (email || "").trim().toLowerCase();
     const trimmedCode = (otpCode || "").trim();
     if (trimmedCode.length !== 6) {
       setOtpError("Please enter the complete 6-digit code.");
@@ -323,11 +325,21 @@ export default function Step3Details({
     setIsVerifyingOtp(true);
     setOtpError("");
     try {
-      const res = await api.post("/public/verify-otp", { email: trimmedEmail, code: trimmedCode });
+      const payload = {
+        channel: otpChannel,
+        code: trimmedCode,
+      };
+      if (otpChannel === "sms") {
+        payload.phone_number = contactNumber;
+      } else {
+        payload.email = (email || "").trim().toLowerCase();
+      }
+
+      const res = await api.post("/public/verify-otp", payload);
       if (res.data?.verified) {
         if (setIsEmailVerified) setIsEmailVerified(true);
         setIsOtpRequested(false);
-        setOtpSuccess("Email verified successfully!");
+        setOtpSuccess(otpChannel === "sms" ? "Mobile number verified successfully via SMS!" : "Email verified successfully!");
       } else {
         setOtpError("Verification failed. Please try again.");
       }
@@ -436,18 +448,82 @@ export default function Step3Details({
           </div>
         </div>
 
+        {/* VERIFICATION CHANNEL SELECTOR (Only shown if BOTH Email and SMS verification are enabled by Super Admin) */}
+        {showChannelChoices && (
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3.5 bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-blue-900/50 rounded-2xl gap-3">
+            <div className="space-y-0.5">
+              <span className="text-xs font-black text-slate-800 dark:text-white flex items-center gap-1.5">
+                <ShieldCheck size={14} className="text-blue-600 dark:text-blue-400" />
+                <span>Verification Delivery Method</span>
+              </span>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+                Select your preferred channel to receive your 6-digit verification code:
+              </p>
+            </div>
+            <div className="flex items-center gap-1.5 p-1 bg-white dark:bg-slate-950/70 border border-slate-200 dark:border-blue-900/40 rounded-xl shrink-0 self-start sm:self-center">
+              <button
+                type="button"
+                disabled={isEmailVerified}
+                onClick={() => {
+                  if (otpChannel !== "email") {
+                    setOtpChannel("email");
+                    setIsOtpRequested(false);
+                    setOtpCode("");
+                    setOtpError("");
+                    setOtpSuccess("");
+                  }
+                }}
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  otpChannel === "email"
+                    ? "bg-blue-600 text-white shadow-xs"
+                    : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/60 dark:hover:bg-slate-800"
+                } ${isEmailVerified ? "opacity-60 cursor-not-allowed" : ""}`}
+              >
+                <Mail size={13} />
+                <span>Email OTP</span>
+              </button>
+              <button
+                type="button"
+                disabled={isEmailVerified}
+                onClick={() => {
+                  if (otpChannel !== "sms") {
+                    setOtpChannel("sms");
+                    setIsOtpRequested(false);
+                    setOtpCode("");
+                    setOtpError("");
+                    setOtpSuccess("");
+                  }
+                }}
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  otpChannel === "sms"
+                    ? "bg-blue-600 text-white shadow-xs"
+                    : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/60 dark:hover:bg-slate-800"
+                } ${isEmailVerified ? "opacity-60 cursor-not-allowed" : ""}`}
+              >
+                <Phone size={13} />
+                <span>SMS OTP</span>
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* EMAIL FIELD WITH INLINE DOMAIN CHECK & ATTACHED OTP VERIFY BUTTON */}
         <div className="flex flex-col gap-1.5 sm:col-span-1">
           <div className="flex items-center justify-between">
             <label className="text-xs font-bold text-slate-900 dark:text-white">
-              University Email (@urios.edu.ph) <span className="text-red-500">*</span>
+              Email Address <span className="text-red-500">*</span>
             </label>
-            {isEmailVerified ? (
+            {requireVerification && isEmailVerified && otpChannel === "email" ? (
+              <span className="inline-flex items-center gap-1 text-[11px] font-extrabold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 rounded-md">
+                <Check size={12} className="stroke-[3]" />
+                Verified via Email
+              </span>
+            ) : requireVerification && isEmailVerified ? (
               <span className="inline-flex items-center gap-1 text-[11px] font-extrabold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 rounded-md">
                 <Check size={12} className="stroke-[3]" />
                 Verified
               </span>
-            ) : emailCheckStatus === "valid" ? (
+            ) : requireVerification && otpChannel === "email" && emailCheckStatus === "valid" ? (
               <span className="text-[10.5px] font-bold text-blue-600 dark:text-blue-400 flex items-center gap-1">
                 <Check size={12} />
                 Domain Active
@@ -459,13 +535,13 @@ export default function Step3Details({
             <input 
               type="email" 
               required 
-              readOnly={requireEmailVerify && isEmailVerified}
+              readOnly={requireVerification && isEmailVerified && otpChannel === "email"}
               value={email} 
               onChange={handleEmailChange}
               onBlur={handleEmailBlur}
-              placeholder="username@urios.edu.ph" 
-              className={`w-full p-3 ${requireEmailVerify ? 'pr-24' : ''} border rounded-xl text-sm transition-all focus:outline-none ${
-                (requireEmailVerify && isEmailVerified)
+              placeholder="yourname@gmail.com or username@urios.edu.ph" 
+              className={`w-full p-3 ${requireVerification && otpChannel === "email" ? 'pr-24' : ''} border rounded-xl text-sm transition-all focus:outline-none ${
+                (requireVerification && isEmailVerified && otpChannel === "email")
                   ? "bg-emerald-50/40 dark:bg-emerald-950/30 border-emerald-300 dark:border-emerald-700 text-slate-800 dark:text-emerald-300 font-semibold cursor-not-allowed" 
                   : emailCheckStatus === "invalid"
                     ? "bg-white dark:bg-slate-900/80 border-rose-300 dark:border-rose-700 focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
@@ -475,14 +551,16 @@ export default function Step3Details({
               }`} 
             />
 
-            {/* Attached Action Button inside field */}
-            {requireEmailVerify && (
+            {/* Attached Action Button inside field (Only when channel is email and verification is required) */}
+            {requireVerification && otpChannel === "email" && (
               <div className="absolute right-1.5 flex items-center gap-1">
                 {isEmailVerified ? (
                   <button
                     type="button"
                     onClick={() => {
                       if (setIsEmailVerified) setIsEmailVerified(false);
+                      setIsOtpRequested(false);
+                      setOtpCode("");
                       setEmailCheckStatus("idle");
                       setEmailCheckMessage("");
                     }}
@@ -497,7 +575,7 @@ export default function Step3Details({
                     type="button"
                     size="sm"
                     disabled={isSendingOtp}
-                    onClick={handleRequestOtp}
+                    onClick={() => handleRequestOtp("email")}
                     className={`h-8 px-3 rounded-lg text-xs font-black shadow-xs transition-all cursor-pointer ${
                       !email || !email.trim()
                         ? "bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-200 dark:border-slate-700"
@@ -521,7 +599,7 @@ export default function Step3Details({
           </div>
 
           {/* Part 1 Inline Domain & Deliverability Feedback below placeholder */}
-          {!isEmailVerified && (
+          {requireVerification && otpChannel === "email" && !isEmailVerified && (
             <div className="min-h-[20px] space-y-1 mt-0.5">
               {emailCheckStatus === "checking" && (
                 <div className="flex items-center gap-1.5 text-[11px] text-blue-600 dark:text-blue-400 font-medium animate-pulse py-0.5">
@@ -570,7 +648,7 @@ export default function Step3Details({
           )}
 
           {/* Duplicate / OTP Error Alert Banner */}
-          {otpError && !isOtpRequested && otpError !== emailCheckMessage && (
+          {requireVerification && otpChannel === "email" && otpError && !isOtpRequested && otpError !== emailCheckMessage && (
             <div className="mt-2.5 p-3.5 bg-rose-50 dark:bg-rose-950/40 border-2 border-rose-300 dark:border-rose-800 rounded-2xl text-xs font-bold text-rose-800 dark:text-rose-200 flex items-start gap-2.5 shadow-sm animate-in fade-in">
               <AlertCircle size={16} className="text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
               <div className="flex-1 space-y-1">
@@ -591,7 +669,7 @@ export default function Step3Details({
           )}
 
           {/* Part 2 Inline OTP Card (Rendered directly under field, NOT in a modal) */}
-          {isOtpRequested && !isEmailVerified && (
+          {requireVerification && otpChannel === "email" && isOtpRequested && !isEmailVerified && (
             <div className="mt-2 p-4 bg-blue-50/70 dark:bg-slate-900/90 border border-blue-200 dark:border-blue-900/50 rounded-2xl space-y-3 animate-in fade-in zoom-in-95 duration-200 shadow-sm">
               <div className="flex items-center justify-between">
                 <label className="text-xs font-black text-blue-950 dark:text-blue-200 flex items-center gap-1.5">
@@ -659,7 +737,7 @@ export default function Step3Details({
                   ) : (
                     <button
                       type="button"
-                      onClick={handleRequestOtp}
+                      onClick={() => handleRequestOtp("email")}
                       disabled={isSendingOtp}
                       className="text-[11px] font-extrabold text-blue-700 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 underline cursor-pointer"
                     >
@@ -672,34 +750,203 @@ export default function Step3Details({
           )}
         </div>
 
-        {/* CONTACT NUMBER FIELD (NON-OTP GATED, FORMAT VALIDATION ONLY) */}
-        <div className="flex flex-col gap-1.5">
+        {/* CONTACT NUMBER FIELD WITH OPTIONAL SMS OTP VERIFICATION */}
+        <div className="flex flex-col gap-1.5 sm:col-span-1">
           <div className="flex items-center justify-between">
             <label className="text-xs font-bold text-slate-900 dark:text-white">
               Contact Number <span className="text-red-500">*</span>
             </label>
-            {(() => {
-              const info = validatePhilippineMobile(contactNumber);
-              if (contactNumber && contactNumber.length >= 4 && !info.isValid) {
-                return (
-                  <span className="text-[10px] font-semibold text-amber-600 dark:text-amber-400">
-                    {info.message}
-                  </span>
-                );
-              }
-              return null;
-            })()}
+            <div className="flex items-center gap-1.5">
+              {requireVerification && isEmailVerified && otpChannel === "sms" ? (
+                <span className="inline-flex items-center gap-1 text-[11px] font-extrabold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 rounded-md">
+                  <Check size={12} className="stroke-[3]" />
+                  Verified via SMS
+                </span>
+              ) : contactNumber && contactNumber.length >= 4 && !phoneInfo.isValid ? (
+                <span className="text-[10px] font-semibold text-amber-600 dark:text-amber-400">
+                  {phoneInfo.message}
+                </span>
+              ) : null}
+            </div>
           </div>
-          <input 
-            type="tel" 
-            required 
-            value={contactNumber}
-            onChange={handleContactChange}
-            pattern="[0-9]{11}"
-            title="Please enter an active 11-digit Philippine mobile number"
-            placeholder="0917 123 4567" 
-            className="w-full p-3 bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 rounded-xl text-sm font-mono focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all" 
-          />
+
+          <div className="relative flex items-center">
+            <input 
+              type="tel" 
+              required 
+              readOnly={requireVerification && isEmailVerified && otpChannel === "sms"}
+              value={contactNumber}
+              onChange={(e) => {
+                handleContactChange(e);
+                if (isEmailVerified && otpChannel === "sms" && setIsEmailVerified) {
+                  setIsEmailVerified(false);
+                }
+                if (isOtpRequested && otpChannel === "sms") {
+                  setIsOtpRequested(false);
+                  setOtpCode("");
+                  setOtpError("");
+                  setOtpSuccess("");
+                }
+              }}
+              pattern="[0-9]{11}"
+              title="Please enter an active 11-digit Philippine mobile number"
+              placeholder="0917 123 4567" 
+              className={`w-full p-3 ${requireVerification && otpChannel === "sms" ? 'pr-24' : ''} border rounded-xl text-sm font-mono transition-all focus:outline-none ${
+                (requireVerification && isEmailVerified && otpChannel === "sms")
+                  ? "bg-emerald-50/40 dark:bg-emerald-950/30 border-emerald-300 dark:border-emerald-700 text-slate-800 dark:text-emerald-300 font-semibold cursor-not-allowed"
+                  : "bg-white dark:bg-slate-900/80 border-slate-200 dark:border-slate-700 focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
+              }`} 
+            />
+
+            {/* Attached Action Button for SMS verification */}
+            {requireVerification && otpChannel === "sms" && (
+              <div className="absolute right-1.5 flex items-center gap-1">
+                {isEmailVerified ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (setIsEmailVerified) setIsEmailVerified(false);
+                      setIsOtpRequested(false);
+                      setOtpCode("");
+                      setOtpError("");
+                      setOtpSuccess("");
+                    }}
+                    className="px-2.5 py-1.5 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 rounded-lg text-[11px] font-bold text-slate-600 dark:text-slate-300 transition-colors shadow-2xs cursor-pointer flex items-center gap-1"
+                    title="Unlock and change mobile number"
+                  >
+                    <Edit3 size={11} />
+                    Change
+                  </button>
+                ) : (
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={!phoneInfo.isValid || isSendingOtp}
+                    onClick={() => handleRequestOtp("sms")}
+                    className={`h-8 px-3 rounded-lg text-xs font-black shadow-xs transition-all cursor-pointer ${
+                      phoneInfo.isValid
+                        ? "bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500 text-white shadow-blue-600/20"
+                        : "bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-200 dark:border-slate-700 cursor-not-allowed shadow-none"
+                    }`}
+                  >
+                    {isSendingOtp ? (
+                      <span className="flex items-center gap-1">
+                        <Loader2 size={12} className="animate-spin" />
+                        Sending...
+                      </span>
+                    ) : isOtpRequested ? (
+                      "Resend"
+                    ) : (
+                      "Verify SMS"
+                    )}
+                  </Button>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* SMS Duplicate / Error Banner */}
+          {requireVerification && otpChannel === "sms" && otpError && !isOtpRequested && (
+            <div className="mt-2.5 p-3.5 bg-rose-50 dark:bg-rose-950/40 border-2 border-rose-300 dark:border-rose-900/50 rounded-2xl text-xs font-bold text-rose-800 dark:text-rose-300 flex items-start gap-2.5 shadow-sm animate-in fade-in">
+              <AlertCircle size={16} className="text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
+              <div className="flex-1 space-y-1">
+                <p className="leading-snug">{otpError}</p>
+                {duplicateRef && (
+                  <a
+                    href={`/track?ref=${encodeURIComponent(duplicateRef)}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 text-blue-700 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300 font-extrabold text-xs underline mt-1"
+                  >
+                    <span>Track existing reservation ({duplicateRef})</span>
+                    <span>→</span>
+                  </a>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Inline SMS OTP Card */}
+          {requireVerification && otpChannel === "sms" && isOtpRequested && !isEmailVerified && (
+            <div className="mt-2 p-4 bg-blue-50/70 dark:bg-slate-900/80 border border-blue-200 dark:border-blue-900/50 rounded-2xl space-y-3 animate-in fade-in zoom-in-95 duration-200 shadow-sm">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-black text-blue-950 dark:text-white flex items-center gap-1.5">
+                  <KeyRound size={14} className="text-blue-600 dark:text-blue-400" />
+                  <span>Enter 6-Digit SMS OTP</span>
+                </label>
+                {otpExpiresIn > 0 ? (
+                  <span className="text-[11px] font-mono font-bold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/50 border border-amber-200/80 dark:border-amber-800/50 px-2 py-0.5 rounded-md">
+                    ⏱ Expires in {formatTimer(otpExpiresIn)}
+                  </span>
+                ) : (
+                  <span className="text-[11px] font-bold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900/50 px-2 py-0.5 rounded-md">
+                    Code Expired
+                  </span>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  maxLength={6}
+                  value={otpCode}
+                  onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  placeholder="123456"
+                  className="flex-1 p-2.5 bg-white dark:bg-slate-950 border border-blue-300 dark:border-blue-900/50 rounded-xl text-center text-base font-mono font-black tracking-widest text-blue-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 shadow-inner"
+                />
+                <Button
+                  type="button"
+                  disabled={otpCode.length !== 6 || isVerifyingOtp || otpExpiresIn <= 0}
+                  onClick={handleVerifyOtp}
+                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500 text-white rounded-xl text-xs font-black shadow-md shadow-blue-600/20 disabled:opacity-50 transition-all cursor-pointer shrink-0"
+                >
+                  {isVerifyingOtp ? (
+                    <span className="flex items-center gap-1">
+                      <Loader2 size={12} className="animate-spin" />
+                      Verifying...
+                    </span>
+                  ) : (
+                    "Confirm Code"
+                  )}
+                </Button>
+              </div>
+
+              {/* Status / Error & Resend Link */}
+              <div className="flex items-center justify-between text-xs pt-0.5">
+                <div className="flex-1 min-w-0">
+                  {otpError && (
+                    <span className="text-[11px] font-semibold text-rose-600 dark:text-rose-400 flex items-center gap-1">
+                      <AlertCircle size={12} className="shrink-0" />
+                      <span className="truncate">{otpError}</span>
+                    </span>
+                  )}
+                  {otpSuccess && !otpError && (
+                    <span className="text-[11px] font-medium text-blue-800 dark:text-blue-300 truncate block">
+                      {otpSuccess}
+                    </span>
+                  )}
+                </div>
+
+                <div className="shrink-0 pl-2">
+                  {otpCooldown > 0 ? (
+                    <span className="text-[11px] text-slate-400 dark:text-slate-500 font-semibold">
+                      Resend in {otpCooldown}s
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => handleRequestOtp("sms")}
+                      disabled={isSendingOtp}
+                      className="text-[11px] font-extrabold text-blue-700 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 underline cursor-pointer"
+                    >
+                      Resend OTP Code
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
           <p className="text-[10.5px] text-slate-400 dark:text-slate-500">
             Booking notifications and reminders will be sent via SMS and Email to this contact.
           </p>

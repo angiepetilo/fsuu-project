@@ -28,16 +28,6 @@ class StorePublicVenueBookingRequest extends FormRequest
                 'required',
                 'email',
                 'max:255',
-                function ($attribute, $value, $fail) {
-                    $clean = strtolower(trim((string)$value));
-                    if (!str_ends_with($clean, '@urios.edu.ph')) {
-                        $fail('The requestor email must be an official university email ending with @urios.edu.ph.');
-                    }
-                    $username = explode('@', $clean)[0] ?? '';
-                    if (preg_match('/[0-9]/', $username)) {
-                        $fail('Official institutional emails (@urios.edu.ph) contain no numbers (e.g. student ID numbers like 202100452@urios.edu.ph are not valid). Please use your official name-based email.');
-                    }
-                },
                 new ActiveDeliverableEmail,
             ],
             'requestor_contact_number' => ['required', 'string', new ValidPhilippineMobileNumber],
@@ -68,19 +58,31 @@ class StorePublicVenueBookingRequest extends FormRequest
             $requireEmail = ($settings && $isSystemEnabled) ? (bool)$settings->venue_verify_email : false;
 
             $phone = $this->input('requestor_contact_number');
-            if ($requirePhone && $phone && !\App\Models\PhoneVerification::isPhoneVerified($phone)) {
-                $validator->errors()->add(
-                    'requestor_contact_number',
-                    'The contact phone number provided has not been verified via SMS OTP. Please complete mobile verification before submitting.'
-                );
-            }
-
             $email = $this->input('requestor_email');
-            if ($requireEmail && $email && !\App\Models\EmailVerification::isEmailVerified($email)) {
-                $validator->errors()->add(
-                    'requestor_email',
-                    'The email address provided has not been verified via OTP. Please complete email verification before submitting.'
-                );
+
+            if ($requirePhone && $requireEmail) {
+                $isPhoneOk = $phone && \App\Models\PhoneVerification::isPhoneVerified($phone);
+                $isEmailOk = $email && \App\Models\EmailVerification::isEmailVerified($email);
+                if (!$isPhoneOk && !$isEmailOk) {
+                    $validator->errors()->add(
+                        'requestor_email',
+                        'Please verify your contact details via Email OTP or SMS OTP before submitting.'
+                    );
+                }
+            } elseif ($requirePhone) {
+                if (!$phone || !\App\Models\PhoneVerification::isPhoneVerified($phone)) {
+                    $validator->errors()->add(
+                        'requestor_contact_number',
+                        'The contact phone number provided has not been verified via SMS OTP. Please complete mobile verification before submitting.'
+                    );
+                }
+            } elseif ($requireEmail) {
+                if (!$email || !\App\Models\EmailVerification::isEmailVerified($email)) {
+                    $validator->errors()->add(
+                        'requestor_email',
+                        'The email address provided has not been verified via OTP. Please complete email verification before submitting.'
+                    );
+                }
             }
         });
     }

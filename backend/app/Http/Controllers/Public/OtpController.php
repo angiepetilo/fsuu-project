@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Public;
 use App\Http\Controllers\Controller;
 use App\Jobs\SendOtpEmailJob;
 use App\Models\EmailVerification;
+use App\Models\PhoneVerification;
 use App\Models\VerificationPinSetting;
 use App\Rules\ActiveDeliverableEmail;
 use App\Services\SmsService;
@@ -77,6 +78,49 @@ class OtpController extends Controller
                 }
             }
 
+            // Upfront Duplicate Reservation Check for Venue Booking
+            $venueId = $request->input('venue_id');
+            $dateOfUsage = $request->input('date_of_usage');
+            $timeStart = $request->input('time_start');
+            $timeEnd = $request->input('time_end');
+            $endDate = $request->input('reservation_end_date', $dateOfUsage);
+
+            if ($venueId && $dateOfUsage) {
+                $existingVenueBooking = \Illuminate\Support\Facades\DB::table('venue_bookings')
+                    ->join('tracking_numbers', 'venue_bookings.tracking_number_id', '=', 'tracking_numbers.id')
+                    ->where('venue_bookings.venue_id', $venueId)
+                    ->whereIn('tracking_numbers.status', ['pending', 'approved', 'ongoing', 'on-going'])
+                    ->where('venue_bookings.contact_number', 'LIKE', "%{$cleanPhone}%")
+                    ->where(function ($q) use ($dateOfUsage, $endDate, $timeStart, $timeEnd) {
+                        $q->where(function ($sub) use ($dateOfUsage, $timeStart, $timeEnd) {
+                            $sub->where('venue_bookings.date_of_usage', '<=', $dateOfUsage)
+                                ->whereRaw('COALESCE(venue_bookings.reservation_end_date, venue_bookings.date_of_usage) >= ?', [$dateOfUsage]);
+                            if ($timeStart && $timeEnd) {
+                                $sub->where('venue_bookings.time_start', '<', $timeEnd)
+                                    ->where('venue_bookings.time_end', '>', $timeStart);
+                            }
+                        })->orWhere(function ($sub2) use ($dateOfUsage, $endDate, $timeStart, $timeEnd) {
+                            $sub2->where('venue_bookings.date_of_usage', '<=', $endDate)
+                                ->whereRaw('COALESCE(venue_bookings.reservation_end_date, venue_bookings.date_of_usage) >= ?', [$dateOfUsage]);
+                            if ($timeStart && $timeEnd) {
+                                $sub2->where('venue_bookings.time_start', '<', $timeEnd)
+                                    ->where('venue_bookings.time_end', '>', $timeStart);
+                            }
+                        });
+                    })
+                    ->select('tracking_numbers.reference_code', 'tracking_numbers.status')
+                    ->first();
+
+                if ($existingVenueBooking) {
+                    $statusUpper = strtoupper($existingVenueBooking->status);
+                    return response()->json([
+                        'message' => "An active {$statusUpper} reservation ({$existingVenueBooking->reference_code}) already exists for this mobile number on this venue schedule.",
+                        'duplicate' => true,
+                        'reference_code' => $existingVenueBooking->reference_code,
+                    ], 422);
+                }
+            }
+
             $cooldownKey = 'otp_cooldown_sms_' . $cleanPhone;
 
             if (Cache::has($cooldownKey)) {
@@ -101,6 +145,13 @@ class OtpController extends Controller
                 'ip_address'   => $request->ip(),
             ]);
 
+            PhoneVerification::create([
+                'phone_number' => $cleanPhone,
+                'otp_code'     => $code,
+                'expires_at'   => $expiresAt,
+                'ip_address'   => $request->ip(),
+            ]);
+
             $cacheKey = 'otp_sms_' . $cleanPhone;
             Cache::put($cacheKey, [
                 'code'       => $code,
@@ -111,8 +162,9 @@ class OtpController extends Controller
             Cache::put($cooldownKey, time() + 60, 60);
 
             // Dispatch SMS via SmsService
+            $serviceName = $isEquipment ? 'equipment borrowing' : 'venue booking';
             try {
-                $smsResult = SmsService::send($cleanPhone, "FSUU AVR: Your 6-digit equipment borrowing verification code is {$code}. Valid for 10 minutes.");
+                $smsResult = SmsService::send($cleanPhone, "FSUU AVR: Your 6-digit {$serviceName} verification code is {$code}. Valid for 10 minutes.");
             } catch (\Throwable $e) {
                 \Illuminate\Support\Facades\Log::error("Failed to send OTP SMS: " . $e->getMessage());
             }
@@ -144,34 +196,11 @@ class OtpController extends Controller
                 'string',
                 'email',
                 'max:255',
-                function ($attribute, $value, $fail) {
-                    $clean = strtolower(trim((string)$value));
-                    if (!str_ends_with($clean, '@urios.edu.ph')) {
-                        $fail('Only official university email addresses ending with @urios.edu.ph are accepted for verification.');
-                    }
-                    $username = explode('@', $clean)[0] ?? '';
-                    if (preg_match('/[0-9]/', $username)) {
-                        $fail('Official institutional emails (@urios.edu.ph) contain no numbers (e.g. student IDs like 202100452@urios.edu.ph are not valid). Please use your official name-based email.');
-                    }
-                },
                 new ActiveDeliverableEmail,
             ],
         ]);
 
         $email = strtolower(trim($request->input('email')));
-
-        if (!str_ends_with($email, '@urios.edu.ph')) {
-            return response()->json([
-                'message' => 'Only official university email addresses ending with @urios.edu.ph are accepted for verification.',
-            ], 422);
-        }
-
-        $username = explode('@', $email)[0] ?? '';
-        if (preg_match('/[0-9]/', $username)) {
-            return response()->json([
-                'message' => 'Official institutional emails (@urios.edu.ph) do not contain numbers (e.g. student ID numbers like 202100452@urios.edu.ph are not valid). Please use your official name-based email.',
-            ], 422);
-        }
 
         // Upfront Duplicate Reservation Check (prevents duplicate submission & unnecessary OTP sending)
         $venueId = $request->input('venue_id');
@@ -334,6 +363,13 @@ class OtpController extends Controller
                 'verified_at' => now(),
                 'otp_code'    => 'CONSUMED',
             ]);
+
+            PhoneVerification::where('phone_number', $cleanPhone)
+                ->where('otp_code', $code)
+                ->update([
+                    'verified_at' => now(),
+                    'otp_code'    => 'CONSUMED',
+                ]);
 
             Cache::forget('otp_sms_' . $cleanPhone);
 

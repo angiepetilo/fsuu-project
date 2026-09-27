@@ -445,22 +445,32 @@ export default function VenueBooking({ isPortal: isPortalProp }) {
     }
   }, [pinInput]);
 
-  const handleDetailsSubmit = useCallback((e) => {
+  const handleDetailsSubmit = useCallback(async (e) => {
     e.preventDefault();
     const cleanEmail = (email || "").trim().toLowerCase();
-    if (!cleanEmail.endsWith("@urios.edu.ph")) {
-      alert("Only official university email addresses ending with @urios.edu.ph are accepted for reservations.");
+    if (!cleanEmail) {
+      alert("Please provide an email address.");
       return;
     }
-    const cleanUser = cleanEmail.split("@")[0] || "";
-    if (/\d/.test(cleanUser)) {
-      alert("Official institutional emails (@urios.edu.ph) do not contain numbers (e.g. 202100452@urios.edu.ph is not valid). Please use your official name-based university email.");
-      return;
-    }
-    const requireEmailVerify = pinRules ? (pinRules.isEnabled !== false && pinRules.venueVerifyEmail === true) : false;
 
-    if (requireEmailVerify && !isEmailVerified) {
-      alert("Please verify your university email address via OTP before proceeding to the next step.");
+    // Follow the Abstract API email deliverability & anti-fake validation
+    try {
+      const res = await api.post("/public/verify-email-active", { email: cleanEmail });
+      if (!res.data?.valid) {
+        alert(res.data?.message || "This email address is not deliverable or has been flagged as fake/disposable.");
+        return;
+      }
+    } catch (err) {
+      alert(err.response?.data?.message || "Disposable, temporary, or invalid email addresses are not accepted.");
+      return;
+    }
+
+    const requireEmailVerify = pinRules ? (pinRules.isEnabled !== false && pinRules.venueVerifyEmail === true) : false;
+    const requirePhoneVerify = pinRules ? (pinRules.isEnabled !== false && pinRules.venueVerifyPhone === true) : false;
+    const requireVerification = requireEmailVerify || requirePhoneVerify;
+
+    if (requireVerification && !isEmailVerified) {
+      alert("Please verify your contact details with the 6-digit verification code before proceeding to the next step.");
       return;
     }
     setCompletedSteps(prev => (!prev.includes(3) ? [...prev, 3] : prev));
@@ -733,47 +743,47 @@ export default function VenueBooking({ isPortal: isPortalProp }) {
       {/* Enhanced Confirmation Success Modal */}
       {showSuccess && (
         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[2000] flex items-center justify-center p-4 animate-in fade-in duration-300">
-          <div className="bg-white rounded-3xl p-8 sm:p-10 max-w-lg w-full text-center shadow-2xl animate-in zoom-in-95 duration-300 relative border border-slate-100 space-y-5">
-            <div className="w-18 h-18 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto border-4 border-emerald-500/20 shadow-inner">
+          <div className="bg-white dark:bg-slate-900/80 rounded-3xl p-8 sm:p-10 max-w-lg w-full text-center shadow-2xl animate-in zoom-in-95 duration-300 relative border border-slate-100 dark:border-blue-900/50 space-y-5">
+            <div className="w-18 h-18 bg-emerald-100 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 rounded-full flex items-center justify-center mx-auto border-4 border-emerald-500/20 shadow-inner">
               <ShieldCheck size={38} />
             </div>
 
             <div>
-              <h2 className="text-2xl font-black text-slate-900 tracking-tight">Venue Reservation Submitted!</h2>
-              <p className="text-xs text-slate-500 font-semibold mt-1">
+              <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Venue Reservation Submitted!</h2>
+              <p className="text-xs text-slate-500 dark:text-slate-300 font-semibold mt-1">
                 Your reservation request for <strong>{selectedVenue?.name}</strong> has been logged in the university system.
               </p>
             </div>
 
             {/* Prominent Tracking Code Box */}
-            <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
-              <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 block">
+            <div className="p-4 bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-blue-900/50 rounded-2xl space-y-2">
+              <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 dark:text-slate-400 block">
                 Official Tracking Number
               </span>
               <div className="flex items-center justify-center gap-2">
-                <span className="font-mono text-xl font-black text-blue-700 tracking-wider">
+                <span className="font-mono text-xl font-black text-blue-700 dark:text-blue-400 tracking-wider">
                   {referenceCode || "TRK-AVR-PENDING"}
                 </span>
                 <button
                   type="button"
                   onClick={handleCopyTrack}
-                  className="p-1.5 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 transition-all cursor-pointer shadow-2xs"
+                  className="p-1.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-all cursor-pointer shadow-2xs"
                   title="Copy Tracking Number"
                 >
-                  {copiedTrack ? <Check size={14} className="text-emerald-600" /> : <Copy size={14} />}
+                  {copiedTrack ? <Check size={14} className="text-emerald-600 dark:text-emerald-400" /> : <Copy size={14} />}
                 </button>
               </div>
               {copiedTrack && (
-                <span className="text-[10.5px] font-bold text-emerald-600 block">Copied to clipboard!</span>
+                <span className="text-[10.5px] font-bold text-emerald-600 dark:text-emerald-400 block">Copied to clipboard!</span>
               )}
             </div>
 
             {/* Instruction Notice for Verification & Dual-Dispatch */}
-            <div className="p-3.5 bg-blue-50/80 border border-blue-200/80 rounded-2xl text-left space-y-1.5 text-xs text-blue-950">
-              <p className="font-bold flex items-center gap-1.5">
+            <div className="p-3.5 bg-blue-50/80 dark:bg-slate-900/80 border border-blue-200/80 dark:border-blue-900/50 rounded-2xl text-left space-y-1.5 text-xs text-blue-950 dark:text-white">
+              <p className="font-bold flex items-center gap-1.5 text-blue-950 dark:text-white">
                 <span>📌 Important Next Steps:</span>
               </p>
-              <ul className="list-disc pl-4 space-y-1 font-medium text-[11.5px] text-blue-900 leading-relaxed">
+              <ul className="list-disc pl-4 space-y-1 font-medium text-[11.5px] text-blue-900 dark:text-slate-300 leading-relaxed">
                 <li>Keep this <strong>Tracking Number</strong> for reservation verification and clearance tracking.</li>
                 <li>Confirmation details and live status updates have been sent to both your <strong>Email</strong> ({email || 'registered email'}) and <strong>SMS</strong> ({contactNumber || 'registered phone'}).</li>
               </ul>
@@ -783,13 +793,13 @@ export default function VenueBooking({ isPortal: isPortalProp }) {
             <div className="pt-2 flex flex-col sm:flex-row gap-2.5">
               <Link
                 to={`/track?ref=${encodeURIComponent(referenceCode)}`}
-                className="flex-1 py-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-xs font-extrabold shadow-md transition-all text-center"
+                className="flex-1 py-3.5 bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500 text-white rounded-2xl text-xs font-extrabold shadow-md transition-all text-center"
               >
                 Track Reservation Status
               </Link>
               <Link
                 to="/"
-                className="flex-1 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-2xl text-xs font-extrabold transition-all text-center"
+                className="flex-1 py-3.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 rounded-2xl text-xs font-extrabold transition-all text-center border border-transparent dark:border-slate-700"
               >
                 Return to Homepage
               </Link>

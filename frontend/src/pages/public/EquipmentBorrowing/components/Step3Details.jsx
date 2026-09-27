@@ -35,6 +35,7 @@ export default function Step3Details({
   const requireEmailVerify = pinRules ? (pinRules.isEnabled !== false && pinRules.equipmentVerifyEmail === true) : false;
   const requirePhoneVerify = pinRules ? (pinRules.isEnabled !== false && pinRules.equipmentVerifyPhone === true) : false;
   const requireVerification = requireEmailVerify || requirePhoneVerify;
+  const showChannelChoices = requireEmailVerify && requirePhoneVerify;
 
   const [departmentsList, setDepartmentsList] = useState([]);
 
@@ -105,20 +106,7 @@ export default function Step3Details({
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
       setEmailCheckStatus("invalid");
-      setEmailCheckMessage("Please enter a valid email format (e.g. name@urios.edu.ph).");
-      setEmailSuggestion("");
-      return;
-    }
-    if (!trimmed.endsWith("@urios.edu.ph")) {
-      setEmailCheckStatus("invalid");
-      setEmailCheckMessage("Only official university email addresses ending with @urios.edu.ph are accepted for borrowing.");
-      setEmailSuggestion("");
-      return;
-    }
-    const emailUser = trimmed.split("@")[0] || "";
-    if (/\d/.test(emailUser)) {
-      setEmailCheckStatus("invalid");
-      setEmailCheckMessage("Official institutional emails (@urios.edu.ph) do not contain numbers (e.g. 202100452@urios.edu.ph is not valid). Please use your official name-based email (e.g. firstname.lastname@urios.edu.ph).");
+      setEmailCheckMessage("Please enter a valid email format (e.g. name@gmail.com or name@urios.edu.ph).");
       setEmailSuggestion("");
       return;
     }
@@ -174,6 +162,14 @@ export default function Step3Details({
   };
 
   const [otpChannel, setOtpChannel] = useState("email"); // "email" | "sms"
+  
+  useEffect(() => {
+    if (requirePhoneVerify && !requireEmailVerify) {
+      setOtpChannel("sms");
+    } else if (requireEmailVerify && !requirePhoneVerify) {
+      setOtpChannel("email");
+    }
+  }, [requireEmailVerify, requirePhoneVerify]);
 
   const handleRequestOtp = async (overrideChannel = null) => {
     const channel = overrideChannel || otpChannel;
@@ -209,25 +205,8 @@ export default function Step3Details({
 
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
           setEmailCheckStatus("invalid");
-          setEmailCheckMessage("Please enter a valid email format (e.g. name@urios.edu.ph).");
+          setEmailCheckMessage("Please enter a valid email format (e.g. name@gmail.com or name@urios.edu.ph).");
           setOtpError("");
-          setIsSendingOtp(false);
-          return;
-        }
-
-        if (!trimmed.endsWith("@urios.edu.ph")) {
-          setEmailCheckStatus("invalid");
-          setEmailCheckMessage("Only official university email addresses ending with @urios.edu.ph are accepted for borrowing.");
-          setOtpError("Please use your official university email (@urios.edu.ph).");
-          setIsSendingOtp(false);
-          return;
-        }
-
-        const otpUser = trimmed.split("@")[0] || "";
-        if (/\d/.test(otpUser)) {
-          setEmailCheckStatus("invalid");
-          setEmailCheckMessage("Official institutional emails (@urios.edu.ph) do not contain numbers (e.g. 202100452@urios.edu.ph is not valid). Please use your official name-based email.");
-          setOtpError("Official institutional emails do not contain numbers. Please use your name-based email.");
           setIsSendingOtp(false);
           return;
         }
@@ -504,19 +483,19 @@ export default function Step3Details({
           </div>
         </div>
 
-        {/* VERIFICATION CHANNEL TOGGLE (EMAIL VS SMS) */}
-        {requireVerification && (
-          <div className="sm:col-span-2 p-3.5 bg-gradient-to-r from-blue-50/90 via-indigo-50/50 to-slate-50 border border-blue-200/80 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+        {/* VERIFICATION CHANNEL TOGGLE (EMAIL VS SMS) — Only shown if BOTH verification channels are enabled */}
+        {showChannelChoices && (
+          <div className="sm:col-span-2 p-3.5 bg-gradient-to-r from-blue-50/90 via-indigo-50/50 to-slate-50 dark:from-slate-900/80 dark:via-slate-900/80 dark:to-slate-900/80 dark:bg-slate-900/80 border border-blue-200/80 dark:border-blue-900/50 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-sm shadow-blue-600/30">
                 <KeyRound size={16} />
               </div>
               <div>
-                <h4 className="text-xs font-black text-slate-800">Verification Delivery Method</h4>
-                <p className="text-[11px] text-slate-500 font-medium">Choose whether to receive your 6-digit verification code via Email or SMS</p>
+                <h4 className="text-xs font-black text-slate-800 dark:text-white">Verification Delivery Method</h4>
+                <p className="text-[11px] text-slate-500 dark:text-slate-300 font-medium">Choose whether to receive your 6-digit verification code via Email or SMS</p>
               </div>
             </div>
-            <div className="flex items-center gap-1.5 p-1 bg-white/90 border border-blue-200/60 rounded-xl shadow-2xs self-start sm:self-auto">
+            <div className="flex items-center gap-1.5 p-1 bg-white/90 dark:bg-slate-950/80 border border-blue-200/60 dark:border-blue-900/50 rounded-xl shadow-2xs self-start sm:self-auto">
               <button
                 type="button"
                 disabled={isEmailVerified}
@@ -532,7 +511,7 @@ export default function Step3Details({
                 className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                   otpChannel === "email"
                     ? "bg-blue-600 text-white shadow-xs"
-                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-100/60"
+                    : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/60 dark:hover:bg-slate-800"
                 } ${isEmailVerified ? "opacity-60 cursor-not-allowed" : ""}`}
               >
                 <Mail size={13} />
@@ -553,7 +532,7 @@ export default function Step3Details({
                 className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                   otpChannel === "sms"
                     ? "bg-blue-600 text-white shadow-xs"
-                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-100/60"
+                    : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/60 dark:hover:bg-slate-800"
                 } ${isEmailVerified ? "opacity-60 cursor-not-allowed" : ""}`}
               >
                 <Phone size={13} />
@@ -566,21 +545,21 @@ export default function Step3Details({
         {/* EMAIL FIELD WITH INLINE DOMAIN CHECK & ATTACHED OTP VERIFY BUTTON */}
         <div className="flex flex-col gap-1.5 sm:col-span-1">
           <div className="flex items-center justify-between">
-            <label className="text-xs font-bold text-slate-900">
-              University Email (@urios.edu.ph) <span className="text-red-500">*</span>
+            <label className="text-xs font-bold text-slate-900 dark:text-white">
+              Email Address <span className="text-red-500">*</span>
             </label>
-            {isEmailVerified && otpChannel === "email" ? (
-              <span className="inline-flex items-center gap-1 text-[11px] font-extrabold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
+            {requireVerification && isEmailVerified && otpChannel === "email" ? (
+              <span className="inline-flex items-center gap-1 text-[11px] font-extrabold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 rounded-md">
                 <Check size={12} className="stroke-[3]" />
                 Verified via Email
               </span>
-            ) : isEmailVerified ? (
-              <span className="inline-flex items-center gap-1 text-[11px] font-extrabold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
+            ) : requireVerification && isEmailVerified ? (
+              <span className="inline-flex items-center gap-1 text-[11px] font-extrabold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 rounded-md">
                 <Check size={12} className="stroke-[3]" />
                 Verified
               </span>
-            ) : emailCheckStatus === "valid" ? (
-              <span className="text-[10.5px] font-bold text-blue-600 flex items-center gap-1">
+            ) : requireVerification && otpChannel === "email" && emailCheckStatus === "valid" ? (
+              <span className="text-[10.5px] font-bold text-blue-600 dark:text-blue-400 flex items-center gap-1">
                 <Check size={12} />
                 Domain Active
               </span>
@@ -595,15 +574,15 @@ export default function Step3Details({
               value={email} 
               onChange={handleEmailChange}
               onBlur={handleEmailBlur}
-              placeholder="username@urios.edu.ph" 
+              placeholder="yourname@gmail.com or username@urios.edu.ph" 
               className={`w-full p-3 ${requireVerification && otpChannel === "email" ? 'pr-24' : ''} border rounded-xl text-sm transition-all focus:outline-none ${
                 (requireVerification && isEmailVerified && otpChannel === "email")
-                  ? "bg-emerald-50/40 border-emerald-300 text-slate-800 font-semibold cursor-not-allowed" 
+                  ? "bg-emerald-50/40 dark:bg-emerald-950/30 border-emerald-300 dark:border-emerald-700 text-slate-800 dark:text-emerald-300 font-semibold cursor-not-allowed" 
                   : emailCheckStatus === "invalid"
-                    ? "bg-white border-rose-300 focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10 text-slate-900"
+                    ? "bg-white dark:bg-slate-900/80 border-rose-300 dark:border-rose-700 focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
                     : emailCheckStatus === "valid"
-                      ? "bg-white border-blue-400 focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 text-slate-900"
-                      : "bg-white border-slate-200 focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 text-slate-900"
+                      ? "bg-white dark:bg-slate-900/80 border-blue-400 dark:border-blue-700 focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                      : "bg-white dark:bg-slate-900/80 border-slate-200 dark:border-slate-700 focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
               }`} 
             />
 
@@ -726,18 +705,18 @@ export default function Step3Details({
 
           {/* Inline Email OTP Card */}
           {requireVerification && otpChannel === "email" && isOtpRequested && !isEmailVerified && (
-            <div className="mt-2 p-4 bg-blue-50/70 border border-blue-200 rounded-2xl space-y-3 animate-in fade-in zoom-in-95 duration-200 shadow-sm">
+            <div className="mt-2 p-4 bg-blue-50/70 dark:bg-slate-900/80 border border-blue-200 dark:border-blue-900/50 rounded-2xl space-y-3 animate-in fade-in zoom-in-95 duration-200 shadow-sm">
               <div className="flex items-center justify-between">
-                <label className="text-xs font-black text-blue-950 flex items-center gap-1.5">
-                  <KeyRound size={14} className="text-blue-600" />
+                <label className="text-xs font-black text-blue-950 dark:text-white flex items-center gap-1.5">
+                  <KeyRound size={14} className="text-blue-600 dark:text-blue-400" />
                   <span>Enter 6-Digit Email OTP</span>
                 </label>
                 {otpExpiresIn > 0 ? (
-                  <span className="text-[11px] font-mono font-bold text-amber-700 bg-amber-50 border border-amber-200/80 px-2 py-0.5 rounded-md">
+                  <span className="text-[11px] font-mono font-bold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/60 border border-amber-200/80 dark:border-amber-800 px-2 py-0.5 rounded-md">
                     ⏱ Expires in {formatTimer(otpExpiresIn)}
                   </span>
                 ) : (
-                  <span className="text-[11px] font-bold text-rose-600 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-md">
+                  <span className="text-[11px] font-bold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-900/60 px-2 py-0.5 rounded-md">
                     Code Expired
                   </span>
                 )}
@@ -750,7 +729,7 @@ export default function Step3Details({
                   value={otpCode}
                   onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                   placeholder="123456"
-                  className="flex-1 p-2.5 bg-white border border-blue-300 rounded-xl text-center text-base font-mono font-black tracking-widest text-blue-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 shadow-inner"
+                  className="flex-1 p-2.5 bg-white dark:bg-slate-950 border border-blue-300 dark:border-blue-900/60 rounded-xl text-center text-base font-mono font-black tracking-widest text-blue-900 dark:text-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 shadow-inner"
                 />
                 <Button
                   type="button"
@@ -773,13 +752,13 @@ export default function Step3Details({
               <div className="flex items-center justify-between text-xs pt-0.5">
                 <div className="flex-1 min-w-0">
                   {otpError && (
-                    <span className="text-[11px] font-semibold text-rose-600 flex items-center gap-1">
+                    <span className="text-[11px] font-semibold text-rose-600 dark:text-rose-400 flex items-center gap-1">
                       <AlertCircle size={12} className="shrink-0" />
                       <span className="truncate">{otpError}</span>
                     </span>
                   )}
                   {otpSuccess && !otpError && (
-                    <span className="text-[11px] font-medium text-blue-800 truncate block">
+                    <span className="text-[11px] font-medium text-blue-800 dark:text-blue-300 truncate block">
                       {otpSuccess}
                     </span>
                   )}
@@ -787,7 +766,7 @@ export default function Step3Details({
 
                 <div className="shrink-0 pl-2">
                   {otpCooldown > 0 ? (
-                    <span className="text-[11px] text-slate-400 font-semibold">
+                    <span className="text-[11px] text-slate-400 dark:text-slate-400 font-semibold">
                       Resend in {otpCooldown}s
                     </span>
                   ) : (
@@ -795,7 +774,7 @@ export default function Step3Details({
                       type="button"
                       onClick={() => handleRequestOtp("email")}
                       disabled={isSendingOtp}
-                      className="text-[11px] font-extrabold text-blue-700 hover:text-blue-800 underline cursor-pointer"
+                      className="text-[11px] font-extrabold text-blue-700 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 underline cursor-pointer"
                     >
                       Resend OTP Code
                     </button>
@@ -809,17 +788,17 @@ export default function Step3Details({
         {/* CONTACT NUMBER FIELD WITH OPTIONAL SMS OTP VERIFICATION */}
         <div className="flex flex-col gap-1.5 sm:col-span-1">
           <div className="flex items-center justify-between">
-            <label className="text-xs font-bold text-slate-900">
+            <label className="text-xs font-bold text-slate-900 dark:text-white">
               Contact Number <span className="text-red-500">*</span>
             </label>
             <div className="flex items-center gap-1.5">
-              {isEmailVerified && otpChannel === "sms" ? (
-                <span className="inline-flex items-center gap-1 text-[11px] font-extrabold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
+              {requireVerification && isEmailVerified && otpChannel === "sms" ? (
+                <span className="inline-flex items-center gap-1 text-[11px] font-extrabold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 rounded-md">
                   <Check size={12} className="stroke-[3]" />
                   Verified via SMS
                 </span>
               ) : contactNumber && contactNumber.length >= 4 && !phoneInfo.isValid ? (
-                <span className="text-[10px] font-semibold text-amber-600">
+                <span className="text-[10px] font-semibold text-amber-600 dark:text-amber-400">
                   {phoneInfo.message}
                 </span>
               ) : null}
@@ -838,8 +817,8 @@ export default function Step3Details({
               placeholder="0917 123 4567" 
               className={`w-full p-3 ${requireVerification && otpChannel === "sms" ? 'pr-24' : ''} border rounded-xl text-sm font-mono transition-all focus:outline-none ${
                 (requireVerification && isEmailVerified && otpChannel === "sms")
-                  ? "bg-emerald-50/40 border-emerald-300 text-slate-800 font-semibold cursor-not-allowed"
-                  : "bg-white border-slate-200 focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 text-slate-900"
+                  ? "bg-emerald-50/40 dark:bg-emerald-950/30 border-emerald-300 dark:border-emerald-700 text-slate-800 dark:text-emerald-300 font-semibold cursor-not-allowed"
+                  : "bg-white dark:bg-slate-900/80 border-slate-200 dark:border-slate-700 focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
               }`} 
             />
 
@@ -856,7 +835,7 @@ export default function Step3Details({
                       setOtpError("");
                       setOtpSuccess("");
                     }}
-                    className="px-2.5 py-1.5 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg text-[11px] font-bold text-slate-600 transition-colors shadow-2xs cursor-pointer flex items-center gap-1"
+                    className="px-2.5 py-1.5 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 rounded-lg text-[11px] font-bold text-slate-600 dark:text-slate-300 transition-colors shadow-2xs cursor-pointer flex items-center gap-1"
                     title="Unlock and change mobile number"
                   >
                     <Edit3 size={11} />
@@ -870,8 +849,8 @@ export default function Step3Details({
                     onClick={() => handleRequestOtp("sms")}
                     className={`h-8 px-3 rounded-lg text-xs font-black shadow-xs transition-all cursor-pointer ${
                       phoneInfo.isValid
-                        ? "bg-blue-600 hover:bg-blue-700 text-white shadow-blue-600/20"
-                        : "bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed shadow-none"
+                        ? "bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500 text-white shadow-blue-600/20"
+                        : "bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-200 dark:border-slate-700 cursor-not-allowed shadow-none"
                     }`}
                   >
                     {isSendingOtp ? (
@@ -892,8 +871,8 @@ export default function Step3Details({
 
           {/* SMS Duplicate / Error Banner */}
           {requireVerification && otpChannel === "sms" && otpError && !isOtpRequested && (
-            <div className="mt-2.5 p-3.5 bg-rose-50 border-2 border-rose-300 rounded-2xl text-xs font-bold text-rose-800 flex items-start gap-2.5 shadow-sm animate-in fade-in">
-              <AlertCircle size={16} className="text-rose-600 shrink-0 mt-0.5" />
+            <div className="mt-2.5 p-3.5 bg-rose-50 dark:bg-rose-950/40 border-2 border-rose-300 dark:border-rose-900/50 rounded-2xl text-xs font-bold text-rose-800 dark:text-rose-300 flex items-start gap-2.5 shadow-sm animate-in fade-in">
+              <AlertCircle size={16} className="text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
               <div className="flex-1 space-y-1">
                 <p className="leading-snug">{otpError}</p>
                 {duplicateRef && (
@@ -901,7 +880,7 @@ export default function Step3Details({
                     href={`/track?ref=${encodeURIComponent(duplicateRef)}`}
                     target="_blank"
                     rel="noreferrer"
-                    className="inline-flex items-center gap-1 text-blue-700 hover:text-blue-900 font-extrabold text-xs underline mt-1"
+                    className="inline-flex items-center gap-1 text-blue-700 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300 font-extrabold text-xs underline mt-1"
                   >
                     <span>Track existing reservation ({duplicateRef})</span>
                     <span>→</span>
@@ -913,18 +892,18 @@ export default function Step3Details({
 
           {/* Inline SMS OTP Card */}
           {requireVerification && otpChannel === "sms" && isOtpRequested && !isEmailVerified && (
-            <div className="mt-2 p-4 bg-blue-50/70 border border-blue-200 rounded-2xl space-y-3 animate-in fade-in zoom-in-95 duration-200 shadow-sm">
+            <div className="mt-2 p-4 bg-blue-50/70 dark:bg-slate-900/80 border border-blue-200 dark:border-blue-900/50 rounded-2xl space-y-3 animate-in fade-in zoom-in-95 duration-200 shadow-sm">
               <div className="flex items-center justify-between">
-                <label className="text-xs font-black text-blue-950 flex items-center gap-1.5">
-                  <KeyRound size={14} className="text-blue-600" />
+                <label className="text-xs font-black text-blue-950 dark:text-white flex items-center gap-1.5">
+                  <KeyRound size={14} className="text-blue-600 dark:text-blue-400" />
                   <span>Enter 6-Digit SMS OTP</span>
                 </label>
                 {otpExpiresIn > 0 ? (
-                  <span className="text-[11px] font-mono font-bold text-amber-700 bg-amber-50 border border-amber-200/80 px-2 py-0.5 rounded-md">
+                  <span className="text-[11px] font-mono font-bold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/50 border border-amber-200/80 dark:border-amber-800/50 px-2 py-0.5 rounded-md">
                     ⏱ Expires in {formatTimer(otpExpiresIn)}
                   </span>
                 ) : (
-                  <span className="text-[11px] font-bold text-rose-600 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-md">
+                  <span className="text-[11px] font-bold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900/50 px-2 py-0.5 rounded-md">
                     Code Expired
                   </span>
                 )}
@@ -937,13 +916,13 @@ export default function Step3Details({
                   value={otpCode}
                   onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                   placeholder="123456"
-                  className="flex-1 p-2.5 bg-white border border-blue-300 rounded-xl text-center text-base font-mono font-black tracking-widest text-blue-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 shadow-inner"
+                  className="flex-1 p-2.5 bg-white dark:bg-slate-950 border border-blue-300 dark:border-blue-900/50 rounded-xl text-center text-base font-mono font-black tracking-widest text-blue-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 shadow-inner"
                 />
                 <Button
                   type="button"
                   disabled={otpCode.length !== 6 || isVerifyingOtp || otpExpiresIn <= 0}
                   onClick={handleVerifyOtp}
-                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black shadow-md shadow-blue-600/20 disabled:opacity-50 transition-all cursor-pointer shrink-0"
+                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500 text-white rounded-xl text-xs font-black shadow-md shadow-blue-600/20 disabled:opacity-50 transition-all cursor-pointer shrink-0"
                 >
                   {isVerifyingOtp ? (
                     <span className="flex items-center gap-1">
@@ -960,13 +939,13 @@ export default function Step3Details({
               <div className="flex items-center justify-between text-xs pt-0.5">
                 <div className="flex-1 min-w-0">
                   {otpError && (
-                    <span className="text-[11px] font-semibold text-rose-600 flex items-center gap-1">
+                    <span className="text-[11px] font-semibold text-rose-600 dark:text-rose-400 flex items-center gap-1">
                       <AlertCircle size={12} className="shrink-0" />
                       <span className="truncate">{otpError}</span>
                     </span>
                   )}
                   {otpSuccess && !otpError && (
-                    <span className="text-[11px] font-medium text-blue-800 truncate block">
+                    <span className="text-[11px] font-medium text-blue-800 dark:text-blue-300 truncate block">
                       {otpSuccess}
                     </span>
                   )}
@@ -974,7 +953,7 @@ export default function Step3Details({
 
                 <div className="shrink-0 pl-2">
                   {otpCooldown > 0 ? (
-                    <span className="text-[11px] text-slate-400 font-semibold">
+                    <span className="text-[11px] text-slate-400 dark:text-slate-500 font-semibold">
                       Resend in {otpCooldown}s
                     </span>
                   ) : (
@@ -982,7 +961,7 @@ export default function Step3Details({
                       type="button"
                       onClick={() => handleRequestOtp("sms")}
                       disabled={isSendingOtp}
-                      className="text-[11px] font-extrabold text-blue-700 hover:text-blue-800 underline cursor-pointer"
+                      className="text-[11px] font-extrabold text-blue-700 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 underline cursor-pointer"
                     >
                       Resend SMS Code
                     </button>

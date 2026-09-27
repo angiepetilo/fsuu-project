@@ -144,9 +144,9 @@ export default function Step4Verification({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
 
         {/* ── Left Column: Booking Requirements ── */}
-        <div className="bg-slate-50/70 p-6 rounded-2xl border border-slate-200/80 space-y-4">
+        <div className="bg-slate-50/70 dark:bg-slate-900/80 p-6 rounded-2xl border border-slate-200/80 dark:border-blue-900/50 space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-slate-900 uppercase tracking-wide flex items-center gap-2">
+            <h3 className="text-sm font-semibold text-slate-900 dark:text-white uppercase tracking-wide flex items-center gap-2">
               1. Booking Requirements
             </h3>
             <div className="flex items-center gap-1.5 shrink-0">
@@ -156,10 +156,10 @@ export default function Step4Verification({
                   target="_blank"
                   rel="noopener noreferrer"
                   download
-                  className="flex items-center gap-1.5 text-[11px] font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100/80 border border-emerald-200 px-2.5 py-1 rounded-lg transition-colors cursor-pointer shadow-2xs shrink-0"
+                  className="flex items-center gap-1.5 text-[11px] font-medium text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100/80 dark:hover:bg-emerald-900/60 border border-emerald-200 dark:border-emerald-800/60 px-2.5 py-1 rounded-lg transition-colors cursor-pointer shadow-2xs shrink-0"
                   title={activeTemplate.template_file_name || "Download official booking template"}
                 >
-                  <Download size={12} className="text-emerald-600" />
+                  <Download size={12} className="text-emerald-600 dark:text-emerald-400" />
                   <span>Download Form</span>
                 </a>
               )}
@@ -167,7 +167,7 @@ export default function Step4Verification({
                 <button
                   type="button"
                   onClick={() => setShowTemplateModal(true)}
-                  className="flex items-center gap-1.5 text-[11px] font-medium text-blue-700 bg-blue-50 hover:bg-blue-100/80 border border-blue-200 px-2.5 py-1 rounded-lg transition-colors cursor-pointer shadow-2xs shrink-0"
+                  className="flex items-center gap-1.5 text-[11px] font-medium text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 hover:bg-blue-100/80 dark:hover:bg-blue-900/60 border border-blue-200 dark:border-blue-800/60 px-2.5 py-1 rounded-lg transition-colors cursor-pointer shadow-2xs shrink-0"
                   title="View and copy approved endorsement letter format"
                 >
                   <FileText size={12} />
@@ -185,7 +185,7 @@ export default function Step4Verification({
                   <Download size={14} className="text-blue-600 dark:text-blue-400" />
                   Official Template Form{downloadableTemplates.length > 1 ? "s" : ""} to Download:
                 </span>
-                <span className="text-[10px] font-bold text-blue-700 bg-white dark:bg-slate-800 px-2 py-0.5 rounded-md border border-blue-200 dark:border-blue-800 shadow-2xs">
+                <span className="text-[10px] font-bold text-blue-700 dark:text-blue-300 bg-white dark:bg-slate-800 px-2 py-0.5 rounded-md border border-blue-200 dark:border-blue-800 shadow-2xs">
                   Required Documents
                 </span>
               </div>
@@ -211,7 +211,7 @@ export default function Step4Verification({
             </div>
           )}
 
-          <p className="text-xs text-slate-500 font-semibold leading-relaxed">
+          <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold leading-relaxed">
             Attach your signed endorsement letter or authorization document below:
           </p>
 
@@ -229,29 +229,29 @@ export default function Step4Verification({
             onDragOver={(e) => e.preventDefault()}
             className={`border-2 border-dashed rounded-2xl p-6 text-center cursor-pointer transition-all ${
               endorsementFile
-                ? "border-emerald-500 bg-emerald-50/60"
-                : "border-slate-300 bg-white hover:border-blue-500 hover:bg-blue-50/40"
+                ? "border-emerald-500 bg-emerald-50/60 dark:bg-emerald-950/40"
+                : "border-slate-300 dark:border-blue-900/50 bg-white dark:bg-slate-950/60 hover:border-blue-500 hover:bg-blue-50/40"
             }`}
           >
             {!endorsementFile ? (
               <div className="space-y-2">
-                <UploadCloud size={40} className="mx-auto text-slate-400" />
-                <p className="text-xs font-bold text-slate-800">Click or drag &amp; drop file here</p>
-                <p className="text-[11px] text-slate-400">Supports PDF, PNG, JPG (Max 10MB)</p>
+                <UploadCloud size={40} className="mx-auto text-slate-400 dark:text-slate-500" />
+                <p className="text-xs font-bold text-slate-800 dark:text-slate-200">Click or drag &amp; drop file here</p>
+                <p className="text-[11px] text-slate-400 dark:text-slate-500">Supports PDF, PNG, JPG (Max 10MB)</p>
               </div>
             ) : (
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3 text-left">
                   {isPdf ? <FileText size={32} className="text-rose-500 shrink-0" /> : <Image size={32} className="text-blue-500 shrink-0" />}
                   <div>
-                    <p className="text-xs font-bold text-slate-900 truncate max-w-[160px]">{endorsementFile.name}</p>
-                    <p className="text-[10px] text-slate-400">{(endorsementFile.size / 1024).toFixed(1)} KB</p>
+                    <p className="text-xs font-bold text-slate-900 dark:text-white truncate max-w-[160px]">{endorsementFile.name}</p>
+                    <p className="text-[10px] text-slate-400 dark:text-slate-500">{(endorsementFile.size / 1024).toFixed(1)} KB</p>
                   </div>
                 </div>
                 <button
                   type="button"
                   onClick={removeFile}
-                  className="p-1 rounded-full bg-slate-200 hover:bg-rose-100 hover:text-rose-600 transition-all"
+                  className="p-1 rounded-full bg-slate-200 dark:bg-slate-800 hover:bg-rose-100 dark:hover:bg-rose-950/50 hover:text-rose-600 dark:hover:text-rose-400 transition-all text-slate-600 dark:text-slate-400"
                 >
                   <X size={14} />
                 </button>
@@ -261,31 +261,31 @@ export default function Step4Verification({
         </div>
 
         {/* ── Right Column: Reservation Review & Policy Agreement ── */}
-        <div className="bg-slate-50/70 p-6 rounded-2xl border border-slate-200/80 space-y-5">
-          <h3 className="text-sm font-extrabold text-slate-900 uppercase tracking-wide">
+        <div className="bg-slate-50/70 dark:bg-slate-900/80 p-6 rounded-2xl border border-slate-200/80 dark:border-blue-900/50 space-y-5">
+          <h3 className="text-sm font-extrabold text-slate-900 dark:text-white uppercase tracking-wide">
             2. Reservation Review
           </h3>
 
-          <div className="bg-white p-4 rounded-xl border border-slate-200/80 space-y-2.5 text-xs">
-            <div className="flex justify-between border-b border-slate-100 pb-2">
+          <div className="bg-white dark:bg-slate-950/60 p-4 rounded-xl border border-slate-200/80 dark:border-blue-900/40 space-y-2.5 text-xs">
+            <div className="flex justify-between border-b border-slate-100 dark:border-slate-800/80 pb-2">
               <span className="text-slate-400 font-bold">Filer Name</span>
-              <span className="font-bold text-slate-900">{filerName || "—"}</span>
+              <span className="font-bold text-slate-900 dark:text-white">{filerName || "—"}</span>
             </div>
-            <div className="flex justify-between border-b border-slate-100 pb-2">
+            <div className="flex justify-between border-b border-slate-100 dark:border-slate-800/80 pb-2">
               <span className="text-slate-400 font-bold">Account Email</span>
-              <span className="font-bold text-slate-900">{email || "—"}</span>
+              <span className="font-bold text-slate-900 dark:text-white">{email || "—"}</span>
             </div>
-            <div className="flex justify-between border-b border-slate-100 pb-2">
+            <div className="flex justify-between border-b border-slate-100 dark:border-slate-800/80 pb-2">
               <span className="text-slate-400 font-bold">Contact No.</span>
-              <span className="font-bold text-slate-900">{contactNumber || "—"}</span>
+              <span className="font-bold text-slate-900 dark:text-white">{contactNumber || "—"}</span>
             </div>
-            <div className="flex justify-between border-b border-slate-100 pb-2">
+            <div className="flex justify-between border-b border-slate-100 dark:border-slate-800/80 pb-2">
               <span className="text-slate-400 font-bold">Venue Reserved</span>
-              <span className="font-bold text-blue-700 font-mono">{selectedVenue?.name || "Facility"}</span>
+              <span className="font-bold text-blue-700 dark:text-blue-400 font-mono">{selectedVenue?.name || "Facility"}</span>
             </div>
-            <div className="flex justify-between border-b border-slate-100 pb-2">
+            <div className="flex justify-between border-b border-slate-100 dark:border-slate-800/80 pb-2">
               <span className="text-slate-400 font-bold">Schedule</span>
-              <span className="font-bold text-slate-900">
+              <span className="font-bold text-slate-900 dark:text-white">
                 {selectedDate ? new Date(selectedDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—"}
                 {selectedEndDate && String(selectedEndDate).substring(0,10) !== String(selectedDate).substring(0,10) && (
                   ` - ${new Date(selectedEndDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`
@@ -293,24 +293,24 @@ export default function Step4Verification({
                 {" "}({formatTime12(timeStart)} - {formatTime12(timeEnd)})
               </span>
             </div>
-            <div className="flex justify-between border-b border-slate-100 pb-2">
+            <div className="flex justify-between border-b border-slate-100 dark:border-slate-800/80 pb-2">
               <span className="text-slate-400 font-bold">Purpose</span>
-              <span className="font-bold text-slate-900 max-w-[200px] text-right truncate">{purpose || "—"}</span>
+              <span className="font-bold text-slate-900 dark:text-white max-w-[200px] text-right truncate">{purpose || "—"}</span>
             </div>
 
             {/* Equipment Category & Requested Physical Units */}
             {avrEquipment && avrEquipment.length > 0 && (
               <div className="pt-2 space-y-1.5">
                 <span className="text-slate-400 font-bold block text-[11px] uppercase tracking-wider">Requested Equipment</span>
-                <div className="space-y-1.5 bg-slate-50 p-3 rounded-xl border border-slate-200/60">
+                <div className="space-y-1.5 bg-slate-50 dark:bg-slate-900/80 p-3 rounded-xl border border-slate-200/60 dark:border-blue-900/40">
                   {avrEquipment.map((eq, idx) => {
                     const catItem = (equipmentCatalog || []).find(c => c.id === eq.equipment_type_id || c.equipment_type_id === eq.equipment_type_id || c.id === eq.id);
                     const name = eq.name || catItem?.name || eq.equipment_name || `Equipment Item #${idx + 1}`;
                     const qty = eq.quantity || eq.qty || eq.quantity_requested || 1;
                     return (
                       <div key={eq.equipment_type_id || idx} className="flex justify-between items-center text-xs">
-                        <span className="font-bold text-slate-800">{name}</span>
-                        <span className="font-extrabold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200/60">
+                        <span className="font-bold text-slate-800 dark:text-slate-200">{name}</span>
+                        <span className="font-extrabold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/60 px-2 py-0.5 rounded border border-blue-200/60 dark:border-blue-800/60">
                           {qty} {qty === 1 ? 'physical unit' : 'physical units'}
                         </span>
                       </div>
@@ -322,57 +322,57 @@ export default function Step4Verification({
           </div>
 
           {/* Terms Agreement Box */}
-          <div className="bg-white p-4 rounded-xl border border-slate-200/80 space-y-3">
-            <div className="space-y-1.5 text-[11px] text-slate-600 font-medium leading-relaxed">
-              <p className="font-extrabold text-slate-800 text-xs">By confirming, the user agrees to:</p>
+          <div className="bg-white dark:bg-slate-950/60 p-4 rounded-xl border border-slate-200/80 dark:border-blue-900/40 space-y-3">
+            <div className="space-y-1.5 text-[11px] text-slate-600 dark:text-slate-300 font-medium leading-relaxed">
+              <p className="font-extrabold text-slate-800 dark:text-slate-200 text-xs">By confirming, the user agrees to:</p>
               <ul className="space-y-1.5 pl-0.5 list-none">
                 <li className="flex items-start gap-1.5">
-                  <span className="text-blue-600 font-bold mt-0.5">•</span>
+                  <span className="text-blue-600 dark:text-blue-400 font-bold mt-0.5">•</span>
                   <span>Ensure that all decorations &amp; materials adhere to venue policy and safety regulations.</span>
                 </li>
                 <li className="flex items-start gap-1.5">
-                  <span className="text-blue-600 font-bold mt-0.5">•</span>
+                  <span className="text-blue-600 dark:text-blue-400 font-bold mt-0.5">•</span>
                   <span>Held liable for any physical units used.</span>
                 </li>
                 <li className="flex items-start gap-1.5">
-                  <span className="text-blue-600 font-bold mt-0.5">•</span>
+                  <span className="text-blue-600 dark:text-blue-400 font-bold mt-0.5">•</span>
                   <span>Users granted a grace period 15 - 20 mins past their scheduled booking time; if they don't arrive within that time and doesn't have a valid excuse their booking is automatically cancelled.</span>
                 </li>
                 <li className="flex items-start gap-1.5">
-                  <span className="text-blue-600 font-bold mt-0.5">•</span>
+                  <span className="text-blue-600 dark:text-blue-400 font-bold mt-0.5">•</span>
                   <span>Have the AVR personnel inspect all materials prior to entry and may deny access to any items considered unsafe.</span>
                 </li>
               </ul>
             </div>
 
-            <label className="flex items-start gap-3 pt-2 border-t border-slate-100 cursor-pointer hover:bg-slate-50 -mx-1 px-1 py-1 rounded-lg transition-colors">
+            <label className="flex items-start gap-3 pt-2 border-t border-slate-100 dark:border-slate-800 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-900/60 -mx-1 px-1 py-1 rounded-lg transition-colors">
               <input
                 type="checkbox"
                 checked={agreedToPolicy}
                 onChange={(e) => setAgreedToPolicy(e.target.checked)}
                 className="mt-0.5 w-4 h-4 rounded text-blue-600 focus:ring-0 cursor-pointer"
               />
-              <span className="text-[11px] text-slate-900 font-bold leading-relaxed">
+              <span className="text-[11px] text-slate-900 dark:text-white font-bold leading-relaxed">
                 I have read and agree to all venue policies and safety regulations.
               </span>
             </label>
           </div>
 
           {/* Note Footer */}
-          <p className="text-[11px] text-slate-400 font-medium text-center">
-            Note: Should there be any problem please contact <span className="font-bold text-slate-600">{contactPhone}</span>.
+          <p className="text-[11px] text-slate-400 dark:text-slate-500 font-medium text-center">
+            Note: Should there be any problem please contact <span className="font-bold text-slate-600 dark:text-slate-400">{contactPhone}</span>.
           </p>
         </div>
 
       </div>
 
       {/* Action Buttons */}
-      <div className="pt-6 mt-6 border-t border-slate-100 flex items-center justify-between flex-wrap gap-4">
+      <div className="pt-6 mt-6 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between flex-wrap gap-4">
         <Button
           type="button"
           variant="outline"
           onClick={() => onBack && onBack()}
-          className="border-slate-200 text-slate-700 hover:bg-slate-50 px-6 py-5 rounded-xl font-bold text-xs cursor-pointer"
+          className="border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 px-6 py-5 rounded-xl font-bold text-xs cursor-pointer"
         >
           ← Back to Details
         </Button>

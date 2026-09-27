@@ -49,7 +49,17 @@ class PhoneVerification extends Model
             return false;
         }
 
-        return static::where('phone_number', $normalizedPhone)
+        $inPhone = static::where('phone_number', $normalizedPhone)
+            ->whereNotNull('verified_at')
+            ->where('verified_at', '>=', now()->subHours($maxAgeHours))
+            ->exists();
+
+        if ($inPhone) {
+            return true;
+        }
+
+        return \App\Models\EmailVerification::where('channel', 'sms')
+            ->where('phone_number', $normalizedPhone)
             ->whereNotNull('verified_at')
             ->where('verified_at', '>=', now()->subHours($maxAgeHours))
             ->exists();

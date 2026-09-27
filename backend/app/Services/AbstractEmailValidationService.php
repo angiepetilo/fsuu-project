@@ -115,21 +115,6 @@ class AbstractEmailValidationService
         $domain = strtolower(trim($parts[1]));
         $isInstitutional = in_array($domain, ['urios.edu.ph', 'fsuu.edu.ph'], true);
 
-        // 2. Official institutional emails (@urios.edu.ph, @fsuu.edu.ph) contain NO numbers (e.g. student IDs like 202100452@urios.edu.ph are invalid)
-        if ($isInstitutional && preg_match('/[0-9]/', $user)) {
-            return [
-                'valid'          => false,
-                'email'          => $email,
-                'domain'         => $domain,
-                'deliverability' => 'UNDELIVERABLE',
-                'is_disposable'  => false,
-                'autocorrect'    => null,
-                'quality_score'  => 0.0,
-                'message'        => 'Official institutional emails (@urios.edu.ph) do not contain numbers (e.g., student ID numbers like 202100452@urios.edu.ph are not valid). Please use your official name-based email (e.g., firstname.lastname@urios.edu.ph).',
-                'source'         => 'institutional_no_numbers_rule'
-            ];
-        }
-
         // 3. Detect keyboard-mashed, randomized, or gibberish usernames (e.g. aasdw, asdasd, asdfghjkl)
         if (self::isRandomOrGibberishUsername($user)) {
             return [
