@@ -23,17 +23,8 @@ cp frontend/dist/index.html backend/public/index.html
 echo "⚡ Optimizing Laravel Backend..."
 cd backend
 composer install --optimize-autoloader --no-dev --prefer-dist
-COMMIT_MSG=$(git log -1 --pretty=%B 2>/dev/null || echo "")
-if [ "$MIGRATE_FRESH" = "true" ] || [ "$FORCE_FRESH_MIGRATE" = "true" ] || [[ "$COMMIT_MSG" == *"[fresh-seed]"* ]] || [ -f "database/.force_fresh_migrate" ] || [ -f ".force_fresh_migrate" ] || [ -f "../.force_fresh_migrate" ]; then
-    echo "⚠️ Running one-time force migrate:fresh --seed..."
-    ALLOW_DESTRUCTIVE_COMMANDS=true php artisan migrate:fresh --seed --force
-    rm -f database/.force_fresh_migrate || true
-    rm -f .force_fresh_migrate || true
-    rm -f ../.force_fresh_migrate || true
-else
-    echo "🛡️ Running safe database migrations (preserving production data)..."
-    php artisan migrate --force
-fi
+echo "⚠️ Running migrate:fresh --seed (auto-deploy mode)..."
+ALLOW_DESTRUCTIVE_COMMANDS=true php artisan migrate:fresh --seed --force
 php artisan optimize
 php artisan up
 cd ..
