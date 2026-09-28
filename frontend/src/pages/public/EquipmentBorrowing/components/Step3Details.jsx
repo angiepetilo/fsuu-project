@@ -157,9 +157,35 @@ export default function Step3Details({
     setDuplicateRef(null);
     setOtpError("");
     setEmailSuggestion("");
-    setEmailCheckStatus("idle");
-    setEmailCheckMessage("");
   };
+
+  // Automatically debounce email validation while typing
+  useEffect(() => {
+    if (!email) {
+      setEmailCheckStatus("idle");
+      setEmailCheckMessage("");
+      setEmailSuggestion("");
+      return;
+    }
+
+    const trimmed = email.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+      if (trimmed.includes("@") && trimmed.length > 5) {
+        setEmailCheckStatus("invalid");
+        setEmailCheckMessage("Please enter a complete and valid email address.");
+      } else {
+        setEmailCheckStatus("idle");
+        setEmailCheckMessage("");
+      }
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      handleEmailBlur(trimmed);
+    }, 600);
+
+    return () => clearTimeout(timer);
+  }, [email]);
 
   const [otpChannel, setOtpChannel] = useState("email"); // "email" | "sms"
   
@@ -609,12 +635,12 @@ export default function Step3Details({
                   <Button
                     type="button"
                     size="sm"
-                    disabled={isSendingOtp}
+                    disabled={isSendingOtp || !email || !email.trim() || emailCheckStatus !== "valid"}
                     onClick={() => handleRequestOtp("email")}
-                    className={`h-8 px-3 rounded-lg text-xs font-black shadow-xs transition-all cursor-pointer ${
-                      !email || !email.trim()
-                        ? "bg-slate-100 text-slate-400 border border-slate-200"
-                        : "bg-blue-600 hover:bg-blue-700 text-white shadow-blue-600/20 active:scale-95"
+                    className={`h-8 px-3 rounded-lg text-xs font-black shadow-xs transition-all ${
+                      !email || !email.trim() || emailCheckStatus !== "valid"
+                        ? "bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-200 dark:border-slate-700 cursor-not-allowed opacity-60"
+                        : "bg-blue-600 hover:bg-blue-700 text-white shadow-blue-600/20 active:scale-95 cursor-pointer"
                     }`}
                   >
                     {isSendingOtp ? (

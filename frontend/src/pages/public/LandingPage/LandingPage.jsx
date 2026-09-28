@@ -1,17 +1,16 @@
 import { Link } from "react-router-dom";
-import { useState, useEffect, useMemo, useCallback } from "react";
-import { Loader2, FileText, Download } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import { Loader2, Download, Eye } from "lucide-react";
 import api from "@/lib/axios";
 import Hero from "./components/Hero";
 import FeatureCards from "./components/FeatureCards";
-import EndorsementLetterTemplateModal from "@/components/ui/EndorsementLetterTemplateModal";
+import DocxPreviewModal from "@/components/ui/DocxPreviewModal";
 
 export default function LandingPage() {
   const [requirements, setRequirements] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showTemplateModal, setShowTemplateModal] = useState(false);
-  const [selectedTemplateType, setSelectedTemplateType] = useState("organization");
-  const [selectedTemplateRequirement, setSelectedTemplateRequirement] = useState(null);
+  const [showDocxModal, setShowDocxModal] = useState(false);
+  const [selectedDocx, setSelectedDocx] = useState({ url: "", name: "", title: "" });
 
   useEffect(() => {
     api.get("/public/booking-requirements")
@@ -36,12 +35,6 @@ export default function LandingPage() {
       return true;
     });
   }, [requirements]);
-
-  const handleOpenTemplate = useCallback((req) => {
-    setSelectedTemplateRequirement(req);
-    setSelectedTemplateType(req.classification || "organization");
-    setShowTemplateModal(true);
-  }, []);
 
   return (
     <div className="w-full text-foreground relative">
@@ -75,9 +68,6 @@ export default function LandingPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {uniqueRequirements.map((req, idx) => {
               const isAcad = String(req.classification || "").toLowerCase().includes("acad");
-              const mode = req.template_display_mode || (req.template_file_url ? "both" : "digital_format");
-              const showUploaded = (mode === "uploaded_file" || mode === "both") && Boolean(req.template_file_url);
-              const showDigital = (mode === "digital_format" || mode === "both") || !req.template_file_url;
 
               return (
                 <div key={req.id || idx} className="bg-card border border-border p-3 rounded-md flex flex-col justify-between space-y-2">
@@ -104,28 +94,39 @@ export default function LandingPage() {
                       Signatures: Dean, {isAcad ? "OVPASA" : "OISAA"}, PMO
                     </span>
                     <div className="flex items-center gap-1.5">
-                      {showUploaded && (
-                        <a
-                          href={req.template_file_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          download
-                          className="flex items-center gap-1 px-2 py-1 bg-muted/60 hover:bg-muted text-foreground border border-border rounded text-[11px] font-normal transition-colors"
-                          title={req.template_file_name || "Download Template File"}
-                        >
-                          <Download size={11} className="text-muted-foreground" />
-                          <span>Download</span>
-                        </a>
-                      )}
-                      {showDigital && (
-                        <button
-                          type="button"
-                          onClick={() => handleOpenTemplate(req)}
-                          className="flex items-center gap-1 px-2 py-1 bg-card hover:bg-muted text-foreground border border-border rounded text-[11px] font-normal transition-colors cursor-pointer"
-                        >
-                          <FileText size={11} className="text-muted-foreground" />
-                          <span>View Format</span>
-                        </button>
+                      {req.template_file_url ? (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedDocx({
+                                url: req.template_file_url,
+                                name: req.template_file_name || `${req.label || "Requirement"}.docx`,
+                                title: req.label || "Requirement Template",
+                              });
+                              setShowDocxModal(true);
+                            }}
+                            className="flex items-center gap-1 px-2.5 py-1 bg-card hover:bg-muted text-foreground border border-border rounded text-[11px] font-medium transition-colors cursor-pointer"
+                            title="Preview .DOCX template directly in modal"
+                          >
+                            <Eye size={12} className="text-muted-foreground" />
+                            <span>Preview</span>
+                          </button>
+
+                          <a
+                            href={req.template_file_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            download
+                            className="flex items-center gap-1 px-2.5 py-1 bg-muted/60 hover:bg-muted text-foreground border border-border rounded text-[11px] font-medium transition-colors"
+                            title={req.template_file_name || "Download Template File"}
+                          >
+                            <Download size={12} className="text-muted-foreground" />
+                            <span>Download</span>
+                          </a>
+                        </>
+                      ) : (
+                        <span className="text-[10.5px] text-muted-foreground italic">No template attached</span>
                       )}
                     </div>
                   </div>
@@ -141,18 +142,16 @@ export default function LandingPage() {
         </div>
       </section>
 
-
-      {/* Endorsement Letter Format Preview Modal */}
-      <EndorsementLetterTemplateModal
-        isOpen={showTemplateModal}
+      {/* Official DOCX Template Viewer Modal */}
+      <DocxPreviewModal
+        isOpen={showDocxModal}
         onClose={() => {
-          setShowTemplateModal(false);
-          setSelectedTemplateRequirement(null);
+          setShowDocxModal(false);
+          setSelectedDocx({ url: "", name: "", title: "" });
         }}
-        requirement={selectedTemplateRequirement}
-        initialType={selectedTemplateType}
-        allowEdit={false}
-        showTypeTabs={false}
+        fileUrl={selectedDocx.url}
+        fileName={selectedDocx.name}
+        title={selectedDocx.title}
       />
 
       {/* Action Links Below Requirements Card */}

@@ -169,10 +169,45 @@ function CategoryBuiltInUnitSelector({
                 )
               : null;
 
+            const isCurrentUnitDegraded = currentUnitObj && (
+              String(currentUnitObj.condition || '').trim().toLowerCase() !== 'good' ||
+              ['damaged', 'lost', 'under_repair', 'under repair'].includes(String(currentUnitObj.status || '').trim().toLowerCase())
+            );
+
             const availableUnits = (existingUnits || []).filter((u) => {
               if (!isUnitInCategory(u, cat)) return false;
               if (excludeId && String(u.id) === String(excludeId)) return false;
 
+              // 1. Exclude archived/disabled units
+              if (u.is_disabled || u.archived_at) return false;
+
+              // 2. Exclude lost, damaged, or under repair units (must strictly be in Good condition)
+              const cond = String(u.condition || '').trim().toLowerCase();
+              const stat = String(u.status || '').trim().toLowerCase();
+              if (
+                cond === 'damaged' ||
+                cond === 'lost' ||
+                stat === 'damaged' ||
+                stat === 'lost' ||
+                stat === 'under_repair' ||
+                stat === 'under repair'
+              ) {
+                return false;
+              }
+              if (cond && cond !== 'good') {
+                return false;
+              }
+
+              // 3. Exclude units that are already parent bundles themselves
+              let childUnits = u.built_in_units;
+              if (typeof childUnits === 'string') {
+                try { childUnits = JSON.parse(childUnits); } catch { childUnits = []; }
+              }
+              if (Array.isArray(childUnits) && childUnits.length > 0) {
+                return false;
+              }
+
+              // 4. Must not be already assigned as a built-in to another equipment
               const isThisCurrent =
                 String(u.id) === String(currentSelectedId) ||
                 (u.barcode && String(u.barcode) === String(currentSelectedId));
@@ -197,38 +232,21 @@ function CategoryBuiltInUnitSelector({
                 {/* Dropdown for units under this category */}
                 <div className="flex-1 min-w-0">
                   <select
-                    value={currentSelectedId || ""}
+                    value={isCurrentUnitDegraded ? "" : (currentSelectedId || "")}
                     onChange={(e) => handleSelectUnit(cat, e.target.value)}
                     className="w-full h-9 px-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-800 dark:text-white focus:outline-none focus:border-blue-500 dark:focus:border-blue-500 focus:ring-1 focus:ring-blue-300 dark:focus:ring-blue-700 transition-colors cursor-pointer"
                   >
                     <option value="">
-                      {availableUnits.length === 0 && !currentUnitObj
-                        ? `-- No units found in "${cat.name}" --`
+                      {availableUnits.length === 0
+                        ? `-- No available good units in "${cat.name}" --`
                         : `-- Select ${cat.name} Unit (Optional) --`}
                     </option>
-
-                    {currentUnitObj &&
-                      !availableUnits.some(
-                        (u) =>
-                          String(u.id) === String(currentSelectedId) ||
-                          (u.barcode && String(u.barcode) === String(currentSelectedId))
-                      ) && (
-                        <option value={currentUnitObj.id}>
-                          {currentUnitObj.serial_number || currentUnitObj.barcode
-                            ? `[${currentUnitObj.serial_number || currentUnitObj.barcode}] `
-                            : ""}
-                          {currentUnitObj.name ||
-                            [currentUnitObj.brand, currentUnitObj.model].filter(Boolean).join(" ") ||
-                            "Unit"}{" "}
-                          (Current)
-                        </option>
-                      )}
 
                     {availableUnits.map((u) => {
                       const label = [
                         u.serial_number || u.barcode ? `[${u.serial_number || u.barcode}]` : "",
                         u.name || [u.brand, u.model].filter(Boolean).join(" ") || "Unit",
-                        u.condition ? `(${u.condition})` : "",
+                        String(u.id) === String(currentSelectedId) ? "(Current)" : "",
                       ]
                         .filter(Boolean)
                         .join(" ");
@@ -240,6 +258,13 @@ function CategoryBuiltInUnitSelector({
                       );
                     })}
                   </select>
+
+                  {/* Warning if previous built-in unit became damaged or lost */}
+                  {isCurrentUnitDegraded && (
+                    <div className="mt-1.5 flex items-start gap-1.5 text-[11px] font-semibold text-rose-700 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 p-2 rounded-lg leading-tight">
+                      <span>⚠️ Previously linked unit <strong>[{currentUnitObj.serial_number || currentUnitObj.barcode || currentUnitObj.id}]</strong> is marked as <strong>{currentUnitObj.condition || currentUnitObj.status || 'Damaged/Lost'}</strong> and excluded. Please choose another unit in Good condition.</span>
+                    </div>
+                  )}
                 </div>
               </div>
             );

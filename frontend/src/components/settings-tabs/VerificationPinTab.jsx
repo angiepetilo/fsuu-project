@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import api from "@/lib/axios";
 import { notify } from "@/lib/notify";
-import { Download, FileText, UploadCloud, X, Paperclip } from "lucide-react";
-import EndorsementLetterTemplateModal from "@/components/ui/EndorsementLetterTemplateModal";
+import { Download, FileText, UploadCloud, X, Paperclip, Eye, MoreVertical, Pencil, Trash2 } from "lucide-react";
+import DocxPreviewModal from "@/components/ui/DocxPreviewModal";
+import ActionPopover from "@/components/ui/ActionPopover";
 import ConfirmModal from "@/components/ui/ConfirmModal";
 import IosToggle from "@/components/ui/ios-toggle";
 
@@ -13,6 +14,9 @@ export default function VerificationPinTab({
   handleSavePinConfig: externalHandleSavePinConfig,
   showMsg: externalShowMsg,
 }) {
+  const [showDocxModal, setShowDocxModal] = useState(false);
+  const [selectedDocx, setSelectedDocx] = useState({ url: "", name: "", title: "" });
+
   const DEFAULT_APPLICABILITY_MATRIX = {
     student: { venue_single: false, venue_multiday: true, equipment: false },
     faculty: { venue_single: false, venue_multiday: true, equipment: false },
@@ -39,9 +43,8 @@ export default function VerificationPinTab({
   const [pinLoading, setPinLoading] = useState(true);
   const [saveLoading, setSaveLoading] = useState(false);
   const [showPin, setShowPin] = useState(false);
-  const [showTemplateModal, setShowTemplateModal] = useState(false);
-  const [selectedTemplateType, setSelectedTemplateType] = useState("organization");
-  const [selectedReqForFormat, setSelectedReqForFormat] = useState(null);
+  const [openActionId, setOpenActionId] = useState(null);
+  const [actionAnchorEl, setActionAnchorEl] = useState(null);
   const [feedbackMsg, setFeedbackMsg] = useState(null);
 
   const [isEditing, setIsEditing] = useState(false);
@@ -318,37 +321,6 @@ export default function VerificationPinTab({
     } catch (err) {
       setRequirements(prev);
       const errDetail = err.response?.data?.message || "Failed to remove requirement.";
-      notify.error(errDetail);
-    }
-  };
-
-  const handleSaveRequirementFormat = async (updatedFormat) => {
-    if (!selectedReqForFormat) return;
-    const reqId = selectedReqForFormat.id;
-
-    try {
-      const formData = new FormData();
-      formData.append("_method", "PUT");
-      formData.append("format_content", JSON.stringify(updatedFormat));
-
-      const res = await api.post(`/general/booking-requirements/${reqId}`, formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-
-      const updated = res.data;
-      setRequirements((prev) =>
-        prev.map((r) =>
-          r.id === reqId ? { ...r, format_content: updated.format_content || updatedFormat } : r
-        )
-      );
-      setSelectedReqForFormat((prev) =>
-        prev ? { ...prev, format_content: updated.format_content || updatedFormat } : null
-      );
-      notify.success("Document format saved.");
-    } catch (err) {
-      const errDetail = err.response?.data?.errors
-        ? Object.values(err.response.data.errors).flat().join(" ")
-        : (err.response?.data?.message || "Failed to save format.");
       notify.error(errDetail);
     }
   };
@@ -927,22 +899,68 @@ export default function VerificationPinTab({
                         </span>
                       </td>
                       <td className="p-2.5 text-right">
-                        <div className="inline-flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (openActionId === req.id) {
+                              setOpenActionId(null);
+                              setActionAnchorEl(null);
+                            } else {
+                              setOpenActionId(req.id);
+                              setActionAnchorEl(e.currentTarget);
+                            }
+                          }}
+                          className={`p-1.5 rounded-lg border text-xs transition-all cursor-pointer ${
+                            openActionId === req.id
+                              ? "bg-blue-600 border-blue-600 text-white"
+                              : "border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
+                          }`}
+                          title="Actions"
+                        >
+                          <MoreVertical size={14} />
+                        </button>
+
+                        <ActionPopover
+                          isOpen={openActionId === req.id}
+                          anchorEl={actionAnchorEl}
+                          onClose={() => {
+                            setOpenActionId(null);
+                            setActionAnchorEl(null);
+                          }}
+                          menuWidth={140}
+                        >
                           <button
                             type="button"
                             onClick={() => {
-                              setSelectedReqForFormat(req);
-                              setSelectedTemplateType(req.classification || (isAcad ? "academic" : "organization"));
-                              setShowTemplateModal(true);
+                              setOpenActionId(null);
+                              setActionAnchorEl(null);
+                              if (req.template_file_url) {
+                                setSelectedDocx({
+                                  url: req.template_file_url,
+                                  name: req.template_file_name || `${req.label || "Requirement"}.docx`,
+                                  title: req.label || "Requirement Template",
+                                });
+                                setShowDocxModal(true);
+                              } else {
+                                notify.error("No template file attached to this requirement.");
+                              }
                             }}
-                            className="px-2 py-1 border border-slate-200 rounded text-slate-600 hover:bg-slate-100 text-[11px] cursor-pointer"
-                            title="View and edit dynamic requirement document format"
+                            className={`w-full px-3 py-2 text-left text-xs font-medium flex items-center gap-2 transition-colors cursor-pointer ${
+                              req.template_file_url
+                                ? "text-slate-700 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:text-blue-600 dark:hover:text-blue-300"
+                                : "text-slate-400 dark:text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800"
+                            }`}
                           >
-                            Format
+                            <Eye size={13} className={req.template_file_url ? "text-blue-600" : "text-slate-400"} />
+                            <span>Preview</span>
                           </button>
+
                           <button
                             type="button"
                             onClick={() => {
+                              setOpenActionId(null);
+                              setActionAnchorEl(null);
                               setEditReq(req);
                               setReqForm({
                                 classification: req.classification || "all",
@@ -956,18 +974,27 @@ export default function VerificationPinTab({
                               });
                               setShowReqModal(true);
                             }}
-                            className="px-2 py-1 border border-slate-200 rounded text-slate-600 hover:bg-slate-100 text-[11px]"
+                            className="w-full px-3 py-2 text-left text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-2 transition-colors cursor-pointer"
                           >
-                            Edit
+                            <Pencil size={13} className="text-slate-500" />
+                            <span>Edit</span>
                           </button>
+
+                          <div className="border-t border-slate-100 dark:border-slate-800 my-0.5" />
+
                           <button
                             type="button"
-                            onClick={() => handleDeleteReq(req.id)}
-                            className="px-2 py-1 border border-slate-200 rounded text-rose-600 hover:bg-rose-50 text-[11px]"
+                            onClick={() => {
+                              setOpenActionId(null);
+                              setActionAnchorEl(null);
+                              handleDeleteReq(req.id);
+                            }}
+                            className="w-full px-3 py-2 text-left text-xs font-medium text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 flex items-center gap-2 transition-colors cursor-pointer"
                           >
-                            Delete
+                            <Trash2 size={13} className="text-rose-600" />
+                            <span>Delete</span>
                           </button>
-                        </div>
+                        </ActionPopover>
                       </td>
                     </tr>
                   );
@@ -1048,89 +1075,61 @@ export default function VerificationPinTab({
                   </div>
                 </div>
 
-                {/* Right Column: Display Mode & Template Attachment */}
+                {/* Right Column: Official DOCX Template File */}
                 <div className="space-y-3">
-                  <div>
-                    <label className="block font-medium text-slate-700 mb-1">
-                      Template Display Mode *
-                    </label>
-                    <div className="space-y-1.5">
-                      <label className="flex items-start gap-2 p-2 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer">
-                        <input
-                          type="radio"
-                          name="template_display_mode"
-                          value="uploaded_file"
-                          checked={reqForm.template_display_mode === "uploaded_file"}
-                          onChange={(e) => setReqForm({ ...reqForm, template_display_mode: e.target.value })}
-                          className="mt-0.5 text-blue-600 focus:ring-blue-500"
-                        />
-                        <div>
-                          <span className="block font-medium text-slate-900 text-xs">Uploaded File Only</span>
-                          <span className="block text-[11px] text-slate-500 font-normal">Only provide download of your uploaded custom document.</span>
-                        </div>
-                      </label>
-                      <label className="flex items-start gap-2 p-2 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer">
-                        <input
-                          type="radio"
-                          name="template_display_mode"
-                          value="digital_format"
-                          checked={reqForm.template_display_mode === "digital_format"}
-                          onChange={(e) => setReqForm({ ...reqForm, template_display_mode: e.target.value })}
-                          className="mt-0.5 text-blue-600 focus:ring-blue-500"
-                        />
-                        <div>
-                          <span className="block font-medium text-slate-900 text-xs">Digital Letter Format</span>
-                          <span className="block text-[11px] text-slate-500 font-normal">Display digital letter format with university letterhead and body text.</span>
-                        </div>
-                      </label>
-                      <label className="flex items-start gap-2 p-2 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer">
-                        <input
-                          type="radio"
-                          name="template_display_mode"
-                          value="both"
-                          checked={reqForm.template_display_mode === "both"}
-                          onChange={(e) => setReqForm({ ...reqForm, template_display_mode: e.target.value })}
-                          className="mt-0.5 text-blue-600 focus:ring-blue-500"
-                        />
-                        <div>
-                          <span className="block font-medium text-slate-900 text-xs">Both (Download File &amp; Digital Format)</span>
-                          <span className="block text-[11px] text-slate-500 font-normal">Allow users to both download the uploaded file and view the digital letter.</span>
-                        </div>
-                      </label>
-                    </div>
+                  <div className="p-3 bg-blue-50/60 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 rounded-xl space-y-1">
+                    <span className="block font-bold text-blue-900 dark:text-blue-200 text-xs">
+                      Official Requirement Template (.DOCX Only)
+                    </span>
+                    <span className="block text-[11px] text-blue-700/80 dark:text-blue-300/80 font-normal leading-relaxed">
+                      Upload the official Microsoft Word (.docx) requirement template. Both borrowers (on landing page &amp; booking flow) and administrators can preview it directly in-modal and download it.
+                    </span>
                   </div>
 
                   <div>
-                    <label className="block font-medium text-slate-700 mb-1">
-                      Downloadable Template Form (Optional)
+                    <label className="block font-medium text-slate-700 dark:text-slate-300 mb-1 text-xs">
+                      Official .DOCX File
                     </label>
                     {reqForm.template_file_url && !reqForm.remove_template ? (
-                      <div className="flex items-center justify-between p-2 bg-slate-50 border border-slate-200 rounded-lg">
+                      <div className="flex items-center justify-between p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg">
                         <div className="flex items-center gap-2 min-w-0">
                           <FileText className="w-4 h-4 text-blue-600 shrink-0" />
-                          <a
-                            href={reqForm.template_file_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="font-medium text-blue-600 hover:underline truncate max-w-[150px]"
+                          <span
+                            className="font-medium text-slate-800 dark:text-slate-200 truncate max-w-[150px] text-xs"
                             title={reqForm.template_file_name || "Existing Template File"}
                           >
                             {reqForm.template_file_name || "Attached Template File"}
-                          </a>
+                          </span>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => setReqForm(prev => ({ ...prev, remove_template: true, template_file: null }))}
-                          className="text-rose-600 hover:text-rose-800 font-medium ml-2 shrink-0 cursor-pointer text-xs"
-                        >
-                          Remove
-                        </button>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedDocx({
+                                url: reqForm.template_file_url,
+                                name: reqForm.template_file_name || "Template.docx",
+                                title: reqForm.label || "Requirement Template",
+                              });
+                              setShowDocxModal(true);
+                            }}
+                            className="text-blue-600 hover:text-blue-800 font-semibold cursor-pointer text-xs px-2 py-0.5 rounded bg-blue-50 hover:bg-blue-100"
+                          >
+                            Preview
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setReqForm(prev => ({ ...prev, remove_template: true, template_file: null }))}
+                            className="text-rose-600 hover:text-rose-800 font-medium ml-1 cursor-pointer text-xs"
+                          >
+                            Remove
+                          </button>
+                        </div>
                       </div>
                     ) : (
-                      <div className="space-y-1">
+                      <div className="space-y-1.5">
                         <input
                           type="file"
-                          accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
+                          accept=".docx,.doc"
                           onChange={(e) => {
                             const file = e.target.files?.[0];
                             if (file) {
@@ -1142,7 +1141,7 @@ export default function VerificationPinTab({
                               }));
                             }
                           }}
-                          className="w-full text-xs text-slate-500 file:mr-2 file:py-1 file:px-2.5 file:rounded-md file:border-0 file:text-xs file:font-normal file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200 cursor-pointer"
+                          className="w-full text-xs text-slate-500 file:mr-2 file:py-1 file:px-2.5 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer border border-slate-200 rounded-lg p-1.5"
                         />
                         {reqForm.template_file && (
                           <p className="text-[11px] text-emerald-600 font-medium flex items-center gap-1">
@@ -1150,7 +1149,7 @@ export default function VerificationPinTab({
                           </p>
                         )}
                         <p className="text-[10.5px] text-slate-400 font-normal">
-                          PDF, Word, Excel, or Image up to 10MB.
+                          Microsoft Word document (.docx or .doc) up to 10MB.
                         </p>
                       </div>
                     )}
@@ -1179,19 +1178,6 @@ export default function VerificationPinTab({
         </div>
       )}
 
-      {/* Template Modal */}
-      <EndorsementLetterTemplateModal
-        isOpen={showTemplateModal}
-        onClose={() => {
-          setShowTemplateModal(false);
-          setSelectedReqForFormat(null);
-        }}
-        requirement={selectedReqForFormat}
-        onSaveTemplate={handleSaveRequirementFormat}
-        initialType={selectedTemplateType}
-        allowEdit={true}
-        showTypeTabs={!selectedReqForFormat}
-      />
 
       <ConfirmModal
         open={confirmModalState.open}
@@ -1208,6 +1194,18 @@ export default function VerificationPinTab({
           confirmModalState.field?.startsWith('venue') ? 'Venue Booking' : 'Equipment Borrowing'
         }?`}
         confirmLabel="Yes, Disable"
+      />
+
+      {/* Official DOCX Template Viewer Modal */}
+      <DocxPreviewModal
+        isOpen={showDocxModal}
+        onClose={() => {
+          setShowDocxModal(false);
+          setSelectedDocx({ url: "", name: "", title: "" });
+        }}
+        fileUrl={selectedDocx.url}
+        fileName={selectedDocx.name}
+        title={selectedDocx.title}
       />
     </div>
   );

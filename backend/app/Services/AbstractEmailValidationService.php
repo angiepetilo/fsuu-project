@@ -115,6 +115,21 @@ class AbstractEmailValidationService
         $domain = strtolower(trim($parts[1]));
         $isInstitutional = in_array($domain, ['urios.edu.ph', 'fsuu.edu.ph'], true);
 
+        // Institutional email policy: Reject emails containing numbers (e.g. 202100452@urios.edu.ph)
+        if ($isInstitutional && preg_match('/[0-9]/', $user)) {
+            return [
+                'valid'          => false,
+                'email'          => $email,
+                'domain'         => $domain,
+                'deliverability' => 'UNDELIVERABLE',
+                'is_disposable'  => false,
+                'autocorrect'    => null,
+                'quality_score'  => 0.0,
+                'message'        => 'Institutional email must be your official name-based university email (e.g. name@urios.edu.ph), not ID numbers.',
+                'source'         => 'institutional_policy'
+            ];
+        }
+
         // 3. Detect keyboard-mashed, randomized, or gibberish usernames (e.g. aasdw, asdasd, asdfghjkl)
         if (self::isRandomOrGibberishUsername($user)) {
             return [
@@ -162,15 +177,19 @@ class AbstractEmailValidationService
 
         // 4. DNS MX record pre-check
         $hasMx = false;
-        try {
-            if (function_exists('checkdnsrr')) {
-                $hasMx = checkdnsrr($domain, 'MX') || checkdnsrr($domain, 'A') || checkdnsrr($domain, 'AAAA');
-            } else {
-                $records = @dns_get_record($domain, DNS_MX | DNS_A | DNS_AAAA);
-                $hasMx = !empty($records);
-            }
-        } catch (\Throwable $e) {
+        if ($isInstitutional) {
             $hasMx = true;
+        } else {
+            try {
+                if (function_exists('checkdnsrr')) {
+                    $hasMx = checkdnsrr($domain, 'MX') || checkdnsrr($domain, 'A') || checkdnsrr($domain, 'AAAA');
+                } else {
+                    $records = @dns_get_record($domain, DNS_MX | DNS_A | DNS_AAAA);
+                    $hasMx = !empty($records);
+                }
+            } catch (\Throwable $e) {
+                $hasMx = true;
+            }
         }
 
         if (!$hasMx) {
@@ -357,89 +376,95 @@ class AbstractEmailValidationService
     /**
      * Detect keyboard-mash, randomized strings, or gibberish usernames (e.g. asdadadsa, asdfghjkl, etc.)
      */
+    /**
+     * Detect keyboard-mash, randomized strings, or gibberish usernames (e.g. asdadadsa, asdfghjkl, etc.)
+     */
     public static function isRandomOrGibberishUsername(string $user): bool
     {
         $user = strtolower(trim($user));
 
-        // 1. Obvious fake usernames
-        if (preg_match('/^(test|fake|dummy|sample|temp|random|nobody|void|anon|anonymous|asdf|qwerty|aasdw)[0-9_.-]*$/i', $user)) {
+        // 1. Obvious fake usernames, placeholder patterns, and bot words
+        if (preg_match('/^(test|fake|dummy|sample|temp|random|nobody|void|anon|anonymous|asdf|qwerty|aasdw|bot|tester|placeholder)/i', $user)) {
             return true;
         }
 
-        // Strip numbers and common punctuation to analyze base alphabet pattern
-        $clean = preg_replace('/[._\-0-9]/', '', $user);
-        if (strlen($clean) < 4) {
-            return false; // Short real names like 'dan', 'ana', 'ian' are allowed
+        // 2. High trailing random digits (e.g., user4829104, john98347209)
+        if (preg_match('/[a-z]+[0-9]{6,}$/i', $user)) {
+            return true;
         }
 
-        $len = strlen($clean);
+        // Split into tokens if separated by dots, hyphens, or underscores
+        $tokens = preg_split('/[._\-]/', $user);
+        $tokens = array_filter($tokens, fn($t) => strlen($t) > 0);
 
-        // 2. QWERTY / Gaming keyboard mash sequences
-        $keyboardSequences = [
-            'asdf', 'fdsa', 'qwer', 'rewq', 'zxcv', 'vcxz', 'hjkl', 'lkjh',
-            'uiop', 'poiu', 'yuiop', 'tyui', 'ghjk', 'bnm', 'mnb',
-            'asdw', 'wasd', 'sdwa', 'dwas', 'aasdw', 'asda', 'dadad', 'adada',
-            'sasa', 'dsad', 'sdas', 'dsa', 'asd', 'qwe', 'zxc', 'wsad'
-        ];
-        foreach ($keyboardSequences as $seq) {
-            if (str_contains($clean, $seq) && $len <= 12) {
-                if (in_array($clean, ['casdas', 'asdasd', 'asdadadsa', 'asdadsa', 'asdfghjkl', 'asdf', 'asdfgh', 'aasdw', 'asdw', 'wasd', 'wsad'])) {
+        // 3. Check each token individually for keyboard mash / gibberish
+        foreach ($tokens as $token) {
+            $tokenClean = preg_replace('/[0-9]/', '', $token);
+            $tokenLen = strlen($tokenClean);
+
+            if ($tokenLen >= 4) {
+                // Obvious token keyboard mash
+                if (in_array($tokenClean, ['asdf', 'fdsa', 'qwer', 'rewq', 'zxcv', 'vcxz', 'hjkl', 'lkjh', 'asdw', 'wasd', 'aasdw', 'asda', 'dadad', 'sasa', 'dsad', 'asdasd', 'asdadadsa', 'asdfghjkl', 'asdfgh'])) {
                     return true;
                 }
-                if (strlen($seq) >= 4) {
+
+                // Single-cluster keyboard mash patterns
+                if (preg_match('/^[asdw]+$/i', $tokenClean) && $tokenLen >= 4) return true;
+                if (preg_match('/^[qwer]+$/i', $tokenClean) && $tokenLen >= 4) return true;
+                if (preg_match('/^[zxcv]+$/i', $tokenClean) && $tokenLen >= 4) return true;
+                if (preg_match('/^[hjkl]+$/i', $tokenClean) && $tokenLen >= 4) return true;
+
+                // Long string with no vowels in a token (>= 5 letters without vowel)
+                if ($tokenLen >= 5 && !preg_match('/[aeiouy]/i', $tokenClean)) {
+                    return true;
+                }
+
+                // Low distinct character ratio in a single token (e.g. 'asdadadsa')
+                $uniqueCount = count(count_chars($tokenClean, 1));
+                if ($tokenLen >= 6 && ($uniqueCount / $tokenLen) <= 0.35) {
+                    return true;
+                }
+
+                // Repeated syllables in token (e.g. ababab, xyxyxy)
+                if (preg_match('/^([a-z]{2,3})\1{2,}$/', $tokenClean)) {
                     return true;
                 }
             }
         }
 
-        // 3. Single-cluster keyboard mash patterns (e.g. aasdw, wasd, qwer, zxcv)
-        if ($len >= 4) {
-            if (preg_match('/^[asdw]+$/i', $clean)) return true;
-            if (preg_match('/^[qwer]+$/i', $clean)) return true;
-            if (preg_match('/^[zxcv]+$/i', $clean)) return true;
-            if (preg_match('/^[hjkl]+$/i', $clean)) return true;
-            if (preg_match('/^[uiop]+$/i', $clean)) return true;
+        // 4. Overall analysis of the full cleaned string (excluding punctuation/numbers)
+        $clean = preg_replace('/[._\-0-9]/', '', $user);
+        $len = strlen($clean);
+        if ($len < 4) {
+            return false; // Short real names like 'dan', 'ana', 'ian' are allowed
         }
 
-        // 4. Low distinct character ratio (e.g. 'asdadadsa': length 9, but only 3 unique characters)
-        $uniqueCount = count(count_chars($clean, 1));
-        if ($len >= 5 && ($uniqueCount / $len) <= 0.40) {
-            return true;
+        // QWERTY keyboard mash sequences
+        $keyboardSequences = [
+            'asdfgh', 'qwert', 'zxcvb', 'hjklm',
+            'asdasd', 'asdadadsa', 'asdfghjkl', 'aasdw', 'wsad'
+        ];
+        foreach ($keyboardSequences as $seq) {
+            if (str_contains($clean, $seq)) {
+                return true;
+            }
         }
 
-        // 5. Repeating character clusters (e.g. 'aaaa', 'zzzzz', '1111')
+        // Repeating character clusters (e.g. 'aaaa', 'zzzzz', '1111')
         if (preg_match('/(.)\1{3,}/', $user)) {
             return true;
         }
 
-        // 6. Repeated 2 or 3-char syllable loops (e.g. 'asdasd', 'dadada', 'ababab', 'xyxyxy')
-        if (preg_match('/^([a-z]{2,3})\1{2,}$/', $clean)) {
-            return true;
+        // Extreme consonant cluster: 5+ consecutive consonants without natural digraphs
+        if (preg_match('/[bcdfghjklmnpqrstvwxz]{5,}/i', $clean)) {
+            // Check if it's a known natural combination like "schmidt"
+            if (!preg_match('/(schm|ngth|chstr)/i', $clean)) {
+                return true;
+            }
         }
 
-        // 7. Unpronounceable consonant clusters (>= 4 consecutive consonants)
-        if (preg_match('/[bcdfghjklmnpqrstvwxz]{4,}/', $clean)) {
-            return true;
-        }
-
-        // 8. Long string with no vowels (>= 4 characters without a, e, i, o, u, y)
-        if ($len >= 4 && !preg_match('/[aeiouy]/', $clean)) {
-            return true;
-        }
-
-        // 9. Alternating home-row / single row keyboard mash
-        if ($len >= 5 && preg_match('/^[asd]+$/', $clean)) {
-            return true;
-        }
-        if ($len >= 5 && preg_match('/^[qwer]+$/', $clean)) {
-            return true;
-        }
-        if ($len >= 5 && preg_match('/^[zxcv]+$/', $clean)) {
-            return true;
-        }
-
-        // 10. Non-natural ending consonant cluster (e.g. sdw, dfg, jkl)
-        if ($len >= 4 && preg_match('/[bcdfghjklmnpqrstvwxz]{3,}$/i', $clean) && !preg_match('/(ck|ch|sh|th|ng|ll|ss|tt|nt|nd|rt|rd|st|ld|lt|mp|rk|nk|sk)$/i', $clean)) {
+        // Entire username has no vowels
+        if ($len >= 4 && !preg_match('/[aeiouy]/i', $clean)) {
             return true;
         }
 

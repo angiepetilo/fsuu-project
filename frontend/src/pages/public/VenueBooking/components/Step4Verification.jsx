@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { useRef, useState, useEffect } from "react";
 import api from "@/lib/axios";
 import EndorsementLetterTemplateModal from "@/components/ui/EndorsementLetterTemplateModal";
+import DocxPreviewModal from "@/components/ui/DocxPreviewModal";
 
 export default function Step4Verification({
   filerName,
@@ -27,6 +28,8 @@ export default function Step4Verification({
 }) {
   const fileInputRef = useRef(null);
   const [showTemplateModal, setShowTemplateModal] = useState(false);
+  const [showDocxModal, setShowDocxModal] = useState(false);
+  const [selectedDocx, setSelectedDocx] = useState({ url: "", name: "", title: "" });
   const [templateType, setTemplateType] = useState("organization");
   const [requirementsList, setRequirementsList] = useState([]);
 
@@ -150,20 +153,37 @@ export default function Step4Verification({
               1. Booking Requirements
             </h3>
             <div className="flex items-center gap-1.5 shrink-0">
-              {activeTemplate?.template_file_url && activeTemplate?.template_display_mode !== "digital_format" && (
-                <a
-                  href={activeTemplate.template_file_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  download
-                  className="flex items-center gap-1.5 text-[11px] font-medium text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100/80 dark:hover:bg-emerald-900/60 border border-emerald-200 dark:border-emerald-800/60 px-2.5 py-1 rounded-lg transition-colors cursor-pointer shadow-2xs shrink-0"
-                  title={activeTemplate.template_file_name || "Download official booking template"}
-                >
-                  <Download size={12} className="text-emerald-600 dark:text-emerald-400" />
-                  <span>Download Form</span>
-                </a>
-              )}
-              {(!activeTemplate || activeTemplate?.template_display_mode === "digital_format" || activeTemplate?.template_display_mode === "both" || !activeTemplate?.template_file_url) && (
+              {activeTemplate?.template_file_url ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedDocx({
+                        url: activeTemplate.template_file_url,
+                        name: activeTemplate.template_file_name || `${activeTemplate.label || "Requirement"}.docx`,
+                        title: activeTemplate.label || "Booking Requirement Template",
+                      });
+                      setShowDocxModal(true);
+                    }}
+                    className="flex items-center gap-1.5 text-[11px] font-bold text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 hover:bg-blue-100/80 dark:hover:bg-blue-900/60 border border-blue-200 dark:border-blue-800/60 px-2.5 py-1 rounded-lg transition-colors cursor-pointer shadow-2xs shrink-0"
+                    title="Preview official requirement template in-modal"
+                  >
+                    <FileText size={12} />
+                    <span>View Template</span>
+                  </button>
+                  <a
+                    href={activeTemplate.template_file_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    download
+                    className="flex items-center gap-1.5 text-[11px] font-medium text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100/80 dark:hover:bg-emerald-900/60 border border-emerald-200 dark:border-emerald-800/60 px-2.5 py-1 rounded-lg transition-colors cursor-pointer shadow-2xs shrink-0"
+                    title={activeTemplate.template_file_name || "Download official booking template"}
+                  >
+                    <Download size={12} className="text-emerald-600 dark:text-emerald-400" />
+                    <span>Download</span>
+                  </a>
+                </>
+              ) : (
                 <button
                   type="button"
                   onClick={() => setShowTemplateModal(true)}
@@ -397,6 +417,18 @@ export default function Step4Verification({
         onClose={() => setShowTemplateModal(false)}
         requirement={activeTemplate}
         initialType={templateType}
+      />
+
+      {/* Official DOCX Template Viewer Modal */}
+      <DocxPreviewModal
+        isOpen={showDocxModal}
+        onClose={() => {
+          setShowDocxModal(false);
+          setSelectedDocx({ url: "", name: "", title: "" });
+        }}
+        fileUrl={selectedDocx.url}
+        fileName={selectedDocx.name}
+        title={selectedDocx.title}
       />
     </div>
   );
