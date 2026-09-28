@@ -26,11 +26,8 @@ if [ "$DB_TARGET_HOST" != "127.0.0.1" ] && [ "$DB_TARGET_HOST" != "localhost" ];
   done
 fi
 
-echo "🛡️ Running safe database migrations (preserving production data)..."
-php artisan migrate --force || true
-
-# Seed initial roles and administrator ONLY if database is brand new (zero users exist)
-php artisan tinker --execute="if (class_exists('App\Models\User') && \App\Models\User::count() === 0) { \Illuminate\Support\Facades\Artisan::call('db:seed', ['--force' => true]); }" || true
+echo "🔄 Refreshing database and reseeding with fresh data (migrate:fresh --seed)..."
+php artisan migrate:fresh --seed --force || true
 
 echo "🚀 Caching routes and configuration..."
 php artisan optimize || true

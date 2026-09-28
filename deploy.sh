@@ -17,13 +17,14 @@ cd ..
 # Copy built frontend assets and template to backend
 cp -r frontend/dist/assets/* backend/public/assets/
 cp frontend/dist/index.html backend/resources/views/app.blade.php
+cp frontend/dist/index.html backend/public/index.html
 
 # 3. Optimize Backend
 echo "⚡ Optimizing Laravel Backend..."
 cd backend
 composer install --optimize-autoloader --no-dev --prefer-dist
-echo "🛡️ Running safe database migrations (preserving production data)..."
-php artisan migrate --force
+echo "🔄 Refreshing database and reseeding with fresh data (migrate:fresh --seed)..."
+php artisan migrate:fresh --seed --force
 php artisan optimize
 php artisan up
 cd ..

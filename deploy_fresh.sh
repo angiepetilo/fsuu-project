@@ -16,8 +16,25 @@ set -e
 
 echo "🚀 [FRESH DEPLOY] Starting one-time migrate:fresh --seed..."
 
-cd backend
+# 1. Pull latest code
+echo "📥 Pulling latest git repository updates..."
+git pull origin main || true
 
+# 2. Build and optimize Frontend
+echo "📦 Building Frontend production bundle..."
+cd frontend
+npm ci --prefer-offline --no-audit
+npm run build
+cd ..
+
+# Copy built frontend assets and template to backend
+cp -r frontend/dist/assets/* backend/public/assets/
+cp frontend/dist/index.html backend/resources/views/app.blade.php
+cp frontend/dist/index.html backend/public/index.html
+
+# 3. Optimize Backend & Fresh Migrate Seed
+echo "⚡ Optimizing Laravel Backend..."
+cd backend
 composer install --optimize-autoloader --no-dev --prefer-dist
 
 echo "⚠️  Wiping database and re-seeding with fresh data..."
