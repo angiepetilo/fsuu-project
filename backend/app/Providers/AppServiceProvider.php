@@ -24,7 +24,9 @@ class AppServiceProvider extends ServiceProvider
     {
         // ─── Production Protection: Prohibit Destructive Commands ─────────────
         if ($this->app->isProduction() && !filter_var(env('ALLOW_DESTRUCTIVE_COMMANDS', false), FILTER_VALIDATE_BOOLEAN)) {
-            \Illuminate\Support\Facades\DB::prohibitDestructiveDatabaseCommands();
+            if (method_exists(\Illuminate\Database\Connection::class, 'prohibitDestructiveDatabaseCommands')) {
+                \Illuminate\Support\Facades\DB::prohibitDestructiveDatabaseCommands();
+            }
         }
         // ─── Custom Mail Drivers ─────────────────────────────────────────────
         \Illuminate\Support\Facades\Mail::extend('brevo', function (array $config = []) {
