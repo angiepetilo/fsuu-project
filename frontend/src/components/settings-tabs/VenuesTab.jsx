@@ -15,10 +15,25 @@ export default function VenuesTab({ showMsg }) {
   const [equipmentCatalog, setEquipmentCatalog] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [showDiscardModal, setShowDiscardModal] = useState(false);
+  const [isFormDirty, setIsFormDirty] = useState(false);
   const [editItem, setEditItem] = useState(null);
   const [formLoading, setFormLoading] = useState(false);
   const [formError, setFormError] = useState("");
   const [disableTarget, setDisableTarget] = useState(null); // { id, name, status }
+
+  const handleRequestClose = () => {
+    if (isFormDirty) {
+      setShowDiscardModal(true);
+    } else {
+      setShowModal(false);
+    }
+  };
+
+  const updateForm = (val) => {
+    setIsFormDirty(true);
+    setForm(val);
+  };
 
   const [previewScale, setPreviewScale] = useState(100);
   const [previewFit, setPreviewFit] = useState("contain");
@@ -118,6 +133,7 @@ export default function VenuesTab({ showMsg }) {
         } catch {}
         window.dispatchEvent(new Event("venues_updated"));
         showMsg("Venue details updated successfully.");
+        setIsFormDirty(false);
         setShowModal(false);
       } catch (err) {
         const errMsg = err.response?.data?.errors?.name?.[0] || err.response?.data?.message || "Failed to update venue.";
@@ -136,6 +152,7 @@ export default function VenuesTab({ showMsg }) {
         } catch {}
         window.dispatchEvent(new Event("venues_updated"));
         showMsg("Venue created successfully.");
+        setIsFormDirty(false);
         setShowModal(false);
       } catch (err) {
         const errMsg = err.response?.data?.errors?.name?.[0] || err.response?.data?.message || "Failed to create venue.";
@@ -169,6 +186,7 @@ export default function VenuesTab({ showMsg }) {
       equipment_max_qtys: v.equipment_max_qtys || {},
     });
     setFormError("");
+    setIsFormDirty(false);
     setShowModal(true);
   };
 

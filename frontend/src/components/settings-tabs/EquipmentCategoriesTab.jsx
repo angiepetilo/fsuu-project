@@ -18,9 +18,24 @@ export default function EquipmentCategoriesTab({ showMsg }) {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [showDiscardModal, setShowDiscardModal] = useState(false);
+  const [isFormDirty, setIsFormDirty] = useState(false);
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [requestForm, setRequestForm] = useState({ proposed_name: "", reason: "" });
   const [submittingRequest, setSubmittingRequest] = useState(false);
+
+  const handleRequestClose = () => {
+    if (isFormDirty) {
+      setShowDiscardModal(true);
+    } else {
+      setShowModal(false);
+    }
+  };
+
+  const updateForm = (val) => {
+    setIsFormDirty(true);
+    setForm(val);
+  };
 
   const [editItem, setEditItem] = useState(null);
   const [openActionId, setOpenActionId] = useState(null);
@@ -88,7 +103,7 @@ export default function EquipmentCategoriesTab({ showMsg }) {
     if (!file) return;
     const reader = new FileReader();
     reader.onloadend = () => {
-      setForm((prev) => ({ ...prev, photo: reader.result, avatar: reader.result }));
+      updateForm((prev) => ({ ...prev, photo: reader.result, avatar: reader.result }));
     };
     reader.readAsDataURL(file);
   };
@@ -107,6 +122,7 @@ export default function EquipmentCategoriesTab({ showMsg }) {
       built_in_units: [],
     });
     setFormError("");
+    setIsFormDirty(false);
     setShowModal(true);
   };
 
@@ -125,6 +141,7 @@ export default function EquipmentCategoriesTab({ showMsg }) {
       built_in_units: Array.isArray(cat.built_in_units) ? cat.built_in_units.map(String) : [],
     });
     setFormError("");
+    setIsFormDirty(false);
     setShowModal(true);
   };
 
@@ -158,6 +175,7 @@ export default function EquipmentCategoriesTab({ showMsg }) {
         } catch {}
         window.dispatchEvent(new Event("equipment_updated"));
         notify.success("Category Updated", "Equipment category successfully updated.");
+        setIsFormDirty(false);
         setShowModal(false);
       } catch (err) {
         const errMsg = err.response?.data?.errors?.eq_name?.[0] || err.response?.data?.message || "Failed to update category.";
@@ -176,6 +194,7 @@ export default function EquipmentCategoriesTab({ showMsg }) {
         } catch {}
         window.dispatchEvent(new Event("equipment_updated"));
         notify.success("Category Created", "New equipment category successfully registered.");
+        setIsFormDirty(false);
         setShowModal(false);
       } catch (err) {
         const errMsg = err.response?.data?.errors?.eq_name?.[0] || err.response?.data?.message || "Failed to create category.";
@@ -418,7 +437,7 @@ export default function EquipmentCategoriesTab({ showMsg }) {
               </div>
               <button
                 type="button"
-                onClick={() => setShowModal(false)}
+                onClick={handleRequestClose}
                 className="text-slate-400 hover:text-slate-600 p-1 rounded-lg cursor-pointer"
               >
                 <X size={16} />
@@ -442,7 +461,7 @@ export default function EquipmentCategoriesTab({ showMsg }) {
                       required
                       placeholder="e.g. Projector, Wireless Microphone, Sound System"
                       value={form.eq_name}
-                      onChange={(e) => setForm({ ...form, eq_name: e.target.value })}
+                      onChange={(e) => updateForm({ ...form, eq_name: e.target.value })}
                       className="w-full p-2 bg-white border border-slate-300 rounded-lg font-normal text-slate-900 focus:outline-none focus:border-blue-600 text-xs"
                     />
                   </div>
@@ -453,7 +472,7 @@ export default function EquipmentCategoriesTab({ showMsg }) {
                       rows={3}
                       placeholder="Optional details or specifications for this equipment category..."
                       value={form.description}
-                      onChange={(e) => setForm({ ...form, description: e.target.value })}
+                      onChange={(e) => updateForm({ ...form, description: e.target.value })}
                       className="w-full p-2 bg-white border border-slate-300 rounded-lg font-normal text-slate-900 focus:outline-none focus:border-blue-600 text-xs"
                     />
                   </div>
@@ -497,7 +516,7 @@ export default function EquipmentCategoriesTab({ showMsg }) {
                                           (item) => String(item) !== catIdStr && String(item).toLowerCase() !== String(catName).toLowerCase()
                                         )
                                       : [...(form.built_in_units || []), cat.id];
-                                    setForm({ ...form, built_in_units: next });
+                                    updateForm({ ...form, built_in_units: next });
                                   }}
                                 />
                                 <span className="text-xs font-normal text-slate-800 truncate">
@@ -536,7 +555,7 @@ export default function EquipmentCategoriesTab({ showMsg }) {
                           {(form.photo || form.avatar) && (
                             <button
                               type="button"
-                              onClick={() => setForm({ ...form, photo: "", avatar: "" })}
+                              onClick={() => updateForm({ ...form, photo: "", avatar: "" })}
                               className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md border border-red-200 bg-white hover:bg-red-50 text-red-600 font-normal text-xs cursor-pointer transition-all"
                             >
                               <X size={12} />
@@ -625,7 +644,7 @@ export default function EquipmentCategoriesTab({ showMsg }) {
               <div className="flex justify-end gap-2 pt-3 border-t border-slate-100 shrink-0">
                 <button
                   type="button"
-                  onClick={() => setShowModal(false)}
+                  onClick={handleRequestClose}
                   className="px-3.5 py-1.5 rounded-lg border border-slate-200 text-xs font-normal text-slate-600 hover:bg-slate-50 cursor-pointer"
                 >
                   Cancel
@@ -643,6 +662,22 @@ export default function EquipmentCategoriesTab({ showMsg }) {
           </div>
         </div>
       )}
+
+      {/* Discard Changes Confirmation Modal */}
+      <ConfirmModal
+        open={showDiscardModal}
+        onClose={() => setShowDiscardModal(false)}
+        onConfirm={() => {
+          setShowDiscardModal(false);
+          setIsFormDirty(false);
+          setShowModal(false);
+        }}
+        variant="warning"
+        title="Discard Unsaved Changes?"
+        message="You have unsaved entries in this equipment category form. Are you sure you want to close without saving?"
+        confirmLabel="Discard"
+        cancelLabel="Keep Editing"
+      />
 
       {/* Student Assistant / Staff Category Request Modal */}
       {showRequestModal && (

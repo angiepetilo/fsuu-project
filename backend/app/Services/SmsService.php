@@ -138,10 +138,6 @@ class SmsService
             ?? $borrowing->borrower_contact_number 
             ?? null;
 
-        if (!$contactNumber) {
-            return null;
-        }
-
         $requestorName = $borrowing->filer_name 
             ?? $borrowing->requestor_name 
             ?? $borrowing->borrower_name 
@@ -154,23 +150,27 @@ class SmsService
         $sched = \App\Mail\BookingConfirmationMail::formatSchedule($borrowing);
         $lateNote = $minutesLate ? " ({$minutesLate} mins late)" : "";
 
-        $message = "URGENT FSUU NOTICE: Good day, {$requestorName}. Your borrowed equipment [{$refCode}] ({$sched}) is now OVERDUE for return{$lateNote}. Please return all physical units immediately to the AVR Center to avoid violation records.";
+        $message = "The scheduled return time for the equipment unit(s) borrowed under Reference Code {$refCode} has elapsed. Please return all physical units immediately to the PMO / AVR office finalize condition clearance and prevent late policy penalties.";
 
-        $res = self::send($contactNumber, $message);
+        $res = null;
+        if ($contactNumber) {
+            $smsMsg = "URGENT FSUU NOTICE: Good day, {$requestorName}. {$message}";
+            $res = self::send($contactNumber, $smsMsg);
 
-        \App\Models\CommunicationLog::record([
-            'channel'         => 'sms',
-            'category'        => 'overdue_reminder',
-            'recipient_name'  => $requestorName,
-            'recipient_phone' => $contactNumber,
-            'reference_code'  => $refCode,
-            'subject'         => "SMS: Urgent Overdue Reminder",
-            'message_preview' => $message,
-            'status'          => $res ? 'sent' : 'queued',
-        ]);
+            \App\Models\CommunicationLog::record([
+                'channel'         => 'sms',
+                'category'        => 'overdue_reminder',
+                'recipient_name'  => $requestorName,
+                'recipient_phone' => $contactNumber,
+                'reference_code'  => $refCode,
+                'subject'         => "SMS: Return Past Due Notice [{$refCode}]",
+                'message_preview' => $smsMsg,
+                'status'          => $res ? 'sent' : 'queued',
+            ]);
+        }
 
-        // Dual Dispatch: Simultaneously send Email Reminder to ensure delivery over campus Wi-Fi
-        $email = $borrowing->requestor_email ?? $borrowing->email ?? $borrowing->filer_email ?? null;
+        // Dual Dispatch: Send Email Reminder (Return Past Due Notice)
+        $email = $borrowing->email_address ?? $borrowing->requestor_email ?? $borrowing->email ?? $borrowing->filer_email ?? null;
         if ($email) {
             try {
                 Mail::to($email)->send(new BookingStatusUpdateMail('equipment', $borrowing, 'overdue', $message));
@@ -180,7 +180,7 @@ class SmsService
                     'recipient_name'  => $requestorName,
                     'recipient_email' => $email,
                     'reference_code'  => $refCode,
-                    'subject'         => "Email: Urgent Overdue Reminder [{$refCode}]",
+                    'subject'         => "Return Past Due Notice: [{$refCode}]",
                     'message_preview' => $message,
                     'status'          => 'sent',
                 ]);

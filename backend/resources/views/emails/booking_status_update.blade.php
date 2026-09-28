@@ -45,17 +45,17 @@
     $normStatus = strtolower(str_replace(['_', '-'], ' ', (string)($status ?? '')));
 @endphp
 
-@if(in_array($normStatus, ['overdue', 'passed due']))
+@if(in_array($normStatus, ['overdue', 'passed due', 'return past due notice']))
 <div style="border-bottom: 2px solid #fecaca; padding-bottom: 12px; margin-bottom: 16px;">
-  <p style="font-size: 16px; font-weight: bold; color: #dc2626; margin: 0;">⚠️ 1ST WARNING: OVERDUE TURNOVER &amp; POLICY VIOLATION NOTICE</p>
-  <span style="font-size: 12px; color: #64748b;">Father Saturnino Urios University &bull; Audio-Visual Resource Center</span>
+  <p style="font-size: 16px; font-weight: bold; color: #dc2626; margin: 0;">⚠️ RETURN PAST DUE NOTICE</p>
+  <span style="font-size: 12px; color: #64748b;">Father Saturnino Urios University &bull; Audio-Visual Resource Center (PMO / AVR)</span>
 </div>
 <p>Good day, <strong>{{ $requestorName }}</strong>.</p>
 @if(($type ?? 'venue') === 'equipment')
-<p>This serves as an official <strong>1st Warning</strong>: Your equipment borrowing [<strong>{{ $ref }}</strong>] (Scheduled: {{ $formattedSchedule ?? ($formattedStart ?? 'Scheduled Time') }}) is now <strong>OVERDUE</strong> for return.</p>
+<p>The scheduled return time for the equipment unit(s) borrowed under Reference Code <strong>{{ $ref }}</strong> has elapsed. Please return all physical units immediately to the PMO / AVR office finalize condition clearance and prevent late policy penalties.</p>
 <div style="background-color: #fef2f2; border-left: 4px solid #ef4444; padding: 12px 16px; margin: 16px 0; border-radius: 4px;">
   <p style="margin: 0; color: #991b1b; font-weight: bold;">
-    Please return all physical equipment units immediately to the AVR Center. Failure to turnover equipment constitutes a serious policy violation resulting in an administrative hold, borrower suspension, and academic record withholding.
+    This equipment borrowing is already past due. Please return the equipment immediately to the PMO / AVR office.
   </p>
 </div>
 @else

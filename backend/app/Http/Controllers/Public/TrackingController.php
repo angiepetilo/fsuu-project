@@ -96,6 +96,135 @@ class TrackingController extends Controller
             }
         }
 
+        // Resolve Assigned Physical Unit(s) with full Brand, Model, Serial Number & Built-in accessories
+        $assignedCodes = [];
+        if (!empty($booking->assigned_units)) {
+            $rawAssigned = is_string($booking->assigned_units) ? json_decode($booking->assigned_units, true) : $booking->assigned_units;
+            if (is_array($rawAssigned)) {
+                $assignedCodes = array_values(array_filter(array_map('trim', array_map('strval', $rawAssigned))));
+            }
+        }
+
+        if (!empty($assignedCodes)) {
+            $matchedUnits = \App\Models\EquipmentUnit::with('equipmentType')
+                ->where(function ($q) use ($assignedCodes) {
+                    $q->whereIn('barcode', $assignedCodes)
+                      ->orWhereIn('serial_number', $assignedCodes)
+                      ->orWhereIn('id', array_filter($assignedCodes, 'is_numeric'));
+                })
+                ->get();
+
+            $unitDetails = [];
+            foreach ($assignedCodes as $code) {
+                $unit = $matchedUnits->first(function ($u) use ($code) {
+                    return strcasecmp($u->barcode ?? '', $code) === 0 ||
+                           strcasecmp($u->serial_number ?? '', $code) === 0 ||
+                           (string)$u->id === (string)$code;
+                });
+
+                if ($unit) {
+                    // Resolve built-in units
+                    $childDetails = [];
+                    $rawBuiltIns = $unit->built_in_units;
+                    if (is_string($rawBuiltIns)) {
+                        $rawBuiltIns = json_decode($rawBuiltIns, true) ?: [];
+                    }
+                    if (is_array($rawBuiltIns) && !empty($rawBuiltIns)) {
+                        $childUnits = \App\Models\EquipmentUnit::with('equipmentType')
+                            ->where(function ($cq) use ($rawBuiltIns) {
+                                $cq->whereIn('id', array_filter($rawBuiltIns, 'is_numeric'))
+                                   ->orWhereIn('barcode', $rawBuiltIns)
+                                   ->orWhereIn('serial_number', $rawBuiltIns);
+                            })
+                            ->get();
+
+                        foreach ($childUnits as $cu) {
+                            $childDetails[] = [
+                                'id'            => $cu->id,
+                                'brand'         => $cu->brand ?? '',
+                                'model'         => $cu->model ?? '',
+                                'serial_number' => $cu->serial_number ?: ($cu->barcode ?: "Unit-{$cu->id}"),
+                                'category_name' => $cu->equipmentType?->eq_name ?? '',
+                            ];
+                        }
+                    }
+
+                    $unitDetails[] = [
+                        'code'           => $unit->serial_number ?: ($unit->barcode ?: $code),
+                        'brand'          => $unit->brand ?? '',
+                        'model'          => $unit->model ?? '',
+                        'serial_number'  => $unit->serial_number ?: ($unit->barcode ?: $code),
+                        'category_name'  => $unit->equipmentType?->eq_name ?? '',
+                        'built_in_units' => $childDetails,
+                    ];
+                } else {
+                    $unitDetails[] = [
+                        'code'           => $code,
+                        'brand'          => '',
+                        'model'          => '',
+                        'serial_number'  => $code,
+                        'category_name'  => '',
+                        'built_in_units' => [],
+                    ];
+                }
+            }
+
+            $booking->setAttribute('assigned_unit_details', $unitDetails);
+        }
+
+        // Return Past Due Notice email trigger
+        if ($booking instanceof EquipmentBorrow) {
+            $isPastDue = false;
+            $dateOfUsage = $booking->date_of_usage ? substr((string)$booking->date_of_usage, 0, 10) : null;
+            $timeEnd = $booking->time_end ?? '17:00:00';
+            $schedEndStr = $booking->end_datetime ?? ($dateOfUsage ? "{$dateOfUsage} {$timeEnd}" : null);
+            if ($schedEndStr) {
+                try {
+                    $schedEnd = \Carbon\Carbon::parse($schedEndStr);
+                    $now = \Carbon\Carbon::now();
+                    $activeStatus = strtolower($booking->status ?? '');
+                    if ($now->greaterThan($schedEnd) && in_array($activeStatus, ['ongoing', 'on-going', 'released', 'in-use', 'borrowed'])) {
+                        $isPastDue = true;
+                    }
+                } catch (\Throwable $t) {}
+            }
+
+            if ($isPastDue) {
+                $alertKey = "overdue_email_sent_track_{$booking->id}";
+                if (!\Illuminate\Support\Facades\Cache::has($alertKey)) {
+                    $targetEmail = $booking->email_address ?? $booking->requestor_email ?? null;
+                    if ($targetEmail) {
+                        try {
+                            $refCode = $booking->reference_code ?? ($booking->trackingNumber?->reference_code ?? "EQ-2026-{$booking->id}");
+                            $pastDueNoticeMsg = "The scheduled return time for the equipment unit(s) borrowed under Reference Code {$refCode} has elapsed. Please return all physical units immediately to the PMO / AVR office finalize condition clearance and prevent late policy penalties.";
+
+                            \Illuminate\Support\Facades\Mail::to($targetEmail)->send(
+                                new \App\Mail\BookingStatusUpdateMail(
+                                    'equipment',
+                                    $booking,
+                                    'overdue',
+                                    $pastDueNoticeMsg
+                                )
+                            );
+                            \Illuminate\Support\Facades\Cache::put($alertKey, true, now()->addHours(2));
+                            \App\Models\CommunicationLog::record([
+                                'channel'         => 'email',
+                                'category'        => 'overdue_reminder',
+                                'recipient_name'  => $booking->filer_name ?? 'Borrower',
+                                'recipient_email' => $targetEmail,
+                                'reference_code'  => $refCode,
+                                'subject'         => "Return Past Due Notice: [{$refCode}]",
+                                'message_preview' => $pastDueNoticeMsg,
+                                'status'          => 'sent',
+                            ]);
+                        } catch (\Throwable $mErr) {
+                            \Illuminate\Support\Facades\Log::warning("TrackingController: Past due email dispatch error: " . $mErr->getMessage());
+                        }
+                    }
+                }
+            }
+        }
+
         return response()->json($booking);
     }
 

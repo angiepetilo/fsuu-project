@@ -41,7 +41,7 @@ class BookingStatusUpdateMail extends Mailable
         $statusLabel = match ($normalized) {
             'approved' => 'Approved',
             'rejected' => 'Reservation Not Approved',
-            'overdue', 'passed due' => 'URGENT OVERDUE NOTICE',
+            'overdue', 'passed due', 'return past due notice' => 'Return Past Due Notice',
             'late return', 'late' => 'Notice of Late Return',
             'exceed end time', 'exceeded end time', 'overtime' => 'URGENT: Usage Exceeded Scheduled End Time',
             'completed', 'returned', 'done', 'cleared' => 'Completed & Cleared',

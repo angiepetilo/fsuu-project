@@ -130,9 +130,10 @@ class OverdueAndExceededAlertService
                         if (!Cache::has($cacheKey)) {
                             $borrowModel = EquipmentBorrow::with(['items.equipmentType', 'trackingNumber'])->find($eb->id);
                             if ($borrowModel) {
+                                $refCode = $borrowModel->reference_code ?? ($borrowModel->trackingNumber?->reference_code ?? "EQ-2026-{$borrowModel->id}");
                                 $remarks = $isOverdue
-                                    ? "Your equipment borrowing period is {$minutesPast} minutes past due. Please return all physical equipment units to the AVR Center immediately."
-                                    : "Your scheduled borrowing duration has ended. Please proceed to turnover all physical equipment units.";
+                                    ? "The scheduled return time for the equipment unit(s) borrowed under Reference Code {$refCode} has elapsed. Please return all physical units immediately to the PMO / AVR office finalize condition clearance and prevent late policy penalties."
+                                    : "Your scheduled borrowing duration has ended. Please proceed to turnover all physical equipment units to the PMO / AVR office.";
 
                                 SendBookingStatusUpdateJob::dispatch(
                                     'equipment',
