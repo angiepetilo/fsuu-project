@@ -1,2 +1,0 @@
-# Trigger one-time migrate:fresh --seed for deployment
-FORCE_FRESH_MIGRATE=true
