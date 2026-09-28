@@ -448,7 +448,7 @@ export default function TrackBooking() {
                     </span>
                   </div>
                   <p className="text-xs text-rose-800 dark:text-rose-200 mt-1 font-medium leading-relaxed">
-                    The scheduled return time for the equipment unit(s) borrowed under Reference Code <strong>{booking.reference_code || trackCode}</strong> has elapsed. Please return all physical units immediately to the PMO / AVR office or equipment kiosk to finalize condition clearance and prevent late policy penalties.
+                    The scheduled return time for the equipment unit(s) borrowed under Reference Code <strong>{booking.reference_code || trackCode}</strong> has elapsed. Please return all physical units immediately to the PMO / AVR office finalize condition clearance and prevent late policy penalties.
                   </p>
                 </div>
               </div>
@@ -513,9 +513,9 @@ export default function TrackBooking() {
                 <span className="text-muted-foreground font-semibold uppercase text-[11px] block">Schedule Time</span>
                 <span className="text-sm font-medium text-foreground">{usageTimeRange}</span>
               </div>
-              {booking.assigned_units && Object.keys(typeof booking.assigned_units === 'string' ? JSON.parse(booking.assigned_units || '{}') : booking.assigned_units).length > 0 ? (
+              {((booking.assigned_unit_details && booking.assigned_unit_details.length > 0) || (booking.assigned_units && Object.keys(typeof booking.assigned_units === 'string' ? JSON.parse(booking.assigned_units || '{}') : booking.assigned_units).length > 0)) ? (
                 <div className="bg-muted/30 p-4 rounded-xl border border-border/60">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between mb-2">
                     <span className="text-muted-foreground font-semibold uppercase text-[11px] block">Assigned Physical Unit(s)</span>
                     {isPastDue && (
                       <span className="text-[10px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-700 dark:text-rose-300 border border-rose-500/30 flex items-center gap-1">
@@ -523,12 +523,44 @@ export default function TrackBooking() {
                       </span>
                     )}
                   </div>
-                  <div className="flex flex-wrap gap-1 mt-1">
-                    {Object.values(typeof booking.assigned_units === 'string' ? JSON.parse(booking.assigned_units || '{}') : booking.assigned_units).map((code, uIdx) => (
-                      <span key={uIdx} className={`px-2 py-0.5 rounded-md text-xs font-semibold ${isPastDue ? 'bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-500/15 dark:text-rose-300 dark:border-rose-500/30' : 'bg-purple-50 text-purple-700 border border-purple-200 dark:bg-purple-500/15 dark:text-purple-300 dark:border-purple-500/30'}`}>
-                        Unit {code}
-                      </span>
-                    ))}
+                  <div className="space-y-2">
+                    {booking.assigned_unit_details && booking.assigned_unit_details.length > 0 ? (
+                      booking.assigned_unit_details.map((u, uIdx) => (
+                        <div key={uIdx} className={`p-2.5 rounded-xl border text-xs ${isPastDue ? 'bg-rose-50/70 border-rose-200 dark:bg-rose-500/10 dark:border-rose-500/30' : 'bg-background/80 border-border/70 shadow-2xs'}`}>
+                          <div className="flex flex-wrap items-center justify-between gap-1.5 font-bold">
+                            <span className="text-foreground">
+                              {u.brand ? `${u.brand} ` : ''}{u.model || u.category_name || 'Physical Unit'}
+                            </span>
+                            <span className={`px-2 py-0.5 rounded-md font-mono text-[11px] font-extrabold border ${isPastDue ? 'bg-rose-100 text-rose-800 border-rose-300 dark:bg-rose-950 dark:text-rose-300 dark:border-rose-800' : 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950 dark:text-purple-300 dark:border-purple-800'}`}>
+                              SN: {u.serial_number || u.code}
+                            </span>
+                          </div>
+                          {u.built_in_units && u.built_in_units.length > 0 && (
+                            <div className="mt-2 pt-2 border-t border-border/50 space-y-1">
+                              <span className="text-[10px] font-extrabold uppercase tracking-wide text-muted-foreground block">
+                                Built-in Equipment:
+                              </span>
+                              <div className="flex flex-wrap gap-1.5">
+                                {u.built_in_units.map((b, bIdx) => (
+                                  <span key={bIdx} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800 text-[10.5px] font-semibold">
+                                    <span>{b.brand ? `${b.brand} ` : ''}{b.model || b.category_name || 'Built-in'}</span>
+                                    {b.serial_number && <span className="font-mono opacity-80">(SN: {b.serial_number})</span>}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ))
+                    ) : (
+                      <div className="flex flex-wrap gap-1">
+                        {Object.values(typeof booking.assigned_units === 'string' ? JSON.parse(booking.assigned_units || '{}') : booking.assigned_units).map((code, uIdx) => (
+                          <span key={uIdx} className={`px-2 py-0.5 rounded-md text-xs font-semibold ${isPastDue ? 'bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-500/15 dark:text-rose-300 dark:border-rose-500/30' : 'bg-purple-50 text-purple-700 border border-purple-200 dark:bg-purple-500/15 dark:text-purple-300 dark:border-purple-500/30'}`}>
+                            Unit {code}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               ) : (
@@ -771,7 +803,7 @@ export default function TrackBooking() {
                         <span className="font-black uppercase tracking-wider block text-rose-700 dark:text-rose-300">
                           Return Past Due Notice
                         </span>
-                        <span>This equipment borrowing is already past due. Please return the equipment immediately to the equipment kiosk / custodial office.</span>
+                        <span>This equipment borrowing is already past due. Please return the equipment immediately to the PMO / AVR office.</span>
                       </div>
                     </div>
                   )}
@@ -788,21 +820,7 @@ export default function TrackBooking() {
                       <span><strong>Ready for Claim:</strong> Your borrowing is approved! Please bring your <strong>Institutional ID and Screenshot Reference Code</strong></span>
                     </div>
                   )}
-                  {currentStep === 3 && (
-                    <div className={`p-3.5 rounded-2xl text-xs font-bold flex items-center gap-2 ${
-                      isPastDue
-                        ? "bg-rose-50 border-2 border-rose-500 text-rose-900"
-                        : "bg-blue-50 border border-blue-200 text-blue-900"
-                    }`}>
-                      <PackageOpen size={18} className={isPastDue ? "text-rose-600 shrink-0" : "text-blue-600 shrink-0"} />
-                      <span>
-                        <strong>Equipment In Use (On-going):</strong> Physical equipment has been released to the borrower.
-                        {isPastDue
-                          ? " This equipment borrowing is already past due! Please return it immediately to the equipment kiosk."
-                          : ` Return is due at the kiosk before the scheduled return time (${usageTimeRange}).`}
-                      </span>
-                    </div>
-                  )}
+
                   {currentStep === 4 && (
                     <div className="p-3.5 bg-purple-50 border border-purple-200 rounded-2xl text-purple-900 text-xs font-bold flex items-center gap-2">
                       <CheckCircle2 size={18} className="text-purple-600 shrink-0" />
