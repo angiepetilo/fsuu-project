@@ -14,6 +14,7 @@ import EquipBorrowHeader from "../borrow-modal/EquipBorrowHeader";
 import EquipBorrowInspectionForm from "../borrow-modal/EquipBorrowInspectionForm";
 import EquipBorrowUnitAssignment from "../borrow-modal/EquipBorrowUnitAssignment";
 import EvidenceLightboxModal from "./booking-modal/EvidenceLightboxModal";
+import ConfirmModal from "@/components/ui/ConfirmModal";
 
 export default function EquipmentBorrowDetailModal({
   selected,
@@ -36,6 +37,7 @@ export default function EquipmentBorrowDetailModal({
   const [physicalUnits, setPhysicalUnits] = useState([]);
   const [eqLoading, setEqLoading] = useState(false);
   const [fullImageModal, setFullImageModal] = useState(null);
+  const [showCompleteConfirmModal, setShowCompleteConfirmModal] = useState(false);
 
   const handleNotifyUrgent = async () => {
     if (!selected?.id) return;
@@ -1370,10 +1372,30 @@ export default function EquipmentBorrowDetailModal({
             </>
           ) : (
             <div className="flex items-center gap-2.5">
-              {(isOngoing || isInspection || isReadyForPostInspection) && !isCompleted && (
+              {isOngoing && !isInspection && !isReadyForPostInspection && !isCompleted && (
                 <button
                   type="button"
-                  onClick={handleDoneComplete}
+                  onClick={handleStartInspection}
+                  disabled={startingInspection}
+                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:opacity-60 text-white rounded-xl text-xs font-extrabold flex items-center gap-1.5 shadow-xs transition-all duration-150 cursor-pointer"
+                >
+                  {startingInspection ? (
+                    <>
+                      <Loader2 size={13} className="animate-spin" />
+                      <span>Opening Inspection...</span>
+                    </>
+                  ) : (
+                    <>
+                      <ShieldAlert size={14} />
+                      <span>Post-Inspection</span>
+                    </>
+                  )}
+                </button>
+              )}
+              {(isInspection || isReadyForPostInspection) && !isCompleted && Boolean(initialPostState) && (
+                <button
+                  type="button"
+                  onClick={() => setShowCompleteConfirmModal(true)}
                   disabled={!!actionLoading}
                   className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 disabled:opacity-60 text-white rounded-xl text-xs font-extrabold flex items-center gap-1.5 shadow-xs transition-all duration-150 cursor-pointer"
                 >
@@ -1383,7 +1405,10 @@ export default function EquipmentBorrowDetailModal({
                       <span>Completing...</span>
                     </>
                   ) : (
-                    <span>Complete</span>
+                    <>
+                      <Check size={14} />
+                      <span>Complete</span>
+                    </>
                   )}
                 </button>
               )}
@@ -1407,6 +1432,22 @@ export default function EquipmentBorrowDetailModal({
           setFullImageModal={setFullImageModal}
         />
       )}
+
+      {/* Confirmation Modal for Completing Equipment Borrowing */}
+      <ConfirmModal
+        open={showCompleteConfirmModal}
+        onClose={() => setShowCompleteConfirmModal(false)}
+        onConfirm={async () => {
+          setShowCompleteConfirmModal(false);
+          await handleDoneComplete();
+        }}
+        variant="confirm"
+        title="Complete Equipment Borrowing"
+        message="Do you want to complete this equipment borrowing? If confirmed, the transaction will be completed and moved to the History Log."
+        confirmLabel="Yes, Complete"
+        cancelLabel="No"
+        loading={actionLoading === `${selected.id}-complete` || actionLoading === "complete"}
+      />
     </div>
   );
 }

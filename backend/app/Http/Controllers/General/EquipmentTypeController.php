@@ -68,9 +68,9 @@ class EquipmentTypeController extends Controller
         // Duplicate name check
         if ($this->categoryService->hasDuplicateName($validated['eq_name'])) {
             return response()->json([
-                'message' => "A category named '{$validated['eq_name']}' already exists.",
+                'message' => 'This equipment category already exists.',
                 'errors'  => [
-                    'eq_name' => ["Duplicate category name already registered."]
+                    'eq_name' => ['This equipment category already exists.']
                 ]
             ], 422);
         }
@@ -108,9 +108,9 @@ class EquipmentTypeController extends Controller
         if ($request->has('eq_name')) {
             if ($this->categoryService->hasDuplicateName($checkName, $type->id)) {
                 return response()->json([
-                    'message' => "A category named '{$checkName}' already exists.",
+                    'message' => 'This equipment category already exists.',
                     'errors'  => [
-                        'eq_name' => ["Duplicate category name already registered."]
+                        'eq_name' => ['This equipment category already exists.']
                     ]
                 ], 422);
             }

@@ -22,6 +22,10 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // ─── Production Protection: Prohibit Destructive Commands ─────────────
+        if ($this->app->isProduction() && !filter_var(env('ALLOW_DESTRUCTIVE_COMMANDS', false), FILTER_VALIDATE_BOOLEAN)) {
+            \Illuminate\Support\Facades\DB::prohibitDestructiveDatabaseCommands();
+        }
         // ─── Custom Mail Drivers ─────────────────────────────────────────────
         \Illuminate\Support\Facades\Mail::extend('brevo', function (array $config = []) {
             $key = $config['key'] ?? config('services.brevo.key') ?? env('BREVO_API_KEY') ?? env('BREVO_KEY');

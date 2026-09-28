@@ -418,9 +418,7 @@ export default function HistoryLog() {
 
   const activeList = historyType === "venue"
     ? filteredVenues
-    : historyType === "equipment"
-    ? filteredEquipment
-    : filteredIncidents;
+    : filteredEquipment;
   const ITEMS_PER_PAGE = itemsPerPage;
 
   const totalPages = useMemo(() => Math.max(1, Math.ceil(activeList.length / ITEMS_PER_PAGE)), [activeList.length, ITEMS_PER_PAGE]);
@@ -457,7 +455,6 @@ export default function HistoryLog() {
               >
                 <option value="venue">Venue Bookings History</option>
                 <option value="equipment">Equipment Borrowings History</option>
-                <option value="incidents">Incidents &amp; Damage View</option>
               </select>
             </div>
 
@@ -524,7 +521,7 @@ export default function HistoryLog() {
       <HistoryTable
         historyType={historyType}
         loading={loading}
-        filteredRecords={historyType === "venue" ? filteredVenues : historyType === "equipment" ? filteredEquipment : filteredIncidents}
+        filteredRecords={historyType === "venue" ? filteredVenues : filteredEquipment}
         paginatedList={paginatedList}
         startIndex={startIndex}
         ITEMS_PER_PAGE={ITEMS_PER_PAGE}

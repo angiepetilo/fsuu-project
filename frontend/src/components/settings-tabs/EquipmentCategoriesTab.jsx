@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Pencil, Ban, Power, CheckCircle2, X, Package, Loader2, Image as ImageIcon, ChevronLeft, ChevronRight, Camera, MoreVertical, Send, HelpCircle } from "lucide-react";
+import { Plus, Pencil, Ban, Power, CheckCircle2, X, Package, Loader2, Image as ImageIcon, ChevronLeft, ChevronRight, Camera, MoreVertical, Send, HelpCircle, AlertCircle } from "lucide-react";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 import api from "@/lib/axios";
@@ -26,6 +26,7 @@ export default function EquipmentCategoriesTab({ showMsg }) {
   const [openActionId, setOpenActionId] = useState(null);
   const [actionAnchorEl, setActionAnchorEl] = useState(null);
   const [formLoading, setFormLoading] = useState(false);
+  const [formError, setFormError] = useState("");
   const [disableTarget, setDisableTarget] = useState(null);
 
   const [previewScale, setPreviewScale] = useState(100);
@@ -105,6 +106,7 @@ export default function EquipmentCategoriesTab({ showMsg }) {
       description: "",
       built_in_units: [],
     });
+    setFormError("");
     setShowModal(true);
   };
 
@@ -122,6 +124,7 @@ export default function EquipmentCategoriesTab({ showMsg }) {
       description: cat.description || "",
       built_in_units: Array.isArray(cat.built_in_units) ? cat.built_in_units.map(String) : [],
     });
+    setFormError("");
     setShowModal(true);
   };
 
@@ -130,6 +133,7 @@ export default function EquipmentCategoriesTab({ showMsg }) {
     if (!form.eq_name.trim()) return;
 
     setFormLoading(true);
+    setFormError("");
     const photoData = form.photo || form.avatar;
     const payload = {
       eq_name: form.eq_name.trim(),
@@ -144,47 +148,38 @@ export default function EquipmentCategoriesTab({ showMsg }) {
     };
 
     if (editItem) {
-      // ── OPTIMISTIC EDIT ─────────────────────────────────────────────────
-      const prevCats = categories;
-      const updated = prevCats.map(c => c.id === editItem.id ? { ...c, ...payload } : c);
-      setCategories(updated);
-      setShowModal(false);
-
       try {
         const res = await api.put(`/general/equipment-types/${editItem.id}`, payload);
         const saved = res.data?.equipment_type || res.data;
-        setCategories(prev => prev.map(c => c.id === editItem.id ? { ...c, ...saved } : c));
+        const updated = categories.map(c => c.id === editItem.id ? { ...c, ...saved } : c);
+        setCategories(updated);
         try {
           localStorage.setItem("fsuu_equipment_types", JSON.stringify(updated));
         } catch {}
         window.dispatchEvent(new Event("equipment_updated"));
         notify.success("Category Updated", "Equipment category successfully updated.");
+        setShowModal(false);
       } catch (err) {
-        setCategories(prevCats);
-        notify.error("Update Failed", err.response?.data?.message || "Failed to update category.");
+        const errMsg = err.response?.data?.errors?.eq_name?.[0] || err.response?.data?.message || "Failed to update category.";
+        setFormError(errMsg);
       } finally {
         setFormLoading(false);
       }
     } else {
-      // ── OPTIMISTIC CREATE ────────────────────────────────────────────────
-      const tempId = Date.now();
-      const newCatTemp = { id: tempId, ...payload, total_quantity: 0, available_count: 0, created_at: new Date().toISOString() };
-      const nextCats = [newCatTemp, ...categories];
-      setCategories(nextCats);
-      setShowModal(false);
-
       try {
         const res = await api.post("/general/equipment-types", payload);
-        const actualCat = res.data?.equipment_type || res.data || newCatTemp;
-        setCategories(prev => prev.map(c => c.id === tempId ? { ...actualCat, id: actualCat.id || tempId } : c));
+        const actualCat = res.data?.equipment_type || res.data;
+        const nextCats = [actualCat, ...categories];
+        setCategories(nextCats);
         try {
           localStorage.setItem("fsuu_equipment_types", JSON.stringify(nextCats));
         } catch {}
         window.dispatchEvent(new Event("equipment_updated"));
         notify.success("Category Created", "New equipment category successfully registered.");
+        setShowModal(false);
       } catch (err) {
-        setCategories(categories);
-        notify.error("Creation Failed", err.response?.data?.message || "Failed to create category.");
+        const errMsg = err.response?.data?.errors?.eq_name?.[0] || err.response?.data?.message || "Failed to create category.";
+        setFormError(errMsg);
       } finally {
         setFormLoading(false);
       }
@@ -431,6 +426,12 @@ export default function EquipmentCategoriesTab({ showMsg }) {
             </div>
 
             <form onSubmit={handleSave} className="flex-1 overflow-y-auto pr-1 space-y-4 text-xs flex flex-col">
+              {formError && (
+                <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 font-semibold flex items-center gap-2">
+                  <AlertCircle size={15} className="shrink-0 text-rose-600" />
+                  <span>{formError}</span>
+                </div>
+              )}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5 items-start">
                 {/* Left Column: Form Details & Built-in Linkage */}
                 <div className="space-y-3">

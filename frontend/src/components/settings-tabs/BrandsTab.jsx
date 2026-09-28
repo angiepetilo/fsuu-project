@@ -116,7 +116,7 @@ export default function BrandsTab() {
       setShowAddModal(false);
       fetchBrands();
     } catch (err) {
-      setFormError(err.response?.data?.message || "Failed to create brand. Name might already exist.");
+      setFormError(err.response?.data?.errors?.name?.[0] || err.response?.data?.message || "This equipment brand already exists.");
     } finally {
       setSubmitting(false);
     }
@@ -140,7 +140,7 @@ export default function BrandsTab() {
       setShowEditModal(false);
       fetchBrands();
     } catch (err) {
-      setFormError(err.response?.data?.message || "Failed to update brand.");
+      setFormError(err.response?.data?.errors?.name?.[0] || err.response?.data?.message || "This equipment brand already exists.");
     } finally {
       setSubmitting(false);
     }

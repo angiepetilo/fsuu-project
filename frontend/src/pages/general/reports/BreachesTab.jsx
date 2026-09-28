@@ -427,7 +427,7 @@ export default function BreachesTab({
         <div className="p-4 border-b border-slate-100 flex items-center justify-between">
           <div>
             <h3 className="font-black text-slate-900 text-sm">
-              Recorded Incidents, Damages &amp; Policy Breaches
+              Incident and Damages View
             </h3>
             <p className="text-[11px] text-slate-500 font-medium">
               Individual venue booking violations, damaged or lost units, and equipment return incidents.

@@ -1065,27 +1065,34 @@ export default function Step3Details({
             <div className="flex flex-col gap-1.5 sm:col-span-2">
               <label className="text-xs font-bold text-slate-900 dark:text-white">
                 Expected Person Count <span className="text-red-500">*</span>
-                {selectedVenue?.capacity && (
-                  <span className="text-slate-500 dark:text-slate-400 font-normal ml-1">(Max capacity: {selectedVenue.capacity})</span>
+                {(selectedVenue?.min_capacity || selectedVenue?.max_capacity || selectedVenue?.capacity) && (
+                  <span className="text-slate-500 dark:text-slate-400 font-normal ml-1">
+                    (Min {selectedVenue.min_capacity || 1} • Max {selectedVenue.max_capacity || selectedVenue.capacity} persons)
+                  </span>
                 )}
               </label>
               <input 
                 type="number" 
                 required 
-                min="1"
-                max={selectedVenue?.capacity || ""}
+                min={selectedVenue?.min_capacity || 1}
+                max={selectedVenue?.max_capacity || selectedVenue?.capacity || ""}
                 value={persons} 
                 onChange={e => {
                   let val = e.target.value;
-                  const maxCap = selectedVenue?.capacity;
+                  const maxCap = selectedVenue?.max_capacity || selectedVenue?.capacity;
                   if (val && maxCap && parseInt(val, 10) > maxCap) {
                     val = maxCap.toString();
                   }
                   setPersons(val);
                 }} 
-                placeholder={`e.g. ${Math.min(75, selectedVenue?.capacity || 75)}`} 
+                placeholder={`e.g. ${Math.min(75, selectedVenue?.max_capacity || selectedVenue?.capacity || 75)}`} 
                 className="w-full p-3 bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all" 
               />
+              {persons && selectedVenue?.min_capacity && parseInt(persons, 10) < selectedVenue.min_capacity && (
+                <p className="text-[11px] font-semibold text-amber-600 dark:text-amber-400">
+                  ⚠️ Minimum capacity for this venue is {selectedVenue.min_capacity} persons.
+                </p>
+              )}
             </div>
 
             <div className="sm:col-span-2 flex flex-col gap-1.5">

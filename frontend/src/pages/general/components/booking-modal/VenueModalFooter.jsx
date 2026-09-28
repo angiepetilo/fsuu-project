@@ -27,6 +27,8 @@ export default function VenueModalFooter({
   isStudentAssistant = false,
   showIncompleteForm,
   setShowIncompleteForm,
+  isPostInspectionSaved = false,
+  onRequestComplete,
 }) {
   const [notifyingUrgent, setNotifyingUrgent] = useState(false);
 
@@ -173,24 +175,26 @@ export default function VenueModalFooter({
         </div>
       ) : isPostInspection ? (
         <div className="flex items-center gap-2.5">
-          <button
-            type="button"
-            onClick={handleDoneComplete}
-            disabled={!!actionLoading || savingInspection}
-            className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 disabled:opacity-60 text-white rounded-xl text-xs font-extrabold flex items-center gap-1.5 shadow-xs transition-all duration-150 cursor-pointer"
-          >
-            {actionLoading === `${selected.id}-complete` || actionLoading === "complete" ? (
-              <>
-                <Loader2 size={13} className="animate-spin" />
-                <span>Completing Reservation...</span>
-              </>
-            ) : (
-              <>
-                <Check size={14} />
-                <span>Complete Reservation</span>
-              </>
-            )}
-          </button>
+          {isPostInspectionSaved && (
+            <button
+              type="button"
+              onClick={onRequestComplete || handleDoneComplete}
+              disabled={!!actionLoading || savingInspection}
+              className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 disabled:opacity-60 text-white rounded-xl text-xs font-extrabold flex items-center gap-1.5 shadow-xs transition-all duration-150 cursor-pointer"
+            >
+              {actionLoading === `${selected.id}-complete` || actionLoading === "complete" ? (
+                <>
+                  <Loader2 size={13} className="animate-spin" />
+                  <span>Completing Reservation...</span>
+                </>
+              ) : (
+                <>
+                  <Check size={14} />
+                  <span>Complete Reservation</span>
+                </>
+              )}
+            </button>
+          )}
           <button
             type="button"
             onClick={() => { setSelected(null); setShowRejectForm(false); }}

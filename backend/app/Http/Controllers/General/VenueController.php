@@ -58,6 +58,14 @@ class VenueController extends Controller
             'equipment_max_qtys'  => 'nullable',
         ]);
 
+        $existingVenue = Venue::whereRaw('LOWER(TRIM(name)) = ?', [strtolower(trim($data['name']))])->first();
+        if ($existingVenue) {
+            return response()->json([
+                'message' => 'This venue already exists.',
+                'errors'  => ['name' => ['This venue already exists.']]
+            ], 422);
+        }
+
         if (empty($data['capacity'])) {
             $data['capacity'] = !empty($data['max_capacity']) ? (int)$data['max_capacity'] : 100;
         }
@@ -129,6 +137,18 @@ class VenueController extends Controller
             'allowed_equipment.*' => 'nullable',
             'equipment_max_qtys'  => 'nullable',
         ]);
+
+        if (!empty($data['name'])) {
+            $existingVenue = Venue::whereRaw('LOWER(TRIM(name)) = ?', [strtolower(trim($data['name']))])
+                ->where('id', '!=', $id)
+                ->first();
+            if ($existingVenue) {
+                return response()->json([
+                    'message' => 'This venue already exists.',
+                    'errors'  => ['name' => ['This venue already exists.']]
+                ], 422);
+            }
+        }
 
         if (isset($data['max_capacity']) && !isset($data['capacity'])) {
             $data['capacity'] = (int)$data['max_capacity'];

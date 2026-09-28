@@ -3,7 +3,7 @@ import { Loader2, Play, Mail, CheckCircle2, PackageCheck, AlertCircle, Smartphon
 import api from "@/lib/axios";
 
 /**
- * Typeable & Selectable Combobox for Borrow Unit Slot
+ * Typeable & Selectable Combobox for Borrow Unit Slot (Model Selection + Built-in components)
  */
 function BorrowSlotBarcodeSelector({
   unitKey,
@@ -12,16 +12,43 @@ function BorrowSlotBarcodeSelector({
   categoryName,
   currentBarcode,
   availableUnits,
+  allUnits = [],
   assignedUnitSelections,
   onSelectBarcode,
 }) {
   const [isOpen, setIsOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState(currentBarcode || "");
+  const [searchTerm, setSearchTerm] = useState("");
   const containerRef = useRef(null);
 
+  const getUnitModelName = (unit) => {
+    return [unit.brand, unit.model].filter(Boolean).join(" ") || unit.name || categoryName || "Equipment Unit";
+  };
+
+  const getUnitBuiltIns = (unit) => {
+    const rawList = Array.isArray(unit.built_in_units)
+      ? unit.built_in_units
+      : (typeof unit.built_in_units === "string" ? JSON.parse(unit.built_in_units || "[]") : []);
+    if (!Array.isArray(rawList) || rawList.length === 0) return [];
+    return rawList.map((biId) => {
+      const match = (allUnits || []).find((u) =>
+        String(u.id) === String(biId) ||
+        String(u.barcode || "").trim().toUpperCase() === String(biId).trim().toUpperCase()
+      );
+      return match ? (match.name || [match.brand, match.model].filter(Boolean).join(" ") || match.barcode || `Unit #${biId}`) : `Unit #${biId}`;
+    });
+  };
+
+  const selectedUnit = (availableUnits || []).find(
+    (u) => String(u.barcode || u.serial_number || u.code || `UNIT-${u.id}`).trim().toUpperCase() === String(currentBarcode).trim().toUpperCase()
+  );
+
   useEffect(() => {
-    setSearchTerm(currentBarcode || "");
-  }, [currentBarcode]);
+    if (selectedUnit) {
+      setSearchTerm(`${getUnitModelName(selectedUnit)} [${selectedUnit.barcode || `UNIT-${selectedUnit.id}`}]`);
+    } else {
+      setSearchTerm(currentBarcode || "");
+    }
+  }, [currentBarcode, selectedUnit]);
 
   useEffect(() => {
     const handleOutsideClick = (e) => {
@@ -45,15 +72,17 @@ function BorrowSlotBarcodeSelector({
 
   const searchFiltered = slotEligibleUnits.filter((u) => {
     const bCode = String(u.barcode || u.serial_number || u.code || `UNIT-${u.id}`).toLowerCase();
-    const uName = String(u.name || categoryName || "").toLowerCase();
+    const uModel = getUnitModelName(u).toLowerCase();
+    const uBuiltIns = getUnitBuiltIns(u).join(" ").toLowerCase();
     const q = searchTerm.toLowerCase().trim();
     if (!q) return true;
-    return bCode.includes(q) || uName.includes(q);
+    return bCode.includes(q) || uModel.includes(q) || uBuiltIns.includes(q);
   });
 
-  const handleChoose = (bCode) => {
+  const handleChoose = (unit) => {
+    const bCode = unit.barcode || unit.serial_number || unit.code || `UNIT-${unit.id}`;
     onSelectBarcode(bCode);
-    setSearchTerm(bCode);
+    setSearchTerm(`${getUnitModelName(unit)} [${bCode}]`);
     setIsOpen(false);
   };
 
@@ -70,7 +99,7 @@ function BorrowSlotBarcodeSelector({
     setIsOpen(true);
     const exactMatch = slotEligibleUnits.find((u) => {
       const bCode = String(u.barcode || u.serial_number || u.code || `UNIT-${u.id}`).trim().toUpperCase();
-      return bCode === val.trim().toUpperCase();
+      return bCode === val.trim().toUpperCase() || getUnitModelName(u).toLowerCase() === val.trim().toLowerCase();
     });
     if (exactMatch) {
       const exactCode = exactMatch.barcode || exactMatch.serial_number || exactMatch.code || `UNIT-${exactMatch.id}`;
@@ -84,9 +113,7 @@ function BorrowSlotBarcodeSelector({
     if (e.key === "Enter") {
       e.preventDefault();
       if (searchFiltered.length > 0) {
-        const top = searchFiltered[0];
-        const topCode = top.barcode || top.serial_number || top.code || `UNIT-${top.id}`;
-        handleChoose(topCode);
+        handleChoose(searchFiltered[0]);
       }
     } else if (e.key === "Escape") {
       setIsOpen(false);
@@ -98,15 +125,15 @@ function BorrowSlotBarcodeSelector({
       <div className="relative flex items-center">
         <input
           type="text"
-          placeholder={currentBarcode ? "Change unit barcode..." : "Type barcode or choose from dropdown..."}
+          placeholder={currentBarcode ? "Change unit model..." : "Select model or type barcode..."}
           value={searchTerm}
           onChange={handleInputChange}
           onFocus={() => setIsOpen(true)}
           onKeyDown={handleKeyDown}
-          className={`w-full py-2 pl-3 pr-16 bg-white border rounded-xl text-xs font-mono font-semibold text-slate-800 focus:outline-none transition-all ${
+          className={`w-full py-2.5 pl-3 pr-16 bg-white dark:bg-slate-900/80 border rounded-xl text-xs font-semibold text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none transition-all ${
             currentBarcode
-              ? "border-emerald-300 ring-1 ring-emerald-200 bg-emerald-50/20"
-              : "border-slate-200 focus:border-blue-400 focus:ring-1 focus:ring-blue-100"
+              ? "border-emerald-300 dark:border-emerald-700/80 ring-1 ring-emerald-200 dark:ring-emerald-950 bg-emerald-50/20 dark:bg-emerald-950/20"
+              : "border-slate-200 dark:border-blue-900/50 focus:border-blue-400 dark:focus:border-blue-600 focus:ring-1 focus:ring-blue-100 dark:focus:ring-blue-900/40"
           }`}
         />
         <div className="absolute right-1.5 flex items-center gap-1">
@@ -114,7 +141,7 @@ function BorrowSlotBarcodeSelector({
             <button
               type="button"
               onClick={handleClear}
-              className="p-1 rounded text-slate-400 hover:text-rose-600 hover:bg-slate-100 transition-colors"
+              className="p-1 rounded text-slate-400 hover:text-rose-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
               title="Clear slot"
             >
               <X size={13} />
@@ -123,7 +150,7 @@ function BorrowSlotBarcodeSelector({
           <button
             type="button"
             onClick={() => setIsOpen(!isOpen)}
-            className="p-1 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+            className="p-1 rounded text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
           >
             <ChevronDown size={14} className={`transform transition-transform ${isOpen ? "rotate-180" : ""}`} />
           </button>
@@ -131,45 +158,56 @@ function BorrowSlotBarcodeSelector({
       </div>
 
       {isOpen && (
-        <div className="absolute z-50 left-0 right-0 mt-1 max-h-56 overflow-y-auto bg-white border border-slate-200 rounded-xl shadow-xl py-1 text-xs animate-in fade-in">
-          <div className="px-3 py-1.5 border-b border-slate-100 flex items-center justify-between text-[10.5px] font-bold text-slate-500 bg-slate-50">
-            <span>BARCODES FOR {String(categoryName).toUpperCase()}</span>
+        <div className="absolute z-50 left-0 right-0 mt-1 max-h-64 overflow-y-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-blue-900/50 rounded-xl shadow-xl py-1 text-xs animate-in fade-in">
+          <div className="px-3 py-1.5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between text-[10.5px] font-bold text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-900/80">
+            <span>AVAILABLE MODELS FOR {String(categoryName).toUpperCase()}</span>
+            <span>{searchFiltered.length} Available</span>
           </div>
 
           {searchFiltered.length === 0 ? (
-            <div className="p-3 text-center text-slate-400 font-medium">
+            <div className="p-3 text-center text-slate-400 dark:text-slate-500 font-medium">
               {slotEligibleUnits.length === 0
                 ? `No available stock for ${categoryName}.`
-                : `No barcode matching "${searchTerm}".`}
+                : `No unit model matching "${searchTerm}".`}
             </div>
           ) : (
             searchFiltered.map((unit, idx) => {
               const bCode = unit.barcode || unit.serial_number || unit.code || `UNIT-${unit.id}`;
-              const uName = unit.name || categoryName;
+              const uModel = getUnitModelName(unit);
+              const builtIns = getUnitBuiltIns(unit);
               const isSelected = bCode === currentBarcode;
 
               return (
                 <button
                   key={`borrow-opt-${unit.id || idx}`}
                   type="button"
-                  onClick={() => handleChoose(bCode)}
-                  className={`w-full px-3 py-2 text-left flex items-center justify-between transition-colors cursor-pointer ${
-                    isSelected ? "bg-emerald-50 text-emerald-800 font-bold" : "hover:bg-slate-50 text-slate-800 font-semibold"
+                  onClick={() => handleChoose(unit)}
+                  className={`w-full px-3 py-2.5 text-left flex items-center justify-between transition-colors cursor-pointer border-b border-slate-100 dark:border-slate-800/60 last:border-0 ${
+                    isSelected
+                      ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 font-bold"
+                      : "hover:bg-slate-50 dark:hover:bg-slate-800/80 text-slate-800 dark:text-slate-200 font-semibold"
                   }`}
                 >
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
-                      {bCode}
-                    </span>
-                    <span className="text-slate-700 truncate max-w-[180px]">{uName}</span>
-                    {Array.isArray(unit.built_in_units) && unit.built_in_units.length > 0 && (
-                      <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200 shrink-0">
-                        {unit.built_in_units.length} Built-in
+                  <div className="flex flex-col gap-0.5 min-w-0 pr-2">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-extrabold text-slate-900 dark:text-white text-xs truncate max-w-[220px]">
+                        {uModel}
                       </span>
+                      <span className="font-mono text-[10.5px] font-bold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/60 px-1.5 py-0.5 rounded border border-blue-200 dark:border-blue-800">
+                        {bCode}
+                      </span>
+                    </div>
+                    {builtIns.length > 0 && (
+                      <div className="text-[10px] text-slate-500 dark:text-slate-400 font-medium flex items-center gap-1.5 flex-wrap mt-0.5">
+                        <span className="font-bold text-blue-600 dark:text-blue-400">Built-in:</span>
+                        <span className="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-1.5 py-0.2 rounded border border-slate-200 dark:border-slate-700 font-semibold">
+                          {builtIns.join(", ")}
+                        </span>
+                      </div>
                     )}
                   </div>
                   {isSelected && (
-                    <span className="flex items-center gap-1 text-[11px] font-bold text-emerald-600">
+                    <span className="flex items-center gap-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400 shrink-0">
                       <Check size={12} className="stroke-[3]" /> Selected
                     </span>
                   )}
@@ -318,36 +356,36 @@ export default function EquipBorrowUnitAssignment({
           }
 
           return (
-            <div key={catIdx} className="p-3.5 bg-white rounded-2xl border border-slate-200/90 space-y-2.5 shadow-xs">
+            <div key={catIdx} className="p-3.5 bg-white dark:bg-slate-900/80 rounded-2xl border border-slate-200/90 dark:border-blue-900/50 space-y-2.5 shadow-xs">
               <div className="flex items-center justify-between">
-                <span className="font-extrabold text-slate-900 text-xs">
+                <span className="font-extrabold text-slate-900 dark:text-white text-xs">
                   {reqCat.category}
                 </span>
-                <span className="text-[11px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200">
+                <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full border border-slate-200 dark:border-slate-700">
                   Qty: {reqCat.quantity}
                 </span>
               </div>
 
               {/* State 1: Pending (No unit dropdown yet) */}
               {isPending && (
-                <div className="p-2.5 bg-slate-50 border border-slate-200/70 rounded-xl text-[11px] font-medium text-slate-500 flex items-center gap-2">
+                <div className="p-2.5 bg-slate-50 dark:bg-slate-900/60 border border-slate-200/70 dark:border-slate-800 rounded-xl text-[11px] font-medium text-slate-500 dark:text-slate-400 flex items-center gap-2">
                   <PackageCheck size={14} className="text-slate-400 shrink-0" />
-                  <span>Awaiting approval to assign physical barcodes.</span>
+                  <span>Awaiting approval to assign physical unit models.</span>
                 </div>
               )}
 
-              {/* State 2: Approved (Typeable barcode combobox) */}
+              {/* State 2: Approved (Typeable model combobox) */}
               {isApproved && (
                 <>
-                  <div className="flex items-center justify-between text-[11px] font-semibold text-slate-600">
-                    <span>Select Physical Barcode:</span>
-                    <span className={catAssignedCount >= reqQty ? "text-emerald-600 font-extrabold" : "text-amber-600 font-extrabold"}>
+                  <div className="flex items-center justify-between text-[11px] font-semibold text-slate-600 dark:text-slate-300">
+                    <span>Select Equipment Unit / Model:</span>
+                    <span className={catAssignedCount >= reqQty ? "text-emerald-600 dark:text-emerald-400 font-extrabold" : "text-amber-600 dark:text-amber-400 font-extrabold"}>
                       {catAssignedCount} of {reqQty} selected
                     </span>
                   </div>
 
                   {availableUnits.length === 0 ? (
-                    <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs font-bold text-amber-800 text-center">
+                    <div className="p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-xl text-xs font-bold text-amber-800 dark:text-amber-300 text-center">
                       No available units in stock for {reqCat.category}.
                     </div>
                   ) : (
@@ -362,14 +400,18 @@ export default function EquipBorrowUnitAssignment({
 
                         return (
                           <div key={uIdx} className="relative space-y-1">
-                            <div className="flex items-center justify-between text-[10.5px] font-bold text-slate-500">
+                            <div className="flex items-center justify-between text-[10.5px] font-bold text-slate-500 dark:text-slate-400">
                               <span>Unit Slot #{uIdx + 1}</span>
-                              {val ? (
-                                <span className="text-emerald-600 flex items-center gap-1">
-                                  <Check size={11} className="stroke-[3]" /> Assigned [{val}]
-                                </span>
-                              ) : (
-                                <span className="text-slate-400">Unassigned</span>
+                              {val ? (() => {
+                                const match = (allUnits || []).find(u => String(u.barcode || u.id).trim().toUpperCase() === String(val).trim().toUpperCase());
+                                const modelName = match ? ([match.brand, match.model].filter(Boolean).join(" ") || match.name) : "";
+                                return (
+                                  <span className="text-emerald-600 dark:text-emerald-400 flex items-center gap-1 font-bold">
+                                    <Check size={11} className="stroke-[3]" /> {modelName ? `${modelName} [${val}]` : `Assigned [${val}]`}
+                                  </span>
+                                );
+                              })() : (
+                                <span className="text-slate-400 dark:text-slate-500">Unassigned</span>
                               )}
                             </div>
                             <BorrowSlotBarcodeSelector
@@ -379,6 +421,7 @@ export default function EquipBorrowUnitAssignment({
                               categoryName={reqCat.category}
                               currentBarcode={val}
                               availableUnits={availableUnits}
+                              allUnits={allUnits}
                               assignedUnitSelections={assignedUnitSelections}
                               onSelectBarcode={(newBarcode) => {
                                 const updated = { ...assignedUnitSelections, [idxKey]: newBarcode };
@@ -396,13 +439,13 @@ export default function EquipBorrowUnitAssignment({
                               const slotBuiltIns = getBuiltInUnitsForBarcode(val);
                               if (!slotBuiltIns || slotBuiltIns.length === 0) return null;
                               return (
-                                <div className="mt-1.5 p-2.5 rounded-xl bg-blue-50/70 border border-blue-200/80 space-y-1.5 animate-in fade-in">
-                                  <div className="flex items-center justify-between text-[11px] font-extrabold text-blue-950">
+                                <div className="mt-1.5 p-2.5 rounded-xl bg-blue-50/70 dark:bg-slate-900/80 border border-blue-200/80 dark:border-blue-900/50 space-y-1.5 animate-in fade-in">
+                                  <div className="flex items-center justify-between text-[11px] font-extrabold text-blue-950 dark:text-white">
                                     <span className="flex items-center gap-1.5">
-                                      <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse"></span>
+                                      <span className="w-2 h-2 rounded-full bg-blue-600 dark:bg-blue-400 animate-pulse"></span>
                                       Built-in to [{val}]
                                     </span>
-                                    <span className="text-[10px] font-bold text-blue-700 bg-white border border-blue-200 px-2 py-0.5 rounded-full shadow-2xs">
+                                    <span className="text-[10px] font-bold text-blue-700 dark:text-blue-300 bg-white dark:bg-slate-800 border border-blue-200 dark:border-blue-800 px-2 py-0.5 rounded-full shadow-2xs">
                                       {slotBuiltIns.length} {slotBuiltIns.length === 1 ? "Unit" : "Units"} Linked
                                     </span>
                                   </div>
@@ -410,16 +453,16 @@ export default function EquipBorrowUnitAssignment({
                                     {slotBuiltIns.map((biUnit, biIdx) => (
                                       <div
                                         key={biIdx}
-                                        className="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-white border border-blue-200 text-slate-800 text-xs font-semibold shadow-2xs"
+                                        className="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-950 border border-blue-200 dark:border-blue-900/50 text-slate-800 dark:text-slate-200 text-xs font-semibold shadow-2xs"
                                       >
                                         <div className="flex items-center gap-2">
-                                          <span className="font-mono font-bold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200 text-[11px]">
+                                          <span className="font-mono font-bold text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-1.5 py-0.5 rounded border border-blue-200 dark:border-blue-800 text-[11px]">
                                             {biUnit.barcode}
                                           </span>
-                                          <span className="text-slate-800 font-bold">{biUnit.name}</span>
+                                          <span className="text-slate-800 dark:text-slate-200 font-bold">{biUnit.name}</span>
                                         </div>
                                         {biUnit.category && (
-                                          <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                                          <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700">
                                             {biUnit.category}
                                           </span>
                                         )}

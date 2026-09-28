@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
-import { ClipboardList, Building2, PackageOpen, ClipboardCheck, ChevronRight } from "lucide-react";
+import { ClipboardList, Building2, PackageOpen, ClipboardCheck } from "lucide-react";
 import api from "@/lib/axios";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 
@@ -36,50 +36,53 @@ export default function PendingTasksIndicator({ isSysad = false, basePath: propB
 
   return (
     <div className="relative">
+      {/* Flat Trigger Button */}
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         title="Pending Bookings, Borrowings & Post Inspections"
-        className={`relative flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-extrabold border transition-all cursor-pointer ${
-          totalPending > 0
-            ? "bg-amber-50 text-amber-900 border-amber-300 hover:bg-amber-100 dark:bg-amber-950/40 dark:text-amber-200 dark:border-amber-700/60 shadow-2xs"
-            : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700 dark:hover:bg-slate-700 dark:hover:text-white"
-        }`}
+        className="relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors shadow-none cursor-pointer"
       >
-        <ClipboardList size={15} className={totalPending > 0 ? "text-amber-600" : "text-slate-500"} />
+        <ClipboardList size={14} className="text-slate-500 dark:text-slate-400" />
         <span className="hidden md:inline">Tasks</span>
         {totalPending > 0 && (
-          <span className="px-1.5 py-0.2 bg-amber-500 text-white rounded-full text-[10px] font-black leading-tight">
+          <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-500 text-white leading-none">
             {totalPending}
           </span>
         )}
       </button>
 
-      {/* Popover Dropdown */}
+      {/* Flat Popover Dropdown */}
       {isOpen && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
-          <div className="absolute right-0 mt-2 w-72 bg-white dark:bg-[#0e1738] rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl z-50 p-3 space-y-2 animate-in fade-in zoom-in-95">
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2 px-1">
-              <span className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider">
+          <div className="absolute right-0 mt-1.5 w-72 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 shadow-none z-50 p-2.5 space-y-1 animate-in fade-in duration-100">
+            {/* Header */}
+            <div className="flex items-center justify-between pb-2 mb-1 border-b border-slate-100 dark:border-slate-800 px-1">
+              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">
                 Pending Actions
               </span>
-              <span className="text-[10px] font-bold font-mono px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+              <span className="text-[11px] font-mono font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">
                 {totalPending} Total
               </span>
             </div>
 
-            <div className="space-y-1 text-xs font-semibold">
+            {/* Flat Action Rows */}
+            <div className="space-y-0.5 text-xs font-medium">
               <Link
                 to={`${basePath}/venue-bookings?status=pending`}
                 onClick={() => setIsOpen(false)}
-                className="flex items-center justify-between p-2 rounded-xl hover:bg-blue-50 text-slate-800 transition-colors group"
+                className="flex items-center justify-between px-2.5 py-2 rounded-md hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 transition-colors"
               >
                 <div className="flex items-center gap-2">
-                  <Building2 size={15} className="text-blue-600" />
+                  <Building2 size={14} className="text-slate-500 dark:text-slate-400" />
                   <span>Pending Venue Bookings</span>
                 </div>
-                <span className="font-mono font-bold px-2 py-0.5 rounded-md bg-blue-100 text-blue-800 text-[11px]">
+                <span className={`font-mono text-xs font-bold px-2 py-0.5 rounded ${
+                  counts.pendingVenue > 0 
+                    ? "bg-slate-100 text-slate-900 dark:bg-slate-800 dark:text-white" 
+                    : "text-slate-400 dark:text-slate-500"
+                }`}>
                   {counts.pendingVenue}
                 </span>
               </Link>
@@ -87,13 +90,17 @@ export default function PendingTasksIndicator({ isSysad = false, basePath: propB
               <Link
                 to={`${basePath}/equipment-borrowing?status=pending`}
                 onClick={() => setIsOpen(false)}
-                className="flex items-center justify-between p-2 rounded-xl hover:bg-amber-50 text-slate-800 transition-colors group"
+                className="flex items-center justify-between px-2.5 py-2 rounded-md hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 transition-colors"
               >
                 <div className="flex items-center gap-2">
-                  <PackageOpen size={15} className="text-amber-600" />
+                  <PackageOpen size={14} className="text-slate-500 dark:text-slate-400" />
                   <span>Pending Borrowings</span>
                 </div>
-                <span className="font-mono font-bold px-2 py-0.5 rounded-md bg-amber-100 text-amber-800 text-[11px]">
+                <span className={`font-mono text-xs font-bold px-2 py-0.5 rounded ${
+                  counts.pendingEquip > 0 
+                    ? "bg-slate-100 text-slate-900 dark:bg-slate-800 dark:text-white" 
+                    : "text-slate-400 dark:text-slate-500"
+                }`}>
                   {counts.pendingEquip}
                 </span>
               </Link>
@@ -101,13 +108,17 @@ export default function PendingTasksIndicator({ isSysad = false, basePath: propB
               <Link
                 to={`${basePath}/venue-bookings?status=on_going`}
                 onClick={() => setIsOpen(false)}
-                className="flex items-center justify-between p-2 rounded-xl hover:bg-purple-50 text-slate-800 transition-colors group"
+                className="flex items-center justify-between px-2.5 py-2 rounded-md hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 transition-colors"
               >
                 <div className="flex items-center gap-2">
-                  <ClipboardCheck size={15} className="text-purple-600" />
+                  <ClipboardCheck size={14} className="text-slate-500 dark:text-slate-400" />
                   <span>Post Venue Inspection</span>
                 </div>
-                <span className="font-mono font-bold px-2 py-0.5 rounded-md bg-purple-100 text-purple-800 text-[11px]">
+                <span className={`font-mono text-xs font-bold px-2 py-0.5 rounded ${
+                  counts.pendingPostVenue > 0 
+                    ? "bg-slate-100 text-slate-900 dark:bg-slate-800 dark:text-white" 
+                    : "text-slate-400 dark:text-slate-500"
+                }`}>
                   {counts.pendingPostVenue}
                 </span>
               </Link>
@@ -115,13 +126,17 @@ export default function PendingTasksIndicator({ isSysad = false, basePath: propB
               <Link
                 to={`${basePath}/equipment-borrowing?status=borrowed`}
                 onClick={() => setIsOpen(false)}
-                className="flex items-center justify-between p-2 rounded-xl hover:bg-emerald-50 text-slate-800 transition-colors group"
+                className="flex items-center justify-between px-2.5 py-2 rounded-md hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 transition-colors"
               >
                 <div className="flex items-center gap-2">
-                  <ClipboardCheck size={15} className="text-emerald-600" />
+                  <ClipboardCheck size={14} className="text-slate-500 dark:text-slate-400" />
                   <span>Post Equipment Inspection</span>
                 </div>
-                <span className="font-mono font-bold px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 text-[11px]">
+                <span className={`font-mono text-xs font-bold px-2 py-0.5 rounded ${
+                  counts.pendingPostEquip > 0 
+                    ? "bg-slate-100 text-slate-900 dark:bg-slate-800 dark:text-white" 
+                    : "text-slate-400 dark:text-slate-500"
+                }`}>
                   {counts.pendingPostEquip}
                 </span>
               </Link>

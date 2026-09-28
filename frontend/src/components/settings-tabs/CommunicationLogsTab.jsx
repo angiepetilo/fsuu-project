@@ -57,20 +57,20 @@ export default function CommunicationLogsTab() {
   const getChannelBadge = (channel) => {
     if (channel === "sms") {
       return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-[10.5px] font-black uppercase tracking-wider bg-amber-50 text-amber-700 border border-amber-200">
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-[10.5px] font-black uppercase tracking-wider bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
           SMS
         </span>
       );
     }
     if (channel === "notification") {
       return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-[10.5px] font-black uppercase tracking-wider bg-purple-50 text-purple-700 border border-purple-200">
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-[10.5px] font-black uppercase tracking-wider bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 border border-purple-200 dark:border-purple-800">
           Notice
         </span>
       );
     }
     return (
-      <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-[10.5px] font-black uppercase tracking-wider bg-blue-50 text-blue-700 border border-blue-200">
+      <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-[10.5px] font-black uppercase tracking-wider bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-800">
         Email
       </span>
     );
@@ -102,20 +102,20 @@ export default function CommunicationLogsTab() {
   const getStatusBadge = (status) => {
     if (status === "sent") {
       return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10.5px] font-black uppercase tracking-wider bg-emerald-50 border border-emerald-200 text-emerald-700">
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10.5px] font-black uppercase tracking-wider bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400">
           SENT
         </span>
       );
     }
     if (status === "failed") {
       return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10.5px] font-black uppercase tracking-wider bg-rose-50 border border-rose-200 text-rose-700">
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10.5px] font-black uppercase tracking-wider bg-rose-50 dark:bg-rose-900/30 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-400">
           FAILED
         </span>
       );
     }
     return (
-      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10.5px] font-black uppercase tracking-wider bg-amber-50 border border-amber-200 text-amber-700">
+      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10.5px] font-black uppercase tracking-wider bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400">
         QUEUED
       </span>
     );
@@ -124,23 +124,23 @@ export default function CommunicationLogsTab() {
   return (
     <div className="space-y-6 font-sans">
       {/* Header Summary */}
-      <div className="bg-white rounded-2xl border border-slate-200/90 shadow-xs p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="bg-white dark:bg-slate-900/80 rounded-2xl border border-slate-200/90 dark:border-blue-900/50 shadow-xs p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h3 className="text-lg font-black text-slate-900 tracking-tight">Communications &amp; Dispatch Log</h3>
-          <p className="text-xs text-slate-500 font-medium mt-0.5">
+          <h3 className="text-lg font-black text-slate-900 dark:text-white tracking-tight">Communications &amp; Dispatch Log</h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">
             Audit history of automated and manual emails, SMS notices, booking confirmations, overdue reminders, and credentials.
           </p>
         </div>
       </div>
 
       {/* Filter & Search Bar */}
-      <div className="bg-white rounded-2xl border border-slate-200/90 shadow-xs p-4 flex flex-col md:flex-row items-center justify-between gap-3">
+      <div className="bg-white dark:bg-slate-900/80 rounded-2xl border border-slate-200/90 dark:border-blue-900/50 shadow-xs p-4 flex flex-col md:flex-row items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
           {/* Channel Filter */}
           <select
             value={channelFilter}
             onChange={(e) => { setChannelFilter(e.target.value); setPage(1); }}
-            className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:bg-white focus:outline-none"
+            className="px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 focus:bg-white dark:focus:bg-slate-700 focus:outline-none"
           >
             <option value="all">All Channels</option>
             <option value="email">Email Dispatches</option>
@@ -151,7 +151,7 @@ export default function CommunicationLogsTab() {
           <select
             value={categoryFilter}
             onChange={(e) => { setCategoryFilter(e.target.value); setPage(1); }}
-            className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:bg-white focus:outline-none"
+            className="px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 focus:bg-white dark:focus:bg-slate-700 focus:outline-none"
           >
             <option value="all">All Categories</option>
             <option value="venue_confirmation">Venue Confirmations</option>
@@ -167,7 +167,7 @@ export default function CommunicationLogsTab() {
           <select
             value={statusFilter}
             onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
-            className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:bg-white focus:outline-none"
+            className="px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 focus:bg-white dark:focus:bg-slate-700 focus:outline-none"
           >
             <option value="all">All Statuses</option>
             <option value="sent">Sent</option>
@@ -183,7 +183,7 @@ export default function CommunicationLogsTab() {
             placeholder="Search recipient, code, subject..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full sm:w-64 px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:bg-white focus:outline-none"
+            className="w-full sm:w-64 px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:bg-white dark:focus:bg-slate-700 focus:outline-none"
           />
           <button
             type="submit"
@@ -195,11 +195,11 @@ export default function CommunicationLogsTab() {
       </div>
 
       {/* Logs Table */}
-      <div className="bg-white rounded-2xl border border-slate-200/90 shadow-xs overflow-hidden">
+      <div className="bg-white dark:bg-slate-900/80 rounded-2xl border border-slate-200/90 dark:border-blue-900/50 shadow-xs overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead>
-              <tr className="border-b border-slate-100 bg-slate-50/50 text-[11px] font-black text-slate-400 uppercase tracking-wider">
+              <tr className="border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 text-[11px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-wider">
                 <th className="py-3.5 px-4 w-12 text-center">#</th>
                 <th className="py-3.5 px-4">CHANNEL</th>
                 <th className="py-3.5 px-4">CATEGORY</th>
@@ -211,50 +211,50 @@ export default function CommunicationLogsTab() {
                 <th className="py-3.5 px-4 text-center">ACTION</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 text-xs font-semibold text-slate-700">
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-300">
               {loading ? (
                 <tr>
-                  <td colSpan={9} className="text-center py-12 text-slate-400">
+                  <td colSpan={9} className="text-center py-12 text-slate-400 dark:text-slate-500">
                     <Loader2 size={20} className="animate-spin inline mr-2 text-blue-600" />
                     <span>Loading logs...</span>
                   </td>
                 </tr>
               ) : logs.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="text-center py-12 text-slate-400 font-normal">
+                  <td colSpan={9} className="text-center py-12 text-slate-400 dark:text-slate-500 font-normal">
                     No communication dispatch logs found.
                   </td>
                 </tr>
               ) : (
                 logs.map((log, idx) => (
-                  <tr key={log.id || idx} className="hover:bg-slate-50/60 transition-colors">
+                  <tr key={log.id || idx} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors">
                     <td className="py-3.5 px-4 text-slate-400 font-bold text-center">
                       {(page - 1) * 15 + idx + 1}
                     </td>
                     <td className="py-3.5 px-4">{getChannelBadge(log.channel)}</td>
-                    <td className="py-3.5 px-4 font-bold text-slate-800">
+                    <td className="py-3.5 px-4 font-bold text-slate-800 dark:text-slate-200">
                       {getCategoryLabel(log.category)}
                     </td>
                     <td className="py-3.5 px-4">
                       <div className="flex flex-col">
-                        <span className="font-extrabold text-slate-900">{log.recipient_name || "Recipient"}</span>
-                        <span className="text-[11px] text-slate-500 font-medium">
+                        <span className="font-extrabold text-slate-900 dark:text-white">{log.recipient_name || "Recipient"}</span>
+                        <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
                           {log.recipient_email || log.recipient_phone || "—"}
                         </span>
                       </div>
                     </td>
-                    <td className="py-3.5 px-4 font-mono font-bold text-blue-600">
+                    <td className="py-3.5 px-4 font-mono font-bold text-blue-600 dark:text-blue-400">
                       {log.reference_code || "—"}
                     </td>
                     <td className="py-3.5 px-4 max-w-[240px] truncate" title={log.subject || log.message_preview}>
-                      <span className="text-slate-900 font-medium block truncate">{log.subject || "No Subject"}</span>
+                      <span className="text-slate-900 dark:text-slate-200 font-medium block truncate">{log.subject || "No Subject"}</span>
                       {log.message_preview && (
-                        <span className="text-[10.5px] text-slate-400 font-normal truncate block">
+                        <span className="text-[10.5px] text-slate-400 dark:text-slate-500 font-normal truncate block">
                           {log.message_preview}
                         </span>
                       )}
                     </td>
-                    <td className="py-3.5 px-4 text-slate-500 font-medium whitespace-nowrap">
+                    <td className="py-3.5 px-4 text-slate-500 dark:text-slate-400 font-medium whitespace-nowrap">
                       {log.sent_at ? formatDate(log.sent_at) : formatDate(log.created_at)}
                     </td>
                     <td className="py-3.5 px-4 text-center">{getStatusBadge(log.status)}</td>
@@ -262,7 +262,7 @@ export default function CommunicationLogsTab() {
                       <button
                         type="button"
                         onClick={() => setSelectedLog(log)}
-                        className="px-3 py-1 text-xs font-bold text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                        className="px-3 py-1 text-xs font-bold text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors cursor-pointer"
                       >
                         Inspect
                       </button>
@@ -276,29 +276,29 @@ export default function CommunicationLogsTab() {
 
         {/* Pagination */}
         {totalCount > 0 && (
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-6 py-4 bg-white border-t border-slate-100 text-xs font-semibold text-slate-600">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-6 py-4 bg-white dark:bg-slate-900/80 border-t border-slate-100 dark:border-slate-800 text-xs font-semibold text-slate-600 dark:text-slate-400">
             <div>
-              Showing <span className="font-extrabold text-slate-900">{(page - 1) * 15 + 1}</span> to{" "}
-              <span className="font-extrabold text-slate-900">{Math.min(page * 15, totalCount)}</span> of{" "}
-              <span className="font-extrabold text-slate-900">{totalCount}</span> communication logs
+              Showing <span className="font-extrabold text-slate-900 dark:text-white">{(page - 1) * 15 + 1}</span> to{" "}
+              <span className="font-extrabold text-slate-900 dark:text-white">{Math.min(page * 15, totalCount)}</span> of{" "}
+              <span className="font-extrabold text-slate-900 dark:text-white">{totalCount}</span> communication logs
             </div>
             <div className="flex items-center gap-1.5">
               <button
                 type="button"
                 disabled={page <= 1}
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
-                className="px-3 py-1.5 border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed font-bold"
+                className="px-3 py-1.5 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed font-bold text-slate-700 dark:text-slate-300 transition-colors"
               >
                 Previous
               </button>
-              <span className="px-3 py-1.5 text-slate-700 font-black">
+              <span className="px-3 py-1.5 text-slate-700 dark:text-slate-300 font-black">
                 Page {page} of {totalPages}
               </span>
               <button
                 type="button"
                 disabled={page >= totalPages}
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                className="px-3 py-1.5 border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed font-bold"
+                className="px-3 py-1.5 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed font-bold text-slate-700 dark:text-slate-300 transition-colors"
               >
                 Next
               </button>
@@ -309,14 +309,14 @@ export default function CommunicationLogsTab() {
 
       {/* Details Modal */}
       {selectedLog && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-2xs">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-xl max-w-lg w-full p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <h4 className="text-sm font-black text-slate-900">Communication Dispatch Details</h4>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xl max-w-lg w-full p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <h4 className="text-sm font-black text-slate-900 dark:text-white">Communication Dispatch Details</h4>
               <button
                 type="button"
                 onClick={() => setSelectedLog(null)}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
                 title="Close"
                 aria-label="Close"
               >
@@ -325,42 +325,42 @@ export default function CommunicationLogsTab() {
             </div>
 
             <div className="space-y-3 text-xs">
-              <div className="grid grid-cols-2 gap-2 bg-slate-50 p-3.5 rounded-xl border border-slate-100">
+              <div className="grid grid-cols-2 gap-2 bg-slate-50 dark:bg-slate-800/80 p-3.5 rounded-xl border border-slate-100 dark:border-slate-700">
                 <div>
-                  <span className="text-slate-400 block text-[10.5px] font-bold uppercase">Channel</span>
-                  <span className="font-extrabold text-slate-800">{getChannelBadge(selectedLog.channel)}</span>
+                  <span className="text-slate-400 dark:text-slate-500 block text-[10.5px] font-bold uppercase">Channel</span>
+                  <span className="font-extrabold">{getChannelBadge(selectedLog.channel)}</span>
                 </div>
                 <div>
-                  <span className="text-slate-400 block text-[10.5px] font-bold uppercase">Status</span>
+                  <span className="text-slate-400 dark:text-slate-500 block text-[10.5px] font-bold uppercase">Status</span>
                   <span className="font-extrabold">{getStatusBadge(selectedLog.status)}</span>
                 </div>
                 <div>
-                  <span className="text-slate-400 block text-[10.5px] font-bold uppercase">Reference Code</span>
-                  <span className="font-mono font-extrabold text-blue-600">{selectedLog.reference_code || "—"}</span>
+                  <span className="text-slate-400 dark:text-slate-500 block text-[10.5px] font-bold uppercase">Reference Code</span>
+                  <span className="font-mono font-extrabold text-blue-600 dark:text-blue-400">{selectedLog.reference_code || "—"}</span>
                 </div>
                 <div>
-                  <span className="text-slate-400 block text-[10.5px] font-bold uppercase">Category</span>
-                  <span className="font-bold text-slate-800">{getCategoryLabel(selectedLog.category)}</span>
+                  <span className="text-slate-400 dark:text-slate-500 block text-[10.5px] font-bold uppercase">Category</span>
+                  <span className="font-bold text-slate-800 dark:text-slate-200">{getCategoryLabel(selectedLog.category)}</span>
                 </div>
               </div>
 
               <div>
-                <span className="text-slate-400 block text-[10.5px] font-bold uppercase mb-0.5">Recipient</span>
-                <p className="font-extrabold text-slate-900">{selectedLog.recipient_name || "—"}</p>
-                <p className="text-slate-600 font-mono text-[11px]">{selectedLog.recipient_email || selectedLog.recipient_phone || "—"}</p>
+                <span className="text-slate-400 dark:text-slate-500 block text-[10.5px] font-bold uppercase mb-0.5">Recipient</span>
+                <p className="font-extrabold text-slate-900 dark:text-white">{selectedLog.recipient_name || "—"}</p>
+                <p className="text-slate-600 dark:text-slate-400 font-mono text-[11px]">{selectedLog.recipient_email || selectedLog.recipient_phone || "—"}</p>
               </div>
 
               {selectedLog.subject && (
                 <div>
-                  <span className="text-slate-400 block text-[10.5px] font-bold uppercase mb-0.5">Subject</span>
-                  <p className="font-bold text-slate-800 bg-slate-50 p-2.5 rounded-xl border border-slate-100">{selectedLog.subject}</p>
+                  <span className="text-slate-400 dark:text-slate-500 block text-[10.5px] font-bold uppercase mb-0.5">Subject</span>
+                  <p className="font-bold text-slate-800 dark:text-slate-200 bg-slate-50 dark:bg-slate-800/80 p-2.5 rounded-xl border border-slate-100 dark:border-slate-700">{selectedLog.subject}</p>
                 </div>
               )}
 
               {selectedLog.message_preview && (
                 <div>
-                  <span className="text-slate-400 block text-[10.5px] font-bold uppercase mb-0.5">Message Content Preview</span>
-                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 font-mono text-[11px] text-slate-700 whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto">
+                  <span className="text-slate-400 dark:text-slate-500 block text-[10.5px] font-bold uppercase mb-0.5">Message Content Preview</span>
+                  <div className="bg-slate-50 dark:bg-slate-800/80 p-3 rounded-xl border border-slate-100 dark:border-slate-700 font-mono text-[11px] text-slate-700 dark:text-slate-300 whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto">
                     {selectedLog.message_preview}
                   </div>
                 </div>
@@ -369,14 +369,14 @@ export default function CommunicationLogsTab() {
               {selectedLog.error_message && (
                 <div>
                   <span className="text-rose-500 block text-[10.5px] font-bold uppercase mb-0.5">Delivery Error Log</span>
-                  <div className="bg-rose-50 p-3 rounded-xl border border-rose-200 font-mono text-[11px] text-rose-700 whitespace-pre-wrap leading-relaxed">
+                  <div className="bg-rose-50 dark:bg-rose-950/40 p-3 rounded-xl border border-rose-200 dark:border-rose-900/60 font-mono text-[11px] text-rose-700 dark:text-rose-300 whitespace-pre-wrap leading-relaxed">
                     {selectedLog.error_message}
                   </div>
                 </div>
               )}
             </div>
 
-            <div className="pt-3 border-t border-slate-100 flex justify-end">
+            <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-end">
               <button
                 type="button"
                 onClick={() => setSelectedLog(null)}

@@ -62,6 +62,8 @@ class ListingController extends Controller
                         'image'              => $imgUrl,
                         'location'           => $v->location ?? 'FSUU Campus',
                         'capacity'           => $v->capacity ?? 100,
+                        'min_capacity'       => $v->min_capacity ?? 1,
+                        'max_capacity'       => $v->max_capacity ?? $v->capacity ?? 100,
                         'type'               => 'avr',
                         'status'             => $v->status ?? 'Available',
                         'allowed_equipment'  => array_values(array_filter($allowed)),

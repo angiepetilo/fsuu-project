@@ -192,6 +192,19 @@ export default function ManageEquipments() {
     enabled: !showAddModal && !editingItem,
   });
 
+  useEffect(() => {
+    const handleSync = () => {
+      invalidateCache("equipment_types_list");
+      fetchEquipments(true);
+    };
+    window.addEventListener("equipment_updated", handleSync);
+    window.addEventListener("equipment_inventory_updated", handleSync);
+    return () => {
+      window.removeEventListener("equipment_updated", handleSync);
+      window.removeEventListener("equipment_inventory_updated", handleSync);
+    };
+  }, [fetchEquipments]);
+
   const handleOpenAddModal = async () => {
     let activeCats = categories;
     if (!activeCats || activeCats.length === 0) {
@@ -328,6 +341,14 @@ export default function ManageEquipments() {
         ));
       }
 
+      invalidateCache("equipment_types_list");
+      invalidateCache("dashboard");
+      invalidateCache();
+      try { localStorage.removeItem("fsuu_cache_admin_dashboard"); } catch {}
+      try { localStorage.removeItem("fsuu_equipment_types"); } catch {}
+      window.dispatchEvent(new Event("equipment_updated"));
+      window.dispatchEvent(new Event("equipment_inventory_updated"));
+
       notify.success(
         "Equipment Unit Added",
         `Physical unit "${unitDisplayName}" registered under ${matchedCat.eq_name || matchedCat.name}.`
@@ -437,8 +458,13 @@ export default function ManageEquipments() {
       setUnits(prev => prev.map(u => u.id === editingItem.id ? { ...u, _optimistic: false } : u));
       invalidateCache("equipment_types_list");
       invalidateCache("dashboard");
+      invalidateCache();
       try { localStorage.removeItem("fsuu_cache_admin_dashboard"); } catch {}
+      try { localStorage.removeItem("fsuu_equipment_types"); } catch {}
+      window.dispatchEvent(new Event("equipment_updated"));
+      window.dispatchEvent(new Event("equipment_inventory_updated"));
       notify.success("Equipment Updated", `"${unitDisplayName}" saved successfully.`);
+      fetchEquipments(true);
     } catch (err) {
       // Rollback
       setUnits(prevUnits);
@@ -469,9 +495,14 @@ export default function ManageEquipments() {
       await api.delete(`/general/equipment-units/${id}`);
       invalidateCache("equipment_types_list");
       invalidateCache("dashboard");
+      invalidateCache();
       try { localStorage.removeItem("fsuu_cache_admin_dashboard"); } catch {}
+      try { localStorage.removeItem("fsuu_equipment_types"); } catch {}
+      window.dispatchEvent(new Event("equipment_updated"));
+      window.dispatchEvent(new Event("equipment_inventory_updated"));
       notify.info("Unit Disabled", `"${name}" has been disabled and appears greyed out.`);
       setDisableModalTarget(null);
+      fetchEquipments(true);
     } catch {
       setUnits(prevUnits); // Rollback
       notify.error("Disable Failed", "Failed to disable the equipment unit.");
@@ -498,7 +529,11 @@ export default function ManageEquipments() {
       await api.post(`/general/equipment-units/${id}/enable`);
       invalidateCache("equipment_types_list");
       invalidateCache("dashboard");
+      invalidateCache();
       try { localStorage.removeItem("fsuu_cache_admin_dashboard"); } catch {}
+      try { localStorage.removeItem("fsuu_equipment_types"); } catch {}
+      window.dispatchEvent(new Event("equipment_updated"));
+      window.dispatchEvent(new Event("equipment_inventory_updated"));
       notify.success("Unit Enabled", `"${name}" has been re-enabled and is back in active inventory.`);
       setEnableModalTarget(null);
       fetchEquipments(true);
@@ -742,52 +777,9 @@ export default function ManageEquipments() {
                         </div>
                       </td>
                       <td className="px-4 py-3.5 max-w-[280px]">
-                        {(() => {
-                          const parentUnit =
-                            parentUnitMap.get(String(item.id)) ||
-                            (item.barcode ? parentUnitMap.get(String(item.barcode)) : null) ||
-                            (item.serial_number ? parentUnitMap.get(String(item.serial_number)) : null);
-                          const bundledChildren = resolveBundledUnits(item);
-
-                          return (
-                            <div className="flex flex-col gap-1.5">
-                              <span className="font-extrabold text-slate-900 dark:text-white truncate block text-xs" title={item.name}>
-                                {item.name}
-                              </span>
-                              {parentUnit && (
-                                <span
-                                  className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10.5px] font-bold bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 shadow-2xs w-fit max-w-full"
-                                  title={`Packaged inside ${parentUnit.name || parentUnit.category} [${parentUnit.serial_number || parentUnit.barcode || ''}]`}
-                                >
-                                  <Layers size={11} className="text-amber-600 dark:text-amber-400 shrink-0" />
-                                  <span className="truncate">
-                                    Bundled with: <strong className="font-mono">{parentUnit.serial_number || parentUnit.barcode}</strong> ({parentUnit.name || parentUnit.category || "Parent Kit"})
-                                  </span>
-                                </span>
-                              )}
-                              {bundledChildren.length > 0 && (
-                                <div className="flex flex-col gap-1 mt-0.5">
-                                  <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1">
-                                    <PackageCheck size={11} className="text-blue-600 dark:text-blue-400 shrink-0" />
-                                    Bundled Units ({bundledChildren.length}):
-                                  </span>
-                                  <div className="flex flex-wrap gap-1 max-w-full">
-                                    {bundledChildren.map((child, cIdx) => (
-                                      <span
-                                        key={cIdx}
-                                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800/80"
-                                        title={`${child.name || 'Component'} [${child.serial_number || child.barcode || child.id || ''}]`}
-                                      >
-                                        <span className="font-mono text-[9px] font-bold opacity-80">{child.serial_number || child.barcode || `#${child.id}`}</span>
-                                        <span className="truncate max-w-[120px]">{child.name || child.category || "Item"}</span>
-                                      </span>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })()}
+                        <span className="font-extrabold text-slate-900 dark:text-white truncate block text-xs" title={item.name}>
+                          {item.name}
+                        </span>
                       </td>
                       <td className="px-4 py-3.5 font-bold text-blue-700 dark:text-blue-300 max-w-[180px]">
                         <span className="bg-blue-50 dark:bg-blue-950/60 px-2.5 py-1 rounded-lg border border-blue-200/60 dark:border-blue-800/60 block w-fit max-w-full truncate" title={item.category}>

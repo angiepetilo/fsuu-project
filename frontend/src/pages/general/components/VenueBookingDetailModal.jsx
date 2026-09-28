@@ -13,6 +13,7 @@ import VenuePostInspectionForm from "./booking-modal/VenuePostInspectionForm";
 import EvidenceLightboxModal from "./booking-modal/EvidenceLightboxModal";
 import VenueModalHeader from "./booking-modal/VenueModalHeader";
 import VenueModalFooter from "./booking-modal/VenueModalFooter";
+import ConfirmModal from "@/components/ui/ConfirmModal";
 import { formatTime12, formatDateTime, formatRealTime } from "@/lib/dateUtils";
 
 
@@ -45,6 +46,21 @@ export default function VenueBookingDetailModal({
   const [selectedViolationType, setSelectedViolationType] = useState("");
   const [fullImageModal, setFullImageModal] = useState(null);
   const [initialInspectionState, setInitialInspectionState] = useState(null);
+  const [showCompleteConfirmModal, setShowCompleteConfirmModal] = useState(false);
+
+  // Memoized inspection changes check to toggle Save Record visibility and Complete readiness
+  const hasInspectionChanges = useMemo(() => {
+    if (!initialInspectionState) return true;
+    const currentPhotosStr = JSON.stringify(evidencePhoto || []);
+    return (
+      inspectionStatus !== initialInspectionState.status ||
+      selectedViolationType !== initialInspectionState.type ||
+      violationNotes !== initialInspectionState.notes ||
+      currentPhotosStr !== initialInspectionState.photos
+    );
+  }, [initialInspectionState, inspectionStatus, selectedViolationType, violationNotes, evidencePhoto]);
+
+  const isPostInspectionSaved = Boolean(initialInspectionState?.saved);
 
   const rejectFormRef = useRef(null);
   useEffect(() => {
@@ -341,12 +357,18 @@ export default function VenueBookingDetailModal({
       setDamagedUnitBarcodes({});
       setDamagedEqQty(1);
 
-      setInitialInspectionState({
-        status: isDamagedStatus ? "violation" : "clean",
-        notes: cleanNotes,
-        type: sanitizeViolation(selected.violation_type || selected.violation || ""),
-        photos: JSON.stringify(selected.evidence_photo || selected.evidence_image || null)
-      });
+      const isCompletedBooking = ['completed', 'done', 'returned', 'damaged', 'lost'].includes(statusLower);
+      if (isCompletedBooking) {
+        setInitialInspectionState({
+          status: isDamagedStatus ? "violation" : "clean",
+          notes: cleanNotes,
+          type: sanitizeViolation(selected.violation_type || selected.violation || ""),
+          photos: JSON.stringify(selected.evidence_photo || selected.evidence_image || null),
+          saved: true
+        });
+      } else {
+        setInitialInspectionState(null);
+      }
 
       // Hydrate equipment notes if already on selected or empty
       if (selected.equipment_notes) {
@@ -462,6 +484,13 @@ export default function VenueBookingDetailModal({
             if (postUse.equipment_notes) {
               setEquipmentInspectionNotes(postUse.equipment_notes);
             }
+            setInitialInspectionState({
+              status: hasBreach ? "violation" : "clean",
+              notes: existingNotes,
+              type: postUse.violation_type ? sanitizeViolation(postUse.violation_type) : "",
+              photos: JSON.stringify(photoList || []),
+              saved: true
+            });
           }
 
           if (preUse) {
@@ -1234,10 +1263,24 @@ export default function VenueBookingDetailModal({
       const msg = isPre ? "Pre-event inspection record saved." : "Post-event inspection record saved.";
       setInspectionSuccessMsg(msg);
       notify.success("Inspection Saved", msg);
+      setInitialInspectionState({
+        status: isPre ? (preInspectionStatus === "clean" ? "good" : "damaged") : (hasDamagedOrLost ? "violation" : (inspectionStatus === "violation" ? "violation" : "clean")),
+        notes: isPre ? (preViolationNotes || "") : (violationNotes || ""),
+        type: isPre ? preSelectedViolationType : selectedViolationType,
+        photos: JSON.stringify((isPre ? preEvidencePhoto : evidencePhoto) || []),
+        saved: true
+      });
       setTimeout(() => setInspectionSuccessMsg(null), 3000);
     } catch {
       setInspectionSuccessMsg("Inspection record updated.");
       notify.success("Inspection Updated", "Inspection record updated.");
+      setInitialInspectionState({
+        status: isPre ? (preInspectionStatus === "clean" ? "good" : "damaged") : (hasDamagedOrLost ? "violation" : (inspectionStatus === "violation" ? "violation" : "clean")),
+        notes: isPre ? (preViolationNotes || "") : (violationNotes || ""),
+        type: isPre ? preSelectedViolationType : selectedViolationType,
+        photos: JSON.stringify((isPre ? preEvidencePhoto : evidencePhoto) || []),
+        saved: true
+      });
       setTimeout(() => setInspectionSuccessMsg(null), 3000);
     } finally {
       setSavingInspection(false);
@@ -1329,13 +1372,6 @@ export default function VenueBookingDetailModal({
     return `http://localhost:8000/storage/${photo}`;
   };
 
-  const currentPhotosStr = JSON.stringify(evidencePhoto);
-  const hasInspectionChanges = !initialInspectionState || (
-    inspectionStatus !== initialInspectionState.status ||
-    violationNotes !== initialInspectionState.notes ||
-    selectedViolationType !== initialInspectionState.type ||
-    currentPhotosStr !== initialInspectionState.photos
-  );
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 overflow-y-auto animate-in fade-in duration-200">
@@ -2053,6 +2089,8 @@ export default function VenueBookingDetailModal({
           isStudentAssistant={isStudentAssistant}
           showIncompleteForm={showIncompleteForm}
           setShowIncompleteForm={setShowIncompleteForm}
+          isPostInspectionSaved={isPostInspectionSaved}
+          onRequestComplete={() => setShowCompleteConfirmModal(true)}
         />
 
         {/* Lightbox Modal */}
@@ -2061,6 +2099,22 @@ export default function VenueBookingDetailModal({
           setFullImageModal={setFullImageModal}
           resolvePhotoUrl={resolvePhotoUrl}
           evidencePhoto={evidencePhoto}
+        />
+
+        {/* Confirmation Modal for Completing Venue Booking */}
+        <ConfirmModal
+          open={showCompleteConfirmModal}
+          onClose={() => setShowCompleteConfirmModal(false)}
+          onConfirm={async () => {
+            setShowCompleteConfirmModal(false);
+            await handleDoneComplete();
+          }}
+          variant="confirm"
+          title="Complete Venue Booking"
+          message="Do you want to complete this venue booking? If confirmed, the reservation will be completed and moved to the History Log."
+          confirmLabel="Yes, Complete"
+          cancelLabel="No"
+          loading={actionLoading === `${selected.id}-complete` || actionLoading === "complete"}
         />
 
       </div>

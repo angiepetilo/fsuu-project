@@ -5,7 +5,8 @@ import { fetchWithCache } from "@/lib/apiCache";
 import {
   Save, Loader2, CheckCircle2,
   Barcode, Copy, Check, MoreVertical, Eye,
-  ChevronLeft, ChevronRight, Search, Filter, Package
+  ChevronLeft, ChevronRight, Search, Filter, Package,
+  Layers, PackageCheck
 } from "lucide-react";
 import { StatusBadge } from "@/components/ui/status-badge";
 import EquipmentDetailModal from "../components/EquipmentDetailModal";
@@ -202,6 +203,11 @@ export default function EquipmentStockTab({
           date_purchased: u.purchased_at ? u.purchased_at.substring(0, 10) : '2026-01-15',
           lifespan_years: u.eq_lifespan || 5,
           description: u.description || '',
+          built_in_units: Array.isArray(u.built_in_units)
+            ? u.built_in_units
+            : (typeof u.built_in_units === 'string'
+                ? (() => { try { return JSON.parse(u.built_in_units); } catch { return []; } })()
+                : []),
         };
       }));
     } catch {
@@ -218,6 +224,49 @@ export default function EquipmentStockTab({
     window.addEventListener("equipment_inventory_updated", handleInventoryUpdate);
     return () => window.removeEventListener("equipment_inventory_updated", handleInventoryUpdate);
   }, [fetchUnits]);
+
+  const parentUnitMap = useMemo(() => {
+    const map = new Map();
+    units.forEach((parent) => {
+      let rawList = parent.built_in_units;
+      if (typeof rawList === "string") {
+        try { rawList = JSON.parse(rawList); } catch { rawList = []; }
+      }
+      if (Array.isArray(rawList)) {
+        rawList.forEach((childId) => {
+          if (childId) {
+            map.set(String(childId), parent);
+          }
+        });
+      }
+    });
+    return map;
+  }, [units]);
+
+  const resolveBundledUnits = useCallback((item) => {
+    let rawList = item.built_in_units;
+    if (typeof rawList === "string") {
+      try { rawList = JSON.parse(rawList); } catch { rawList = []; }
+    }
+    if (!Array.isArray(rawList) || rawList.length === 0) return [];
+    return rawList.map(ref => {
+      if (!ref) return null;
+      if (typeof ref === "object" && ref !== null) return ref;
+      const strRef = String(ref).trim();
+      const matched = units.find(u => 
+        String(u.id) === strRef ||
+        (u.serial_number && String(u.serial_number).trim().toLowerCase() === strRef.toLowerCase()) ||
+        (u.barcode && String(u.barcode).trim().toLowerCase() === strRef.toLowerCase())
+      );
+      return matched ? {
+        id: matched.id,
+        name: matched.name,
+        category: matched.category,
+        barcode: matched.barcode,
+        serial_number: matched.serial_number || matched.barcode
+      } : { id: strRef, barcode: strRef, name: `Unit #${strRef}` };
+    }).filter(Boolean);
+  }, [units]);
 
   const filteredUnits = useMemo(() => {
     return units.filter(item => {
@@ -632,8 +681,53 @@ export default function EquipmentStockTab({
                             </button>
                           </div>
                         </td>
-                        <td className="px-4 py-3.5 font-extrabold text-slate-900 dark:text-white max-w-[200px] truncate" title={item.name}>
-                          {item.name}
+                        <td className="px-4 py-3.5 max-w-[280px]">
+                          {(() => {
+                            const parentUnit =
+                              parentUnitMap.get(String(item.id)) ||
+                              (item.barcode ? parentUnitMap.get(String(item.barcode)) : null) ||
+                              (item.serial_number ? parentUnitMap.get(String(item.serial_number)) : null);
+                            const bundledChildren = resolveBundledUnits(item);
+
+                            return (
+                              <div className="flex flex-col gap-1.5">
+                                <span className="font-extrabold text-slate-900 dark:text-white truncate block text-xs" title={item.name}>
+                                  {item.name}
+                                </span>
+                                {parentUnit && (
+                                  <span
+                                    className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10.5px] font-bold bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 shadow-2xs w-fit max-w-full"
+                                    title={`Packaged inside ${parentUnit.name || parentUnit.category} [${parentUnit.serial_number || parentUnit.barcode || ''}]`}
+                                  >
+                                    <Layers size={11} className="text-amber-600 dark:text-amber-400 shrink-0" />
+                                    <span className="truncate">
+                                      Bundled with: <strong className="font-mono">{parentUnit.serial_number || parentUnit.barcode}</strong> ({parentUnit.name || parentUnit.category || "Parent Kit"})
+                                    </span>
+                                  </span>
+                                )}
+                                {bundledChildren.length > 0 && (
+                                  <div className="flex flex-col gap-1 mt-0.5">
+                                    <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                                      <PackageCheck size={11} className="text-blue-600 dark:text-blue-400 shrink-0" />
+                                      Bundled Units ({bundledChildren.length}):
+                                    </span>
+                                    <div className="flex flex-wrap gap-1 max-w-full">
+                                      {bundledChildren.map((child, cIdx) => (
+                                        <span
+                                          key={cIdx}
+                                          className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800/80"
+                                          title={`${child.name || 'Component'} [${child.serial_number || child.barcode || child.id || ''}]`}
+                                        >
+                                          <span className="font-mono text-[9px] font-bold opacity-80">{child.serial_number || child.barcode || `#${child.id}`}</span>
+                                          <span className="truncate max-w-[120px]">{child.name || child.category || "Item"}</span>
+                                        </span>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })()}
                         </td>
                         <td className="px-4 py-3.5 font-bold text-blue-700 dark:text-blue-300 max-w-[180px]">
                           <span className="bg-blue-50 dark:bg-blue-950/50 px-3 py-1 rounded-full border border-blue-200/60 dark:border-blue-800/60 block w-fit max-w-full truncate text-xs" title={item.category}>

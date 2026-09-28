@@ -493,7 +493,7 @@ export default function Step2Venue({
             <div className="p-12 text-center bg-white rounded-3xl border border-slate-200/80 space-y-3">
               <Loader2 size={32} className="mx-auto text-blue-600 animate-spin" />
               <p className="text-xs font-bold text-slate-700">Loading university venues...</p>
-              <p className="text-[11px] text-slate-400">Fetching live venue catalog</p>
+              <p className="text-[11px] text-slate-400">Loading...</p>
             </div>
           ) : searchedVenues.length === 0 ? (
             <div className="p-8 text-center bg-white rounded-3xl border border-slate-200/80">
@@ -584,7 +584,7 @@ export default function Step2Venue({
                           {formatVenueLocation(v)}
                         </p>
                         <p className="text-xs text-slate-600 dark:text-muted-foreground font-semibold">
-                          Capacity: {v.capacity || venueInfo.capacity || 80} persons
+                          Min {v.min_capacity || 1} • Max {v.max_capacity || v.capacity || venueInfo.capacity || 80} persons
                         </p>
                       </div>
                     </div>

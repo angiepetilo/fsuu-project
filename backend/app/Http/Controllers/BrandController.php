@@ -116,11 +116,19 @@ class BrandController extends Controller
         $this->ensureSchema();
 
         $validated = $request->validate([
-            'name' => 'required|string|max:100|unique:brands,name',
+            'name' => 'required|string|max:100',
             'equipment_type_id' => 'nullable|exists:equipment_types,id',
             'description' => 'nullable|string|max:500',
             'status' => 'nullable|in:active,inactive',
         ]);
+
+        $existing = Brand::whereRaw('UPPER(TRIM(name)) = ?', [strtoupper(trim($validated['name']))])->first();
+        if ($existing) {
+            return response()->json([
+                'message' => 'This equipment brand already exists.',
+                'errors'  => ['name' => ['This equipment brand already exists.']]
+            ], 422);
+        }
 
         $brandData = [
             'name' => strtoupper(trim($validated['name'])),
@@ -168,16 +176,21 @@ class BrandController extends Controller
         $this->ensureSchema();
 
         $validated = $request->validate([
-            'name' => [
-                'required',
-                'string',
-                'max:100',
-                Rule::unique('brands', 'name')->ignore($brand->id),
-            ],
+            'name' => 'required|string|max:100',
             'equipment_type_id' => 'nullable|exists:equipment_types,id',
             'description' => 'nullable|string|max:500',
             'status' => 'nullable|in:active,inactive',
         ]);
+
+        $existing = Brand::whereRaw('UPPER(TRIM(name)) = ?', [strtoupper(trim($validated['name']))])
+            ->where('id', '!=', $brand->id)
+            ->first();
+        if ($existing) {
+            return response()->json([
+                'message' => 'This equipment brand already exists.',
+                'errors'  => ['name' => ['This equipment brand already exists.']]
+            ], 422);
+        }
 
         $oldName = $brand->name;
         $newName = strtoupper(trim($validated['name']));

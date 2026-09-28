@@ -16,6 +16,29 @@
     $itemType = ($type ?? 'venue') === 'venue' ? 'venue reservation' : 'equipment borrowing';
     $baseUrl = rtrim(config('app.frontend_url') ?: env('FRONTEND_URL', 'http://localhost:5173'), '/');
     $trackUrl = $baseUrl . '/track?tracking=' . urlencode($ref);
+
+    $equipmentList = [];
+    if (!empty($booking->items) && count($booking->items) > 0) {
+        foreach ($booking->items as $item) {
+            $name = $item->equipmentType?->eq_name ?? $item->equipmentType?->name ?? $item->equipment_name ?? 'Equipment Item';
+            $qty = $item->quantity_requested ?? $item->quantity ?? 1;
+            $equipmentList[] = "{$qty}x {$name}";
+        }
+    } elseif (!empty($booking->venueBookingEquipment) && count($booking->venueBookingEquipment) > 0) {
+        foreach ($booking->venueBookingEquipment as $item) {
+            $name = $item->equipmentType?->eq_name ?? $item->equipmentType?->name ?? 'Equipment Item';
+            $qty = $item->quantity_requested ?? 1;
+            $equipmentList[] = "{$qty}x {$name}";
+        }
+    } elseif (!empty($booking->equipment_items) && is_array($booking->equipment_items)) {
+        foreach ($booking->equipment_items as $item) {
+            $name = $item['name'] ?? $item['equipment_name'] ?? 'Equipment Item';
+            $qty = $item['quantity'] ?? $item['quantity_requested'] ?? 1;
+            $equipmentList[] = "{$qty}x {$name}";
+        }
+    } elseif (!empty($booking->equipment_name)) {
+        $equipmentList[] = $booking->equipment_name;
+    }
 @endphp
 
 @php
@@ -23,15 +46,40 @@
 @endphp
 
 @if(in_array($normStatus, ['overdue', 'passed due']))
-<p style="font-size: 16px; font-weight: bold; color: #dc2626;">URGENT FSUU OVERDUE NOTICE</p>
-<p>Good day, {{ $requestorName }}.</p>
+<div style="border-bottom: 2px solid #fecaca; padding-bottom: 12px; margin-bottom: 16px;">
+  <p style="font-size: 16px; font-weight: bold; color: #dc2626; margin: 0;">⚠️ 1ST WARNING: OVERDUE TURNOVER &amp; POLICY VIOLATION NOTICE</p>
+  <span style="font-size: 12px; color: #64748b;">Father Saturnino Urios University &bull; Audio-Visual Resource Center</span>
+</div>
+<p>Good day, <strong>{{ $requestorName }}</strong>.</p>
 @if(($type ?? 'venue') === 'equipment')
-<p>Your {{ $itemType }} [<strong>{{ $ref }}</strong>] (Scheduled: {{ $formattedSchedule ?? ($formattedStart ?? 'Scheduled Time') }}) is now <strong>OVERDUE</strong> for return.</p>
-<p style="color: #b91c1c; font-weight: bold; background-color: #fef2f2; border-left: 4px solid #ef4444; padding: 12px 16px;">Please return all physical equipment units immediately to the AVR Center to prevent administrative holds, policy violation records, and penalties.</p>
+<p>This serves as an official <strong>1st Warning</strong>: Your equipment borrowing [<strong>{{ $ref }}</strong>] (Scheduled: {{ $formattedSchedule ?? ($formattedStart ?? 'Scheduled Time') }}) is now <strong>OVERDUE</strong> for return.</p>
+<div style="background-color: #fef2f2; border-left: 4px solid #ef4444; padding: 12px 16px; margin: 16px 0; border-radius: 4px;">
+  <p style="margin: 0; color: #991b1b; font-weight: bold;">
+    Please return all physical equipment units immediately to the AVR Center. Failure to turnover equipment constitutes a serious policy violation resulting in an administrative hold, borrower suspension, and academic record withholding.
+  </p>
+</div>
 @else
-<p>Your {{ $itemType }} [<strong>{{ $ref }}</strong>] (Scheduled: {{ $formattedSchedule ?? ($formattedStart ?? 'Scheduled Time') }}) has passed its scheduled reservation end time.</p>
-<p style="color: #b91c1c; font-weight: bold; background-color: #fef2f2; border-left: 4px solid #ef4444; padding: 12px 16px;">If your activity has concluded, please vacate the venue immediately or coordinate with the AVR Administrator for turnover inspection.</p>
+<p>This serves as an official <strong>1st Warning</strong>: Your venue reservation [<strong>{{ $ref }}</strong>] (Scheduled: {{ $formattedSchedule ?? ($formattedStart ?? 'Scheduled Time') }}) has <strong>exceeded its scheduled end time</strong>.</p>
+<div style="background-color: #fef2f2; border-left: 4px solid #ef4444; padding: 12px 16px; margin: 16px 0; border-radius: 4px;">
+  <p style="margin: 0; color: #991b1b; font-weight: bold;">
+    Please conclude your event and vacate the premises immediately for post-event facility turnover and inspection. Delaying succeeding reservations violates campus facility utilization policies.
+  </p>
+</div>
 @endif
+
+@elseif(in_array($normStatus, ['cancelled', 'auto cancelled', 'auto-cancelled', 'auto_cancelled']))
+<div style="border-bottom: 2px solid #fecaca; padding-bottom: 12px; margin-bottom: 16px;">
+  <p style="font-size: 16px; font-weight: bold; color: #dc2626; margin: 0;">RESERVATION AUTOMATICALLY CANCELLED (NO-SHOW)</p>
+  <span style="font-size: 12px; color: #64748b;">Father Saturnino Urios University &bull; Audio-Visual Resource Center</span>
+</div>
+<p>Good day, <strong>{{ $requestorName }}</strong>.</p>
+<p>Your {{ $itemType }} [<strong>{{ $ref }}</strong>] scheduled for {{ $formattedSchedule ?? ($formattedStart ?? 'Scheduled Time') }} has been <strong>AUTOMATICALLY CANCELLED</strong> due to client no-show past the designated auto-cancel window.</p>
+<div style="background-color: #fef2f2; border-left: 4px solid #ef4444; padding: 12px 16px; margin: 16px 0; border-radius: 4px;">
+  <p style="margin: 0; color: #991b1b; font-weight: 600;">{{ $remarks ?? 'The scheduled start time and auto-cancel threshold elapsed without event check-in or equipment collection.' }}</p>
+</div>
+<p style="font-size: 13px; color: #475569;">
+  The reserved facility or equipment items have been released. If you believe this cancellation was executed in error, please contact the AVR Center Administrator or Super Admin immediately for an administrative override.
+</p>
 
 @elseif(in_array($normStatus, ['exceed end time', 'exceeded end time', 'overtime']))
 <p style="font-size: 16px; font-weight: bold; color: #dc2626;">URGENT NOTICE: RESERVATION EXCEEDED SCHEDULED END TIME</p>
@@ -53,6 +101,60 @@
 <p>Please be reminded to adhere strictly to scheduled return times in future borrowings to ensure equipment availability for other university requestors.</p>
 
 @elseif(in_array($normStatus, ['completed', 'returned', 'done', 'cleared']))
+@if(($type ?? 'venue') === 'equipment')
+<div style="border-bottom: 2px solid #22c55e; padding-bottom: 12px; margin-bottom: 16px;">
+  <p style="font-size: 16px; font-weight: bold; color: #15803d; margin: 0;">OFFICIAL RETURN RECEIPT &amp; CUSTODIAL CLEARANCE</p>
+  <span style="font-size: 12px; color: #64748b;">Father Saturnino Urios University &bull; Audio-Visual Resource Center</span>
+</div>
+
+<p>Good day, <strong>{{ $requestorName }}</strong>.</p>
+<p>This email serves as your <strong>Official Return Receipt and Custodial Clearance Certificate</strong> for the equipment borrowing transaction below:</p>
+
+<div style="background-color: #f0fdf4; border: 2px solid #86efac; border-radius: 10px; padding: 16px; margin: 18px 0;">
+  <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed #bbf7d0; padding-bottom: 8px; margin-bottom: 10px;">
+    <span style="font-size: 11px; text-transform: uppercase; font-weight: bold; color: #166534;">Tracking Number:</span>
+    <span style="font-size: 14px; font-weight: 900; color: #15803d; font-family: monospace;">{{ $ref }}</span>
+  </div>
+  <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+    <tr>
+      <td style="padding: 5px 0; color: #475569; font-weight: bold; width: 38%;">Borrower:</td>
+      <td style="padding: 5px 0; color: #0f172a; font-weight: 600;">{{ $requestorName }}</td>
+    </tr>
+    <tr>
+      <td style="padding: 5px 0; color: #475569; font-weight: bold;">Purpose:</td>
+      <td style="padding: 5px 0; color: #0f172a; font-weight: 600;">{{ $booking->purpose ?? 'University Activity' }}</td>
+    </tr>
+    <tr>
+      <td style="padding: 5px 0; color: #475569; font-weight: bold;">Equipment Returned:</td>
+      <td style="padding: 5px 0; color: #0f172a; font-weight: 600;">
+        {{ !empty($equipmentList) ? implode(', ', $equipmentList) : ($booking->equipment_name ?? 'Returned Equipment Units') }}
+      </td>
+    </tr>
+    <tr>
+      <td style="padding: 5px 0; color: #475569; font-weight: bold;">Date &amp; Time:</td>
+      <td style="padding: 5px 0; color: #0f172a; font-weight: 600;">
+        Borrowed: {{ $formattedSchedule ?? ($formattedStart ?? 'Scheduled Time') }}<br>
+        Returned: {{ now()->format('M d, Y h:i A') }}
+      </td>
+    </tr>
+    <tr>
+      <td style="padding: 5px 0; color: #475569; font-weight: bold;">Clearance Status:</td>
+      <td style="padding: 5px 0; color: #15803d; font-weight: 800;">
+        ✓ CLEARED / RETURN COMPLETED
+      </td>
+    </tr>
+    @if(!empty($remarks))
+    <tr>
+      <td style="padding: 5px 0; color: #475569; font-weight: bold;">Inspection Notes:</td>
+      <td style="padding: 5px 0; color: #0f172a; font-weight: 500;">{{ $remarks }}</td>
+    </tr>
+    @endif
+  </table>
+</div>
+<p style="font-size: 12px; color: #475569; font-style: italic;">
+  All physical units and included accessories have been inspected and accounted for by the custodial staff. Your custodial accountability record for this requisition is officially cleared.
+</p>
+@else
 <p style="font-size: 16px; font-weight: bold; color: #15803d;">RESERVATION COMPLETED &amp; CLEARED</p>
 <p>Good day, {{ $requestorName }}.</p>
 <p>Your {{ $itemType }} [<strong>{{ $ref }}</strong>] ({{ $formattedSchedule ?? ($formattedStart ?? 'Scheduled Time') }}) has been marked as <strong>COMPLETED</strong>.</p>
@@ -60,6 +162,7 @@
   <p style="margin: 0; color: #166534; font-weight: 600;">{{ $remarks ?? 'All turnover procedures, condition checks, and equipment inspections have been successfully cleared.' }}</p>
 </div>
 <p>Thank you for your cooperation and for using Father Saturnino Urios University AVR facilities and equipment.</p>
+@endif
 
 @elseif(in_array($normStatus, ['requirements resubmitted', 'resubmitted requirements', 'resubmitted']))
 <p style="font-size: 16px; font-weight: bold; color: #2563eb;">MISSING REQUIREMENTS RECEIVED — UNDER REVIEW</p>

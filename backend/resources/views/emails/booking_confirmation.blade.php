@@ -32,6 +32,29 @@
     $persons = $booking->no_of_person ?? ($booking->number_of_persons ?? 'N/A');
     $baseUrl = rtrim(config('app.frontend_url') ?: env('FRONTEND_URL', 'https://fsuu-project.vercel.app'), '/');
     $trackUrl = $baseUrl . '/track?tracking=' . urlencode($ref);
+
+    $equipmentList = [];
+    if (!empty($booking->items) && count($booking->items) > 0) {
+        foreach ($booking->items as $item) {
+            $name = $item->equipmentType?->eq_name ?? $item->equipmentType?->name ?? $item->equipment_name ?? 'Equipment Item';
+            $qty = $item->quantity_requested ?? $item->quantity ?? 1;
+            $equipmentList[] = "{$qty}x {$name}";
+        }
+    } elseif (!empty($booking->venueBookingEquipment) && count($booking->venueBookingEquipment) > 0) {
+        foreach ($booking->venueBookingEquipment as $item) {
+            $name = $item->equipmentType?->eq_name ?? $item->equipmentType?->name ?? 'Equipment Item';
+            $qty = $item->quantity_requested ?? 1;
+            $equipmentList[] = "{$qty}x {$name}";
+        }
+    } elseif (!empty($booking->equipment_items) && is_array($booking->equipment_items)) {
+        foreach ($booking->equipment_items as $item) {
+            $name = $item['name'] ?? $item['equipment_name'] ?? 'Equipment Item';
+            $qty = $item['quantity'] ?? $item['quantity_requested'] ?? 1;
+            $equipmentList[] = "{$qty}x {$name}";
+        }
+    } elseif (!empty($booking->equipment_name)) {
+        $equipmentList[] = $booking->equipment_name;
+    }
 @endphp
 
   <div class="header">
@@ -40,27 +63,45 @@
 
 @if(($type ?? 'venue') === 'equipment')
   <p>Good day, <strong>{{ $requestorName }}</strong>.</p>
-  <p>Thank you for submitting your equipment borrowing request. Please find your official Tracking Reference Code below:</p>
+  <p>Thank you for submitting your equipment borrowing request. Please find your official confirmation details and Tracking Number below:</p>
 
   <div class="ref-box">
-    <div class="ref-label">Official Tracking Reference Code</div>
+    <div class="ref-label">Official Tracking Number</div>
     <div class="ref-code">{{ $ref }}</div>
   </div>
 
   <div class="details-box">
     <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
       <tr>
-        <td style="padding: 4px 0; color: #475569; font-weight: bold; width: 40%;">Schedule:</td>
-        <td style="padding: 4px 0; color: #0f172a; font-weight: 600;">{{ $sched }}</td>
+        <td style="padding: 5px 0; color: #475569; font-weight: bold; width: 38%;">Borrower Name:</td>
+        <td style="padding: 5px 0; color: #0f172a; font-weight: 600;">{{ $requestorName }}</td>
       </tr>
       <tr>
-        <td style="padding: 4px 0; color: #475569; font-weight: bold;">Purpose:</td>
-        <td style="padding: 4px 0; color: #0f172a; font-weight: 600;">{{ $purpose }}</td>
+        <td style="padding: 5px 0; color: #475569; font-weight: bold;">Tracking Number:</td>
+        <td style="padding: 5px 0; color: #2563eb; font-weight: bold; font-family: monospace;">{{ $ref }}</td>
+      </tr>
+      <tr>
+        <td style="padding: 5px 0; color: #475569; font-weight: bold;">Purpose:</td>
+        <td style="padding: 5px 0; color: #0f172a; font-weight: 600;">{{ $purpose }}</td>
+      </tr>
+      <tr>
+        <td style="padding: 5px 0; color: #475569; font-weight: bold;">Equipment Borrowed:</td>
+        <td style="padding: 5px 0; color: #0f172a; font-weight: 600;">
+          {{ !empty($equipmentList) ? implode(', ', $equipmentList) : ($booking->equipment_name ?? 'Requested Equipment Items') }}
+        </td>
+      </tr>
+      <tr>
+        <td style="padding: 5px 0; color: #475569; font-weight: bold;">Date &amp; Time (Schedule):</td>
+        <td style="padding: 5px 0; color: #0f172a; font-weight: 600;">{{ $sched }}</td>
       </tr>
     </table>
   </div>
 
-  <p><strong>Pickup Instructions:</strong> Please proceed to the designated office and present your physical <strong>School ID</strong>. Arrive at least 15 minutes before your scheduled start time.</p>
+  <div style="background-color: #eff6ff; border-left: 4px solid #3b82f6; padding: 12px 16px; margin: 16px 0; border-radius: 4px;">
+    <p style="margin: 0; color: #1e40af; font-size: 13px; font-weight: 600;">
+      📌 <strong>Grace Period &amp; Timely Arrival Advisory:</strong> Please proceed to the AVR counter with your physical <strong>School ID</strong>. Please arrive within the Grace Period (15 minutes) of your scheduled start time. Equipment not claimed within the Auto-Cancel threshold will be automatically released to other requestors.
+    </p>
+  </div>
   <p style="text-align: center; margin: 16px 0;">
     <a href="{{ $trackUrl }}" class="track-btn">Track Request Status Online</a>
   </p>
@@ -69,70 +110,106 @@
   <p>Your venue reservation has been <strong style="color: #15803d;">APPROVED</strong>!</p>
 
   <div class="ref-box">
-    <div class="ref-label">Booking Reference Code</div>
+    <div class="ref-label">Booking Tracking Number</div>
     <div class="ref-code">{{ $ref }}</div>
   </div>
 
   <div class="details-box">
     <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
       <tr>
-        <td style="padding: 4px 0; color: #475569; font-weight: bold; width: 40%;">Venue:</td>
-        <td style="padding: 4px 0; color: #0f172a; font-weight: 600;">{{ $venueName }} ({{ $venueLocation }})</td>
+        <td style="padding: 5px 0; color: #475569; font-weight: bold; width: 38%;">Requestor Name:</td>
+        <td style="padding: 5px 0; color: #0f172a; font-weight: 600;">{{ $requestorName }}</td>
       </tr>
       <tr>
-        <td style="padding: 4px 0; color: #475569; font-weight: bold;">Schedule:</td>
-        <td style="padding: 4px 0; color: #0f172a; font-weight: 600;">{{ $sched }}</td>
+        <td style="padding: 5px 0; color: #475569; font-weight: bold;">Tracking Number:</td>
+        <td style="padding: 5px 0; color: #2563eb; font-weight: bold; font-family: monospace;">{{ $ref }}</td>
       </tr>
       <tr>
-        <td style="padding: 4px 0; color: #475569; font-weight: bold;">Purpose:</td>
-        <td style="padding: 4px 0; color: #0f172a; font-weight: 600;">{{ $purpose }}</td>
+        <td style="padding: 5px 0; color: #475569; font-weight: bold;">Venue:</td>
+        <td style="padding: 5px 0; color: #0f172a; font-weight: 600;">{{ $venueName }} ({{ $venueLocation }})</td>
       </tr>
       <tr>
-        <td style="padding: 4px 0; color: #475569; font-weight: bold;">Expected Attendees:</td>
-        <td style="padding: 4px 0; color: #0f172a; font-weight: 600;">{{ $persons }} persons</td>
+        <td style="padding: 5px 0; color: #475569; font-weight: bold;">Purpose:</td>
+        <td style="padding: 5px 0; color: #0f172a; font-weight: 600;">{{ $purpose }}</td>
+      </tr>
+      @if(!empty($equipmentList))
+      <tr>
+        <td style="padding: 5px 0; color: #475569; font-weight: bold;">Equipment Borrowed:</td>
+        <td style="padding: 5px 0; color: #0f172a; font-weight: 600;">{{ implode(', ', $equipmentList) }}</td>
+      </tr>
+      @endif
+      <tr>
+        <td style="padding: 5px 0; color: #475569; font-weight: bold;">Date &amp; Time (Schedule):</td>
+        <td style="padding: 5px 0; color: #0f172a; font-weight: 600;">{{ $sched }}</td>
+      </tr>
+      <tr>
+        <td style="padding: 5px 0; color: #475569; font-weight: bold;">Expected Attendees:</td>
+        <td style="padding: 5px 0; color: #0f172a; font-weight: 600;">{{ $persons }} persons</td>
       </tr>
     </table>
   </div>
 
-  <p><em>Reminder: Please ensure you arrive at least 15 minutes before your scheduled start time.</em></p>
+  <div style="background-color: #eff6ff; border-left: 4px solid #3b82f6; padding: 12px 16px; margin: 16px 0; border-radius: 4px;">
+    <p style="margin: 0; color: #1e40af; font-size: 13px; font-weight: 600;">
+      📌 <strong>Grace Period &amp; Timely Arrival Advisory:</strong> Please ensure your organizers arrive within the Grace Period (15 minutes) of your scheduled start time. Reservations unattended past the Auto-Cancel threshold will be released.
+    </p>
+  </div>
   <p style="text-align: center; margin: 16px 0;">
     <a href="{{ $trackUrl }}" class="track-btn">Track Reservation Status</a>
   </p>
 @elseif($mode === 'reminder')
   <p>Good day, <strong>{{ $requestorName }}</strong>.</p>
-  <p>This is a friendly reminder that your venue reservation for <strong>{{ $venueName }}</strong> (Reference: <strong>{{ $ref }}</strong>) is scheduled for <strong>{{ $sched }}</strong>.</p>
-  <p><em>Reminder: Please ensure you arrive at least 15 minutes before your scheduled start time.</em></p>
+  <p>This is a friendly reminder that your venue reservation for <strong>{{ $venueName }}</strong> (Tracking Number: <strong>{{ $ref }}</strong>) is scheduled for <strong>{{ $sched }}</strong>.</p>
+  <p><em>Advisory: Please ensure you arrive within the Grace Period (15 minutes) of your scheduled start time.</em></p>
 @else
   <p>Good day, <strong>{{ $requestorName }}</strong>.</p>
-  <p>Thank you for submitting your venue reservation request. It has been received by the system and is currently awaiting staff review.</p>
+  <p>Thank you for submitting your venue reservation request. Please find your official confirmation details and Tracking Number below:</p>
 
   <div class="ref-box">
-    <div class="ref-label">Official Tracking Reference Code</div>
+    <div class="ref-label">Official Tracking Number</div>
     <div class="ref-code">{{ $ref }}</div>
   </div>
 
   <div class="details-box">
     <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
       <tr>
-        <td style="padding: 4px 0; color: #475569; font-weight: bold; width: 40%;">Reserved Venue:</td>
-        <td style="padding: 4px 0; color: #0f172a; font-weight: 600;">{{ $venueName }} ({{ $venueLocation }})</td>
+        <td style="padding: 5px 0; color: #475569; font-weight: bold; width: 38%;">Requestor Name:</td>
+        <td style="padding: 5px 0; color: #0f172a; font-weight: 600;">{{ $requestorName }}</td>
       </tr>
       <tr>
-        <td style="padding: 4px 0; color: #475569; font-weight: bold;">Reserved Schedule:</td>
-        <td style="padding: 4px 0; color: #0f172a; font-weight: 600;">{{ $sched }}</td>
+        <td style="padding: 5px 0; color: #475569; font-weight: bold;">Tracking Number:</td>
+        <td style="padding: 5px 0; color: #2563eb; font-weight: bold; font-family: monospace;">{{ $ref }}</td>
       </tr>
       <tr>
-        <td style="padding: 4px 0; color: #475569; font-weight: bold;">Purpose:</td>
-        <td style="padding: 4px 0; color: #0f172a; font-weight: 600;">{{ $purpose }}</td>
+        <td style="padding: 5px 0; color: #475569; font-weight: bold;">Reserved Venue:</td>
+        <td style="padding: 5px 0; color: #0f172a; font-weight: 600;">{{ $venueName }} ({{ $venueLocation }})</td>
       </tr>
       <tr>
-        <td style="padding: 4px 0; color: #475569; font-weight: bold;">Expected Attendees:</td>
-        <td style="padding: 4px 0; color: #0f172a; font-weight: 600;">{{ $persons }} persons</td>
+        <td style="padding: 5px 0; color: #475569; font-weight: bold;">Purpose:</td>
+        <td style="padding: 5px 0; color: #0f172a; font-weight: 600;">{{ $purpose }}</td>
+      </tr>
+      @if(!empty($equipmentList))
+      <tr>
+        <td style="padding: 5px 0; color: #475569; font-weight: bold;">Equipment Borrowed:</td>
+        <td style="padding: 5px 0; color: #0f172a; font-weight: 600;">{{ implode(', ', $equipmentList) }}</td>
+      </tr>
+      @endif
+      <tr>
+        <td style="padding: 5px 0; color: #475569; font-weight: bold;">Date &amp; Time (Schedule):</td>
+        <td style="padding: 5px 0; color: #0f172a; font-weight: 600;">{{ $sched }}</td>
+      </tr>
+      <tr>
+        <td style="padding: 5px 0; color: #475569; font-weight: bold;">Expected Attendees:</td>
+        <td style="padding: 5px 0; color: #0f172a; font-weight: 600;">{{ $persons }} persons</td>
       </tr>
     </table>
   </div>
 
-  <p>You can track the status of your reservation at any time using your tracking code above.</p>
+  <div style="background-color: #eff6ff; border-left: 4px solid #3b82f6; padding: 12px 16px; margin: 16px 0; border-radius: 4px;">
+    <p style="margin: 0; color: #1e40af; font-size: 13px; font-weight: 600;">
+      📌 <strong>Grace Period &amp; Timely Arrival Advisory:</strong> Please ensure you arrive within the Grace Period (15 minutes) of your scheduled start time. Unattended reservations past the Auto-Cancel threshold will be automatically released.
+    </p>
+  </div>
   <p style="text-align: center; margin: 16px 0;">
     <a href="{{ $trackUrl }}" class="track-btn">Track Booking Status Online</a>
   </p>

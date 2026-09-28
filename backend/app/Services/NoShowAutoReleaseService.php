@@ -92,6 +92,22 @@ class NoShowAutoReleaseService
                             Log::warning("NoShowAutoRelease: Could not dispatch mail for VenueBooking #{$vb->id}: " . $e->getMessage());
                         }
 
+                        // Persist in-app notification for Super Admin, Staff, and Student Assistant
+                        if (Schema::hasTable('notifications')) {
+                            try {
+                                DB::table('notifications')->insert([
+                                    'title'          => "Auto-Cancellation: {$vb->reference_code}",
+                                    'message'        => "Venue reservation {$vb->reference_code} for {$vb->filer_name} auto-cancelled due to no-show past the {$graceMinutes}m threshold. Super Admin and Staff may review and override.",
+                                    'type'           => 'auto_cancelled',
+                                    'target_type'    => 'venue_booking',
+                                    'target_id'      => $vb->id,
+                                    'reference_code' => $vb->reference_code,
+                                    'created_at'     => now(),
+                                    'updated_at'     => now(),
+                                ]);
+                            } catch (\Throwable $e) {}
+                        }
+
                         $released['venue_bookings'][] = $vb->reference_code;
                         Log::info("NoShowAutoRelease: Venue booking {$vb->reference_code} auto-cancelled due to no-show past {$graceMinutes}m grace period.");
                     }
@@ -148,6 +164,22 @@ class NoShowAutoReleaseService
                             }
                         } catch (\Throwable $e) {
                             Log::warning("NoShowAutoRelease: Could not dispatch mail for EquipmentBorrow #{$eb->id}: " . $e->getMessage());
+                        }
+
+                        // Persist in-app notification for Super Admin, Staff, and Student Assistant
+                        if (Schema::hasTable('notifications')) {
+                            try {
+                                DB::table('notifications')->insert([
+                                    'title'          => "Auto-Cancellation: {$eb->reference_code}",
+                                    'message'        => "Equipment borrowing {$eb->reference_code} for {$eb->filer_name} auto-cancelled due to no-show past the {$graceMinutes}m threshold. Super Admin and Staff may review and override.",
+                                    'type'           => 'auto_cancelled',
+                                    'target_type'    => 'equipment_borrow',
+                                    'target_id'      => $eb->id,
+                                    'reference_code' => $eb->reference_code,
+                                    'created_at'     => now(),
+                                    'updated_at'     => now(),
+                                ]);
+                            } catch (\Throwable $e) {}
                         }
 
                         $released['equipment_borrows'][] = $eb->reference_code;

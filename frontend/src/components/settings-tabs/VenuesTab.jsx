@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Edit2, Ban, Power, CheckCircle2, X, Building, Loader2, Image as ImageIcon, Camera } from "lucide-react";
+import { Plus, Edit2, Ban, Power, CheckCircle2, X, Building, Loader2, Image as ImageIcon, Camera, AlertCircle } from "lucide-react";
 import { usePermissions } from "@/hooks/usePermissions";
 import api from "@/lib/axios";
 import ConfirmModal from "@/components/ui/ConfirmModal";
@@ -17,6 +17,7 @@ export default function VenuesTab({ showMsg }) {
   const [showModal, setShowModal] = useState(false);
   const [editItem, setEditItem] = useState(null);
   const [formLoading, setFormLoading] = useState(false);
+  const [formError, setFormError] = useState("");
   const [disableTarget, setDisableTarget] = useState(null); // { id, name, status }
 
   const [previewScale, setPreviewScale] = useState(100);
@@ -88,6 +89,7 @@ export default function VenuesTab({ showMsg }) {
     if (!form.name.trim()) return;
 
     setFormLoading(true);
+    setFormError("");
     const photoData = form.photo || form.avatar || "";
     const minCap = form.min_capacity ? Number(form.min_capacity) : 1;
     const maxCap = (form.max_capacity ? Number(form.max_capacity) : null) || (form.capacity ? Number(form.capacity) : 100);
@@ -106,47 +108,38 @@ export default function VenuesTab({ showMsg }) {
     };
 
     if (editItem) {
-      // ── OPTIMISTIC EDIT ─────────────────────────────────────────────────
-      const prevVenues = venues;
-      const updated = prevVenues.map(v => v.id === editItem.id ? { ...v, ...payload } : v);
-      setVenues(updated);
-      setShowModal(false);
-
       try {
         const res = await api.put(`/general/venues/${editItem.id}`, payload);
         const saved = res.data?.venue || res.data;
-        setVenues(prev => prev.map(v => v.id === editItem.id ? { ...v, ...saved } : v));
+        const updated = venues.map(v => v.id === editItem.id ? { ...v, ...saved } : v);
+        setVenues(updated);
         try {
           localStorage.setItem("fsuu_venues_catalog", JSON.stringify(updated));
         } catch {}
         window.dispatchEvent(new Event("venues_updated"));
         showMsg("Venue details updated successfully.");
+        setShowModal(false);
       } catch (err) {
-        setVenues(prevVenues);
-        showMsg(err.response?.data?.message || "Failed to update venue — changes reverted.");
+        const errMsg = err.response?.data?.errors?.name?.[0] || err.response?.data?.message || "Failed to update venue.";
+        setFormError(errMsg);
       } finally {
         setFormLoading(false);
       }
     } else {
-      // ── OPTIMISTIC CREATE ────────────────────────────────────────────────
-      const tempId = Date.now();
-      const newVenueTemp = { id: tempId, ...payload, created_at: new Date().toISOString() };
-      const nextVenues = [newVenueTemp, ...venues];
-      setVenues(nextVenues);
-      setShowModal(false);
-
       try {
         const res = await api.post("/general/venues", payload);
-        const actualVenue = res.data?.venue || res.data || newVenueTemp;
-        setVenues(prev => prev.map(v => v.id === tempId ? { ...actualVenue, id: actualVenue.id || tempId } : v));
+        const actualVenue = res.data?.venue || res.data;
+        const nextVenues = [actualVenue, ...venues];
+        setVenues(nextVenues);
         try {
           localStorage.setItem("fsuu_venues_catalog", JSON.stringify(nextVenues));
         } catch {}
         window.dispatchEvent(new Event("venues_updated"));
         showMsg("Venue created successfully.");
+        setShowModal(false);
       } catch (err) {
-        setVenues(venues);
-        showMsg(err.response?.data?.message || "Failed to create venue — reverted.");
+        const errMsg = err.response?.data?.errors?.name?.[0] || err.response?.data?.message || "Failed to create venue.";
+        setFormError(errMsg);
       } finally {
         setFormLoading(false);
       }
@@ -175,6 +168,7 @@ export default function VenuesTab({ showMsg }) {
       allowed_equipment: parsedAllowed,
       equipment_max_qtys: v.equipment_max_qtys || {},
     });
+    setFormError("");
     setShowModal(true);
   };
 
@@ -281,6 +275,7 @@ export default function VenuesTab({ showMsg }) {
                 allowed_equipment: [],
                 equipment_max_qtys: {},
               });
+              setFormError("");
               setShowModal(true);
             }}
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-extrabold shadow-sm cursor-pointer transition-all"
@@ -416,6 +411,12 @@ export default function VenuesTab({ showMsg }) {
             </div>
 
             <form onSubmit={handleSave} className="flex-1 overflow-y-auto pr-1 space-y-4 text-xs flex flex-col">
+              {formError && (
+                <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 font-semibold flex items-center gap-2">
+                  <AlertCircle size={15} className="shrink-0 text-rose-600" />
+                  <span>{formError}</span>
+                </div>
+              )}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5 items-start">
                 {/* Left Column: Venue Details & Allowed Equipment */}
                 <div className="space-y-3">
@@ -433,10 +434,9 @@ export default function VenuesTab({ showMsg }) {
 
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <label className="block text-xs font-medium text-slate-700 mb-1">Location *</label>
+                      <label className="block text-xs font-medium text-slate-700 mb-1">Location <span className="text-slate-400 font-normal">(Optional)</span></label>
                       <input
                         type="text"
-                        required
                         placeholder="e.g. 2nd Floor, Main Building"
                         value={form.location || ""}
                         onChange={(e) => setForm({ ...form, location: e.target.value })}
@@ -444,23 +444,26 @@ export default function VenuesTab({ showMsg }) {
                       />
                     </div>
 
-                    <div>
-                      <label className="block text-xs font-medium text-slate-700 mb-1">Capacity *</label>
-                      <div className="grid grid-cols-2 gap-1.5">
+                    <div className="grid grid-cols-2 gap-1.5">
+                      <div>
+                        <label className="block text-xs font-medium text-slate-700 mb-1">Min. *</label>
                         <input
                           type="number"
                           min="1"
                           required
-                          placeholder="Minimum"
+                          placeholder="Min"
                           value={form.min_capacity ?? ""}
                           onChange={(e) => setForm({ ...form, min_capacity: e.target.value })}
                           className="w-full p-2 bg-white border border-slate-300 rounded-lg font-normal text-slate-900 focus:outline-none focus:border-blue-600 text-xs"
                         />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-slate-700 mb-1">Max. *</label>
                         <input
                           type="number"
                           min="1"
                           required
-                          placeholder="Maximum"
+                          placeholder="Max"
                           value={form.max_capacity ?? form.capacity ?? ""}
                           onChange={(e) => setForm({ ...form, max_capacity: e.target.value, capacity: e.target.value })}
                           className="w-full p-2 bg-white border border-slate-300 rounded-lg font-normal text-slate-900 focus:outline-none focus:border-blue-600 text-xs"

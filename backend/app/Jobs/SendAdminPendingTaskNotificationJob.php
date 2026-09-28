@@ -82,20 +82,36 @@ class SendAdminPendingTaskNotificationJob implements ShouldQueue
         }
 
         foreach ($recipients as $recipientEmail) {
+            $isDelivered = false;
             try {
                 Mail::to($recipientEmail)->send(
                     new AdminPendingTaskMail($this->taskType, $this->record, $refCode, $details, $actionUrl)
                 );
+                $isDelivered = true;
             } catch (\Throwable $e) {
                 Log::warning("SendAdminPendingTaskNotificationJob failed for {$recipientEmail}: {$e->getMessage()}. Retrying via smtp mailer...");
                 try {
                     Mail::mailer('smtp')->to($recipientEmail)->send(
                         new AdminPendingTaskMail($this->taskType, $this->record, $refCode, $details, $actionUrl)
                     );
+                    $isDelivered = true;
                 } catch (\Throwable $err) {
                     Log::error("SendAdminPendingTaskNotificationJob failed via smtp for {$recipientEmail}: " . $err->getMessage());
                 }
             }
+
+            try {
+                \App\Models\CommunicationLog::record([
+                    'type'           => 'email',
+                    'recipient'      => $recipientEmail,
+                    'recipient_name' => 'Staff / Admin',
+                    'subject'        => 'Admin Notice: ' . ucwords(str_replace('_', ' ', $this->taskType)) . " ({$refCode})",
+                    'message'        => $details,
+                    'status'         => $isDelivered ? 'delivered' : 'failed',
+                    'reference_code' => $refCode,
+                    'channel'        => 'email',
+                ]);
+            } catch (\Throwable $t) {}
         }
     }
 }
