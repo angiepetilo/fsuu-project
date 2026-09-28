@@ -26,8 +26,18 @@ if [ "$DB_TARGET_HOST" != "127.0.0.1" ] && [ "$DB_TARGET_HOST" != "localhost" ];
   done
 fi
 
-echo "🔄 Refreshing database and reseeding with fresh data (migrate:fresh --seed)..."
-php artisan migrate:fresh --seed --force || true
+if [ "$FORCE_FRESH_MIGRATE" = "true" ] || [ "$MIGRATE_FRESH" = "true" ] || [ -f "/var/www/html/database/.force_fresh_migrate" ] || [ -f "/var/www/html/.force_fresh_migrate" ]; then
+  echo "⚠️ FORCE_FRESH_MIGRATE trigger detected! Running php artisan migrate:fresh --seed --force..."
+  php artisan migrate:fresh --seed --force || true
+  rm -f /var/www/html/database/.force_fresh_migrate || true
+  rm -f /var/www/html/.force_fresh_migrate || true
+else
+  echo "🛡️ Running safe database migrations (preserving production data)..."
+  php artisan migrate --force || true
+
+  # Seed initial roles and administrator ONLY if database is brand new (zero users exist)
+  php artisan tinker --execute="if (class_exists('App\Models\User') && \App\Models\User::count() === 0) { \Illuminate\Support\Facades\Artisan::call('db:seed', ['--force' => true]); }" || true
+fi
 
 echo "🚀 Caching routes and configuration..."
 php artisan optimize || true
