@@ -198,7 +198,7 @@ export default function Step2Equipment({
             <div className="p-12 text-center bg-white rounded-3xl border border-slate-200/80 space-y-3">
               <Loader2 size={32} className="mx-auto text-blue-600 animate-spin" />
               <p className="text-xs font-bold text-slate-700">Loading equipment inventory...</p>
-              <p className="text-[11px] text-slate-400">Fetching live stock availability</p>
+              <p className="text-[11px] text-slate-400">Loading live stock availability</p>
             </div>
           ) : catalogList.length === 0 ? (
             <div className="p-8 text-center bg-white rounded-3xl border border-slate-200/80">
