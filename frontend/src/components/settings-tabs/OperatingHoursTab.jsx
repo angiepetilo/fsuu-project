@@ -1,10 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Save, Clock, Loader2 } from "lucide-react";
 import api from "@/lib/axios";
 
 export default function OperatingHoursTab({ showMsg }) {
   const [loading, setLoading] = useState(true);
   const [saveLoading, setSaveLoading] = useState(false);
+  const [initialHours, setInitialHours] = useState(null);
 
   const [operatingHours, setOperatingHours] = useState({
     venue_open: "07:00",
@@ -22,7 +23,7 @@ export default function OperatingHoursTab({ showMsg }) {
     try {
       const res = await api.get("/general/operating-hours");
       if (res.data) {
-        setOperatingHours({
+        const loaded = {
           venue_open: res.data.venue_open?.substring(0, 5) || "07:00",
           venue_close: res.data.venue_close?.substring(0, 5) || "17:00",
           equipment_open: res.data.equipment_open?.substring(0, 5) || "07:00",
@@ -31,7 +32,9 @@ export default function OperatingHoursTab({ showMsg }) {
           return_grace_mins: res.data.return_grace_mins ?? 30,
           auto_cancel_mins: res.data.auto_cancel_mins ?? 30,
           requirement_grace_hours: res.data.requirement_grace_hours ?? 24,
-        });
+        };
+        setOperatingHours(loaded);
+        setInitialHours(loaded);
       }
     } catch {
       // Fallback
@@ -44,11 +47,19 @@ export default function OperatingHoursTab({ showMsg }) {
     fetchHours();
   }, []);
 
+  const isDirty = useMemo(() => {
+    if (!initialHours) return false;
+    return Object.keys(initialHours).some(
+      (key) => String(operatingHours[key]) !== String(initialHours[key])
+    );
+  }, [initialHours, operatingHours]);
+
   const handleSaveHours = async (e) => {
     e.preventDefault();
     setSaveLoading(true);
     try {
       await api.put("/general/operating-hours", operatingHours);
+      setInitialHours({ ...operatingHours });
       showMsg("✅ Operating Hours, Grace Periods, and Auto-Cancel rules saved globally!");
     } catch {
       showMsg("❌ Failed to save operating hours.");
@@ -68,7 +79,7 @@ export default function OperatingHoursTab({ showMsg }) {
 
   return (
     <form onSubmit={handleSaveHours} className="space-y-6">
-      <div className="bg-white dark:bg-slate-900/80 p-6 rounded-2xl border border-slate-200/80 dark:border-blue-900/50 shadow-xs space-y-4">
+      <div className="bg-white dark:bg-slate-900/80 p-6 rounded-2xl border border-slate-200/80 dark:border-blue-900/50 space-y-4">
         <div>
           <h3 className="font-extrabold text-slate-900 dark:text-white text-sm flex items-center gap-2">
             Operating Hours
@@ -136,7 +147,7 @@ export default function OperatingHoursTab({ showMsg }) {
         </div>
       </div>
 
-      <div className="bg-white dark:bg-slate-900/80 p-6 rounded-2xl border border-slate-200/80 dark:border-blue-900/50 shadow-xs space-y-4">
+      <div className="bg-white dark:bg-slate-900/80 p-6 rounded-2xl border border-slate-200/80 dark:border-blue-900/50 space-y-4">
         <div>
           <h3 className="font-extrabold text-slate-900 dark:text-white text-sm">Grace Periods & Auto-Cancel Rules</h3>
         </div>
@@ -191,7 +202,7 @@ export default function OperatingHoursTab({ showMsg }) {
               onClick={() => setOperatingHours({ ...operatingHours, requirement_grace_hours: 24 })}
               className={`p-3 rounded-xl border text-left cursor-pointer transition-all ${
                 (operatingHours.requirement_grace_hours || 24) === 24
-                  ? "bg-white dark:bg-slate-800 border-blue-600 dark:border-blue-500 ring-2 ring-blue-500/20 shadow-xs"
+                  ? "bg-white dark:bg-slate-800 border-blue-600 dark:border-blue-500 ring-2 ring-blue-500/20"
                   : "bg-white/60 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700 hover:bg-white dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400"
               }`}
             >
@@ -211,7 +222,7 @@ export default function OperatingHoursTab({ showMsg }) {
               onClick={() => setOperatingHours({ ...operatingHours, requirement_grace_hours: 48 })}
               className={`p-3 rounded-xl border text-left cursor-pointer transition-all ${
                 operatingHours.requirement_grace_hours === 48
-                  ? "bg-white dark:bg-slate-800 border-blue-600 dark:border-blue-500 ring-2 ring-blue-500/20 shadow-xs"
+                  ? "bg-white dark:bg-slate-800 border-blue-600 dark:border-blue-500 ring-2 ring-blue-500/20"
                   : "bg-white/60 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700 hover:bg-white dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400"
               }`}
             >
@@ -229,16 +240,19 @@ export default function OperatingHoursTab({ showMsg }) {
         </div>
       </div>
 
-      <div className="flex justify-end">
-        <button
-          type="submit"
-          disabled={saveLoading}
-          className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-extrabold shadow-md cursor-pointer disabled:opacity-50"
-        >
-          {saveLoading ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-          <span>Save Operating Rules</span>
-        </button>
-      </div>
+      {/* Save Button - only appears when isDirty */}
+      {isDirty && (
+        <div className="flex justify-end animate-in fade-in slide-in-from-bottom-2 duration-150">
+          <button
+            type="submit"
+            disabled={saveLoading}
+            className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-extrabold cursor-pointer transition-all disabled:opacity-50"
+          >
+            {saveLoading ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+            <span>Save Operating Rules</span>
+          </button>
+        </div>
+      )}
     </form>
   );
 }

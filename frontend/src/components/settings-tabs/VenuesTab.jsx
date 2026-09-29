@@ -27,12 +27,13 @@ export default function VenuesTab({ showMsg }) {
       setShowDiscardModal(true);
     } else {
       setShowModal(false);
+      setIsFormDirty(false);
     }
   };
 
-  const updateForm = (val) => {
+  const updateForm = (updater) => {
     setIsFormDirty(true);
-    setForm(val);
+    setForm((prev) => (typeof updater === "function" ? updater(prev) : { ...prev, ...updater }));
   };
 
   const [previewScale, setPreviewScale] = useState(100);
@@ -94,7 +95,7 @@ export default function VenuesTab({ showMsg }) {
     if (!file) return;
     const reader = new FileReader();
     reader.onloadend = () => {
-      setForm((prev) => ({ ...prev, photo: reader.result, avatar: reader.result }));
+      updateForm((prev) => ({ ...prev, photo: reader.result, avatar: reader.result }));
     };
     reader.readAsDataURL(file);
   };
@@ -231,7 +232,7 @@ export default function VenuesTab({ showMsg }) {
     const eqNameLower = String(eq.name || eq.eq_name || "").trim().toLowerCase();
 
     if (checked) {
-      setForm(prev => {
+      updateForm((prev) => {
         const nextQtys = { ...prev.equipment_max_qtys };
         delete nextQtys[eqId];
         return {
@@ -244,7 +245,7 @@ export default function VenuesTab({ showMsg }) {
         };
       });
     } else {
-      setForm(prev => ({
+      updateForm((prev) => ({
         ...prev,
         allowed_equipment: [...(prev.allowed_equipment || []), eqId],
         equipment_max_qtys: {
@@ -256,7 +257,7 @@ export default function VenuesTab({ showMsg }) {
   };
 
   const handleMaxQtyChange = (eqId, qty) => {
-    setForm(prev => ({
+    updateForm((prev) => ({
       ...prev,
       equipment_max_qtys: {
         ...prev.equipment_max_qtys,
@@ -268,7 +269,7 @@ export default function VenuesTab({ showMsg }) {
   return (
     <div className="space-y-4">
       {/* Header Bar */}
-      <div className="flex justify-between items-center bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs">
+      <div className="flex justify-between items-center bg-white p-4 rounded-2xl border border-slate-200/80">
         <div>
           <h3 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
             Venue Creation
@@ -294,9 +295,10 @@ export default function VenuesTab({ showMsg }) {
                 equipment_max_qtys: {},
               });
               setFormError("");
+              setIsFormDirty(false);
               setShowModal(true);
             }}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-extrabold shadow-sm cursor-pointer transition-all"
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-extrabold cursor-pointer transition-all"
           >
             <Plus size={16} /> Create Venue
           </button>
@@ -304,7 +306,7 @@ export default function VenuesTab({ showMsg }) {
       </div>
 
       {/* Table: [#, Photo, Venue, Status, Action] */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-x-auto w-full">
+      <div className="bg-white rounded-2xl border border-slate-200/80 overflow-x-auto w-full">
         <table className="w-full text-sm min-w-[750px]">
           <thead>
             <tr className="bg-slate-50/80 border-b border-slate-100">
@@ -374,7 +376,7 @@ export default function VenuesTab({ showMsg }) {
                             <button
                               type="button"
                               onClick={() => setDisableTarget({ id: v.id, name: v.name, status: v.status })}
-                              className={`p-1.5 rounded-xl border transition-all cursor-pointer shadow-2xs ${
+                              className={`p-1.5 rounded-xl border transition-all cursor-pointer ${
                                 !isItemDisabled
                                   ? "text-rose-600 bg-rose-50 border-rose-200 hover:bg-rose-100 dark:text-rose-400/80 dark:bg-rose-950/40 dark:border-rose-900/40 hover:dark:bg-rose-900/40 hover:dark:text-rose-300"
                                   : "text-emerald-600 bg-emerald-50 border-emerald-200 hover:bg-emerald-100 dark:text-emerald-400/80 dark:bg-emerald-950/40 dark:border-emerald-900/40 hover:dark:bg-emerald-900/40 hover:dark:text-emerald-300"
@@ -387,7 +389,7 @@ export default function VenuesTab({ showMsg }) {
                           {canEdit && (
                             <button
                               onClick={() => handleEditClick(v)}
-                              className="p-1.5 rounded-xl border border-slate-200 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 text-slate-600 cursor-pointer transition-all shadow-2xs"
+                              className="p-1.5 rounded-xl border border-slate-200 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 text-slate-600 cursor-pointer transition-all"
                               title="Edit Venue"
                             >
                               <Edit2 size={13} />
@@ -409,7 +411,7 @@ export default function VenuesTab({ showMsg }) {
       {/* Modal: Create Venue / Edit Venue */}
       {showModal && (
         <div className="fixed inset-0 bg-black/40 z-[1500] flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-xl p-5 max-w-3xl w-full shadow-xl border border-slate-200 max-h-[90vh] flex flex-col my-auto space-y-4">
+          <div className="bg-white rounded-xl p-5 max-w-3xl w-full border border-slate-200 max-h-[90vh] flex flex-col my-auto space-y-4">
             <div className="flex justify-between items-center pb-2.5 border-b border-slate-100 shrink-0">
               <div>
                 <h3 className="font-semibold text-slate-900 text-sm">
@@ -421,7 +423,7 @@ export default function VenuesTab({ showMsg }) {
               </div>
               <button
                 type="button"
-                onClick={() => setShowModal(false)}
+                onClick={handleRequestClose}
                 className="text-slate-400 hover:text-slate-600 p-1 rounded-lg cursor-pointer"
               >
                 <X size={16} />
@@ -445,7 +447,7 @@ export default function VenuesTab({ showMsg }) {
                       required
                       placeholder="e.g. AVR 1, Main Auditorium"
                       value={form.name || ""}
-                      onChange={(e) => setForm({ ...form, name: e.target.value })}
+                      onChange={(e) => updateForm({ name: e.target.value })}
                       className="w-full p-2 bg-white border border-slate-300 rounded-lg font-normal text-slate-900 focus:outline-none focus:border-blue-600 text-xs"
                     />
                   </div>
@@ -457,7 +459,7 @@ export default function VenuesTab({ showMsg }) {
                         type="text"
                         placeholder="e.g. 2nd Floor, Main Building"
                         value={form.location || ""}
-                        onChange={(e) => setForm({ ...form, location: e.target.value })}
+                        onChange={(e) => updateForm({ location: e.target.value })}
                         className="w-full p-2 bg-white border border-slate-300 rounded-lg font-normal text-slate-900 focus:outline-none focus:border-blue-600 text-xs"
                       />
                     </div>
@@ -471,7 +473,7 @@ export default function VenuesTab({ showMsg }) {
                           required
                           placeholder="Min"
                           value={form.min_capacity ?? ""}
-                          onChange={(e) => setForm({ ...form, min_capacity: e.target.value })}
+                          onChange={(e) => updateForm({ min_capacity: e.target.value })}
                           className="w-full p-2 bg-white border border-slate-300 rounded-lg font-normal text-slate-900 focus:outline-none focus:border-blue-600 text-xs"
                         />
                       </div>
@@ -483,7 +485,7 @@ export default function VenuesTab({ showMsg }) {
                           required
                           placeholder="Max"
                           value={form.max_capacity ?? form.capacity ?? ""}
-                          onChange={(e) => setForm({ ...form, max_capacity: e.target.value, capacity: e.target.value })}
+                          onChange={(e) => updateForm({ max_capacity: e.target.value, capacity: e.target.value })}
                           className="w-full p-2 bg-white border border-slate-300 rounded-lg font-normal text-slate-900 focus:outline-none focus:border-blue-600 text-xs"
                         />
                       </div>
@@ -643,7 +645,7 @@ export default function VenuesTab({ showMsg }) {
               <div className="flex justify-end gap-2 pt-3 border-t border-slate-100 shrink-0">
                 <button
                   type="button"
-                  onClick={() => setShowModal(false)}
+                  onClick={handleRequestClose}
                   className="px-3.5 py-1.5 rounded-lg border border-slate-200 text-xs font-normal text-slate-600 hover:bg-slate-50 cursor-pointer"
                 >
                   Cancel
@@ -661,6 +663,22 @@ export default function VenuesTab({ showMsg }) {
           </div>
         </div>
       )}
+
+      {/* Discard Confirmation Modal */}
+      <ConfirmModal
+        open={showDiscardModal}
+        onClose={() => setShowDiscardModal(false)}
+        onConfirm={() => {
+          setShowDiscardModal(false);
+          setShowModal(false);
+          setIsFormDirty(false);
+        }}
+        title="Discard Unsaved Changes?"
+        message="You have unsaved changes in this venue. Are you sure you want to close without saving?"
+        confirmText="Discard Changes"
+        cancelText="Keep Editing"
+        variant="danger"
+      />
 
       <ConfirmModal
         open={!!disableTarget}

@@ -764,7 +764,7 @@ export default function BookingBorrowingReportTab({
       {/* Record Quick View Details Modal */}
       {selectedRecord && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-[1500] flex items-center justify-center p-4 animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 max-w-lg w-full shadow-2xl border border-slate-100 dark:border-slate-800 space-y-4">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 max-w-lg w-full shadow-sm border border-slate-200 dark:border-slate-800 space-y-4">
             <div className="flex justify-between items-center pb-3 border-b border-slate-100 dark:border-slate-800">
               <div>
                 <h3 className="font-black text-slate-900 dark:text-white text-sm">

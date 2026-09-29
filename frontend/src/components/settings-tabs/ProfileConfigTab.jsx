@@ -12,11 +12,24 @@ export default function ProfileConfigTab({ showMsg }) {
   const [isEditing, setIsEditing] = useState(false);
 
   const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [showDiscardPassModal, setShowDiscardPassModal] = useState(false);
   const [passForm, setPassForm] = useState({
     current_password: "",
     new_password: "",
     new_password_confirmation: "",
   });
+
+  const isPassDirty = Boolean(
+    passForm.current_password || passForm.new_password || passForm.new_password_confirmation
+  );
+
+  const handleClosePassModal = () => {
+    if (isPassDirty) {
+      setShowDiscardPassModal(true);
+    } else {
+      setShowPasswordModal(false);
+    }
+  };
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
   const [passLoading, setPassLoading] = useState(false);
@@ -230,20 +243,30 @@ export default function ProfileConfigTab({ showMsg }) {
                     <button
                       type="button"
                       disabled={saveLoading}
-                      onClick={() => setIsEditing(false)}
+                      onClick={() => {
+                        setIsEditing(false);
+                        setProfileData({
+                          name: user?.name || "Super Administrator",
+                          email: user?.email_address || user?.email || "superadmin@fsuu.edu.ph",
+                          avatar: user?.avatar || null,
+                        });
+                        setAvatarPreview(user?.avatar || null);
+                      }}
                       className="px-3 py-1.5 border border-slate-300 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed text-slate-700 text-xs font-semibold rounded-lg transition-colors cursor-pointer"
                     >
                       Cancel
                     </button>
-                    <button
-                      type="submit"
-                      disabled={saveLoading || !hasProfileChanges}
-                      title={!hasProfileChanges ? "Make changes before saving" : "Save Changes"}
-                      className="px-3 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-700 active:bg-blue-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer shadow-xs flex items-center gap-1.5"
-                    >
-                      {saveLoading ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
-                      <span>{saveLoading ? "Saving..." : "Save Changes"}</span>
-                    </button>
+                    {hasProfileChanges && (
+                      <button
+                        type="submit"
+                        disabled={saveLoading}
+                        title="Save Changes"
+                        className="px-3 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-700 active:bg-blue-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer flex items-center gap-1.5 animate-in fade-in slide-in-from-right-1 duration-150"
+                      >
+                        {saveLoading ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
+                        <span>{saveLoading ? "Saving..." : "Save Changes"}</span>
+                      </button>
+                    )}
                   </div>
                 ) : (
                   <button
@@ -253,7 +276,7 @@ export default function ProfileConfigTab({ showMsg }) {
                       e.stopPropagation();
                       setIsEditing(true);
                     }}
-                    className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-semibold rounded-lg transition-colors cursor-pointer shadow-xs"
+                    className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs font-semibold rounded-lg transition-colors cursor-pointer"
                   >
                     Edit Profile
                   </button>
@@ -303,7 +326,7 @@ export default function ProfileConfigTab({ showMsg }) {
           </form>
 
           {/* Password & Security card */}
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-5 flex items-center justify-between gap-4">
+          <div className="bg-white rounded-2xl border border-slate-200 p-5 flex items-center justify-between gap-4">
             <div>
               <h3 className="font-bold text-slate-900 text-sm">Password &amp; Security</h3>
               <p className="text-xs text-slate-500 font-normal mt-0.5">
@@ -313,7 +336,7 @@ export default function ProfileConfigTab({ showMsg }) {
             <button
               type="button"
               onClick={() => setShowPasswordModal(true)}
-              className="shrink-0 px-4 py-2 bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 rounded-xl text-xs font-semibold transition-colors cursor-pointer shadow-2xs"
+              className="shrink-0 px-4 py-2 bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 rounded-xl text-xs font-semibold transition-colors cursor-pointer"
             >
               Change Password
             </button>
@@ -324,7 +347,7 @@ export default function ProfileConfigTab({ showMsg }) {
       {/* Change Password Modal */}
       {showPasswordModal && (
         <div className="fixed inset-0 bg-black/20 z-[1500] flex items-center justify-center p-4 animate-in fade-in">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 border border-slate-200">
+          <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 border border-slate-200">
             <div className="flex items-center justify-between p-4 border-b border-slate-100">
               <div className="flex items-center gap-2">
                 <Lock size={15} className="text-slate-700" />
@@ -332,7 +355,7 @@ export default function ProfileConfigTab({ showMsg }) {
               </div>
               <button
                 type="button"
-                onClick={() => setShowPasswordModal(false)}
+                onClick={handleClosePassModal}
                 className="p-1 rounded-lg border border-slate-200 text-slate-400 hover:text-slate-600 cursor-pointer"
               >
                 <X size={14} />
@@ -417,7 +440,7 @@ export default function ProfileConfigTab({ showMsg }) {
               <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
                 <button
                   type="button"
-                  onClick={() => setShowPasswordModal(false)}
+                  onClick={handleClosePassModal}
                   className="px-3.5 py-2 border border-slate-200 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer"
                 >
                   Cancel
@@ -435,6 +458,22 @@ export default function ProfileConfigTab({ showMsg }) {
           </div>
         </div>
       )}
+
+      {/* Discard Password Changes Modal */}
+      <ConfirmModal
+        open={showDiscardPassModal}
+        onClose={() => setShowDiscardPassModal(false)}
+        onConfirm={() => {
+          setShowDiscardPassModal(false);
+          setShowPasswordModal(false);
+          setPassForm({ current_password: "", new_password: "", new_password_confirmation: "" });
+        }}
+        variant="danger"
+        title="Discard Password Changes?"
+        message="You have unsaved password fields. Are you sure you want to close and discard them?"
+        confirmLabel="Discard"
+        cancelLabel="Keep Editing"
+      />
       <ConfirmModal
         open={showSaveConfirm}
         onClose={() => !saveLoading && setShowSaveConfirm(false)}

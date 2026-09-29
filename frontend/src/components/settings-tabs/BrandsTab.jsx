@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import api from "@/lib/axios";
 import notify from "@/lib/notify";
+import ConfirmModal from "@/components/ui/ConfirmModal";
 
 export default function BrandsTab() {
   const [brands, setBrands] = useState([]);
@@ -22,13 +23,39 @@ export default function BrandsTab() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showDiscardModal, setShowDiscardModal] = useState(false);
+  const [discardTarget, setDiscardTarget] = useState(null); // 'add' | 'edit'
   const [selectedBrand, setSelectedBrand] = useState(null);
 
   // Form states
   const [formData, setFormData] = useState({ name: "", description: "", status: "active", equipment_type_id: "" });
+  const [isFormDirty, setIsFormDirty] = useState(false);
   const [categories, setCategories] = useState([]);
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState("");
+
+  const updateFormData = (patch) => {
+    setIsFormDirty(true);
+    setFormData((prev) => ({ ...prev, ...patch }));
+  };
+
+  const handleCloseAdd = () => {
+    if (isFormDirty) { setDiscardTarget('add'); setShowDiscardModal(true); }
+    else setShowAddModal(false);
+  };
+
+  const handleCloseEdit = () => {
+    if (isFormDirty) { setDiscardTarget('edit'); setShowDiscardModal(true); }
+    else setShowEditModal(false);
+  };
+
+  const confirmDiscard = () => {
+    setShowDiscardModal(false);
+    setIsFormDirty(false);
+    if (discardTarget === 'add') setShowAddModal(false);
+    else setShowEditModal(false);
+    setDiscardTarget(null);
+  };
 
   const fetchCategories = async () => {
     try {
@@ -78,6 +105,7 @@ export default function BrandsTab() {
   const handleOpenAdd = () => {
     setFormData({ name: "", description: "", status: "active", equipment_type_id: "" });
     setFormError("");
+    setIsFormDirty(false);
     setShowAddModal(true);
   };
 
@@ -90,6 +118,7 @@ export default function BrandsTab() {
       equipment_type_id: brand.equipment_type_id ? String(brand.equipment_type_id) : "",
     });
     setFormError("");
+    setIsFormDirty(false);
     setShowEditModal(true);
   };
 
@@ -113,6 +142,7 @@ export default function BrandsTab() {
     try {
       await api.post("/general/brands", formData);
       notify.success("Brand Created", `Brand "${formData.name.toUpperCase()}" added successfully.`);
+      setIsFormDirty(false);
       setShowAddModal(false);
       fetchBrands();
     } catch (err) {
@@ -137,6 +167,7 @@ export default function BrandsTab() {
     try {
       await api.put(`/general/brands/${selectedBrand.id}`, formData);
       notify.success("Brand Updated", `Brand details updated successfully.`);
+      setIsFormDirty(false);
       setShowEditModal(false);
       fetchBrands();
     } catch (err) {
@@ -315,7 +346,7 @@ export default function BrandsTab() {
       {/* Add Brand Modal */}
       {showAddModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-md w-full p-6 animate-in fade-in zoom-in-95 duration-150">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm max-w-md w-full p-6 animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
@@ -325,7 +356,7 @@ export default function BrandsTab() {
               </div>
               <button
                 type="button"
-                onClick={() => setShowAddModal(false)}
+                onClick={handleCloseAdd}
                 className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
               >
                 <X size={16} />
@@ -346,7 +377,7 @@ export default function BrandsTab() {
                 </label>
                 <select
                   value={formData.equipment_type_id || ""}
-                  onChange={(e) => setFormData({ ...formData, equipment_type_id: e.target.value })}
+                  onChange={(e) => updateFormData({ equipment_type_id: e.target.value })}
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:border-blue-600 cursor-pointer"
                   required
                 >
@@ -367,7 +398,7 @@ export default function BrandsTab() {
                   type="text"
                   placeholder="e.g. SONY, EPSON, LOGITECH"
                   value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  onChange={(e) => updateFormData({ name: e.target.value })}
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:border-blue-600"
                   required
                 />
@@ -379,7 +410,7 @@ export default function BrandsTab() {
                 </label>
                 <select
                   value={formData.status}
-                  onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                  onChange={(e) => updateFormData({ status: e.target.value })}
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:border-blue-600 cursor-pointer"
                 >
                   <option value="active">Enable</option>
@@ -390,7 +421,7 @@ export default function BrandsTab() {
               <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
                 <button
                   type="button"
-                  onClick={() => setShowAddModal(false)}
+                  onClick={handleCloseAdd}
                   className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold cursor-pointer"
                 >
                   Cancel
@@ -412,7 +443,7 @@ export default function BrandsTab() {
       {/* Edit Brand Modal */}
       {showEditModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-md w-full p-6 animate-in fade-in zoom-in-95 duration-150">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm max-w-md w-full p-6 animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
@@ -422,7 +453,7 @@ export default function BrandsTab() {
               </div>
               <button
                 type="button"
-                onClick={() => setShowEditModal(false)}
+                onClick={handleCloseEdit}
                 className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
               >
                 <X size={16} />
@@ -443,7 +474,7 @@ export default function BrandsTab() {
                 </label>
                 <select
                   value={formData.equipment_type_id || ""}
-                  onChange={(e) => setFormData({ ...formData, equipment_type_id: e.target.value })}
+                  onChange={(e) => updateFormData({ equipment_type_id: e.target.value })}
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:border-blue-600 cursor-pointer"
                   required
                 >
@@ -463,7 +494,7 @@ export default function BrandsTab() {
                 <input
                   type="text"
                   value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  onChange={(e) => updateFormData({ name: e.target.value })}
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:border-blue-600"
                   required
                 />
@@ -475,7 +506,7 @@ export default function BrandsTab() {
                 </label>
                 <select
                   value={formData.status}
-                  onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                  onChange={(e) => updateFormData({ status: e.target.value })}
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:border-blue-600 cursor-pointer"
                 >
                   <option value="active">Enable</option>
@@ -486,7 +517,7 @@ export default function BrandsTab() {
               <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
                 <button
                   type="button"
-                  onClick={() => setShowEditModal(false)}
+                  onClick={handleCloseEdit}
                   className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold cursor-pointer"
                 >
                   Cancel
@@ -505,7 +536,19 @@ export default function BrandsTab() {
         </div>
       )}
 
-      {/* Disable Confirmation is handled inline via PowerOff icon — no separate modal needed */}
+      {/* Disable Confirmation is handled inline via toggle icon */}
+
+      {/* Discard Changes Confirmation */}
+      <ConfirmModal
+        open={showDiscardModal}
+        onClose={() => setShowDiscardModal(false)}
+        onConfirm={confirmDiscard}
+        variant="warning"
+        title="Discard Unsaved Changes?"
+        message="You have unsaved changes in this brand form. Are you sure you want to close without saving?"
+        confirmLabel="Discard"
+        cancelLabel="Keep Editing"
+      />
     </div>
   );
 }

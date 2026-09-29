@@ -17,6 +17,7 @@ import {
   ALL_ACTION_KEYS,
   expandPermissions,
 } from "./permissionsConfig";
+import ConfirmModal from "@/components/ui/ConfirmModal";
 
 // Dynamic role name formatter directly from DB string (no hardcoded dictionaries)
 const formatRoleName = (name = "") =>
@@ -52,6 +53,16 @@ export default function RolesSubTab() {
     name: "",
     permissions: [],
   });
+  const [isFormDirty, setIsFormDirty] = useState(false);
+  const [showDiscardModal, setShowDiscardModal] = useState(false);
+
+  const handleClose = () => {
+    if (isFormDirty) {
+      setShowDiscardModal(true);
+    } else {
+      setShowModal(false);
+    }
+  };
 
   const fetchRoles = async () => {
     setLoading(true);
@@ -75,6 +86,7 @@ export default function RolesSubTab() {
       name: "",
       permissions: [],
     });
+    setIsFormDirty(false);
     setShowModal(true);
   };
 
@@ -84,11 +96,13 @@ export default function RolesSubTab() {
       name: r.name,
       permissions: expandPermissions(r.permissions || []),
     });
+    setIsFormDirty(false);
     setShowModal(true);
   };
 
   // Toggle single action key (e.g. "venue_bookings.approve")
   const toggleAction = (actionKey) => {
+    setIsFormDirty(true);
     setForm((prev) => {
       const current = prev.permissions || [];
       const updated = current.includes(actionKey)
@@ -100,6 +114,7 @@ export default function RolesSubTab() {
 
   // Toggle entire module
   const toggleModule = (mod) => {
+    setIsFormDirty(true);
     const moduleActionKeys = mod.actions.map((a) => `${mod.key}.${a.key}`);
     const current = form.permissions || [];
     const allOn = moduleActionKeys.every((k) => current.includes(k));
@@ -342,7 +357,7 @@ export default function RolesSubTab() {
       {/* Create / Edit Role & Permissions Modal */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 dark:bg-black/70 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="bg-white dark:bg-[#131C2E] border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
+          <div className="bg-white dark:bg-[#131C2E] border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
             {/* Modal Header */}
             <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between shrink-0">
               <div>
@@ -360,7 +375,7 @@ export default function RolesSubTab() {
               </div>
               <button
                 type="button"
-                onClick={() => setShowModal(false)}
+                onClick={handleClose}
                 className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
               >
                 <X size={16} />
@@ -380,9 +395,10 @@ export default function RolesSubTab() {
                     required
                     placeholder="e.g. event_coordinator"
                     value={form.name}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, name: e.target.value }))
-                    }
+                    onChange={(e) => {
+                      setIsFormDirty(true);
+                      setForm((f) => ({ ...f, name: e.target.value }));
+                    }}
                     disabled={editRole?.is_protected}
                     className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs text-slate-900 dark:text-white focus:outline-none focus:border-blue-500 bg-white dark:bg-[#1E293B] transition-colors disabled:bg-slate-100 dark:disabled:bg-slate-800 disabled:text-slate-400"
                   />
@@ -411,12 +427,13 @@ export default function RolesSubTab() {
                       </span>
                       <button
                         type="button"
-                        onClick={() =>
+                        onClick={() => {
+                          setIsFormDirty(true);
                           setForm((f) => ({
                             ...f,
                             permissions: ALL_ACTION_KEYS,
-                          }))
-                        }
+                          }));
+                        }}
                         className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
                       >
                         Select All
@@ -424,12 +441,13 @@ export default function RolesSubTab() {
                       <span className="text-slate-300 dark:text-slate-700">|</span>
                       <button
                         type="button"
-                        onClick={() =>
+                        onClick={() => {
+                          setIsFormDirty(true);
                           setForm((f) => ({
                             ...f,
                             permissions: [],
-                          }))
-                        }
+                          }));
+                        }}
                         className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer"
                       >
                         Clear All
@@ -501,6 +519,7 @@ export default function RolesSubTab() {
 
                                 const toggleCategory = (e) => {
                                   e.stopPropagation();
+                                  setIsFormDirty(true);
                                   if (catAllOn) {
                                     setForm((prev) => ({
                                       ...prev,
@@ -605,7 +624,7 @@ export default function RolesSubTab() {
               <div className="px-6 py-3.5 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 flex items-center justify-end gap-2.5 shrink-0">
                 <button
                   type="button"
-                  onClick={() => setShowModal(false)}
+                  onClick={handleClose}
                   className="px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-800 transition-colors cursor-pointer"
                 >
                   Cancel
@@ -627,6 +646,22 @@ export default function RolesSubTab() {
           </div>
         </div>
       )}
+
+      {/* Discard Confirmation Modal */}
+      <ConfirmModal
+        open={showDiscardModal}
+        onClose={() => setShowDiscardModal(false)}
+        onConfirm={() => {
+          setShowDiscardModal(false);
+          setIsFormDirty(false);
+          setShowModal(false);
+        }}
+        variant="warning"
+        title="Discard Unsaved Changes?"
+        message="You have unsaved changes to this role and permissions. Are you sure you want to close without saving?"
+        confirmLabel="Discard"
+        cancelLabel="Keep Editing"
+      />
     </div>
   );
 }

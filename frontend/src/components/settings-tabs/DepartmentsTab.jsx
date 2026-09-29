@@ -14,9 +14,21 @@ export default function DepartmentsTab({ showMsg }) {
   const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAddDeptModal, setShowAddDeptModal] = useState(false);
+  const [showDiscardDeptModal, setShowDiscardDeptModal] = useState(false);
+  const [isDeptFormDirty, setIsDeptFormDirty] = useState(false);
   const [editDept, setEditDept] = useState(null);
   const [formLoading, setFormLoading] = useState(false);
   const [disableTarget, setDisableTarget] = useState(null);
+
+  const handleDeptClose = () => {
+    if (isDeptFormDirty) setShowDiscardDeptModal(true);
+    else { setShowAddDeptModal(false); setEditDept(null); }
+  };
+
+  const updateDeptForm = (val) => {
+    setIsDeptFormDirty(true);
+    setDeptForm(val);
+  };
 
   const [deptForm, setDeptForm] = useState({
     code: "",
@@ -120,6 +132,7 @@ export default function DepartmentsTab({ showMsg }) {
             onClick={() => {
               setEditDept(null);
               setDeptForm({ code: "", name: "", status: "active" });
+              setIsDeptFormDirty(false);
               setShowAddDeptModal(true);
             }}
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-extrabold shadow-sm cursor-pointer transition-all"
@@ -207,6 +220,7 @@ export default function DepartmentsTab({ showMsg }) {
                                   name: dept.name || dept.department_name || "",
                                   status: dept.status || "active",
                                 });
+                                setIsDeptFormDirty(false);
                                 setShowAddDeptModal(true);
                               }}
                               className="p-1.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 cursor-pointer transition-all shadow-2xs"
@@ -231,12 +245,12 @@ export default function DepartmentsTab({ showMsg }) {
       {/* Modal */}
       {showAddDeptModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-[1500] flex items-center justify-center p-4 animate-in fade-in">
-          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl animate-in zoom-in-95 border border-slate-100 space-y-4">
+          <div className="bg-white rounded-2xl p-6 sm:p-8 max-w-md w-full shadow-sm animate-in zoom-in-95 border border-slate-200 space-y-4">
             <div className="flex justify-between items-center pb-3 border-b border-slate-100">
               <h3 className="font-extrabold text-slate-900 text-sm">
                 {editDept ? "Edit Department" : "Add Department"}
               </h3>
-              <button onClick={() => setShowAddDeptModal(false)} className="text-slate-400 hover:text-slate-600 p-1 rounded-lg cursor-pointer">
+            <button onClick={handleDeptClose} className="text-slate-400 hover:text-slate-600 p-1 rounded-lg cursor-pointer">
                 <X size={18} />
               </button>
             </div>
@@ -249,7 +263,7 @@ export default function DepartmentsTab({ showMsg }) {
                   required
                   placeholder="e.g. CCS, CITEC, CCJE"
                   value={deptForm.code}
-                  onChange={(e) => setDeptForm({ ...deptForm, code: e.target.value.toUpperCase() })}
+                  onChange={(e) => updateDeptForm({ ...deptForm, code: e.target.value.toUpperCase() })}
                   className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono font-bold text-slate-900 focus:outline-none focus:border-blue-600"
                 />
               </div>
@@ -261,7 +275,7 @@ export default function DepartmentsTab({ showMsg }) {
                   required
                   placeholder="e.g. College of Information, Technology, Entertainment, and Computing"
                   value={deptForm.name}
-                  onChange={(e) => setDeptForm({ ...deptForm, name: e.target.value })}
+                  onChange={(e) => updateDeptForm({ ...deptForm, name: e.target.value })}
                   className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:outline-none focus:border-blue-600"
                 />
               </div>
@@ -269,7 +283,7 @@ export default function DepartmentsTab({ showMsg }) {
               <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
                 <button
                   type="button"
-                  onClick={() => setShowAddDeptModal(false)}
+                  onClick={handleDeptClose}
                   className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-100 cursor-pointer"
                 >
                   Cancel
@@ -296,6 +310,23 @@ export default function DepartmentsTab({ showMsg }) {
         message={`Are you sure you want to ${disableTarget?.status === "disabled" ? 'enable' : 'disable'} department "${disableTarget?.code}"?`}
         confirmText={disableTarget?.status === "disabled" ? "Enable" : "Disable"}
         variant={disableTarget?.status === "disabled" ? "primary" : "danger"}
+      />
+
+      {/* Discard Changes Confirmation */}
+      <ConfirmModal
+        open={showDiscardDeptModal}
+        onClose={() => setShowDiscardDeptModal(false)}
+        onConfirm={() => {
+          setShowDiscardDeptModal(false);
+          setIsDeptFormDirty(false);
+          setShowAddDeptModal(false);
+          setEditDept(null);
+        }}
+        variant="warning"
+        title="Discard Unsaved Changes?"
+        message="You have unsaved changes in this department form. Are you sure you want to close without saving?"
+        confirmLabel="Discard"
+        cancelLabel="Keep Editing"
       />
     </div>
   );

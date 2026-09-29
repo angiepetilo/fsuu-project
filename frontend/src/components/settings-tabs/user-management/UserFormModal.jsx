@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import api from "@/lib/axios";
 import PasswordSecurityStrength, { checkPasswordSecurity } from "@/components/ui/PasswordSecurityStrength";
+import ConfirmModal from "@/components/ui/ConfirmModal";
 
 export default function UserFormModal({
   showModal,
@@ -35,6 +36,18 @@ export default function UserFormModal({
   const [adminPwError, setAdminPwError] = useState("");
   const [verifyingAdminPw, setVerifyingAdminPw] = useState(false);
 
+  // Dirty guard
+  const [isFormDirty, setIsFormDirty] = useState(false);
+  const [showDiscardModal, setShowDiscardModal] = useState(false);
+
+  const handleClose = () => {
+    if (isFormDirty || newPassword || confirmPassword) {
+      setShowDiscardModal(true);
+    } else {
+      setShowModal(false);
+    }
+  };
+
   useEffect(() => {
     setEmailStatus(null);
     setNewPassword("");
@@ -43,6 +56,7 @@ export default function UserFormModal({
     setShowAdminPwModal(false);
     setAdminPassword("");
     setAdminPwError("");
+    setIsFormDirty(false);
   }, [showModal, editUser]);
 
   const checkEmailActive = async () => {
@@ -184,7 +198,7 @@ export default function UserFormModal({
             </div>
             <button
               type="button"
-              onClick={() => setShowModal(false)}
+              onClick={handleClose}
               className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors cursor-pointer"
             >
               <X size={16} />
@@ -222,7 +236,10 @@ export default function UserFormModal({
                           <button
                             key={r.id || val}
                             type="button"
-                            onClick={() => setForm((f) => ({ ...f, role: val, role_id: r.id }))}
+                            onClick={() => {
+                              setIsFormDirty(true);
+                              setForm((f) => ({ ...f, role: val, role_id: r.id }));
+                            }}
                             className={`py-2 px-2.5 rounded-lg border text-xs font-medium transition-all text-center flex items-center justify-center gap-1.5 cursor-pointer ${
                               isSelected
                                 ? "bg-blue-600 border-blue-600 text-white"
@@ -271,7 +288,10 @@ export default function UserFormModal({
                     required
                     placeholder="e.g. juan.delacruz@urios.edu.ph"
                     value={form.email_address}
-                    onChange={(e) => setForm((f) => ({ ...f, email_address: e.target.value }))}
+                    onChange={(e) => {
+                      setIsFormDirty(true);
+                      setForm((f) => ({ ...f, email_address: e.target.value }));
+                    }}
                     onBlur={checkEmailActive}
                     className={`w-full px-3 py-2 border rounded-lg font-mono text-xs font-normal text-slate-900 focus:outline-none transition-colors ${
                       emailStatus?.valid === false
@@ -416,7 +436,7 @@ export default function UserFormModal({
             <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-100">
               <button
                 type="button"
-                onClick={() => setShowModal(false)}
+                onClick={handleClose}
                 className="px-4 py-2 border border-slate-200 rounded-lg text-xs font-normal text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer"
               >
                 Cancel
@@ -436,8 +456,8 @@ export default function UserFormModal({
 
       {/* ── Super Admin Password Confirmation Pop-up Modal ── */}
       {showAdminPwModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[1600] flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl w-full max-w-sm p-6 space-y-4 animate-in fade-in zoom-in-95">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs z-[1600] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-lg w-full max-w-sm p-6 space-y-4 animate-in fade-in zoom-in-95">
             <div className="flex items-start gap-3">
               <div className="w-10 h-10 rounded-2xl bg-blue-50 border border-blue-200 text-blue-600 flex items-center justify-center shrink-0">
                 <ShieldCheck size={20} />
@@ -512,6 +532,22 @@ export default function UserFormModal({
           </div>
         </div>
       )}
+
+      {/* Discard Confirmation Modal */}
+      <ConfirmModal
+        open={showDiscardModal}
+        onClose={() => setShowDiscardModal(false)}
+        onConfirm={() => {
+          setShowDiscardModal(false);
+          setIsFormDirty(false);
+          setShowModal(false);
+        }}
+        variant="warning"
+        title="Discard Unsaved Changes?"
+        message="You have unsaved changes in this account form. Are you sure you want to close without saving?"
+        confirmLabel="Discard"
+        cancelLabel="Keep Editing"
+      />
     </>
   );
 }

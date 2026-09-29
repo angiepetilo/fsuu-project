@@ -64,6 +64,22 @@ export default function FeeMatrixTab({ officeScope = "All Offices", showMsg }) {
     fetchVenues();
   }, []);
 
+  const [initialSnapshot, setInitialSnapshot] = useState(null);
+
+  const defaultSignatories = [
+    { id: "sig-1", name: "Dr. Maria Angela Santos", title: "AVR Operations Head" },
+  ];
+  const defaultRateItems = [
+    { id: "rate-1", description: "Internal Academic and Dept Rate", rate: "Free of Charge", enabled: true },
+    { id: "rate-2", description: "External Hourly Rental Rate", rate: "₱1,500 per hour", enabled: true },
+    { id: "rate-3", description: "External Full Day Rate", rate: "₱8,000 per day", enabled: true },
+    { id: "rate-4", description: "Facility Cleaning Fee", rate: "₱200", enabled: true },
+    { id: "rate-5", description: "Sound System & Tech Setup Fee", rate: "₱500", enabled: true },
+  ];
+  const defaultNotes =
+    "Internal FSUU events and official academic activities are free of charge. External rentals require prior fee matrix approval. A 50% downpayment is required to confirm and lock the reservation schedule.";
+  const defaultTitle = "Facility Rental Fee Schedule and Reservation Policy";
+
   // 2. Load fee matrix for chosen venue from DB (with fallback to default)
   const loadFeeMatrix = async (venueId) => {
     try {
@@ -71,23 +87,48 @@ export default function FeeMatrixTab({ officeScope = "All Offices", showMsg }) {
       const res = await api.get(url).catch(() => null);
       const data = res?.data;
 
-      if (data && data.title) {
-        setTitle(data.title);
-        setShowSignatures(data.show_signatures !== false);
-        setShowRateItems(data.show_rate_items !== false);
-        setNotesEnabled(data.notes_enabled !== false);
-        if (data.notes !== undefined) setNotes(data.notes || "");
-        if (Array.isArray(data.signatories) && data.signatories.length > 0) {
-          setSignatories(data.signatories);
-        }
-        if (Array.isArray(data.rate_items) && data.rate_items.length > 0) {
-          setRateItems(data.rate_items);
-        }
-      }
+      const nextTitle = data && data.title ? data.title : defaultTitle;
+      const nextShowSig = data ? data.show_signatures !== false : true;
+      const nextShowRate = data ? data.show_rate_items !== false : true;
+      const nextNotesEn = data ? data.notes_enabled !== false : true;
+      const nextNotes = data && data.notes !== undefined ? (data.notes || "") : defaultNotes;
+      const nextSigs = Array.isArray(data?.signatories) && data.signatories.length > 0 ? data.signatories : defaultSignatories;
+      const nextRates = Array.isArray(data?.rate_items) && data.rate_items.length > 0 ? data.rate_items : defaultRateItems;
+
+      setTitle(nextTitle);
+      setShowSignatures(nextShowSig);
+      setShowRateItems(nextShowRate);
+      setNotesEnabled(nextNotesEn);
+      setNotes(nextNotes);
+      setSignatories(nextSigs);
+      setRateItems(nextRates);
+
+      setInitialSnapshot({
+        title: nextTitle,
+        showSignatures: nextShowSig,
+        showRateItems: nextShowRate,
+        notesEnabled: nextNotesEn,
+        notes: nextNotes,
+        signatories: JSON.stringify(nextSigs),
+        rateItems: JSON.stringify(nextRates),
+      });
     } catch (err) {
       console.error("Failed to load fee matrix from server:", err);
     }
   };
+
+  const isDirty = useMemo(() => {
+    if (!initialSnapshot) return false;
+    return (
+      title !== initialSnapshot.title ||
+      showSignatures !== initialSnapshot.showSignatures ||
+      showRateItems !== initialSnapshot.showRateItems ||
+      notesEnabled !== initialSnapshot.notesEnabled ||
+      notes !== initialSnapshot.notes ||
+      JSON.stringify(signatories) !== initialSnapshot.signatories ||
+      JSON.stringify(rateItems) !== initialSnapshot.rateItems
+    );
+  }, [initialSnapshot, title, showSignatures, showRateItems, notesEnabled, notes, signatories, rateItems]);
 
   const handleVenueChange = (e) => {
     const vId = e.target.value;
@@ -111,6 +152,16 @@ export default function FeeMatrixTab({ officeScope = "All Offices", showMsg }) {
       };
 
       const res = await api.post("/general/fee-matrix", payload);
+      setInitialSnapshot({
+        title,
+        showSignatures,
+        showRateItems,
+        notesEnabled,
+        notes,
+        signatories: JSON.stringify(signatories),
+        rateItems: JSON.stringify(rateItems),
+      });
+
       if (typeof showMsg === "function") {
         showMsg("Fee Matrix settings saved successfully to the database.");
       }
@@ -465,25 +516,27 @@ export default function FeeMatrixTab({ officeScope = "All Offices", showMsg }) {
             />
           </div>
 
-          {/* 6. Save Changes Button */}
-          <div className="pt-2">
-            <button
-              type="button"
-              onClick={handleSaveChanges}
-              disabled={saving}
-              className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white rounded-xl text-xs font-bold shadow-xs transition-all cursor-pointer flex items-center gap-2 disabled:opacity-60"
-            >
-              {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-              <span>Save Changes</span>
-            </button>
-          </div>
+          {/* 6. Save Changes Button - only appears when isDirty */}
+          {isDirty && (
+            <div className="pt-2 animate-in fade-in slide-in-from-bottom-2 duration-150">
+              <button
+                type="button"
+                onClick={handleSaveChanges}
+                disabled={saving}
+                className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 disabled:opacity-60"
+              >
+                {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                <span>Save Changes</span>
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Right Column: Printable Sheet Preview */}
         <div className="lg:col-span-6 sticky top-6">
           <div
             id="printable-fee-matrix"
-            className="w-full bg-white rounded-2xl border border-slate-300 shadow-xs p-8 sm:p-10 space-y-6 text-xs text-slate-900 font-sans min-h-[580px] flex flex-col justify-between"
+            className="w-full bg-white rounded-2xl border border-slate-300 p-8 sm:p-10 space-y-6 text-xs text-slate-900 font-sans min-h-[580px] flex flex-col justify-between"
           >
             {/* Top Area */}
             <div className="space-y-4">

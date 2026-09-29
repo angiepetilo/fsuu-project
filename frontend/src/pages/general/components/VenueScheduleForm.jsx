@@ -15,6 +15,50 @@ export default function VenueScheduleForm({
   venueOpen = "07:30",
   venueClose = "17:00",
 }) {
+  const [initialFormSnapshot, setInitialFormSnapshot] = React.useState(null);
+
+  React.useEffect(() => {
+    if (selectedVenue?.id) {
+      setInitialFormSnapshot({
+        venueId: selectedVenue.id,
+        status: setupForm.status,
+        reason: setupForm.reason || "",
+        isMultiDay: setupForm.isMultiDay,
+        startDate: setupForm.startDate,
+        endDate: setupForm.endDate,
+        startTime: setupForm.startTime,
+        endTime: setupForm.endTime,
+      });
+    }
+  }, [selectedVenue?.id]);
+
+  const isDirty = React.useMemo(() => {
+    if (!initialFormSnapshot) return false;
+    return (
+      setupForm.status !== initialFormSnapshot.status ||
+      (setupForm.reason || "").trim() !== (initialFormSnapshot.reason || "").trim() ||
+      Boolean(setupForm.isMultiDay) !== Boolean(initialFormSnapshot.isMultiDay) ||
+      setupForm.startDate !== initialFormSnapshot.startDate ||
+      setupForm.endDate !== initialFormSnapshot.endDate ||
+      setupForm.startTime !== initialFormSnapshot.startTime ||
+      setupForm.endTime !== initialFormSnapshot.endTime
+    );
+  }, [setupForm, initialFormSnapshot]);
+
+  const onSubmit = async (e) => {
+    await handleSaveStatus(e);
+    setInitialFormSnapshot({
+      venueId: selectedVenue?.id || setupForm.venueId,
+      status: setupForm.status,
+      reason: setupForm.reason || "",
+      isMultiDay: setupForm.isMultiDay,
+      startDate: setupForm.startDate,
+      endDate: setupForm.endDate,
+      startTime: setupForm.startTime,
+      endTime: setupForm.endTime,
+    });
+  };
+
   const handleStartTimeChange = (val) => {
     let bounded = val;
     if (venueOpen && bounded < venueOpen) bounded = venueOpen;
@@ -30,14 +74,14 @@ export default function VenueScheduleForm({
   };
 
   return (
-    <div className="bg-white dark:bg-[#111827] rounded-[28px] border border-slate-200/90 dark:border-slate-800 shadow-sm p-6 h-full flex flex-col justify-between space-y-4">
+    <div className="bg-white dark:bg-[#111827] rounded-2xl border border-slate-200 dark:border-slate-800 p-6 h-full flex flex-col justify-between space-y-4">
       <div className="border-b border-slate-100 dark:border-slate-800 pb-3">
         <h3 className="font-extrabold text-slate-900 dark:text-white text-xs uppercase tracking-wider flex items-center gap-2">
           Venue Selection &amp; Availability Control
         </h3>
       </div>
 
-      <form onSubmit={handleSaveStatus} className="space-y-4 text-xs flex-1 flex flex-col justify-between">
+      <form onSubmit={onSubmit} className="space-y-4 text-xs flex-1 flex flex-col justify-between">
         <div className="space-y-4">
           {/* Venue Selector */}
           <div>
@@ -198,7 +242,7 @@ export default function VenueScheduleForm({
                 { 
                   id: "Closed",      
                   label: "Closed",      
-                  activeClass: "bg-rose-600 border-rose-600 text-white font-black shadow-sm",
+                  activeClass: "bg-rose-600 border-rose-600 text-white font-black",
                   inactiveClass: "border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-rose-50 dark:hover:bg-rose-950/40 hover:text-rose-800 dark:hover:text-rose-300 font-bold",
                 },
               ].map(st => {
@@ -208,7 +252,7 @@ export default function VenueScheduleForm({
                     key={st.id}
                     type="button"
                     onClick={() => setSetupForm({ ...setupForm, status: st.id })}
-                    className={`py-2.5 px-2 rounded-xl border text-center text-xs transition-all cursor-pointer flex items-center justify-center shadow-2xs ${
+                    className={`py-2.5 px-2 rounded-xl border text-center text-xs transition-all cursor-pointer flex items-center justify-center ${
                       isSelected ? st.activeClass : st.inactiveClass
                     }`}
                   >
@@ -232,17 +276,19 @@ export default function VenueScheduleForm({
           </div>
         </div>
 
-        {/* Update Venue Status Button */}
-        <div className="pt-3 mt-auto">
-          <button
-            type="submit"
-            disabled={saveLoading}
-            className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs rounded-xl shadow-md cursor-pointer transition-colors flex items-center justify-center gap-2"
-          >
-            {saveLoading && <Loader2 size={14} className="animate-spin" />}
-            <span>Update Venue Status</span>
-          </button>
-        </div>
+        {/* Update Venue Status Button - only appears when isDirty */}
+        {isDirty && (
+          <div className="pt-3 mt-auto animate-in fade-in slide-in-from-bottom-2 duration-150">
+            <button
+              type="submit"
+              disabled={saveLoading}
+              className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs rounded-xl cursor-pointer transition-colors flex items-center justify-center gap-2"
+            >
+              {saveLoading && <Loader2 size={14} className="animate-spin" />}
+              <span>Update Venue Status</span>
+            </button>
+          </div>
+        )}
       </form>
     </div>
   );

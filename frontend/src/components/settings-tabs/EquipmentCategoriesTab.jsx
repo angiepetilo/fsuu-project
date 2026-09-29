@@ -425,7 +425,7 @@ export default function EquipmentCategoriesTab({ showMsg }) {
       {/* Equipment Category Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black/40 z-[1500] flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-xl p-5 max-w-3xl w-full shadow-xl border border-slate-200 max-h-[90vh] flex flex-col my-auto space-y-4">
+          <div className="bg-white rounded-xl p-5 max-w-3xl w-full shadow-sm border border-slate-200 max-h-[90vh] flex flex-col my-auto space-y-4">
             <div className="flex justify-between items-center pb-2.5 border-b border-slate-100 shrink-0">
               <div>
                 <h3 className="font-semibold text-slate-900 text-sm">
@@ -682,7 +682,7 @@ export default function EquipmentCategoriesTab({ showMsg }) {
       {/* Student Assistant / Staff Category Request Modal */}
       {showRequestModal && (
         <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100 animate-in fade-in zoom-in-95">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-sm border border-slate-200 animate-in fade-in zoom-in-95">
             <div className="flex justify-between items-center pb-3 border-b border-slate-100 mb-4">
               <div>
                 <h3 className="font-black text-sm text-slate-900 flex items-center gap-2">

@@ -57,6 +57,32 @@ export default function VerificationPinTab({
   const [editReq, setEditReq] = useState(null);
   const [reqFormLoading, setReqFormLoading] = useState(false);
 
+  // Dirty guards
+  const [isReqDirty, setIsReqDirty] = useState(false);
+  const [showDiscardReqModal, setShowDiscardReqModal] = useState(false);
+  const [showDiscardPinModal, setShowDiscardPinModal] = useState(false);
+
+  const isPinDirty = Boolean(
+    originalPinSettings &&
+    JSON.stringify(pinSettings) !== JSON.stringify(originalPinSettings)
+  );
+
+  const handleCloseReq = () => {
+    if (isReqDirty) {
+      setShowDiscardReqModal(true);
+    } else {
+      setShowReqModal(false);
+    }
+  };
+
+  const handleCancelPinEdit = () => {
+    if (isPinDirty) {
+      setShowDiscardPinModal(true);
+    } else {
+      setIsEditing(false);
+    }
+  };
+
   const [reqForm, setReqForm] = useState({
     classification: "all",
     label: "",
@@ -771,21 +797,20 @@ export default function VerificationPinTab({
             <>
               <button
                 type="button"
-                onClick={() => {
-                  setIsEditing(false);
-                  if (originalPinSettings) setPinSettings(originalPinSettings);
-                }}
+                onClick={handleCancelPinEdit}
                 className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
               >
                 Cancel
               </button>
-              <button
-                type="submit"
-                disabled={saveLoading || pinLoading}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold transition-colors disabled:opacity-50 cursor-pointer"
-              >
-                {saveLoading ? "Saving..." : "Save Settings"}
-              </button>
+              {isPinDirty && (
+                <button
+                  type="submit"
+                  disabled={saveLoading || pinLoading}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold transition-colors disabled:opacity-50 cursor-pointer"
+                >
+                  {saveLoading ? "Saving..." : "Save Settings"}
+                </button>
+              )}
             </>
           )}
         </div>
@@ -806,6 +831,7 @@ export default function VerificationPinTab({
             type="button"
             onClick={() => {
               setEditReq(null);
+              setIsReqDirty(false);
               setReqForm({
                 classification: "all",
                 label: "",
@@ -962,6 +988,7 @@ export default function VerificationPinTab({
                               setOpenActionId(null);
                               setActionAnchorEl(null);
                               setEditReq(req);
+                              setIsReqDirty(false);
                               setReqForm({
                                 classification: req.classification || "all",
                                 label: req.label || "",
@@ -1008,7 +1035,7 @@ export default function VerificationPinTab({
       {/* Requirement Modal */}
       {showReqModal && (
         <div className="fixed inset-0 bg-black/40 z-[1500] flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl p-5 max-w-2xl w-full border border-slate-200 shadow-lg space-y-4">
+          <div className="bg-white rounded-xl p-5 max-w-2xl w-full border border-slate-200 shadow-sm space-y-4">
             <div className="flex justify-between items-center pb-2.5 border-b border-slate-100">
               <div>
                 <h3 className="text-sm font-semibold text-slate-900">
@@ -1020,7 +1047,7 @@ export default function VerificationPinTab({
               </div>
               <button
                 type="button"
-                onClick={() => setShowReqModal(false)}
+                onClick={handleCloseReq}
                 className="text-slate-400 hover:text-slate-600 text-sm cursor-pointer p-1"
               >
                 ✕
@@ -1040,7 +1067,10 @@ export default function VerificationPinTab({
                       required
                       placeholder="e.g. OISAA Endorsement Letter"
                       value={reqForm.label}
-                      onChange={(e) => setReqForm({ ...reqForm, label: e.target.value })}
+                      onChange={(e) => {
+                        setIsReqDirty(true);
+                        setReqForm({ ...reqForm, label: e.target.value });
+                      }}
                       className="w-full p-2 bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-slate-500"
                     />
                   </div>
@@ -1051,7 +1081,10 @@ export default function VerificationPinTab({
                     </label>
                     <select
                       value={reqForm.classification}
-                      onChange={(e) => setReqForm({ ...reqForm, classification: e.target.value })}
+                      onChange={(e) => {
+                        setIsReqDirty(true);
+                        setReqForm({ ...reqForm, classification: e.target.value });
+                      }}
                       className="w-full p-2 bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none"
                     >
                       <option value="all">All Classifications</option>
@@ -1069,7 +1102,10 @@ export default function VerificationPinTab({
                       rows={4}
                       placeholder="e.g. Must be signed by the Dean and Director of OISAA"
                       value={reqForm.description}
-                      onChange={(e) => setReqForm({ ...reqForm, description: e.target.value })}
+                      onChange={(e) => {
+                        setIsReqDirty(true);
+                        setReqForm({ ...reqForm, description: e.target.value });
+                      }}
                       className="w-full p-2 bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none"
                     />
                   </div>
@@ -1118,7 +1154,10 @@ export default function VerificationPinTab({
                           </button>
                           <button
                             type="button"
-                            onClick={() => setReqForm(prev => ({ ...prev, remove_template: true, template_file: null }))}
+                            onClick={() => {
+                              setIsReqDirty(true);
+                              setReqForm(prev => ({ ...prev, remove_template: true, template_file: null }));
+                            }}
                             className="text-rose-600 hover:text-rose-800 font-medium ml-1 cursor-pointer text-xs"
                           >
                             Remove
@@ -1133,6 +1172,7 @@ export default function VerificationPinTab({
                           onChange={(e) => {
                             const file = e.target.files?.[0];
                             if (file) {
+                              setIsReqDirty(true);
                               setReqForm(prev => ({
                                 ...prev,
                                 template_file: file,
@@ -1160,7 +1200,7 @@ export default function VerificationPinTab({
               <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
                 <button
                   type="button"
-                  onClick={() => setShowReqModal(false)}
+                  onClick={handleCloseReq}
                   className="px-3.5 py-1.5 border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 cursor-pointer font-normal text-xs"
                 >
                   Cancel
@@ -1178,6 +1218,37 @@ export default function VerificationPinTab({
         </div>
       )}
 
+      {/* Discard Requirement Modal */}
+      <ConfirmModal
+        open={showDiscardReqModal}
+        onClose={() => setShowDiscardReqModal(false)}
+        onConfirm={() => {
+          setShowDiscardReqModal(false);
+          setIsReqDirty(false);
+          setShowReqModal(false);
+        }}
+        variant="warning"
+        title="Discard Unsaved Changes?"
+        message="You have unsaved changes in this requirement form. Are you sure you want to close without saving?"
+        confirmLabel="Discard"
+        cancelLabel="Keep Editing"
+      />
+
+      {/* Discard PIN Settings Modal */}
+      <ConfirmModal
+        open={showDiscardPinModal}
+        onClose={() => setShowDiscardPinModal(false)}
+        onConfirm={() => {
+          setShowDiscardPinModal(false);
+          if (originalPinSettings) setPinSettings(originalPinSettings);
+          setIsEditing(false);
+        }}
+        variant="warning"
+        title="Discard Unsaved Changes?"
+        message="You have unsaved changes to the verification PIN settings. Are you sure you want to discard them?"
+        confirmLabel="Discard"
+        cancelLabel="Keep Editing"
+      />
 
       <ConfirmModal
         open={confirmModalState.open}
