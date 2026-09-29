@@ -387,7 +387,7 @@ export default function GeneralLayout() {
       {/* ── Logout Loading Overlay ── */}
       {isLoggingOut && (
         <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex flex-col items-center justify-center text-white animate-in fade-in duration-200">
-          <div className="bg-card p-7 rounded-2xl border border-border shadow-2xl flex flex-col items-center gap-3 text-center max-w-xs mx-4">
+          <div className="bg-card p-7 rounded-2xl border border-border shadow-sm flex flex-col items-center gap-3 text-center max-w-xs mx-4">
             <Loader2 size={36} className="animate-spin text-primary" />
             <p className="text-sm font-bold text-foreground tracking-tight">Signing out...</p>
             <p className="text-xs text-muted-foreground font-normal">Securing and clearing your session</p>

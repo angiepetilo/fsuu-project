@@ -158,7 +158,7 @@ function BorrowSlotBarcodeSelector({
       </div>
 
       {isOpen && (
-        <div className="absolute z-50 left-0 right-0 mt-1 max-h-64 overflow-y-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-blue-900/50 rounded-xl shadow-xl py-1 text-xs animate-in fade-in">
+        <div className="absolute z-50 left-0 right-0 mt-1 max-h-64 overflow-y-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-blue-900/50 rounded-xl shadow-sm py-1 text-xs animate-in fade-in">
           <div className="px-3 py-1.5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between text-[10.5px] font-bold text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-900/80">
             <span>AVAILABLE MODELS FOR {String(categoryName).toUpperCase()}</span>
             <span>{searchFiltered.length} Available</span>

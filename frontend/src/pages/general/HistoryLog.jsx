@@ -53,7 +53,7 @@ function ActionMenuPopover({ buttonEl, isOpen, onClose, children }) {
           top: `${coords.top}px`,
           left: `${coords.left}px`,
         }}
-        className="z-[9999] bg-white border border-slate-200 rounded-xl shadow-2xl p-1.5 w-34 space-y-0.5 text-xs font-bold animate-in zoom-in-95"
+        className="z-[9999] bg-white border border-slate-200 rounded-xl shadow-sm p-1.5 w-34 space-y-0.5 text-xs font-bold animate-in zoom-in-95"
         onClick={(e) => e.stopPropagation()}
       >
         {children}
@@ -435,7 +435,7 @@ export default function HistoryLog() {
     <div className="space-y-6">
 
       {feedback && (
-        <div className="fixed bottom-6 right-6 z-[3000] bg-white text-slate-900 text-xs font-bold px-5 py-3 rounded-xl flex items-center gap-2 shadow-2xl border border-slate-300 max-w-md">
+        <div className="fixed bottom-6 right-6 z-[3000] bg-white text-slate-900 text-xs font-bold px-5 py-3 rounded-xl flex items-center gap-2 shadow-sm border border-slate-300 max-w-md">
           <CheckCircle size={16} className="text-emerald-600 shrink-0" />
           <span>{feedback}</span>
         </div>

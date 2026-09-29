@@ -27,7 +27,7 @@ export default function EquipmentDetailModal({
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 sm:p-6 overflow-y-auto animate-in fade-in duration-200">
-      <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl w-full max-w-2xl overflow-hidden">
+      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm w-full max-w-2xl overflow-hidden">
         
         {/* Modal Header — Item 35: Clean White Header */}
         <div className="px-6 py-4 bg-white border-b border-slate-100 flex items-center justify-between">

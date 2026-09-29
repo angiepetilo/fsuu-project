@@ -145,7 +145,7 @@ function SlotBarcodeSelector({
 
       {/* Dropdown Options Menu */}
       {isOpen && (
-        <div className="absolute z-50 left-0 right-0 mt-1 max-h-56 overflow-y-auto bg-white border border-slate-200 rounded-xl shadow-xl py-1 text-xs animate-in fade-in zoom-in-95">
+        <div className="absolute z-50 left-0 right-0 mt-1 max-h-56 overflow-y-auto bg-white border border-slate-200 rounded-xl shadow-sm py-1 text-xs animate-in fade-in zoom-in-95">
           <div className="px-3 py-1.5 border-b border-slate-100 flex items-center justify-between text-[10.5px] font-bold text-slate-500 bg-slate-50">
             <span>AVAILABLE BARCODES FOR {categoryName.toUpperCase()}</span>
           </div>

@@ -660,7 +660,7 @@ export default function ManageEquipments() {
       <div className="flex items-center justify-end gap-3">
         <button
           onClick={handleOpenAddModal}
-          className="flex items-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-extrabold shadow-md transition-all cursor-pointer"
+          className="flex items-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-extrabold transition-all cursor-pointer"
         >
           <Plus size={16} />
           <span>Add Equipment</span>
@@ -680,7 +680,7 @@ export default function ManageEquipments() {
       )}
 
       {feedback && (
-        <div className="fixed bottom-6 right-6 z-[3000] bg-slate-900 text-white text-xs font-extrabold px-5 py-3.5 rounded-2xl flex items-center gap-3 shadow-2xl animate-in slide-in-from-bottom-5 duration-300 border border-slate-700 max-w-md">
+        <div className="fixed bottom-6 right-6 z-[3000] bg-slate-900 text-white text-xs font-extrabold px-5 py-3.5 rounded-2xl flex items-center gap-3 shadow-sm animate-in slide-in-from-bottom-5 duration-300 border border-slate-700 max-w-md">
           <CheckCircle2 size={18} className="text-emerald-400 shrink-0" />
           <span>{feedback}</span>
         </div>

@@ -19,7 +19,7 @@ export default function SendEmailModal({
 
   return (
     <div className="fixed inset-0 z-[2000] bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
-      <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl w-full max-w-lg overflow-hidden space-y-4 p-6">
+      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm w-full max-w-lg overflow-hidden space-y-4 p-6">
         <div className="flex items-center justify-between border-b border-slate-100 pb-3">
           <div className="flex items-center gap-2">
             <div className="p-2 rounded-xl bg-blue-50 text-blue-600">

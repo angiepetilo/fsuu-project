@@ -1375,7 +1375,7 @@ export default function VenueBookingDetailModal({
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 overflow-y-auto animate-in fade-in duration-200">
-      <div className="bg-white rounded-2xl max-w-5xl w-full border border-slate-200 shadow-2xl flex flex-col max-h-[92vh] overflow-hidden my-auto animate-in zoom-in-95 duration-150 font-sans">
+      <div className="bg-white rounded-2xl max-w-5xl w-full border border-slate-200 shadow-sm flex flex-col max-h-[92vh] overflow-hidden my-auto animate-in zoom-in-95 duration-150 font-sans">
         {/* Modal Header */}
         <VenueModalHeader
           selected={selected}

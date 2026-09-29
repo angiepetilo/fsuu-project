@@ -47,7 +47,7 @@ export default function PdfPreviewModal({
 
   return (
     <div className="fixed inset-0 z-[2000] bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 animate-in fade-in duration-200">
-      <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl w-full max-w-5xl max-h-[92vh] flex flex-col overflow-hidden">
+      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm w-full max-w-5xl max-h-[92vh] flex flex-col overflow-hidden">
         {/* Modal Header Toolbar */}
         <div className="flex items-center justify-between p-4 sm:p-5 border-b border-slate-100 shrink-0 bg-slate-50/90">
           <div className="flex items-center gap-2.5">
