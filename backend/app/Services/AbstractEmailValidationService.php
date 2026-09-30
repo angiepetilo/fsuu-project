@@ -130,7 +130,25 @@ class AbstractEmailValidationService
             ];
         }
 
-        // 3. Detect keyboard-mashed, randomized, or gibberish usernames (e.g. aasdw, asdasd, asdfghjkl)
+        // 3. 75,000+ Disposable domain check — runs BEFORE gibberish detection so that
+        //    known throwaway domains (e.g. guerrillamail.com, mailinator.com) always
+        //    return is_disposable=true even when the local part looks like gibberish.
+        $isDomainDisposable = self::isDisposableDomain($domain);
+        if ($isDomainDisposable) {
+            return [
+                'valid'          => false,
+                'email'          => $email,
+                'domain'         => $domain,
+                'deliverability' => 'UNDELIVERABLE',
+                'is_disposable'  => true,
+                'autocorrect'    => null,
+                'quality_score'  => 0.0,
+                'message'        => 'Disposable or temporary email addresses (like temp-mail) are not accepted. Please use an active personal email.',
+                'source'         => 'disposable_blacklist_75k'
+            ];
+        }
+
+        // 4. Detect keyboard-mashed, randomized, or gibberish usernames (e.g. aasdw, asdasd, asdfghjkl)
         if (self::isRandomOrGibberishUsername($user)) {
             return [
                 'valid'          => false,
@@ -142,21 +160,6 @@ class AbstractEmailValidationService
                 'quality_score'  => 0.0,
                 'message'        => 'This email address appears to be randomized or fake (keyboard mash detected). Please provide a real ' . ($isInstitutional ? 'official university' : 'personal') . ' email.',
                 'source'         => 'gibberish_detector'
-            ];
-        }
-
-        // 4. 75,000+ Disposable domain check (temp-mail, mailinator, etc.)
-        if (self::isDisposableDomain($domain)) {
-            return [
-                'valid'          => false,
-                'email'          => $email,
-                'domain'         => $domain,
-                'deliverability' => 'UNDELIVERABLE',
-                'is_disposable'  => true,
-                'autocorrect'    => null,
-                'quality_score'  => 0.0,
-                'message'        => 'Disposable or temporary email addresses (like temp-mail) are not accepted. Please use an active personal email.',
-                'source'         => 'disposable_blacklist_75k'
             ];
         }
 

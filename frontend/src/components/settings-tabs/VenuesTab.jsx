@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { Plus, Edit2, Ban, Power, CheckCircle2, X, Building, Loader2, Image as ImageIcon, Camera, AlertCircle } from "lucide-react";
 import { usePermissions } from "@/hooks/usePermissions";
-import api from "@/lib/axios";
+import api, { clearApiCache } from "@/lib/axios";
+import { invalidateCache } from "@/lib/apiCache";
 import ConfirmModal from "@/components/ui/ConfirmModal";
 import IosToggle from "@/components/ui/ios-toggle";
 
@@ -88,6 +89,35 @@ export default function VenuesTab({ showMsg }) {
 
   useEffect(() => {
     fetchData();
+
+    const handleCategoryUpdate = () => {
+      invalidateCache("equipment_types_list");
+      clearApiCache();
+      api.get("/general/equipment-types")
+        .catch(() => api.get("/public/equipment-types"))
+        .then(res => {
+          const rawEquip = Array.isArray(res.data) ? res.data : (res.data?.data || []);
+          if (rawEquip.length > 0) setEquipmentCatalog(rawEquip);
+        })
+        .catch(() => {});
+    };
+
+    window.addEventListener("equipment_categories_updated", handleCategoryUpdate);
+    window.addEventListener("equipment_updated", handleCategoryUpdate);
+    window.addEventListener("venues_updated", fetchData);
+
+    const handleStorage = (e) => {
+      if (e.key === "fsuu_venues_updated_ping") fetchData();
+      if (e.key === "fsuu_category_updated_ping" || e.key === "fsuu_equipment_updated_ping") handleCategoryUpdate();
+    };
+    window.addEventListener("storage", handleStorage);
+
+    return () => {
+      window.removeEventListener("equipment_categories_updated", handleCategoryUpdate);
+      window.removeEventListener("equipment_updated", handleCategoryUpdate);
+      window.removeEventListener("venues_updated", fetchData);
+      window.removeEventListener("storage", handleStorage);
+    };
   }, []);
 
   const handlePhotoUpload = (e) => {
@@ -131,7 +161,10 @@ export default function VenuesTab({ showMsg }) {
         setVenues(updated);
         try {
           localStorage.setItem("fsuu_venues_catalog", JSON.stringify(updated));
+          localStorage.setItem("fsuu_venues_updated_ping", Date.now().toString());
         } catch {}
+        clearApiCache();
+        invalidateCache("venues");
         window.dispatchEvent(new Event("venues_updated"));
         showMsg("Venue details updated successfully.");
         setIsFormDirty(false);
@@ -150,7 +183,10 @@ export default function VenuesTab({ showMsg }) {
         setVenues(nextVenues);
         try {
           localStorage.setItem("fsuu_venues_catalog", JSON.stringify(nextVenues));
+          localStorage.setItem("fsuu_venues_updated_ping", Date.now().toString());
         } catch {}
+        clearApiCache();
+        invalidateCache("venues");
         window.dispatchEvent(new Event("venues_updated"));
         showMsg("Venue created successfully.");
         setIsFormDirty(false);
@@ -206,7 +242,10 @@ export default function VenuesTab({ showMsg }) {
       await api.put(`/general/venues/${id}`, { status: newStatus });
       try {
         localStorage.setItem("fsuu_venues_catalog", JSON.stringify(updated));
+        localStorage.setItem("fsuu_venues_updated_ping", Date.now().toString());
       } catch {}
+      clearApiCache();
+      invalidateCache("venues");
       window.dispatchEvent(new Event("venues_updated"));
       showMsg(`Venue "${name}" has been ${isCurrentlyDisabled ? 'enabled' : 'disabled'}.`);
     } catch (err) {

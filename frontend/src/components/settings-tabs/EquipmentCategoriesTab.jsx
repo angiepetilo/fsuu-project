@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { Plus, Pencil, Ban, Power, CheckCircle2, X, Package, Loader2, Image as ImageIcon, ChevronLeft, ChevronRight, Camera, MoreVertical, Send, HelpCircle, AlertCircle } from "lucide-react";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
-import api from "@/lib/axios";
+import api, { clearApiCache } from "@/lib/axios";
+import { invalidateCache } from "@/lib/apiCache";
 import notify from "@/lib/notify";
 import ConfirmModal from "@/components/ui/ConfirmModal";
 import ActionPopover from "@/components/ui/action-popover";
@@ -172,8 +173,13 @@ export default function EquipmentCategoriesTab({ showMsg }) {
         setCategories(updated);
         try {
           localStorage.setItem("fsuu_equipment_types", JSON.stringify(updated));
+          localStorage.setItem("fsuu_equipment_updated_ping", Date.now().toString());
+          localStorage.setItem("fsuu_category_updated_ping", Date.now().toString());
         } catch {}
+        invalidateCache("equipment_types_list");
+        clearApiCache();
         window.dispatchEvent(new Event("equipment_updated"));
+        window.dispatchEvent(new Event("equipment_categories_updated"));
         notify.success("Category Updated", "Equipment category successfully updated.");
         setIsFormDirty(false);
         setShowModal(false);
@@ -191,8 +197,13 @@ export default function EquipmentCategoriesTab({ showMsg }) {
         setCategories(nextCats);
         try {
           localStorage.setItem("fsuu_equipment_types", JSON.stringify(nextCats));
+          localStorage.setItem("fsuu_equipment_updated_ping", Date.now().toString());
+          localStorage.setItem("fsuu_category_updated_ping", Date.now().toString());
         } catch {}
+        invalidateCache("equipment_types_list");
+        clearApiCache();
         window.dispatchEvent(new Event("equipment_updated"));
+        window.dispatchEvent(new Event("equipment_categories_updated"));
         notify.success("Category Created", "New equipment category successfully registered.");
         setIsFormDirty(false);
         setShowModal(false);
@@ -220,8 +231,13 @@ export default function EquipmentCategoriesTab({ showMsg }) {
       await api.put(`/general/equipment-types/${id}`, { status: newStatus });
       try {
         localStorage.setItem("fsuu_equipment_types", JSON.stringify(updated));
+        localStorage.setItem("fsuu_equipment_updated_ping", Date.now().toString());
+        localStorage.setItem("fsuu_category_updated_ping", Date.now().toString());
       } catch {}
+      invalidateCache("equipment_types_list");
+      clearApiCache();
       window.dispatchEvent(new Event("equipment_updated"));
+      window.dispatchEvent(new Event("equipment_categories_updated"));
       notify.success("Category Updated", `Equipment category "${name}" has been ${isCurrentlyDisabled ? 'enabled' : 'disabled'}.`);
     } catch (err) {
       setCategories(prevCats);

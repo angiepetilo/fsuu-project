@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { BookOpen, Plus, Edit2, Ban, Power, CheckCircle2, X, Loader2, Lock } from "lucide-react";
 import { usePermissions } from "@/hooks/usePermissions";
-import api from "@/lib/axios";
+import api, { clearApiCache } from "@/lib/axios";
+import { invalidateCache } from "@/lib/apiCache";
 import ConfirmModal from "@/components/ui/ConfirmModal";
 import IosToggle from "@/components/ui/ios-toggle";
 
@@ -65,14 +66,26 @@ export default function DepartmentsTab({ showMsg }) {
       status: deptForm.status || "active",
     };
 
+    const broadcastDeptChange = (updatedList) => {
+      invalidateCache("departments");
+      clearApiCache();
+      window.dispatchEvent(new Event("departments_updated"));
+      try {
+        if (updatedList) localStorage.setItem("fsuu_departments", JSON.stringify(updatedList));
+        localStorage.setItem("fsuu_departments_updated_ping", Date.now().toString());
+      } catch {}
+    };
+
     if (editDept) {
       // ── OPTIMISTIC EDIT ─────────────────────────────────────────────────
       const prev = departments;
-      setDepartments(d => d.map(x => x.id === editDept.id ? { ...x, ...payload, _optimistic: true } : x));
+      const optimistic = departments.map(x => x.id === editDept.id ? { ...x, ...payload, _optimistic: true } : x);
+      setDepartments(optimistic);
       setShowAddDeptModal(false); setEditDept(null);
       try {
         await api.put(`/general/departments/${editDept.id}`, payload);
         setDepartments(d => d.map(x => x.id === editDept.id ? { ...x, _optimistic: false } : x));
+        broadcastDeptChange(optimistic);
         showMsg(`Department "${payload.code}" updated!`);
       } catch (err) {
         setDepartments(prev); setEditDept(editDept); setShowAddDeptModal(true);
@@ -87,7 +100,9 @@ export default function DepartmentsTab({ showMsg }) {
       try {
         const res = await api.post("/general/departments", payload);
         const actual = res.data?.department || res.data;
+        const next = departments.filter(x => x.id !== tempId).concat(actual || { ...payload, id: tempId });
         setDepartments(d => d.map(x => x.id === tempId ? { ...(actual || x), _optimistic: false } : x));
+        broadcastDeptChange(next);
         showMsg(`Department "${payload.code}" created!`);
       } catch (err) {
         setDepartments(prev);
@@ -108,6 +123,10 @@ export default function DepartmentsTab({ showMsg }) {
 
     try {
       await api.put(`/general/departments/${id}`, { status: newStatus });
+      invalidateCache("departments");
+      clearApiCache();
+      window.dispatchEvent(new Event("departments_updated"));
+      try { localStorage.setItem("fsuu_departments_updated_ping", Date.now().toString()); } catch {}
       showMsg(`Department "${code}" has been ${isCurrentlyDisabled ? 'enabled' : 'disabled'}.`);
     } catch (err) {
       setDepartments(prev);

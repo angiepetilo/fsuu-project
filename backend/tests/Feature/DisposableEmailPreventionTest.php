@@ -5,10 +5,13 @@ namespace Tests\Feature;
 use App\Rules\ActiveDeliverableEmail;
 use App\Services\AbstractEmailValidationService;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class DisposableEmailPreventionTest extends TestCase
 {
+    use RefreshDatabase;
+
     protected AbstractEmailValidationService $service;
 
     protected function setUp(): void

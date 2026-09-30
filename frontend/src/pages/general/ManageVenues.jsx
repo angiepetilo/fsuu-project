@@ -6,7 +6,7 @@ import {
 import VenueScheduleCalendar from "./components/VenueScheduleCalendar";
 import VenueScheduleForm from "./components/VenueScheduleForm";
 import TimeSlotMatrix from "./components/TimeSlotMatrix";
-import api from "@/lib/axios";
+import api, { clearApiCache } from "@/lib/axios";
 import { fetchWithCache, invalidateCache } from "@/lib/apiCache";
 import { PageLoader } from "@/components/ui/page-loader";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -150,7 +150,7 @@ export default function ManageVenues() {
 
   useRealtimeSync(fetchVenues, {
     interval: 30000,
-    customEvents: ["venue_availability_updated", "equipment_availability_updated"],
+    customEvents: ["venue_availability_updated", "equipment_availability_updated", "venues_updated", "operating_hours_updated"],
   });
 
   const fetchAvailability = useCallback(() => {
@@ -409,7 +409,10 @@ export default function ManageVenues() {
         localStorage.setItem("fsuu_venue_overrides", JSON.stringify(nextOverrides));
         localStorage.setItem("fsuu_venue_maintenance", JSON.stringify(nextOverrides));
         localStorage.setItem("fsuu_equipment_overrides", JSON.stringify(nextEquipOverrides));
+        localStorage.setItem("fsuu_venue_availability_ping", Date.now().toString());
       } catch {}
+      clearApiCache();
+      invalidateCache("venue");
       window.dispatchEvent(new Event("venue_availability_updated"));
       window.dispatchEvent(new Event("equipment_availability_updated"));
       fetchAvailability();

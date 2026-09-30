@@ -232,8 +232,12 @@ export default function ManageEquipments() {
     };
     window.addEventListener("equipment_updated", handleSync);
     window.addEventListener("equipment_inventory_updated", handleSync);
+    window.addEventListener("equipment_categories_updated", handleSync);
     const handleStorage = (e) => {
-      if (e.key && e.key.includes("equipment")) {
+      if (
+        (e.key && e.key.includes("equipment")) ||
+        e.key === "fsuu_category_updated_ping"
+      ) {
         handleSync();
       }
     };
@@ -241,6 +245,7 @@ export default function ManageEquipments() {
     return () => {
       window.removeEventListener("equipment_updated", handleSync);
       window.removeEventListener("equipment_inventory_updated", handleSync);
+      window.removeEventListener("equipment_categories_updated", handleSync);
       window.removeEventListener("storage", handleStorage);
     };
   }, [fetchEquipments]);

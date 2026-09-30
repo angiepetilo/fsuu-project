@@ -1,14 +1,15 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { 
   Tag, Plus, Search, Edit2, Ban, CheckCircle2,
   AlertCircle, X, Loader2
 } from "lucide-react";
-import api from "@/lib/axios";
+import api, { clearApiCache } from "@/lib/axios";
+import { invalidateCache } from "@/lib/apiCache";
 import notify from "@/lib/notify";
 import ConfirmModal from "@/components/ui/ConfirmModal";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 
-export default function BrandsTab() {
+export default function BrandsTab({ isActive = true }) {
   const [brands, setBrands] = useState([]);
   const [stats, setStats] = useState({
     total_brands: 0,
@@ -17,6 +18,7 @@ export default function BrandsTab() {
     total_linked_units: 0,
   });
   const [loading, setLoading] = useState(true);
+  const [loadingCategories, setLoadingCategories] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
 
@@ -58,16 +60,35 @@ export default function BrandsTab() {
     setDiscardTarget(null);
   };
 
-  const fetchCategories = async () => {
+  const refreshCategories = useCallback(async (invalidate = false) => {
+    if (invalidate) {
+      invalidateCache("equipment_types_list");
+      clearApiCache();
+    }
+    setLoadingCategories(true);
     try {
-      const res = await api.get("/general/equipment-types");
+      const res = await api.get("/general/equipment-types", {
+        params: { _t: Date.now() },
+        bypassCache: true,
+      });
       const list = res.data?.data || (Array.isArray(res.data) ? res.data : []);
-      setCategories(list);
-    } catch {}
-  };
+      if (Array.isArray(list)) {
+        setCategories(list);
+      }
+    } catch {
+      try {
+        const saved = JSON.parse(localStorage.getItem("fsuu_equipment_types") || "[]");
+        if (Array.isArray(saved) && saved.length > 0) {
+          setCategories(saved);
+        }
+      } catch {}
+    } finally {
+      setLoadingCategories(false);
+    }
+  }, []);
 
-  const fetchBrands = async () => {
-    setLoading(true);
+  const fetchBrands = useCallback(async (isSilent = false) => {
+    if (!isSilent) setLoading(true);
     try {
       const params = {
         all: 1,
@@ -84,19 +105,60 @@ export default function BrandsTab() {
         setStats(res.data.stats);
       }
     } catch (err) {
-      notify.error("Error", "Failed to retrieve equipment brands.");
+      if (!isSilent) notify.error("Error", "Failed to retrieve equipment brands.");
     } finally {
-      setLoading(false);
+      if (!isSilent) setLoading(false);
     }
-  };
+  }, [searchTerm, categoryFilter]);
 
   useEffect(() => {
-    fetchCategories();
-  }, []);
+    refreshCategories(true);
+  }, [refreshCategories]);
 
   useEffect(() => {
     fetchBrands();
-  }, [categoryFilter]);
+  }, [categoryFilter, fetchBrands]);
+
+  // When tab becomes active, invalidate cache and pull real-time categories & brands seamlessly
+  useEffect(() => {
+    if (isActive) {
+      refreshCategories(true);
+      fetchBrands(true);
+    }
+  }, [isActive, refreshCategories, fetchBrands]);
+
+  // Real-time synchronization listeners for categories & brands without reloading the module
+  useEffect(() => {
+    const handleCategorySync = () => {
+      refreshCategories(true);
+    };
+
+    const handleStorage = (e) => {
+      if (
+        e.key === "fsuu_equipment_updated_ping" ||
+        e.key === "fsuu_category_updated_ping" ||
+        e.key === "fsuu_equipment_types" ||
+        (e.key && e.key.includes("equipment"))
+      ) {
+        handleCategorySync();
+      }
+      if (e.key === "fsuu_brand_updated_ping") {
+        fetchBrands(true);
+      }
+    };
+
+    window.addEventListener("equipment_updated", handleCategorySync);
+    window.addEventListener("equipment_categories_updated", handleCategorySync);
+    window.addEventListener("equipment_inventory_updated", handleCategorySync);
+    window.addEventListener("storage", handleStorage);
+
+    return () => {
+      window.removeEventListener("equipment_updated", handleCategorySync);
+      window.removeEventListener("equipment_categories_updated", handleCategorySync);
+      window.removeEventListener("equipment_inventory_updated", handleCategorySync);
+      window.removeEventListener("storage", handleStorage);
+    };
+  }, [refreshCategories, fetchBrands]);
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -104,6 +166,10 @@ export default function BrandsTab() {
   };
 
   const handleOpenAdd = () => {
+    // Invalidate cache and fetch real-time categories without reloading module
+    invalidateCache("equipment_types_list");
+    clearApiCache();
+    refreshCategories(true);
     setFormData({ name: "", description: "", status: "active", equipment_type_id: "" });
     setFormError("");
     setIsFormDirty(false);
@@ -111,6 +177,10 @@ export default function BrandsTab() {
   };
 
   const handleOpenEdit = (brand) => {
+    // Invalidate cache and fetch real-time categories without reloading module
+    invalidateCache("equipment_types_list");
+    clearApiCache();
+    refreshCategories(true);
     setSelectedBrand(brand);
     setFormData({
       name: brand.name,
@@ -129,11 +199,24 @@ export default function BrandsTab() {
   };
 
   const broadcastBrandChange = () => {
+    invalidateCache();
+    clearApiCache();
     window.dispatchEvent(new Event("brands_updated"));
     try { localStorage.setItem("fsuu_brand_updated_ping", Date.now().toString()); } catch {}
   };
 
-  useRealtimeSync(fetchBrands, { interval: 15000, customEvents: ["brands_updated"] });
+  // Background silent polling keeping both brands and categories fresh without reloading module
+  const handleRealtimeSync = useCallback(async () => {
+    await Promise.allSettled([
+      fetchBrands(true),
+      refreshCategories(false),
+    ]);
+  }, [fetchBrands, refreshCategories]);
+
+  useRealtimeSync(handleRealtimeSync, {
+    interval: 15000,
+    customEvents: ["brands_updated", "equipment_updated", "equipment_categories_updated", "equipment_inventory_updated"],
+  });
 
   const handleSaveAdd = async (e) => {
     e.preventDefault();
@@ -245,6 +328,7 @@ export default function BrandsTab() {
             <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Category:</span>
             <select
               value={categoryFilter}
+              onFocus={() => refreshCategories(true)}
               onChange={(e) => setCategoryFilter(e.target.value)}
               className="bg-transparent text-xs font-semibold text-slate-800 dark:text-slate-100 focus:outline-none cursor-pointer"
             >
@@ -298,24 +382,26 @@ export default function BrandsTab() {
                   </td>
                 </tr>
               ) : (
-                brands.map((brand) => (
-                  <tr key={brand.id} className="hover:bg-slate-50/70 transition-colors">
-                    <td className="px-4 py-3.5">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center font-black text-blue-700 text-xs shrink-0">
-                          {brand.name.substring(0, 2)}
-                        </div>
-                        <div>
-                          <p className="font-bold text-slate-900">{brand.name}</p>
-                          <div className="flex items-center gap-1.5 text-[10px] text-slate-400">
-                            <span>ID #{brand.id}</span>
-                            {brand.equipment_category_name && (
-                              <span className="font-medium text-slate-500">• {brand.equipment_category_name}</span>
-                            )}
+                brands.map((brand) => {
+                  const resolvedCatName = brand.equipment_category_name || categories.find(c => String(c.id) === String(brand.equipment_type_id))?.eq_name || categories.find(c => String(c.id) === String(brand.equipment_type_id))?.name;
+                  return (
+                    <tr key={brand.id} className="hover:bg-slate-50/70 transition-colors">
+                      <td className="px-4 py-3.5">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-8 h-8 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center font-black text-blue-700 text-xs shrink-0">
+                            {brand.name.substring(0, 2)}
+                          </div>
+                          <div>
+                            <p className="font-bold text-slate-900">{brand.name}</p>
+                            <div className="flex items-center gap-1.5 text-[10px] text-slate-400">
+                              <span>ID #{brand.id}</span>
+                              {resolvedCatName && (
+                                <span className="font-medium text-slate-500">• {resolvedCatName}</span>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </td>
+                      </td>
 
                     <td className="px-4 py-3.5">
                       <span className="text-xs text-slate-700 font-medium">
@@ -348,7 +434,8 @@ export default function BrandsTab() {
                       </div>
                     </td>
                   </tr>
-                ))
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -384,19 +471,29 @@ export default function BrandsTab() {
 
             <form onSubmit={handleSaveAdd} className="space-y-4">
               <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1.5">
-                  Equipment Category <span className="text-rose-500">*</span>
-                </label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600">
+                    Equipment Category <span className="text-rose-500">*</span>
+                  </label>
+                  {loadingCategories && (
+                    <span className="text-[10px] text-blue-600 flex items-center gap-1 font-semibold animate-pulse">
+                      <Loader2 size={10} className="animate-spin" /> Syncing categories...
+                    </span>
+                  )}
+                </div>
                 <select
                   value={formData.equipment_type_id || ""}
+                  onFocus={() => refreshCategories(true)}
                   onChange={(e) => updateFormData({ equipment_type_id: e.target.value })}
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:border-blue-600 cursor-pointer"
                   required
                 >
-                  <option value="">-- Select Equipment Category --</option>
+                  <option value="">
+                    {loadingCategories && categories.length === 0 ? "Loading categories..." : "-- Select Equipment Category --"}
+                  </option>
                   {categories.map((cat) => (
                     <option key={cat.id} value={cat.id}>
-                      {cat.eq_name || cat.name}
+                      {cat.eq_name || cat.name} {cat.status === "disabled" || cat.status === "inactive" ? "(Disabled)" : ""}
                     </option>
                   ))}
                 </select>
@@ -481,19 +578,29 @@ export default function BrandsTab() {
 
             <form onSubmit={handleSaveEdit} className="space-y-4">
               <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1.5">
-                  Equipment Category <span className="text-rose-500">*</span>
-                </label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600">
+                    Equipment Category <span className="text-rose-500">*</span>
+                  </label>
+                  {loadingCategories && (
+                    <span className="text-[10px] text-blue-600 flex items-center gap-1 font-semibold animate-pulse">
+                      <Loader2 size={10} className="animate-spin" /> Syncing categories...
+                    </span>
+                  )}
+                </div>
                 <select
                   value={formData.equipment_type_id || ""}
+                  onFocus={() => refreshCategories(true)}
                   onChange={(e) => updateFormData({ equipment_type_id: e.target.value })}
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:border-blue-600 cursor-pointer"
                   required
                 >
-                  <option value="">-- Select Equipment Category --</option>
+                  <option value="">
+                    {loadingCategories && categories.length === 0 ? "Loading categories..." : "-- Select Equipment Category --"}
+                  </option>
                   {categories.map((cat) => (
                     <option key={cat.id} value={cat.id}>
-                      {cat.eq_name || cat.name}
+                      {cat.eq_name || cat.name} {cat.status === "disabled" || cat.status === "inactive" ? "(Disabled)" : ""}
                     </option>
                   ))}
                 </select>

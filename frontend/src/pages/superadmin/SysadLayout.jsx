@@ -278,6 +278,11 @@ export default function SysadLayout() {
         fetchNotifs();
         window.dispatchEvent(new Event("equipment_inventory_updated"));
         window.dispatchEvent(new Event("brands_updated"));
+      } else if (e.key === "fsuu_equipment_updated_ping" || e.key === "fsuu_category_updated_ping") {
+        fetchNotifs();
+        window.dispatchEvent(new Event("equipment_updated"));
+        window.dispatchEvent(new Event("equipment_categories_updated"));
+        window.dispatchEvent(new Event("equipment_inventory_updated"));
       }
     };
 

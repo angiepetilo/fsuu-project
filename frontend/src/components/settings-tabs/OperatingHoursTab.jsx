@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
-import api from "@/lib/axios";
+import api, { clearApiCache } from "@/lib/axios";
+import { invalidateCache } from "@/lib/apiCache";
 
 const HOURS_12 = ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12"];
 const MINUTES_5 = ["00", "05", "10", "15", "20", "25", "30", "35", "40", "45", "50", "55"];
@@ -202,6 +203,10 @@ export default function OperatingHoursTab({ showMsg }) {
       } else {
         setInitialHours({ ...operatingHours });
       }
+      clearApiCache();
+      invalidateCache("operating_hours_settings");
+      window.dispatchEvent(new Event("operating_hours_updated"));
+      try { localStorage.setItem("fsuu_operating_hours_ping", Date.now().toString()); } catch {}
       showMsg("Saved");
     } catch {
       showMsg("Failed");

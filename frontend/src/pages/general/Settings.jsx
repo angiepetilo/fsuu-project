@@ -458,7 +458,7 @@ export default function Settings() {
           )}
           {mountedTabs.has("brands") && (
             <div className={activeTab === "brands" ? "block" : "hidden"}>
-              <BrandsTab />
+              <BrandsTab isActive={activeTab === "brands"} />
             </div>
           )}
           {mountedTabs.has("equipment") && (
