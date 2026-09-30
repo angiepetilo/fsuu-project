@@ -109,7 +109,27 @@ export default function ManageEquipments() {
 
       setCategories(catList);
 
-      setUnits(unitData.map((u, idx) => {
+      // Identify all child units assigned to parents
+      const childIdSet = new Set();
+      unitData.forEach(p => {
+        let raw = p.built_in_units;
+        if (typeof raw === 'string') {
+          try { raw = JSON.parse(raw); } catch { raw = []; }
+        }
+        if (Array.isArray(raw)) {
+          raw.forEach(id => {
+            if (id) {
+              if (typeof id === 'object' && id !== null && id.id) {
+                childIdSet.add(String(id.id).trim().toLowerCase());
+              } else {
+                childIdSet.add(String(id).trim().toLowerCase());
+              }
+            }
+          });
+        }
+      });
+
+      const allMappedUnits = unitData.map((u, idx) => {
         const bCode = String(u.barcode || `BC-EQP-2026-00${idx + 1}`).trim();
         const dbStatusRaw = (u.status || 'available').toLowerCase();
         const dbCondition = u.condition || '';
@@ -127,12 +147,19 @@ export default function ManageEquipments() {
         else if (dbStatusRaw === 'decommissioned' || dbStatusRaw === 'lost') conditionLabel = 'Lost';
         else conditionLabel = 'Good';
 
+        const isChild = childIdSet.has(String(u.id).toLowerCase()) ||
+          (u.barcode && childIdSet.has(String(u.barcode).trim().toLowerCase())) ||
+          (u.serial_number && childIdSet.has(String(u.serial_number).trim().toLowerCase()));
+
         let dbStatus = dbStatusRaw;
+        // Damaged / Lost / Repair takes precedence
         if (
           ['lost', 'damaged', 'under repair', 'worn', 'minor wear'].includes(conditionLabel.toLowerCase()) ||
           ['damaged', 'maintenance', 'under_maintenance', 'decommissioned', 'unavailable', 'lost'].includes(dbStatusRaw)
         ) {
           dbStatus = 'unavailable';
+        } else if (isChild || dbStatusRaw === 'built-in' || dbStatusRaw === 'built_in') {
+          dbStatus = 'Built-in';
         } else if (dbStatusRaw === 'released' || dbStatusRaw === 'in-use' || dbStatusRaw === 'released / in-use' || dbStatusRaw === 'release / in - use') {
           dbStatus = 'Released';
         } else if (dbStatusRaw === 'reserved') {
@@ -151,7 +178,7 @@ export default function ManageEquipments() {
           equipment_type_id: u.equipment_type_id,
           brand: u.brand || '',
           model: u.model || '',
-          serial_number: u.serial_number || u.barcode || '',
+          serial_number: u.serial_number || u.barcode || bCode,
           barcode: bCode,
           name: derivedName,
           category: catName,
@@ -159,12 +186,15 @@ export default function ManageEquipments() {
           office_name: eqType?.office?.name || 'AVR Office I',
           status: dbStatus,
           condition: conditionLabel,
+          is_child: isChild,
           available_count: dbStatus === 'Available' ? 1 : 0,
           total_count: 1,
           date_purchased: u.purchased_at ? u.purchased_at.substring(0, 10) : '2026-01-15',
           lifespan_years: u.eq_lifespan || 5,
           description: u.description || '',
           is_disabled: !!u.is_disabled,
+          raw_status: dbStatusRaw,
+          raw_condition: dbCondition,
           built_in_units: Array.isArray(u.built_in_units)
             ? u.built_in_units
             : (typeof u.built_in_units === 'string'
@@ -176,7 +206,10 @@ export default function ManageEquipments() {
                 ? (() => { try { return JSON.parse(u.built_in_models); } catch { return {}; } })()
                 : {}),
         };
-      }));
+      });
+
+      // Parent units with built-in child units remain available
+      setUnits(allMappedUnits);
 
     } catch {
       setUnits([]);
@@ -199,9 +232,16 @@ export default function ManageEquipments() {
     };
     window.addEventListener("equipment_updated", handleSync);
     window.addEventListener("equipment_inventory_updated", handleSync);
+    const handleStorage = (e) => {
+      if (e.key && e.key.includes("equipment")) {
+        handleSync();
+      }
+    };
+    window.addEventListener("storage", handleStorage);
     return () => {
       window.removeEventListener("equipment_updated", handleSync);
       window.removeEventListener("equipment_inventory_updated", handleSync);
+      window.removeEventListener("storage", handleStorage);
     };
   }, [fetchEquipments]);
 
@@ -348,6 +388,7 @@ export default function ManageEquipments() {
       try { localStorage.removeItem("fsuu_equipment_types"); } catch {}
       window.dispatchEvent(new Event("equipment_updated"));
       window.dispatchEvent(new Event("equipment_inventory_updated"));
+      try { localStorage.setItem("fsuu_equipment_updated_ping", Date.now().toString()); } catch {}
 
       notify.success(
         "Equipment Unit Added",
@@ -463,6 +504,7 @@ export default function ManageEquipments() {
       try { localStorage.removeItem("fsuu_equipment_types"); } catch {}
       window.dispatchEvent(new Event("equipment_updated"));
       window.dispatchEvent(new Event("equipment_inventory_updated"));
+      try { localStorage.setItem("fsuu_equipment_updated_ping", Date.now().toString()); } catch {}
       notify.success("Equipment Updated", `"${unitDisplayName}" saved successfully.`);
       fetchEquipments(true);
     } catch (err) {
@@ -500,6 +542,7 @@ export default function ManageEquipments() {
       try { localStorage.removeItem("fsuu_equipment_types"); } catch {}
       window.dispatchEvent(new Event("equipment_updated"));
       window.dispatchEvent(new Event("equipment_inventory_updated"));
+      try { localStorage.setItem("fsuu_equipment_updated_ping", Date.now().toString()); } catch {}
       notify.info("Unit Disabled", `"${name}" has been disabled and appears greyed out.`);
       setDisableModalTarget(null);
       fetchEquipments(true);
@@ -534,6 +577,7 @@ export default function ManageEquipments() {
       try { localStorage.removeItem("fsuu_equipment_types"); } catch {}
       window.dispatchEvent(new Event("equipment_updated"));
       window.dispatchEvent(new Event("equipment_inventory_updated"));
+      try { localStorage.setItem("fsuu_equipment_updated_ping", Date.now().toString()); } catch {}
       notify.success("Unit Enabled", `"${name}" has been re-enabled and is back in active inventory.`);
       setEnableModalTarget(null);
       fetchEquipments(true);
@@ -576,9 +620,30 @@ export default function ManageEquipments() {
         try { rawList = JSON.parse(rawList); } catch { rawList = []; }
       }
       if (Array.isArray(rawList)) {
-        rawList.forEach((childId) => {
-          if (childId) {
-            map.set(String(childId), parent);
+        rawList.forEach((childRef) => {
+          if (!childRef) return;
+          const childId = (typeof childRef === "object" && childRef !== null && childRef.id)
+            ? String(childRef.id).trim()
+            : String(childRef).trim();
+          map.set(childId, parent);
+          map.set(childId.toLowerCase(), parent);
+
+          const matchedChild = units.find(u =>
+            String(u.id) === childId ||
+            (u.serial_number && String(u.serial_number).trim().toLowerCase() === childId.toLowerCase()) ||
+            (u.barcode && String(u.barcode).trim().toLowerCase() === childId.toLowerCase())
+          );
+          if (matchedChild) {
+            map.set(String(matchedChild.id), parent);
+            map.set(String(matchedChild.id).toLowerCase(), parent);
+            if (matchedChild.barcode) {
+              map.set(String(matchedChild.barcode).trim(), parent);
+              map.set(String(matchedChild.barcode).trim().toLowerCase(), parent);
+            }
+            if (matchedChild.serial_number) {
+              map.set(String(matchedChild.serial_number).trim(), parent);
+              map.set(String(matchedChild.serial_number).trim().toLowerCase(), parent);
+            }
           }
         });
       }
@@ -688,8 +753,7 @@ export default function ManageEquipments() {
 
       {/* Search & Category Filter */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white dark:bg-[#111827] p-3 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
-        <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 shadow-xs text-xs font-bold text-slate-700 dark:text-slate-200">
-          <Filter size={14} className="text-blue-600 dark:text-blue-400 flex-shrink-0" />
+        <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-200">
           <select
             value={activeCategory}
             onChange={(e) => setActiveCategory(e.target.value)}
@@ -719,8 +783,8 @@ export default function ManageEquipments() {
           <table className="w-full text-sm min-w-[760px]">
             <thead>
               <tr className="bg-slate-50/80 dark:bg-slate-800/80 border-b border-slate-100 dark:border-slate-800">
-                {["#", "Serial No.", "Equipment Unit Name", "Assigned Category", "Date Purchased", "Lifespan vs Current", "Action"].map((h, i) => (
-                  <th key={h} className={`px-4 py-3.5 text-left text-[11px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap ${i === 0 ? 'rounded-tl-2xl' : i === 6 ? 'rounded-tr-2xl' : ''}`}>
+                {["#", "Serial No.", "Equipment Unit Name", "Built-In", "Status", "Date Purchased", "Lifespan vs Current", "Action"].map((h, i) => (
+                  <th key={h} className={`px-4 py-3.5 text-left text-[11px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap ${i === 0 ? 'rounded-tl-2xl' : i === 7 ? 'rounded-tr-2xl' : ''}`}>
                     {h}
                   </th>
                 ))}
@@ -729,13 +793,13 @@ export default function ManageEquipments() {
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-xs font-semibold">
               {loading && units.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="text-center py-12 text-slate-400">
+                  <td colSpan={8} className="text-center py-12 text-slate-400">
                     <Loader2 size={20} className="animate-spin inline mr-2" /> Loading equipment units...
                   </td>
                 </tr>
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="text-center py-12 text-slate-400">
+                  <td colSpan={8} className="text-center py-12 text-slate-400">
                     {categories.length === 0
                       ? "⚠️ Create an Equipment Category in Settings first before adding physical equipment units."
                       : "📦 No physical equipment units added yet. Click 'Add Equipment' to add units to a category."}
@@ -754,37 +818,65 @@ export default function ManageEquipments() {
                   return (
                     <tr key={item.id} className={`transition-colors ${isOpen ? 'relative z-30' : ''} ${item.is_disabled ? 'opacity-50 grayscale bg-slate-50 dark:bg-slate-900/50' : 'hover:bg-slate-50/60 dark:hover:bg-slate-800/50'}`}>
                       <td className="px-4 py-3.5 font-bold text-slate-400 dark:text-slate-500">{displayIndex}</td>
-                      <td className="px-4 py-3.5 font-mono text-xs font-bold whitespace-nowrap">
-                        <div className="flex items-center gap-1.5">
-                          <div className="flex flex-col gap-0.5">
-                            <div className="flex items-center gap-1.5 bg-blue-50/80 dark:bg-blue-950/80 border border-blue-200 dark:border-blue-800 px-2.5 py-1 rounded-lg w-fit text-blue-700 dark:text-blue-300 font-bold shadow-2xs">
-                              <Barcode size={14} className="text-blue-600 dark:text-blue-400 shrink-0" />
-                              <span>{item.serial_number || item.barcode}</span>
-                            </div>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => handleCopyBarcode(item.serial_number || item.barcode)}
-                            className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer"
-                            title="Copy Serial No."
-                          >
-                            {copiedBarcode === (item.serial_number || item.barcode) ? (
-                              <Check size={13} className="text-emerald-600 font-extrabold" />
-                            ) : (
-                              <Copy size={13} />
-                            )}
-                          </button>
-                        </div>
+                      <td className="px-4 py-3.5 font-mono text-xs font-bold text-slate-800 dark:text-slate-200 whitespace-nowrap">
+                        {item.serial_number || item.barcode}
                       </td>
                       <td className="px-4 py-3.5 max-w-[280px]">
                         <span className="font-extrabold text-slate-900 dark:text-white truncate block text-xs" title={item.name}>
                           {item.name}
                         </span>
-                      </td>
-                      <td className="px-4 py-3.5 font-bold text-blue-700 dark:text-blue-300 max-w-[180px]">
-                        <span className="bg-blue-50 dark:bg-blue-950/60 px-2.5 py-1 rounded-lg border border-blue-200/60 dark:border-blue-800/60 block w-fit max-w-full truncate" title={item.category}>
+                        <span className="text-[11px] text-slate-400 dark:text-slate-500 font-medium truncate block mt-0.5">
                           {item.category}
                         </span>
+                      </td>
+                      <td className="px-4 py-3.5 text-xs text-slate-600 dark:text-slate-300 max-w-[180px]">
+                        {(() => {
+                          const parent = parentUnitMap.get(String(item.id)) ||
+                            (item.barcode ? parentUnitMap.get(String(item.barcode)) : null) ||
+                            (item.serial_number ? parentUnitMap.get(String(item.serial_number)) : null);
+                          return parent
+                            ? <span className="font-semibold text-slate-700 dark:text-slate-200 truncate block" title={parent.name}>{parent.name}</span>
+                            : <span className="text-slate-300 dark:text-slate-600">—</span>;
+                        })()}
+                      </td>
+                      <td className="px-4 py-3.5 whitespace-nowrap">
+                        {(() => {
+                          const st = String(item.status || 'Available').toLowerCase();
+                          const cond = String(item.condition || item.raw_condition || '').toLowerCase();
+                          const parent = parentUnitMap.get(String(item.id)) ||
+                            (item.barcode ? parentUnitMap.get(String(item.barcode)) : null) ||
+                            (item.serial_number ? parentUnitMap.get(String(item.serial_number)) : null);
+                          const isBuiltIn = Boolean(item.is_child) || st === 'built-in' || st === 'built_in' || Boolean(parent);
+
+                          if (['lost', 'decommissioned'].includes(cond) || st === 'lost' || st === 'decommissioned') {
+                            return <span className="text-[11px] font-bold text-rose-500 dark:text-rose-400">Lost</span>;
+                          }
+                          if (['damaged', 'under repair', 'worn', 'minor wear'].includes(cond) || ['damaged', 'maintenance', 'under_maintenance'].includes(st)) {
+                            return <span className="text-[11px] font-bold text-rose-500 dark:text-rose-400">Damaged</span>;
+                          }
+
+                          // If unit is a built-in child whose parent is damaged or lost:
+                          if (isBuiltIn && parent) {
+                            const pCond = String(parent.condition || parent.raw_condition || '').toLowerCase();
+                            const pSt = String(parent.status || parent.raw_status || '').toLowerCase();
+                            const isParentBroken = ['damaged', 'lost', 'decommissioned', 'under repair'].includes(pCond) || ['damaged', 'lost', 'decommissioned', 'maintenance', 'under_maintenance'].includes(pSt);
+                            if (isParentBroken || st === 'unavailable') {
+                              return <span className="text-[11px] font-bold text-amber-500 dark:text-amber-400" title="Parent kit damaged">Unavailable</span>;
+                            }
+                            return <span className="text-[11px] font-bold text-violet-500 dark:text-violet-400">Built-in</span>;
+                          }
+
+                          if (st === 'available') {
+                            return <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400">Available</span>;
+                          }
+                          if (st === 'released' || st === 'in-use' || st === 'in_use') {
+                            return <span className="text-[11px] font-bold text-blue-500 dark:text-blue-400">Released</span>;
+                          }
+                          if (st === 'reserved') {
+                            return <span className="text-[11px] font-bold text-indigo-500 dark:text-indigo-400">Reserved</span>;
+                          }
+                          return <span className="text-[11px] font-bold text-amber-500 dark:text-amber-400">Unavailable</span>;
+                        })()}
                       </td>
                       <td className="px-4 py-3.5 text-slate-600 dark:text-slate-300 whitespace-nowrap">{item.date_purchased}</td>
                       <td className="px-4 py-3.5 text-slate-600 dark:text-slate-300 whitespace-nowrap">{ageYears.toFixed(1)} / {lifespanYears} yrs</td>
@@ -847,7 +939,7 @@ export default function ManageEquipments() {
                                   category: item.category || "",
                                   date_purchased: item.date_purchased || "",
                                   lifespan_years: String(item.lifespan_years || 5),
-                                  status: item.status || "available",
+                                  status: parentUnitMap.has(String(item.id)) || String(item.status).toLowerCase() === "built-in" ? "built-in" : (item.status || "available"),
                                   condition: item.condition || "Good",
                                   description: item.description || "",
                                   reason: "",

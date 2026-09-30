@@ -45,12 +45,14 @@ export default function TrackBooking() {
     return `${hours}h ${minutes}m remaining`;
   }, []);
 
-  const executeTrack = useCallback(async (codeToSearch) => {
+  const executeTrack = useCallback(async (codeToSearch, isSilent = false) => {
     const query = (codeToSearch || trackCode).trim().toUpperCase();
     if (!query) return;
-    setLoading(true);
-    setHasSearched(false);
-    setBooking(null);
+    if (!isSilent) {
+      setLoading(true);
+      setHasSearched(false);
+      setBooking(null);
+    }
 
     let foundRecord = null;
 
@@ -66,65 +68,62 @@ export default function TrackBooking() {
 
     if (foundRecord) {
       setIsFound(true);
-      setBooking(foundRecord);
-    } else {
+      setBooking(prev => {
+        // Only update if something changed
+        if (JSON.stringify(prev) === JSON.stringify(foundRecord)) return prev;
+        return foundRecord;
+      });
+    } else if (!isSilent) {
       setIsFound(false);
       setBooking(null);
     }
 
-    setHasSearched(true);
-    setLoading(false);
+    if (!isSilent) {
+      setHasSearched(true);
+      setLoading(false);
+    }
   }, [trackCode]);
 
-  const handleResubmit = useCallback(async (e) => {
-    e.preventDefault();
-    if (!resubmitFile) {
-      setResubmitError("Please select a document or file to upload.");
-      return;
-    }
-    setResubmitLoading(true);
-    setResubmitError("");
-    setResubmitSuccess("");
-
-    try {
-      const formData = new FormData();
-      const ref = booking?.reference_code || trackCode;
-      formData.append("reference_code", ref);
-      formData.append("requirement_file", resubmitFile);
-      formData.append("documents", resubmitFile);
-      if (resubmitRemarks) {
-        formData.append("applicant_remarks", resubmitRemarks);
-      }
-
-      const res = await api.post("/public/resubmit-requirements", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-
-      setResubmitSuccess(res.data?.message || "Missing requirements uploaded successfully! Your reservation has been returned to review.");
-      setResubmitFile(null);
-      setResubmitRemarks("");
-      setTimeout(() => {
-        executeTrack(ref);
-      }, 1500);
-    } catch (err) {
-      setResubmitError(err.response?.data?.message || "Failed to upload requirements. Please try again.");
-    } finally {
-      setResubmitLoading(false);
-    }
-  }, [resubmitFile, resubmitRemarks, booking?.reference_code, trackCode, executeTrack]);
-
-  const handleTrack = useCallback((e) => {
-    if (e) e.preventDefault();
-    executeTrack(trackCode);
-  }, [executeTrack, trackCode]);
+  const handleTrack = (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    executeTrack(trackCode, false);
+  };
 
   useEffect(() => {
-    const urlRef = searchParams.get("ref") || searchParams.get("code");
-    if (urlRef) {
-      setTrackCode(urlRef);
-      executeTrack(urlRef);
+    const codeFromUrl = searchParams.get("ref") || searchParams.get("code") || searchParams.get("reference_code");
+    if (codeFromUrl) {
+      setTrackCode(codeFromUrl);
+      executeTrack(codeFromUrl, false);
     }
   }, [searchParams, executeTrack]);
+
+  // Silent real-time synchronization every 8 seconds for the tracked booking
+  useEffect(() => {
+    const activeRef = booking?.reference_code || trackCode;
+    if (!isFound || !activeRef) return;
+
+    const timer = setInterval(() => {
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+      executeTrack(activeRef, true);
+    }, 8000);
+
+    const handleSync = () => {
+      executeTrack(activeRef, true);
+    };
+
+    window.addEventListener("fsuu_booking_status_updated", handleSync);
+    window.addEventListener("venue_bookings_updated", handleSync);
+    window.addEventListener("equipment_borrowings_updated", handleSync);
+    window.addEventListener("storage", handleSync);
+
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener("fsuu_booking_status_updated", handleSync);
+      window.removeEventListener("venue_bookings_updated", handleSync);
+      window.removeEventListener("equipment_borrowings_updated", handleSync);
+      window.removeEventListener("storage", handleSync);
+    };
+  }, [isFound, booking?.reference_code, trackCode, executeTrack]);
 
   // Real-time status update via Pusher WebSockets
   useEffect(() => {

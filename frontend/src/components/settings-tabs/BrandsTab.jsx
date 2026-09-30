@@ -6,6 +6,7 @@ import {
 import api from "@/lib/axios";
 import notify from "@/lib/notify";
 import ConfirmModal from "@/components/ui/ConfirmModal";
+import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 
 export default function BrandsTab() {
   const [brands, setBrands] = useState([]);
@@ -127,6 +128,13 @@ export default function BrandsTab() {
     setShowDeleteModal(true);
   };
 
+  const broadcastBrandChange = () => {
+    window.dispatchEvent(new Event("brands_updated"));
+    try { localStorage.setItem("fsuu_brand_updated_ping", Date.now().toString()); } catch {}
+  };
+
+  useRealtimeSync(fetchBrands, { interval: 15000, customEvents: ["brands_updated"] });
+
   const handleSaveAdd = async (e) => {
     e.preventDefault();
     if (!formData.equipment_type_id) {
@@ -145,6 +153,7 @@ export default function BrandsTab() {
       setIsFormDirty(false);
       setShowAddModal(false);
       fetchBrands();
+      broadcastBrandChange();
     } catch (err) {
       setFormError(err.response?.data?.errors?.name?.[0] || err.response?.data?.message || "This equipment brand already exists.");
     } finally {
@@ -170,6 +179,7 @@ export default function BrandsTab() {
       setIsFormDirty(false);
       setShowEditModal(false);
       fetchBrands();
+      broadcastBrandChange();
     } catch (err) {
       setFormError(err.response?.data?.errors?.name?.[0] || err.response?.data?.message || "This equipment brand already exists.");
     } finally {
@@ -183,6 +193,7 @@ export default function BrandsTab() {
       const nextStatus = brand.status === "active" ? "Disabled" : "Enabled";
       notify.success("Status Updated", `Brand is now ${nextStatus.toLowerCase()}.`);
       fetchBrands();
+      broadcastBrandChange();
     } catch (err) {
       notify.error("Error", "Could not toggle brand status.");
     }
@@ -196,6 +207,7 @@ export default function BrandsTab() {
       notify.success("Brand Removed", `Brand "${selectedBrand.name}" has been deleted.`);
       setShowDeleteModal(false);
       fetchBrands();
+      broadcastBrandChange();
     } catch (err) {
       notify.error("Cannot Delete", err.response?.data?.message || "Cannot delete this brand as it is linked to equipment units.");
       setShowDeleteModal(false);

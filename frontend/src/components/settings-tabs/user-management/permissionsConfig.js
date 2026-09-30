@@ -81,6 +81,7 @@ export const PERMISSION_MODULES = [
       { key: "breaches",          label: "Policy Violations & Damages" },
       { key: "inventory",         label: "Equipment Stock & Availability" },
       { key: "equipment_out",     label: "Equipment Out" },
+      { key: "incident_reports",  label: "Incident & Damage Reports" },
       { key: "export_pdf",        label: "Export PDF / Print" },
     ],
   },

@@ -41,8 +41,64 @@ class InspectionController extends Controller
                     $query->where('inspectable_type', $refType);
                 }
             }
+            $inspections = $query->with('inspectedBy')->get();
 
-            return response()->json($query->get());
+            // Gather IDs to batch-query targets
+            $vbIds = [];
+            $ebIds = [];
+            $unitIds = [];
+
+            foreach ($inspections as $ins) {
+                $t = strtolower(class_basename($ins->inspectable_type ?? ''));
+                if (str_contains($t, 'venue')) {
+                    if ($ins->inspectable_id) $vbIds[] = $ins->inspectable_id;
+                } elseif (str_contains($t, 'borrow')) {
+                    if ($ins->inspectable_id) $ebIds[] = $ins->inspectable_id;
+                } elseif (str_contains($t, 'unit')) {
+                    if ($ins->inspectable_id) $unitIds[] = $ins->inspectable_id;
+                }
+            }
+
+            $vbMap = !empty($vbIds) ? VenueBooking::with('venue')->whereIn('id', array_unique($vbIds))->get()->keyBy('id') : collect();
+            $ebMap = !empty($ebIds) ? EquipmentBorrow::with(['trackingNumber', 'items.equipmentType'])->whereIn('id', array_unique($ebIds))->get()->keyBy('id') : collect();
+            $unitMap = !empty($unitIds) ? EquipmentUnit::with('equipmentType')->whereIn('id', array_unique($unitIds))->get()->keyBy('id') : collect();
+
+            $enriched = $inspections->map(function ($ins) use ($vbMap, $ebMap, $unitMap) {
+                $t = strtolower(class_basename($ins->inspectable_type ?? ''));
+                $targetType = 'venue_booking';
+                $targetCode = 'VB-' . $ins->inspectable_id;
+                $targetName = 'Venue Reservation';
+                $targetFiler = null;
+
+                if (str_contains($t, 'borrow')) {
+                    $targetType = 'equipment_borrow';
+                    $eb = $ebMap->get($ins->inspectable_id);
+                    $targetCode = $eb?->trackingNumber?->reference_code ?? ('EB-' . $ins->inspectable_id);
+                    $targetName = $eb ? ($eb->items->pluck('equipmentType.eq_name')->filter()->join(', ') ?: 'Equipment Borrow') : 'Equipment Borrow';
+                    $targetFiler = $eb?->filer_name;
+                } elseif (str_contains($t, 'unit')) {
+                    $targetType = 'equipment_unit';
+                    $u = $unitMap->get($ins->inspectable_id);
+                    $targetCode = $u?->serial_number ?: ($u?->barcode ?: ('UNIT-' . $ins->inspectable_id));
+                    $targetName = ($u?->equipmentType?->eq_name ?? 'Equipment') . ($u?->model ? ' (' . $u->model . ')' : '');
+                    $targetFiler = $u?->brand;
+                } else {
+                    $vb = $vbMap->get($ins->inspectable_id);
+                    $targetCode = $vb?->reference_code ?? ('VB-' . $ins->inspectable_id);
+                    $targetName = $vb?->venue?->name ?? 'Venue Reservation';
+                    $targetFiler = $vb?->applicant_name ?? $vb?->filer_name;
+                }
+
+                $data = $ins->toArray();
+                $data['target_type'] = $targetType;
+                $data['target_code'] = $targetCode;
+                $data['target_name'] = $targetName;
+                $data['target_filer'] = $targetFiler;
+                $data['inspected_by_name'] = $ins->inspectedBy?->name ?? 'Staff / Inspector';
+                return $data;
+            });
+
+            return response()->json($enriched);
         } catch (\Throwable $e) {
             Log::error("InspectionController::index error: " . $e->getMessage());
             return response()->json([]);
@@ -162,9 +218,13 @@ class InspectionController extends Controller
                 ? ['post_use', 'post_event']
                 : [$incomingType];
 
-            $inspectableClass = (in_array($refType, ['equipment_borrow', 'avr_equipment_borrowing', EquipmentBorrow::class, 'App\Models\EquipmentBorrow']))
-                ? EquipmentBorrow::class
-                : VenueBooking::class;
+            if (in_array($refType, ['equipment_unit', EquipmentUnit::class, 'App\Models\EquipmentUnit'])) {
+                $inspectableClass = EquipmentUnit::class;
+            } elseif (in_array($refType, ['equipment_borrow', 'avr_equipment_borrowing', EquipmentBorrow::class, 'App\Models\EquipmentBorrow'])) {
+                $inspectableClass = EquipmentBorrow::class;
+            } else {
+                $inspectableClass = VenueBooking::class;
+            }
 
             $inspection = null;
             if ($refId) {
@@ -203,18 +263,47 @@ class InspectionController extends Controller
                 $inspection = Inspection::forceCreate($data);
             }
 
+            // If direct equipment unit inspection
+            if ($inspectableClass === EquipmentUnit::class && $refId) {
+                $targetUnit = EquipmentUnit::find($refId);
+                if ($targetUnit) {
+                    $uCondStr = strtolower(trim((string)$condition));
+                    $targetUnitCond = match($uCondStr) {
+                        'damaged'                      => 'Damaged',
+                        'lost'                         => 'Lost',
+                        'under repair', 'under_repair' => 'Under Repair',
+                        default                        => 'Good',
+                    };
+                    $targetUnitStatus = in_array($targetUnitCond, ['Damaged', 'Lost', 'Under Repair']) ? 'unavailable' : 'available';
+                    $targetUnit->update(['condition' => $targetUnitCond, 'status' => $targetUnitStatus]);
+
+                    try {
+                        $unitController = new \App\Http\Controllers\General\EquipmentUnitController();
+                        $unitController->resolveParentAndChildrenStatus($targetUnit);
+                        if ($targetUnit->equipment_type_id) {
+                            $unitController->syncCategoryStock((int)$targetUnit->equipment_type_id);
+                        }
+                    } catch (\Throwable $e) {
+                        Log::warning("Inspection unit sync error: " . $e->getMessage());
+                    }
+                }
+            }
+
             // Synchronize assigned_units to parent model
             if (!empty($assignedUnits) && $refId) {
                 $rawAu = is_array($assignedUnits) ? json_encode($assignedUnits) : $assignedUnits;
                 if ($inspectableClass === EquipmentBorrow::class) {
                     EquipmentBorrow::where('id', $refId)->update(['assigned_units' => $rawAu]);
-                } else {
+                } elseif ($inspectableClass === VenueBooking::class) {
                     VenueBooking::where('id', $refId)->update(['assigned_units' => $rawAu]);
                 }
             }
 
             // Synchronize physical units condition and availability status
             if (is_array($unitConditions) && Schema::hasTable('equipment_units')) {
+                // Collect all category IDs that need to be re-synced after inspection
+                $affectedCategoryIds = [];
+
                 foreach ($unitConditions as $key => $condVal) {
                     if (is_array($condVal)) {
                         $rawCondition = $condVal['condition'] ?? $condVal['status'] ?? 'good';
@@ -222,58 +311,59 @@ class InspectionController extends Controller
                         $rawCondition = (string)$condVal;
                     }
                     $condStr = strtolower(trim($rawCondition));
-                    $uStatus = ($condStr === 'damaged' || $condStr === 'lost') ? 'unavailable' : 'available';
-                    $uCond = $condStr === 'damaged' ? 'Damaged' : ($condStr === 'lost' ? 'Lost' : 'Good');
-                    
+                    $isNegative = in_array($condStr, ['damaged', 'lost', 'decommissioned']);
+                    $isGood     = !$isNegative; // 'good' or any non-damaged/lost value
+
+                    $uStatus = $isNegative ? 'unavailable' : 'available';
+                    $uCond   = match($condStr) {
+                        'damaged'                    => 'Damaged',
+                        'lost', 'decommissioned'     => 'Lost',
+                        default                      => 'Good',
+                    };
+
                     $uBar = is_array($assignedUnits) ? ($assignedUnits[$key] ?? null) : null;
                     $lookupKeys = array_filter(array_unique([$key, $uBar]));
 
-                    if (!empty($lookupKeys)) {
-                        $nIds = array_values(array_filter($lookupKeys, fn($v) => is_numeric($v) && (int)$v > 0));
-                        $uCodes = array_values(array_filter($lookupKeys, fn($v) => !empty($v)));
+                    if (empty($lookupKeys)) continue;
 
-                        $matchedUnits = EquipmentUnit::where(function($q) use ($uCodes, $nIds) {
-                            $q->whereIn('barcode', $uCodes);
-                            if (!empty($nIds)) {
-                                $q->orWhereIn('id', array_map('intval', $nIds));
-                            }
-                        })->get();
+                    $nIds   = array_values(array_filter($lookupKeys, fn($v) => is_numeric($v) && (int)$v > 0));
+                    $uCodes = array_values(array_filter($lookupKeys, fn($v) => !empty($v)));
 
-                        foreach ($matchedUnits as $unit) {
-                            $unit->update(['status' => $uStatus, 'condition' => $uCond]);
+                    $matchedUnits = EquipmentUnit::where(function($q) use ($uCodes, $nIds) {
+                        $q->whereIn('barcode', $uCodes);
+                        if (!empty($nIds)) {
+                            $q->orWhereIn('id', array_map('intval', $nIds));
+                        }
+                    })->get();
 
-                            // If damaged or lost: ensure bundle integrity
-                            if ($condStr === 'damaged' || $condStr === 'lost') {
-                                // 1. If this is a child unit, find its parent unit and mark the parent unavailable too
-                                $uIdStr = (string)$unit->id;
-                                $uCode = $unit->barcode ?: $unit->serial_number;
+                    foreach ($matchedUnits as $unit) {
+                        // Update the inspected unit itself
+                        $unit->update(['status' => $uStatus, 'condition' => $uCond]);
 
-                                $parentUnits = EquipmentUnit::whereNotNull('built_in_units')->get()->filter(function($p) use ($uIdStr, $uCode) {
-                                    $built = is_array($p->built_in_units) ? $p->built_in_units : (is_string($p->built_in_units) ? json_decode($p->built_in_units, true) : []);
-                                    if (!is_array($built)) return false;
-                                    return in_array($uIdStr, array_map('strval', $built)) || ($uCode && in_array((string)$uCode, array_map('strval', $built)));
-                                });
+                        if ($unit->equipment_type_id) {
+                            $affectedCategoryIds[] = $unit->equipment_type_id;
+                        }
 
-                                foreach ($parentUnits as $parent) {
-                                    $parent->update([
-                                        'status' => 'unavailable',
-                                        'condition' => $uCond,
-                                    ]);
-                                }
+                        // ── Resolve parent kit and child component relationships & sync affected categories ──
+                        try {
+                            $unitController = new \App\Http\Controllers\General\EquipmentUnitController();
+                            $catIds = $unitController->resolveParentAndChildrenStatus($unit);
+                            $affectedCategoryIds = array_merge($affectedCategoryIds, $catIds);
+                        } catch (\Throwable $e) {
+                            Log::warning("Inspection: failed to resolve parent/children for unit {$unit->id}: " . $e->getMessage());
+                        }
+                    }
+                }
 
-                                // 2. If this is a parent unit, mark all its child units unavailable too
-                                $built = is_array($unit->built_in_units) ? $unit->built_in_units : (is_string($unit->built_in_units) ? json_decode($unit->built_in_units, true) : []);
-                                if (is_array($built) && !empty($built)) {
-                                    $cIds = array_values(array_filter($built, fn($v) => is_numeric($v) && (int)$v > 0));
-                                    $cCodes = array_values(array_filter($built, fn($v) => !empty($v)));
-                                    EquipmentUnit::where(function($q) use ($cCodes, $cIds) {
-                                        $q->whereIn('barcode', $cCodes);
-                                        if (!empty($cIds)) {
-                                            $q->orWhereIn('id', array_map('intval', $cIds));
-                                        }
-                                    })->update(['status' => 'unavailable', 'condition' => $uCond]);
-                                }
-                            }
+                // Re-sync all affected categories after all unit updates
+                $affectedCategoryIds = array_unique(array_filter($affectedCategoryIds));
+                if (!empty($affectedCategoryIds)) {
+                    $unitController = new \App\Http\Controllers\General\EquipmentUnitController();
+                    foreach ($affectedCategoryIds as $catId) {
+                        try {
+                            $unitController->syncCategoryStock((int)$catId);
+                        } catch (\Throwable $e) {
+                            Log::warning("Inspection: failed to sync category {$catId}: " . $e->getMessage());
                         }
                     }
                 }

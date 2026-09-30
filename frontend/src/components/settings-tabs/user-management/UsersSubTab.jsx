@@ -228,31 +228,25 @@ export default function UsersSubTab({ showMsg }) {
   return (
     <div className="space-y-5">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-        <div>
-          <h3 className="text-sm font-semibold text-slate-900">User Accounts</h3>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Create and manage staff and student assistant accounts.
-          </p>
-        </div>
+      <div className="flex items-center justify-between">
+        <h3 className="text-xs font-semibold text-slate-900 uppercase tracking-wider">Users</h3>
         <button
           onClick={openCreate}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold transition-colors cursor-pointer shadow-xs"
+          className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold transition-colors cursor-pointer"
         >
-          <Plus size={14} /> Create Account
+          Add
         </button>
       </div>
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-2.5">
         <div className="relative flex-1 max-w-xs">
-          <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
-            placeholder="Search by name or email..."
+            placeholder="Search..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-8 pr-3 py-2 border border-slate-200 rounded-lg text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-slate-400 transition-colors"
+            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-slate-400 transition-colors"
           />
         </div>
         <select
@@ -260,7 +254,7 @@ export default function UsersSubTab({ showMsg }) {
           onChange={(e) => setRoleFilter(e.target.value)}
           className="px-3 py-2 border border-slate-200 rounded-lg text-xs font-medium text-slate-700 focus:outline-none focus:border-slate-400 bg-white cursor-pointer"
         >
-          <option value="all">All Roles</option>
+          <option value="all">All</option>
           {availableRoles.map((r) => {
             const roleName = r.name || r;
             const roleLabel = roleName === "staff" ? "Staff" : roleName === "student_assistant" ? "Student Assistant" : roleName.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
@@ -276,38 +270,38 @@ export default function UsersSubTab({ showMsg }) {
           onChange={(e) => setStatusFilter(e.target.value)}
           className="px-3 py-2 border border-slate-200 rounded-lg text-xs font-medium text-slate-700 focus:outline-none focus:border-slate-400 bg-white cursor-pointer"
         >
-          <option value="all">All Statuses</option>
-          <option value="active">Enable</option>
+          <option value="all">All</option>
+          <option value="active">Active</option>
           <option value="pending">Pending</option>
           <option value="disabled">Disabled</option>
         </select>
       </div>
 
       {/* Table with horizontal scroll */}
-      <div className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-xs">
+      <div className="border border-slate-200 rounded-lg overflow-hidden bg-white">
         <div className="overflow-x-auto w-full">
           <table className="w-full text-left text-xs min-w-[760px]">
           <thead className="bg-slate-50 border-b border-slate-200">
             <tr>
-              <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+              <th className="px-4 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
                 User
               </th>
-              <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+              <th className="px-4 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
                 Email
               </th>
-              <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+              <th className="px-4 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
                 Role
               </th>
-              <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-                Email Verified
+              <th className="px-4 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                Verified
               </th>
-              <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+              <th className="px-4 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
                 Status
               </th>
-              <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-                Date Added
+              <th className="px-4 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                Created
               </th>
-              <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider text-right">
+              <th className="px-4 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider text-right">
                 Actions
               </th>
             </tr>
@@ -385,12 +379,11 @@ export default function UsersSubTab({ showMsg }) {
 
                     {/* Role */}
                     <td className="px-4 py-3">
-                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold border ${
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold border ${
                         isSA
                           ? "bg-emerald-50 text-emerald-700 border-emerald-200"
                           : "bg-blue-50 text-blue-700 border-blue-200"
                       }`}>
-                        {isSA ? <GraduationCap size={10} /> : <Users size={10} />}
                         {roleLabel}
                       </span>
                     </td>
@@ -398,15 +391,12 @@ export default function UsersSubTab({ showMsg }) {
                     {/* Email Verified */}
                     <td className="px-4 py-3">
                       {isVerified ? (
-                        <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-emerald-600">
-                          <CheckCircle2 size={13} /> Verified
+                        <span className="text-[11px] font-medium text-emerald-600">
+                          Verified
                         </span>
                       ) : (
-                        <span
-                          className="inline-flex items-center gap-1.5 text-[11px] font-medium text-amber-600"
-                          title="This email has not been verified. The user may be using an undeliverable or invalid address."
-                        >
-                          <AlertCircle size={13} /> Unverified
+                        <span className="text-[11px] font-medium text-amber-600">
+                          Unverified
                         </span>
                       )}
                     </td>
@@ -414,23 +404,22 @@ export default function UsersSubTab({ showMsg }) {
                     {/* Status */}
                     <td className="px-4 py-3 whitespace-nowrap">
                       {isDisabled ? (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-[10px] font-bold bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900/40">
-                          <Ban size={10} className="mr-1 text-rose-500 dark:text-rose-400/80" />
-                          Inactive
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-600 border border-rose-200">
+                          Disabled
                         </span>
                       ) : isPending ? (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-[10px] font-bold bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-900/40">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-600 border border-amber-200">
                           Pending
                         </span>
                       ) : (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/40">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-600 border border-emerald-200">
                           Active
                         </span>
                       )}
                     </td>
 
                     {/* Date Added */}
-                    <td className="px-4 py-3 text-slate-500 dark:text-slate-400 whitespace-nowrap">{dateAdded}</td>
+                    <td className="px-4 py-3 text-slate-500 whitespace-nowrap">{dateAdded}</td>
 
                     {/* Actions */}
                     <td className="px-4 py-3 text-right">
@@ -438,14 +427,13 @@ export default function UsersSubTab({ showMsg }) {
                         <button
                           type="button"
                           onClick={() => handleToggleDisable(u)}
-                          className={`p-1.5 rounded-lg border text-xs transition-all cursor-pointer shadow-2xs ${
+                          className={`px-2 py-1 rounded border text-xs font-medium cursor-pointer ${
                             !isDisabled
-                              ? "text-rose-600 bg-rose-50 border-rose-200 hover:bg-rose-100 dark:text-rose-400/80 dark:bg-rose-950/40 dark:border-rose-900/40 hover:dark:bg-rose-900/40 hover:dark:text-rose-300"
-                              : "text-emerald-600 bg-emerald-50 border-emerald-200 hover:bg-emerald-100 dark:text-emerald-400/80 dark:bg-emerald-950/40 dark:border-emerald-900/40 hover:dark:bg-emerald-900/40 hover:dark:text-emerald-300"
+                              ? "text-rose-600 bg-rose-50 border-rose-200 hover:bg-rose-100"
+                              : "text-emerald-600 bg-emerald-50 border-emerald-200 hover:bg-emerald-100"
                           }`}
-                          title={isDisabled ? "Enable Account" : "Disable Account"}
                         >
-                          {!isDisabled ? <Ban size={13} /> : <CheckCircle2 size={13} />}
+                          {isDisabled ? "Enable" : "Disable"}
                         </button>
 
                         <div className="action-menu-wrap inline-block">
@@ -464,7 +452,7 @@ export default function UsersSubTab({ showMsg }) {
                             className={`p-1.5 rounded-lg border text-xs transition-all cursor-pointer ${
                               openActionId === u.id
                                 ? "bg-blue-600 border-blue-600 text-white"
-                                : "border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
+                                : "border-slate-200 text-slate-600 hover:bg-slate-50"
                             }`}
                           >
                             <MoreVertical size={13} />
@@ -485,9 +473,9 @@ export default function UsersSubTab({ showMsg }) {
                                 setActionAnchorEl(null);
                                 openEdit(u);
                               }}
-                              className="w-full px-3.5 py-2 text-left text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:text-blue-600 dark:hover:text-blue-300 flex items-center gap-2 transition-colors cursor-pointer"
+                              className="w-full px-3.5 py-2 text-left text-xs font-medium text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
                             >
-                              <Edit2 size={12} /> Edit Account
+                              Edit
                             </button>
                             <button
                               type="button"
@@ -497,12 +485,11 @@ export default function UsersSubTab({ showMsg }) {
                                 handleResend(u);
                               }}
                               disabled={resendingId === u.id}
-                              className="w-full px-3.5 py-2 text-left text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:text-blue-600 dark:hover:text-blue-300 flex items-center gap-2 transition-colors cursor-pointer"
+                              className="w-full px-3.5 py-2 text-left text-xs font-medium text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
                             >
-                              <Mail size={12} />{" "}
-                              {resendingId === u.id ? "Sending..." : "Resend Invite"}
+                              {resendingId === u.id ? "Sending" : "Invite"}
                             </button>
-                            <div className="border-t border-slate-100 dark:border-slate-800 my-0.5" />
+                            <div className="border-t border-slate-100 my-0.5" />
                             <button
                               type="button"
                               onClick={() => {
@@ -510,14 +497,13 @@ export default function UsersSubTab({ showMsg }) {
                                 setActionAnchorEl(null);
                                 handleToggleDisable(u);
                               }}
-                              className={`w-full px-3.5 py-2 text-left text-xs font-medium flex items-center gap-2 transition-colors cursor-pointer ${
+                              className={`w-full px-3.5 py-2 text-left text-xs font-medium transition-colors cursor-pointer ${
                                 !isDisabled
-                                  ? "text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/30"
-                                  : "text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950/30"
+                                  ? "text-rose-600 hover:bg-rose-50"
+                                  : "text-emerald-600 hover:bg-emerald-50"
                               }`}
                             >
-                              <Power size={12} />{" "}
-                              {isDisabled ? "Enable Account" : "Disable Account"}
+                              {isDisabled ? "Enable" : "Disable"}
                             </button>
                           </ActionPopover>
                         </div>

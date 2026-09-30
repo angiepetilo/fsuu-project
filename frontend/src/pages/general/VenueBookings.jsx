@@ -122,7 +122,7 @@ export default function VenueBookings() {
     }
   }, []);
 
-  useRealtimeSync(fetchBookings, { interval: 30000 });
+  useRealtimeSync(fetchBookings, { interval: 10000, customEvents: ["venue_bookings_updated", "equipment_inventory_updated"] });
 
   // Deep-link from notification navigation
   useEffect(() => {

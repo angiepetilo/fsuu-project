@@ -344,10 +344,10 @@ export default function PdfPreviewModal({
                             <td className="border border-slate-300 p-2.5 text-center text-slate-500 font-bold">{i + 1}</td>
                             <td className="border border-slate-300 p-2.5 font-extrabold text-slate-900">{v.department || v.program || "Academic Dept"}</td>
                             <td className="border border-slate-300 p-2.5 text-center text-rose-600 font-extrabold">
-                              {v.venue_violations ?? 0} Breaches
+                              {v.venue_violations ?? 0}
                             </td>
                             <td className="border border-slate-300 p-2.5 font-semibold text-slate-800">
-                              {`${v.late_returns || 0} Late Return / ${v.equipment_damages || 0} Damaged / ${v.equipment_lost || 0} Lost`}
+                              {`${v.late_returns || 0} Late, ${v.equipment_damages || 0} Damaged, ${v.equipment_lost || 0} Lost`}
                             </td>
                           </tr>
                         ))

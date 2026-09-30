@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useOutletContext } from "react-router-dom";
 import api from "@/lib/axios";
-import { fetchWithCache } from "@/lib/apiCache";
+import { fetchWithCache, invalidateCache } from "@/lib/apiCache";
 import {
   Save, Loader2, CheckCircle2,
   Barcode, Copy, Check, MoreVertical, Eye,
@@ -66,6 +66,134 @@ export default function EquipmentStockTab({
     }
   }, [filteredInventory]);
 
+  // ── Bottom Table (Physical Equipment Units) — declared early so handleSubmitInventoryReport can call fetchUnits ──
+  const [units, setUnits] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [unitsLoading, setUnitsLoading] = useState(true);
+  const [activeCategory, setActiveCategory] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [openActionId, setOpenActionId] = useState(null);
+  const [actionAnchorEl, setActionAnchorEl] = useState(null);
+  const [copiedBarcode, setCopiedBarcode] = useState(null);
+  const [unitPage, setUnitPage] = useState(1);
+  const UNIT_ITEMS_PER_PAGE = 10;
+
+  const fetchUnits = useCallback(async () => {
+    setUnitsLoading(true);
+    try {
+      const [catData, unitRes] = await Promise.all([
+        api.get('/general/equipment-types').then(r => r.data).catch(() => []),
+        api.get('/general/equipment-units').catch(() => ({ data: [] })),
+      ]);
+
+      const catList = Array.isArray(catData) ? catData : [];
+      const unitData = Array.isArray(unitRes.data) ? unitRes.data : [];
+
+      setCategories(catList);
+
+      // Identify all child units assigned to parents
+      const childIdSet = new Set();
+      unitData.forEach(p => {
+        let raw = p.built_in_units;
+        if (typeof raw === 'string') {
+          try { raw = JSON.parse(raw); } catch { raw = []; }
+        }
+        if (Array.isArray(raw)) {
+          raw.forEach(id => {
+            if (id) {
+              if (typeof id === 'object' && id !== null && id.id) {
+                childIdSet.add(String(id.id).trim().toLowerCase());
+              } else {
+                childIdSet.add(String(id).trim().toLowerCase());
+              }
+            }
+          });
+        }
+      });
+
+      const allMappedUnits = unitData.map((u, idx) => {
+        const bCode = String(u.barcode || `BC-EQP-2026-00${idx + 1}`).trim();
+        const dbStatusRaw = (u.status || 'available').toLowerCase();
+        const dbCondition = u.condition || '';
+        const condLower = dbCondition.toLowerCase();
+
+        let conditionLabel;
+        if (condLower === 'good' || condLower === 'good condition') conditionLabel = 'Good';
+        else if (condLower === 'damaged') conditionLabel = 'Damaged';
+        else if (condLower === 'lost') conditionLabel = 'Lost';
+        else if (condLower === 'maintenance' || condLower === 'under_maintenance' || condLower === 'under repair') conditionLabel = 'Under Repair';
+        else if (condLower === 'worn' || condLower === 'minor wear') conditionLabel = 'Minor Wear';
+        else if (dbStatusRaw === 'damaged') conditionLabel = 'Damaged';
+        else if (dbStatusRaw === 'maintenance' || dbStatusRaw === 'under_maintenance') conditionLabel = 'Under Repair';
+        else if (dbStatusRaw === 'decommissioned' || dbStatusRaw === 'lost') conditionLabel = 'Lost';
+        else conditionLabel = 'Good';
+
+        const isChild = childIdSet.has(String(u.id).toLowerCase()) ||
+          (u.barcode && childIdSet.has(String(u.barcode).trim().toLowerCase())) ||
+          (u.serial_number && childIdSet.has(String(u.serial_number).trim().toLowerCase()));
+
+        let dbStatus = dbStatusRaw;
+        // Damaged / Lost / Repair takes precedence
+        if (
+          ['lost', 'damaged', 'under repair', 'worn', 'minor wear'].includes(conditionLabel.toLowerCase()) ||
+          ['damaged', 'maintenance', 'under_maintenance', 'decommissioned', 'unavailable', 'lost'].includes(dbStatusRaw)
+        ) {
+          dbStatus = 'unavailable';
+        } else if (isChild || dbStatusRaw === 'built-in' || dbStatusRaw === 'built_in') {
+          dbStatus = 'Built-in';
+        } else if (dbStatusRaw === 'released' || dbStatusRaw === 'in-use' || dbStatusRaw === 'released / in-use' || dbStatusRaw === 'release / in - use') {
+          dbStatus = 'Released';
+        } else if (dbStatusRaw === 'reserved') {
+          dbStatus = 'Reserved';
+        } else {
+          dbStatus = 'Available';
+        }
+
+        const eqType = u.equipment_type || u.equipmentType || catList.find(c => String(c.id) === String(u.equipment_type_id));
+        const catName = eqType?.eq_name || eqType?.name || eqType?.eq_type || 'AV Equipment';
+        const brandModel = [u.brand, u.model].filter(Boolean).join(' ');
+        const derivedName = brandModel || catName || 'Equipment Unit';
+
+        return {
+          id: u.id || idx + 1,
+          equipment_type_id: u.equipment_type_id,
+          brand: u.brand || '',
+          model: u.model || '',
+          serial_number: u.serial_number || u.barcode || bCode,
+          barcode: bCode,
+          name: derivedName,
+          category: catName,
+          office_id: eqType?.office_id || u.office_id || null,
+          office_name: eqType?.office?.name || 'AVR Office I',
+          status: dbStatus,
+          condition: conditionLabel,
+          is_child: isChild,
+          is_disabled: !!u.is_disabled,
+          available_count: dbStatus === 'Available' ? 1 : 0,
+          total_count: 1,
+          date_purchased: u.purchased_at ? u.purchased_at.substring(0, 10) : '2026-01-15',
+          lifespan_years: u.eq_lifespan || 5,
+          description: u.description || '',
+          raw_status: dbStatusRaw,
+          raw_condition: dbCondition,
+          built_in_units: Array.isArray(u.built_in_units)
+            ? u.built_in_units
+            : (typeof u.built_in_units === 'string'
+                ? (() => { try { return JSON.parse(u.built_in_units); } catch { return []; } })()
+                : []),
+        };
+      });
+
+      // Parent units with built-in child units are counted as available (they are kit packages ready for use)
+      setUnits(allMappedUnits);
+    } catch {
+      setUnits([]);
+      setCategories([]);
+    } finally {
+      setUnitsLoading(false);
+    }
+  }, []);
 
 
   const handleSubmitInventoryReport = async () => {
@@ -96,9 +224,19 @@ export default function EquipmentStockTab({
         })
       );
 
+      // Invalidate any TTL caches for equipment data so next fetch is fresh
+      invalidateCache('equipment');
+      invalidateCache('academic_terms');
+
       setFeedback("Equipment stock report saved successfully!");
       setTimeout(() => setFeedback(null), 3000);
-      if (fetchReportsData) fetchReportsData();
+
+      // Trigger silent background refresh of both parent report data and local unit list
+      if (fetchReportsData) fetchReportsData({ isSilent: true });
+      fetchUnits();
+
+      // Notify other components listening for inventory changes
+      window.dispatchEvent(new CustomEvent('equipment_inventory_updated'));
     } catch {
       setFeedback("Failed to update stock backend.");
       setTimeout(() => setFeedback(null), 3000);
@@ -107,18 +245,7 @@ export default function EquipmentStockTab({
     }
   };
 
-  // ── Bottom Table (Physical Equipment Units) ──
-  const [units, setUnits] = useState([]);
-  const [categories, setCategories] = useState([]);
-  const [unitsLoading, setUnitsLoading] = useState(true);
-  const [activeCategory, setActiveCategory] = useState("all");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedItem, setSelectedItem] = useState(null);
-  const [openActionId, setOpenActionId] = useState(null);
-  const [actionAnchorEl, setActionAnchorEl] = useState(null);
-  const [copiedBarcode, setCopiedBarcode] = useState(null);
-  const [unitPage, setUnitPage] = useState(1);
-  const UNIT_ITEMS_PER_PAGE = 10;
+
 
   useEffect(() => {
     const handleOutsideClick = (e) => {
@@ -137,93 +264,28 @@ export default function EquipmentStockTab({
     setTimeout(() => setCopiedBarcode(null), 2000);
   };
 
-  const fetchUnits = useCallback(async () => {
-    setUnitsLoading(true);
-    try {
-      const [catData, unitRes] = await Promise.all([
-        api.get('/general/equipment-types').then(r => r.data).catch(() => []),
-        api.get('/general/equipment-units').catch(() => ({ data: [] })),
-      ]);
 
-      const catList = Array.isArray(catData) ? catData : [];
-      const unitData = Array.isArray(unitRes.data) ? unitRes.data : [];
-
-      setCategories(catList);
-
-      setUnits(unitData.map((u, idx) => {
-        const bCode = String(u.barcode || `BC-EQP-2026-00${idx + 1}`).trim();
-        const dbStatusRaw = (u.status || 'available').toLowerCase();
-        const dbCondition = u.condition || '';
-        const condLower = dbCondition.toLowerCase();
-
-        let conditionLabel;
-        if (condLower === 'good' || condLower === 'good condition') conditionLabel = 'Good';
-        else if (condLower === 'damaged') conditionLabel = 'Damaged';
-        else if (condLower === 'lost') conditionLabel = 'Lost';
-        else if (condLower === 'maintenance' || condLower === 'under_maintenance' || condLower === 'under repair') conditionLabel = 'Under Repair';
-        else if (condLower === 'worn' || condLower === 'minor wear') conditionLabel = 'Minor Wear';
-        else if (dbStatusRaw === 'damaged') conditionLabel = 'Damaged';
-        else if (dbStatusRaw === 'maintenance' || dbStatusRaw === 'under_maintenance') conditionLabel = 'Under Repair';
-        else if (dbStatusRaw === 'decommissioned' || dbStatusRaw === 'lost') conditionLabel = 'Lost';
-        else conditionLabel = 'Good';
-
-        let dbStatus = dbStatusRaw;
-        if (
-          ['lost', 'damaged', 'under repair', 'worn', 'minor wear'].includes(conditionLabel.toLowerCase()) ||
-          ['damaged', 'maintenance', 'under_maintenance', 'decommissioned', 'unavailable', 'lost'].includes(dbStatusRaw)
-        ) {
-          dbStatus = 'unavailable';
-        } else if (dbStatusRaw === 'released' || dbStatusRaw === 'in-use' || dbStatusRaw === 'released / in-use' || dbStatusRaw === 'release / in - use') {
-          dbStatus = 'Released';
-        } else if (dbStatusRaw === 'reserved') {
-          dbStatus = 'Reserved';
-        } else {
-          dbStatus = 'Available';
-        }
-
-        const eqType = u.equipment_type || u.equipmentType || catList.find(c => String(c.id) === String(u.equipment_type_id));
-        const catName = eqType?.eq_name || eqType?.name || eqType?.eq_type || 'AV Equipment';
-        const brandModel = [u.brand, u.model].filter(Boolean).join(' ');
-        const derivedName = brandModel || catName || 'Equipment Unit';
-
-        return {
-          id: u.id || idx + 1,
-          equipment_type_id: u.equipment_type_id,
-          brand: u.brand || '',
-          model: u.model || '',
-          barcode: bCode,
-          name: derivedName,
-          category: catName,
-          office_id: eqType?.office_id || u.office_id || null,
-          office_name: eqType?.office?.name || 'AVR Office I',
-          status: dbStatus,
-          condition: conditionLabel,
-          available_count: dbStatus === 'Available' ? 1 : 0,
-          total_count: 1,
-          date_purchased: u.purchased_at ? u.purchased_at.substring(0, 10) : '2026-01-15',
-          lifespan_years: u.eq_lifespan || 5,
-          description: u.description || '',
-          built_in_units: Array.isArray(u.built_in_units)
-            ? u.built_in_units
-            : (typeof u.built_in_units === 'string'
-                ? (() => { try { return JSON.parse(u.built_in_units); } catch { return []; } })()
-                : []),
-        };
-      }));
-    } catch {
-      setUnits([]);
-      setCategories([]);
-    } finally {
-      setUnitsLoading(false);
-    }
-  }, []);
 
   useEffect(() => {
     fetchUnits();
-    const handleInventoryUpdate = () => fetchUnits();
-    window.addEventListener("equipment_inventory_updated", handleInventoryUpdate);
-    return () => window.removeEventListener("equipment_inventory_updated", handleInventoryUpdate);
-  }, [fetchUnits]);
+    const handleSync = () => {
+      fetchUnits();
+      if (fetchReportsData) fetchReportsData({ isSilent: true });
+    };
+    window.addEventListener("equipment_inventory_updated", handleSync);
+    window.addEventListener("equipment_updated", handleSync);
+    const handleStorage = (e) => {
+      if (e.key && e.key.includes("equipment")) {
+        handleSync();
+      }
+    };
+    window.addEventListener("storage", handleStorage);
+    return () => {
+      window.removeEventListener("equipment_inventory_updated", handleSync);
+      window.removeEventListener("equipment_updated", handleSync);
+      window.removeEventListener("storage", handleStorage);
+    };
+  }, [fetchUnits, fetchReportsData]);
 
   const parentUnitMap = useMemo(() => {
     const map = new Map();
@@ -233,15 +295,168 @@ export default function EquipmentStockTab({
         try { rawList = JSON.parse(rawList); } catch { rawList = []; }
       }
       if (Array.isArray(rawList)) {
-        rawList.forEach((childId) => {
-          if (childId) {
-            map.set(String(childId), parent);
+        rawList.forEach((childRef) => {
+          if (!childRef) return;
+          const childId = (typeof childRef === "object" && childRef !== null && childRef.id)
+            ? String(childRef.id).trim()
+            : String(childRef).trim();
+          map.set(childId, parent);
+          map.set(childId.toLowerCase(), parent);
+
+          const matchedChild = units.find(u =>
+            String(u.id) === childId ||
+            (u.serial_number && String(u.serial_number).trim().toLowerCase() === childId.toLowerCase()) ||
+            (u.barcode && String(u.barcode).trim().toLowerCase() === childId.toLowerCase())
+          );
+          if (matchedChild) {
+            map.set(String(matchedChild.id), parent);
+            map.set(String(matchedChild.id).toLowerCase(), parent);
+            if (matchedChild.barcode) {
+              map.set(String(matchedChild.barcode).trim(), parent);
+              map.set(String(matchedChild.barcode).trim().toLowerCase(), parent);
+            }
+            if (matchedChild.serial_number) {
+              map.set(String(matchedChild.serial_number).trim(), parent);
+              map.set(String(matchedChild.serial_number).trim().toLowerCase(), parent);
+            }
           }
         });
       }
     });
     return map;
   }, [units]);
+
+  const computeCategoryStats = useCallback((item) => {
+    const categoryName = item.eq_name || item.name || item.category || item.eq_type || "General";
+    const matchingUnits = (units || []).filter(u => 
+      String(u.equipment_type_id) === String(item.id) || 
+      String(u.category || '').trim().toLowerCase() === String(categoryName).trim().toLowerCase()
+    );
+
+    let expectedQty = 0;
+    let availablePresent = 0;
+    let currentReleased = 0;
+    let reservedCount = 0;
+    let builtInCount = 0;
+    let unavailableCount = 0;
+    let currentDamaged = 0;
+    let currentLost = 0;
+
+    if (matchingUnits.length > 0) {
+      expectedQty = matchingUnits.length;
+
+      matchingUnits.forEach(u => {
+        const cond = String(u.condition || u.raw_condition || '').toLowerCase();
+        const st = String(u.status || u.raw_status || '').toLowerCase();
+
+        // 1. Defective / Lost / Decommissioned check FIRST
+        if (['lost', 'decommissioned'].includes(cond) || st === 'lost' || st === 'decommissioned') {
+          currentLost++;
+          return;
+        }
+        if (['damaged', 'under repair', 'worn', 'minor wear'].includes(cond) || ['damaged', 'maintenance', 'under_maintenance'].includes(st)) {
+          currentDamaged++;
+          return;
+        }
+
+        // 2. Built-in child check
+        const parent = parentUnitMap.get(String(u.id)) ||
+          parentUnitMap.get(String(u.id).toLowerCase()) ||
+          (u.serial_number && (parentUnitMap.get(String(u.serial_number).trim()) || parentUnitMap.get(String(u.serial_number).trim().toLowerCase()))) ||
+          (u.barcode && (parentUnitMap.get(String(u.barcode).trim()) || parentUnitMap.get(String(u.barcode).trim().toLowerCase())));
+
+        const isChild = Boolean(u.is_child) ||
+          st === 'built-in' ||
+          st === 'built_in' ||
+          Boolean(parent);
+
+        if (isChild) {
+          // If parent unit is damaged or lost, or unit is marked unavailable:
+          // A good child component whose parent is damaged is placed ONLY in Unavailable column, never in Damaged!
+          if (parent) {
+            const pCond = String(parent.condition || parent.raw_condition || '').toLowerCase();
+            const pSt = String(parent.status || parent.raw_status || '').toLowerCase();
+            const isParentBroken = ['damaged', 'lost', 'decommissioned', 'under repair'].includes(pCond) || ['damaged', 'lost', 'decommissioned', 'maintenance', 'under_maintenance'].includes(pSt);
+            if (isParentBroken || st === 'unavailable') {
+              unavailableCount++;
+              return;
+            }
+          } else if (st === 'unavailable') {
+            unavailableCount++;
+            return;
+          }
+
+          // Every healthy built-in child of another unit is NEVER counted as available, but as built-in
+          if (['released', 'in_use', 'in-use'].includes(st)) {
+            currentReleased++;
+          } else if (st === 'reserved') {
+            reservedCount++;
+          } else {
+            builtInCount++;
+          }
+          return;
+        }
+
+        // 3. Standalone unit or Parent unit who has built-in child
+        if (['released', 'in_use', 'in-use'].includes(st)) {
+          currentReleased++;
+        } else if (st === 'reserved') {
+          reservedCount++;
+        } else if (st === 'unavailable') {
+          unavailableCount++;
+        } else {
+          // Check if any of this parent unit's children are damaged or lost
+          let rawList = u.built_in_units;
+          if (typeof rawList === "string") {
+            try { rawList = JSON.parse(rawList); } catch { rawList = []; }
+          }
+          let hasBrokenChild = false;
+          if (Array.isArray(rawList) && rawList.length > 0) {
+            hasBrokenChild = rawList.some(childRef => {
+              if (!childRef) return false;
+              const childId = (typeof childRef === "object" && childRef !== null && childRef.id) ? String(childRef.id) : String(childRef);
+              const matchedChild = units.find(ch => String(ch.id) === childId || String(ch.barcode) === childId || String(ch.serial_number) === childId);
+              if (matchedChild) {
+                const cCond = String(matchedChild.condition || '').toLowerCase();
+                const cSt = String(matchedChild.status || '').toLowerCase();
+                return ['damaged', 'lost', 'decommissioned', 'under repair'].includes(cCond) || ['damaged', 'lost', 'decommissioned', 'maintenance'].includes(cSt);
+              }
+              return false;
+            });
+          }
+
+          if (hasBrokenChild) {
+            unavailableCount++;
+          } else {
+            // Parent unit who has built-in child is counted ONLY as available!
+            availablePresent++;
+          }
+        }
+      });
+    } else {
+      expectedQty = Math.max(0, typeof item.total_quantity === 'number' ? item.total_quantity : (item.total_units || 0));
+      currentDamaged = item.damaged_count || 0;
+      currentLost = item.lost_count || 0;
+      currentReleased = item.released_count || 0;
+      reservedCount = item.reserved_count || 0;
+      builtInCount = item.built_in_count ?? item.bundled_count ?? 0;
+      unavailableCount = item.unavailable_count || 0;
+      availablePresent = typeof item.available_count === 'number'
+        ? item.available_count
+        : Math.max(0, expectedQty - builtInCount - unavailableCount - currentReleased - reservedCount - currentDamaged - currentLost);
+    }
+
+    return {
+      expectedQty,
+      availablePresent,
+      builtInCount,
+      unavailableCount,
+      reservedCount,
+      currentReleased,
+      currentDamaged,
+      currentLost,
+    };
+  }, [units, parentUnitMap]);
 
   const resolveBundledUnits = useCallback((item) => {
     let rawList = item.built_in_units;
@@ -348,6 +563,8 @@ export default function EquipmentStockTab({
                   <th className="px-4 py-3.5">Category Name</th>
                   <th className="px-4 py-3.5 text-center">Total</th>
                   <th className="px-4 py-3.5 text-center">Available</th>
+                  <th className="px-4 py-3.5 text-center">Built-In</th>
+                  <th className="px-4 py-3.5 text-center">Unavailable</th>
                   <th className="px-4 py-3.5 text-center">Reserved</th>
                   <th className="px-4 py-3.5 text-center">Released</th>
                   <th className="px-4 py-3.5 text-center">Damaged</th>
@@ -357,7 +574,7 @@ export default function EquipmentStockTab({
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium text-slate-700 dark:text-slate-300">
                 {loading ? (
                   <tr>
-                    <td colSpan={8} className="text-center py-12 text-slate-400 dark:text-slate-500">
+                    <td colSpan={10} className="text-center py-12 text-slate-400 dark:text-slate-500">
                       <div className="flex items-center justify-center gap-2">
                         <Loader2 size={18} className="animate-spin text-blue-600" />
                         <span>Loading inventory items...</span>
@@ -366,7 +583,7 @@ export default function EquipmentStockTab({
                   </tr>
                 ) : filteredInventory.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="text-center py-12 text-slate-400 dark:text-slate-500">
+                    <td colSpan={10} className="text-center py-12 text-slate-400 dark:text-slate-500">
                       📦 No inventory items registered yet.
                     </td>
                   </tr>
@@ -375,49 +592,7 @@ export default function EquipmentStockTab({
                     const key = item.id;
                     const categoryName = item.eq_name || item.name || item.category || item.eq_type || "General";
                     const displayPhoto = item.photo || item.avatar;
-
-                    const matchingUnits = (units || []).filter(u => 
-                      String(u.equipment_type_id) === String(item.id) || 
-                      String(u.category || '').trim().toLowerCase() === String(categoryName).trim().toLowerCase()
-                    );
-
-                    let expectedQty, availablePresent, currentReleased, reservedCount, currentDamaged, currentLost;
-
-                    if (matchingUnits.length > 0) {
-                      expectedQty = matchingUnits.length;
-                      // Lost condition takes priority — check condition first, then fall back to status.
-                      // 'unavailable' status is used for BOTH damaged and lost; condition field distinguishes them.
-                      currentLost = matchingUnits.filter(u => {
-                        const cond = String(u.condition || '').toLowerCase();
-                        const st = String(u.status || '').toLowerCase();
-                        return ['lost', 'decommissioned'].includes(cond) || st === 'lost' || st === 'decommissioned';
-                      }).length;
-                      currentDamaged = matchingUnits.filter(u => {
-                        const cond = String(u.condition || '').toLowerCase();
-                        const st = String(u.status || '').toLowerCase();
-                        // Exclude units already counted as lost
-                        if (['lost', 'decommissioned'].includes(cond) || st === 'lost' || st === 'decommissioned') return false;
-                        return ['damaged', 'under repair', 'worn', 'minor wear'].includes(cond) ||
-                               ['damaged', 'maintenance', 'under_maintenance', 'unavailable'].includes(st);
-                      }).length;
-                      currentReleased = matchingUnits.filter(u => ['released', 'in_use', 'in-use'].includes(String(u.status || '').toLowerCase())).length;
-                      reservedCount = matchingUnits.filter(u => String(u.status || '').toLowerCase() === 'reserved').length || Math.max(0, typeof item.reserved_count === 'number' ? item.reserved_count : 0);
-                      availablePresent = Math.max(0, expectedQty - currentReleased - reservedCount - currentDamaged - currentLost);
-                    } else {
-                      // Use backend-computed values directly (already accurate from equipment_units SQL)
-                      expectedQty = Math.max(0, typeof item.total_quantity === 'number' ? item.total_quantity : (item.total_units || 0));
-                      currentDamaged = item.damaged_count || 0;
-                      currentLost = item.lost_count || 0;
-                      currentReleased = item.released_count || 0;
-                      reservedCount = item.reserved_count || 0;
-                      availablePresent = typeof item.available_count === 'number' ? item.available_count : Math.max(0, expectedQty - currentReleased - reservedCount - currentDamaged - currentLost);
-                    }
-
-                    const currentDraft = {
-                      qty_released: currentReleased,
-                      qty_damaged: currentDamaged,
-                      qty_lost: currentLost,
-                    };
+                    const stats = computeCategoryStats(item);
 
                     return (
                       <tr key={key || idx} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
@@ -439,30 +614,40 @@ export default function EquipmentStockTab({
                           )}
                         </td>
                         <td className="px-4 py-3 text-center font-mono font-extrabold text-slate-700 dark:text-slate-200">
-                          {expectedQty}
+                          {stats.expectedQty}
                         </td>
                         <td className="px-4 py-3 text-center font-mono font-extrabold text-emerald-600 dark:text-emerald-400">
-                          {availablePresent}
+                          {stats.availablePresent}
                         </td>
                         <td className={`px-4 py-3 text-center font-mono font-extrabold ${
-                          reservedCount > 0 ? "text-indigo-600 dark:text-indigo-400" : "text-slate-400 dark:text-slate-600"
+                          stats.builtInCount > 0 ? "text-violet-600 dark:text-violet-400" : "text-slate-400 dark:text-slate-600"
                         }`}>
-                          {reservedCount}
+                          {stats.builtInCount}
                         </td>
                         <td className={`px-4 py-3 text-center font-mono font-extrabold ${
-                          currentDraft.qty_released > 0 ? "text-blue-600 dark:text-blue-400" : "text-slate-400 dark:text-slate-600"
+                          stats.unavailableCount > 0 ? "text-amber-600 dark:text-amber-400" : "text-slate-400 dark:text-slate-600"
                         }`}>
-                          {currentDraft.qty_released}
+                          {stats.unavailableCount}
                         </td>
                         <td className={`px-4 py-3 text-center font-mono font-extrabold ${
-                          currentDraft.qty_damaged > 0 ? "text-rose-600 dark:text-rose-400" : "text-slate-400 dark:text-slate-600"
+                          stats.reservedCount > 0 ? "text-indigo-600 dark:text-indigo-400" : "text-slate-400 dark:text-slate-600"
                         }`}>
-                          {currentDraft.qty_damaged}
+                          {stats.reservedCount}
                         </td>
                         <td className={`px-4 py-3 text-center font-mono font-extrabold ${
-                          currentDraft.qty_lost > 0 ? "text-amber-600 dark:text-amber-400" : "text-slate-400 dark:text-slate-600"
+                          stats.currentReleased > 0 ? "text-blue-600 dark:text-blue-400" : "text-slate-400 dark:text-slate-600"
                         }`}>
-                          {currentDraft.qty_lost}
+                          {stats.currentReleased}
+                        </td>
+                        <td className={`px-4 py-3 text-center font-mono font-extrabold ${
+                          stats.currentDamaged > 0 ? "text-rose-600 dark:text-rose-400" : "text-slate-400 dark:text-slate-600"
+                        }`}>
+                          {stats.currentDamaged}
+                        </td>
+                        <td className={`px-4 py-3 text-center font-mono font-extrabold ${
+                          stats.currentLost > 0 ? "text-amber-600 dark:text-amber-400" : "text-slate-400 dark:text-slate-600"
+                        }`}>
+                          {stats.currentLost}
                         </td>
                       </tr>
                     );
@@ -486,12 +671,7 @@ export default function EquipmentStockTab({
               paginatedInventory.map((item, idx) => {
                 const categoryName = item.eq_name || item.name || item.category || "General";
                 const displayPhoto = item.photo || item.avatar;
-                const expectedQty = Math.max(0, typeof item.total_quantity === 'number' ? item.total_quantity : 0);
-                const available = typeof item.available_count === 'number' ? item.available_count : expectedQty;
-                const released = item.released_count || 0;
-                const reserved = item.reserved_count || 0;
-                const damaged = item.damaged_count || 0;
-                const lost = item.lost_count || 0;
+                const stats = computeCategoryStats(item);
 
                 return (
                   <div key={`mob-stock-${item.id || idx}`} className="p-4 space-y-3">
@@ -511,33 +691,41 @@ export default function EquipmentStockTab({
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                    <div className="grid grid-cols-4 gap-2 text-center text-xs">
                       <div className="p-2 rounded-xl bg-slate-50 border border-slate-100">
-                        <span className="block text-[10px] text-slate-400 font-bold uppercase">Total</span>
-                        <span className="font-extrabold text-slate-900">{expectedQty}</span>
+                        <span className="block text-[9px] text-slate-400 font-bold uppercase">Total</span>
+                        <span className="font-extrabold text-slate-900">{stats.expectedQty}</span>
                       </div>
                       <div className="p-2 rounded-xl bg-emerald-50 border border-emerald-100">
-                        <span className="block text-[10px] text-emerald-600 font-bold uppercase">Available</span>
-                        <span className="font-extrabold text-emerald-700">{available}</span>
+                        <span className="block text-[9px] text-emerald-600 font-bold uppercase">Available</span>
+                        <span className="font-extrabold text-emerald-700">{stats.availablePresent}</span>
                       </div>
-                      <div className="p-2 rounded-xl bg-indigo-50 border border-indigo-100">
-                        <span className="block text-[10px] text-indigo-600 font-bold uppercase">Reserved</span>
-                        <span className="font-extrabold text-indigo-700">{reserved}</span>
+                      <div className="p-2 rounded-xl bg-violet-50 border border-violet-100">
+                        <span className="block text-[9px] text-violet-600 font-bold uppercase">Built-In</span>
+                        <span className="font-extrabold text-violet-700">{stats.builtInCount}</span>
+                      </div>
+                      <div className="p-2 rounded-xl bg-amber-50 border border-amber-100">
+                        <span className="block text-[9px] text-amber-600 font-bold uppercase">Unavail</span>
+                        <span className="font-extrabold text-amber-700">{stats.unavailableCount}</span>
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                    <div className="grid grid-cols-4 gap-2 text-center text-xs">
+                      <div className="p-2 rounded-xl bg-indigo-50 border border-indigo-100">
+                        <span className="block text-[9px] text-indigo-600 font-bold uppercase">Reserved</span>
+                        <span className="font-extrabold text-indigo-700">{stats.reservedCount}</span>
+                      </div>
                       <div className="p-2 rounded-xl bg-blue-50 border border-blue-100">
-                        <span className="block text-[10px] text-blue-600 font-bold uppercase">Released</span>
-                        <span className="font-extrabold text-blue-700">{released}</span>
+                        <span className="block text-[9px] text-blue-600 font-bold uppercase">Released</span>
+                        <span className="font-extrabold text-blue-700">{stats.currentReleased}</span>
                       </div>
                       <div className="p-2 rounded-xl bg-rose-50 border border-rose-100">
-                        <span className="block text-[10px] text-rose-600 font-bold uppercase">Damaged</span>
-                        <span className="font-extrabold text-rose-700">{damaged}</span>
+                        <span className="block text-[9px] text-rose-600 font-bold uppercase">Damaged</span>
+                        <span className="font-extrabold text-rose-700">{stats.currentDamaged}</span>
                       </div>
                       <div className="p-2 rounded-xl bg-amber-50 border border-amber-100">
-                        <span className="block text-[10px] text-amber-700 font-bold uppercase">Lost</span>
-                        <span className="font-extrabold text-amber-800">{lost}</span>
+                        <span className="block text-[9px] text-amber-700 font-bold uppercase">Lost</span>
+                        <span className="font-extrabold text-amber-800">{stats.currentLost}</span>
                       </div>
                     </div>
                   </div>
@@ -597,8 +785,7 @@ export default function EquipmentStockTab({
 
         {/* Search & Category Filter */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white dark:bg-[#111827] p-3 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
-          <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 shadow-xs text-xs font-bold text-slate-700 dark:text-slate-200">
-            <Filter size={14} className="text-blue-600 dark:text-blue-400 flex-shrink-0" />
+          <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-200">
             <select
               value={activeCategory}
               onChange={(e) => setActiveCategory(e.target.value)}
@@ -624,12 +811,12 @@ export default function EquipmentStockTab({
 
         {/* Physical Units Table */}
         <div className="bg-white dark:bg-[#111827] rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+          <div className="overflow-x-auto scrollbar-thin">
+            <table className="w-full text-sm min-w-[760px]">
               <thead>
                 <tr className="bg-slate-50/80 dark:bg-slate-800/80 border-b border-slate-100 dark:border-slate-800">
-                  {["#", "UNIT BARCODE", "EQUIPMENT UNIT NAME", "ASSIGNED CATEGORY", "STATUS", "CONDITION", "DATE PURCHASED", "LIFESPAN VS CURRENT", "ACTION"].map((h, i) => (
-                    <th key={h} className={`px-4 py-3.5 text-left text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider whitespace-nowrap ${i === 0 ? 'rounded-tl-2xl' : i === 8 ? 'rounded-tr-2xl' : ''}`}>
+                  {["#", "Serial No.", "Equipment Unit Name", "Built-In", "Status", "Date Purchased", "Lifespan vs Current", "Action"].map((h, i) => (
+                    <th key={h} className={`px-4 py-3.5 text-left text-[11px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap ${i === 0 ? 'rounded-tl-2xl' : i === 7 ? 'rounded-tr-2xl' : ''}`}>
                       {h}
                     </th>
                   ))}
@@ -638,13 +825,13 @@ export default function EquipmentStockTab({
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-xs font-semibold">
                 {unitsLoading ? (
                   <tr>
-                    <td colSpan={9} className="text-center py-12 text-slate-400">
+                    <td colSpan={8} className="text-center py-12 text-slate-400">
                       <Loader2 size={20} className="animate-spin inline mr-2" /> Loading equipment units...
                     </td>
                   </tr>
                 ) : filteredUnits.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="text-center py-12 text-slate-400">
+                    <td colSpan={8} className="text-center py-12 text-slate-400">
                       📦 No physical equipment units found.
                     </td>
                   </tr>
@@ -659,104 +846,67 @@ export default function EquipmentStockTab({
                     const isOpen = openActionId === item.id;
 
                     return (
-                      <tr key={item.id} className={`hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors ${isOpen ? 'relative z-30' : ''}`}>
-                        <td className="px-4 py-3.5 font-bold text-slate-400 dark:text-slate-600">{displayIndex}</td>
-                        <td className="px-4 py-3.5 font-mono text-xs font-bold text-blue-600 dark:text-blue-400 whitespace-nowrap">
-                          <div className="flex items-center gap-1.5">
-                            <div className="flex items-center gap-1.5 bg-blue-50/60 dark:bg-blue-950/60 border border-blue-200/60 dark:border-blue-800/60 px-2.5 py-1 rounded-xl w-fit">
-                              <Barcode size={14} className="text-blue-500" />
-                              <span>{item.barcode}</span>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => handleCopyBarcode(item.barcode)}
-                              className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer"
-                              title="Copy Barcode"
-                            >
-                              {copiedBarcode === item.barcode ? (
-                                <Check size={13} className="text-emerald-600 font-extrabold" />
-                              ) : (
-                                <Copy size={13} />
-                              )}
-                            </button>
-                          </div>
+                      <tr key={item.id} className={`transition-colors ${isOpen ? 'relative z-30' : ''} ${item.is_disabled ? 'opacity-50 grayscale bg-slate-50 dark:bg-slate-900/50' : 'hover:bg-slate-50/60 dark:hover:bg-slate-800/50'}`}>
+                        <td className="px-4 py-3.5 font-bold text-slate-400 dark:text-slate-500">{displayIndex}</td>
+                        <td className="px-4 py-3.5 font-mono text-xs font-bold text-slate-800 dark:text-slate-200 whitespace-nowrap">
+                          {item.serial_number || item.barcode}
                         </td>
                         <td className="px-4 py-3.5 max-w-[280px]">
-                          {(() => {
-                            const parentUnit =
-                              parentUnitMap.get(String(item.id)) ||
-                              (item.barcode ? parentUnitMap.get(String(item.barcode)) : null) ||
-                              (item.serial_number ? parentUnitMap.get(String(item.serial_number)) : null);
-                            const bundledChildren = resolveBundledUnits(item);
-
-                            return (
-                              <div className="flex flex-col gap-1.5">
-                                <span className="font-extrabold text-slate-900 dark:text-white truncate block text-xs" title={item.name}>
-                                  {item.name}
-                                </span>
-                                {parentUnit && (
-                                  <span
-                                    className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10.5px] font-bold bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 shadow-2xs w-fit max-w-full"
-                                    title={`Packaged inside ${parentUnit.name || parentUnit.category} [${parentUnit.serial_number || parentUnit.barcode || ''}]`}
-                                  >
-                                    <Layers size={11} className="text-amber-600 dark:text-amber-400 shrink-0" />
-                                    <span className="truncate">
-                                      Bundled with: <strong className="font-mono">{parentUnit.serial_number || parentUnit.barcode}</strong> ({parentUnit.name || parentUnit.category || "Parent Kit"})
-                                    </span>
-                                  </span>
-                                )}
-                                {bundledChildren.length > 0 && (
-                                  <div className="flex flex-col gap-1 mt-0.5">
-                                    <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1">
-                                      <PackageCheck size={11} className="text-blue-600 dark:text-blue-400 shrink-0" />
-                                      Bundled Units ({bundledChildren.length}):
-                                    </span>
-                                    <div className="flex flex-wrap gap-1 max-w-full">
-                                      {bundledChildren.map((child, cIdx) => (
-                                        <span
-                                          key={cIdx}
-                                          className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800/80"
-                                          title={`${child.name || 'Component'} [${child.serial_number || child.barcode || child.id || ''}]`}
-                                        >
-                                          <span className="font-mono text-[9px] font-bold opacity-80">{child.serial_number || child.barcode || `#${child.id}`}</span>
-                                          <span className="truncate max-w-[120px]">{child.name || child.category || "Item"}</span>
-                                        </span>
-                                      ))}
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })()}
-                        </td>
-                        <td className="px-4 py-3.5 font-bold text-blue-700 dark:text-blue-300 max-w-[180px]">
-                          <span className="bg-blue-50 dark:bg-blue-950/50 px-3 py-1 rounded-full border border-blue-200/60 dark:border-blue-800/60 block w-fit max-w-full truncate text-xs" title={item.category}>
+                          <span className="font-extrabold text-slate-900 dark:text-white truncate block text-xs" title={item.name}>
+                            {item.name}
+                          </span>
+                          <span className="text-[11px] text-slate-400 dark:text-slate-500 font-medium truncate block mt-0.5">
                             {item.category}
                           </span>
                         </td>
-                        <td className="px-4 py-3.5 whitespace-nowrap">
-                          <span className={`font-bold text-xs uppercase tracking-wider ${
-                            String(item.status).toLowerCase() === 'available'
-                              ? 'text-emerald-600 dark:text-emerald-400'
-                              : String(item.status).toLowerCase() === 'booked' || String(item.status).toLowerCase() === 'in use' || String(item.status).toLowerCase() === 'reserved'
-                              ? 'text-blue-600 dark:text-blue-400'
-                              : String(item.status).toLowerCase() === 'maintenance' || String(item.status).toLowerCase() === 'under repair'
-                              ? 'text-amber-600 dark:text-amber-400'
-                              : 'text-rose-600 dark:text-rose-400'
-                          }`}>
-                            {item.status || "AVAILABLE"}
-                          </span>
+                        <td className="px-4 py-3.5 text-xs text-slate-600 dark:text-slate-300 max-w-[180px]">
+                          {(() => {
+                            const parent = parentUnitMap.get(String(item.id)) ||
+                              (item.barcode ? parentUnitMap.get(String(item.barcode)) : null) ||
+                              (item.serial_number ? parentUnitMap.get(String(item.serial_number)) : null);
+                            return parent
+                              ? <span className="font-semibold text-slate-700 dark:text-slate-200 truncate block" title={parent.name}>{parent.name}</span>
+                              : <span className="text-slate-300 dark:text-slate-600">—</span>;
+                          })()}
                         </td>
                         <td className="px-4 py-3.5 whitespace-nowrap">
-                          <span className={`font-semibold text-xs ${
-                            item.condition === "Damaged" || item.condition === "Lost"
-                              ? "text-rose-600 dark:text-rose-400"
-                              : item.condition === "Under Repair" || item.condition === "Minor Wear"
-                              ? "text-amber-600 dark:text-amber-400"
-                              : "text-emerald-600 dark:text-emerald-400"
-                          }`}>
-                            {item.condition || "Good"}
-                          </span>
+                          {(() => {
+                            const st = String(item.status || 'Available').toLowerCase();
+                            const cond = String(item.condition || item.raw_condition || '').toLowerCase();
+                            const parent = parentUnitMap.get(String(item.id)) ||
+                              (item.barcode ? parentUnitMap.get(String(item.barcode)) : null) ||
+                              (item.serial_number ? parentUnitMap.get(String(item.serial_number)) : null);
+                            const isBuiltIn = Boolean(item.is_child) || st === 'built-in' || st === 'built_in' || Boolean(parent);
+
+                            if (['lost', 'decommissioned'].includes(cond) || st === 'lost' || st === 'decommissioned') {
+                              return <span className="text-[11px] font-bold text-rose-500 dark:text-rose-400">Lost</span>;
+                            }
+                            if (['damaged', 'under repair', 'worn', 'minor wear'].includes(cond) || ['damaged', 'maintenance', 'under_maintenance'].includes(st)) {
+                              return <span className="text-[11px] font-bold text-rose-500 dark:text-rose-400">Damaged</span>;
+                            }
+
+                            // If unit is a built-in child whose parent is damaged or lost:
+                            if (isBuiltIn && parent) {
+                              const pCond = String(parent.condition || parent.raw_condition || '').toLowerCase();
+                              const pSt = String(parent.status || parent.raw_status || '').toLowerCase();
+                              const isParentBroken = ['damaged', 'lost', 'decommissioned', 'under repair'].includes(pCond) || ['damaged', 'lost', 'decommissioned', 'maintenance', 'under_maintenance'].includes(pSt);
+                              if (isParentBroken || st === 'unavailable') {
+                                return <span className="text-[11px] font-bold text-amber-500 dark:text-amber-400" title="Parent kit damaged">Unavailable</span>;
+                              }
+                              return <span className="text-[11px] font-bold text-violet-500 dark:text-violet-400">Built-in</span>;
+                            }
+
+                            if (st === 'available') {
+                              return <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400">Available</span>;
+                            }
+                            if (st === 'released' || st === 'in-use' || st === 'in_use') {
+                              return <span className="text-[11px] font-bold text-blue-500 dark:text-blue-400">Released</span>;
+                            }
+                            if (st === 'reserved') {
+                              return <span className="text-[11px] font-bold text-indigo-500 dark:text-indigo-400">Reserved</span>;
+                            }
+                            return <span className="text-[11px] font-bold text-amber-500 dark:text-amber-400">Unavailable</span>;
+                          })()}
                         </td>
                         <td className="px-4 py-3.5 text-slate-600 dark:text-slate-300 whitespace-nowrap">{item.date_purchased}</td>
                         <td className="px-4 py-3.5 text-slate-600 dark:text-slate-300 whitespace-nowrap">{ageYears.toFixed(1)} / {lifespanYears} yrs</td>
@@ -774,7 +924,7 @@ export default function EquipmentStockTab({
                                   setActionAnchorEl(e.currentTarget);
                                 }
                               }}
-                              className={`p-1.5 rounded-full border transition-all cursor-pointer shadow-2xs ${
+                              className={`p-1.5 rounded-xl border transition-all cursor-pointer shadow-2xs ${
                                 isOpen
                                   ? "bg-blue-600 border-blue-600 text-white shadow-md shadow-blue-600/20"
                                   : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white"

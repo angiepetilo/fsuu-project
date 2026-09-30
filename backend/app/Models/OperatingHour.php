@@ -15,14 +15,12 @@ class OperatingHour extends Model
         'equipment_open',
         'equipment_close',
         'arrival_grace_mins',
-        'return_grace_mins',
         'auto_cancel_mins',
         'requirement_grace_hours',
     ];
 
     protected $casts = [
         'arrival_grace_mins'      => 'integer',
-        'return_grace_mins'       => 'integer',
         'auto_cancel_mins'        => 'integer',
         'requirement_grace_hours' => 'integer',
     ];

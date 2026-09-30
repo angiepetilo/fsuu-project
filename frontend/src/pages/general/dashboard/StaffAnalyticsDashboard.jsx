@@ -1,38 +1,21 @@
 import { Link } from "react-router-dom";
-import {
-  AlertCircle,
-  Package,
-  Wrench,
-  AlertTriangle,
-  Ban,
-  Zap,
-  Clock,
-  Activity,
-  GraduationCap,
-  Users,
-  User,
-} from "lucide-react";
+import { AlertCircle } from "lucide-react";
 import MetricsOverview from "./MetricsOverview";
 import TodayReservationsSection from "./TodayReservationsSection";
 
-function InventoryBar({ label, value, total, color, icon: Icon }) {
+function InventoryBar({ label, value, total, color }) {
   const pct = total > 0 ? Math.round((value / total) * 100) : 0;
   return (
-    <div className="flex items-center gap-2.5">
-      <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${color.bg}`}>
-        <Icon size={13} className={color.icon} />
+    <div className="space-y-1">
+      <div className="flex justify-between text-[11px] font-bold">
+        <span className="text-foreground/80">{label}</span>
+        <span className={color.text}>{value}</span>
       </div>
-      <div className="flex-1 min-w-0">
-        <div className="flex justify-between text-[11px] font-bold mb-1">
-          <span className="text-foreground/80">{label}</span>
-          <span className={color.text}>{value}</span>
-        </div>
-        <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-          <div
-            className={`h-full rounded-full transition-all duration-500 ${color.bar}`}
-            style={{ width: `${pct}%` }}
-          />
-        </div>
+      <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+        <div
+          className={`h-full rounded-full transition-all duration-500 ${color.bar}`}
+          style={{ width: `${pct}%` }}
+        />
       </div>
     </div>
   );
@@ -100,7 +83,7 @@ export default function StaffAnalyticsDashboard({
       )}
 
       {/* ── 1. Quick Actions Interface (Venue Booking / Equipment Borrowing) ── */}
-      {(canQuickVenue || canQuickEquipment) && (
+      {!isSysadRoute && (canQuickVenue || canQuickEquipment) && (
         <div className={`grid grid-cols-1 ${canQuickVenue && canQuickEquipment ? "sm:grid-cols-2" : ""} gap-4`}>
           {canQuickVenue && (
             <Link
@@ -117,22 +100,15 @@ export default function StaffAnalyticsDashboard({
                   </p>
                 </div>
 
-                <div className="pt-2.5 border-t border-border/60 flex flex-wrap items-center gap-1.5">
+                <div className="pt-2.5 border-t border-border/60 flex flex-wrap items-center gap-2">
                   <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mr-1">
                     Supported:
                   </span>
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
-                    <GraduationCap size={11} />
-                    <span>Student</span>
-                  </span>
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
-                    <Users size={11} />
-                    <span>Faculty</span>
-                  </span>
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                    <User size={11} />
-                    <span>External User</span>
-                  </span>
+                  <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400">Student</span>
+                  <span className="text-muted-foreground/40">•</span>
+                  <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400">Faculty</span>
+                  <span className="text-muted-foreground/40">•</span>
+                  <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">External</span>
                 </div>
               </div>
             </Link>
@@ -153,22 +129,15 @@ export default function StaffAnalyticsDashboard({
                   </p>
                 </div>
 
-                <div className="pt-2.5 border-t border-border/60 flex flex-wrap items-center gap-1.5">
+                <div className="pt-2.5 border-t border-border/60 flex flex-wrap items-center gap-2">
                   <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mr-1">
                     Supported:
                   </span>
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
-                    <GraduationCap size={11} />
-                    <span>Student</span>
-                  </span>
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
-                    <Users size={11} />
-                    <span>Faculty</span>
-                  </span>
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                    <User size={11} />
-                    <span>External User</span>
-                  </span>
+                  <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400">Student</span>
+                  <span className="text-muted-foreground/40">•</span>
+                  <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400">Faculty</span>
+                  <span className="text-muted-foreground/40">•</span>
+                  <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">External</span>
                 </div>
               </div>
             </Link>
@@ -233,7 +202,7 @@ export default function StaffAnalyticsDashboard({
                 </div>
               ))}
               {topViolatingDepartments.length === 0 && (
-                <div className="text-center py-4 text-emerald-600 dark:text-emerald-400 font-bold text-xs">● Clean Record</div>
+                <div className="text-center py-4 text-emerald-600 dark:text-emerald-400 font-bold text-xs">Clean</div>
               )}
             </div>
           </div>
@@ -256,27 +225,22 @@ export default function StaffAnalyticsDashboard({
           {canInventoryStatus && (
             <div className="bg-card rounded-2xl border border-border shadow-2xs p-5 space-y-4">
               <div className="flex items-center justify-between border-b border-border pb-3">
-                <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 rounded-xl bg-blue-50 dark:bg-blue-950/50 border border-blue-100 dark:border-blue-900 flex items-center justify-center">
-                    <Activity size={14} className="text-blue-600 dark:text-blue-400" />
-                  </div>
-                  <h3 className="font-extrabold text-foreground text-xs sm:text-sm">Equipment Inventory Status</h3>
-                </div>
-                <span className="text-[11px] font-bold text-muted-foreground bg-muted border border-border px-2.5 py-0.5 rounded-full">
-                  {inv.total_active ?? 0} Active Units
+                <h3 className="font-extrabold text-foreground text-xs sm:text-sm">Equipment Inventory Status</h3>
+                <span className="text-[11px] font-semibold text-muted-foreground">
+                  {inv.total_active ?? 0} Active
                 </span>
               </div>
               <div className="space-y-3">
-                <InventoryBar label="Available" value={inv.available ?? 0} total={total} icon={Package}
-                  color={{ bg: "bg-emerald-50 dark:bg-emerald-950/50", icon: "text-emerald-600 dark:text-emerald-400", text: "text-emerald-700 dark:text-emerald-300", bar: "bg-emerald-500" }} />
-                <InventoryBar label="Released / In-Use" value={inv.released ?? 0} total={total} icon={Zap}
-                  color={{ bg: "bg-blue-50 dark:bg-blue-950/50", icon: "text-blue-600 dark:text-blue-400", text: "text-blue-700 dark:text-blue-300", bar: "bg-blue-500" }} />
-                <InventoryBar label="Damaged / Under Repair" value={inv.damaged ?? 0} total={total} icon={Wrench}
-                  color={{ bg: "bg-amber-50 dark:bg-amber-950/50", icon: "text-amber-600 dark:text-amber-400", text: "text-amber-700 dark:text-amber-300", bar: "bg-amber-500" }} />
-                <InventoryBar label="Lost / Decommissioned" value={inv.lost ?? 0} total={total} icon={AlertTriangle}
-                  color={{ bg: "bg-rose-50 dark:bg-rose-950/50", icon: "text-rose-500 dark:text-rose-400", text: "text-rose-700 dark:text-rose-300", bar: "bg-rose-500" }} />
-                <InventoryBar label="Disabled" value={inv.disabled ?? 0} total={Math.max(total + (inv.disabled ?? 0), 1)} icon={Ban}
-                  color={{ bg: "bg-muted", icon: "text-muted-foreground", text: "text-muted-foreground", bar: "bg-muted-foreground/50" }} />
+                <InventoryBar label="Available" value={inv.available ?? 0} total={total}
+                  color={{ text: "text-emerald-700 dark:text-emerald-300", bar: "bg-emerald-500" }} />
+                <InventoryBar label="Released" value={inv.released ?? 0} total={total}
+                  color={{ text: "text-blue-700 dark:text-blue-300", bar: "bg-blue-500" }} />
+                <InventoryBar label="Damaged" value={inv.damaged ?? 0} total={total}
+                  color={{ text: "text-amber-700 dark:text-amber-300", bar: "bg-amber-500" }} />
+                <InventoryBar label="Lost" value={inv.lost ?? 0} total={total}
+                  color={{ text: "text-rose-700 dark:text-rose-300", bar: "bg-rose-500" }} />
+                <InventoryBar label="Disabled" value={inv.disabled ?? 0} total={Math.max(total + (inv.disabled ?? 0), 1)}
+                  color={{ text: "text-muted-foreground", bar: "bg-muted-foreground/50" }} />
               </div>
             </div>
           )}
@@ -284,13 +248,8 @@ export default function StaffAnalyticsDashboard({
           {canInventoryChanges && (
             <div className="bg-card rounded-2xl border border-border shadow-2xs p-5 space-y-3.5">
               <div className="flex items-center justify-between border-b border-border pb-3">
-                <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 rounded-xl bg-violet-50 dark:bg-violet-950/50 border border-violet-100 dark:border-violet-900 flex items-center justify-center">
-                    <Clock size={14} className="text-violet-600 dark:text-violet-400" />
-                  </div>
-                  <h3 className="font-extrabold text-foreground text-xs sm:text-sm">Recent Inventory Changes</h3>
-                </div>
-                <span className="text-[11px] font-bold text-violet-700 bg-violet-50 dark:bg-violet-950/60 dark:text-violet-300 border border-violet-200 dark:border-violet-900 px-2.5 py-0.5 rounded-full">
+                <h3 className="font-extrabold text-foreground text-xs sm:text-sm">Recent Inventory Changes</h3>
+                <span className="text-[11px] font-semibold text-violet-600 dark:text-violet-400">
                   {recentInventoryChanges.length} Events
                 </span>
               </div>
@@ -352,7 +311,7 @@ export default function StaffAnalyticsDashboard({
         <div className="bg-card rounded-2xl border border-border shadow-2xs p-5 space-y-3.5">
           <div className="flex items-center justify-between border-b border-border pb-3">
             <h3 className="font-extrabold text-foreground text-xs sm:text-sm">Borrowers with late returns</h3>
-            <span className="text-[11px] font-bold text-rose-700 bg-rose-50 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-200 dark:border-rose-900 px-2.5 py-0.5 rounded-full">
+            <span className="text-[11px] font-semibold text-rose-600 dark:text-rose-400">
               {violatingStudents.length} Incidents
             </span>
           </div>
@@ -371,7 +330,7 @@ export default function StaffAnalyticsDashboard({
                 {violatingStudents.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="text-center py-8 text-emerald-600 dark:text-emerald-400 font-bold">
-                      ✓ No active student violations or late returns recorded.
+                      No active student violations or late returns recorded.
                     </td>
                   </tr>
                 ) : (
@@ -382,8 +341,8 @@ export default function StaffAnalyticsDashboard({
                       <td className="py-2.5 px-3 font-mono text-foreground">{s.reference_code}</td>
                       <td className="py-2.5 px-3 text-foreground/80">{s.type}</td>
                       <td className="py-2.5 px-3">
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                          s.is_late ? "bg-amber-100 text-amber-800 border border-amber-200 dark:bg-amber-950/70 dark:text-amber-300 dark:border-amber-800" : "bg-rose-100 text-rose-800 border border-rose-200 dark:bg-rose-950/70 dark:text-rose-300 dark:border-rose-800"
+                        <span className={`text-[11px] font-semibold ${
+                          s.is_late ? "text-amber-600 dark:text-amber-400" : "text-rose-600 dark:text-rose-400"
                         }`}>
                           {s.violation}
                         </span>

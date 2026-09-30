@@ -7,12 +7,12 @@ export default function MetricsOverview({
   postInspectionPending = 0,
 }) {
   const stats = [
-    { label: "Venue Bookings", value: totalVenueBookings },
-    { label: "Pending Approval", value: pendingApproval, warn: pendingApproval > 0 },
-    { label: "Post Inspection", value: postInspectionPending, warn: postInspectionPending > 0 },
-    { label: "Equipment Borrows", value: totalEquipBorrows },
-    { label: "Equipment Damaged", value: totalDamaged, danger: totalDamaged > 0 },
-    { label: "Equipment Lost", value: totalLost, danger: totalLost > 0 },
+    { label: "Bookings", value: totalVenueBookings },
+    { label: "Pending", value: pendingApproval, warn: pendingApproval > 0 },
+    { label: "Inspection", value: postInspectionPending, warn: postInspectionPending > 0 },
+    { label: "Borrows", value: totalEquipBorrows },
+    { label: "Damaged", value: totalDamaged, danger: totalDamaged > 0 },
+    { label: "Lost", value: totalLost, danger: totalLost > 0 },
   ];
 
   return (

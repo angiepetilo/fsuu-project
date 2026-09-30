@@ -59,8 +59,8 @@ export default function Dashboard() {
     ].some((p) => hasPermission(p));
   }, [hasPermission]);
 
-  const canQuickVenue = isSuperAdmin || hasPermission("dashboard.quick_venue") || (!hasSpecificSubPermission && hasPermission("dashboard"));
-  const canQuickEquipment = isSuperAdmin || hasPermission("dashboard.quick_equipment") || (!hasSpecificSubPermission && hasPermission("dashboard"));
+  const canQuickVenue = !isSuperAdmin && !isSysadRoute && (hasPermission("dashboard.quick_venue") || (!hasSpecificSubPermission && hasPermission("dashboard")));
+  const canQuickEquipment = !isSuperAdmin && !isSysadRoute && (hasPermission("dashboard.quick_equipment") || (!hasSpecificSubPermission && hasPermission("dashboard")));
   const canMetrics = isSuperAdmin || hasPermission("dashboard.metrics") || (!hasSpecificSubPermission && hasPermission("dashboard"));
   const canAnalytics = isSuperAdmin || hasPermission("dashboard.analytics") || (!hasSpecificSubPermission && hasPermission("dashboard"));
   const canInventoryStatus = isSuperAdmin || hasPermission("dashboard.inventory_status") || (!hasSpecificSubPermission && hasPermission("dashboard"));

@@ -188,12 +188,12 @@ export default function UserFormModal({
           <div className="flex items-center justify-between pb-2.5 border-b border-slate-100">
             <div>
               <h3 className="text-sm font-semibold text-slate-900">
-                {editUser ? "Edit Account" : "Create Account"}
+                {editUser ? "Edit" : "Create"}
               </h3>
               <p className="text-xs text-slate-500 font-normal mt-0.5">
                 {editUser
-                  ? "Update account details and security credentials."
-                  : "An invitation email will be sent to the address below."}
+                  ? "Update account details and credentials."
+                  : "An invitation email will be sent."}
               </p>
             </div>
             <button
@@ -212,24 +212,22 @@ export default function UserFormModal({
                 {/* Account Role */}
                 <div>
                   <label className="block text-xs font-medium text-slate-700 mb-1.5">
-                    Account Role *
+                    Role *
                   </label>
                   {loadingRoles ? (
                     <div className="flex items-center justify-center p-3 text-slate-400 gap-2 border border-slate-200 rounded-lg">
                       <Loader2 size={13} className="animate-spin text-blue-600" />
-                      <span className="text-xs font-normal">Loading roles...</span>
+                      <span className="text-xs font-normal">Loading...</span>
                     </div>
                   ) : availableRoles.length === 0 ? (
-                    <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-xs flex items-center gap-2">
-                      <AlertCircle size={14} className="shrink-0 text-amber-600" />
-                      <span>No roles found. Please configure a role in Roles tab first.</span>
+                    <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-xs">
+                      No roles found.
                     </div>
                   ) : (
                     <div className={`grid ${availableRoles.length <= 2 ? "grid-cols-2" : "grid-cols-2"} gap-2`}>
                       {availableRoles.map((r) => {
                         const val = r.name;
                         const label = formatRoleLabel(r.name);
-                        const Icon = getRoleIcon(r.name);
                         const isSelected = form.role === val || form.role_id === r.id;
 
                         return (
@@ -240,13 +238,13 @@ export default function UserFormModal({
                               setIsFormDirty(true);
                               setForm((f) => ({ ...f, role: val, role_id: r.id }));
                             }}
-                            className={`py-2 px-2.5 rounded-lg border text-xs font-medium transition-all text-center flex items-center justify-center gap-1.5 cursor-pointer ${
+                            className={`py-2 px-2.5 rounded-lg border text-xs font-medium transition-colors text-center cursor-pointer ${
                               isSelected
                                 ? "bg-blue-600 border-blue-600 text-white"
                                 : "border-slate-200 text-slate-700 hover:bg-slate-50"
                             }`}
                           >
-                            <Icon size={13} /> <span>{label}</span>
+                            <span>{label}</span>
                           </button>
                         );
                       })}
@@ -327,9 +325,9 @@ export default function UserFormModal({
                     <button
                       type="button"
                       onClick={() => handleResend(editUser)}
-                      className="px-3 py-1.5 border border-slate-200 bg-white hover:bg-slate-100 rounded-lg text-xs font-medium text-slate-700 transition-colors cursor-pointer flex items-center gap-1.5"
+                      className="px-3 py-1.5 border border-slate-200 bg-white hover:bg-slate-100 rounded-lg text-xs font-medium text-slate-700 transition-colors cursor-pointer"
                     >
-                      <Mail size={12} /> Resend
+                      Resend
                     </button>
                   </div>
                 )}
@@ -339,13 +337,9 @@ export default function UserFormModal({
               <div className="space-y-3.5">
                 {editUser ? (
                   <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-lg space-y-3">
-                    <div className="flex items-center gap-1.5 border-b border-slate-200 pb-2">
-                      <KeyRound size={13} className="text-blue-600" />
+                    <div className="flex items-center justify-between border-b border-slate-200 pb-2">
                       <span className="text-xs font-semibold text-slate-900">
-                        Change Password
-                      </span>
-                      <span className="text-[10px] text-slate-400 font-normal ml-auto">
-                        (Leave blank to keep existing)
+                        Password
                       </span>
                     </div>
 
@@ -444,10 +438,9 @@ export default function UserFormModal({
               <button
                 type="submit"
                 disabled={formLoading}
-                className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-medium transition-colors cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-60"
+                className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-medium transition-colors cursor-pointer disabled:opacity-60"
               >
-                {formLoading && <Loader2 size={13} className="animate-spin" />}
-                {editUser ? "Save Changes" : "Send Invitation"}
+                {formLoading ? "Saving" : editUser ? "Save" : "Invite"}
               </button>
             </div>
           </form>
@@ -457,45 +450,39 @@ export default function UserFormModal({
       {/* ── Super Admin Password Confirmation Pop-up Modal ── */}
       {showAdminPwModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-xs z-[1600] flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-lg w-full max-w-sm p-6 space-y-4 animate-in fade-in zoom-in-95">
-            <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-blue-50 border border-blue-200 text-blue-600 flex items-center justify-center shrink-0">
-                <ShieldCheck size={20} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <h4 className="text-sm font-black text-slate-900 tracking-tight">
-                  Confirm Password Change
-                </h4>
-                <p className="text-[11px] text-slate-500 font-medium mt-0.5 leading-relaxed">
-                  Please enter your Super Administrator password to authorize setting a new password for this user.
-                </p>
-              </div>
+          <div className="bg-white rounded-lg border border-slate-200 shadow-lg w-full max-w-sm p-5 space-y-4">
+            <div>
+              <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                Authorize
+              </h4>
+              <p className="text-[11px] text-slate-500 font-normal mt-0.5">
+                Enter admin password to confirm.
+              </p>
             </div>
 
             <form onSubmit={handleConfirmAdminPassword} className="space-y-3.5 pt-1">
               {adminPwError && (
-                <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs font-bold flex items-center gap-1.5">
-                  <AlertCircle size={13} className="shrink-0" />
+                <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-lg text-rose-700 text-xs font-medium">
                   <span>{adminPwError}</span>
                 </div>
               )}
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Super Admin Password
+                  Password
                 </label>
                 <div className="relative">
                   <input
                     type={showAdminPw ? "text" : "password"}
                     required
                     autoFocus
-                    placeholder="Enter your admin password"
+                    placeholder="Password"
                     value={adminPassword}
                     onChange={(e) => {
                       setAdminPassword(e.target.value);
                       setAdminPwError("");
                     }}
-                    className="w-full pl-3 pr-9 py-2 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 bg-slate-50 focus:bg-white focus:border-blue-600 focus:outline-none"
+                    className="w-full pl-3 pr-9 py-2 border border-slate-200 rounded-lg text-xs font-medium text-slate-900 bg-slate-50 focus:bg-white focus:border-blue-600 focus:outline-none"
                   />
                   <button
                     type="button"
@@ -512,20 +499,16 @@ export default function UserFormModal({
                   type="button"
                   onClick={() => setShowAdminPwModal(false)}
                   disabled={verifyingAdminPw}
-                  className="flex-1 py-2 border border-slate-200 rounded-xl text-xs font-extrabold text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-50"
+                  className="flex-1 py-2 border border-slate-200 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-50"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={verifyingAdminPw || !adminPassword.trim()}
-                  className="flex-1 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-xl text-xs font-extrabold transition-colors cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-50 shadow-xs"
+                  className="flex-1 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-medium transition-colors cursor-pointer disabled:opacity-50"
                 >
-                  {verifyingAdminPw ? (
-                    <><Loader2 size={13} className="animate-spin" /> Verifying...</>
-                  ) : (
-                    "Authorize & Save"
-                  )}
+                  {verifyingAdminPw ? "Verifying" : "Authorize"}
                 </button>
               </div>
             </form>
@@ -543,10 +526,10 @@ export default function UserFormModal({
           setShowModal(false);
         }}
         variant="warning"
-        title="Discard Unsaved Changes?"
-        message="You have unsaved changes in this account form. Are you sure you want to close without saving?"
+        title="Discard"
+        message="Discard unsaved changes?"
         confirmLabel="Discard"
-        cancelLabel="Keep Editing"
+        cancelLabel="Keep"
       />
     </>
   );

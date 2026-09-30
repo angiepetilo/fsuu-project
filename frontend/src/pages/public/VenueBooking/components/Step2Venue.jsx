@@ -1,4 +1,3 @@
-import { MapPin, ChevronLeft, ChevronRight, Clock, Calendar as CalendarIcon, CalendarDays, CheckCircle2, AlertTriangle, Building2, DollarSign, Search, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
 import CustomTimePicker from "@/components/ui/custom-time-picker";
@@ -71,17 +70,17 @@ export default function Step2Venue({
         try {
           const local = JSON.parse(localStorage.getItem("fsuu_venue_overrides") || "{}");
           const localEntries = Object.values(local).map(ov => ({
-            id: ov.id || `local-${ov.venueId || ov.venue_id}-${ov.override_date}`,
-            venue_id: ov.venue_id || ov.venueId,
+            id: ov.id || `local-${ov.venueId || ov.venue_id || 'all'}-${ov.override_date}`,
+            venue_id: ov.venue_id !== undefined ? ov.venue_id : (ov.venueId === "all" ? null : ov.venueId),
             override_date: ov.override_date,
             status: ov.status,
             notes: ov.notes || ov.reason,
             start_time: ov.startTime || ov.start_time || "07:30",
             end_time: ov.endTime || ov.end_time || "17:00",
           }));
-          const existingKeys = new Set(list.map(o => `${o.venue_id}_${(o.override_date || '').substring(0, 10)}`));
+          const existingKeys = new Set(list.map(o => `${o.venue_id ?? 'all'}_${(o.override_date || '').substring(0, 10)}`));
           localEntries.forEach(lo => {
-            const k = `${lo.venue_id}_${(lo.override_date || '').substring(0, 10)}`;
+            const k = `${lo.venue_id ?? 'all'}_${(lo.override_date || '').substring(0, 10)}`;
             if (!existingKeys.has(k)) {
               list.push(lo);
             }
@@ -93,8 +92,8 @@ export default function Step2Venue({
         try {
           const local = JSON.parse(localStorage.getItem("fsuu_venue_overrides") || "{}");
           setDbOverrides(Object.values(local).map(ov => ({
-            id: ov.id || `local-${ov.venueId || ov.venue_id}-${ov.override_date}`,
-            venue_id: ov.venue_id || ov.venueId,
+            id: ov.id || `local-${ov.venueId || ov.venue_id || 'all'}-${ov.override_date}`,
+            venue_id: ov.venue_id !== undefined ? ov.venue_id : (ov.venueId === "all" ? null : ov.venueId),
             override_date: ov.override_date,
             status: ov.status,
             notes: ov.notes || ov.reason,
@@ -142,8 +141,8 @@ export default function Step2Venue({
 
   const dynamicSchedule = selectedVenue?.schedule || (
     opHours?.venue_open && opHours?.venue_close
-      ? `Mon - Sat (${formatTime12(opHours.venue_open)} - ${formatTime12(opHours.venue_close)})`
-      : "Mon - Sat (7:30 AM - 5:00 PM)"
+      ? `${formatTime12(opHours.venue_open)} - ${formatTime12(opHours.venue_close)}`
+      : "07:30 AM - 05:00 PM"
   );
 
   // Minimum advance booking requirement (3 days)
@@ -184,9 +183,67 @@ export default function Step2Venue({
     return searchedVenues.slice(safeVenuePage * pageSize, (safeVenuePage + 1) * pageSize);
   }, [searchedVenues, safeVenuePage, pageSize]);
 
-  // Calendar navigation state
-  const [calYear, setCalYear] = useState(today.getFullYear());
-  const [calMonth, setCalMonth] = useState(today.getMonth());
+  // Helper to find the first available date
+  const getFirstAvailableDate = useCallback((venue) => {
+    const startIso = isPortal ? getTodayISO() : minDateStr;
+    const [sy, sm, sd] = startIso.split("-").map(Number);
+    let curr = new Date(sy, sm - 1, sd);
+
+    for (let step = 0; step < 90; step++) {
+      const y = curr.getFullYear();
+      const m = curr.getMonth();
+      const d = curr.getDate();
+      const dateStr = `${y}-${pad(m + 1)}-${pad(d)}`;
+
+      const dbMatch = dbOverrides.find(o => {
+        const oVenueId = o.venue_id || o.venue?.id;
+        const oDate = o.override_date ? o.override_date.substring(0, 10) : null;
+        if (venue && oVenueId && oVenueId !== 'all' && String(oVenueId) !== String(venue.id)) return false;
+        return oDate === dateStr;
+      });
+      const isBlockedOverride = dbMatch && (dbMatch.status === "maintenance" || dbMatch.status === "closed");
+
+      let isFullyBooked = false;
+      if (venue) {
+        const vIdStr = String(venue.id);
+        const vName = (venue.name || "").toLowerCase();
+        const dayBookings = existingBookings.filter(b => {
+          const bStatus = String(b.status || b.tracking_number?.status || "").toLowerCase();
+          if (!BLOCKING_STATUSES.includes(bStatus)) return false;
+          const bVenueName = (b.venue?.name || b.venue_name || "").toLowerCase();
+          const matches = String(b.venue_id) === vIdStr || (bVenueName && (bVenueName.includes(vName) || vName.includes(bVenueName)));
+          if (!matches) return false;
+          const bStart = b.date_of_usage ? b.date_of_usage.substring(0, 10) : (b.date_of_use || "");
+          const bEnd = b.reservation_end_date ? b.reservation_end_date.substring(0, 10) : bStart;
+          return bStart <= dateStr && bEnd >= dateStr;
+        });
+        if (dayBookings.length > 0) {
+          isFullyBooked = dayBookings.some(b => {
+            const s = (b.time_start || "").substring(0, 5);
+            const e = (b.time_end || "").substring(0, 5);
+            return (s <= "08:00" && e >= "17:00") || b.is_whole_day;
+          });
+        }
+      }
+
+      if (!isBlockedOverride && !isFullyBooked) {
+        return dateStr;
+      }
+
+      curr.setDate(curr.getDate() + 1);
+    }
+    return startIso;
+  }, [isPortal, minDateStr, dbOverrides, existingBookings]);
+
+  // Calendar navigation state - initialized to earliest available date's year & month
+  const [calYear, setCalYear] = useState(() => {
+    const baseDate = isPortal ? today : minDate;
+    return baseDate.getFullYear();
+  });
+  const [calMonth, setCalMonth] = useState(() => {
+    const baseDate = isPortal ? today : minDate;
+    return baseDate.getMonth();
+  });
 
   const prevMonth = useCallback(() => {
     setCalMonth(m => {
@@ -202,7 +259,7 @@ export default function Step2Venue({
     });
   }, []);
 
-  const monthLabel = new Date(calYear, calMonth).toLocaleString("default", { month: "long", year: "numeric" });
+  const monthLabel = `${new Date(calYear, calMonth).toLocaleString("default", { month: "long" })} ${calYear}`;
   const firstDayOfWeek = new Date(calYear, calMonth, 1).getDay();
   const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
 
@@ -219,21 +276,40 @@ export default function Step2Venue({
     });
   }, [existingBookings, selectedVenue]);
 
-  // Automatically pre-select earliest valid booking date if none is selected
+  // Automatically navigate directly to the first available date and month
   useEffect(() => {
-    if (!selectedDate) {
-      const defaultDate = isPortal ? getTodayISO() : minDateStr;
-      handleDateSelect(defaultDate);
-      if (setSelectedEndDate) {
-        setSelectedEndDate(defaultDate);
+    const firstAvail = getFirstAvailableDate(selectedVenue);
+    if (firstAvail) {
+      const [y, m] = firstAvail.split("-").map(Number);
+      setCalYear(y);
+      setCalMonth(m - 1);
+      if (!selectedDate || selectedDate < (isPortal ? getTodayISO() : minDateStr)) {
+        handleDateSelect(firstAvail);
+        if (setSelectedEndDate) {
+          setSelectedEndDate(firstAvail);
+        }
       }
     }
-  }, [selectedDate, minDateStr, isPortal]);
+  }, [selectedVenue, getFirstAvailableDate]);
+
+  const onSelectVenue = (v) => {
+    handleVenueSelect(v);
+    const firstAvail = getFirstAvailableDate(v);
+    if (firstAvail) {
+      const [y, m] = firstAvail.split("-").map(Number);
+      setCalYear(y);
+      setCalMonth(m - 1);
+      handleDateSelect(firstAvail);
+      if (setSelectedEndDate) {
+        setSelectedEndDate(firstAvail);
+      }
+    }
+  };
 
   const isDayDisabled = (day) => {
     const dateStr = `${calYear}-${pad(calMonth + 1)}-${pad(day)}`;
     if (isPastDate(dateStr)) return true;
-    if (dateStr < minDateStr) return true;
+    if (dateStr < minDateStr && !isPortal) return true;
     const info = getDayInfo(day);
     if (info.status === "maintenance" || info.status === "closed") return true;
     return false;
@@ -263,11 +339,33 @@ export default function Step2Venue({
     const defaultTimeRange = `${venueOpenTime} - ${venueCloseTime}`;
 
     if (!selectedVenue) {
+      // Check if this date has a global facility closure or maintenance override
+      const globalOverride = dbOverrides.find(o => {
+        const oVenueId = o.venue_id || o.venue?.id;
+        const oDate = o.override_date ? o.override_date.substring(0, 10) : null;
+        return (!oVenueId || oVenueId === 'all') && oDate === dateStr;
+      });
+
+      if (globalOverride && (globalOverride.status === "maintenance" || globalOverride.status === "closed")) {
+        const isMaint = globalOverride.status === "maintenance";
+        return {
+          status: isMaint ? "maintenance" : "closed",
+          tooltip: `${monthLabel} ${day}: All Campus Venues are ${isMaint ? 'Under Maintenance' : 'Closed'} (${globalOverride.notes || 'Blocked by Admin'})`,
+          box: {
+            status: isMaint ? "Maintenance" : "Closed",
+            badgeClass: isMaint ? "bg-amber-500 text-white" : "bg-rose-600 text-white",
+            time: globalOverride.start_time && globalOverride.end_time ? `${formatTime12(globalOverride.start_time)} - ${formatTime12(globalOverride.end_time)}` : defaultTimeRange,
+            details: globalOverride.notes || (isMaint ? 'Campus Facility Maintenance' : 'All Facilities Closed'),
+          },
+          bookings: [],
+        };
+      }
+
       return {
         status: "available",
         tooltip: `${monthLabel} ${day}: Select a venue to view availability`,
         box: {
-          status: "Select Venue",
+          status: "Select",
           badgeClass: "bg-slate-700 text-white",
           time: defaultTimeRange,
           details: "Select a venue to check available slots.",
@@ -298,7 +396,7 @@ export default function Step2Venue({
     const dbMatch = dbOverrides.find(o => {
       const oVenueId = o.venue_id || o.venue?.id;
       const oDate = o.override_date ? o.override_date.substring(0, 10) : null;
-      return String(oVenueId) === String(selectedVenue.id) && oDate === dateStr;
+      return (!oVenueId || oVenueId === 'all' || String(oVenueId) === String(selectedVenue.id)) && oDate === dateStr;
     });
 
     if (dbMatch && (dbMatch.status === "maintenance" || dbMatch.status === "closed")) {
@@ -426,7 +524,7 @@ export default function Step2Venue({
     ? dbOverrides.find(o => {
         const oVenueId = o.venue_id || o.venue?.id;
         const oDate = o.override_date ? o.override_date.substring(0, 10) : null;
-        if (String(oVenueId) !== String(selectedVenue.id)) return false;
+        if (oVenueId && oVenueId !== 'all' && String(oVenueId) !== String(selectedVenue.id)) return false;
         const tEnd = targetEndDate || selectedDate;
         return oDate && oDate >= selectedDate && oDate <= tEnd && (o.status === "maintenance" || o.status === "closed");
       })
@@ -461,52 +559,44 @@ export default function Step2Venue({
     <div className="p-6 sm:p-8 animate-in slide-in-from-top-2 duration-300">
 
       {/* Header Section with Search Bar aligned to the right */}
-      <div className="mb-6 pb-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="mb-6 pb-4 border-b border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h3 className="font-bold text-slate-900 text-lg tracking-tight mb-1">Select Venue</h3>
-          <p className="text-xs text-slate-500 font-medium">Choose from available university venues</p>
+          <h3 className="font-bold text-slate-900 dark:text-white text-base">Venues</h3>
         </div>
 
-        {/* Venue Search Bar aligned to the right side */}
-        <div className="relative w-full sm:w-80 md:w-96">
-          <Search size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+        {/* Venue Search Bar */}
+        <div className="w-full sm:w-80 md:w-96">
           <input
             type="text"
-            placeholder="Search venue name, campus, capacity..."
+            placeholder="Search"
             value={venueSearch}
             onChange={(e) => {
               setVenueSearch(e.target.value);
               setVenuePage(0);
             }}
-            className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200/90 rounded-full text-xs font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all shadow-xs"
+            className="w-full px-3.5 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:border-blue-500 transition-colors"
           />
         </div>
       </div>
 
-      {/* 2-Column Main Grid Layout: Left 2x2 Venue Catalog + Right Sticky Apple iOS Calendar Panel */}
+      {/* 2-Column Main Grid Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8">
 
-        {/* Left Column: 2x2 Venue Cards Grid */}
+        {/* Left Column: Venue Cards Grid */}
         <div className="lg:col-span-7 sm:col-span-12 space-y-4">
 
           {venuesLoading ? (
-            <div className="p-12 text-center bg-white rounded-3xl border border-slate-200/80 space-y-3">
-              <Loader2 size={32} className="mx-auto text-blue-600 animate-spin" />
-              <p className="text-xs font-bold text-slate-700">Loading university venues...</p>
-              <p className="text-[11px] text-slate-400">Loading...</p>
+            <div className="p-8 text-center bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
+              <p className="text-xs font-bold text-slate-700 dark:text-slate-300">Loading</p>
             </div>
           ) : searchedVenues.length === 0 ? (
-            <div className="p-8 text-center bg-white rounded-3xl border border-slate-200/80">
-              <Building2 size={32} className="mx-auto text-slate-300 mb-2" />
-              <p className="text-xs font-bold text-slate-700">
-                {filteredVenues.length === 0 ? "No university venues registered yet" : "No venues match your search"}
-              </p>
-              <p className="text-[11px] text-slate-400 mt-0.5">
-                {filteredVenues.length === 0 ? "Please check back later or contact the PMO/AVR office." : "Try searching with a different term or keyword"}
+            <div className="p-8 text-center bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
+              <p className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                {filteredVenues.length === 0 ? "Empty" : "None"}
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {paginatedVenues.map((v) => {
                 const isSelected = selectedVenue?.id === v.id;
                 const campusName = v.office?.location || v.office?.name || v.location || "Main Campus";
@@ -538,27 +628,27 @@ export default function Step2Venue({
                   <div
                     key={v.id}
                     onClick={() => {
-                      if (!isMaintenance) handleVenueSelect(v);
+                      if (!isMaintenance) onSelectVenue(v);
                     }}
-                    className={`relative border rounded-2xl p-4 transition-all duration-200 flex flex-col justify-between overflow-hidden ${
+                    className={`border rounded-lg p-4 transition-colors flex flex-col justify-between overflow-hidden ${
                       isMaintenance
-                        ? "border-amber-300/80 bg-amber-50/20 opacity-90 cursor-not-allowed shadow-2xs"
+                        ? "border-amber-300 bg-amber-50/20 opacity-90 cursor-not-allowed"
                         : isSelected
-                          ? "border-blue-600 bg-white dark:bg-card shadow-md ring-2 ring-blue-500/20 cursor-pointer"
-                          : "border-slate-200 dark:border-border bg-white dark:bg-card hover:border-blue-500/60 hover:shadow-xs cursor-pointer"
+                          ? "border-blue-600 bg-white dark:bg-slate-800 cursor-pointer"
+                          : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-blue-500 cursor-pointer"
                     }`}
                   >
                     <div>
-                      {/* Venue Image: 100% width, Aspect Ratio 16:9, Radius 12px */}
-                      <div className="w-full aspect-video bg-white dark:bg-[#1E293B] border border-slate-100 dark:border-slate-800 rounded-xl overflow-hidden flex flex-col items-center justify-center text-center relative group p-1">
+                      {/* Venue Image */}
+                      <div className="w-full aspect-video bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-lg overflow-hidden flex flex-col items-center justify-center text-center relative group p-1">
                         {venueInfo.photo ? (
                           <img
                             src={venueInfo.photo}
                             alt={v.name}
-                            className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
+                            className="w-full h-full object-contain"
                           />
                         ) : (
-                          <div className="p-4 flex flex-col items-center justify-center h-full w-full bg-slate-50 dark:bg-muted">
+                          <div className="p-4 flex flex-col items-center justify-center h-full w-full bg-slate-50 dark:bg-slate-700">
                             <span className="text-slate-900 dark:text-white font-extrabold text-xs sm:text-sm leading-snug line-clamp-2 uppercase tracking-wide">
                               {v.name}
                             </span>
@@ -567,54 +657,52 @@ export default function Step2Venue({
                       </div>
 
                       {/* Venue Metadata */}
-                      <div className="mt-3.5 space-y-1">
+                      <div className="mt-3 space-y-1">
                         <div className="flex items-center justify-between gap-2">
-                          <h4 className="font-bold text-slate-900 dark:text-foreground text-sm leading-tight line-clamp-1">
+                          <h4 className="font-bold text-slate-900 dark:text-white text-xs leading-tight line-clamp-1">
                             {v.name}
                           </h4>
-                          <span className={`text-[10.5px] font-bold px-2 py-0.5 rounded-full ${
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
                             isMaintenance 
-                              ? "bg-amber-100 text-amber-800"
-                              : "bg-emerald-100 text-emerald-800"
+                              ? "bg-amber-100 dark:bg-amber-950/40 text-amber-800 dark:text-amber-400"
+                              : "bg-emerald-100 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-400"
                           }`}>
                             {isMaintenance ? "Maintenance" : "Available"}
                           </span>
                         </div>
-                        <p className="text-xs text-slate-500 dark:text-muted-foreground font-medium line-clamp-1">
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium line-clamp-1">
                           {formatVenueLocation(v)}
                         </p>
-                        <p className="text-xs text-slate-600 dark:text-muted-foreground font-semibold">
-                          Min {v.min_capacity || 1} • Max {v.max_capacity || v.capacity || venueInfo.capacity || 80} persons
+                        <p className="text-[11px] text-slate-600 dark:text-slate-400 font-semibold">
+                          Min {v.min_capacity || 1} • Max {v.max_capacity || v.capacity || venueInfo.capacity || 80}
                         </p>
                       </div>
                     </div>
 
-                    {/* Primary Action Button: Height 40-44px, Radius 8-10px */}
-                    <div className="mt-4">
+                    {/* Primary Action Button */}
+                    <div className="mt-3.5">
                       {isMaintenance ? (
                         <button
                           disabled
-                          className="w-full h-10 rounded-lg border border-amber-300 bg-amber-50 text-amber-800 text-xs font-semibold flex items-center justify-center gap-1.5 opacity-90 cursor-not-allowed"
+                          className="w-full h-9 rounded-lg border border-amber-300 bg-amber-50 text-amber-800 text-xs font-semibold flex items-center justify-center opacity-90 cursor-not-allowed"
                         >
-                          <AlertTriangle size={14} className="text-amber-600" />
-                          <span>Maintenance Block</span>
+                          Maintenance
                         </button>
                       ) : isSelected ? (
                         <button
                           type="button"
-                          onClick={(e) => { e.stopPropagation(); handleVenueSelect(v); }}
-                          className="w-full h-10 rounded-lg bg-blue-600 text-white text-xs font-semibold flex items-center justify-center gap-1.5 shadow-xs transition-colors cursor-pointer"
+                          onClick={(e) => { e.stopPropagation(); onSelectVenue(v); }}
+                          className="w-full h-9 rounded-lg bg-blue-600 text-white text-xs font-semibold flex items-center justify-center transition-colors cursor-pointer"
                         >
-                          <CheckCircle2 size={14} />
-                          <span>Selected</span>
+                          Selected
                         </button>
                       ) : (
                         <button
                           type="button"
-                          onClick={(e) => { e.stopPropagation(); handleVenueSelect(v); }}
-                          className="w-full h-10 rounded-lg border border-slate-200 dark:border-border bg-white dark:bg-muted hover:bg-blue-600 hover:text-white hover:border-blue-600 text-slate-800 dark:text-foreground text-xs font-semibold transition-all cursor-pointer shadow-2xs"
+                          onClick={(e) => { e.stopPropagation(); onSelectVenue(v); }}
+                          className="w-full h-9 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-blue-600 hover:text-white hover:border-blue-600 text-slate-800 dark:text-white text-xs font-semibold transition-colors cursor-pointer"
                         >
-                          Select Venue
+                          Select
                         </button>
                       )}
                     </div>
@@ -631,13 +719,12 @@ export default function Step2Venue({
                 type="button"
                 onClick={() => setVenuePage(p => Math.max(0, p - 1))}
                 disabled={safeVenuePage === 0}
-                className="px-4 py-1.5 rounded-full bg-white border border-slate-200 text-xs font-extrabold text-slate-700 hover:bg-slate-50 disabled:opacity-40 flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
+                className="px-3.5 py-1.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-40 transition-colors cursor-pointer"
               >
-                <ChevronLeft size={14} />
-                <span>Prev</span>
+                Prev
               </button>
 
-              <span className="text-xs font-semibold text-slate-700 px-2">
+              <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 px-2">
                 {safeVenuePage + 1} / {totalPages}
               </span>
 
@@ -645,10 +732,9 @@ export default function Step2Venue({
                 type="button"
                 onClick={() => setVenuePage(p => Math.min(totalPages - 1, p + 1))}
                 disabled={safeVenuePage >= totalPages - 1}
-                className="px-4 py-1.5 rounded-full bg-white border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40 flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
+                className="px-3.5 py-1.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-40 transition-colors cursor-pointer"
               >
-                <span>Next</span>
-                <ChevronRight size={14} />
+                Next
               </button>
             </div>
           )}
@@ -657,26 +743,26 @@ export default function Step2Venue({
         {/* Right Column: Date & Time Selection Panel */}
         <div className="lg:col-span-5 sm:col-span-12 space-y-2 relative z-10 mt-4 lg:mt-0">
           {/* Operating Schedule Notice */}
-          <p className="text-center text-xs font-semibold text-emerald-600 dark:text-[#6ee7b7] mb-2">
-            Operating Schedule: {dynamicSchedule}
+          <p className="text-center text-xs font-semibold text-emerald-600 dark:text-emerald-400 mb-2">
+            Schedule: {dynamicSchedule}
           </p>
 
-          <div className="bg-white dark:bg-[#111c38] p-5 sm:p-6 rounded-[28px] border border-slate-200/90 dark:border-[#1e2d56] shadow-sm space-y-4 static lg:sticky lg:top-24 z-10">
+          <div className="bg-white dark:bg-slate-800 p-5 rounded-lg border border-slate-200 dark:border-slate-700 space-y-4 static lg:sticky lg:top-24 z-10">
 
             {/* Panel Header */}
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-[#1e2d56] pb-3">
-              <h4 className="font-bold text-slate-900 dark:text-[#f8fafc] text-xs uppercase tracking-wider">
-                Date & Time Selection
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-700 pb-3">
+              <h4 className="font-semibold text-slate-900 dark:text-white text-xs uppercase tracking-wider">
+                Schedule
               </h4>
-              <span className="text-xs font-semibold text-slate-500 dark:text-[#94a3b8] truncate max-w-[180px] sm:max-w-xs text-right">
-                {selectedVenue ? selectedVenue.name : "No Venue Selected"}
+              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 truncate max-w-[180px] sm:max-w-xs text-right">
+                {selectedVenue ? selectedVenue.name : "None"}
               </span>
             </div>
 
-            {/* Multi-Day Reservation Toggle Switch */}
+            {/* Multi-Day Reservation Toggle */}
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-900 dark:text-[#f8fafc]">
-                Multi-Day Reservation <span className="text-slate-500 dark:text-[#94a3b8] font-normal">[{isMultiDay ? "on : multi-day" : "off : single day"}]</span>
+              <span className="text-xs font-bold text-slate-900 dark:text-white">
+                Multi-Day
               </span>
               <IosToggle
                 checked={isMultiDay}
@@ -687,47 +773,43 @@ export default function Step2Venue({
                   }
                 }}
                 size="md"
-                title={isMultiDay ? "Switch to single-day mode" : "Switch to multi-day mode"}
               />
             </div>
 
             {/* Interactive Calendar Container */}
-            <div className="bg-white dark:bg-[#0e1738] p-4 sm:p-5 rounded-3xl border border-slate-200/80 dark:border-[#1e2d56] shadow-xs space-y-4">
-              {/* Header: < Month / Year > */}
+            <div className="bg-white dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700 space-y-4">
+              {/* Header: < Month Year > */}
               <div className="flex items-center justify-between px-1">
                 <button
                   type="button"
                   onClick={prevMonth}
-                  className="w-9 h-9 rounded-xl border border-slate-200 dark:border-[#1e2d56] hover:bg-slate-50 dark:hover:bg-[#172447] text-slate-700 dark:text-[#cbd5e1] flex items-center justify-center transition-colors cursor-pointer"
-                  title="Previous Month"
+                  className="w-8 h-8 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 flex items-center justify-center transition-colors cursor-pointer text-xs font-bold"
                 >
-                  <ChevronLeft size={16} />
+                  &lt;
                 </button>
 
-                <span className="text-base font-bold text-slate-900 dark:text-[#f8fafc] tracking-tight">
-                  {new Date(calYear, calMonth).toLocaleString("default", { month: "long" })} / {calYear}
+                <span className="text-sm font-bold text-slate-900 dark:text-white">
+                  {monthLabel}
                 </span>
 
                 <button
                   type="button"
                   onClick={nextMonth}
-                  className="w-9 h-9 rounded-xl border border-slate-200 dark:border-[#1e2d56] hover:bg-slate-50 dark:hover:bg-[#172447] text-slate-700 dark:text-[#cbd5e1] flex items-center justify-center transition-colors cursor-pointer"
-                  title="Next Month"
+                  className="w-8 h-8 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 flex items-center justify-center transition-colors cursor-pointer text-xs font-bold"
                 >
-                  <ChevronRight size={16} />
+                  &gt;
                 </button>
               </div>
 
               {/* Day of Week Headers (Mon - Sun) */}
-              <div className="grid grid-cols-7 gap-1 text-center text-xs font-semibold text-slate-400 dark:text-[#94a3b8]">
+              <div className="grid grid-cols-7 gap-1 text-center text-xs font-semibold text-slate-400 dark:text-slate-400">
                 {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map(d => (
                   <div key={d} className="py-1">{d}</div>
                 ))}
               </div>
 
-              {/* Calendar Grid with Multi-Day Range Highlights */}
+              {/* Calendar Grid */}
               <div className="grid grid-cols-7 gap-y-2 text-center text-xs">
-                {/* Adjust starting empty slots for Monday-first week */}
                 {Array.from({ length: (firstDayOfWeek + 6) % 7 }).map((_, i) => (
                   <div key={`empty-${i}`} className="h-9" />
                 ))}
@@ -750,21 +832,16 @@ export default function Step2Venue({
                   const isBooked = info.status === "booked" || info.status === "fully" || info.status === "partial";
                   const isMaintenance = info.status === "maintenance";
                   const isClosed = info.status === "closed";
-                  const isMaintenanceOrClosed = isMaintenance || isClosed;
-
-                  // Disabled state for past dates, short notice (in public view), maintenance/closed, or booked
-                  const isDisabled = isPast || isPublicBlockedNotice || isMaintenanceOrClosed || isBooked;
+                  const isDisabled = isPast || isPublicBlockedNotice || isMaintenance || isClosed || isBooked;
 
                   return (
                     <div
                       key={day}
                       className={`relative h-9 flex items-center justify-center ${hasRange && isInBetween
                           ? "bg-blue-50 dark:bg-blue-950/40"
-                          : hasRange && isStart
-                            ? "bg-gradient-to-r from-transparent 50% to-blue-50 dark:to-blue-950/40 50%"
-                            : hasRange && isEnd
-                              ? "bg-gradient-to-l from-transparent 50% to-blue-50 dark:to-blue-950/40 50%"
-                              : ""
+                          : hasRange && (isStart || isEnd)
+                            ? "bg-blue-50 dark:bg-blue-950/40"
+                            : ""
                         }`}
                     >
                       <button
@@ -774,11 +851,9 @@ export default function Step2Venue({
                           if (isDisabled) return;
 
                           if (!isMultiDay) {
-                            // Single-Day Mode: Set start and end to the same clicked date
                             handleDateSelect(dateStr);
                             if (setSelectedEndDate) setSelectedEndDate(dateStr);
                           } else {
-                            // Multi-Day Mode: Start/End range with NO limit
                             if (!selectedDate || (selectedDate && selectedEndDate && selectedEndDate !== selectedDate)) {
                               handleDateSelect(dateStr);
                               if (setSelectedEndDate) setSelectedEndDate(dateStr);
@@ -792,7 +867,6 @@ export default function Step2Venue({
                             }
                           }
 
-                          // Trigger verification pin modal prompt for short notice (within 3 days / tomorrow) in portal mode
                           if (isPortal && isShortNotice && !isPinVerified) {
                             setPinModalMeta && setPinModalMeta({
                               title: "Verification Pin",
@@ -801,40 +875,23 @@ export default function Step2Venue({
                             setShowPinModal && setShowPinModal(true);
                           }
                         }}
-                        className={`w-9 h-9 rounded-full text-xs font-semibold flex items-center justify-center mx-auto transition-all relative z-10 ${
+                        className={`w-9 h-9 rounded-lg text-xs font-semibold flex items-center justify-center mx-auto transition-colors relative z-10 ${
                           isStart || isEnd
-                            ? "bg-blue-600 text-white font-bold shadow-xs scale-105 cursor-pointer"
+                            ? "bg-blue-600 text-white font-bold cursor-pointer"
                             : isToday
-                              ? "border-2 border-blue-600 text-blue-700 dark:text-[#93c5fd] font-bold bg-blue-50/40 dark:bg-blue-500/10 cursor-pointer"
+                              ? "border border-blue-600 text-blue-700 dark:text-blue-400 font-bold bg-blue-50/40 dark:bg-blue-500/10 cursor-pointer"
                               : isClosed
-                                ? "border-2 border-rose-600 bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400 font-semibold cursor-not-allowed"
+                                ? "border border-rose-600 bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400 font-semibold cursor-not-allowed"
                                 : isMaintenance
-                                  ? "border-2 border-amber-500 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 font-semibold cursor-not-allowed"
+                                  ? "border border-amber-500 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 font-semibold cursor-not-allowed"
                                   : isBooked
-                                    ? "border-2 border-blue-500 bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 font-semibold cursor-not-allowed"
+                                    ? "border border-blue-500 bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 font-semibold cursor-not-allowed"
                                     : isShortNotice
-                                      ? `border-2 border-slate-300 dark:border-slate-600 text-slate-500 dark:text-slate-400 font-medium bg-slate-50/50 dark:bg-slate-800/40 ${isPublicBlockedNotice ? "cursor-not-allowed opacity-80" : "hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"}`
+                                      ? `border border-slate-300 dark:border-slate-600 text-slate-500 dark:text-slate-400 font-medium bg-slate-50/50 dark:bg-slate-800/40 ${isPublicBlockedNotice ? "cursor-not-allowed opacity-80" : "hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"}`
                                       : isPast
                                         ? "text-slate-300 dark:text-slate-600 font-normal cursor-not-allowed select-none"
-                                        : "border border-emerald-300/80 dark:border-emerald-700/60 bg-emerald-50/20 dark:bg-emerald-950/20 text-slate-700 dark:text-[#cbd5e1] font-medium hover:bg-emerald-100/50 dark:hover:bg-emerald-900/30 hover:border-emerald-400 cursor-pointer"
+                                        : "border border-emerald-300/80 dark:border-emerald-700/60 bg-emerald-50/20 dark:bg-emerald-950/20 text-slate-700 dark:text-slate-200 font-medium hover:bg-emerald-100/50 cursor-pointer"
                         }`}
-                        title={
-                          isToday
-                            ? `Today (${dateStr})${isPublicBlockedNotice ? ' - Min. 3 days advance notice required for venue booking' : ''}`
-                            : isPast
-                              ? "Date already passed"
-                              : isPublicBlockedNotice
-                                ? `${dateStr} (Requires at least 3 days advance booking)`
-                                : isClosed
-                                  ? `${dateStr} (Closed: ${info.box?.details || 'Closed by Admin'})`
-                                  : isMaintenance
-                                    ? `${dateStr} (Maintenance: ${info.box?.details || 'Under Maintenance'})`
-                                    : isBooked
-                                      ? `${dateStr} (Booked: ${info.box?.time || 'Reserved slots'})`
-                                      : isShortNotice
-                                        ? `${dateStr} (Short-Notice: PIN Authorization Required)`
-                                        : `${dateStr} (Available)`
-                        }
                       >
                         <span className="relative">
                           {day}
@@ -860,171 +917,167 @@ export default function Step2Venue({
               {/* Calendar Quick Legend */}
               <div className="flex flex-wrap items-center justify-between gap-2.5 text-xs font-medium text-slate-600 dark:text-slate-400 pt-3 border-t border-slate-100 dark:border-slate-800">
                 <span className="flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full border-2 border-emerald-500 bg-emerald-100 dark:bg-emerald-950 inline-block"></span>
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span>
                   <span className="text-emerald-700 dark:text-emerald-400 font-semibold">Available</span>
                 </span>
                 <span className="flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full border-2 border-blue-500 bg-blue-100 dark:bg-blue-950 inline-block"></span>
+                  <span className="w-2 h-2 rounded-full bg-blue-500 inline-block"></span>
                   <span className="text-blue-700 dark:text-blue-400 font-semibold">Booked</span>
                 </span>
                 <span className="flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full border-2 border-rose-600 bg-rose-200 dark:bg-rose-900 inline-block"></span>
+                  <span className="w-2 h-2 rounded-full bg-rose-600 inline-block"></span>
                   <span className="text-rose-700 dark:text-rose-400 font-semibold">Closed</span>
                 </span>
                 <span className="flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full border-2 border-amber-500 bg-amber-100 dark:bg-amber-950 inline-block"></span>
+                  <span className="w-2 h-2 rounded-full bg-amber-500 inline-block"></span>
                   <span className="text-amber-700 dark:text-amber-400 font-semibold">Maintenance</span>
                 </span>
                 <span className="flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-blue-600 inline-block"></span>
+                  <span className="w-2 h-2 rounded-full bg-blue-600 inline-block"></span>
                   <span>Selected</span>
                 </span>
               </div>
             </div>
 
-            {/* Time Controls: Time Start * | Time End * with Custom 5-Minute TimePicker */}
+            {/* Time Controls: Start | End */}
             <div className="grid grid-cols-2 gap-3 pt-1">
               <div className="space-y-1.5">
-                <label className="text-xs font-extrabold text-slate-800 block">Time Start *</label>
+                <label className="text-xs font-semibold text-slate-800 dark:text-slate-200 block">Start</label>
                 <CustomTimePicker
                   value={timeStart || "08:00"}
                   onChange={(val) => setTimeStart(val)}
                   minuteStep={5}
                   align="left"
+                  dropUp
                 />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-extrabold text-slate-800 block">Time End *</label>
+                <label className="text-xs font-semibold text-slate-800 dark:text-slate-200 block">End</label>
                 <CustomTimePicker
                   value={timeEnd || "10:00"}
                   onChange={(val) => setTimeEnd(val)}
                   minuteStep={5}
                   align="right"
+                  dropUp
                 />
               </div>
             </div>
 
-              {selectedDate && timeStart && timeEnd && (
-                <div className="space-y-2 pt-1">
-                  {selectedDateOverride ? (
-                    <div className={`p-3.5 border-2 rounded-2xl text-xs font-bold space-y-1.5 shadow-sm ${
-                      selectedDateOverride.status === "maintenance"
-                        ? "bg-amber-50 border-amber-300 text-amber-900"
-                        : "bg-rose-50 border-rose-300 text-rose-900"
-                    }`}>
-                      <div className="flex items-center gap-1.5 font-extrabold">
-                        <AlertTriangle size={16} className={selectedDateOverride.status === "maintenance" ? "text-amber-600 shrink-0" : "text-rose-600 shrink-0"} />
-                        <span>Venue is {selectedDateOverride.status === "maintenance" ? "Under Maintenance" : "Closed"}!</span>
-                      </div>
-                      <p className="text-[11px] font-semibold leading-snug">
-                        <strong>{selectedVenue?.name}</strong> is currently unavailable on <strong>{selectedDateOverride.override_date?.substring(0, 10)}</strong> due to scheduled <strong>{selectedDateOverride.status}</strong>.
-                        {selectedDateOverride.notes ? ` Reason: ${selectedDateOverride.notes}` : ""}
-                      </p>
+            {selectedDate && timeStart && timeEnd && (
+              <div className="space-y-2 pt-1">
+                {selectedDateOverride ? (
+                  <div className={`p-3.5 border rounded-lg text-xs font-bold space-y-1.5 ${
+                    selectedDateOverride.status === "maintenance"
+                      ? "bg-amber-50 border-amber-300 text-amber-900"
+                      : "bg-rose-50 border-rose-300 text-rose-900"
+                  }`}>
+                    <div className="font-extrabold">
+                      <span>{selectedDateOverride.status === "maintenance" ? "Maintenance" : "Closed"}</span>
                     </div>
-                  ) : null}
-                  {isInvalidEndDate ? (
-                    <div className="p-3 bg-rose-50 border border-rose-200 rounded-2xl text-xs font-bold text-rose-800 space-y-1">
-                      <div className="flex items-center gap-1.5 text-rose-700">
-                        <AlertTriangle size={15} />
-                        <span>Invalid Reservation End Date!</span>
-                      </div>
-                      <p className="text-[11px] font-semibold text-rose-700 leading-snug">
-                        Reservation end date ({selectedEndDate}) cannot be earlier than the start date ({selectedDate}). Please select a date equal to or ahead of the start date.
-                      </p>
+                    <p className="text-[11px] font-semibold leading-snug">
+                      <strong>{selectedVenue?.name}</strong> is unavailable on <strong>{selectedDateOverride.override_date?.substring(0, 10)}</strong>.
+                      {selectedDateOverride.notes ? ` Reason: ${selectedDateOverride.notes}` : ""}
+                    </p>
+                  </div>
+                ) : null}
+                {isInvalidEndDate ? (
+                  <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-xs font-bold text-rose-800 space-y-1">
+                    <div className="text-rose-700">
+                      <span>Invalid</span>
                     </div>
-                  ) : isInvalidTimeRange ? (
-                    <div className="p-3 bg-rose-50 border border-rose-200 rounded-2xl text-xs font-bold text-rose-800 space-y-1">
-                      <div className="flex items-center gap-1.5 text-rose-700">
-                        <AlertTriangle size={15} />
-                        <span>Invalid Time Range!</span>
-                      </div>
-                      <p className="text-[11px] font-semibold text-rose-700 leading-snug">
-                        Time End ({formatTime12(timeEnd)}) must be later than Time Start ({formatTime12(timeStart)}).
-                      </p>
+                    <p className="text-[11px] font-semibold text-rose-700 leading-snug">
+                      End date ({selectedEndDate}) cannot be earlier than start date ({selectedDate}).
+                    </p>
+                  </div>
+                ) : isInvalidTimeRange ? (
+                  <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-xs font-bold text-rose-800 space-y-1">
+                    <div className="text-rose-700">
+                      <span>Invalid</span>
                     </div>
-                  ) : isPastSelection ? (
-                    <div className="p-3 bg-rose-50 border border-rose-200 rounded-2xl text-xs font-bold text-rose-800 space-y-1">
-                      <div className="flex items-center gap-1.5 text-rose-700">
-                        <AlertTriangle size={15} />
-                        <span>Past Time Selected!</span>
-                      </div>
-                      <p className="text-[11px] font-semibold text-rose-700 leading-snug">
-                        Selected start time ({formatTime12(timeStart)}) has already passed for today. Please select a future time slot.
-                      </p>
+                    <p className="text-[11px] font-semibold text-rose-700 leading-snug">
+                      End ({formatTime12(timeEnd)}) must be later than Start ({formatTime12(timeStart)}).
+                    </p>
+                  </div>
+                ) : isPastSelection ? (
+                  <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-xs font-bold text-rose-800 space-y-1">
+                    <div className="text-rose-700">
+                      <span>Invalid</span>
                     </div>
-                  ) : isConflict ? (
-                    <div className="p-3.5 bg-rose-50 border-2 border-rose-300 rounded-2xl text-xs font-bold text-rose-800 space-y-1.5 shadow-sm">
-                      <div className="flex items-center gap-1.5 text-rose-700 font-extrabold">
-                        <AlertTriangle size={16} className="text-rose-600 shrink-0" />
-                        <span>Already Reserved!</span>
-                      </div>
-                      <p className="text-[11px] font-semibold text-rose-700 leading-snug">
-                        <strong>{selectedVenue?.name}</strong> is already booked on <strong>{conflictingBooking.date_of_usage ? conflictingBooking.date_of_usage.substring(0, 10) : selectedDate}</strong> from <strong>{formatTime12(conflictingBooking.time_start?.substring(0, 5))} to {formatTime12(conflictingBooking.time_end?.substring(0, 5))}</strong>.
-                      </p>
+                    <p className="text-[11px] font-semibold text-rose-700 leading-snug">
+                      Selected start time ({formatTime12(timeStart)}) has passed.
+                    </p>
+                  </div>
+                ) : isConflict ? (
+                  <div className="p-3.5 bg-rose-50 border border-rose-300 rounded-lg text-xs font-bold text-rose-800 space-y-1.5">
+                    <div className="text-rose-700 font-extrabold">
+                      <span>Reserved</span>
                     </div>
-                  ) : null}
+                    <p className="text-[11px] font-semibold text-rose-700 leading-snug">
+                      <strong>{selectedVenue?.name}</strong> is already booked on <strong>{conflictingBooking.date_of_usage ? conflictingBooking.date_of_usage.substring(0, 10) : selectedDate}</strong> from <strong>{formatTime12(conflictingBooking.time_start?.substring(0, 5))} to {formatTime12(conflictingBooking.time_end?.substring(0, 5))}</strong>.
+                    </p>
+                  </div>
+                ) : null}
 
-                  {(() => {
-                    const venueOpen = opHours?.venue_open?.substring(0, 5) || "07:30";
-                    const venueClose = opHours?.venue_close?.substring(0, 5) || "17:00";
-                    const isOutside = timeStart < venueOpen || timeEnd > venueClose;
+                {(() => {
+                  const venueOpen = opHours?.venue_open?.substring(0, 5) || "07:30";
+                  const venueClose = opHours?.venue_close?.substring(0, 5) || "17:00";
+                  const isOutside = timeStart < venueOpen || timeEnd > venueClose;
 
-                    if (isOutside) {
-                      if (isPortal) {
-                        return (
-                          <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 space-y-2 mt-2">
-                            <div className="flex items-center justify-between">
-                              <span className="font-semibold text-slate-800">
-                                Outside Office Hours ({formatTime12(venueOpen)} – {formatTime12(venueClose)})
+                  if (isOutside) {
+                    if (isPortal) {
+                      return (
+                        <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-700 space-y-2 mt-2">
+                          <div className="flex items-center justify-between">
+                            <span className="font-semibold text-slate-800">
+                              Hours ({formatTime12(venueOpen)} – {formatTime12(venueClose)})
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-600 font-normal leading-relaxed">
+                            PIN is required for authorization.
+                          </p>
+                          <div className="pt-1.5 border-t border-slate-200 flex items-center justify-between gap-2">
+                            {isPinVerified ? (
+                              <span className="text-xs font-medium text-slate-700">
+                                Verified
                               </span>
-                            </div>
-                            <p className="text-xs text-slate-600 font-normal leading-relaxed">
-                              Selected booking time ({formatTime12(timeStart)} – {formatTime12(timeEnd)}) is outside campus hours. AVR Head / Admin Verification PIN is required for authorization.
-                            </p>
-                            <div className="pt-1.5 border-t border-slate-200 flex items-center justify-between gap-2">
-                              {isPinVerified ? (
-                                <span className="text-xs font-medium text-slate-700">
-                                  ✓ PIN verified for outside hours
-                                </span>
-                              ) : (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    if (setPinModalMeta) {
-                                      setPinModalMeta({
-                                        title: "Outside Office Hours PIN",
-                                        description: `Selected booking time (${formatTime12(timeStart)} - ${formatTime12(timeEnd)}) is outside official campus hours (${formatTime12(venueOpen)} - ${formatTime12(venueClose)}). AVR Head / Admin Verification PIN is required.`,
-                                      });
-                                    }
-                                    setShowPinModal && setShowPinModal(true);
-                                  }}
-                                  className="w-full py-2 px-3 rounded-lg border border-blue-600 bg-blue-50/70 hover:bg-blue-600 text-blue-700 hover:text-white active:bg-blue-700 font-semibold text-xs transition-all cursor-pointer text-center shadow-2xs"
-                                >
-                                  Verify PIN
-                                </button>
-                              )}
-                            </div>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (setPinModalMeta) {
+                                    setPinModalMeta({
+                                      title: "Verification Pin",
+                                      description: `Selected booking time (${formatTime12(timeStart)} - ${formatTime12(timeEnd)}) is outside official campus hours. Verification PIN is required.`,
+                                    });
+                                  }
+                                  setShowPinModal && setShowPinModal(true);
+                                }}
+                                className="w-full py-2 px-3 rounded-lg border border-blue-600 bg-blue-50/70 hover:bg-blue-600 text-blue-700 hover:text-white font-semibold text-xs transition-colors cursor-pointer text-center"
+                              >
+                                Verify
+                              </button>
+                            )}
                           </div>
-                        );
-                      } else {
-                        return (
-                          <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-800 space-y-1 mt-2">
-                            <div className="flex items-center gap-1.5 font-bold text-rose-900">
-                              <AlertTriangle size={14} className="text-rose-600 shrink-0" />
-                              <span>Outside Operating Hours</span>
-                            </div>
-                            <p className="text-[11px] font-semibold text-rose-700 leading-snug">
-                              Must be schedule within Operating Hours [ {formatTime12(venueOpen)} - {formatTime12(venueClose)} ].
-                            </p>
+                        </div>
+                      );
+                    } else {
+                      return (
+                        <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-xs text-rose-800 space-y-1 mt-2">
+                          <div className="font-bold text-rose-900">
+                            <span>Hours</span>
                           </div>
-                        );
-                      }
+                          <p className="text-[11px] font-semibold text-rose-700 leading-snug">
+                            Must be scheduled within Operating Hours [ {formatTime12(venueOpen)} - {formatTime12(venueClose)} ].
+                          </p>
+                        </div>
+                      );
                     }
-                    return null;
-                  })()}
-                </div>
-              )}
+                  }
+                  return null;
+                })()}
+              </div>
+            )}
 
           </div>
         </div>
@@ -1032,27 +1085,23 @@ export default function Step2Venue({
       </div>
 
       {/* Footer Navigation Bar */}
-      <div className="flex items-center justify-between pt-6 border-t border-slate-200/80">
+      <div className="flex items-center justify-between pt-6 border-t border-slate-200 dark:border-slate-700">
         <Button
           type="button"
           variant="outline"
           onClick={() => onBack && onBack()}
-          className="border-slate-200 text-slate-700 hover:bg-slate-50 px-4 sm:px-5 py-3 rounded-full font-bold text-xs flex items-center gap-1.5 cursor-pointer shrink-0"
+          className="border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 px-5 py-2.5 rounded-lg font-semibold text-xs cursor-pointer shrink-0"
         >
-          <ChevronLeft size={16} />
-          <span className="sm:hidden">Back</span>
-          <span className="hidden sm:inline">Back to Role Selection</span>
+          Back
         </Button>
 
         <Button
           type="button"
           disabled={!canProceed}
           onClick={() => canProceed && onNext && onNext()}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-5 sm:px-7 py-3 rounded-full font-semibold text-xs flex items-center justify-center gap-2 shadow-xs disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+          className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg font-semibold text-xs disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
         >
-          <span className="sm:hidden">Next Step</span>
-          <span className="hidden sm:inline">Next: Fill Details</span>
-          <ChevronRight size={16} />
+          Next
         </Button>
       </div>
     </div>

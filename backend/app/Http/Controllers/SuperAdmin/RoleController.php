@@ -14,8 +14,11 @@ use Illuminate\Http\Request;
  */
 class RoleController extends Controller
 {
-    // Fixed system roles that cannot be deleted or managed in general roles table
-    private const PROTECTED_ROLES = ['super_admin', 'sysad'];
+    // Hidden roles not managed via standard roles list
+    private const HIDDEN_ROLES = ['super_admin', 'sysad'];
+
+    // Protected system roles that cannot be deleted or renamed
+    private const PROTECTED_ROLES = ['super_admin', 'sysad', 'admin', 'staff', 'student_assistant'];
 
     /**
      * List all roles with their user count.
@@ -23,7 +26,7 @@ class RoleController extends Controller
     public function index(): JsonResponse
     {
         $roles = Role::withCount('users')
-            ->whereNotIn('name', self::PROTECTED_ROLES)
+            ->whereNotIn('name', self::HIDDEN_ROLES)
             ->orderBy('id')
             ->get()
             ->map(function ($role) {

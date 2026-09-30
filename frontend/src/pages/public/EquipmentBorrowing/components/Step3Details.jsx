@@ -188,7 +188,7 @@ export default function Step3Details({
   }, [email]);
 
   const [otpChannel, setOtpChannel] = useState("email"); // "email" | "sms"
-  
+
   useEffect(() => {
     if (requirePhoneVerify && !requireEmailVerify) {
       setOtpChannel("sms");
@@ -391,7 +391,7 @@ export default function Step3Details({
       }
       const match = (catalog || []).find(
         (cat) => String(cat.id) === String(raw) ||
-                 (cat.name || cat.eq_name || "").toLowerCase() === String(raw).toLowerCase()
+          (cat.name || cat.eq_name || "").toLowerCase() === String(raw).toLowerCase()
       );
       if (match) {
         builtInNamesSet.add(match.name || match.eq_name);
@@ -436,10 +436,10 @@ export default function Step3Details({
         <div className="col-span-1 sm:col-span-2 grid grid-cols-1 sm:grid-cols-4 gap-3">
           <div className="flex flex-col gap-1.5 sm:col-span-1">
             <label className="text-xs font-bold text-slate-900">Last Name <span className="text-red-500">*</span></label>
-            <input 
-              type="text" 
-              required 
-              value={lastName} 
+            <input
+              type="text"
+              required
+              value={lastName}
               onChange={e => {
                 const val = e.target.value;
                 setLastName(val);
@@ -447,18 +447,18 @@ export default function Step3Details({
                   const given = [firstName, middleName].filter(Boolean).join(" ");
                   setFullName(val ? (given ? `${val}, ${given}${suffix ? ` ${suffix}` : ''}` : val) : [given, suffix].filter(Boolean).join(" "));
                 }
-              }} 
-              placeholder="Dela Cruz" 
-              className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all" 
+              }}
+              placeholder="Dela Cruz"
+              className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all"
             />
           </div>
 
           <div className="flex flex-col gap-1.5 sm:col-span-1">
             <label className="text-xs font-bold text-slate-900">First Name <span className="text-red-500">*</span></label>
-            <input 
-              type="text" 
-              required 
-              value={firstName} 
+            <input
+              type="text"
+              required
+              value={firstName}
               onChange={e => {
                 const val = e.target.value;
                 setFirstName(val);
@@ -466,17 +466,17 @@ export default function Step3Details({
                   const given = [val, middleName].filter(Boolean).join(" ");
                   setFullName(lastName ? (given ? `${lastName}, ${given}${suffix ? ` ${suffix}` : ''}` : lastName) : [given, suffix].filter(Boolean).join(" "));
                 }
-              }} 
-              placeholder="Juan" 
-              className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all" 
+              }}
+              placeholder="Juan"
+              className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all"
             />
           </div>
 
           <div className="flex flex-col gap-1.5 sm:col-span-1">
             <label className="text-xs font-bold text-slate-900">Middle Name <span className="text-slate-400 font-normal">(Optional)</span></label>
-            <input 
-              type="text" 
-              value={middleName} 
+            <input
+              type="text"
+              value={middleName}
               onChange={e => {
                 const val = e.target.value;
                 setMiddleName(val);
@@ -484,17 +484,17 @@ export default function Step3Details({
                   const given = [firstName, val].filter(Boolean).join(" ");
                   setFullName(lastName ? (given ? `${lastName}, ${given}${suffix ? ` ${suffix}` : ''}` : lastName) : [given, suffix].filter(Boolean).join(" "));
                 }
-              }} 
-              placeholder="Santos" 
-              className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all" 
+              }}
+              placeholder="Santos"
+              className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all"
             />
           </div>
 
           <div className="flex flex-col gap-1.5 sm:col-span-1">
             <label className="text-xs font-bold text-slate-900">Suffix <span className="text-slate-400 font-normal">(Optional)</span></label>
-            <input 
-              type="text" 
-              value={suffix} 
+            <input
+              type="text"
+              value={suffix}
               onChange={e => {
                 const val = e.target.value;
                 setSuffix(val);
@@ -502,9 +502,9 @@ export default function Step3Details({
                   const given = [firstName, middleName].filter(Boolean).join(" ");
                   setFullName(lastName ? (given ? `${lastName}, ${given}${val ? ` ${val}` : ''}` : lastName) : [given, val].filter(Boolean).join(" "));
                 }
-              }} 
-              placeholder="Jr., III" 
-              className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all" 
+              }}
+              placeholder="Jr., III"
+              className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all"
             />
           </div>
         </div>
@@ -534,11 +534,10 @@ export default function Step3Details({
                     setOtpSuccess("");
                   }
                 }}
-                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                  otpChannel === "email"
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${otpChannel === "email"
                     ? "bg-blue-600 text-white shadow-xs"
                     : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/60 dark:hover:bg-slate-800"
-                } ${isEmailVerified ? "opacity-60 cursor-not-allowed" : ""}`}
+                  } ${isEmailVerified ? "opacity-60 cursor-not-allowed" : ""}`}
               >
                 <Mail size={13} />
                 <span>Email OTP</span>
@@ -555,11 +554,10 @@ export default function Step3Details({
                     setOtpSuccess("");
                   }
                 }}
-                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                  otpChannel === "sms"
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${otpChannel === "sms"
                     ? "bg-blue-600 text-white shadow-xs"
                     : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/60 dark:hover:bg-slate-800"
-                } ${isEmailVerified ? "opacity-60 cursor-not-allowed" : ""}`}
+                  } ${isEmailVerified ? "opacity-60 cursor-not-allowed" : ""}`}
               >
                 <Phone size={13} />
                 <span>SMS OTP</span>
@@ -593,23 +591,22 @@ export default function Step3Details({
           </div>
 
           <div className="relative flex items-center">
-            <input 
-              type="email" 
-              required 
+            <input
+              type="email"
+              required
               readOnly={requireVerification && isEmailVerified && otpChannel === "email"}
-              value={email} 
+              value={email}
               onChange={handleEmailChange}
               onBlur={handleEmailBlur}
-              placeholder="yourname@gmail.com or username@urios.edu.ph" 
-              className={`w-full p-3 ${requireVerification && otpChannel === "email" ? 'pr-24' : ''} border rounded-xl text-sm transition-all focus:outline-none ${
-                (requireVerification && isEmailVerified && otpChannel === "email")
-                  ? "bg-emerald-50/40 dark:bg-emerald-950/30 border-emerald-300 dark:border-emerald-700 text-slate-800 dark:text-emerald-300 font-semibold cursor-not-allowed" 
+              placeholder="email address"
+              className={`w-full p-3 ${requireVerification && otpChannel === "email" ? 'pr-24' : ''} border rounded-xl text-sm transition-all focus:outline-none ${(requireVerification && isEmailVerified && otpChannel === "email")
+                  ? "bg-emerald-50/40 dark:bg-emerald-950/30 border-emerald-300 dark:border-emerald-700 text-slate-800 dark:text-emerald-300 font-semibold cursor-not-allowed"
                   : emailCheckStatus === "invalid"
                     ? "bg-white dark:bg-slate-900/80 border-rose-300 dark:border-rose-700 focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
                     : emailCheckStatus === "valid"
                       ? "bg-white dark:bg-slate-900/80 border-blue-400 dark:border-blue-700 focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
                       : "bg-white dark:bg-slate-900/80 border-slate-200 dark:border-slate-700 focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
-              }`} 
+                }`}
             />
 
             {/* Attached Action Button inside field (Only when channel is email) */}
@@ -637,11 +634,10 @@ export default function Step3Details({
                     size="sm"
                     disabled={isSendingOtp || !email || !email.trim() || emailCheckStatus !== "valid"}
                     onClick={() => handleRequestOtp("email")}
-                    className={`h-8 px-3 rounded-lg text-xs font-black shadow-xs transition-all ${
-                      !email || !email.trim() || emailCheckStatus !== "valid"
+                    className={`h-8 px-3 rounded-lg text-xs font-black shadow-xs transition-all ${!email || !email.trim() || emailCheckStatus !== "valid"
                         ? "bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-200 dark:border-slate-700 cursor-not-allowed opacity-60"
                         : "bg-blue-600 hover:bg-blue-700 text-white shadow-blue-600/20 active:scale-95 cursor-pointer"
-                    }`}
+                      }`}
                   >
                     {isSendingOtp ? (
                       <span className="flex items-center gap-1">
@@ -832,20 +828,19 @@ export default function Step3Details({
           </div>
 
           <div className="relative flex items-center">
-            <input 
-              type="tel" 
-              required 
+            <input
+              type="tel"
+              required
               readOnly={requireVerification && isEmailVerified && otpChannel === "sms"}
               value={contactNumber}
               onChange={handleContactChange}
               pattern="[0-9]{11}"
               title="Please enter an active 11-digit Philippine mobile number"
-              placeholder="0917 123 4567" 
-              className={`w-full p-3 ${requireVerification && otpChannel === "sms" ? 'pr-24' : ''} border rounded-xl text-sm font-mono transition-all focus:outline-none ${
-                (requireVerification && isEmailVerified && otpChannel === "sms")
+              placeholder="0917 123 4567"
+              className={`w-full p-3 ${requireVerification && otpChannel === "sms" ? 'pr-24' : ''} border rounded-xl text-sm font-mono transition-all focus:outline-none ${(requireVerification && isEmailVerified && otpChannel === "sms")
                   ? "bg-emerald-50/40 dark:bg-emerald-950/30 border-emerald-300 dark:border-emerald-700 text-slate-800 dark:text-emerald-300 font-semibold cursor-not-allowed"
                   : "bg-white dark:bg-slate-900/80 border-slate-200 dark:border-slate-700 focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
-              }`} 
+                }`}
             />
 
             {/* Attached Action Button for SMS verification */}
@@ -873,11 +868,10 @@ export default function Step3Details({
                     size="sm"
                     disabled={!phoneInfo.isValid || isSendingOtp}
                     onClick={() => handleRequestOtp("sms")}
-                    className={`h-8 px-3 rounded-lg text-xs font-black shadow-xs transition-all cursor-pointer ${
-                      phoneInfo.isValid
+                    className={`h-8 px-3 rounded-lg text-xs font-black shadow-xs transition-all cursor-pointer ${phoneInfo.isValid
                         ? "bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500 text-white shadow-blue-600/20"
                         : "bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-200 dark:border-slate-700 cursor-not-allowed shadow-none"
-                    }`}
+                      }`}
                   >
                     {isSendingOtp ? (
                       <span className="flex items-center gap-1">
@@ -1021,13 +1015,13 @@ export default function Step3Details({
               {(() => {
                 const defaultDepts = [
                   { code: "CITE", name: "College of Information Tech Education (CITE)" },
-                  { code: "CAS",  name: "College of Arts & Sciences (CAS)" },
-                  { code: "CBA",  name: "College of Business Admin (CBA)" },
-                  { code: "CED",  name: "College of Education (CED)" },
-                  { code: "CON",  name: "College of Nursing (CON)" },
-                  { code: "CEA",  name: "College of Engineering & Architecture (CEA)" },
-                  { code: "SHS",  name: "Senior High School (SHS)" },
-                  { code: "JHS",  name: "Junior High School (JHS)" },
+                  { code: "CAS", name: "College of Arts & Sciences (CAS)" },
+                  { code: "CBA", name: "College of Business Admin (CBA)" },
+                  { code: "CED", name: "College of Education (CED)" },
+                  { code: "CON", name: "College of Nursing (CON)" },
+                  { code: "CEA", name: "College of Engineering & Architecture (CEA)" },
+                  { code: "SHS", name: "Senior High School (SHS)" },
+                  { code: "JHS", name: "Junior High School (JHS)" },
                   { code: "ADMIN", name: "University Administration" },
                 ];
                 const listToRender = departmentsList.length > 0
@@ -1049,13 +1043,13 @@ export default function Step3Details({
 
         <div className="flex flex-col gap-1.5 sm:col-span-1">
           <label className="text-xs font-bold text-slate-900">Location of Equipment Use <span className="text-red-500">*</span></label>
-          <input 
-            type="text" 
-            required 
-            value={placeOfUse} 
-            onChange={e => setPlaceOfUse(e.target.value)} 
-            placeholder="e.g. Main Gymnasium / AVR 1" 
-            className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all" 
+          <input
+            type="text"
+            required
+            value={placeOfUse}
+            onChange={e => setPlaceOfUse(e.target.value)}
+            placeholder="e.g. Main Gymnasium / AVR 1"
+            className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all"
           />
         </div>
 
@@ -1088,16 +1082,15 @@ export default function Step3Details({
                 {otpChannel === "sms" ? "SMS OTP verification required to proceed" : "Email OTP verification required to proceed"}
               </span>
             )}
-            <Button 
-              type="submit" 
+            <Button
+              type="submit"
               disabled={requireVerification && !isEmailVerified}
-              className={`px-8 py-5 rounded-xl font-extrabold text-white text-xs shadow-lg transition-all ${
-                (!requireVerification || isEmailVerified)
+              className={`px-8 py-5 rounded-xl font-extrabold text-white text-xs shadow-lg transition-all ${(!requireVerification || isEmailVerified)
                   ? primaryDept === "sco"
                     ? 'bg-purple-600 hover:bg-purple-700 shadow-purple-600/20 cursor-pointer'
                     : 'bg-blue-600 hover:bg-blue-700 shadow-blue-600/20 cursor-pointer'
                   : "bg-slate-300 text-slate-500 cursor-not-allowed shadow-none"
-              }`}
+                }`}
             >
               Next: Review →
             </Button>

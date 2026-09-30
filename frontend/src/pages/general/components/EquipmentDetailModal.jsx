@@ -70,7 +70,11 @@ export default function EquipmentDetailModal({
             <div className="p-3.5 bg-slate-50/80 rounded-xl border border-slate-100">
               <span className="text-slate-400 font-bold block text-[10px] uppercase">Operating Status</span>
               <span className="font-extrabold text-slate-900 text-sm mt-0.5 block capitalize">
-                {selectedItem.status || "available"} ({selectedItem.available_count ?? 1} / {selectedItem.total_count ?? 1} Units)
+                {parentUnit || String(selectedItem.status).toLowerCase() === 'built-in' ? (
+                  <span className="text-violet-600 font-bold">Built-in (Linked to Parent Kit)</span>
+                ) : (
+                  `${selectedItem.status || "available"} (${selectedItem.available_count ?? 1} / ${selectedItem.total_count ?? 1} Units)`
+                )}
               </span>
             </div>
 

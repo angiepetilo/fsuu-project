@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { ShieldAlert, AlertCircle, AlertTriangle, Building2, Package, Tag, Clock, FileText } from "lucide-react";
 
 export default function BreachesTab({
   ruleViolations = [],
@@ -262,10 +261,8 @@ export default function BreachesTab({
           filer: vb.filer_name,
           department: cleanDeptName(vb.department),
           target: vb.venue_name || "AVR Venue",
-          type: "Venue Policy Violation",
-          badgeStyle: "bg-violet-50 text-violet-700 border-violet-200",
-          icon: ShieldAlert,
-          iconColor: "text-violet-600",
+          type: "Violation",
+          textColor: "text-purple-600",
           details: vb.violation_type || "Facility policy breach",
           notes: vb.inspection_notes,
           date: vb.date,
@@ -280,10 +277,8 @@ export default function BreachesTab({
           filer: vb.filer_name,
           department: cleanDeptName(vb.department),
           target: vb.venue_name || "AVR Venue",
-          type: "Venue Unit Damaged",
-          badgeStyle: "bg-rose-50 text-rose-700 border-rose-200",
-          icon: AlertCircle,
-          iconColor: "text-rose-600",
+          type: "Damaged",
+          textColor: "text-rose-600",
           details: `${damaged || 1} physical unit(s) damaged during venue booking`,
           notes: vb.inspection_notes,
           date: vb.date,
@@ -298,10 +293,8 @@ export default function BreachesTab({
           filer: vb.filer_name,
           department: cleanDeptName(vb.department),
           target: vb.venue_name || "AVR Venue",
-          type: "Venue Unit Lost",
-          badgeStyle: "bg-amber-50 text-amber-700 border-amber-200",
-          icon: AlertTriangle,
-          iconColor: "text-amber-600",
+          type: "Lost",
+          textColor: "text-amber-600",
           details: `${lost || 1} physical unit(s) lost during venue booking`,
           notes: vb.inspection_notes,
           date: vb.date,
@@ -320,10 +313,8 @@ export default function BreachesTab({
           filer: eb.filer_name,
           department: cleanDeptName(eb.department),
           target: eb.equipment_name || "Equipment Item",
-          type: "Equipment Damaged",
-          badgeStyle: "bg-rose-50 text-rose-700 border-rose-200",
-          icon: AlertCircle,
-          iconColor: "text-rose-600",
+          type: "Damaged",
+          textColor: "text-rose-600",
           details: `${damaged || 1} equipment unit(s) returned damaged`,
           notes: eb.inspection_notes,
           date: eb.date,
@@ -338,10 +329,8 @@ export default function BreachesTab({
           filer: eb.filer_name,
           department: cleanDeptName(eb.department),
           target: eb.equipment_name || "Equipment Item",
-          type: "Equipment Lost",
-          badgeStyle: "bg-amber-50 text-amber-700 border-amber-200",
-          icon: AlertTriangle,
-          iconColor: "text-amber-600",
+          type: "Lost",
+          textColor: "text-amber-600",
           details: `${lost || 1} equipment unit(s) reported lost`,
           notes: eb.inspection_notes,
           date: eb.date,
@@ -356,10 +345,8 @@ export default function BreachesTab({
           filer: eb.filer_name,
           department: cleanDeptName(eb.department),
           target: eb.equipment_name || "Equipment Item",
-          type: "Late Return Violation",
-          badgeStyle: "bg-amber-50 text-amber-700 border-amber-200",
-          icon: ShieldAlert,
-          iconColor: "text-amber-600",
+          type: "Late",
+          textColor: "text-amber-600",
           details: eb.minutes_late ? `Overdue by ${eb.minutes_late} minutes` : "Returned past scheduled time",
           notes: eb.inspection_notes,
           date: eb.date,
@@ -373,10 +360,10 @@ export default function BreachesTab({
   return (
     <div className="space-y-6">
       {/* 1. Department Violation Overview Table */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
         <div className="flex items-center justify-between p-4 border-b border-slate-100">
           <div>
-            <h3 className="font-black text-slate-900 text-sm">
+            <h3 className="font-bold text-slate-900 text-sm">
               Department Violation Summary
             </h3>
             <p className="text-[11px] text-slate-500 font-medium">
@@ -388,9 +375,9 @@ export default function BreachesTab({
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="bg-slate-50/80 border-b border-slate-100">
+              <tr className="bg-slate-50/80 border-b border-slate-200">
                 {["#", "Department", "Policy Violation", "Equipment Violation"].map((h) => (
-                  <th key={h} className="px-4 py-3.5 text-left text-[11px] font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap">
+                  <th key={h} className="px-4 py-3.5 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">
                     {h}
                   </th>
                 ))}
@@ -407,12 +394,12 @@ export default function BreachesTab({
                 displaySummaries.map((v, idx) => (
                   <tr key={v.id || idx} className="hover:bg-slate-50/60 transition-colors">
                     <td className="px-4 py-3.5 font-bold text-slate-400">{idx + 1}</td>
-                    <td className="px-4 py-3.5 font-extrabold text-slate-900">{v.department || v.program || "Academic Dept"}</td>
-                    <td className="px-4 py-3.5 font-extrabold text-rose-600">
-                      {v.venue_violations ?? 0} Violations
+                    <td className="px-4 py-3.5 font-bold text-slate-900">{v.department || v.program || "Academic Dept"}</td>
+                    <td className="px-4 py-3.5 font-semibold text-rose-600">
+                      {v.venue_violations ?? 0}
                     </td>
-                    <td className="px-4 py-3.5 font-extrabold text-slate-800 font-mono">
-                      {`${v.late_returns || 0} Late Return / ${v.equipment_damages || 0} Damaged / ${v.equipment_lost || 0} Lost`}
+                    <td className="px-4 py-3.5 font-semibold text-slate-800">
+                      {`${v.late_returns || 0} Late, ${v.equipment_damages || 0} Damaged, ${v.equipment_lost || 0} Lost`}
                     </td>
                   </tr>
                 ))
@@ -423,17 +410,17 @@ export default function BreachesTab({
       </div>
 
       {/* 2. Granular Incident & Damage Activity Log */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
         <div className="p-4 border-b border-slate-100 flex items-center justify-between">
           <div>
-            <h3 className="font-black text-slate-900 text-sm">
+            <h3 className="font-bold text-slate-900 text-sm">
               Incident and Damages View
             </h3>
             <p className="text-[11px] text-slate-500 font-medium">
               Individual venue booking violations, damaged or lost units, and equipment return incidents.
             </p>
           </div>
-          <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200">
+          <span className="text-xs font-semibold text-slate-500">
             {incidentRecords.length} Recorded
           </span>
         </div>
@@ -459,7 +446,6 @@ export default function BreachesTab({
                 </tr>
               ) : (
                 incidentRecords.map((inc) => {
-                  const IconComp = inc.icon;
                   return (
                     <tr key={inc.id} className="hover:bg-slate-50/70 transition-colors">
                       {/* Reference Code */}
@@ -469,10 +455,9 @@ export default function BreachesTab({
                         </span>
                       </td>
 
-                      {/* Incident Type Badge */}
+                      {/* Incident Type Plain Text */}
                       <td className="px-4 py-3 whitespace-nowrap">
-                        <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold border ${inc.badgeStyle}`}>
-                          <IconComp size={12} className={inc.iconColor} />
+                        <span className={`text-xs font-semibold ${inc.textColor}`}>
                           {inc.type}
                         </span>
                       </td>
@@ -516,7 +501,7 @@ export default function BreachesTab({
 
         {/* User Violations Report Typing Box */}
         <div className="p-4 sm:p-5 bg-slate-50/70 border-t border-slate-100 space-y-2">
-          <label className="block text-xs font-extrabold text-slate-800">
+          <label className="block text-xs font-bold text-slate-800">
             Rule &amp; Late Return Violations Report Notes
           </label>
           <textarea
@@ -527,7 +512,7 @@ export default function BreachesTab({
               localStorage.setItem("fsuu_report_breaches_notes", e.target.value);
             }}
             placeholder="Type your rule breaches, late return violations report summary, disciplinary notes, or department compliance recommendations here..."
-            className="w-full p-3 bg-white border border-slate-200 rounded-2xl text-xs font-medium text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 shadow-2xs transition-all resize-y"
+            className="w-full p-3 bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:border-blue-600 transition-all resize-y"
           />
         </div>
       </div>

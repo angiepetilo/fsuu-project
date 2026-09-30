@@ -440,6 +440,24 @@ export default function EquipmentBorrowing({ isPortal: isPortalProp }) {
 
       setReferenceCode(trackingNum);
       setShowSuccess(true);
+
+      try {
+        localStorage.setItem('fsuu_booking_created_ping', JSON.stringify({
+          type: 'equipment_borrowing',
+          ref: trackingNum,
+          filer: fullName || `${firstName} ${lastName}`.trim(),
+          place: placeOfUse || 'Campus',
+          time: Date.now()
+        }));
+      } catch {}
+      window.dispatchEvent(new CustomEvent('fsuu_booking_created', {
+        detail: {
+          type: 'equipment_borrowing',
+          reference_code: trackingNum,
+          filer_name: fullName || `${firstName} ${lastName}`.trim(),
+          place_of_use: placeOfUse || 'Campus'
+        }
+      }));
     } catch (err) {
       alert(err.response?.data?.message || "Submission failed. Please check form details.");
     } finally {

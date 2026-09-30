@@ -1,18 +1,19 @@
 import { useState } from "react";
-import { UsersSubTab, RolesSubTab } from "./user-management";
+import { UsersSubTab, RolesSubTab, PermissionsSubTab } from "./user-management";
 
 // ─── Sub-tab IDs ─────────────────────────────────────────────────────────────
 const SUB_TABS = [
   { id: "users", label: "Users" },
   { id: "roles", label: "Roles" },
+  { id: "permissions", label: "Permissions" },
 ];
 
 export default function UserManagementTab({ showMsg }) {
   const [activeTab, setActiveTab] = useState("users");
 
   return (
-    <div className="space-y-5">
-      {/* Sub-tab Navigation Pills */}
+    <div className="space-y-4">
+      {/* Sub-tab Navigation */}
       <div className="flex items-center gap-1 border-b border-slate-200 dark:border-slate-800 pb-0">
         {SUB_TABS.map((tab) => (
           <button
@@ -34,6 +35,7 @@ export default function UserManagementTab({ showMsg }) {
       <div>
         {activeTab === "users" && <UsersSubTab showMsg={showMsg} />}
         {activeTab === "roles" && <RolesSubTab />}
+        {activeTab === "permissions" && <PermissionsSubTab />}
       </div>
     </div>
   );

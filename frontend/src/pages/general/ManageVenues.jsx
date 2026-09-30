@@ -44,6 +44,8 @@ export default function ManageVenues() {
   // Side-by-side Embedded Status Setup Form State (Item 21)
   const [setupForm, setSetupForm] = useState({
     venueId: 1,
+    applyToAll: false,
+    closeEquipment: false,
     isMultiDay: false,
     startDate: new Date().toISOString().substring(0, 10),
     endDate: "",
@@ -148,37 +150,65 @@ export default function ManageVenues() {
 
   useRealtimeSync(fetchVenues, {
     interval: 30000,
-    customEvents: ["venue_availability_updated"],
+    customEvents: ["venue_availability_updated", "equipment_availability_updated"],
   });
 
   const fetchAvailability = useCallback(() => {
-    if (!selectedVenue?.id) return;
+    const isAll = setupForm.applyToAll || setupForm.venueId === "all";
+    const vId = isAll ? "all" : (selectedVenue?.id || setupForm.venueId);
+    if (!vId) return;
+
     api.get("/general/venue-availability", {
       params: {
-        venue_id: selectedVenue.id,
+        venue_id: vId,
         year: currentYear,
         month: currentMonth + 1,
       }
     }).then(res => {
       if (Array.isArray(res.data)) {
         const nextOv = {};
+        const nextEq = {};
         res.data.forEach(item => {
-          if (item.notes || ['maintenance', 'closed', 'damaged'].includes(item.status)) {
-            const key = `${selectedVenue.id}_${item.date}`;
-            const ovObj = {
-              status: item.status === 'damaged' ? 'maintenance' : item.status,
-              notes: item.notes || `Assigned ${item.status} status`,
-              reason: item.notes || `Assigned ${item.status} status`,
-              venue_id: selectedVenue.id,
-              venueId: selectedVenue.id,
-              venueName: selectedVenue.name,
+          if (item.equipment_closed) {
+            nextEq[item.date] = {
               override_date: item.date,
-              startTime: item.start_time || "07:30",
-              endTime: item.end_time || "17:00",
+              status: "closed",
+              notes: item.equipment_notes || "Equipment borrowing closed",
             };
-            nextOv[key] = ovObj;
+          }
+          if (item.notes || ['maintenance', 'closed', 'damaged'].includes(item.status)) {
+            if (isAll) {
+              filteredVenues.forEach(v => {
+                const key = `${v.id}_${item.date}`;
+                nextOv[key] = {
+                  status: item.status === 'damaged' ? 'maintenance' : item.status,
+                  notes: item.notes || `Assigned ${item.status} status`,
+                  reason: item.notes || `Assigned ${item.status} status`,
+                  venue_id: v.id,
+                  venueId: v.id,
+                  venueName: v.name,
+                  override_date: item.date,
+                  startTime: item.start_time || "07:30",
+                  endTime: item.end_time || "17:00",
+                };
+              });
+            } else if (selectedVenue?.id) {
+              const key = `${selectedVenue.id}_${item.date}`;
+              nextOv[key] = {
+                status: item.status === 'damaged' ? 'maintenance' : item.status,
+                notes: item.notes || `Assigned ${item.status} status`,
+                reason: item.notes || `Assigned ${item.status} status`,
+                venue_id: selectedVenue.id,
+                venueId: selectedVenue.id,
+                venueName: selectedVenue.name,
+                override_date: item.date,
+                startTime: item.start_time || "07:30",
+                endTime: item.end_time || "17:00",
+              };
+            }
           }
         });
+
         setOverrides(prev => {
           const merged = { ...prev, ...nextOv };
           try {
@@ -187,9 +217,15 @@ export default function ManageVenues() {
           } catch {}
           return merged;
         });
+
+        try {
+          const existingEq = JSON.parse(localStorage.getItem("fsuu_equipment_overrides") || "{}");
+          const mergedEq = { ...existingEq, ...nextEq };
+          localStorage.setItem("fsuu_equipment_overrides", JSON.stringify(mergedEq));
+        } catch {}
       }
     }).catch(() => {});
-  }, [selectedVenue?.id, selectedVenue?.name, currentYear, currentMonth]);
+  }, [setupForm.applyToAll, setupForm.venueId, selectedVenue?.id, selectedVenue?.name, currentYear, currentMonth, filteredVenues]);
 
   useEffect(() => {
     fetchAvailability();
@@ -198,7 +234,11 @@ export default function ManageVenues() {
   useEffect(() => {
     const handleAvailUpdate = () => fetchAvailability();
     window.addEventListener("venue_availability_updated", handleAvailUpdate);
-    return () => window.removeEventListener("venue_availability_updated", handleAvailUpdate);
+    window.addEventListener("equipment_availability_updated", handleAvailUpdate);
+    return () => {
+      window.removeEventListener("venue_availability_updated", handleAvailUpdate);
+      window.removeEventListener("equipment_availability_updated", handleAvailUpdate);
+    };
   }, [fetchAvailability]);
 
   const monthNames = [
@@ -224,11 +264,11 @@ export default function ManageVenues() {
   const firstDayOfWeek = new Date(currentYear, currentMonth, 1).getDay();
   const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
 
-  // Save Availability Control Status (strictly isolated to selectedVenue)
+  // Save Availability Control Status
   const handleSaveStatus = async (e) => {
     e.preventDefault();
-    const venId = selectedVenue?.id || setupForm.venueId;
-    const dateStr = setupForm.startDate;
+    const isAll = setupForm.applyToAll || setupForm.venueId === "all";
+    const venId = isAll ? "all" : (selectedVenue?.id || setupForm.venueId);
     const startDateStr = setupForm.startDate;
     const endDateStr = (setupForm.isMultiDay && setupForm.endDate && setupForm.endDate >= startDateStr)
       ? setupForm.endDate
@@ -246,41 +286,98 @@ export default function ManageVenues() {
     const statusVal = setupForm.status.toLowerCase();
     const notesVal = setupForm.reason || `Assigned ${setupForm.status} status`;
 
-    // Check conflict for each date
-    for (const d of targetDates) {
-      const currentDayStatus = getVenueDayStatus(d);
-      if (
-        (statusVal === "maintenance" || statusVal === "closed") &&
-        (currentDayStatus?.status === "partial" || currentDayStatus?.status === "fully")
-      ) {
-        notify.error(
-          "Action Blocked",
-          `Cannot set "${setupForm.status}" status on ${d}. The venue is already ${currentDayStatus.status} booked!`
-        );
-        return;
+    // Conflict check (only block when single venue has bookings and setting maintenance/closed)
+    if (!isAll) {
+      for (const d of targetDates) {
+        const currentDayStatus = getVenueDayStatus(d);
+        if (
+          (statusVal === "maintenance" || statusVal === "closed") &&
+          (currentDayStatus?.status === "partial" || currentDayStatus?.status === "fully")
+        ) {
+          notify.error(
+            "Action Blocked",
+            `Cannot set "${setupForm.status}" status on ${d}. The venue is already ${currentDayStatus.status} booked!`
+          );
+          return;
+        }
       }
     }
 
     setSaveLoading(true);
     const nextOverrides = { ...overrides };
+    const nextEquipOverrides = (() => {
+      try {
+        return JSON.parse(localStorage.getItem("fsuu_equipment_overrides") || "{}");
+      } catch {
+        return {};
+      }
+    })();
 
     try {
       for (const d of targetDates) {
-        const k = `${venId}_${d}`;
-        if (statusVal === "available") {
-          delete nextOverrides[k];
+        if (isAll) {
+          const allK = `all_${d}`;
+          if (statusVal === "available") {
+            delete nextOverrides[allK];
+          } else {
+            nextOverrides[allK] = {
+              venue_id: null,
+              venueId: "all",
+              venueName: "All Venues",
+              override_date: d,
+              status: statusVal,
+              reason: notesVal,
+              notes: notesVal,
+              startTime: setupForm.startTime || "07:30",
+              endTime: setupForm.endTime || "17:00",
+            };
+          }
+
+          filteredVenues.forEach((v) => {
+            const k = `${v.id}_${d}`;
+            if (statusVal === "available") {
+              delete nextOverrides[k];
+            } else {
+              nextOverrides[k] = {
+                venue_id: v.id,
+                venueId: v.id,
+                venueName: v.name,
+                override_date: d,
+                status: statusVal,
+                reason: notesVal,
+                notes: notesVal,
+                startTime: setupForm.startTime || "07:30",
+                endTime: setupForm.endTime || "17:00",
+              };
+            }
+          });
         } else {
-          const newOv = {
-            venue_id: venId,
-            venueId: venId,
+          const k = `${venId}_${d}`;
+          if (statusVal === "available") {
+            delete nextOverrides[k];
+          } else {
+            nextOverrides[k] = {
+              venue_id: venId,
+              venueId: venId,
+              venueName: selectedVenue?.name || "Venue",
+              override_date: d,
+              status: statusVal,
+              reason: notesVal,
+              notes: notesVal,
+              startTime: setupForm.startTime || "07:30",
+              endTime: setupForm.endTime || "17:00",
+            };
+          }
+        }
+
+        if (setupForm.closeEquipment) {
+          nextEquipOverrides[d] = {
             override_date: d,
-            status: statusVal,
-            reason: notesVal,
-            notes: notesVal,
-            startTime: setupForm.startTime || "07:30",
-            endTime: setupForm.endTime || "17:00",
+            status: "closed",
+            notes: notesVal || "Equipment borrowing closed by administrator",
           };
-          nextOverrides[k] = newOv;
+        } else if (statusVal === "available") {
+          delete nextEquipOverrides[d];
         }
 
         await api.post("/general/venue-availability", {
@@ -290,11 +387,15 @@ export default function ManageVenues() {
           notes: notesVal,
           start_time: setupForm.startTime || "07:30",
           end_time: setupForm.endTime || "17:00",
+          close_equipment: Boolean(setupForm.closeEquipment),
         }).catch(() => {});
       }
+
       notify.success(
         "Status Updated",
-        `Operating status for "${selectedVenue?.name || 'Venue'}" updated to ${setupForm.status} across ${targetDates.length} date(s)!`
+        isAll
+          ? `Operating status updated for all venues${setupForm.closeEquipment ? ' and equipment borrowing closed' : ''} across ${targetDates.length} date(s)!`
+          : `Operating status for "${selectedVenue?.name || 'Venue'}" updated${setupForm.closeEquipment ? ' and equipment borrowing closed' : ''} across ${targetDates.length} date(s)!`
       );
     } catch {
       notify.success(
@@ -307,13 +408,31 @@ export default function ManageVenues() {
       try {
         localStorage.setItem("fsuu_venue_overrides", JSON.stringify(nextOverrides));
         localStorage.setItem("fsuu_venue_maintenance", JSON.stringify(nextOverrides));
+        localStorage.setItem("fsuu_equipment_overrides", JSON.stringify(nextEquipOverrides));
       } catch {}
       window.dispatchEvent(new Event("venue_availability_updated"));
+      window.dispatchEvent(new Event("equipment_availability_updated"));
       fetchAvailability();
     }
   };
 
   const getVenueDayStatus = (dateStr) => {
+    const isAll = setupForm.applyToAll || setupForm.venueId === "all";
+
+    if (isAll && filteredVenues.length > 0) {
+      const activeOverrides = filteredVenues.map(v => overrides[`${v.id}_${dateStr}`]).filter(Boolean);
+      if (activeOverrides.length > 0) {
+        const hasClosed = activeOverrides.some(o => o.status === "closed");
+        const hasMaint = activeOverrides.some(o => o.status === "maintenance" || o.status === "damaged");
+        return {
+          status: hasClosed ? "closed" : (hasMaint ? "maintenance" : "available"),
+          reason: activeOverrides.length >= filteredVenues.length
+            ? `All venues ${hasClosed ? "Closed" : "Maintenance"}`
+            : `${activeOverrides.length} venue(s) restricted`,
+        };
+      }
+    }
+
     const venId = selectedVenue?.id || setupForm.venueId;
     const key = `${venId}_${dateStr}`;
     const ov = overrides[key];
@@ -337,7 +456,7 @@ export default function ManageVenues() {
       const activeStatus = ['pending', 'approved', 'ongoing', 'reserved'].includes((b.status || '').toLowerCase());
       const inRange = startD && (dateStr >= startD && dateStr <= endD);
 
-      return inRange && String(vId) === String(venId) && activeStatus;
+      return inRange && (isAll || String(vId) === String(venId)) && activeStatus;
     });
 
     if (matchedBookings.length > 0) {

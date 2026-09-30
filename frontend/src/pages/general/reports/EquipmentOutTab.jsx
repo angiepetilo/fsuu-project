@@ -194,11 +194,11 @@ export default function EquipmentOutTab({ equipmentBorrowings = [], loading = fa
       </div>
 
       {/* Main Table */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs border-collapse min-w-[850px]">
             <thead>
-              <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+              <tr className="bg-slate-50/80 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
                 <th className="py-3.5 px-4">#</th>
                 <th className="py-3.5 px-4">Borrower</th>
                 <th className="py-3.5 px-4">Department</th>
@@ -249,10 +249,8 @@ export default function EquipmentOutTab({ equipmentBorrowings = [], loading = fa
                       </td>
                       <td className="py-3 px-4 font-bold text-slate-700 text-xs">{dept}</td>
                       <td className="py-3 px-4 font-extrabold text-slate-900 text-xs">{equip}</td>
-                      <td className="py-3 px-4 text-center">
-                        <span className="inline-flex px-2.5 py-0.5 rounded-full text-xs font-black bg-blue-50 text-blue-700 border border-blue-200">
-                          {qty}
-                        </span>
+                      <td className="py-3 px-4 text-center font-semibold text-slate-800 text-xs">
+                        {qty}
                       </td>
                       <td className="py-3 px-4 font-mono text-[11px] text-slate-700 font-bold max-w-xs truncate">
                         {barcodes.length > 0 ? (
@@ -286,18 +284,16 @@ export default function EquipmentOutTab({ equipmentBorrowings = [], loading = fa
                       </td>
                       <td className="py-3 px-4 text-center whitespace-nowrap">
                         {isReturned ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200">
-                            <CheckCircle2 size={10} className="text-emerald-600 shrink-0" />
+                          <span className="text-xs font-semibold text-emerald-600">
                             Returned
                           </span>
                         ) : overdueMins > 0 ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider bg-rose-50 text-rose-700 border border-rose-200">
-                            <AlertCircle size={10} className="text-rose-600 shrink-0" />
+                          <span className="text-xs font-semibold text-rose-600">
                             Overdue ({overdueMins}m)
                           </span>
                         ) : (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider bg-amber-50 text-amber-700 border border-amber-200">
-                            ● Out on Loan
+                          <span className="text-xs font-semibold text-amber-600">
+                            Out on Loan
                           </span>
                         )}
                       </td>

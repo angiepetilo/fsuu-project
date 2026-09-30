@@ -107,7 +107,7 @@ export default function EquipmentBorrowings() {
     }
   }, []);
 
-  useRealtimeSync(fetchBorrowings, { interval: 30000 });
+  useRealtimeSync(fetchBorrowings, { interval: 10000, customEvents: ["equipment_borrowings_updated", "equipment_inventory_updated"] });
 
   // Deep-link from notification navigation
   useEffect(() => {

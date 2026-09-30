@@ -8,6 +8,7 @@ import BookingBorrowingReportTab from "./reports/BookingBorrowingReportTab";
 import BreachesTab from "./reports/BreachesTab";
 import EquipmentStockTab from "./reports/EquipmentStockTab";
 import EquipmentOutTab from "./reports/EquipmentOutTab";
+import IncidentReportsTab from "./reports/IncidentReportsTab";
 import PdfPreviewModal from "./reports/PdfPreviewModal";
 import { downloadReportAsPdf } from "./reports/exportPdfHelper";
 import {
@@ -40,6 +41,7 @@ export default function Reports() {
     { id: "breaches",          label: "Rule & Late Return Violations", permissionKey: "reports.breaches" },
     { id: "inventory",         label: "Equipment Inventory",         permissionKey: "reports.inventory" },
     { id: "equipment_out",     label: "Equipment Out",               permissionKey: "reports.equipment_out" },
+    { id: "incident_reports",  label: "Incident & Damage Reports",   permissionKey: "reports.incident_reports" },
   ];
 
   const visibleReportTabs = useMemo(() => {
@@ -160,6 +162,22 @@ export default function Reports() {
 
   useEffect(() => {
     fetchReportsData();
+    const handleSync = () => {
+      fetchReportsData({ isSilent: true });
+    };
+    window.addEventListener("equipment_updated", handleSync);
+    window.addEventListener("equipment_inventory_updated", handleSync);
+    const handleStorage = (e) => {
+      if (e.key && e.key.includes("equipment")) {
+        handleSync();
+      }
+    };
+    window.addEventListener("storage", handleStorage);
+    return () => {
+      window.removeEventListener("equipment_updated", handleSync);
+      window.removeEventListener("equipment_inventory_updated", handleSync);
+      window.removeEventListener("storage", handleStorage);
+    };
   }, [selectedTermId]);
 
   const selectedOfficeId = context?.selectedOfficeId;
@@ -298,6 +316,7 @@ export default function Reports() {
     breaches: "Rule & Late Return Violations",
     inventory: "Inventory and Stock",
     equipment_out: "Equipment Out",
+    incident_reports: "Incident & Damage Reports",
   };
 
   // ── DIRECT PDF DOWNLOAD (Generates and saves .pdf file to user's device) ──
@@ -340,11 +359,10 @@ export default function Reports() {
           <button
             type="button"
             onClick={() => setShowPdfModal(true)}
-            className="flex items-center gap-1.5 px-3.5 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-extrabold shadow-xs transition-colors cursor-pointer"
+            className="px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg text-xs font-bold transition-colors cursor-pointer"
             title={`Preview / Export ${tabLabels[activeTab]} as PDF`}
           >
-            <Printer size={14} className="text-blue-600" />
-            <span>Export PDF</span>
+            Export PDF
           </button>
         )}
       </div>
@@ -438,6 +456,17 @@ export default function Reports() {
           <EquipmentOutTab
             equipmentBorrowings={filteredActiveEquipmentBorrowings}
             loading={loading}
+          />
+        </div>
+      )}
+
+      {mountedTabs.has("incident_reports") && (
+        <div className={activeTab === "incident_reports" ? "block" : "hidden"}>
+          <IncidentReportsTab
+            venueBookings={filteredVenueBookings}
+            equipmentBorrowings={filteredEquipmentBorrowings}
+            equipmentUnits={equipmentUnits}
+            onRefresh={fetchReportsData}
           />
         </div>
       )}

@@ -1,14 +1,5 @@
 import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
-import {
-  Building2,
-  PackageOpen,
-  Search,
-  ArrowUpRight,
-  User,
-  Users,
-  GraduationCap,
-} from "lucide-react";
 import { formatTime } from "@/lib/dateUtils";
 
 export default function TodayReservationsSection({
@@ -79,34 +70,34 @@ export default function TodayReservationsSection({
     const s = (status || "").toLowerCase();
     if (s === "approved") {
       return (
-        <span className="px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-200 dark:bg-emerald-950/70 dark:text-emerald-300 dark:border-emerald-800">
+        <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
           Approved
         </span>
       );
     }
     if (s === "ongoing" || s === "on-going") {
       return (
-        <span className="px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-blue-100 text-blue-800 border border-blue-200 dark:bg-blue-950/70 dark:text-blue-300 dark:border-blue-800">
-          In Progress
+        <span className="text-[11px] font-bold text-blue-600 dark:text-blue-400">
+          Ongoing
         </span>
       );
     }
     if (s === "completed") {
       return (
-        <span className="px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-slate-100 text-slate-700 border border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700">
+        <span className="text-[11px] font-bold text-slate-600 dark:text-slate-400">
           Completed
         </span>
       );
     }
     if (s === "rejected" || s === "cancelled") {
       return (
-        <span className="px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-rose-100 text-rose-800 border border-rose-200 dark:bg-rose-950/70 dark:text-rose-300 dark:border-rose-800">
+        <span className="text-[11px] font-bold text-rose-600 dark:text-rose-400">
           {s === "cancelled" ? "Cancelled" : "Rejected"}
         </span>
       );
     }
     return (
-      <span className="px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-amber-100 text-amber-800 border border-amber-200 dark:bg-amber-950/70 dark:text-amber-300 dark:border-amber-800">
+      <span className="text-[11px] font-bold text-amber-600 dark:text-amber-400">
         Pending
       </span>
     );
@@ -116,28 +107,28 @@ export default function TodayReservationsSection({
     const c = (classification || "student").toLowerCase();
     if (c === "faculty") {
       return (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20">
-          <Users size={10} /> Faculty
+        <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400">
+          Faculty
         </span>
       );
     }
     if (c === "external" || c === "external user") {
       return (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
-          <User size={10} /> External
+        <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+          External
         </span>
       );
     }
     return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-500/10 text-blue-700 dark:text-blue-300 border border-blue-500/20">
-        <GraduationCap size={10} /> Student
+      <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400">
+        Student
       </span>
     );
   };
 
   return (
     <div className="space-y-4 pt-2">
-      {/* Header with Title and Tabs (without Shift Operations badge) */}
+      {/* Header with Title and Tabs */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border pb-3">
         <div>
           <h2 className="text-base sm:text-lg font-black text-foreground tracking-tight">
@@ -159,62 +150,59 @@ export default function TodayReservationsSection({
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            All Today ({todayVenues.length + todayEquipment.length})
+            All ({todayVenues.length + todayEquipment.length})
           </button>
           <button
             type="button"
             onClick={() => setActiveTab("venues")}
-            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
               activeTab === "venues"
-                ? "bg-blue-600 text-white shadow-xs"
+                ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900"
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            <Building2 size={13} />
-            <span>Venues ({todayVenues.length})</span>
+            Venues ({todayVenues.length})
           </button>
           <button
             type="button"
             onClick={() => setActiveTab("equipment")}
-            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
               activeTab === "equipment"
-                ? "bg-emerald-600 text-white shadow-xs"
+                ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900"
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            <PackageOpen size={13} />
-            <span>Equipment ({todayEquipment.length})</span>
+            Equipment ({todayEquipment.length})
           </button>
         </div>
       </div>
 
       {/* Search Sub-bar */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-        <div className="relative flex-1 sm:max-w-md">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" size={15} />
+        <div className="flex-1 sm:max-w-md">
           <input
             type="text"
-            placeholder="Search reference code, requestor, facility, department..."
+            placeholder="Search reference, requestor, facility, department..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full h-10 pl-9 pr-3 rounded-xl bg-card border border-border text-foreground text-xs focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 font-medium"
+            className="w-full h-10 px-3 rounded-xl bg-card border border-border text-foreground text-xs focus:outline-none focus:border-primary font-medium"
           />
         </div>
         <span className="text-xs font-semibold text-muted-foreground self-center sm:self-auto">
-          Showing {filteredList.length} scheduled item{filteredList.length === 1 ? "" : "s"}
+          {filteredList.length} Items
         </span>
       </div>
 
       {/* Reservations Table */}
-      <div className="overflow-x-auto rounded-2xl border border-border bg-card shadow-xs">
+      <div className="overflow-x-auto rounded-2xl border border-border bg-card">
         <table className="w-full text-xs text-left">
           <thead className="bg-muted/50 border-b border-border text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
             <tr>
               <th className="py-3.5 px-4">Type</th>
-              <th className="py-3.5 px-4">Tracking No.</th>
+              <th className="py-3.5 px-4">Reference</th>
               <th className="py-3.5 px-4">Requestor</th>
-              <th className="py-3.5 px-4">Facility / Item</th>
-              <th className="py-3.5 px-4">Schedule Time</th>
+              <th className="py-3.5 px-4">Facility</th>
+              <th className="py-3.5 px-4">Time</th>
               <th className="py-3.5 px-4">Status</th>
               <th className="py-3.5 px-4 text-right">Action</th>
             </tr>
@@ -250,19 +238,15 @@ export default function TodayReservationsSection({
 
                 let dutyAction = "Clearance";
                 if (status === "pending") dutyAction = isVenue ? "Verify" : "Review";
-                else if (status === "approved") dutyAction = isVenue ? "Pre-Inspect" : "Release";
-                else if (status === "ongoing" || status === "on-going") dutyAction = isVenue ? "Post-Inspect" : "Receive";
+                else if (status === "approved") dutyAction = isVenue ? "Inspect" : "Release";
+                else if (status === "ongoing" || status === "on-going") dutyAction = isVenue ? "Inspect" : "Receive";
 
                 return (
                   <tr key={`${item.itemType}-${item.id}`} className="hover:bg-muted/40 transition-colors">
                     <td className="py-3.5 px-4">
-                      <span
-                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-[10px] font-black uppercase tracking-wider ${
-                          isVenue
-                            ? "bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/70 dark:text-blue-300 dark:border-blue-800"
-                            : "bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/70 dark:text-emerald-300 dark:border-emerald-800"
-                        }`}
-                      >
+                      <span className={`text-xs font-semibold ${
+                        isVenue ? "text-blue-600 dark:text-blue-400" : "text-emerald-600 dark:text-emerald-400"
+                      }`}>
                         {isVenue ? "Venue" : "Equipment"}
                       </span>
                     </td>
@@ -289,10 +273,9 @@ export default function TodayReservationsSection({
                       <Link
                         to={detailPath}
                         state={{ selectedId: item.id }}
-                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl font-extrabold text-xs bg-foreground text-background hover:bg-primary hover:text-primary-foreground transition-colors shadow-2xs cursor-pointer"
+                        className="px-3 py-1.5 rounded-lg text-xs font-bold border border-border hover:bg-muted text-foreground transition-colors cursor-pointer inline-block"
                       >
-                        <span>{dutyAction}</span>
-                        <ArrowUpRight size={13} />
+                        {dutyAction}
                       </Link>
                     </td>
                   </tr>

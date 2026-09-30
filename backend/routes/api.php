@@ -58,6 +58,7 @@ Route::get('/health', function () {
 // ─── Public Operating Hours, Overrides & System Settings ────────────────────
 Route::get('/public/operating-hours', [OperatingHoursController::class, 'publicShow']);
 Route::get('/public/venue-overrides', [VenueAvailabilityController::class, 'publicOverrides']);
+Route::get('/public/equipment-overrides', [VenueAvailabilityController::class, 'publicEquipmentOverrides']);
 Route::get('/public/system-settings', [SystemSettingController::class, 'publicShow']);
 Route::post('/public/verify-email-active', [EmailVerificationController::class, 'verifyActive'])->middleware('throttle:60,1');
 Route::post('/public/track', [TrackingController::class, 'track'])->middleware('throttle:60,1');
@@ -109,10 +110,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/general/venues-list',                [VenueAvailabilityController::class, 'venuesList']);
     Route::post('/general/venue-availability',        [VenueAvailabilityController::class, 'store']);
     Route::delete('/general/venue-availability/{id}', [VenueAvailabilityController::class, 'destroy']);
+    Route::get('/general/equipment-availability',     [VenueAvailabilityController::class, 'equipmentAvailability']);
+    Route::post('/general/equipment-availability',    [VenueAvailabilityController::class, 'storeEquipmentAvailability']);
     Route::get('/admin/venue-availability',           [VenueAvailabilityController::class, 'index']);
     Route::get('/admin/venues-list',                  [VenueAvailabilityController::class, 'venuesList']);
     Route::post('/admin/venue-availability',          [VenueAvailabilityController::class, 'store']);
     Route::delete('/admin/venue-availability/{id}',   [VenueAvailabilityController::class, 'destroy']);
+    Route::get('/admin/equipment-availability',       [VenueAvailabilityController::class, 'equipmentAvailability']);
+    Route::post('/admin/equipment-availability',      [VenueAvailabilityController::class, 'storeEquipmentAvailability']);
 
     // ── General: Equipment Types & Units ───────────────────────────────────────
     Route::get('/general/equipment-types',         [EquipmentTypeController::class, 'index']);

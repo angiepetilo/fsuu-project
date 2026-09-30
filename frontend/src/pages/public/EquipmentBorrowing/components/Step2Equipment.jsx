@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Check, PackageOpen, ChevronLeft, ChevronRight, XCircle, Clock, CalendarDays, AlertTriangle, AlertCircle, Search, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import CustomTimePicker from "@/components/ui/custom-time-picker";
@@ -122,13 +122,57 @@ export default function Step2Equipment({
   };
   const tomorrowISO = getTomorrowISO();
 
+  // Equipment overrides (closed / maintenance) from live API / localStorage
+  const [equipmentOverrides, setEquipmentOverrides] = useState(() => {
+    try {
+      const saved = localStorage.getItem("fsuu_equipment_overrides");
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  const fetchEquipmentOverrides = useCallback(() => {
+    api.get("/public/equipment-overrides")
+      .then(res => {
+        if (Array.isArray(res.data)) {
+          const map = {};
+          res.data.forEach(item => {
+            const d = (item.override_date || "").substring(0, 10);
+            if (d && (item.status === "closed" || item.status === "maintenance")) {
+              map[d] = item;
+            }
+          });
+          setEquipmentOverrides(map);
+          try {
+            localStorage.setItem("fsuu_equipment_overrides", JSON.stringify(map));
+          } catch {}
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    fetchEquipmentOverrides();
+    const handleUpdate = () => fetchEquipmentOverrides();
+    window.addEventListener("equipment_availability_updated", handleUpdate);
+    window.addEventListener("storage", handleUpdate);
+    return () => {
+      window.removeEventListener("equipment_availability_updated", handleUpdate);
+      window.removeEventListener("storage", handleUpdate);
+    };
+  }, [fetchEquipmentOverrides]);
+
+  const isTodayClosed = Boolean(equipmentOverrides[todayISO]);
+  const isTomorrowClosed = Boolean(equipmentOverrides[tomorrowISO]);
+
   // Check if current real-time is past today's operating hours close or before opening
   const now = new Date();
   const currentHHMM = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
   const isPastClosingToday = currentHHMM >= kioskClose || currentHHMM < kioskOpen;
 
-  // Determine initial borrow date mode (if past closing hours, auto-shift to tomorrow)
-  const initialDateMode = isPastClosingToday || (startTime && startTime.startsWith(tomorrowISO)) ? "tomorrow" : "today";
+  // Determine initial borrow date mode (if past closing hours or today is closed, auto-shift to tomorrow)
+  const initialDateMode = (isPastClosingToday || isTodayClosed) && !isTomorrowClosed ? "tomorrow" : "today";
   const [borrowDateMode, setBorrowDateMode] = useState(initialDateMode);
 
   const activeBorrowDate = borrowDateMode === "tomorrow" ? tomorrowISO : todayISO;
@@ -380,47 +424,59 @@ export default function Step2Equipment({
                 <button
                   type="button"
                   onClick={() => setBorrowDateMode("today")}
-                  disabled={isPastClosingToday}
+                  disabled={isPastClosingToday || isTodayClosed}
                   className={`flex-1 py-1.5 rounded-lg text-xs font-extrabold transition-all ${borrowDateMode === "today"
                     ? "bg-white dark:bg-[#18264B] text-blue-600 dark:text-[#93C5FD] shadow-2xs"
-                    : isPastClosingToday
+                    : (isPastClosingToday || isTodayClosed)
                       ? "text-slate-400 dark:text-slate-600 cursor-not-allowed opacity-50"
                       : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-[#F8FAFC] cursor-pointer"
                     }`}
                 >
-                  Today
+                  Today {isTodayClosed ? "(Closed)" : ""}
                 </button>
                 <button
                   type="button"
                   onClick={() => {
-                    if (!isPortal && !isPastClosingToday) return;
+                    if ((!isPortal && !isPastClosingToday && !isTodayClosed) || isTomorrowClosed) return;
                     setBorrowDateMode("tomorrow");
                   }}
-                  disabled={!isPortal && !isPastClosingToday}
+                  disabled={((!isPortal && !isPastClosingToday && !isTodayClosed) || isTomorrowClosed)}
                   className={`flex-1 py-1.5 rounded-lg text-xs font-extrabold transition-all ${borrowDateMode === "tomorrow"
                     ? "bg-white dark:bg-[#18264B] text-blue-600 dark:text-[#93C5FD] shadow-2xs"
-                    : (!isPortal && !isPastClosingToday)
+                    : ((!isPortal && !isPastClosingToday && !isTodayClosed) || isTomorrowClosed)
                       ? "text-slate-400 dark:text-slate-600 cursor-not-allowed opacity-50"
                       : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-[#F8FAFC] cursor-pointer"
                     }`}
                   title={
-                    !isPortal && !isPastClosingToday
-                      ? `Tomorrow's borrowing is only available after operating hours end (${formatTime12(kioskClose)})`
-                      : "Next-Day Borrowing"
+                    isTomorrowClosed
+                      ? "Tomorrow is closed for equipment borrowing"
+                      : (!isPortal && !isPastClosingToday && !isTodayClosed)
+                        ? `Tomorrow's borrowing is only available after operating hours end (${formatTime12(kioskClose)})`
+                        : "Next-Day Borrowing"
                   }
                 >
-                  Tomorrow
+                  Tomorrow {isTomorrowClosed ? "(Closed)" : ""}
                 </button>
               </div>
 
-              {isPastClosingToday ? (
+              {isTodayClosed && borrowDateMode === "today" ? (
+                <div className="p-3 bg-rose-50/80 dark:bg-rose-950/40 border border-rose-200/80 dark:border-rose-800/60 rounded-xl flex items-start gap-2 text-xs text-rose-900 dark:text-rose-200 font-bold leading-relaxed">
+                  <AlertCircle size={15} className="text-rose-600 shrink-0 mt-0.5" />
+                  <span>Equipment borrowing is closed today ({equipmentOverrides[todayISO]?.notes || "Scheduled admin closure"}).</span>
+                </div>
+              ) : isTomorrowClosed && borrowDateMode === "tomorrow" ? (
+                <div className="p-3 bg-rose-50/80 dark:bg-rose-950/40 border border-rose-200/80 dark:border-rose-800/60 rounded-xl flex items-start gap-2 text-xs text-rose-900 dark:text-rose-200 font-bold leading-relaxed">
+                  <AlertCircle size={15} className="text-rose-600 shrink-0 mt-0.5" />
+                  <span>Equipment borrowing is closed tomorrow ({equipmentOverrides[tomorrowISO]?.notes || "Scheduled admin closure"}).</span>
+                </div>
+              ) : isPastClosingToday ? (
                 <div className="p-3 bg-amber-50/80 dark:bg-amber-950/40 border border-amber-200/80 dark:border-amber-700/60 rounded-xl flex items-start gap-2 text-xs text-amber-900 dark:text-[#FCD34D] font-bold leading-relaxed">
                   <AlertCircle size={15} className="text-amber-600 dark:text-[#FCD34D] shrink-0 mt-0.5" />
                   <span>Today borrowing is closed. Reservation is automatically set for tomorrow ({formattedDisplayDate}).</span>
                 </div>
               ) : (
                 <div className="p-2.5 bg-blue-50/60 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900/60 rounded-xl text-[11px] text-blue-900 dark:text-[#93C5FD] font-medium leading-relaxed flex items-center justify-between">
-                  <span>📅 Today walk-in borrowing active</span>
+                  <span>Today walk-in borrowing active</span>
                   <span className="text-[10px] font-bold text-blue-700 dark:text-[#93C5FD] bg-white dark:bg-[#111C38] px-2 py-0.5 rounded-md border border-blue-200 dark:border-blue-800" title="Next-day reservation unlocks once today's operating hours end">
                     Next-day unlocks at {formatTime12(kioskClose)}
                   </span>
@@ -431,9 +487,8 @@ export default function Step2Equipment({
             {/* Time Settings */}
             <div className="space-y-3 pt-1">
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-extrabold text-slate-800 dark:text-[#CBD5E1] flex items-center gap-1.5">
-                  <span>Borrow Release Start Time</span>
-                  <span className="text-rose-500">*</span>
+                <label className="text-xs font-semibold text-slate-800 dark:text-[#CBD5E1] block">
+                  Start
                 </label>
                 <CustomTimePicker
                   value={startTimeVal}
@@ -453,13 +508,13 @@ export default function Step2Equipment({
                   }}
                   minuteStep={5}
                   align="left"
+                  dropUp
                 />
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-extrabold text-slate-800 dark:text-[#CBD5E1] flex items-center gap-1.5">
-                  <span>Expected Return Time</span>
-                  <span className="text-rose-500">*</span>
+                <label className="text-xs font-semibold text-slate-800 dark:text-[#CBD5E1] block">
+                  End
                 </label>
                 <CustomTimePicker
                   value={endTimeVal}
@@ -468,6 +523,7 @@ export default function Step2Equipment({
                   }}
                   minuteStep={5}
                   align="left"
+                  dropUp
                 />
               </div>
 
@@ -607,6 +663,7 @@ export default function Step2Equipment({
           const isBlocked = requiresPin && !isPinVerified;
 
           const isPastSlot = borrowDateMode === "today" && isPastTimeToday(todayISO, startTimeVal);
+          const isDateClosed = (borrowDateMode === "today" && isTodayClosed) || (borrowDateMode === "tomorrow" && isTomorrowClosed);
 
           return (
             <div className="flex flex-col items-end gap-1">
@@ -616,6 +673,7 @@ export default function Step2Equipment({
                   !selectedItems ||
                   selectedItems.length === 0 ||
                   isPastSlot ||
+                  isDateClosed ||
                   endTimeVal <= startTimeVal ||
                   isBlocked
                 }

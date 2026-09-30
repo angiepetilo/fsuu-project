@@ -121,6 +121,67 @@ class ListingController extends Controller
             }
         }
 
+        // Gather all built-in child unit references to guarantee built-in units never count as available in public view
+        $globalChildIds = [];
+        $parentUnitsData = \App\Models\EquipmentUnit::whereNotNull('built_in_units')->whereNull('archived_at')->get(['id', 'built_in_units']);
+        foreach ($parentUnitsData as $pu) {
+            $raw = is_array($pu->built_in_units) ? $pu->built_in_units : json_decode($pu->built_in_units, true);
+            if (is_array($raw)) {
+                foreach ($raw as $ref) {
+                    if (!empty($ref)) $globalChildIds[] = (string)$ref;
+                }
+            }
+        }
+        $globalChildIds = array_unique($globalChildIds);
+
+        // Find parent unit IDs where ANY built-in child has damaged or lost status/condition
+        // → those parents become Unavailable and must not count as available stock
+        $parentIdsWithDamagedChildren = [];
+        if (!empty($globalChildIds)) {
+            // Get numeric IDs from refs (some refs may be barcode strings)
+            $numericChildRefs = array_values(array_filter(array_map('intval', $globalChildIds), fn($id) => $id > 0));
+
+            // Fetch all child units that are damaged or lost
+            $damagedLostUnits = \App\Models\EquipmentUnit::whereNull('archived_at')
+                ->where(function ($q) use ($numericChildRefs, $globalChildIds) {
+                    if (!empty($numericChildRefs)) {
+                        $q->whereIn('id', $numericChildRefs);
+                    }
+                    if (!empty($globalChildIds)) {
+                        $q->orWhereIn('barcode', $globalChildIds)
+                          ->orWhereIn('serial_number', $globalChildIds);
+                    }
+                })
+                ->where(function ($q) {
+                    $q->whereIn(\Illuminate\Support\Facades\DB::raw("LOWER(COALESCE(status, ''))"), ['damaged', 'lost', 'decommissioned'])
+                      ->orWhereIn(\Illuminate\Support\Facades\DB::raw("LOWER(COALESCE(`condition`, ''))"), ['damaged', 'lost']);
+                })
+                ->get(['id', 'barcode', 'serial_number']);
+
+            $damagedSet = [];
+            foreach ($damagedLostUnits as $dUnit) {
+                $damagedSet[] = (string)$dUnit->id;
+                if (!empty($dUnit->barcode)) $damagedSet[] = (string)$dUnit->barcode;
+                if (!empty($dUnit->serial_number)) $damagedSet[] = (string)$dUnit->serial_number;
+            }
+            $damagedSet = array_unique(array_filter($damagedSet));
+
+            if (!empty($damagedSet)) {
+                foreach ($parentUnitsData as $parent) {
+                    $raw = is_array($parent->built_in_units) ? $parent->built_in_units : json_decode($parent->built_in_units, true);
+                    if (!is_array($raw)) continue;
+                    foreach ($raw as $childRef) {
+                        if (empty($childRef)) continue;
+                        if (in_array((string)$childRef, $damagedSet, true)) {
+                            $parentIdsWithDamagedChildren[] = (int)$parent->id;
+                            break; // one damaged child is enough to make parent unavailable
+                        }
+                    }
+                }
+                $parentIdsWithDamagedChildren = array_unique($parentIdsWithDamagedChildren);
+            }
+        }
+
         $query = EquipmentType::withCount([
                 'equipmentUnits as calculated_total' => function ($q) {
                     $q->whereNull('archived_at');
@@ -130,12 +191,24 @@ class ListingController extends Controller
                       ->whereRaw("LOWER(COALESCE(equipment_units.status, 'available')) NOT IN ('damaged', 'lost', 'decommissioned', 'maintenance')")
                       ->whereRaw("LOWER(COALESCE(equipment_units.condition, 'good')) NOT IN ('damaged', 'lost', 'under repair', 'under_repair')");
                 },
-                'equipmentUnits as calculated_available' => function ($q) {
+                'equipmentUnits as calculated_available' => function ($q) use ($globalChildIds, $parentIdsWithDamagedChildren) {
                     $q->whereNull('archived_at')
-                      ->whereRaw("LOWER(COALESCE(equipment_units.status, 'available')) NOT IN ('damaged', 'lost', 'decommissioned', 'maintenance', 'released', 'in_use', 'borrowed', 'in-use', 'reserved', 'unavailable')")
+                      ->whereRaw("LOWER(COALESCE(equipment_units.status, 'available')) NOT IN ('damaged', 'lost', 'decommissioned', 'maintenance', 'released', 'in_use', 'borrowed', 'in-use', 'reserved', 'unavailable', 'built-in', 'built_in')")
                       ->whereRaw("LOWER(COALESCE(equipment_units.condition, 'good')) NOT IN ('damaged', 'lost', 'under repair', 'under_repair', 'worn', 'minor wear')");
+                    if (!empty($globalChildIds)) {
+                        $numIds = array_values(array_filter(array_map('intval', $globalChildIds), fn($id) => $id > 0));
+                        if (!empty($numIds)) {
+                            $q->whereNotIn('equipment_units.id', $numIds);
+                        }
+                        $q->whereNotIn('equipment_units.barcode', $globalChildIds);
+                    }
+                    // Exclude parent units that have damaged/lost built-in children
+                    if (!empty($parentIdsWithDamagedChildren)) {
+                        $q->whereNotIn('equipment_units.id', $parentIdsWithDamagedChildren);
+                    }
                 }
             ]);
+
 
         $allTypes = $query->get();
 

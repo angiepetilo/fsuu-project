@@ -82,10 +82,87 @@ class EquipmentCategoryService
                                   ->orWhereIn('barcode', $allBundledUnitIds)
                                   ->orWhereIn('serial_number', $allBundledUnitIds);
                             })
+                            ->whereNotIn(DB::raw("LOWER(COALESCE(status, 'available'))"), ['damaged', 'lost', 'decommissioned', 'maintenance'])
+                            ->whereNotIn(DB::raw("LOWER(COALESCE(`condition`, 'good'))"), ['damaged', 'lost', 'decommissioned', 'maintenance', 'under repair'])
                             ->select('equipment_type_id', DB::raw('COUNT(*) as bundled_total'))
                             ->groupBy('equipment_type_id')
                             ->pluck('bundled_total', 'equipment_type_id');
                         $bundledCounts = $rawBundled->toArray();
+                    }
+
+                    // Check parents whose built-in children are damaged or lost -> parent becomes unavailable
+                    $parentUnavailableByCategory = [];
+                    $parentRowsWithUnits = DB::table('equipment_units')
+                        ->whereNotNull('built_in_units')
+                        ->whereNull('archived_at')
+                        ->select('id', 'equipment_type_id', 'status', 'built_in_units')
+                        ->get();
+
+                    if ($parentRowsWithUnits->isNotEmpty()) {
+                        $damagedUnits = DB::table('equipment_units')
+                            ->whereNull('archived_at')
+                            ->where(function($q) {
+                                $q->whereIn(DB::raw("LOWER(COALESCE(status, ''))"), ['damaged', 'lost', 'decommissioned', 'maintenance', 'unavailable'])
+                                  ->orWhereIn(DB::raw("LOWER(COALESCE(`condition`, ''))"), ['damaged', 'lost', 'under repair', 'worn']);
+                            })
+                            ->get(['id', 'barcode', 'serial_number']);
+
+                        $damagedLookup = [];
+                        foreach ($damagedUnits as $du) {
+                            $damagedLookup[(string)$du->id] = true;
+                            if (!empty($du->barcode)) $damagedLookup[(string)$du->barcode] = true;
+                            if (!empty($du->serial_number)) $damagedLookup[(string)$du->serial_number] = true;
+                        }
+
+                        foreach ($parentRowsWithUnits as $pu) {
+                            $pSt = strtolower($pu->status ?? 'available');
+                            if (in_array($pSt, ['damaged', 'lost', 'decommissioned'])) continue;
+
+                            $rawBuilt = is_string($pu->built_in_units) ? json_decode($pu->built_in_units, true) : $pu->built_in_units;
+                            if (is_array($rawBuilt)) {
+                                foreach ($rawBuilt as $ref) {
+                                    if (!empty($ref) && isset($damagedLookup[(string)$ref])) {
+                                        $catId = $pu->equipment_type_id;
+                                        $parentUnavailableByCategory[$catId] = ($parentUnavailableByCategory[$catId] ?? 0) + 1;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+
+                        // Also identify healthy child units whose parents are damaged or lost
+                        $childUnavailableByCategory = [];
+                        $damagedParents = DB::table('equipment_units')
+                            ->whereNotNull('built_in_units')
+                            ->whereNull('archived_at')
+                            ->where(function($q) {
+                                $q->whereIn(DB::raw("LOWER(COALESCE(status, ''))"), ['damaged', 'lost', 'decommissioned', 'maintenance', 'unavailable'])
+                                  ->orWhereIn(DB::raw("LOWER(COALESCE(`condition`, ''))"), ['damaged', 'lost', 'under repair', 'worn']);
+                            })
+                            ->get(['id', 'built_in_units']);
+
+                        foreach ($damagedParents as $dp) {
+                            $rawBuilt = is_string($dp->built_in_units) ? json_decode($dp->built_in_units, true) : $dp->built_in_units;
+                            if (is_array($rawBuilt) && !empty($rawBuilt)) {
+                                $childRefs = array_values(array_filter($rawBuilt));
+                                $healthyChildren = DB::table('equipment_units')
+                                    ->whereNull('archived_at')
+                                    ->where(function($q) use ($childRefs) {
+                                        $q->whereIn('id', $childRefs)
+                                          ->orWhereIn('barcode', $childRefs)
+                                          ->orWhereIn('serial_number', $childRefs);
+                                    })
+                                    ->whereNotIn(DB::raw("LOWER(COALESCE(status, 'available'))"), ['damaged', 'lost', 'decommissioned', 'maintenance'])
+                                    ->whereNotIn(DB::raw("LOWER(COALESCE(`condition`, 'good'))"), ['damaged', 'lost', 'under repair', 'worn'])
+                                    ->get(['id', 'equipment_type_id']);
+
+                                foreach ($healthyChildren as $hc) {
+                                    if ($hc->equipment_type_id) {
+                                        $childUnavailableByCategory[$hc->equipment_type_id] = ($childUnavailableByCategory[$hc->equipment_type_id] ?? 0) + 1;
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             } catch (\Throwable $th) {}
@@ -184,9 +261,15 @@ class EquipmentCategoryService
                 $totalQty = 0;
             }
 
+            $pUnavail = (int)($parentUnavailableByCategory[$e->id] ?? 0);
+            $cUnavail = (int)($childUnavailableByCategory[$e->id] ?? 0);
+            $unavailableTotal = $pUnavail + $cUnavail;
+
+            $bndRaw = (int) ($bundledCounts[$e->id] ?? 0);
+            $bndCount = max(0, $bndRaw - $cUnavail);
+
             $presentCount = max(0, $totalQty - $releasedTotal - $damagedCount - $lostCount);
-            $bndCount = (int) ($bundledCounts[$e->id] ?? 0);
-            $standaloneAvailable = max(0, $presentCount - $bndCount);
+            $standaloneAvailable = max(0, $presentCount - $bndCount - $unavailableTotal);
             $reservedCapped = min($presentCount, $reservedTotal);
 
             $results[] = [
@@ -200,6 +283,8 @@ class EquipmentCategoryService
                 'total_quantity'  => $totalQty,
                 'present_count'   => $presentCount,
                 'bundled_count'   => $bndCount,
+                'built_in_count'  => $bndCount,
+                'unavailable_count' => $unavailableTotal,
                 'available_count' => $standaloneAvailable,
                 'released_count'  => $releasedTotal,
                 'reserved_count'  => $reservedCapped,
@@ -399,6 +484,8 @@ class EquipmentCategoryService
                               ->orWhereIn('barcode', $allBundledUnitIds)
                               ->orWhereIn('serial_number', $allBundledUnitIds);
                         })
+                        ->whereNotIn(DB::raw("LOWER(COALESCE(status, 'available'))"), ['damaged', 'lost', 'decommissioned', 'maintenance'])
+                        ->whereNotIn(DB::raw("LOWER(COALESCE(`condition`, 'good'))"), ['damaged', 'lost', 'decommissioned', 'maintenance', 'under repair'])
                         ->count();
                 }
             } catch (\Throwable $th) {}
@@ -420,6 +507,7 @@ class EquipmentCategoryService
             'total_quantity'  => $totalQty,
             'present_count'   => $presentCount,
             'bundled_count'   => $singleBundledCount,
+            'built_in_count'  => $singleBundledCount,
             'available_count' => $standaloneAvailable,
             'released_count'  => $releasedTotal,
             'reserved_count'  => $reservedCapped,
@@ -635,12 +723,18 @@ class EquipmentCategoryService
                 })
                 ->update(['status' => 'available']);
 
-            // 6. Ensure bundle integrity: If a built-in child unit is damaged or lost, the parent unit CANNOT be available (must be unavailable).
-            // Conversely, if a parent unit is damaged or lost, all its built-in child units CANNOT be available (must be unavailable).
+            // 5.5 If condition is good, unit should automatically be available (if not released or reserved)
+            DB::table('equipment_units')
+                ->whereNotIn('status', ['reserved', 'released'])
+                ->whereIn(DB::raw("LOWER(COALESCE(equipment_units.condition, 'good'))"), ['good', 'good condition'])
+                ->whereIn('status', ['damaged', 'lost', 'decommissioned', 'maintenance', 'unavailable'])
+                ->update(['status' => 'available', 'updated_at' => now()]);
+
+            // 6. Ensure bundle integrity: If a built-in child unit is damaged or lost, the parent unit together with all its built-in units CANNOT be available (must be unavailable).
             $damagedOrLostUnits = DB::table('equipment_units')
                 ->where(function($q) {
-                    $q->whereIn(DB::raw("LOWER(COALESCE(equipment_units.condition, 'good'))"), ['lost', 'damaged'])
-                      ->orWhereIn(DB::raw("LOWER(COALESCE(equipment_units.status, 'available'))"), ['lost', 'damaged', 'unavailable']);
+                    $q->whereIn(DB::raw("LOWER(COALESCE(equipment_units.condition, 'good'))"), ['lost', 'damaged', 'decommissioned', 'under repair', 'worn', 'minor wear'])
+                      ->orWhereIn(DB::raw("LOWER(COALESCE(equipment_units.status, 'available'))"), ['lost', 'damaged', 'decommissioned', 'maintenance']);
                 })
                 ->whereNull('archived_at')
                 ->get();
@@ -653,46 +747,66 @@ class EquipmentCategoryService
             }
             $damagedOrLostCodes = array_values(array_unique(array_filter($damagedOrLostCodes)));
 
-            if (!empty($damagedOrLostCodes)) {
-                $parentsWithBuiltIns = DB::table('equipment_units')
-                    ->whereNotNull('built_in_units')
-                    ->whereNull('archived_at')
-                    ->get();
+            $parentsWithBuiltIns = DB::table('equipment_units')
+                ->whereNotNull('built_in_units')
+                ->whereNull('archived_at')
+                ->get();
 
-                foreach ($parentsWithBuiltIns as $pUnit) {
-                    $built = is_string($pUnit->built_in_units) ? json_decode($pUnit->built_in_units, true) : $pUnit->built_in_units;
-                    if (!is_array($built)) continue;
+            foreach ($parentsWithBuiltIns as $pUnit) {
+                $built = is_string($pUnit->built_in_units) ? json_decode($pUnit->built_in_units, true) : $pUnit->built_in_units;
+                if (!is_array($built) || empty($built)) continue;
 
-                    $hasDamagedChild = false;
-                    foreach ($built as $cRef) {
-                        if ($cRef && in_array(trim((string)$cRef), $damagedOrLostCodes)) {
-                            $hasDamagedChild = true;
-                            break;
-                        }
+                $cIds = array_values(array_filter($built, fn($v) => is_numeric($v) && (int)$v > 0));
+                $cCodes = array_values(array_filter($built, fn($v) => !empty($v)));
+
+                $hasDamagedChild = false;
+                foreach ($built as $cRef) {
+                    if ($cRef && in_array(trim((string)$cRef), $damagedOrLostCodes, true)) {
+                        $hasDamagedChild = true;
+                        break;
                     }
+                }
 
-                    if ($hasDamagedChild) {
+                $pIsDamaged = in_array((string)$pUnit->id, $damagedOrLostCodes, true) ||
+                              (!empty($pUnit->barcode) && in_array(trim((string)$pUnit->barcode), $damagedOrLostCodes, true));
+
+                if ($hasDamagedChild || $pIsDamaged) {
+                    // 1. Parent becomes unavailable (if not already damaged/lost/released/reserved)
+                    if (!$pIsDamaged && !in_array($pUnit->status, ['released', 'reserved'], true)) {
                         DB::table('equipment_units')
                             ->where('id', $pUnit->id)
-                            ->where('status', '!=', 'unavailable')
                             ->update(['status' => 'unavailable', 'updated_at' => now()]);
                     }
-
-                    $pIsDamaged = in_array((string)$pUnit->id, $damagedOrLostCodes) ||
-                                  (!empty($pUnit->barcode) && in_array(trim((string)$pUnit->barcode), $damagedOrLostCodes));
-                    if ($pIsDamaged) {
-                        $cIds = array_values(array_filter($built, fn($v) => is_numeric($v) && (int)$v > 0));
-                        $cCodes = array_values(array_filter($built, fn($v) => !empty($v)));
+                    // 2. Together with the other built-in equipment units that belong to the unit: set status unavailable!
+                    DB::table('equipment_units')
+                        ->where(function($q) use ($cCodes, $cIds) {
+                            $q->whereIn('barcode', $cCodes);
+                            if (!empty($cIds)) {
+                                $q->orWhereIn('id', array_map('intval', $cIds));
+                            }
+                        })
+                        ->whereNotIn(DB::raw("LOWER(COALESCE(equipment_units.condition, 'good'))"), ['lost', 'damaged', 'decommissioned', 'under repair', 'worn', 'minor wear'])
+                        ->whereNotIn('status', ['released', 'reserved'])
+                        ->update(['status' => 'unavailable', 'updated_at' => now()]);
+                } else {
+                    // All built-in units and parent are Good -> automatically available!
+                    if (!in_array($pUnit->status, ['released', 'reserved'], true)) {
                         DB::table('equipment_units')
-                            ->where(function($q) use ($cCodes, $cIds) {
-                                $q->whereIn('barcode', $cCodes);
-                                if (!empty($cIds)) {
-                                    $q->orWhereIn('id', array_map('intval', $cIds));
-                                }
-                            })
-                            ->where('status', '!=', 'unavailable')
-                            ->update(['status' => 'unavailable', 'updated_at' => now()]);
+                            ->where('id', $pUnit->id)
+                            ->where('status', '!=', 'available')
+                            ->update(['status' => 'available', 'updated_at' => now()]);
                     }
+                    DB::table('equipment_units')
+                        ->where(function($q) use ($cCodes, $cIds) {
+                            $q->whereIn('barcode', $cCodes);
+                            if (!empty($cIds)) {
+                                $q->orWhereIn('id', array_map('intval', $cIds));
+                            }
+                        })
+                        ->whereNotIn(DB::raw("LOWER(COALESCE(equipment_units.condition, 'good'))"), ['lost', 'damaged', 'decommissioned', 'under repair', 'worn', 'minor wear'])
+                        ->whereNotIn('status', ['released', 'reserved'])
+                        ->where('status', '!=', 'available')
+                        ->update(['status' => 'available', 'updated_at' => now()]);
                 }
             }
 

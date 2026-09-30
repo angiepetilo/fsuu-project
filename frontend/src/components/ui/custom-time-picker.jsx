@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Clock, ChevronDown, Check } from "lucide-react";
 
 /**
  * Parses a 24-hour time string ("HH:mm" or "HH:mm:ss") into 12-hour components.
@@ -58,11 +57,30 @@ export default function CustomTimePicker({
   className = "",
   triggerClassName = "",
   id,
+  dropUp = false,
 }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [openUpward, setOpenUpward] = useState(dropUp);
   const containerRef = useRef(null);
 
   const { hour12, minute, period } = parse24To12(value);
+
+  // Auto-detect whether to open upward to prevent page overflow and redundant scroll
+  useEffect(() => {
+    if (dropUp) {
+      setOpenUpward(true);
+      return;
+    }
+    if (isOpen && containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      if (spaceBelow < 280 && rect.top > 220) {
+        setOpenUpward(true);
+      } else {
+        setOpenUpward(false);
+      }
+    }
+  }, [isOpen, dropUp]);
 
   // Close dropdown on click outside or Escape
   useEffect(() => {
@@ -113,7 +131,7 @@ export default function CustomTimePicker({
 
   return (
     <div ref={containerRef} className={`relative ${className}`}>
-      {/* Trigger Pill / Button */}
+      {/* Trigger Button - Plain Text, Flat Design, No Icon */}
       <button
         type="button"
         id={id}
@@ -121,42 +139,30 @@ export default function CustomTimePicker({
         onClick={() => !disabled && setIsOpen(!isOpen)}
         className={
           triggerClassName ||
-          `w-full flex items-center justify-between px-3.5 py-2.5 bg-slate-50 hover:bg-slate-100/80 border border-slate-200 rounded-xl cursor-pointer transition-all text-left group ${isOpen ? "ring-2 ring-blue-500 border-blue-400 bg-white" : ""
+          `w-full px-3 py-2 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/60 border border-slate-300 dark:border-slate-600 rounded-md cursor-pointer transition-colors text-left font-semibold text-xs text-slate-900 dark:text-slate-100 ${isOpen ? "border-blue-600 ring-1 ring-blue-600" : ""
           } ${disabled ? "opacity-50 cursor-not-allowed" : ""}`
         }
       >
-        <span className="font-extrabold text-xs text-slate-900 tracking-tight">
-          {displayTime}
-        </span>
-        <Clock
-          size={15}
-          className={`transition-colors ${isOpen ? "text-blue-600" : "text-slate-500 group-hover:text-slate-700"
-            }`}
-        />
+        <span>{displayTime}</span>
       </button>
 
-      {/* 3-Column Floating Picker Popover */}
+      {/* 3-Column Floating Picker Popover - Flat Design */}
       {isOpen && (
-        <div className={`absolute z-50 mt-1.5 w-64 bg-white rounded-2xl border border-slate-200 shadow-xl p-2.5 animate-in fade-in zoom-in-95 text-xs ${align === "right" ? "right-0" : "left-0"}`}>
+        <div className={`absolute z-50 ${openUpward ? "bottom-full mb-1.5" : "top-full mt-1.5"} w-64 bg-white dark:bg-slate-900 rounded-md border border-slate-300 dark:border-slate-700 p-2.5 text-xs ${align === "right" ? "right-0" : "left-0"}`}>
           {/* Header Preview */}
-          <div className="flex items-center justify-between px-2.5 py-1.5 bg-slate-50 border border-slate-100 rounded-xl mb-2 text-[11px] font-mono font-black text-slate-700">
-            <span className="text-slate-400 font-sans font-bold text-[10px] uppercase">Selected</span>
-            <div className="flex items-center gap-1">
-              <span className="text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">{hour12}</span>
-              <span className="text-slate-400">:</span>
-              <span className="text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">{minute}</span>
-              <span className="text-blue-700 font-sans bg-blue-100 px-1.5 py-0.5 rounded ml-1">{period}</span>
-            </div>
+          <div className="flex items-center justify-between px-2.5 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md mb-2 text-xs">
+            <span className="text-slate-500 dark:text-slate-400 font-semibold text-[11px] uppercase tracking-wider">Selected</span>
+            <span className="font-bold text-slate-900 dark:text-slate-100">{hour12}:{minute} {period}</span>
           </div>
 
-          {/* 3 Columns: Hour | Minute (5-min intervals) | Period */}
+          {/* 3 Columns: Hour | Minute | Period */}
           <div className="grid grid-cols-3 gap-1.5 text-center text-xs">
             {/* Column 1: Hour */}
             <div>
-              <div className="text-[10px] font-black uppercase tracking-wider text-slate-400 pb-1 border-b border-slate-100 mb-1">
+              <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400 pb-1 border-b border-slate-200 dark:border-slate-700 mb-1">
                 Hour
               </div>
-              <div className="max-h-44 overflow-y-auto space-y-0.5 pr-0.5 scrollbar-thin">
+              <div className="max-h-36 overflow-y-auto space-y-0.5 pr-0.5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
                 {hours.map((h) => {
                   const isSelected = h === hour12;
                   return (
@@ -164,9 +170,9 @@ export default function CustomTimePicker({
                       key={`h-${h}`}
                       type="button"
                       onClick={() => handleSelectHour(h)}
-                      className={`w-full py-1.5 rounded-lg text-xs font-mono font-extrabold transition-colors cursor-pointer ${isSelected
-                          ? "bg-blue-600 text-white shadow-xs"
-                          : "text-slate-700 hover:bg-slate-100"
+                      className={`w-full py-1.5 rounded-md text-xs font-semibold transition-colors cursor-pointer ${isSelected
+                          ? "bg-blue-600 text-white"
+                          : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
                         }`}
                     >
                       {h}
@@ -176,12 +182,12 @@ export default function CustomTimePicker({
               </div>
             </div>
 
-            {/* Column 2: Minute (5-minute steps) */}
+            {/* Column 2: Minute */}
             <div>
-              <div className="text-[10px] font-black uppercase tracking-wider text-slate-400 pb-1 border-b border-slate-100 mb-1">
+              <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400 pb-1 border-b border-slate-200 dark:border-slate-700 mb-1">
                 Minute
               </div>
-              <div className="max-h-44 overflow-y-auto space-y-0.5 pr-0.5 scrollbar-thin">
+              <div className="max-h-36 overflow-y-auto space-y-0.5 pr-0.5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
                 {minutes.map((m) => {
                   const isSelected = m === minute;
                   return (
@@ -189,9 +195,9 @@ export default function CustomTimePicker({
                       key={`m-${m}`}
                       type="button"
                       onClick={() => handleSelectMinute(m)}
-                      className={`w-full py-1.5 rounded-lg text-xs font-mono font-extrabold transition-colors cursor-pointer ${isSelected
-                          ? "bg-blue-600 text-white shadow-xs"
-                          : "text-slate-700 hover:bg-slate-100"
+                      className={`w-full py-1.5 rounded-md text-xs font-semibold transition-colors cursor-pointer ${isSelected
+                          ? "bg-blue-600 text-white"
+                          : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
                         }`}
                     >
                       {m}
@@ -201,9 +207,9 @@ export default function CustomTimePicker({
               </div>
             </div>
 
-            {/* Column 3: Period (AM / PM) */}
+            {/* Column 3: Period */}
             <div>
-              <div className="text-[10px] font-black uppercase tracking-wider text-slate-400 pb-1 border-b border-slate-100 mb-1">
+              <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400 pb-1 border-b border-slate-200 dark:border-slate-700 mb-1">
                 Period
               </div>
               <div className="space-y-1 pt-1">
@@ -214,9 +220,9 @@ export default function CustomTimePicker({
                       key={`p-${p}`}
                       type="button"
                       onClick={() => handleSelectPeriod(p)}
-                      className={`w-full py-2.5 rounded-xl text-xs font-extrabold transition-colors cursor-pointer ${isSelected
-                          ? "bg-blue-600 text-white shadow-xs"
-                          : "text-slate-700 bg-slate-50 hover:bg-slate-100 border border-slate-100"
+                      className={`w-full py-2 rounded-md text-xs font-semibold transition-colors cursor-pointer ${isSelected
+                          ? "bg-blue-600 text-white"
+                          : "text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700"
                         }`}
                     >
                       {p}
@@ -228,12 +234,11 @@ export default function CustomTimePicker({
           </div>
 
           {/* Footer Bar */}
-          <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between">
-            <span className="text-[10px] text-slate-400 font-medium">5-min intervals</span>
+          <div className="mt-2.5 pt-2 border-t border-slate-200 dark:border-slate-700 flex items-center justify-end">
             <button
               type="button"
               onClick={() => setIsOpen(false)}
-              className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[11px] font-bold transition-colors cursor-pointer shadow-xs"
+              className="w-full py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-xs font-semibold transition-colors cursor-pointer"
             >
               Done
             </button>

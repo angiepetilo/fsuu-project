@@ -16,10 +16,10 @@ import { isPastDateTime } from "@/lib/dateTimeUtils";
 import { useAuth } from "@/context/AuthContext";
 
 const VENUE_STEPS = [
-  { title: "SELECT ROLE", subtitle: "Select role" },
-  { title: "DATE & TIME", subtitle: "Choose venue & schedule" },
-  { title: "FILL DETAILS", subtitle: "Reservation form" },
-  { title: "UPLOAD & SUBMIT", subtitle: "Upload & submit" },
+  { title: "Role", subtitle: "" },
+  { title: "Venues", subtitle: "" },
+  { title: "Details", subtitle: "" },
+  { title: "Submit", subtitle: "" },
 ];
 
 const formatVenues = (apiVenues = []) => {
@@ -555,6 +555,24 @@ export default function VenueBooking({ isPortal: isPortalProp }) {
 
       setReferenceCode(trackingNum);
       setShowSuccess(true);
+
+      try {
+        localStorage.setItem('fsuu_booking_created_ping', JSON.stringify({
+          type: 'venue_booking',
+          ref: trackingNum,
+          filer: fullName || `${firstName} ${lastName}`.trim(),
+          place: selectedVenue?.name || 'Venue',
+          time: Date.now()
+        }));
+      } catch {}
+      window.dispatchEvent(new CustomEvent('fsuu_booking_created', {
+        detail: {
+          type: 'venue_booking',
+          reference_code: trackingNum,
+          filer_name: fullName || `${firstName} ${lastName}`.trim(),
+          place_of_use: selectedVenue?.name || 'Venue'
+        }
+      }));
     } catch (err) {
       alert(err.response?.data?.message || 'Submission failed. Please check form details.');
     } finally {

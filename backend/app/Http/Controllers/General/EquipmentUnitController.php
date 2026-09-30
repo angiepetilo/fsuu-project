@@ -265,6 +265,9 @@ class EquipmentUnitController extends Controller
 
         $unit = EquipmentUnit::create($unitData);
 
+        // Resolve parent and child availability if built-in units assigned
+        $this->resolveParentAndChildrenStatus($unit);
+
         // Sync category stock count
         $this->syncCategoryStock($unit->equipment_type_id);
 
@@ -367,6 +370,34 @@ class EquipmentUnitController extends Controller
                 'minor wear' => 'Minor Wear',
                 default => 'Good',
             };
+
+            // "configure that if the equipment unit condition is good it will automatically available"
+            $currentStatus = strtolower(trim($validated['status'] ?? $unit->status ?? 'available'));
+            if (!in_array($currentStatus, ['released', 'in_use', 'reserved'], true)) {
+                if ($validated['condition'] === 'Good') {
+                    $uid = (string)$unit->id;
+                    $uBar = (string)($unit->barcode ?? '');
+                    $isChild = false;
+                    $allParents = EquipmentUnit::whereNotNull('built_in_units')
+                        ->whereNull('archived_at')
+                        ->where('id', '!=', $unit->id)
+                        ->get(['id', 'built_in_units']);
+                    foreach ($allParents as $p) {
+                        $pList = is_array($p->built_in_units) ? $p->built_in_units : json_decode($p->built_in_units, true);
+                        if (is_array($pList) && (in_array($uid, $pList) || ($uBar && in_array($uBar, $pList)))) {
+                            $isChild = true;
+                            break;
+                        }
+                    }
+                    $validated['status'] = $isChild ? 'built-in' : 'available';
+                } elseif ($validated['condition'] === 'Damaged') {
+                    $validated['status'] = 'damaged';
+                } elseif ($validated['condition'] === 'Lost') {
+                    $validated['status'] = 'lost';
+                } elseif (in_array($validated['condition'], ['Under Repair', 'Minor Wear'], true)) {
+                    $validated['status'] = 'unavailable';
+                }
+            }
         }
 
         if (array_key_exists('barcode', $validated)) {
@@ -412,19 +443,17 @@ class EquipmentUnitController extends Controller
             $validated['description'] = $userReason;
         }
 
+        $oldBuiltIn = is_array($unit->built_in_units) ? $unit->built_in_units : (is_string($unit->built_in_units) ? json_decode($unit->built_in_units, true) : null);
         $unit->update($validated);
 
-        // Keep child built-in units in sync with parent's serial number
-        if (!empty($unit->built_in_units) && is_array($unit->built_in_units) && !empty($unit->serial_number)) {
-            EquipmentUnit::whereIn('id', $unit->built_in_units)->update([
-                'serial_number' => $unit->serial_number,
-            ]);
-        }
 
-        // Sync category stock counts for old and new category
-        $this->syncCategoryStock($oldTypeId);
-        if ($unit->equipment_type_id !== $oldTypeId) {
-            $this->syncCategoryStock($unit->equipment_type_id);
+
+        // Automatically resolve parent and child availability and sync all affected category stocks
+        $this->resolveParentAndChildrenStatus($unit, is_array($oldBuiltIn) ? $oldBuiltIn : null);
+
+        // Sync category stock counts for old category if it changed
+        if ($oldTypeId && (int)$unit->equipment_type_id !== (int)$oldTypeId) {
+            $this->syncCategoryStock((int)$oldTypeId);
         }
 
         // Determine what triggered the stats change
@@ -545,7 +574,222 @@ class EquipmentUnitController extends Controller
     }
 
     /**
-     * Helper to dynamically calculate and update EquipmentType stock counts
+     * Automatically resolves parent and child equipment unit availability.
+     * 1. If $unit is a child of one or more parent units:
+     *    - If $unit is Good, check all siblings in each parent. If all siblings are Good,
+     *      restore parent to status = 'available'.
+     *    - If $unit is Damaged/Lost/Under Repair, mark parent status = 'unavailable'.
+     * 2. If $unit is a parent unit (has built_in_units):
+     *    - Check all current children. If all are Good and parent is Good,
+     *      set parent status = 'available'.
+     *    - If any child is Damaged/Lost, set parent status = 'unavailable'.
+     * 3. If children were removed/replaced, handles any old children freed up.
+     *
+     * Returns array of all affected equipment_type_ids that were re-synced.
+     */
+    public function resolveParentAndChildrenStatus(EquipmentUnit $unit, ?array $oldBuiltInRefs = null): array
+    {
+        $affectedTypeIds = [(int)$unit->equipment_type_id];
+        $uid = (string)$unit->id;
+        $uBarcode = (string)($unit->barcode ?: '');
+        $uSerial = (string)($unit->serial_number ?: '');
+
+        // ── 1. If $unit is a child of any parent unit(s) ──────────────────────
+        $allParents = EquipmentUnit::whereNotNull('built_in_units')
+            ->whereNull('archived_at')
+            ->where('id', '!=', $unit->id)
+            ->get();
+
+        foreach ($allParents as $parent) {
+            $rawList = is_array($parent->built_in_units)
+                ? $parent->built_in_units
+                : (is_string($parent->built_in_units) ? json_decode($parent->built_in_units, true) : []);
+            if (!is_array($rawList)) continue;
+
+            $containsThisUnit = false;
+            foreach ($rawList as $ref) {
+                $strRef = (string)$ref;
+                if ($strRef === $uid || ($uBarcode && $strRef === $uBarcode) || ($uSerial && $strRef === $uSerial)) {
+                    $containsThisUnit = true;
+                    break;
+                }
+            }
+
+            if ($containsThisUnit) {
+                $affectedTypeIds[] = (int)$parent->equipment_type_id;
+
+                // Inspect ALL child components for this parent
+                $childIds   = array_values(array_filter($rawList, fn($v) => is_numeric($v) && (int)$v > 0));
+                $childCodes = array_values(array_filter($rawList, fn($v) => !empty($v)));
+
+                $allSiblings = EquipmentUnit::where(function($q) use ($childCodes, $childIds) {
+                    $q->whereIn('barcode', $childCodes);
+                    if (!empty($childIds)) {
+                        $q->orWhereIn('id', array_map('intval', $childIds));
+                    }
+                })->whereNull('archived_at')->get();
+
+                $allSiblingsGood = true;
+                foreach ($allSiblings as $sib) {
+                    $affectedTypeIds[] = (int)$sib->equipment_type_id;
+                    $sibCond = strtolower(trim($sib->condition ?? 'good'));
+                    $sibStat = strtolower(trim($sib->status ?? 'available'));
+                    if (in_array($sibCond, ['damaged', 'lost', 'decommissioned', 'under repair', 'worn', 'minor wear'], true)
+                        || in_array($sibStat, ['damaged', 'lost', 'decommissioned', 'maintenance'], true)) {
+                        $allSiblingsGood = false;
+                    }
+                }
+
+                $parentCond = strtolower(trim($parent->condition ?? 'good'));
+                $parentStat = strtolower(trim($parent->status ?? 'available'));
+                $parentIsDamaged = in_array($parentCond, ['damaged', 'lost', 'decommissioned', 'under repair', 'worn', 'minor wear'], true);
+
+                if ($allSiblingsGood && !$parentIsDamaged) {
+                    // All children and parent are Good -> parent is available, child units are built-in!
+                    if (!in_array($parentStat, ['released', 'in_use', 'reserved'], true)) {
+                        $parent->update(['status' => 'available']);
+                    }
+                    foreach ($allSiblings as $sib) {
+                        $sCond = strtolower(trim($sib->condition ?? 'good'));
+                        $sStat = strtolower(trim($sib->status ?? 'available'));
+                        if (!in_array($sCond, ['damaged', 'lost', 'decommissioned', 'under repair', 'worn', 'minor wear'], true)
+                            && !in_array($sStat, ['released', 'in_use', 'reserved'], true)) {
+                            $sib->update(['status' => 'built-in']);
+                        }
+                    }
+                } else {
+                    // One or more built-in units (or parent) is damaged or lost:
+                    // Set parent status to unavailable
+                    if (!$parentIsDamaged && !in_array($parentStat, ['released', 'in_use', 'reserved'], true)) {
+                        $parent->update(['status' => 'unavailable']);
+                    }
+                    // Together with the other built-in units that belong to the unit: set status unavailable!
+                    foreach ($allSiblings as $sib) {
+                        $sCond = strtolower(trim($sib->condition ?? 'good'));
+                        $sStat = strtolower(trim($sib->status ?? 'available'));
+                        if (!in_array($sCond, ['damaged', 'lost', 'decommissioned', 'under repair', 'worn', 'minor wear'], true)
+                            && !in_array($sStat, ['released', 'in_use', 'reserved'], true)) {
+                            $sib->update(['status' => 'unavailable']);
+                        }
+                    }
+                }
+            }
+        }
+
+        // ── 2. If $unit itself is a parent unit (has built_in_units) ─────────
+        $currentBuiltIn = is_array($unit->built_in_units)
+            ? $unit->built_in_units
+            : (is_string($unit->built_in_units) ? json_decode($unit->built_in_units, true) : []);
+
+        if (is_array($currentBuiltIn) && !empty($currentBuiltIn)) {
+            $childIds   = array_values(array_filter($currentBuiltIn, fn($v) => is_numeric($v) && (int)$v > 0));
+            $childCodes = array_values(array_filter($currentBuiltIn, fn($v) => !empty($v)));
+
+            $currentChildren = EquipmentUnit::where(function($q) use ($childCodes, $childIds) {
+                $q->whereIn('barcode', $childCodes);
+                if (!empty($childIds)) {
+                    $q->orWhereIn('id', array_map('intval', $childIds));
+                }
+            })->whereNull('archived_at')->get();
+
+            $allChildrenGood = true;
+            foreach ($currentChildren as $child) {
+                $affectedTypeIds[] = (int)$child->equipment_type_id;
+                $cCond = strtolower(trim($child->condition ?? 'good'));
+                $cStat = strtolower(trim($child->status ?? 'available'));
+                if (in_array($cCond, ['damaged', 'lost', 'decommissioned', 'under repair', 'worn', 'minor wear'], true)
+                    || in_array($cStat, ['damaged', 'lost', 'decommissioned', 'maintenance'], true)) {
+                    $allChildrenGood = false;
+                }
+            }
+
+            $uCond = strtolower(trim($unit->condition ?? 'good'));
+            $uStat = strtolower(trim($unit->status ?? 'available'));
+            $uIsDamaged = in_array($uCond, ['damaged', 'lost', 'decommissioned', 'under repair', 'worn', 'minor wear'], true);
+
+            if ($allChildrenGood && !$uIsDamaged) {
+                // Parent and all children are Good -> parent is available, children are built-in!
+                if (!in_array($uStat, ['released', 'in_use', 'reserved'], true)) {
+                    $unit->update(['status' => 'available']);
+                }
+                foreach ($currentChildren as $child) {
+                    $cCond = strtolower(trim($child->condition ?? 'good'));
+                    $cStat = strtolower(trim($child->status ?? 'available'));
+                    if (!in_array($cCond, ['damaged', 'lost', 'decommissioned', 'under repair', 'worn', 'minor wear'], true)
+                        && !in_array($cStat, ['released', 'in_use', 'reserved'], true)) {
+                        $child->update(['status' => 'built-in']);
+                    }
+                }
+            } else {
+                // One or more built-in units (or parent) is damaged/lost:
+                // Set parent to unavailable
+                if (!$uIsDamaged && !in_array($uStat, ['released', 'in_use', 'reserved'], true)) {
+                    $unit->update(['status' => 'unavailable']);
+                }
+                // Together with the other built-in units that belong to the unit: set status unavailable!
+                foreach ($currentChildren as $child) {
+                    $cCond = strtolower(trim($child->condition ?? 'good'));
+                    $cStat = strtolower(trim($child->status ?? 'available'));
+                    if (!in_array($cCond, ['damaged', 'lost', 'decommissioned', 'under repair', 'worn', 'minor wear'], true)
+                        && !in_array($cStat, ['released', 'in_use', 'reserved'], true)) {
+                        $child->update(['status' => 'unavailable']);
+                    }
+                }
+            }
+        }
+
+        // ── 3. If child units were replaced / removed ────────────────────────
+        if (is_array($oldBuiltInRefs) && !empty($oldBuiltInRefs)) {
+            $newRefs = is_array($currentBuiltIn) ? $currentBuiltIn : [];
+            $removedRefs = array_diff($oldBuiltInRefs, $newRefs);
+
+            if (!empty($removedRefs)) {
+                $remIds   = array_values(array_filter($removedRefs, fn($v) => is_numeric($v) && (int)$v > 0));
+                $remCodes = array_values(array_filter($removedRefs, fn($v) => !empty($v)));
+
+                $removedUnits = EquipmentUnit::where(function($q) use ($remCodes, $remIds) {
+                    $q->whereIn('barcode', $remCodes);
+                    if (!empty($remIds)) {
+                        $q->orWhereIn('id', array_map('intval', $remIds));
+                    }
+                })->whereNull('archived_at')->get();
+
+                foreach ($removedUnits as $remUnit) {
+                    $affectedTypeIds[] = (int)$remUnit->equipment_type_id;
+                    $remCond = strtolower(trim($remUnit->condition ?? 'good'));
+                    if (!in_array($remCond, ['damaged', 'lost', 'decommissioned'], true) && $remUnit->status === 'unavailable') {
+                        $remUnit->update(['status' => 'available']);
+                    }
+                }
+            }
+        }
+
+        // Re-sync all affected categories
+        $uniqueTypeIds = array_unique(array_filter($affectedTypeIds));
+        foreach ($uniqueTypeIds as $tId) {
+            $this->syncCategoryStock($tId);
+        }
+
+        // Broadcast inventory update event
+        try {
+            event(new \App\Events\InventoryStockUpdated(null, 'updated', ['unit_id' => $unit->id]));
+        } catch (\Throwable $e) {}
+
+        return $uniqueTypeIds;
+    }
+
+    /**
+     * Helper to dynamically calculate and update EquipmentType stock counts.
+     *
+     * Columns managed:
+     *   total_quantity   – all non-archived units of this category
+     *   built_in_count   – units of this category that are child components of another unit
+     *   unavailable_count– parent units (has built_in_units) whose kit has ≥1 damaged/lost child
+     *   available_count  – truly free units (not built-in, not unavailable, not reserved/released/damaged/lost)
+     *   reserved_count   – units with status = 'reserved'
+     *   released_count   – units with status = 'released'/'in_use'
+     *   damaged_count    – units with condition = 'Damaged' (and not lost)
+     *   lost_count       – units with condition = 'Lost'
      */
     public function syncCategoryStock(int $typeId): void
     {
@@ -553,37 +797,161 @@ class EquipmentUnitController extends Controller
             $type = EquipmentType::find($typeId);
             if (!$type) return;
 
-            $totalUnits = EquipmentUnit::where('equipment_type_id', $typeId)->whereNull('archived_at')->count();
-            $availableUnits = EquipmentUnit::where('equipment_type_id', $typeId)
+            // ── 1. All non-archived units for this category ──────────────────────
+            $categoryUnits = EquipmentUnit::where('equipment_type_id', $typeId)
                 ->whereNull('archived_at')
-                ->whereRaw("LOWER(COALESCE(equipment_units.status, 'available')) NOT IN ('damaged', 'lost', 'decommissioned', 'maintenance', 'released', 'in_use', 'borrowed', 'in-use', 'reserved', 'unavailable')")
-                ->whereRaw("LOWER(COALESCE(equipment_units.condition, 'good')) NOT IN ('damaged', 'lost', 'under repair', 'under_repair', 'worn', 'minor wear')")
-                ->count();
+                ->get();
 
-            $damagedUnits = EquipmentUnit::where('equipment_type_id', $typeId)
+            if ($categoryUnits->isEmpty()) {
+                $type->update([
+                    'total_quantity'   => 0,
+                    'available_count'  => 0,
+                    'built_in_count'   => 0,
+                    'unavailable_count'=> 0,
+                    'reserved_count'   => 0,
+                    'released_count'   => 0,
+                    'damaged_count'    => 0,
+                    'lost_count'       => 0,
+                ]);
+                return;
+            }
+
+            $totalUnits = $categoryUnits->count();
+            $categoryUnitIds = $categoryUnits->pluck('id')->map(fn($id) => (string)$id)->toArray();
+
+            // ── 2. Identify all child unit IDs system-wide ──────────────────────
+            // A child is any unit whose ID appears in another unit's built_in_units JSON array.
+            $allParentUnits = EquipmentUnit::whereNotNull('built_in_units')
                 ->whereNull('archived_at')
-                ->where(function($q) {
-                    $q->whereRaw("LOWER(COALESCE(equipment_units.status, 'available')) IN ('damaged', 'maintenance', 'unavailable')")
-                      ->orWhereRaw("LOWER(COALESCE(equipment_units.condition, 'good')) IN ('damaged', 'maintenance', 'worn', 'under repair')");
-                })
-                ->whereRaw("LOWER(COALESCE(equipment_units.status, 'available')) NOT IN ('lost', 'decommissioned')")
-                ->whereRaw("LOWER(COALESCE(equipment_units.condition, 'good')) NOT IN ('lost', 'decommissioned')")
-                ->count();
+                ->get(['id', 'built_in_units', 'status', 'condition', 'equipment_type_id']);
 
-            $lostUnits = EquipmentUnit::where('equipment_type_id', $typeId)
-                ->whereNull('archived_at')
-                ->where(function($q) {
-                    $q->whereRaw("LOWER(COALESCE(equipment_units.status, 'available')) IN ('lost', 'decommissioned')")
-                      ->orWhereRaw("LOWER(COALESCE(equipment_units.condition, 'good')) IN ('lost', 'decommissioned')");
-                })
-                ->count();
+            $globalChildIds = [];  // string IDs of all child units system-wide
+            foreach ($allParentUnits as $parent) {
+                $builtIn = is_array($parent->built_in_units)
+                    ? $parent->built_in_units
+                    : (is_string($parent->built_in_units) ? json_decode($parent->built_in_units, true) : []);
+                if (is_array($builtIn)) {
+                    foreach ($builtIn as $childRef) {
+                        if (!empty($childRef)) {
+                            $globalChildIds[] = (string)$childRef;
+                        }
+                    }
+                }
+            }
+            $globalChildIds = array_unique($globalChildIds);
 
-            $type->update([
+            // ── 3. Categorize each unit in this category ─────────────────────────
+            // Columns: total = available + built_in + unavailable + reserved + released + damaged + lost
+            $builtInCount     = 0;
+            $unavailableCount = 0;
+            $reservedCount    = 0;
+            $releasedCount    = 0;
+            $damagedCount     = 0;
+            $lostCount        = 0;
+            $availableCount   = 0;
+
+            foreach ($categoryUnits as $unit) {
+                $statusLower = strtolower(trim($unit->status ?? 'available'));
+                $condLower   = strtolower(trim($unit->condition ?? 'good'));
+                $uid         = (string)$unit->id;
+                $uBarcode    = (string)($unit->barcode ?: '');
+                $isChild     = in_array($uid, $globalChildIds, true) || ($uBarcode && in_array($uBarcode, $globalChildIds, true));
+
+                // Lost takes highest priority
+                if (in_array($condLower, ['lost', 'decommissioned'], true) || in_array($statusLower, ['lost', 'decommissioned'], true)) {
+                    $lostCount++;
+                    continue;
+                }
+
+                // Damaged (not lost)
+                if (
+                    in_array($condLower, ['damaged', 'under repair', 'under_repair', 'worn', 'minor wear'], true) ||
+                    in_array($statusLower, ['damaged', 'maintenance', 'under_maintenance'], true)
+                ) {
+                    $damagedCount++;
+                    continue;
+                }
+
+                // If unit was released/in use
+                if (in_array($statusLower, ['released', 'in_use', 'in-use', 'borrowed'], true)) {
+                    $releasedCount++;
+                    continue;
+                }
+
+                // If unit is reserved
+                if ($statusLower === 'reserved') {
+                    $reservedCount++;
+                    continue;
+                }
+
+                // If unit status is unavailable (either parent kit or child unit whose kit has a broken component)
+                if ($statusLower === 'unavailable') {
+                    $unavailableCount++;
+                    continue;
+                }
+
+                // If unit is a built-in child inside another kit (healthy and available with parent)
+                if ($isChild) {
+                    $builtInCount++;
+                    continue;
+                }
+
+                // For parent kits / standalone units:
+                // Check if this parent has built-in units and if any child is damaged or lost
+                $builtIn = is_array($unit->built_in_units)
+                    ? $unit->built_in_units
+                    : (is_string($unit->built_in_units) ? json_decode($unit->built_in_units, true) : []);
+
+                $hasDamagedOrLostChild = false;
+                if (is_array($builtIn) && !empty($builtIn)) {
+                    $childIds   = array_values(array_filter($builtIn, fn($v) => is_numeric($v) && (int)$v > 0));
+                    $childCodes = array_values(array_filter($builtIn, fn($v) => !empty($v)));
+
+                    $children = EquipmentUnit::where(function($q) use ($childCodes, $childIds) {
+                        $q->whereIn('barcode', $childCodes);
+                        if (!empty($childIds)) {
+                            $q->orWhereIn('id', array_map('intval', $childIds));
+                        }
+                    })
+                    ->whereNull('archived_at')
+                    ->get();
+
+                    $hasDamagedOrLostChild = $children->contains(function($child) {
+                        $cCond = strtolower(trim($child->condition ?? 'good'));
+                        $cStat = strtolower(trim($child->status ?? 'available'));
+                        return in_array($cCond, ['damaged', 'lost', 'decommissioned', 'under repair', 'worn', 'minor wear'], true)
+                            || in_array($cStat, ['damaged', 'lost', 'decommissioned', 'maintenance', 'unavailable'], true);
+                    });
+                }
+
+                if ($hasDamagedOrLostChild) {
+                    $unavailableCount++;
+                } else {
+                    $availableCount++;
+                }
+            }
+
+            $updateData = [
                 'total_quantity'  => $totalUnits,
-                'available_count' => $availableUnits,
-                'damaged_count'   => $damagedUnits,
-                'lost_count'      => $lostUnits,
-            ]);
+                'available_count' => $availableCount,
+                'released_count'  => $releasedCount,
+                'damaged_count'   => $damagedCount,
+                'lost_count'      => $lostCount,
+            ];
+
+            // Only update new columns if they exist in the schema
+            if (\Illuminate\Support\Facades\Schema::hasColumn('equipment_types', 'built_in_count')) {
+                $updateData['built_in_count'] = $builtInCount;
+            }
+            if (\Illuminate\Support\Facades\Schema::hasColumn('equipment_types', 'unavailable_count')) {
+                $updateData['unavailable_count'] = $unavailableCount;
+            }
+            if (\Illuminate\Support\Facades\Schema::hasColumn('equipment_types', 'reserved_count')) {
+                $updateData['reserved_count'] = $reservedCount;
+            }
+
+            $type->update($updateData);
+
         } catch (\Throwable $th) {
             \Illuminate\Support\Facades\Log::warning("Failed to sync category stock for type {$typeId}: " . $th->getMessage());
         }

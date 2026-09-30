@@ -304,14 +304,29 @@ export default function EquipmentModal({
 
   useEffect(() => {
     let isMounted = true;
-    api.get("/general/brands", { params: { all: 1, active_only: 1 } })
-      .then(res => {
-        if (!isMounted) return;
-        const list = res.data?.brands?.data || (Array.isArray(res.data?.brands) ? res.data.brands : []);
-        setBrands(list);
-      })
-      .catch(() => {});
-    return () => { isMounted = false; };
+    const loadBrands = () => {
+      api.get("/general/brands", { params: { all: 1, active_only: 1 } })
+        .then(res => {
+          if (!isMounted) return;
+          const list = res.data?.brands?.data || (Array.isArray(res.data?.brands) ? res.data.brands : []);
+          setBrands(list);
+        })
+        .catch(() => {});
+    };
+
+    loadBrands();
+
+    window.addEventListener("brands_updated", loadBrands);
+    const handleStorage = (e) => {
+      if (e.key === "fsuu_brand_updated_ping") loadBrands();
+    };
+    window.addEventListener("storage", handleStorage);
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener("brands_updated", loadBrands);
+      window.removeEventListener("storage", handleStorage);
+    };
   }, []);
 
   // ── All hooks MUST be called before any early return (Rules of Hooks) ──
@@ -356,6 +371,24 @@ export default function EquipmentModal({
     ((u.serial_number || "").trim().toLowerCase() === addSerialClean ||
      (u.barcode || "").trim().toLowerCase() === addSerialClean)
   ) : null;
+
+  const isEditingUnitChild = useMemo(() => {
+    if (!editingItem) return false;
+    const eId = String(editingItem.id).toLowerCase();
+    const eBarcode = String(editingItem.barcode || '').trim().toLowerCase();
+    const eSerial = String(editingItem.serial_number || '').trim().toLowerCase();
+    return (existingUnits || []).some(parent => {
+      let raw = parent.built_in_units;
+      if (typeof raw === 'string') {
+        try { raw = JSON.parse(raw); } catch { raw = []; }
+      }
+      if (!Array.isArray(raw)) return false;
+      return raw.some(ref => {
+        const s = String(ref).trim().toLowerCase();
+        return s === eId || (eBarcode && s === eBarcode) || (eSerial && s === eSerial);
+      });
+    });
+  }, [editingItem, existingUnits]);
 
   const initialAddRef = useRef(null);
   const initialEditRef = useRef(null);
@@ -585,15 +618,27 @@ export default function EquipmentModal({
                     <div>
                       <label className={labelClasses}>Status *</label>
                       <select
-                        value={(editFormData.status || "available").toLowerCase()}
+                        value={(editFormData.status || (isEditingUnitChild ? "built-in" : "available")).toLowerCase()}
                         onChange={e => setEditFormData({ ...editFormData, status: e.target.value.toLowerCase() })}
-                        disabled={editFormData.condition === "Damaged"}
-                        className={`${inputClasses} cursor-pointer disabled:opacity-50`}
+                        disabled={editFormData.condition === "Damaged" || editFormData.condition === "Lost" || isEditingUnitChild}
+                        className={`${inputClasses} cursor-pointer disabled:opacity-75`}
                       >
-                        <option value="available">Available</option>
-                        <option value="released">Released</option>
-                        <option value="unavailable">Unavailable</option>
+                        {isEditingUnitChild ? (
+                          <option value="built-in">Built-in (Linked Component)</option>
+                        ) : (
+                          <>
+                            <option value="available">Available</option>
+                            <option value="released">Released</option>
+                            <option value="unavailable">Unavailable</option>
+                            <option value="built-in">Built-in</option>
+                          </>
+                        )}
                       </select>
+                      {isEditingUnitChild && (
+                        <p className="mt-1 text-[10.5px] font-semibold text-violet-600 dark:text-violet-400">
+                          ⚡ Status automatically set to Built-in because this unit is bundled in a parent equipment kit.
+                        </p>
+                      )}
                     </div>
 
                     <div>
@@ -602,7 +647,7 @@ export default function EquipmentModal({
                         value={editFormData.condition || "Good"}
                         onChange={e => {
                           const val = e.target.value;
-                          const newStatus = val === "Good" ? "available" : "unavailable";
+                          const newStatus = val === "Good" ? (isEditingUnitChild ? "built-in" : "available") : "unavailable";
                           setEditFormData({
                             ...editFormData,
                             condition: val,

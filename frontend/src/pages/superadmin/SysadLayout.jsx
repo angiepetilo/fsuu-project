@@ -5,6 +5,8 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 import { useTheme } from "@/context/ThemeContext";
 import api from "@/lib/axios";
+import echoInstance from "@/lib/echo";
+import { notify } from "@/lib/notify";
 import {
   LayoutDashboard, CalendarCheck, PackageOpen, Settings,
   ChevronRight, LogOut, Bell, Menu, X, Box, Building2,
@@ -208,7 +210,105 @@ export default function SysadLayout() {
       .catch(() => setSysadNotifications([]));
   }, [userStorageKey]);
 
-  useRealtimeSync(fetchNotifs, { interval: 30000, enabled: !!user });
+  useRealtimeSync(fetchNotifs, { interval: 10000, enabled: !!user });
+
+  useEffect(() => {
+    if (!user) return;
+
+    // Listen on real-time Pusher WebSockets (Echo)
+    const adminChannel = echoInstance?.channel("admin-notifications");
+    const generalChannel = echoInstance?.channel("general-notifications");
+
+    const handleBookingCreated = (data) => {
+      const title = data.type === "venue_booking" ? "New Venue Reservation" : "New Equipment Borrow";
+      notify.info(
+        `${title} • ${data.reference_code || ''}`,
+        `${data.filer_name || 'Applicant'} (${data.program_office || 'Department'}) - ${data.place_of_use || 'Campus'}`
+      );
+      fetchNotifs();
+      window.dispatchEvent(new Event("equipment_inventory_updated"));
+      window.dispatchEvent(new Event("venue_bookings_updated"));
+      window.dispatchEvent(new Event("equipment_borrowings_updated"));
+    };
+
+    const handleStatusUpdate = (data) => {
+      if (data?.status === "urgent_approval" || data?.extra?.is_urgent) {
+        const trk = data?.reference_code || data?.extra?.tracking_number || "";
+        notify.warning(
+          `Urgent Approval (${trk})`,
+          data?.remarks || `Urgent approval notification dispatched for ${trk}.`
+        );
+      }
+      fetchNotifs();
+      window.dispatchEvent(new Event("equipment_inventory_updated"));
+      window.dispatchEvent(new Event("venue_bookings_updated"));
+      window.dispatchEvent(new Event("equipment_borrowings_updated"));
+    };
+
+    adminChannel?.listen?.(".booking.created", handleBookingCreated);
+    generalChannel?.listen?.(".booking.created", handleBookingCreated);
+
+    adminChannel?.listen?.(".booking.status_updated", handleStatusUpdate);
+    generalChannel?.listen?.(".booking.status_updated", handleStatusUpdate);
+
+    const eqChannel = echoInstance?.channel("equipment-inventory");
+    if (eqChannel?.listen) {
+      eqChannel.listen(".inventory.updated", () => {
+        window.dispatchEvent(new Event("equipment_inventory_updated"));
+        fetchNotifs();
+      });
+    }
+
+    // ── Cross-tab and in-tab local real-time synchronization ──
+    const handleStorageEvent = (e) => {
+      if (e.key === "fsuu_booking_created_ping" && e.newValue) {
+        try {
+          const payload = JSON.parse(e.newValue);
+          const title = payload.type === "venue_booking" ? "New Venue Reservation" : "New Equipment Borrow";
+          notify.info(
+            `${title} • ${payload.ref || ''}`,
+            `${payload.filer || 'Applicant'} - ${payload.place || 'Campus'}`
+          );
+        } catch {}
+        fetchNotifs();
+        window.dispatchEvent(new Event("equipment_inventory_updated"));
+        window.dispatchEvent(new Event("venue_bookings_updated"));
+        window.dispatchEvent(new Event("equipment_borrowings_updated"));
+      } else if (e.key === "fsuu_brand_updated_ping" || e.key === "fsuu_realtime_sync_ping") {
+        fetchNotifs();
+        window.dispatchEvent(new Event("equipment_inventory_updated"));
+        window.dispatchEvent(new Event("brands_updated"));
+      }
+    };
+
+    const handleCustomBookingCreated = (e) => {
+      const data = e.detail || {};
+      const title = data.type === "venue_booking" ? "New Venue Reservation" : "New Equipment Borrow";
+      notify.info(
+        `${title} • ${data.reference_code || ''}`,
+        `${data.filer_name || 'Applicant'} - ${data.place_of_use || 'Campus'}`
+      );
+      fetchNotifs();
+      window.dispatchEvent(new Event("equipment_inventory_updated"));
+      window.dispatchEvent(new Event("venue_bookings_updated"));
+      window.dispatchEvent(new Event("equipment_borrowings_updated"));
+    };
+
+    window.addEventListener("storage", handleStorageEvent);
+    window.addEventListener("fsuu_booking_created", handleCustomBookingCreated);
+    window.addEventListener("urgent_approval_notified", fetchNotifs);
+    window.addEventListener("brands_updated", fetchNotifs);
+
+    return () => {
+      window.removeEventListener("storage", handleStorageEvent);
+      window.removeEventListener("fsuu_booking_created", handleCustomBookingCreated);
+      window.removeEventListener("urgent_approval_notified", fetchNotifs);
+      window.removeEventListener("brands_updated", fetchNotifs);
+      echoInstance?.leave("general-notifications");
+      echoInstance?.leave("admin-notifications");
+      echoInstance?.leave("equipment-inventory");
+    };
+  }, [user, fetchNotifs]);
 
   const markAsRead = useCallback(async (notifId) => {
     setReadNotifIds(prev => {

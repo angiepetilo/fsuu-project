@@ -1152,12 +1152,12 @@ export default function Step3Details({
                     const key = String(item.id || item.name || idx);
                     const val = avrEquipment[key] || avrEquipment[item.name];
 
-                    // Determine real registered stock
+                    // Determine real registered stock strictly from available column
                     let realStock = 0;
                     if (typeof item.available_count === "number") {
                       realStock = item.available_count;
-                    } else if (typeof item.total_quantity === "number") {
-                      realStock = item.total_quantity;
+                    } else if (typeof item.available_quantity === "number") {
+                      realStock = item.available_quantity;
                     } else {
                       realStock = 0;
                     }
@@ -1205,7 +1205,7 @@ export default function Step3Details({
                             <span className="truncate text-xs font-bold text-slate-900 dark:text-white">{item.name}</span>
                             {!isOutOfStock && (
                               <span className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">
-                                Max {effectiveMax} unit{effectiveMax === 1 ? "" : "s"} allowed
+                                {effectiveMax} Available
                               </span>
                             )}
                           </div>
