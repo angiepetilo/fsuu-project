@@ -26,8 +26,8 @@ if [ "$DB_TARGET_HOST" != "127.0.0.1" ] && [ "$DB_TARGET_HOST" != "localhost" ];
   done
 fi
 
-echo "⚠️ Running migrate:fresh --seed (auto-deploy mode on Render)..."
-ALLOW_DESTRUCTIVE_COMMANDS=true php artisan migrate:fresh --seed --force || true
+echo "🚀 Running database migrations (safe mode)..."
+php artisan migrate --force || true
 
 echo "🚀 Caching routes and configuration..."
 php artisan optimize || true
