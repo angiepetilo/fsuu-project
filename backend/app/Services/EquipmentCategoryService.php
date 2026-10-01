@@ -83,7 +83,7 @@ class EquipmentCategoryService
                                   ->orWhereIn('serial_number', $allBundledUnitIds);
                             })
                             ->whereNotIn(DB::raw("LOWER(COALESCE(status, 'available'))"), ['damaged', 'lost', 'decommissioned', 'maintenance'])
-                            ->whereNotIn(DB::raw("LOWER(COALESCE(`condition`, 'good'))"), ['damaged', 'lost', 'decommissioned', 'maintenance', 'under repair'])
+                            ->whereNotIn(DB::raw("LOWER(COALESCE(condition, 'good'))"), ['damaged', 'lost', 'decommissioned', 'maintenance', 'under repair'])
                             ->select('equipment_type_id', DB::raw('COUNT(*) as bundled_total'))
                             ->groupBy('equipment_type_id')
                             ->pluck('bundled_total', 'equipment_type_id');
@@ -103,7 +103,7 @@ class EquipmentCategoryService
                             ->whereNull('archived_at')
                             ->where(function($q) {
                                 $q->whereIn(DB::raw("LOWER(COALESCE(status, ''))"), ['damaged', 'lost', 'decommissioned', 'maintenance', 'unavailable'])
-                                  ->orWhereIn(DB::raw("LOWER(COALESCE(`condition`, ''))"), ['damaged', 'lost', 'under repair', 'worn']);
+                                  ->orWhereIn(DB::raw("LOWER(COALESCE(condition, ''))"), ['damaged', 'lost', 'under repair', 'worn']);
                             })
                             ->get(['id', 'barcode', 'serial_number']);
 
@@ -137,7 +137,7 @@ class EquipmentCategoryService
                             ->whereNull('archived_at')
                             ->where(function($q) {
                                 $q->whereIn(DB::raw("LOWER(COALESCE(status, ''))"), ['damaged', 'lost', 'decommissioned', 'maintenance', 'unavailable'])
-                                  ->orWhereIn(DB::raw("LOWER(COALESCE(`condition`, ''))"), ['damaged', 'lost', 'under repair', 'worn']);
+                                  ->orWhereIn(DB::raw("LOWER(COALESCE(condition, ''))"), ['damaged', 'lost', 'under repair', 'worn']);
                             })
                             ->get(['id', 'built_in_units']);
 
@@ -153,7 +153,7 @@ class EquipmentCategoryService
                                           ->orWhereIn('serial_number', $childRefs);
                                     })
                                     ->whereNotIn(DB::raw("LOWER(COALESCE(status, 'available'))"), ['damaged', 'lost', 'decommissioned', 'maintenance'])
-                                    ->whereNotIn(DB::raw("LOWER(COALESCE(`condition`, 'good'))"), ['damaged', 'lost', 'under repair', 'worn'])
+                                    ->whereNotIn(DB::raw("LOWER(COALESCE(condition, 'good'))"), ['damaged', 'lost', 'under repair', 'worn'])
                                     ->get(['id', 'equipment_type_id']);
 
                                 foreach ($healthyChildren as $hc) {
@@ -485,7 +485,7 @@ class EquipmentCategoryService
                               ->orWhereIn('serial_number', $allBundledUnitIds);
                         })
                         ->whereNotIn(DB::raw("LOWER(COALESCE(status, 'available'))"), ['damaged', 'lost', 'decommissioned', 'maintenance'])
-                        ->whereNotIn(DB::raw("LOWER(COALESCE(`condition`, 'good'))"), ['damaged', 'lost', 'decommissioned', 'maintenance', 'under repair'])
+                        ->whereNotIn(DB::raw("LOWER(COALESCE(condition, 'good'))"), ['damaged', 'lost', 'decommissioned', 'maintenance', 'under repair'])
                         ->count();
                 }
             } catch (\Throwable $th) {}

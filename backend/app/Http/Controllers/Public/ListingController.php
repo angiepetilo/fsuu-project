@@ -154,7 +154,7 @@ class ListingController extends Controller
                 })
                 ->where(function ($q) {
                     $q->whereIn(\Illuminate\Support\Facades\DB::raw("LOWER(COALESCE(status, ''))"), ['damaged', 'lost', 'decommissioned'])
-                      ->orWhereIn(\Illuminate\Support\Facades\DB::raw("LOWER(COALESCE(`condition`, ''))"), ['damaged', 'lost']);
+                      ->orWhereIn(\Illuminate\Support\Facades\DB::raw("LOWER(COALESCE(condition, ''))"), ['damaged', 'lost']);
                 })
                 ->get(['id', 'barcode', 'serial_number']);
 
