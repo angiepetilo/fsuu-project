@@ -29,6 +29,17 @@ fi
 echo "🚀 Running database migrations..."
 php artisan migrate --force
 
+# Seed database only if users table is empty (first deploy)
+if [ "${AUTO_SEED:-false}" = "true" ]; then
+  USER_COUNT=$(php artisan tinker --execute="echo \App\Models\User::count();" 2>/dev/null | tail -n1)
+  if [ "$USER_COUNT" = "0" ]; then
+    echo "🌱 Seeding database (first deployment)..."
+    php artisan db:seed --force
+  else
+    echo "⏭️  Skipping seed (users already exist: $USER_COUNT)"
+  fi
+fi
+
 echo "🚀 Optimizing configuration..."
 php artisan optimize || true
 
