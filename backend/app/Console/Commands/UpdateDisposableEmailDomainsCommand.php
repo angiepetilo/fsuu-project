@@ -44,9 +44,6 @@ class UpdateDisposableEmailDomainsCommand extends Command
             $filePath = storage_path('app/disposable_domains.txt');
             file_put_contents($filePath, $content);
 
-            // Clear cache
-            Cache::forget('disposable_email_domains_map');
-
             $this->info("Successfully updated disposable email domains list!");
             $this->info("Total active disposable domains: {$count}");
             $this->info("Saved to: {$filePath}");

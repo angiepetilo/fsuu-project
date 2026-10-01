@@ -39,6 +39,8 @@ const formatVenues = (apiVenues = []) => {
       name: v.name,
       type: v.type || "avr",
       capacity: v.capacity,
+      min_capacity: v.min_capacity != null ? Number(v.min_capacity) : 1,
+      max_capacity: v.max_capacity != null ? Number(v.max_capacity) : (v.capacity || 100),
       photo: avatarPhoto,
       location: v.location || (v.office ? v.office.name : "Main Campus"),
       status: v.status || "available",

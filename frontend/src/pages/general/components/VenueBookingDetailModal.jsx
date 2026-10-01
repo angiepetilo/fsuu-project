@@ -1267,8 +1267,11 @@ export default function VenueBookingDetailModal({
     syncInspectedUnitsToInventory(false);
     
     const inspectionType = typeOverride || (isOngoing ? "pre_event" : "post_event");
-    const isPre = inspectionType === "pre_event";
-    const hasDamagedOrLost = Object.values(unitReturnedConditions || {}).some(c => c === "Damaged" || c === "Lost");
+    const hasDamagedOrLostUnits = Object.values(unitReturnedConditions || {}).some(c => c === "Damaged" || c === "Lost");
+    const isVenueDamaged = inspectionStatus === "violation" && String(selectedViolationType || "").toLowerCase().includes("damage");
+    const isVenueLost = inspectionStatus === "violation" && String(selectedViolationType || "").toLowerCase().includes("lost");
+    const isVenueViolation = inspectionStatus === "violation";
+    const postInspectionCondition = (hasDamagedOrLostUnits || isVenueDamaged) ? "damaged" : (isVenueLost ? "lost" : (isVenueViolation ? "violation" : "good"));
     
     try {
       await api.post("/inspections", {
@@ -1277,7 +1280,7 @@ export default function VenueBookingDetailModal({
         inspectable_type: "avr_venue_booking",
         inspectable_id: selected.id,
         inspection_type: inspectionType,
-        condition: isPre ? (preInspectionStatus === "clean" ? "good" : "damaged") : (hasDamagedOrLost ? "damaged" : "good"),
+        condition: isPre ? (preInspectionStatus === "clean" ? "good" : "damaged") : postInspectionCondition,
         violation_type: isPre ? (preInspectionStatus === "violation" ? preSelectedViolationType : null) : (inspectionStatus === "violation" ? selectedViolationType : null),
         notes: isPre ? (preViolationNotes || (preInspectionStatus === "clean" ? "Satisfactory Condition (Clean Room)" : `[${preSelectedViolationType}] Pre-event inspection breach.`)) : (violationNotes || (inspectionStatus === "clean" ? "Satisfactory Condition (Clean Room)" : `[${selectedViolationType}] Post-event inspection breach.`)),
         equipment_notes: isPre ? preEquipmentInspectionNotes : equipmentInspectionNotes,
@@ -1323,6 +1326,9 @@ export default function VenueBookingDetailModal({
       const val = typeof c === 'object' ? c.condition : c;
       return val === "Damaged" || val === "Lost";
     });
+    const isVenueDamaged = inspectionStatus === "violation" && String(selectedViolationType || "").toLowerCase().includes("damage");
+    const isVenueLost = inspectionStatus === "violation" && String(selectedViolationType || "").toLowerCase().includes("lost");
+    const finalOutcomeCondition = (hasDamagedOrLost || isVenueDamaged) ? "damaged" : (isVenueLost ? "lost" : (inspectionStatus === "violation" ? "violation" : "good"));
 
     // Build smart note for accurate reporting
     const defaultNotes = [
@@ -1366,7 +1372,7 @@ export default function VenueBookingDetailModal({
         inspectable_type: "avr_venue_booking",
         inspectable_id: selected.id,
         inspection_type: "post_event",
-        condition: hasDamagedOrLost ? "damaged" : "good",
+        condition: finalOutcomeCondition,
         violation_type: inspectionStatus === "violation" ? selectedViolationType : null,
         notes: smartNote,
         equipment_notes: equipmentInspectionNotes,
@@ -1381,8 +1387,8 @@ export default function VenueBookingDetailModal({
     // 3. Mark completed and update status
     handleAction(selected.id, "complete", {
       inspection_status: inspectionStatus,
-      condition: hasDamagedOrLost ? "damaged" : "good",
-      has_damage: hasDamagedOrLost ? 1 : 0,
+      condition: finalOutcomeCondition,
+      has_damage: (hasDamagedOrLost || isVenueDamaged) ? 1 : 0,
       violation_type: inspectionStatus === "violation" ? selectedViolationType : null,
       evidence_photos: evidencePhoto,
       evidence_photo: evidencePhoto,

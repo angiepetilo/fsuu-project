@@ -90,6 +90,16 @@ class InspectionController extends Controller
                 }
 
                 $data = $ins->toArray();
+                if (!empty($ins->violation_type)) {
+                    $vLower = strtolower($ins->violation_type);
+                    if (str_contains($vLower, 'damage')) {
+                        $data['condition'] = 'damaged';
+                    } elseif (str_contains($vLower, 'lost')) {
+                        $data['condition'] = 'lost';
+                    } elseif (($data['condition'] ?? 'good') === 'good') {
+                        $data['condition'] = 'violation';
+                    }
+                }
                 $data['target_type'] = $targetType;
                 $data['target_code'] = $targetCode;
                 $data['target_name'] = $targetName;
@@ -203,6 +213,17 @@ class InspectionController extends Controller
             $condition = $request->input('condition') ?? 'good';
             $notes = $request->input('notes') ?? '';
             $violationType = $request->input('violation_type');
+
+            if (!empty($violationType)) {
+                $vLower = strtolower($violationType);
+                if (str_contains($vLower, 'damage')) {
+                    $condition = 'damaged';
+                } elseif (str_contains($vLower, 'lost')) {
+                    $condition = 'lost';
+                } elseif ($condition === 'good') {
+                    $condition = 'violation';
+                }
+            }
 
             // Find valid user ID for foreign key constraint
             $authUserId = auth()->id();

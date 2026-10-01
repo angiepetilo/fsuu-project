@@ -34,38 +34,35 @@ class AbstractEmailValidationService
             return false;
         }
 
-        // 1. Fast in-memory map check
+        // 1. Fast in-memory map check (process-level cache)
         if (self::$disposableMapCache !== null) {
             return isset(self::$disposableMapCache[$domain]);
         }
 
-        // 2. Fetch from Cache or load file
-        $map = Cache::remember('disposable_email_domains_map', 86400 * 7, function () {
-            $filePath = storage_path('app/disposable_domains.txt');
-            $domains = [];
+        // 2. Load from file directly (no database cache to avoid max_allowed_packet issues with 75k+ domains)
+        $filePath = storage_path('app/disposable_domains.txt');
+        $domains = [];
 
-            if (file_exists($filePath)) {
-                $content = @file_get_contents($filePath);
-                if ($content) {
-                    $lines = preg_split("/\r\n|\n|\r/", $content);
-                    foreach ($lines as $line) {
-                        $d = strtolower(trim($line));
-                        if (!empty($d)) {
-                            $domains[$d] = true;
-                        }
+        if (file_exists($filePath)) {
+            $content = @file_get_contents($filePath);
+            if ($content) {
+                $lines = preg_split("/\r\n|\n|\r/", $content);
+                foreach ($lines as $line) {
+                    $d = strtolower(trim($line));
+                    if (!empty($d)) {
+                        $domains[$d] = true;
                     }
                 }
             }
+        }
 
-            // Always ensure core fallback domains are present
-            foreach (self::$coreDisposableDomains as $core) {
-                $domains[strtolower(trim($core))] = true;
-            }
+        // Always ensure core fallback domains are present
+        foreach (self::$coreDisposableDomains as $core) {
+            $domains[strtolower(trim($core))] = true;
+        }
 
-            return $domains;
-        });
-
-        self::$disposableMapCache = $map;
+        // Store in static property for fast subsequent lookups during this request lifecycle
+        self::$disposableMapCache = $domains;
         return isset(self::$disposableMapCache[$domain]);
     }
 

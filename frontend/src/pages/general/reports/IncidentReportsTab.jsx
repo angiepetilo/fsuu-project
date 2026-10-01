@@ -96,10 +96,16 @@ export default function IncidentReportsTab({
 
       if (conditionFilter !== "all") {
         const c = String(item.condition || "").toLowerCase();
-        if (conditionFilter === "damaged" && !c.includes("damaged")) return false;
-        if (conditionFilter === "lost" && !c.includes("lost")) return false;
-        if (conditionFilter === "violation" && !c.includes("violation") && !item.violation_type) return false;
-        if (conditionFilter === "good" && !c.includes("good")) return false;
+        const v = String(item.violation_type || "").toLowerCase();
+        const n = String(item.notes || "").toLowerCase();
+        const isDam = c.includes("damage") || v.includes("damage") || n.includes("damage");
+        const isL = c.includes("lost") || v.includes("lost") || n.includes("lost");
+        const isVio = Boolean(item.violation_type) || c.includes("violation") || n.includes("violation");
+
+        if (conditionFilter === "damaged" && !isDam) return false;
+        if (conditionFilter === "lost" && !isL) return false;
+        if (conditionFilter === "violation" && !isVio) return false;
+        if (conditionFilter === "good" && (isDam || isL || isVio)) return false;
       }
 
       if (searchQuery) {
@@ -133,8 +139,10 @@ export default function IncidentReportsTab({
       else if (r.target_type === "equipment_unit") unitCount++;
 
       const c = String(r.condition || "").toLowerCase();
-      if (c.includes("damaged")) damagedCount++;
-      if (c.includes("lost")) lostCount++;
+      const v = String(r.violation_type || "").toLowerCase();
+      const n = String(r.notes || "").toLowerCase();
+      if (c.includes("damage") || v.includes("damage") || n.includes("damage")) damagedCount++;
+      else if (c.includes("lost") || v.includes("lost") || n.includes("lost")) lostCount++;
     });
 
     return {
@@ -274,6 +282,82 @@ export default function IncidentReportsTab({
     return matched.condition || matched.raw_condition || matched.status || "Good";
   }, [equipmentUnits]);
 
+  // Condition & Status badge renderer for both Venue Bookings and Equipment Borrowings
+  const renderConditionStatus = (item) => {
+    const cond = String(item.condition || "").toLowerCase();
+    const violation = String(item.violation_type || "").trim();
+    const notesLower = String(item.notes || "").toLowerCase();
+
+    // Damage check (via violation_type, condition, or notes)
+    const isDamage = cond.includes("damage") || violation.toLowerCase().includes("damage") || notesLower.includes("damage");
+
+    // Lost check
+    const isLost = cond.includes("lost") || violation.toLowerCase().includes("lost") || notesLower.includes("lost");
+
+    // Late / Overtime check
+    const isLate = Boolean(item.is_late || item.timeliness === "late" || violation.toLowerCase().includes("late") || violation.toLowerCase().includes("overtime"));
+
+    // Equipment unit breakdown if present
+    let unitSummary = null;
+    if (item.unit_conditions) {
+      try {
+        const uConds = typeof item.unit_conditions === "string" ? JSON.parse(item.unit_conditions) : item.unit_conditions;
+        const values = Array.isArray(uConds) ? uConds.map(u => typeof u === "object" ? u.condition : u) : Object.values(uConds);
+        const damagedCount = values.filter(v => String(v).toLowerCase().includes("damage")).length;
+        const lostCount = values.filter(v => String(v).toLowerCase().includes("lost")).length;
+        if (damagedCount > 0 || lostCount > 0) {
+          unitSummary = [damagedCount > 0 && `${damagedCount} Damaged`, lostCount > 0 && `${lostCount} Lost`].filter(Boolean).join(", ");
+        }
+      } catch {}
+    }
+
+    if (isDamage) {
+      const label = violation && violation.toLowerCase().includes("damage") ? violation : (item.target_type === "venue_booking" ? "Property Damaged" : "Damaged");
+      return (
+        <div className="flex flex-col gap-0.5">
+          <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-800 w-fit">
+            {label}
+          </span>
+          {unitSummary && <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">{unitSummary}</span>}
+        </div>
+      );
+    }
+
+    if (isLost) {
+      const label = violation && violation.toLowerCase().includes("lost") ? violation : "Lost";
+      return (
+        <div className="flex flex-col gap-0.5">
+          <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-red-50 text-red-700 border border-red-200 dark:bg-red-950/40 dark:text-red-400 dark:border-red-800 w-fit">
+            {label}
+          </span>
+          {unitSummary && <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">{unitSummary}</span>}
+        </div>
+      );
+    }
+
+    if (isLate) {
+      return (
+        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800 w-fit">
+          {violation || "Late Return"}
+        </span>
+      );
+    }
+
+    if (violation && violation !== "None") {
+      return (
+        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800 w-fit">
+          {violation}
+        </span>
+      );
+    }
+
+    return (
+      <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800 w-fit">
+        {item.target_type === "venue_booking" ? "Satisfactory / Clean" : "Good Condition"}
+      </span>
+    );
+  };
+
   return (
     <div className="space-y-6">
       {/* Overview Stat Badges (Flat Design) */}
@@ -365,7 +449,7 @@ export default function IncidentReportsTab({
                 <th className="py-3 px-4">Date</th>
                 <th className="py-3 px-4">Category</th>
                 <th className="py-3 px-4">Target Item</th>
-                <th className="py-3 px-4">Condition</th>
+                <th className="py-3 px-4">Condition / Status</th>
                 <th className="py-3 px-4">Reporter</th>
                 <th className="py-3 px-4">Notes</th>
                 <th className="py-3 px-4 text-center">Evidence</th>
@@ -387,9 +471,6 @@ export default function IncidentReportsTab({
                 </tr>
               ) : (
                 filteredReports.map((item, idx) => {
-                  const cond = String(item.condition || "good").toLowerCase();
-                  const isDamaged = cond.includes("damaged");
-                  const isLost = cond.includes("lost");
                   const photos = Array.isArray(item.evidence_photos) ? item.evidence_photos : (item.evidence_photo ? [item.evidence_photo] : []);
 
                   return (
@@ -422,28 +503,7 @@ export default function IncidentReportsTab({
                         )}
                       </td>
                       <td className="py-3 px-4 whitespace-nowrap">
-                        <div className="flex flex-col gap-0.5">
-                          {isDamaged && (
-                            <span className="text-xs font-bold text-rose-600 dark:text-rose-400">
-                              Damaged
-                            </span>
-                          )}
-                          {isLost && (
-                            <span className="text-xs font-bold text-rose-700 dark:text-rose-400">
-                              Lost
-                            </span>
-                          )}
-                          {!isDamaged && !isLost && (
-                            <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 capitalize">
-                              {item.condition || "Good"}
-                            </span>
-                          )}
-                          {item.violation_type && (
-                            <span className="text-[10px] text-slate-500 dark:text-slate-400">
-                              {item.violation_type}
-                            </span>
-                          )}
-                        </div>
+                        {renderConditionStatus(item)}
                       </td>
                       <td className="py-3 px-4 text-xs font-medium text-slate-700 dark:text-slate-300 whitespace-nowrap">
                         {item.inspected_by_name || "Staff"}
