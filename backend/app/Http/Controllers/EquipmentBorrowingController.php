@@ -116,13 +116,8 @@ class EquipmentBorrowingController extends Controller
         } catch (EquipmentUnavailableException $e) {
             return response()->json(['message' => $e->getMessage()], 409);
         } catch (\Throwable $e) {
-            $referenceCode = 'EQ-2026-' . rand(100000, 999999);
-            return response()->json([
-                'id' => rand(100, 999),
-                'reference_code' => $referenceCode,
-                'status' => 'pending',
-                'message' => 'Equipment borrowing submitted successfully',
-            ], 201);
+            \Illuminate\Support\Facades\Log::error('EquipmentBorrowingController::store error: ' . $e->getMessage(), ['exception' => $e]);
+            return response()->json(['message' => 'Failed to submit equipment borrowing: ' . $e->getMessage()], 500);
         }
 
         return response()->json($borrowing, 201);
@@ -374,6 +369,9 @@ class EquipmentBorrowingController extends Controller
         $this->authorize('complete', $equipmentBorrowing);
 
         try {
+            // Capture prior status before database modifications for accurate idempotency guarding
+            $priorStatus = strtolower($equipmentBorrowing->status ?? $equipmentBorrowing->trackingNumber?->status ?? '');
+
             $assigned = $request->input('assigned_units', $equipmentBorrowing->assigned_units ?? []);
             if (is_string($assigned)) {
                 $assigned = json_decode($assigned, true) ?? [];
@@ -604,10 +602,7 @@ class EquipmentBorrowingController extends Controller
             // Dispatch completion or late return email notification to borrower (Email 4)
             // Idempotency guard: only dispatch when this is the FIRST completion transition
             $terminalStatuses = ['completed', 'late return', 'damaged', 'lost', 'returned', 'done', 'cleared'];
-            $wasAlreadyTerminal = in_array(
-                strtolower($equipmentBorrowing->getOriginal('status') ?? $equipmentBorrowing->status ?? ''),
-                $terminalStatuses
-            );
+            $wasAlreadyTerminal = in_array($priorStatus, $terminalStatuses);
 
             if (!$wasAlreadyTerminal) {
                 try {
@@ -650,21 +645,47 @@ class EquipmentBorrowingController extends Controller
 
     public function undo(\Illuminate\Http\Request $request, EquipmentBorrow $equipmentBorrowing): JsonResponse
     {
+        $this->authorize('undo', $equipmentBorrowing);
+
         if ($equipmentBorrowing->tracking_number_id) {
             \Illuminate\Support\Facades\DB::table('tracking_numbers')->where('id', $equipmentBorrowing->tracking_number_id)->update(['status' => 'approved']);
         }
         if (\Illuminate\Support\Facades\Schema::hasColumn('equipment_borrows', 'status')) {
-            $equipmentBorrowing->forceFill(['status' => 'approved'])->save();
+            $equipmentBorrowing->forceFill([
+                'status' => 'approved',
+                'returned_at' => null,
+            ])->save();
         }
+
+        // Reset returned_at timestamp on items if undone back to approved
+        \App\Models\EquipmentBorrowItem::where('equipment_borrow_id', $equipmentBorrowing->id)
+            ->update(['returned_at' => null]);
+
+        try {
+            $ref = $equipmentBorrowing->trackingNumber?->reference_code ?? "EQ-{$equipmentBorrowing->id}";
+            $user = auth()->user();
+            AuditLog::create([
+                'user_id'        => $user?->id ?? auth()->id(),
+                'action'         => 'EQUIPMENT_BORROW_UNDO',
+                'auditable_type' => 'equipment_borrows',
+                'auditable_id'   => $equipmentBorrowing->id,
+                'metadata'       => [
+                    'reference_code' => $ref,
+                    'filer_name'     => $equipmentBorrowing->filer_name,
+                    'description'    => "Equipment borrowing {$ref} reverted back to approved by " . ($user?->name ?? 'Staff'),
+                ],
+                'ip_address'     => request()->ip(),
+                'created_at'     => now(),
+            ]);
+        } catch (\Throwable $e) {}
+
         return response()->json($equipmentBorrowing->fresh(['items.equipmentType', 'trackingNumber']));
     }
 
     public function resendEmail(\Illuminate\Http\Request $request, int $id): JsonResponse
     {
-        $borrow = EquipmentBorrow::with('items', 'trackingNumber')->find($id);
-        if (!$borrow) {
-            return response()->json(['message' => 'Equipment borrowing record not found'], 404);
-        }
+        $borrow = EquipmentBorrow::with('items', 'trackingNumber')->findOrFail($id);
+        $this->authorize('ongoing', $borrow);
 
         $status = strtolower($borrow->status ?? $borrow->trackingNumber?->status ?? 'pending');
 
@@ -683,10 +704,8 @@ class EquipmentBorrowingController extends Controller
 
     public function sendReturnReminder(\Illuminate\Http\Request $request, int $id): JsonResponse
     {
-        $borrow = EquipmentBorrow::with('items.equipmentType', 'trackingNumber')->find($id);
-        if (!$borrow) {
-            return response()->json(['message' => 'Equipment borrowing record not found'], 404);
-        }
+        $borrow = EquipmentBorrow::with('items.equipmentType', 'trackingNumber')->findOrFail($id);
+        $this->authorize('ongoing', $borrow);
 
         $channel = $request->input('channel', 'both'); // 'both', 'sms', 'email'
         $customMessage = $request->input('message');
@@ -890,6 +909,7 @@ class EquipmentBorrowingController extends Controller
 
     public function notifyUrgent(\Illuminate\Http\Request $request, EquipmentBorrow $equipmentBorrowing): JsonResponse
     {
+        $this->authorize('ongoing', $equipmentBorrowing);
         $user = auth()->user() ?? $request->user();
         $ref = $equipmentBorrowing->trackingNumber?->reference_code ?? ($equipmentBorrowing->reference_code ?? "EQ-2026-{$equipmentBorrowing->id}");
         $filer = $equipmentBorrowing->filer_name ?? $equipmentBorrowing->requestor_name ?? 'Borrower';

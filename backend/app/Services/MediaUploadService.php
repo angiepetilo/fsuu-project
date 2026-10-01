@@ -38,17 +38,36 @@ class MediaUploadService
 
         // Case 1: UploadedFile (Multipart Form Request)
         if ($file instanceof UploadedFile) {
+            $allowedExtensions = ['pdf', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'docx', 'doc'];
+            $allowedMimes = [
+                'application/pdf',
+                'image/jpeg',
+                'image/png',
+                'image/gif',
+                'image/webp',
+                'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                'application/msword',
+            ];
+
             $origExt = strtolower($file->getClientOriginalExtension());
+            $mime = $file->getMimeType();
+
             if (empty($origExt) || $origExt === 'tmp') {
-                $mime = $file->getMimeType();
                 $origExt = match ($mime) {
                     'application/pdf' => 'pdf',
                     'image/png'       => 'png',
                     'image/gif'       => 'gif',
                     'image/webp'      => 'webp',
+                    'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => 'docx',
+                    'application/msword' => 'doc',
                     default           => 'jpg',
                 };
             }
+
+            if (!in_array($origExt, $allowedExtensions, true) || !in_array($mime, $allowedMimes, true)) {
+                throw new \InvalidArgumentException("Invalid file type ({$origExt}). Allowed file types: PDF, PNG, JPG, WEBP, DOCX.");
+            }
+
             $origName = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
             $cleanName = Str::slug($origName) ?: 'doc';
 

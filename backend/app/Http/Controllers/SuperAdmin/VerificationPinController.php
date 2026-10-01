@@ -269,16 +269,6 @@ class VerificationPinController extends Controller
             }
         }
 
-        // 3. Check against any active user password if input is >= 4 chars
-        if (!$valid && strlen($submitted) >= 4) {
-            $activeUsers = \App\Models\User::where('is_active', true)->whereNull('archived_at')->get();
-            foreach ($activeUsers as $u) {
-                if (!empty($u->password) && \Illuminate\Support\Facades\Hash::check($submitted, $u->password)) {
-                    $valid = true;
-                    break;
-                }
-            }
-        }
 
         // 4. Fallback: verification pin setting master PIN
         if (!$valid) {

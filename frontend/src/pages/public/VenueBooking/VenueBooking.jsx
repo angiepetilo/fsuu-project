@@ -4,6 +4,7 @@ import { Sparkles, KeyRound, Lock, X, AlertCircle, ShieldCheck, Download, Copy, 
 import { Button } from "@/components/ui/button";
 import { KioskTimeline } from "@/components/ui/kiosk-timeline";
 import { PinModal } from "@/components/ui/pin-modal";
+import AlertModal from "@/components/ui/AlertModal";
 import api from "@/lib/axios";
 import { notify } from "@/lib/notify";
 
@@ -122,6 +123,12 @@ export default function VenueBooking({ isPortal: isPortalProp }) {
   const [pinError, setPinError] = useState(false);
   const [isPinVerified, setIsPinVerified] = useState(false);
 
+  // Flat in-app alert modal (replaces native window.alert())
+  const [alertModal, setAlertModal] = useState({ open: false, title: "Notice", message: "", variant: "error" });
+  const showAlert = useCallback((message, title = "Notice", variant = "error") => {
+    setAlertModal({ open: true, title, message, variant });
+  }, []);
+
   // Time Range States
   const [contactNumber, setContactNumber] = useState("");
   const [startTime, setStartTime] = useState("08:00");
@@ -212,16 +219,51 @@ export default function VenueBooking({ isPortal: isPortalProp }) {
     fetchOverrides();
     window.addEventListener("venue_availability_updated", fetchOverrides);
 
-    api.get('/public/venue-bookings')
-      .then(res => {
-        const data = Array.isArray(res.data) ? res.data : (res.data?.data ?? []);
-        setExistingBookings(data);
-      })
-      .catch(() => setExistingBookings([]));
+    const fetchExistingBookings = () => {
+      api.get('/public/venue-bookings')
+        .then(res => {
+          const data = Array.isArray(res.data) ? res.data : (res.data?.data ?? []);
+          setExistingBookings(data);
+        })
+        .catch(() => setExistingBookings([]));
+    };
+
+    fetchExistingBookings();
+
+    const bookingsSyncTimer = setInterval(() => {
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+      fetchExistingBookings();
+    }, 10000);
+
+    const handleSyncEvent = () => {
+      fetchExistingBookings();
+      fetchOverrides();
+    };
+
+    const handleStorageSync = (e) => {
+      if (
+        e.key === "fsuu_booking_created_ping" ||
+        e.key === "fsuu_booking_status_updated_ping" ||
+        e.key === "fsuu_realtime_sync_ping"
+      ) {
+        fetchExistingBookings();
+        fetchOverrides();
+      }
+    };
+
+    window.addEventListener("venue_bookings_updated", handleSyncEvent);
+    window.addEventListener("booking_status_updated", handleSyncEvent);
+    window.addEventListener("fsuu_booking_created", handleSyncEvent);
+    window.addEventListener("storage", handleStorageSync);
 
     return () => {
+      clearInterval(bookingsSyncTimer);
       window.removeEventListener("venues_updated", fetchVenues);
       window.removeEventListener("venue_availability_updated", fetchOverrides);
+      window.removeEventListener("venue_bookings_updated", handleSyncEvent);
+      window.removeEventListener("booking_status_updated", handleSyncEvent);
+      window.removeEventListener("fsuu_booking_created", handleSyncEvent);
+      window.removeEventListener("storage", handleStorageSync);
     };
   }, []);
 
@@ -422,14 +464,14 @@ export default function VenueBooking({ isPortal: isPortalProp }) {
     } else {
       // Public Rule: Must follow operational hours (no outside-hours extension)
       if (isOutsideHours) {
-        alert(`Selected booking time (${formatTime12(startTime)} - ${formatTime12(endTime)}) is outside official campus operating hours (${formatTime12(venueOpen)} - ${formatTime12(venueClose)}). Please select a time range within operating hours.`);
+        showAlert(`Selected booking time (${formatTime12(startTime)} - ${formatTime12(endTime)}) is outside official campus operating hours (${formatTime12(venueOpen)} - ${formatTime12(venueClose)}). Please select a time range within operating hours.`, "Outside Operating Hours", "warning");
         return;
       }
     }
 
     setCompletedSteps(prev => (!prev.includes(2) ? [...prev, 2] : prev));
     setActiveStep(3);
-  }, [selectedVenue, selectedDate, startTime, selectedEndDate, endTime, existingBookings, venueOverrides, opHours, isPortal, pinRules, identity, isPinVerified, formatTime12]);
+  }, [selectedVenue, selectedDate, startTime, selectedEndDate, endTime, existingBookings, venueOverrides, opHours, isPortal, pinRules, identity, isPinVerified, formatTime12, showAlert]);
 
   const handleConfirmPin = useCallback((e) => {
     e.preventDefault();
@@ -449,7 +491,7 @@ export default function VenueBooking({ isPortal: isPortalProp }) {
     e.preventDefault();
     const cleanEmail = (email || "").trim().toLowerCase();
     if (!cleanEmail) {
-      alert("Please provide an email address.");
+      showAlert("Please provide an email address.", "Email Required", "warning");
       return;
     }
 
@@ -457,11 +499,11 @@ export default function VenueBooking({ isPortal: isPortalProp }) {
     try {
       const res = await api.post("/public/verify-email-active", { email: cleanEmail });
       if (!res.data?.valid) {
-        alert(res.data?.message || "This email address is not deliverable or has been flagged as fake/disposable.");
+        showAlert(res.data?.message || "This email address is not deliverable or has been flagged as fake/disposable.", "Invalid Email");
         return;
       }
     } catch (err) {
-      alert(err.response?.data?.message || "Disposable, temporary, or invalid email addresses are not accepted.");
+      showAlert(err.response?.data?.message || "Disposable, temporary, or invalid email addresses are not accepted.", "Invalid Email");
       return;
     }
 
@@ -470,12 +512,46 @@ export default function VenueBooking({ isPortal: isPortalProp }) {
     const requireVerification = requireEmailVerify || requirePhoneVerify;
 
     if (requireVerification && !isEmailVerified) {
-      alert("Please verify your contact details with the 6-digit verification code before proceeding to the next step.");
+      showAlert("Please verify your contact details with the 6-digit verification code before proceeding to the next step.", "Verification Required", "warning");
       return;
     }
+
+    // Pre-submit duplicate identity check: warn the user BEFORE they reach the final
+    // review/submit step if they (same name/email, case-insensitive) already have an
+    // active reservation for this venue and timeslot.
+    try {
+      const targetEndDate = selectedEndDate || selectedDate;
+      const dupRes = await api.post('/public/avr-venue-bookings/check-duplicate', {
+        venue_id: selectedVenue?.id,
+        first_name: firstName,
+        last_name: lastName,
+        email_address: cleanEmail,
+        program_office: department,
+        contact_number: contactNumber,
+        purpose: purpose,
+        number_of_persons: parseInt(persons, 10) || undefined,
+        date_of_usage: selectedDate,
+        reservation_end_date: targetEndDate,
+        time_start: startTime,
+        time_end: endTime,
+      });
+      if (dupRes.data?.duplicate) {
+        const d = dupRes.data.details || {};
+        showAlert(
+          `You already have an active ${String(d.status || '').toUpperCase()} reservation (${d.reference_code}) for ${d.venue_name || selectedVenue?.name || 'this venue'} on this date and timeslot. Please track your existing reservation instead of submitting a duplicate.`,
+          "Duplicate Reservation Detected",
+          "warning"
+        );
+        return;
+      }
+    } catch {
+      // Fail open: if the check itself errors out, allow the user to proceed —
+      // the backend still enforces this rule authoritatively on final submit.
+    }
+
     setCompletedSteps(prev => (!prev.includes(3) ? [...prev, 3] : prev));
     setActiveStep(4);
-  }, [pinRules, isEmailVerified, email]);
+  }, [pinRules, isEmailVerified, email, showAlert, selectedVenue, firstName, lastName, department, contactNumber, purpose, persons, selectedDate, selectedEndDate, startTime, endTime]);
 
   const handleVerifySubmit = useCallback(async (e) => {
     e.preventDefault();
@@ -574,11 +650,11 @@ export default function VenueBooking({ isPortal: isPortalProp }) {
         }
       }));
     } catch (err) {
-      alert(err.response?.data?.message || 'Submission failed. Please check form details.');
+      showAlert(err.response?.data?.message || 'Submission failed. Please check form details.', 'Submission Failed');
     } finally {
       setIsSubmitting(false);
     }
-  }, [selectedEndDate, selectedDate, firstName, middleName, lastName, suffix, fullName, selectedVenue, email, contactNumber, department, classification, purpose, persons, startTime, endTime, isPinVerified, avrEquipment, equipmentCatalog, equipmentRemarks, endorsementFile]);
+  }, [selectedEndDate, selectedDate, firstName, middleName, lastName, suffix, fullName, selectedVenue, email, contactNumber, department, classification, purpose, persons, startTime, endTime, isPinVerified, avrEquipment, equipmentCatalog, equipmentRemarks, endorsementFile, showAlert]);
 
   const [copiedTrack, setCopiedTrack] = useState(false);
 
@@ -756,6 +832,15 @@ export default function VenueBooking({ isPortal: isPortalProp }) {
         }}
         title={pinModalMeta.title}
         description={pinModalMeta.description}
+      />
+
+      {/* Flat In-App Alert Modal (replaces native window.alert()) */}
+      <AlertModal
+        open={alertModal.open}
+        onClose={() => setAlertModal((prev) => ({ ...prev, open: false }))}
+        variant={alertModal.variant}
+        title={alertModal.title}
+        message={alertModal.message}
       />
 
       {/* Enhanced Confirmation Success Modal */}

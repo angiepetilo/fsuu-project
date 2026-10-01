@@ -42,8 +42,8 @@ class GoogleAuthController extends Controller
         } catch (\Exception $e) {
             Log::warning('Google OAuth callback failed: ' . $e->getMessage());
 
-            // Dev Fallback
-            if (app()->environment('local') || env('APP_DEBUG', false)) {
+            // Dev Fallback (strictly local environment only)
+            if (app()->environment('local')) {
                 $user = User::with(['role'])->first();
                 if ($user) {
                     $token = $user->createToken('google-auth-token')->plainTextToken;

@@ -92,13 +92,8 @@ class VenueBookingController extends Controller
         } catch (\App\Exceptions\VenueReservationTooSoonException $e) {
             return response()->json(['message' => $e->getMessage()], 422);
         } catch (\Throwable $e) {
-            $referenceCode = 'VB-2026-' . rand(100000, 999999);
-            return response()->json([
-                'id' => rand(100, 999),
-                'reference_code' => $referenceCode,
-                'status' => 'pending',
-                'message' => 'Venue booking submitted successfully',
-            ], 201);
+            \Illuminate\Support\Facades\Log::error('VenueBookingController::store error: ' . $e->getMessage(), ['exception' => $e]);
+            return response()->json(['message' => 'Failed to create venue booking: ' . $e->getMessage()], 500);
         }
 
         return response()->json($booking, 201);
@@ -349,10 +344,8 @@ class VenueBookingController extends Controller
 
     public function resendEmail(\Illuminate\Http\Request $request, int $id): JsonResponse
     {
-        $booking = VenueBooking::with('venue', 'trackingNumber')->find($id);
-        if (!$booking) {
-            return response()->json(['message' => 'Venue booking record not found'], 404);
-        }
+        $booking = VenueBooking::with('venue', 'trackingNumber')->findOrFail($id);
+        $this->authorize('ongoing', $booking);
 
         $status = strtolower($booking->status ?? $booking->trackingNumber?->status ?? 'pending');
         
@@ -564,6 +557,7 @@ class VenueBookingController extends Controller
 
     public function notifyUrgent(Request $request, VenueBooking $avrVenueBooking): JsonResponse
     {
+        $this->authorize('ongoing', $avrVenueBooking);
         $user = auth()->user() ?? $request->user();
         $ref = $avrVenueBooking->trackingNumber?->reference_code ?? "TRK-AVR{$avrVenueBooking->id}";
         $filer = $avrVenueBooking->filer_name ?? 'FSUU Filer';
@@ -631,6 +625,7 @@ class VenueBookingController extends Controller
      */
     public function vacantVenues(Request $request, VenueBooking $avrVenueBooking): JsonResponse
     {
+        $this->authorize('view', $avrVenueBooking);
         $rawDate    = $avrVenueBooking->date_of_usage;
         $rawEndDate = $avrVenueBooking->reservation_end_date ?? $rawDate;
         $timeStart  = $avrVenueBooking->time_start;
@@ -773,10 +768,8 @@ class VenueBookingController extends Controller
 
     public function sendOvertimeReminder(\Illuminate\Http\Request $request, int $id): JsonResponse
     {
-        $booking = VenueBooking::with('venue', 'trackingNumber')->find($id);
-        if (!$booking) {
-            return response()->json(['message' => 'Venue booking record not found'], 404);
-        }
+        $booking = VenueBooking::with('venue', 'trackingNumber')->findOrFail($id);
+        $this->authorize('ongoing', $booking);
 
         $channel = $request->input('channel', 'both'); // 'both', 'sms', 'email'
         $customMessage = $request->input('message');

@@ -4,6 +4,7 @@ import { PackageOpen, ShieldCheck, Download, Sparkles, KeyRound, Lock, X, AlertC
 import { Button } from "@/components/ui/button";
 import { KioskTimeline } from "@/components/ui/kiosk-timeline";
 import { PinModal } from "@/components/ui/pin-modal";
+import AlertModal from "@/components/ui/AlertModal";
 import api from "@/lib/axios";
 
 import Step1Identity from "./components/Step1Identity";
@@ -163,8 +164,38 @@ export default function EquipmentBorrowing({ isPortal: isPortalProp }) {
     };
 
     fetchEquipment();
-    window.addEventListener("equipment_inventory_updated", fetchEquipment);
-    return () => window.removeEventListener("equipment_inventory_updated", fetchEquipment);
+
+    const catalogSyncTimer = setInterval(() => {
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+      fetchEquipment();
+    }, 10000);
+
+    const handleSync = () => fetchEquipment();
+    const handleStorageSync = (e) => {
+      if (
+        e.key === "fsuu_booking_created_ping" ||
+        e.key === "fsuu_booking_status_updated_ping" ||
+        e.key === "fsuu_equipment_updated_ping" ||
+        e.key === "fsuu_realtime_sync_ping"
+      ) {
+        fetchEquipment();
+      }
+    };
+
+    window.addEventListener("equipment_inventory_updated", handleSync);
+    window.addEventListener("equipment_borrowings_updated", handleSync);
+    window.addEventListener("booking_status_updated", handleSync);
+    window.addEventListener("fsuu_booking_created", handleSync);
+    window.addEventListener("storage", handleStorageSync);
+
+    return () => {
+      clearInterval(catalogSyncTimer);
+      window.removeEventListener("equipment_inventory_updated", handleSync);
+      window.removeEventListener("equipment_borrowings_updated", handleSync);
+      window.removeEventListener("booking_status_updated", handleSync);
+      window.removeEventListener("fsuu_booking_created", handleSync);
+      window.removeEventListener("storage", handleStorageSync);
+    };
   }, [startTime, endTime]);
 
   const uniqueCategories = useMemo(() => [
@@ -205,6 +236,12 @@ export default function EquipmentBorrowing({ isPortal: isPortalProp }) {
   const [pinInput, setPinInput] = useState("");
   const [pinError, setPinError] = useState(false);
   const [isPinVerified, setIsPinVerified] = useState(false);
+
+  // Flat in-app alert modal (replaces native window.alert())
+  const [alertModal, setAlertModal] = useState({ open: false, title: "Notice", message: "", variant: "error" });
+  const showAlert = useCallback((message, title = "Notice", variant = "error") => {
+    setAlertModal({ open: true, title, message, variant });
+  }, []);
 
   const [itemQuantities, setItemQuantities] = useState({});
 
@@ -268,17 +305,17 @@ export default function EquipmentBorrowing({ isPortal: isPortalProp }) {
     const endTimeStr = endTime && endTime.includes("T") ? endTime.split("T")[1].slice(0, 5) : "17:00";
 
     if (isPastDateTime(startDateStr, startTimeStr)) {
-      alert("Selected borrow date or time has already passed. Please select a future date and time.");
+      showAlert("Selected borrow date or time has already passed. Please select a future date and time.", "Invalid Date/Time", "warning");
       return;
     }
 
     if (endTimeStr <= startTimeStr && (!endDateStr || endDateStr === startDateStr)) {
-      alert("Expected return time must be later than the borrow start time.");
+      showAlert("Expected return time must be later than the borrow start time.", "Invalid Time Range", "warning");
       return;
     }
 
     if (selectedItems.length === 0) {
-      alert("Please select at least one equipment item to borrow.");
+      showAlert("Please select at least one equipment item to borrow.", "No Equipment Selected", "warning");
       return;
     }
 
@@ -323,26 +360,26 @@ export default function EquipmentBorrowing({ isPortal: isPortalProp }) {
     } else {
       // Public Rule: Single-day borrow only (cannot extend across days)
       if (isMultiDay) {
-        alert("Equipment borrowing in public view is strictly for single-day use only. You cannot extend the borrow or return date across multiple days.");
+        showAlert("Equipment borrowing in public view is strictly for single-day use only. You cannot extend the borrow or return date across multiple days.", "Single-Day Borrowing Only", "warning");
         return;
       }
 
       // Public Rule: Must follow operating kiosk hours (no outside-hours extension)
       if (isOutsideHours) {
-        alert(`Selected borrowing/return time (${formatTime12(startTimeStr)} - ${formatTime12(endTimeStr)}) is outside official campus kiosk hours (${formatTime12(kioskOpen)} - ${formatTime12(kioskClose)}). Please select a time range within operating hours.`);
+        showAlert(`Selected borrowing/return time (${formatTime12(startTimeStr)} - ${formatTime12(endTimeStr)}) is outside official campus kiosk hours (${formatTime12(kioskOpen)} - ${formatTime12(kioskClose)}). Please select a time range within operating hours.`, "Outside Operating Hours", "warning");
         return;
       }
     }
 
     setCompletedSteps(prev => (!prev.includes(2) ? [...prev, 2] : prev));
     setActiveStep(3);
-  }, [startTime, endTime, selectedItems, opHours, isPortal, pinRules, identity, isPinVerified, formatTime12]);
+  }, [startTime, endTime, selectedItems, opHours, isPortal, pinRules, identity, isPinVerified, formatTime12, showAlert]);
 
   const handleDetailsSubmit = useCallback(async (e) => {
     e.preventDefault();
     const cleanEmail = (email || "").trim().toLowerCase();
     if (!cleanEmail) {
-      alert("Please provide an email address.");
+      showAlert("Please provide an email address.", "Email Required", "warning");
       return;
     }
 
@@ -350,23 +387,58 @@ export default function EquipmentBorrowing({ isPortal: isPortalProp }) {
     try {
       const res = await api.post("/public/verify-email-active", { email: cleanEmail });
       if (!res.data?.valid) {
-        alert(res.data?.message || "This email address is not deliverable or has been flagged as fake/disposable.");
+        showAlert(res.data?.message || "This email address is not deliverable or has been flagged as fake/disposable.", "Invalid Email");
         return;
       }
     } catch (err) {
-      alert(err.response?.data?.message || "Disposable, temporary, or invalid email addresses are not accepted.");
+      showAlert(err.response?.data?.message || "Disposable, temporary, or invalid email addresses are not accepted.", "Invalid Email");
       return;
     }
 
     const requireVerify = pinRules ? (pinRules.isEnabled !== false && (pinRules.equipmentVerifyEmail === true || pinRules.equipmentVerifyPhone === true)) : false;
 
     if (requireVerify && !isEmailVerified) {
-      alert("Please verify your contact details with the 6-digit verification code before proceeding to the next step.");
+      showAlert("Please verify your contact details with the 6-digit verification code before proceeding to the next step.", "Verification Required", "warning");
       return;
     }
+
+    // Pre-submit duplicate identity check: warn the user BEFORE they reach the final
+    // review/submit step if they (same name/email, case-insensitive) already have an
+    // active equipment borrowing request for this overlapping date/time.
+    try {
+      const toFormattedDT = (dtStr, fallbackTime) => {
+        if (!dtStr) return `${new Date().toISOString().slice(0, 10)} ${fallbackTime}:00`;
+        let s = dtStr.replace("T", " ");
+        if (s.length === 16) s += ":00";
+        return s;
+      };
+      const dupRes = await api.post('/public/avr-equipment-borrowings/check-duplicate', {
+        first_name: firstName,
+        last_name: lastName,
+        email_address: cleanEmail,
+        program_office: department,
+        contact_number: contactNumber,
+        purpose: purpose,
+        start_datetime: toFormattedDT(startTime, "08:00"),
+        end_datetime: toFormattedDT(endTime, "17:00"),
+      });
+      if (dupRes.data?.duplicate) {
+        const d = dupRes.data.details || {};
+        showAlert(
+          `You already have an active ${String(d.status || '').toUpperCase()} equipment borrowing request (${d.reference_code}) for this date and timeslot. Please track your existing request instead of submitting a duplicate.`,
+          "Duplicate Request Detected",
+          "warning"
+        );
+        return;
+      }
+    } catch {
+      // Fail open: if the check itself errors out, allow the user to proceed —
+      // the backend still enforces this rule authoritatively on final submit.
+    }
+
     setCompletedSteps(prev => (!prev.includes(3) ? [...prev, 3] : prev));
     setActiveStep(4);
-  }, [pinRules, isEmailVerified, email]);
+  }, [pinRules, isEmailVerified, email, showAlert, firstName, lastName, department, contactNumber, purpose, startTime, endTime]);
 
   const handleVerifySubmit = useCallback(async (e) => {
     e.preventDefault();
@@ -459,11 +531,11 @@ export default function EquipmentBorrowing({ isPortal: isPortalProp }) {
         }
       }));
     } catch (err) {
-      alert(err.response?.data?.message || "Submission failed. Please check form details.");
+      showAlert(err.response?.data?.message || "Submission failed. Please check form details.", "Submission Failed");
     } finally {
       setIsSubmitting(false);
     }
-  }, [startTime, endTime, campusBranch, selectedItems, itemQuantities, firstName, middleName, lastName, suffix, fullName, email, contactNumber, department, identity, purpose, placeOfUse, handlerName, notificationChannel, isPinVerified, endorsementFile]);
+  }, [startTime, endTime, campusBranch, selectedItems, itemQuantities, firstName, middleName, lastName, suffix, fullName, email, contactNumber, department, identity, purpose, placeOfUse, handlerName, notificationChannel, isPinVerified, endorsementFile, showAlert]);
 
   const [copiedTrack, setCopiedTrack] = useState(false);
 
@@ -637,6 +709,15 @@ export default function EquipmentBorrowing({ isPortal: isPortalProp }) {
         }}
         title={pinModalMeta.title}
         description={pinModalMeta.description}
+      />
+
+      {/* Flat In-App Alert Modal (replaces native window.alert()) */}
+      <AlertModal
+        open={alertModal.open}
+        onClose={() => setAlertModal((prev) => ({ ...prev, open: false }))}
+        variant={alertModal.variant}
+        title={alertModal.title}
+        message={alertModal.message}
       />
 
       {/* Enhanced Confirmation Success Modal */}

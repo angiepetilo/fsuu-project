@@ -678,7 +678,9 @@ class NotificationController extends Controller
         }
 
         if (Schema::hasTable('notifications')) {
-            DB::table('notifications')->update(['read_at' => $now]);
+            DB::table('notifications')
+                ->where('user_id', $userId)
+                ->update(['read_at' => $now]);
         }
 
         return response()->json(['success' => true, 'marked_count' => count($keys)]);

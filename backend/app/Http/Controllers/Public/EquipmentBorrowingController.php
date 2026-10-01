@@ -14,6 +14,21 @@ class EquipmentBorrowingController extends Controller
 {
     public function __construct(private EquipmentBorrowingService $service) {}
 
+    /**
+     * POST /public/avr-equipment-borrowings/check-duplicate
+     * Read-only pre-submit check so the frontend can warn the user about an existing
+     * active/pending equipment request under their identity BEFORE they submit the form.
+     */
+    public function checkDuplicate(\Illuminate\Http\Request $request): JsonResponse
+    {
+        $duplicate = $this->service->checkDuplicate($request->all());
+
+        return response()->json([
+            'duplicate' => (bool) $duplicate,
+            'details'   => $duplicate,
+        ]);
+    }
+
     public function store(StorePublicEquipmentBorrowingRequest $request): JsonResponse
     {
         $data = $request->validated();

@@ -14,6 +14,7 @@ use App\Models\EquipmentBorrow;
 use App\Models\EquipmentBorrowItem as EquipmentBorrowingItem;
 use App\Models\EquipmentType;
 use App\Models\User;
+use App\Services\DuplicateSubmissionGuard;
 use Illuminate\Support\Facades\DB;
 
 class EquipmentBorrowingService
@@ -23,6 +24,84 @@ class EquipmentBorrowingService
         private AuditLogService $auditLog,
         private NotificationService $notification
     ) {}
+
+    /**
+     * Read-only pre-submit duplicate check (no writes). Lets the frontend warn the
+     * user BEFORE they hit submit, using the exact same normalized identity
+     * comparison enforced server-side in create(). Returns details of the
+     * conflicting request, or null if no duplicate exists.
+     *
+     * Expected $data keys: start_datetime, end_datetime, first_name, last_name,
+     * email_address|requestor_email|email, program_office|requestor_program_office,
+     * contact_number|requestor_contact_number, purpose.
+     */
+    public function checkDuplicate(array $data): ?array
+    {
+        $startDatetime = $data['start_datetime'] ?? null;
+        $endDatetime = $data['end_datetime'] ?? null;
+        if (!$startDatetime || !$endDatetime) {
+            return null;
+        }
+
+        $applicantEmail = $data['email_address'] ?? $data['requestor_email'] ?? $data['email'] ?? null;
+        $firstName = $data['first_name'] ?? null;
+        $lastName = $data['last_name'] ?? null;
+
+        if (empty($applicantEmail) && (empty($firstName) || empty($lastName))) {
+            return null;
+        }
+
+        $incomingIdentity = [
+            'email'          => $applicantEmail,
+            'first_name'     => $firstName,
+            'last_name'      => $lastName,
+            'program_office' => $data['program_office'] ?? $data['requestor_program_office'] ?? null,
+            'contact_number' => $data['contact_number'] ?? $data['requestor_contact_number'] ?? null,
+            'purpose'        => $data['purpose'] ?? null,
+        ];
+
+        $dateOfUsage = substr($startDatetime, 0, 10);
+        $borrowTimeStart = substr($startDatetime, 11, 8);
+        $borrowTimeEnd = substr($endDatetime, 11, 8);
+
+        $slotCandidates = DB::table('equipment_borrows')
+            ->join('tracking_numbers', 'equipment_borrows.tracking_number_id', '=', 'tracking_numbers.id')
+            ->whereIn('tracking_numbers.status', ['pending', 'approved', 'ongoing', 'on-going'])
+            ->where('equipment_borrows.date_of_usage', $dateOfUsage)
+            ->where('equipment_borrows.time_start', '<', $borrowTimeEnd)
+            ->where('equipment_borrows.time_end', '>', $borrowTimeStart)
+            ->select(
+                'tracking_numbers.reference_code',
+                'tracking_numbers.status',
+                'equipment_borrows.email_address',
+                'equipment_borrows.first_name',
+                'equipment_borrows.last_name',
+                'equipment_borrows.program_office',
+                'equipment_borrows.contact_number',
+                'equipment_borrows.purpose'
+            )
+            ->get();
+
+        $match = $slotCandidates->first(function ($row) use ($incomingIdentity) {
+            return DuplicateSubmissionGuard::isSameRequestor($incomingIdentity, [
+                'email'          => $row->email_address,
+                'first_name'     => $row->first_name,
+                'last_name'      => $row->last_name,
+                'program_office' => $row->program_office,
+                'contact_number' => $row->contact_number,
+                'purpose'        => $row->purpose,
+            ]);
+        });
+
+        if (!$match) {
+            return null;
+        }
+
+        return [
+            'reference_code' => $match->reference_code,
+            'status'         => $match->status,
+        ];
+    }
 
     public function create(array $data): EquipmentBorrow
     {
@@ -48,6 +127,93 @@ class EquipmentBorrowingService
 
                 if ($rapidDuplicate) {
                     throw new \InvalidArgumentException('Your request is already being processed. Please wait a moment.');
+                }
+            }
+
+            // Permanent Active / Pending Duplicate Borrowing Check
+            // A requestor cannot submit another equipment borrowing request for the same
+            // overlapping date/time if they already have an active (pending, approved,
+            // ongoing) request under their identity.
+            //
+            // Identity comparison is normalized (trim + lowercase, whitespace-collapsed) via
+            // DuplicateSubmissionGuard so name/email casing differences (e.g. "Angie Petilo"
+            // vs "ANGIE PETILO") do not slip through as two distinct requestors. A match is
+            // flagged when EITHER the normalized email matches, OR every secondary identity
+            // field matches (name, department, contact number, purpose) — see
+            // DuplicateSubmissionGuard::isSameRequestor().
+            $firstName = $data['first_name'] ?? null;
+            $lastName = $data['last_name'] ?? null;
+            $applicantOffice = $data['requestor_program_office'] ?? $data['program_office'] ?? null;
+            $applicantContact = $data['requestor_contact_number'] ?? $data['contact_number'] ?? null;
+            $applicantPurpose = $data['purpose'] ?? null;
+            $dateOfUsage = substr($data['start_datetime'], 0, 10);
+            $borrowTimeStart = substr($data['start_datetime'], 11, 8);
+            $borrowTimeEnd = substr($data['end_datetime'], 11, 8);
+
+            $incomingIdentity = [
+                'email'          => $applicantEmail,
+                'first_name'     => $firstName,
+                'last_name'      => $lastName,
+                'program_office' => $applicantOffice,
+                'contact_number' => $applicantContact,
+                'purpose'        => $applicantPurpose,
+            ];
+
+            if (!empty($applicantEmail) || (!empty($firstName) && !empty($lastName))) {
+                $slotCandidates = DB::table('equipment_borrows')
+                    ->join('tracking_numbers', 'equipment_borrows.tracking_number_id', '=', 'tracking_numbers.id')
+                    ->whereIn('tracking_numbers.status', ['pending', 'approved', 'ongoing', 'on-going'])
+                    ->where('equipment_borrows.date_of_usage', $dateOfUsage)
+                    ->where('equipment_borrows.time_start', '<', $borrowTimeEnd)
+                    ->where('equipment_borrows.time_end', '>', $borrowTimeStart)
+                    ->select(
+                        'tracking_numbers.reference_code',
+                        'tracking_numbers.status',
+                        'equipment_borrows.email_address',
+                        'equipment_borrows.first_name',
+                        'equipment_borrows.last_name',
+                        'equipment_borrows.program_office',
+                        'equipment_borrows.contact_number',
+                        'equipment_borrows.purpose'
+                    )
+                    ->get();
+
+                $existingActiveBorrowing = $slotCandidates->first(function ($row) use ($incomingIdentity) {
+                    return DuplicateSubmissionGuard::isSameRequestor($incomingIdentity, [
+                        'email'          => $row->email_address,
+                        'first_name'     => $row->first_name,
+                        'last_name'      => $row->last_name,
+                        'program_office' => $row->program_office,
+                        'contact_number' => $row->contact_number,
+                        'purpose'        => $row->purpose,
+                    ]);
+                });
+
+                if ($existingActiveBorrowing) {
+                    $statusLabel = strtoupper($existingActiveBorrowing->status);
+                    throw new \InvalidArgumentException("You already have an active {$statusLabel} equipment borrowing request ({$existingActiveBorrowing->reference_code}) for this date and timeslot. You cannot submit duplicate requests for the same schedule.");
+                }
+
+                // Anti-Spam Duplicate Prevention (15-Minute Buffer for rapid repeated attempts)
+                $recentCandidates = DB::table('equipment_borrows')
+                    ->where('created_at', '>=', now()->subMinutes(15))
+                    ->where('date_of_usage', $dateOfUsage)
+                    ->select('email_address', 'first_name', 'last_name', 'program_office', 'contact_number', 'purpose')
+                    ->get();
+
+                $recentDuplicate = $recentCandidates->first(function ($row) use ($incomingIdentity) {
+                    return DuplicateSubmissionGuard::isSameRequestor($incomingIdentity, [
+                        'email'          => $row->email_address,
+                        'first_name'     => $row->first_name,
+                        'last_name'      => $row->last_name,
+                        'program_office' => $row->program_office,
+                        'contact_number' => $row->contact_number,
+                        'purpose'        => $row->purpose,
+                    ]);
+                });
+
+                if ($recentDuplicate) {
+                    throw new \InvalidArgumentException('You have already submitted an equipment borrowing request recently. To prevent duplicate requests, please wait 15 minutes before submitting again or check your existing tracking number.');
                 }
             }
 
@@ -445,11 +611,15 @@ class EquipmentBorrowingService
             ->where('time_end', '>', $startTimeStr)
             ->get()
             ->sum(function ($vb) use ($type) {
-                $eqText = strtoupper($vb->equipment_needed ?? '');
-                $typeName = strtoupper($type->name ?? $type->eq_name ?? '');
-                if ($typeName && str_contains($eqText, $typeName)) {
-                    preg_match('/\d+/', $eqText, $m);
-                    return isset($m[0]) ? (int)$m[0] : 1;
+                $eqText = $vb->equipment_needed ?? '';
+                $typeName = $type->name ?? $type->eq_name ?? '';
+                if ($typeName && stripos($eqText, $typeName) !== false) {
+                    $pattern = '/(?:(\d+)\s*(?:x|pcs|units?|pieces?)?\s*' . preg_quote($typeName, '/') . '|' . preg_quote($typeName, '/') . '\s*[:\-\(]?\s*(\d+)\s*(?:x|pcs|units?|pieces?)?\)?)/i';
+                    if (preg_match($pattern, $eqText, $m)) {
+                        $qty = (int)(!empty($m[1]) ? $m[1] : (!empty($m[2]) ? $m[2] : 1));
+                        return max(1, min($qty, $type->total_quantity ?? 10));
+                    }
+                    return 1;
                 }
                 return 0;
             });

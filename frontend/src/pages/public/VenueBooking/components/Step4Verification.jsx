@@ -4,6 +4,7 @@ import { useRef, useState, useEffect } from "react";
 import api from "@/lib/axios";
 import EndorsementLetterTemplateModal from "@/components/ui/EndorsementLetterTemplateModal";
 import DocxPreviewModal from "@/components/ui/DocxPreviewModal";
+import AlertModal from "@/components/ui/AlertModal";
 
 export default function Step4Verification({
   filerName,
@@ -32,6 +33,8 @@ export default function Step4Verification({
   const [selectedDocx, setSelectedDocx] = useState({ url: "", name: "", title: "" });
   const [templateType, setTemplateType] = useState("organization");
   const [requirementsList, setRequirementsList] = useState([]);
+  const [alertModal, setAlertModal] = useState({ open: false, title: "Notice", message: "" });
+  const showAlert = (message, title = "Notice") => setAlertModal({ open: true, title, message });
 
   const [contactPhone, setContactPhone] = useState(() => {
     try {
@@ -88,11 +91,11 @@ export default function Step4Verification({
 
     const allowed = ["application/pdf", "image/png", "image/jpeg", "image/jpg"];
     if (!allowed.includes(file.type)) {
-      alert("Only PDF, PNG, or JPG files are allowed.");
+      showAlert("Only PDF, PNG, or JPG files are allowed.", "Unsupported File Type");
       return;
     }
     if (file.size > 10 * 1024 * 1024) {
-      alert("File size must be under 10 MB.");
+      showAlert("File size must be under 10 MB.", "File Too Large");
       return;
     }
     setEndorsementFile(file);
@@ -429,6 +432,14 @@ export default function Step4Verification({
         fileUrl={selectedDocx.url}
         fileName={selectedDocx.name}
         title={selectedDocx.title}
+      />
+
+      {/* Flat In-App Alert Modal (replaces native window.alert()) */}
+      <AlertModal
+        open={alertModal.open}
+        onClose={() => setAlertModal((prev) => ({ ...prev, open: false }))}
+        title={alertModal.title}
+        message={alertModal.message}
       />
     </div>
   );

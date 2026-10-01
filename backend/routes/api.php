@@ -289,11 +289,9 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // ── General: History Log (with type filter + soft-delete) ───────────────────
     Route::get('/general/history-log',                        [HistoryLogController::class, 'index']);
-    Route::post('/general/history-log/undo',                  [HistoryLogController::class, 'undo']);
     Route::delete('/general/history-log/venue/{id}',          [HistoryLogController::class, 'destroyVenue']);
     Route::delete('/general/history-log/equipment/{id}',      [HistoryLogController::class, 'destroyEquipment']);
     Route::get('/admin/history-log',                          [HistoryLogController::class, 'index']);
-    Route::post('/admin/history-log/undo',                    [HistoryLogController::class, 'undo']);
     Route::delete('/admin/history-log/venue/{id}',            [HistoryLogController::class, 'destroyVenue']);
     Route::delete('/admin/history-log/equipment/{id}',        [HistoryLogController::class, 'destroyEquipment']);
 
@@ -425,6 +423,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/admin/system-settings/test-smtp',    [SystemSettingController::class, 'testSmtp']);
     Route::get('/admin/communication-logs',            [CommunicationLogController::class, 'index']);
     Route::post('/sysad/system-migrate', function (\Illuminate\Http\Request $request) {
+        if (!$request->user()?->isSuperAdmin()) {
+            return response()->json(['message' => 'Unauthorized. Only Super Administrator can trigger migrations.'], 403);
+        }
         \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
         return response()->json([
             'message' => 'Database migrations triggered successfully.',
@@ -478,40 +479,48 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/documents/{document}/reject',  [DocumentController::class, 'reject']);
     Route::get('/inspections',                   [InspectionController::class, 'index']);
     Route::post('/inspections',                  [InspectionController::class, 'store']);
+    // ── SuperAdmin System Diagnostic Utilities ────────────────────────────────
+    Route::get('/sysad/test-email', function (Request $request) {
+        if (!$request->user()?->isSuperAdmin()) {
+            return response()->json(['message' => 'Unauthorized. Only Super Administrator can perform test emails.'], 403);
+        }
+        $to = $request->query('to', $request->user()->email_address ?: $request->user()->email);
+        try {
+            \Illuminate\Support\Facades\Mail::raw("FSUU System Test Email sent at " . now()->toDateTimeString(), function ($message) use ($to) {
+                $message->to($to)->subject("FSUU System Mail Test");
+            });
+            return response()->json(['status' => 'success', 'message' => "Test email successfully sent to {$to}"]);
+        } catch (\Throwable $e) {
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+        }
+    });
+
+    Route::get('/sysad/test-sms', function (Request $request) {
+        if (!$request->user()?->isSuperAdmin()) {
+            return response()->json(['message' => 'Unauthorized. Only Super Administrator can perform test SMS.'], 403);
+        }
+        $phone = $request->query('phone', '09123456789');
+        $apiKey = config('services.iprogsms.api_key') ?: env('IPROG_SMS_API_KEY');
+        
+        if (empty($apiKey)) {
+            return response()->json([
+                'status'     => 'warning',
+                'configured' => false,
+                'message'    => 'IPROG_SMS_API_KEY is missing.',
+            ], 200);
+        }
+        
+        $res = \App\Services\SmsService::send($phone, "FSUU Booking System SMS Verification sent at " . now()->toDateTimeString());
+        return response()->json([
+            'status'           => $res ? 'success' : 'dispatched',
+            'configured'       => true,
+            'gateway_response' => $res,
+        ]);
+    });
 });
 
 // ─── Utility ──────────────────────────────────────────────────────────────────
 Route::get('/ping', fn () => response()->json(['message' => 'Laravel says hello']));
-Route::get('/test-email', function (Request $request) {
-    $to = $request->query('to', 'angie.petilo@urios.edu.ph');
-    try {
-        \Illuminate\Support\Facades\Mail::raw("FSUU System Test Email sent at " . now()->toDateTimeString(), function ($message) use ($to) {
-            $message->to($to)->subject("FSUU System Mail Test");
-        });
-        return response()->json(['status' => 'success', 'message' => "Test email successfully sent to {$to}"]);
-    } catch (\Throwable $e) {
-        return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
-    }
-});
-Route::get('/test-sms', function (Request $request) {
-    $phone = $request->query('phone', '09123456789');
-    $apiKey = config('services.iprogsms.api_key') ?: env('IPROG_SMS_API_KEY');
-    
-    if (empty($apiKey)) {
-        return response()->json([
-            'status'     => 'warning',
-            'configured' => false,
-            'message'    => 'IPROG_SMS_API_KEY is missing in Render environment variables.',
-        ], 200);
-    }
-    
-    $res = \App\Services\SmsService::send($phone, "FSUU Booking System SMS Verification sent at " . now()->toDateTimeString());
-    return response()->json([
-        'status'           => $res ? 'success' : 'dispatched',
-        'configured'       => true,
-        'gateway_response' => $res,
-    ]);
-});
 
 // ─── Public (Unauthenticated) Routes ──────────────────────────────────────────
 Route::prefix('public')->group(function () {
@@ -527,6 +536,10 @@ Route::prefix('public')->group(function () {
 
     // Booking requirements for public booking form & landing page
     Route::get('/booking-requirements', [BookingRequirementController::class, 'publicIndex']);
+
+    // Pre-submit duplicate identity checks (read-only, no throttle beyond default)
+    Route::post('/avr-venue-bookings/check-duplicate',       [PublicVenueBookingController::class, 'checkDuplicate']);
+    Route::post('/avr-equipment-borrowings/check-duplicate', [PublicEquipmentBorrowingController::class, 'checkDuplicate']);
 
     // Form submissions
     Route::post('/avr-venue-bookings',       [PublicVenueBookingController::class, 'store'])->middleware('throttle:public-submissions');
