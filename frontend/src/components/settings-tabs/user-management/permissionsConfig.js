@@ -88,10 +88,9 @@ export const PERMISSION_MODULES = [
   {
     key: "history_log",
     label: "History Log",
-    desc: "View the system audit trail, undo records, and archive entries",
+    desc: "View the system audit trail and archive entries",
     actions: [
       { key: "view",    label: "View" },
-      { key: "undo",    label: "Undo" },
       { key: "disable", label: "Disable" },
     ],
   },

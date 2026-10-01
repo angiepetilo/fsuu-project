@@ -107,7 +107,30 @@ export default function EquipmentBorrowings() {
     }
   }, []);
 
-  useRealtimeSync(fetchBorrowings, { interval: 10000, customEvents: ["equipment_borrowings_updated", "equipment_inventory_updated"] });
+  useRealtimeSync(fetchBorrowings, {
+    interval: 8000,
+    customEvents: [
+      "equipment_borrowings_updated",
+      "booking_status_updated",
+      "equipment_inventory_updated",
+      "fsuu_booking_created",
+    ],
+  });
+
+  // Cross-tab real-time sync via storage events
+  useEffect(() => {
+    const handleStorage = (e) => {
+      if (
+        e.key === "fsuu_booking_status_updated_ping" ||
+        e.key === "fsuu_booking_created_ping" ||
+        e.key === "fsuu_realtime_sync_ping"
+      ) {
+        fetchBorrowings(true);
+      }
+    };
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
+  }, [fetchBorrowings]);
 
   // Deep-link from notification navigation
   useEffect(() => {
@@ -282,6 +305,20 @@ export default function EquipmentBorrowings() {
           return b;
         })
       );
+
+      // Invalidate cache and broadcast real-time sync across components and tabs
+      fetchBorrowings(true);
+      window.dispatchEvent(new Event("equipment_borrowings_updated"));
+      window.dispatchEvent(new Event("booking_status_updated"));
+      window.dispatchEvent(new Event("equipment_inventory_updated"));
+      try {
+        localStorage.setItem("fsuu_booking_status_updated_ping", JSON.stringify({
+          type: "equipment_borrowing",
+          id,
+          status: newStatus,
+          timestamp: Date.now()
+        }));
+      } catch {}
     } catch (err) {
       notify.error("Action Failed", err.response?.data?.message ?? "Action failed.");
     } finally {

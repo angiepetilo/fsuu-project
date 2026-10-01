@@ -20,6 +20,7 @@ Artisan::command('bookings:check-overdue-and-exceeded', function () {
     $this->info("Alerted " . count($result['venue_exceeded']) . " exceeded venue bookings, " . count($result['equipment_exceeded']) . " exceeded equipment borrows, and " . count($result['equipment_overdue']) . " overdue equipment borrows.");
 })->purpose('Check and alert reservations past scheduled end time or passed due');
 
+\Illuminate\Support\Facades\Schedule::command('bookings:auto-release-no-shows')->everyTenMinutes();
 \Illuminate\Support\Facades\Schedule::command('bookings:check-overdue-and-exceeded')->everyFifteenMinutes();
 \Illuminate\Support\Facades\Schedule::command('email:update-disposable-domains')->weekly();
 

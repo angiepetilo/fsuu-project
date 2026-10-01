@@ -146,7 +146,16 @@ export default function Dashboard() {
     }
   }, [cachedData]);
 
-  useRealtimeSync(fetchData, { interval: 30000 });
+  useRealtimeSync(fetchData, {
+    interval: 10000,
+    customEvents: [
+      "venue_bookings_updated",
+      "equipment_borrowings_updated",
+      "booking_status_updated",
+      "fsuu_booking_created",
+      "equipment_inventory_updated",
+    ],
+  });
 
   const handleRefresh = useCallback(() => fetchData(false), [fetchData]);
 

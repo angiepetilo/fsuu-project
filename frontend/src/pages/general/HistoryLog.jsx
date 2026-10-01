@@ -5,7 +5,7 @@ import api from "@/lib/axios";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 import {
   History, CheckCircle, Building2, PackageOpen, Search, Loader2,
-  Eye, Pencil, CheckCircle2, X, AlertTriangle, ChevronLeft, ChevronRight, RotateCcw, MoreVertical,
+  Eye, Pencil, CheckCircle2, X, AlertTriangle, ChevronLeft, ChevronRight, MoreVertical,
   ArrowUpDown
 } from "lucide-react";
 import { PageLoader } from "@/components/ui/page-loader";
@@ -213,36 +213,6 @@ export default function HistoryLog() {
       }
     }
   }, [location.search, location.state, venueHistory, equipmentHistory]);
-
-  const handleUndoHistory = (id, refCode, type, currentStatus) => {
-    const isCancelledOrRejected = ["rejected", "cancelled", "cancelled_by_user"].includes(currentStatus || "");
-    const targetStatus = isCancelledOrRejected ? "PENDING" : "ON-GOING";
-
-    setConfirmModal({
-      open: true,
-      action: "undo",
-      payload: { id, refCode, type, targetStatus },
-      title: "Undo History Record",
-      message: `Restore record "${refCode}" back to active ${targetStatus} status?`,
-      variant: "save",
-      confirmLabel: "Yes, Undo"
-    });
-  };
-
-  const processUndoHistory = async ({ id, refCode, type, targetStatus }) => {
-    try {
-      await api.post(`/general/history-log/undo`, { id, type });
-      if (type === "venue") {
-        setVenueHistory((prev) => prev.filter((v) => v.id !== id));
-      } else {
-        setEquipmentHistory((prev) => prev.filter((e) => e.id !== id));
-      }
-      setFeedback(`Record "${refCode}" restored back to ${targetStatus} status.`);
-      setTimeout(() => setFeedback(null), 3000);
-    } catch {
-      alert("Failed to restore history record.");
-    }
-  };
 
   const handleDeleteHistory = (id, refCode, type) => {
     setConfirmModal({
@@ -539,7 +509,6 @@ export default function HistoryLog() {
         setSelectedVenueModal={setSelectedVenueModal}
         setSelectedEquipModal={setSelectedEquipModal}
         handleOpenEdit={handleOpenEdit}
-        handleUndoHistory={handleUndoHistory}
         handleDeleteHistory={handleDeleteHistory}
         onViewIncident={(inc) => {
           if (inc.source_type === "venue" || inc.source_record?.record_type === "venue") {
@@ -613,7 +582,6 @@ export default function HistoryLog() {
         onClose={() => setConfirmModal({ ...confirmModal, open: false })}
         onConfirm={() => {
           setConfirmModal({ ...confirmModal, open: false });
-          if (confirmModal.action === "undo") processUndoHistory(confirmModal.payload);
           if (confirmModal.action === "disable") processDeleteHistory(confirmModal.payload);
         }}
         variant={confirmModal.variant}

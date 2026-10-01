@@ -209,6 +209,12 @@ export default function GeneralLayout() {
         window.dispatchEvent(new Event("equipment_inventory_updated"));
         window.dispatchEvent(new Event("venue_bookings_updated"));
         window.dispatchEvent(new Event("equipment_borrowings_updated"));
+      } else if (e.key === "fsuu_booking_status_updated_ping") {
+        fetchNotifs();
+        window.dispatchEvent(new Event("venue_bookings_updated"));
+        window.dispatchEvent(new Event("equipment_borrowings_updated"));
+        window.dispatchEvent(new Event("booking_status_updated"));
+        window.dispatchEvent(new Event("equipment_inventory_updated"));
       } else if (e.key === "fsuu_brand_updated_ping" || e.key === "fsuu_realtime_sync_ping") {
         fetchNotifs();
         window.dispatchEvent(new Event("equipment_inventory_updated"));

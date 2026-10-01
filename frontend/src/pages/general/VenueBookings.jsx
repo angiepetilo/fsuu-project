@@ -122,7 +122,30 @@ export default function VenueBookings() {
     }
   }, []);
 
-  useRealtimeSync(fetchBookings, { interval: 10000, customEvents: ["venue_bookings_updated", "equipment_inventory_updated"] });
+  useRealtimeSync(fetchBookings, {
+    interval: 8000,
+    customEvents: [
+      "venue_bookings_updated",
+      "booking_status_updated",
+      "equipment_inventory_updated",
+      "fsuu_booking_created",
+    ],
+  });
+
+  // Cross-tab real-time sync via storage events
+  useEffect(() => {
+    const handleStorage = (e) => {
+      if (
+        e.key === "fsuu_booking_status_updated_ping" ||
+        e.key === "fsuu_booking_created_ping" ||
+        e.key === "fsuu_realtime_sync_ping"
+      ) {
+        fetchBookings(true);
+      }
+    };
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
+  }, [fetchBookings]);
 
   // Deep-link from notification navigation
   useEffect(() => {
@@ -298,6 +321,20 @@ export default function VenueBookings() {
           return b;
         })
       );
+
+      // Invalidate cache and broadcast real-time sync across components and tabs
+      fetchBookings(true);
+      window.dispatchEvent(new Event("venue_bookings_updated"));
+      window.dispatchEvent(new Event("booking_status_updated"));
+      window.dispatchEvent(new Event("equipment_inventory_updated"));
+      try {
+        localStorage.setItem("fsuu_booking_status_updated_ping", JSON.stringify({
+          type: "venue_booking",
+          id: bookingId,
+          status: newStatus,
+          timestamp: Date.now()
+        }));
+      } catch {}
     } catch (err) {
       notify.error("Action Failed", err.response?.data?.message ?? "Action failed.");
     } finally {

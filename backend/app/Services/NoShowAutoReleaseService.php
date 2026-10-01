@@ -45,6 +45,7 @@ class NoShowAutoReleaseService
                         'venue_bookings.filer_name',
                         'venue_bookings.email_address',
                         'venue_bookings.equipment_notes',
+                        'venue_bookings.assigned_units',
                         'tracking_numbers.reference_code'
                     )
                     ->get();
@@ -74,6 +75,18 @@ class NoShowAutoReleaseService
                             DB::table('venue_bookings')
                                 ->where('id', $vb->id)
                                 ->update(['status' => 'cancelled', 'updated_at' => now()]);
+                        }
+
+                        // Release any assigned physical units back to available
+                        $assigned = !empty($vb->assigned_units) ? (is_array($vb->assigned_units) ? $vb->assigned_units : json_decode($vb->assigned_units, true)) : [];
+                        if (is_array($assigned) && !empty($assigned)) {
+                            $codes = array_values(array_filter($assigned));
+                            \App\Models\EquipmentUnit::where(function ($q) use ($codes) {
+                                $q->whereIn('barcode', $codes)
+                                  ->orWhereIn('id', array_filter($codes, 'is_numeric'));
+                            })
+                            ->whereNotIn('status', ['damaged', 'lost', 'decommissioned', 'maintenance'])
+                            ->update(['status' => 'available']);
                         }
 
                         // Broadcast status update
@@ -131,6 +144,7 @@ class NoShowAutoReleaseService
                         'equipment_borrows.time_start',
                         'equipment_borrows.filer_name',
                         'equipment_borrows.email_address',
+                        'equipment_borrows.assigned_units',
                         'tracking_numbers.reference_code'
                     )
                     ->get();
@@ -153,6 +167,24 @@ class NoShowAutoReleaseService
                         DB::table('tracking_numbers')
                             ->where('id', $eb->tracking_number_id)
                             ->update(['status' => 'cancelled', 'updated_at' => now()]);
+
+                        if (Schema::hasColumn('equipment_borrows', 'status')) {
+                            DB::table('equipment_borrows')
+                                ->where('id', $eb->id)
+                                ->update(['status' => 'cancelled', 'updated_at' => now()]);
+                        }
+
+                        // Release any assigned physical units back to available
+                        $assigned = !empty($eb->assigned_units) ? (is_array($eb->assigned_units) ? $eb->assigned_units : json_decode($eb->assigned_units, true)) : [];
+                        if (is_array($assigned) && !empty($assigned)) {
+                            $codes = array_values(array_filter($assigned));
+                            \App\Models\EquipmentUnit::where(function ($q) use ($codes) {
+                                $q->whereIn('barcode', $codes)
+                                  ->orWhereIn('id', array_filter($codes, 'is_numeric'));
+                            })
+                            ->whereNotIn('status', ['damaged', 'lost', 'decommissioned', 'maintenance'])
+                            ->update(['status' => 'available']);
+                        }
 
                         event(new BookingStatusUpdated('equipment_borrow', $eb->reference_code, 'cancelled', $eb->id, $reason));
                         event(new InventoryStockUpdated(null, 'no_show_released', ['reference_code' => $eb->reference_code]));

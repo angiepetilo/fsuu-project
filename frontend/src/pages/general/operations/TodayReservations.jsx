@@ -47,7 +47,16 @@ export default function TodayReservations() {
     }
   }, [venueBookings.length, equipBorrowings.length]);
 
-  useRealtimeSync(fetchTodayData, { interval: 30000 });
+  useRealtimeSync(fetchTodayData, {
+    interval: 10000,
+    customEvents: [
+      "venue_bookings_updated",
+      "equipment_borrowings_updated",
+      "booking_status_updated",
+      "fsuu_booking_created",
+      "equipment_inventory_updated",
+    ],
+  });
 
   const todayStr = useMemo(() => {
     const d = new Date();

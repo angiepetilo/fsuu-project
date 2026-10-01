@@ -253,9 +253,4 @@ html.dark ::selection { background: rgba(59,130,246,0.35); color: var(--text-pri
   #printable-fee-matrix, #printable-report-area { position: absolute; left: 0; top: 0; width: 100% !important; max-width: 100% !important; margin: 0 !important; padding: 24px !important; border: none !important; box-shadow: none !important; background: white !important; }
 }
 
-@keyframes btn-click-spin-360 { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-button svg, [role="button"] svg, .btn svg { transform-box: fill-box; transform-origin: center; }
-button:active:not(:disabled):not([data-loading]):not(.no-spin):not(:has(.animate-spin)) svg:not(.animate-spin):not(.no-spin), [role="button"]:active:not(:disabled):not([data-loading]):not(.no-spin):not(:has(.animate-spin)) svg:not(.animate-spin):not(.no-spin), .btn:active:not(:disabled):not([data-loading]):not(.no-spin):not(:has(.animate-spin)) svg:not(.animate-spin):not(.no-spin) { animation: btn-click-spin-360 0.5s cubic-bezier(0.34,1.56,0.64,1); }
-button.btn-clicked-spinning:not(:disabled):not([data-loading]):not(.no-spin):not(:has(.animate-spin)) svg:not(.animate-spin):not(.no-spin), [role="button"].btn-clicked-spinning:not(:disabled):not([data-loading]):not(.no-spin):not(:has(.animate-spin)) svg:not(.animate-spin):not(.no-spin), .btn.btn-clicked-spinning:not(:disabled):not([data-loading]):not(.no-spin):not(:has(.animate-spin)) svg:not(.animate-spin):not(.no-spin) { animation: btn-click-spin-360 0.5s cubic-bezier(0.34,1.56,0.64,1); }
-button.btn-spin-text::after, [role="button"].btn-spin-text::after, .btn.btn-spin-text::after { content: none !important; display: none !important; }
 button:not(:disabled):not(.no-bounce):active, [role="button"]:not(:disabled):not(.no-bounce):active { transform: scale(0.98); transition: transform 0.08s ease; }

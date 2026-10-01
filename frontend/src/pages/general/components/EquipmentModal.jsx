@@ -609,8 +609,20 @@ export default function EquipmentModal({
                       <label className={labelClasses}>Date Purchased</label>
                       <input
                         type="date"
-                        value={editFormData.date_purchased}
-                        onChange={e => setEditFormData({ ...editFormData, date_purchased: e.target.value })}
+                        min="1900-01-01"
+                        max="9999-12-31"
+                        value={editFormData.date_purchased || ""}
+                        onChange={e => {
+                          let val = e.target.value;
+                          if (val) {
+                            const parts = val.split("-");
+                            if (parts[0] && parts[0].length > 4) {
+                              parts[0] = parts[0].slice(0, 4);
+                              val = parts.join("-");
+                            }
+                          }
+                          setEditFormData({ ...editFormData, date_purchased: val });
+                        }}
                         className={inputClasses}
                       />
                     </div>
@@ -857,8 +869,20 @@ export default function EquipmentModal({
                       <label className={labelClasses}>Date Purchased</label>
                       <input
                         type="date"
-                        value={formData.date_purchased}
-                        onChange={e => setFormData({ ...formData, date_purchased: e.target.value })}
+                        min="1900-01-01"
+                        max="9999-12-31"
+                        value={formData.date_purchased || ""}
+                        onChange={e => {
+                          let val = e.target.value;
+                          if (val) {
+                            const parts = val.split("-");
+                            if (parts[0] && parts[0].length > 4) {
+                              parts[0] = parts[0].slice(0, 4);
+                              val = parts.join("-");
+                            }
+                          }
+                          setFormData({ ...formData, date_purchased: val });
+                        }}
                         className={inputClasses}
                       />
                     </div>

@@ -29,6 +29,7 @@ export default function VenueModalFooter({
   setShowIncompleteForm,
   isPostInspectionSaved = false,
   onRequestComplete,
+  hasInspectionChanges = false,
 }) {
   const [notifyingUrgent, setNotifyingUrgent] = useState(false);
 
@@ -179,8 +180,9 @@ export default function VenueModalFooter({
             <button
               type="button"
               onClick={onRequestComplete || handleDoneComplete}
-              disabled={!!actionLoading || savingInspection}
-              className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 disabled:opacity-60 text-white rounded-xl text-xs font-extrabold flex items-center gap-1.5 shadow-xs transition-all duration-150 cursor-pointer"
+              disabled={!!actionLoading || savingInspection || hasInspectionChanges}
+              title={hasInspectionChanges ? "Save the inspection record before completing this reservation" : undefined}
+              className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-xl text-xs font-extrabold flex items-center gap-1.5 shadow-xs transition-all duration-150 cursor-pointer"
             >
               {actionLoading === `${selected.id}-complete` || actionLoading === "complete" ? (
                 <>

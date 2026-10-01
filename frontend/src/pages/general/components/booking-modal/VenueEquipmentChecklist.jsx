@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from "react";
-import { PackageOpen, Wrench, Check, Search, ChevronDown, X, CheckCircle2, Plus, Minus } from "lucide-react";
+import { PackageOpen, Wrench, Check, Search, ChevronDown, X, CheckCircle2, Plus, Minus, CheckCircle } from "lucide-react";
 import { usePermissions } from "@/hooks/usePermissions";
 
 /**
- * Typeable & Selectable Combobox for Physical Barcode Slot
+ * Typeable & Selectable Combobox for Physical Equipment Unit Slot
+ * Displays Model Name, Brand, Barcode, and Built-in components
  */
 function SlotBarcodeSelector({
   unitKey,
@@ -11,19 +12,53 @@ function SlotBarcodeSelector({
   reqQty,
   categoryName,
   currentBarcode,
-  availableUnits,
-  assignedUnitSelections,
+  availableUnits = [],
+  allUnits = [],
+  assignedUnitSelections = {},
   onSelectBarcode,
   hasStock,
 }) {
   const [isOpen, setIsOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState(currentBarcode || "");
+  const [searchTerm, setSearchTerm] = useState("");
   const containerRef = useRef(null);
 
-  // Sync internal search input with external value changes
+  const getUnitModelName = (unit) => {
+    return [unit.brand, unit.model].filter(Boolean).join(" ") || unit.name || categoryName || "Equipment Unit";
+  };
+
+  const getUnitBuiltIns = (unit) => {
+    let rawList = Array.isArray(unit.built_in_units)
+      ? unit.built_in_units
+      : (typeof unit.built_in_units === "string" ? JSON.parse(unit.built_in_units || "[]") : []);
+    if (!rawList.length) {
+      const eqType = unit.equipmentType || unit.equipment_type;
+      if (eqType?.built_in_units) {
+        rawList = Array.isArray(eqType.built_in_units)
+          ? eqType.built_in_units
+          : (typeof eqType.built_in_units === "string" ? JSON.parse(eqType.built_in_units || "[]") : []);
+      }
+    }
+    if (!Array.isArray(rawList) || rawList.length === 0) return [];
+    return rawList.map((biId) => {
+      const match = (allUnits || []).find((u) =>
+        String(u.id) === String(biId) ||
+        String(u.barcode || "").trim().toUpperCase() === String(biId).trim().toUpperCase()
+      );
+      return match ? (match.name || [match.brand, match.model].filter(Boolean).join(" ") || match.barcode || `Unit #${biId}`) : `Unit #${biId}`;
+    });
+  };
+
+  const selectedUnit = (availableUnits || []).find(
+    (u) => String(u.barcode || u.serial_number || u.code || `UNIT-${u.id}`).trim().toUpperCase() === String(currentBarcode).trim().toUpperCase()
+  );
+
   useEffect(() => {
-    setSearchTerm(currentBarcode || "");
-  }, [currentBarcode]);
+    if (selectedUnit) {
+      setSearchTerm(`${getUnitModelName(selectedUnit)} [${selectedUnit.barcode || `UNIT-${selectedUnit.id}`}]`);
+    } else {
+      setSearchTerm(currentBarcode || "");
+    }
+  }, [currentBarcode, selectedUnit]);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -51,15 +86,17 @@ function SlotBarcodeSelector({
   // Search filtered options
   const searchFiltered = slotEligibleUnits.filter((u) => {
     const bCode = String(u.barcode || u.serial_number || u.code || `UNIT-${u.id}`).toLowerCase();
-    const uName = String(u.name || categoryName || "").toLowerCase();
+    const uModel = getUnitModelName(u).toLowerCase();
+    const uBuiltIns = getUnitBuiltIns(u).join(" ").toLowerCase();
     const q = searchTerm.toLowerCase().trim();
     if (!q) return true;
-    return bCode.includes(q) || uName.includes(q);
+    return bCode.includes(q) || uModel.includes(q) || uBuiltIns.includes(q);
   });
 
-  const handleChoose = (bCode) => {
+  const handleChoose = (unit) => {
+    const bCode = unit.barcode || unit.serial_number || unit.code || `UNIT-${unit.id}`;
     onSelectBarcode(bCode);
-    setSearchTerm(bCode);
+    setSearchTerm(`${getUnitModelName(unit)} [${bCode}]`);
     setIsOpen(false);
   };
 
@@ -75,10 +112,9 @@ function SlotBarcodeSelector({
     setSearchTerm(val);
     setIsOpen(true);
 
-    // Auto-match if exact barcode typed
     const exactMatch = slotEligibleUnits.find((u) => {
       const bCode = String(u.barcode || u.serial_number || u.code || `UNIT-${u.id}`).trim().toUpperCase();
-      return bCode === val.trim().toUpperCase();
+      return bCode === val.trim().toUpperCase() || getUnitModelName(u).toLowerCase() === val.trim().toLowerCase();
     });
 
     if (exactMatch) {
@@ -93,9 +129,7 @@ function SlotBarcodeSelector({
     if (e.key === "Enter") {
       e.preventDefault();
       if (searchFiltered.length > 0) {
-        const top = searchFiltered[0];
-        const topCode = top.barcode || top.serial_number || top.code || `UNIT-${top.id}`;
-        handleChoose(topCode);
+        handleChoose(searchFiltered[0]);
       }
     } else if (e.key === "Escape") {
       setIsOpen(false);
@@ -108,15 +142,15 @@ function SlotBarcodeSelector({
       <div className="relative flex items-center">
         <input
           type="text"
-          placeholder={currentBarcode ? "Change unit barcode..." : "Type barcode or choose from dropdown..."}
+          placeholder={currentBarcode ? "Change unit model..." : "Select model or type barcode..."}
           value={searchTerm}
           onChange={handleInputChange}
           onFocus={() => setIsOpen(true)}
           onKeyDown={handleKeyDown}
-          className={`w-full py-2 pl-3 pr-16 bg-white border rounded-lg text-xs font-mono font-bold text-slate-800 focus:outline-none transition-all ${
+          className={`w-full py-1.5 pl-3 pr-14 bg-white border rounded text-xs font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none transition-colors ${
             currentBarcode
-              ? "border-emerald-300 ring-1 ring-emerald-200 bg-emerald-50/20"
-              : "border-slate-200 focus:border-slate-400 focus:ring-1 focus:ring-slate-300"
+              ? "border-slate-400 bg-slate-50/50"
+              : "border-slate-300 focus:border-slate-500"
           }`}
         />
 
@@ -125,7 +159,7 @@ function SlotBarcodeSelector({
             <button
               type="button"
               onClick={handleClear}
-              className="p-1 rounded text-slate-400 hover:text-rose-600 hover:bg-slate-100 transition-colors"
+              className="p-1 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
               title="Clear / Unassign slot"
             >
               <X size={13} />
@@ -145,9 +179,10 @@ function SlotBarcodeSelector({
 
       {/* Dropdown Options Menu */}
       {isOpen && (
-        <div className="absolute z-50 left-0 right-0 mt-1 max-h-56 overflow-y-auto bg-white border border-slate-200 rounded-xl shadow-sm py-1 text-xs animate-in fade-in zoom-in-95">
-          <div className="px-3 py-1.5 border-b border-slate-100 flex items-center justify-between text-[10.5px] font-bold text-slate-500 bg-slate-50">
-            <span>AVAILABLE BARCODES FOR {categoryName.toUpperCase()}</span>
+        <div className="absolute z-50 left-0 right-0 mt-1 max-h-56 overflow-y-auto bg-white border border-slate-300 rounded py-1 text-xs shadow-sm">
+          <div className="px-3 py-1.5 border-b border-slate-200 flex items-center justify-between text-[11px] font-bold text-slate-600 bg-slate-50">
+            <span>AVAILABLE MODELS FOR {String(categoryName).toUpperCase()}</span>
+            <span className="font-normal text-slate-500">{searchFiltered.length} Available</span>
           </div>
 
           {searchFiltered.length === 0 ? (
@@ -156,34 +191,47 @@ function SlotBarcodeSelector({
                 ? (hasStock
                     ? "All available units in this category are assigned to other slots."
                     : `No registered stock available for ${categoryName}.`)
-                : `No barcode matching "${searchTerm}".`}
+                : `No unit model matching "${searchTerm}".`}
             </div>
           ) : (
-            searchFiltered.map((unit, uIdx) => {
+            searchFiltered.map((unit, idx) => {
               const bCode = unit.barcode || unit.serial_number || unit.code || `UNIT-${unit.id}`;
-              const displayName = unit.name || categoryName;
+              const uModel = getUnitModelName(unit);
+              const builtIns = getUnitBuiltIns(unit);
               const isSelected = bCode === currentBarcode;
 
               return (
                 <button
-                  key={`slot-opt-${unit.id || uIdx}`}
+                  key={`slot-opt-${unit.id || idx}`}
                   type="button"
-                  onClick={() => handleChoose(bCode)}
-                  className={`w-full px-3 py-2 text-left flex items-center justify-between transition-colors cursor-pointer ${
+                  onClick={() => handleChoose(unit)}
+                  className={`w-full px-3 py-2 text-left flex items-center justify-between transition-colors cursor-pointer border-b border-slate-100 last:border-0 ${
                     isSelected
-                      ? "bg-emerald-50 text-emerald-800 font-bold"
-                      : "hover:bg-slate-50 text-slate-800 font-semibold"
+                      ? "bg-slate-100 text-slate-900 font-bold"
+                      : "hover:bg-slate-50 text-slate-800 font-normal"
                   }`}
                 >
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
-                      {bCode}
-                    </span>
-                    <span className="text-slate-700 truncate max-w-[200px]">{displayName}</span>
+                  <div className="flex flex-col gap-0.5 min-w-0 pr-2">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-semibold text-slate-900 text-xs truncate max-w-[220px]">
+                        {uModel}
+                      </span>
+                      <span className="font-mono text-[10.5px] text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
+                        {bCode}
+                      </span>
+                    </div>
+                    {builtIns.length > 0 && (
+                      <div className="text-[10px] text-slate-500 font-normal flex items-center gap-1.5 flex-wrap mt-0.5">
+                        <span className="font-medium text-slate-600">Built-in:</span>
+                        <span className="bg-slate-50 text-slate-600 px-1.5 py-0.2 rounded border border-slate-200">
+                          {builtIns.join(", ")}
+                        </span>
+                      </div>
+                    )}
                   </div>
                   {isSelected && (
-                    <span className="flex items-center gap-1 text-[11px] font-bold text-emerald-600">
-                      <CheckCircle2 size={13} /> Selected
+                    <span className="flex items-center gap-1 text-[11px] font-semibold text-slate-700 shrink-0">
+                      <Check size={12} className="stroke-[3]" /> Selected
                     </span>
                   )}
                 </button>
@@ -201,6 +249,7 @@ export default function VenueEquipmentChecklist({
   assignedUnitSelections = {},
   setAssignedUnitSelections,
   getAvailableUnitsForCategory,
+  allUnits = [],
   unitReturnedConditions = {},
   setUnitReturnedConditions,
   equipmentInspectionNotes = "",
@@ -224,241 +273,249 @@ export default function VenueEquipmentChecklist({
   const { isSuperAdmin, isStaff } = usePermissions();
   const canOverride = isSuperAdmin || isStaff;
 
+  // Helper to extract built-in physical units linked to an assigned unit
+  const getBuiltInUnitsForBarcode = (barcodeVal) => {
+    if (!barcodeVal || barcodeVal === "—") return [];
+    const cleanBarcode = String(barcodeVal).trim().toUpperCase();
+
+    const unit = (allUnits || []).find((u) => {
+      const b = String(u.barcode || u.serial_number || u.code || u.id).trim().toUpperCase();
+      return b === cleanBarcode;
+    });
+
+    if (!unit) return [];
+
+    let rawList = Array.isArray(unit.built_in_units)
+      ? unit.built_in_units
+      : (typeof unit.built_in_units === "string" ? JSON.parse(unit.built_in_units || "[]") : []);
+
+    if (!rawList.length) {
+      const eqType = unit.equipmentType || unit.equipment_type;
+      if (eqType?.built_in_units) {
+        rawList = Array.isArray(eqType.built_in_units)
+          ? eqType.built_in_units
+          : (typeof eqType.built_in_units === "string" ? JSON.parse(eqType.built_in_units || "[]") : []);
+      }
+    }
+
+    if (!Array.isArray(rawList) || rawList.length === 0) return [];
+
+    return rawList.map((biId) => {
+      const match = (allUnits || []).find((u) =>
+        String(u.id) === String(biId) ||
+        String(u.barcode || "").trim().toUpperCase() === String(biId).trim().toUpperCase()
+      );
+      if (match) {
+        const catName = match.equipmentType?.eq_name || match.equipment_type?.eq_name || match.category || "";
+        const uName = [match.brand, match.model].filter(Boolean).join(" ") || match.name || "Unit";
+        return {
+          id: match.id,
+          barcode: match.barcode || `UNIT-${match.id}`,
+          name: uName,
+          category: catName,
+        };
+      }
+      return {
+        id: biId,
+        barcode: String(biId),
+        name: `Physical Unit #${biId}`,
+        category: "",
+      };
+    }).filter(Boolean);
+  };
+
+  // Available categories for selection and editing
+  const categoryOptions = React.useMemo(() => {
+    const list = [];
+    const seen = new Set();
+    (dbEquipmentTypes || []).forEach(t => {
+      const name = t.eq_name || t.name || t.category;
+      if (name && !seen.has(name.toUpperCase())) {
+        seen.add(name.toUpperCase());
+        list.push({ id: t.id, name });
+      }
+    });
+    (allUnits || []).forEach(u => {
+      const name = u.equipmentType?.eq_name || u.equipment_type?.eq_name || u.category;
+      if (name && !seen.has(name.toUpperCase())) {
+        seen.add(name.toUpperCase());
+        list.push({ id: u.equipment_type_id || null, name });
+      }
+    });
+    return list;
+  }, [dbEquipmentTypes, allUnits]);
+
   // Fallback to single category mode if multi array not provided
   const activeOverrideList = Array.isArray(overrideCategories) && overrideCategories.length > 0
-    ? overrideCategories
-    : [{ category: overrideCategory || "NONE", quantity: overrideQuantity !== undefined ? overrideQuantity : (overrideCategory === "NONE" ? 0 : 1) }];
+    ? overrideCategories.filter(c => c.category && c.category !== "NONE")
+    : (Array.isArray(categoriesToRender) ? categoriesToRender : []);
 
   const handleUpdateOverrideItem = (index, field, value) => {
     if (setOverrideCategories) {
-      const updated = [...activeOverrideList];
+      if (setIsOverrideActive) setIsOverrideActive(true);
+
+      const baseList = activeOverrideList.length > 0 ? [...activeOverrideList] : [...categoriesToRender];
+      const updated = [...baseList];
+      if (!updated[index]) return;
+
       if (field === "category") {
-        if (value === "NONE") {
-          updated[index] = { ...updated[index], category: "NONE", quantity: 0 };
-        } else {
-          const avail = getAvailableUnitsForCategory ? getAvailableUnitsForCategory(value).length : 0;
-          const currentQty = updated[index]?.quantity || 1;
-          const clampedQty = avail > 0 ? Math.min(Math.max(1, currentQty), avail) : 0;
-          updated[index] = { ...updated[index], category: value, quantity: clampedQty };
+        const matchedType = (dbEquipmentTypes || []).find(t => 
+          (t.eq_name || t.name || t.category || "").toLowerCase() === String(value).toLowerCase()
+        );
+        const avail = getAvailableUnitsForCategory ? getAvailableUnitsForCategory(value, matchedType?.id).length : 0;
+        const currentQty = updated[index]?.quantity || 1;
+        const clampedQty = avail > 0 ? Math.min(Math.max(1, currentQty), avail) : Math.max(1, currentQty);
+
+        // Clear assigned units for this category because category changed
+        if (setAssignedUnitSelections) {
+          setAssignedUnitSelections(prev => {
+            const next = { ...prev };
+            Object.keys(next).forEach(k => {
+              if (k.startsWith(`${index}-`) || k.startsWith(`${updated[index].category}-`)) {
+                delete next[k];
+              }
+            });
+            return next;
+          });
         }
+
+        updated[index] = {
+          ...updated[index],
+          category: value,
+          equipment_type_id: matchedType?.id || null,
+          quantity: clampedQty,
+        };
       } else if (field === "quantity") {
         const cat = updated[index]?.category;
         const typeId = updated[index]?.equipment_type_id;
         const avail = cat === "NONE" ? 0 : (getAvailableUnitsForCategory ? getAvailableUnitsForCategory(cat, typeId).length : 0);
-        const clampedVal = avail > 0 ? Math.min(Math.max(1, value), avail) : 0;
+        const clampedVal = avail > 0 ? Math.min(Math.max(1, value), avail) : Math.max(1, value);
         updated[index] = { ...updated[index], quantity: clampedVal };
       } else {
         updated[index] = { ...updated[index], [field]: value };
       }
       setOverrideCategories(updated);
-    } else {
-      if (field === "category") {
-        const avail = value === "NONE" ? 0 : (getAvailableUnitsForCategory ? getAvailableUnitsForCategory(value).length : 0);
-        if (setOverrideCategory) setOverrideCategory(value);
-        if (value === "NONE" && setOverrideQuantity) setOverrideQuantity(0);
-        else if (setOverrideQuantity) setOverrideQuantity(avail > 0 ? Math.min(Math.max(1, overrideQuantity || 1), avail) : 0);
-      }
-      if (field === "quantity") {
-        const avail = overrideCategory === "NONE" ? 0 : (getAvailableUnitsForCategory ? getAvailableUnitsForCategory(overrideCategory).length : 0);
-        const clampedVal = avail > 0 ? Math.min(Math.max(1, value), avail) : 0;
-        if (setOverrideQuantity) setOverrideQuantity(clampedVal);
-      }
     }
   };
 
   const handleAddOverrideCategory = () => {
-    const defaultCat = dbEquipmentTypes[0]?.eq_name || dbEquipmentTypes[0]?.name || "Wired Microphone";
-    const avail = getAvailableUnitsForCategory ? getAvailableUnitsForCategory(defaultCat, dbEquipmentTypes[0]?.id).length : 0;
+    const existingCatNames = new Set(activeOverrideList.map(c => String(c.category || "").toUpperCase()));
+    const nextOpt = categoryOptions.find(opt => !existingCatNames.has(opt.name.toUpperCase())) || categoryOptions[0];
+    const defaultCat = nextOpt?.name || "Projector";
+    const avail = getAvailableUnitsForCategory ? getAvailableUnitsForCategory(defaultCat, nextOpt?.id).length : 0;
+
+    const baseList = activeOverrideList.length > 0 ? [...activeOverrideList] : [...categoriesToRender];
+    const updated = [...baseList, {
+      category: defaultCat,
+      quantity: avail > 0 ? 1 : 1,
+      equipment_type_id: nextOpt?.id || null,
+    }];
     if (setOverrideCategories) {
-      setOverrideCategories([...activeOverrideList, { category: defaultCat, quantity: avail > 0 ? 1 : 0, equipment_type_id: dbEquipmentTypes[0]?.id || null }]);
+      setOverrideCategories(updated);
+    }
+    if (setIsOverrideActive) {
+      setIsOverrideActive(true);
     }
   };
 
   const handleRemoveOverrideCategory = (index) => {
-    if (setOverrideCategories && activeOverrideList.length > 1) {
-      const updated = activeOverrideList.filter((_, i) => i !== index);
+    if (setOverrideCategories) {
+      if (setIsOverrideActive) setIsOverrideActive(true);
+      const baseList = activeOverrideList.length > 0 ? [...activeOverrideList] : [...categoriesToRender];
+      const targetCat = baseList[index]?.category;
+      const updated = baseList.filter((_, i) => i !== index);
+      // Clean up assigned units
+      if (setAssignedUnitSelections) {
+        setAssignedUnitSelections(prev => {
+          const next = { ...prev };
+          Object.keys(next).forEach(k => {
+            if (k.startsWith(`${index}-`) || (targetCat && k.startsWith(`${targetCat}-`))) {
+              delete next[k];
+            }
+          });
+          return next;
+        });
+      }
       setOverrideCategories(updated);
     }
   };
 
-  return (
-    <div className="bg-white rounded-2xl border border-slate-200 p-4 space-y-4 shadow-xs">
-      {!isApproved && (
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-200 pb-2.5 gap-2 font-sans">
-          <div>
-            <h4 className="text-xs font-bold text-slate-900 tracking-normal flex items-center gap-2">
-              <PackageOpen size={15} className="text-blue-600" />
-              <span>Post Equipment Inspection</span>
-            </h4>
-            <p className="text-[11px] font-medium text-slate-500 mt-0.5">
-              Verify returned equipment unit condition.
-            </p>
-          </div>
+  // Check how many units have been assigned
+  let totalRequestedUnits = 0;
+  let totalAssignedUnits = 0;
 
-          {!isHistoryView && !isSideBySide && canOverride && (
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setIsOverrideActive && setIsOverrideActive(!isOverrideActive)}
-                className={`text-[10px] font-bold px-2.5 py-1 rounded-lg border transition-all cursor-pointer ${
-                  isOverrideActive
-                    ? "bg-white border-slate-900 text-slate-900 ring-1 ring-slate-900"
-                    : "bg-white text-slate-600 hover:bg-slate-50 border-slate-200"
-                }`}
-              >
-                {isOverrideActive ? "Override Active" : "Admin Override"}
-              </button>
-            </div>
+  categoriesToRender.forEach((catObj, catIdx) => {
+    const reqQty = parseInt(catObj.quantity, 10) || 1;
+    totalRequestedUnits += reqQty;
+    for (let uIdx = 0; uIdx < reqQty; uIdx++) {
+      const idxKey = `${catIdx}-${uIdx}`;
+      const catKey = `${catObj.category}-${uIdx}`;
+      if (assignedUnitSelections[idxKey] || assignedUnitSelections[catKey]) {
+        totalAssignedUnits++;
+      }
+    }
+  });
+
+  const allUnitsAssigned = totalRequestedUnits > 0 && totalAssignedUnits >= totalRequestedUnits;
+
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 p-4 space-y-4">
+      {/* Header Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-200 pb-2.5 gap-2 font-sans">
+        <div>
+          <h4 className="text-xs font-bold text-slate-900 tracking-normal flex items-center gap-2">
+            <PackageOpen size={15} className="text-slate-700" />
+            <span>{isApproved || isPreEvent ? "Equipment Unit Assignment" : "Post Equipment Inspection"}</span>
+          </h4>
+          <p className="text-[11px] font-medium text-slate-500 mt-0.5">
+            {isApproved || isPreEvent
+              ? "Select equipment category and assign physical equipment units."
+              : "Verify returned equipment unit condition."}
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2 flex-wrap">
+          {totalRequestedUnits > 0 && (
+            <span className="text-[11px] font-mono font-semibold text-slate-700 bg-slate-100 px-2.5 py-0.5 rounded border border-slate-200">
+              {totalAssignedUnits} of {totalRequestedUnits} units selected
+            </span>
+          )}
+
+          {canOverride && setOverrideCategories && (
+            <button
+              type="button"
+              onClick={handleAddOverrideCategory}
+              className="inline-flex items-center gap-1.5 px-3 py-1 bg-white hover:bg-slate-50 text-slate-800 border border-slate-300 rounded text-xs font-semibold transition-colors cursor-pointer"
+            >
+              <Plus size={13} />
+              <span>Add Equipment Category</span>
+            </button>
           )}
         </div>
-      )}
-
-      {/* Admin Override Controls - Multi-Category with Add/Minus Physical Units (Super Admin & Staff Only) */}
-      {canOverride && (isOverrideActive || isApproved) && !isSideBySide && (
-        <div className="p-3.5 bg-slate-50/80 border border-slate-200 rounded-xl space-y-3 text-xs animate-in fade-in">
-          <div className="flex items-center justify-between border-b border-slate-200 pb-2">
-            <span className="font-extrabold text-slate-900 text-[11px] uppercase tracking-wide flex items-center gap-1.5">
-              <Wrench size={13} className="text-blue-600" />
-              Override Controls
-            </span>
-            <span className="text-[10.5px] text-slate-500 font-bold">Category &amp; Qty</span>
-          </div>
-
-          <div className="space-y-2.5">
-            {activeOverrideList.map((item, idx) => {
-              const availableUnits = getAvailableUnitsForCategory ? getAvailableUnitsForCategory(item.category, item.equipment_type_id) : [];
-              const maxAvailable = availableUnits.length;
-
-              return (
-              <div
-                key={`override-row-${idx}`}
-                className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 p-2.5 bg-white rounded-xl border border-slate-200 shadow-2xs"
-              >
-                {/* Category Dropdown */}
-                <div className="flex-1">
-                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
-                    Category {activeOverrideList.length > 1 ? `#${idx + 1}` : ""}
-                  </label>
-                  <select
-                    value={item.category}
-                    onChange={(e) => handleUpdateOverrideItem(idx, "category", e.target.value)}
-                    className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-800 focus:bg-white focus:outline-none focus:border-blue-600 cursor-pointer"
-                  >
-                    <option value="NONE">NONE (No Equipment Needed)</option>
-                    {dbEquipmentTypes.length > 0 ? (
-                      dbEquipmentTypes.map((t, tIdx) => {
-                        const catVal = t.eq_name || t.name || t.eq_type || "Wired Microphone";
-                        return (
-                          <option key={`override-opt-${t.id || tIdx}`} value={catVal}>
-                            {catVal}
-                          </option>
-                        );
-                      })
-                    ) : (
-                      <>
-                        <option value="Sound System">Sound System</option>
-                        <option value="Wired Microphone">Wired Microphone</option>
-                        <option value="Wireless Microphone">Wireless Microphone</option>
-                        <option value="Projector">Projector</option>
-                      </>
-                    )}
-                  </select>
-                </div>
-
-                {/* Quantity Controls (Add / Minus physical units limited by category stock) */}
-                <div className="shrink-0">
-                  <div className="flex items-center justify-between mb-1 gap-2">
-                    <label className="block text-[10px] font-bold text-slate-500 uppercase">
-                      Physical Units
-                    </label>
-                    {item.category !== "NONE" && (
-                      <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded ${maxAvailable > 0 ? "text-emerald-700 bg-emerald-50 border border-emerald-200" : "text-rose-600 bg-rose-50 border border-rose-200"}`}>
-                        Max: {maxAvailable}
-                      </span>
-                    )}
-                  </div>
-                  {item.category === "NONE" || maxAvailable === 0 ? (
-                    <div className="flex items-center gap-1.5">
-                      <span className="min-w-[4.5rem] text-center font-mono font-bold text-xs text-slate-400 bg-slate-100 py-1.5 px-2 rounded-lg border border-slate-200">
-                        0 Units
-                      </span>
-                      {activeOverrideList.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveOverrideCategory(idx)}
-                          className="w-8 h-8 rounded-lg border border-red-200 bg-white hover:bg-red-50 flex items-center justify-center text-red-600 cursor-pointer transition-colors ml-1 shadow-2xs"
-                          title="Remove this category"
-                        >
-                          <X size={13} />
-                        </button>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => handleUpdateOverrideItem(idx, "quantity", Math.max(1, (item.quantity || 1) - 1))}
-                        disabled={item.quantity <= 1}
-                        className="w-8 h-8 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center text-slate-700 cursor-pointer transition-colors shadow-2xs"
-                        title="Decrease units (-1)"
-                      >
-                        <Minus size={13} />
-                      </button>
-
-                      <span className="min-w-[4.5rem] text-center font-mono font-bold text-xs text-slate-900 bg-slate-100 py-1.5 px-2 rounded-lg border border-slate-200">
-                        {item.quantity || 1} {Number(item.quantity || 1) === 1 ? "Unit" : "Units"}
-                      </span>
-
-                      <button
-                        type="button"
-                        onClick={() => handleUpdateOverrideItem(idx, "quantity", (item.quantity || 1) + 1)}
-                        disabled={item.quantity >= maxAvailable}
-                        className="w-8 h-8 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center text-slate-700 cursor-pointer transition-colors shadow-2xs"
-                        title={item.quantity >= maxAvailable ? `Maximum available units reached (${maxAvailable})` : "Increase units (+1)"}
-                      >
-                        <Plus size={13} />
-                      </button>
-
-                      {activeOverrideList.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveOverrideCategory(idx)}
-                          className="w-8 h-8 rounded-lg border border-red-200 bg-white hover:bg-red-50 flex items-center justify-center text-red-600 cursor-pointer transition-colors ml-1 shadow-2xs"
-                          title="Remove this category"
-                        >
-                          <X size={13} />
-                        </button>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-            );})}
-
-            {/* Add More Category Dropdown Button */}
-            {setOverrideCategories && (
-              <div className="pt-1 flex items-center justify-between">
-                <button
-                  type="button"
-                  onClick={handleAddOverrideCategory}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-100 text-blue-600 border border-blue-200 rounded-lg text-xs font-bold transition-colors cursor-pointer shadow-2xs"
-                >
-                  <Plus size={13} />
-                  <span>Add Equipment Category</span>
-                </button>
-                <span className="text-[10.5px] text-slate-400 font-medium">
-                  Adjust categories and unit counts to inspect below.
-                </span>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+      </div>
 
       {/* Equipment Cards */}
       {categoriesToRender.length === 0 ? (
-        <div className="p-4 bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-400 text-center">
-          No built-in equipment or catalog items checked for this reservation.
+        <div className="p-6 bg-slate-50 border border-slate-200 rounded-lg text-center space-y-3">
+          <div className="w-10 h-10 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center mx-auto border border-slate-200">
+            <PackageOpen size={20} />
+          </div>
+          <div className="space-y-1">
+            <h5 className="font-bold text-slate-900 text-xs">No Equipment Units Attached</h5>
+            <p className="text-[11px] text-slate-500 font-medium max-w-sm mx-auto">
+              No equipment units or built-ins requested for this venue reservation. You can select and attach equipment categories below.
+            </p>
+          </div>
+          {canOverride && setOverrideCategories && (
+            <button
+              type="button"
+              onClick={handleAddOverrideCategory}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded text-xs font-semibold transition-all cursor-pointer"
+            >
+              <Plus size={13} />
+              <span>Add Equipment Category</span>
+            </button>
+          )}
         </div>
       ) : (
         <div className="space-y-3">
@@ -468,12 +525,70 @@ export default function VenueEquipmentChecklist({
             const hasStock = availableUnits.length > 0;
 
             return (
-              <div key={`cat-card-${catIdx}`} className="p-3 bg-white border border-slate-200 rounded-xl space-y-2.5">
-                <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                  <span className="text-xs font-extrabold text-slate-900 block leading-tight font-mono">{item.category}</span>
-                  <span className="text-xs font-mono font-bold text-slate-600">
-                    Qty: {reqQty}
-                  </span>
+              <div key={`cat-card-${catIdx}`} className="p-3.5 bg-white border border-slate-200 rounded-lg space-y-3">
+                {/* Category Selection & Quantity Row */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-200 pb-2.5 gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Category:</span>
+                    {canOverride && setOverrideCategories && isAssignmentMode ? (
+                      <select
+                        value={item.category}
+                        onChange={(e) => handleUpdateOverrideItem(catIdx, "category", e.target.value)}
+                        className="px-2.5 py-1 bg-white border border-slate-300 rounded text-xs font-semibold text-slate-800 focus:outline-none focus:border-slate-500 cursor-pointer"
+                      >
+                        {!categoryOptions.some(opt => opt.name.toUpperCase() === String(item.category).toUpperCase()) && (
+                          <option value={item.category}>{item.category}</option>
+                        )}
+                        {categoryOptions.map(opt => (
+                          <option key={opt.id || opt.name} value={opt.name}>
+                            {opt.name}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <span className="text-xs font-bold text-slate-900 font-mono">{item.category}</span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Quantity:</span>
+                    {canOverride && setOverrideCategories && isAssignmentMode ? (
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => handleUpdateOverrideItem(catIdx, "quantity", Math.max(1, reqQty - 1))}
+                          disabled={reqQty <= 1}
+                          className="w-6 h-6 rounded border border-slate-300 bg-white hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center text-slate-700 cursor-pointer"
+                          title="Decrease units (-1)"
+                        >
+                          <Minus size={11} />
+                        </button>
+                        <span className="min-w-[20px] text-center font-mono text-xs font-bold text-slate-800">
+                          {reqQty}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleUpdateOverrideItem(catIdx, "quantity", reqQty + 1)}
+                          className="w-6 h-6 rounded border border-slate-300 bg-white hover:bg-slate-100 flex items-center justify-center text-slate-700 cursor-pointer"
+                          title="Increase units (+1)"
+                        >
+                          <Plus size={11} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveOverrideCategory(catIdx)}
+                          className="w-6 h-6 rounded border border-slate-300 bg-white hover:bg-slate-100 text-slate-500 hover:text-rose-600 flex items-center justify-center cursor-pointer ml-1"
+                          title="Remove category"
+                        >
+                          <X size={11} />
+                        </button>
+                      </div>
+                    ) : (
+                      <span className="text-xs font-mono font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                        {reqQty}
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 {!isAssignmentMode ? (
@@ -483,6 +598,7 @@ export default function VenueEquipmentChecklist({
                       const unitKey = `${catIdx}-${uIdx}`;
                       const assignedBarcode = assignedUnitSelections[unitKey];
                       const cond = (assignedBarcode && unitReturnedConditions[assignedBarcode]) || unitReturnedConditions[unitKey] || "Good";
+                      const slotBuiltIns = assignedBarcode ? getBuiltInUnitsForBarcode(assignedBarcode) : [];
 
                       return (
                         <div key={`ret-unit-${catIdx}-${uIdx}`} className="py-2 border-b border-slate-100 last:border-b-0 space-y-1 text-xs">
@@ -507,39 +623,57 @@ export default function VenueEquipmentChecklist({
                                 <button
                                   type="button"
                                   onClick={() => setUnitReturnedConditions && setUnitReturnedConditions(prev => ({ ...prev, [unitKey]: "Good", ...(assignedBarcode ? { [assignedBarcode]: "Good" } : {}) }))}
-                                  className={`px-2.5 py-1 rounded-lg border text-xs font-bold transition-all cursor-pointer ${
+                                  className={`px-2.5 py-1 rounded border text-xs font-semibold transition-colors cursor-pointer ${
                                     cond === "Good"
-                                      ? "border-slate-900 bg-white text-emerald-600 ring-1 ring-slate-900"
-                                      : "border-slate-200 bg-white text-slate-400 hover:text-slate-700 hover:border-slate-300"
+                                      ? "border-slate-800 bg-slate-900 text-white"
+                                      : "border-slate-300 bg-white text-slate-600 hover:bg-slate-50"
                                   }`}
                                 >
-                                  <span className={cond === "Good" ? "text-emerald-600" : ""}>Good</span>
+                                  Good
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => setUnitReturnedConditions && setUnitReturnedConditions(prev => ({ ...prev, [unitKey]: "Damaged", ...(assignedBarcode ? { [assignedBarcode]: "Damaged" } : {}) }))}
-                                  className={`px-2.5 py-1 rounded-lg border text-xs font-bold transition-all cursor-pointer ${
+                                  className={`px-2.5 py-1 rounded border text-xs font-semibold transition-colors cursor-pointer ${
                                     cond === "Damaged"
-                                      ? "border-slate-900 bg-white text-rose-600 ring-1 ring-slate-900"
-                                      : "border-slate-200 bg-white text-slate-400 hover:text-slate-700 hover:border-slate-300"
+                                      ? "border-rose-700 bg-rose-700 text-white"
+                                      : "border-slate-300 bg-white text-slate-600 hover:bg-slate-50"
                                   }`}
                                 >
-                                  <span className={cond === "Damaged" ? "text-rose-600" : ""}>Damaged</span>
+                                  Damaged
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => setUnitReturnedConditions && setUnitReturnedConditions(prev => ({ ...prev, [unitKey]: "Lost", ...(assignedBarcode ? { [assignedBarcode]: "Lost" } : {}) }))}
-                                  className={`px-2.5 py-1 rounded-lg border text-xs font-bold transition-all cursor-pointer ${
+                                  className={`px-2.5 py-1 rounded border text-xs font-semibold transition-colors cursor-pointer ${
                                     cond === "Lost"
-                                      ? "border-slate-900 bg-white text-amber-600 ring-1 ring-slate-900"
-                                      : "border-slate-200 bg-white text-slate-400 hover:text-slate-700 hover:border-slate-300"
+                                      ? "border-amber-700 bg-amber-700 text-white"
+                                      : "border-slate-300 bg-white text-slate-600 hover:bg-slate-50"
                                   }`}
                                 >
-                                  <span className={cond === "Lost" ? "text-amber-600" : ""}>Lost</span>
+                                  Lost
                                 </button>
                               </div>
                             )}
                           </div>
+
+                          {/* Built-ins in inspection mode */}
+                          {slotBuiltIns.length > 0 && (
+                            <div className="mt-1 p-2 rounded bg-slate-50 border border-slate-200 space-y-1">
+                              <span className="text-[10px] font-bold text-slate-700 block">
+                                Linked Built-in Components ({slotBuiltIns.length}):
+                              </span>
+                              <div className="flex flex-wrap gap-1">
+                                {slotBuiltIns.map((bi) => (
+                                  <span key={bi.id || bi.barcode} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-white border border-slate-300 text-[10px] font-medium text-slate-700">
+                                    <span className="text-slate-400">•</span>
+                                    <span>{bi.name}</span>
+                                    <span className="font-mono text-[9px] text-slate-400">[{bi.barcode}]</span>
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       );
                     })}
@@ -552,6 +686,10 @@ export default function VenueEquipmentChecklist({
                       const currentSelectedBarcode = assignedUnitSelections[unitKey] || "";
                       const cond = unitReturnedConditions[unitKey] || (currentSelectedBarcode ? unitReturnedConditions[currentSelectedBarcode] : "Good") || "Good";
 
+                      const matchedUnit = (allUnits || []).find(u => String(u.barcode || u.serial_number || u.code || u.id).trim().toUpperCase() === String(currentSelectedBarcode).trim().toUpperCase());
+                      const modelName = matchedUnit ? ([matchedUnit.brand, matchedUnit.model].filter(Boolean).join(" ") || matchedUnit.name) : "";
+                      const slotBuiltIns = currentSelectedBarcode ? getBuiltInUnitsForBarcode(currentSelectedBarcode) : [];
+
                       return (
                         <div key={`unit-${catIdx}-${uIdx}`} className="py-2.5 border-b border-slate-100 last:border-b-0 space-y-2 text-xs">
                           <div className="flex items-center justify-between">
@@ -559,11 +697,11 @@ export default function VenueEquipmentChecklist({
                               Unit Slot #{uIdx + 1}
                             </span>
                             {currentSelectedBarcode ? (
-                              <span className="text-xs font-mono font-bold text-emerald-600 flex items-center gap-1">
-                                <Check size={12} className="stroke-[3]" /> Assigned [{currentSelectedBarcode}]
+                              <span className="text-xs font-mono font-semibold text-slate-700 flex items-center gap-1">
+                                <Check size={12} className="stroke-[3] text-slate-600" /> {modelName ? `${modelName} [${currentSelectedBarcode}]` : `Assigned [${currentSelectedBarcode}]`}
                               </span>
                             ) : (
-                              <span className="text-xs font-mono font-bold text-slate-400">
+                              <span className="text-xs font-mono text-slate-400">
                                 Unassigned
                               </span>
                             )}
@@ -574,7 +712,7 @@ export default function VenueEquipmentChecklist({
                               <span className="font-semibold text-slate-800">
                                 {currentSelectedBarcode ? `Barcode: [${currentSelectedBarcode}]` : "Physical Unit Pre-Assigned"}
                               </span>
-                              <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                              <span className="text-[10px] font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
                                 Pre-Inspected (Good)
                               </span>
                             </div>
@@ -586,6 +724,7 @@ export default function VenueEquipmentChecklist({
                               categoryName={item.category}
                               currentBarcode={currentSelectedBarcode}
                               availableUnits={availableUnits}
+                              allUnits={allUnits}
                               assignedUnitSelections={assignedUnitSelections}
                               onSelectBarcode={(newBarcode) => {
                                 setAssignedUnitSelections(prev => ({
@@ -597,6 +736,27 @@ export default function VenueEquipmentChecklist({
                             />
                           )}
 
+                          {/* Built-in physical units linked to selected physical unit */}
+                          {currentSelectedBarcode && slotBuiltIns.length > 0 && (
+                            <div className="mt-1.5 p-2.5 rounded bg-slate-50 border border-slate-200 space-y-1.5">
+                              <div className="flex items-center justify-between text-[11px] font-bold text-slate-700">
+                                <span>Built-in to [{currentSelectedBarcode}]</span>
+                                <span className="text-[10px] text-slate-500 font-medium">
+                                  {slotBuiltIns.length} {slotBuiltIns.length === 1 ? "Unit" : "Units"} Linked
+                                </span>
+                              </div>
+                              <div className="flex flex-wrap gap-1.5">
+                                {slotBuiltIns.map((bi) => (
+                                  <span key={bi.id || bi.barcode} className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-white border border-slate-300 text-[11px] text-slate-700">
+                                    <span className="text-slate-400">•</span>
+                                    <span className="font-semibold">{bi.name}</span>
+                                    <span className="font-mono text-[10px] text-slate-500">[{bi.barcode}]</span>
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
                           {/* Pre-event physical unit condition inspection */}
                           {setUnitReturnedConditions && !isHistoryView && !isSideBySide && !isApproved && (
                             <div className="flex items-center justify-between pt-1">
@@ -605,10 +765,10 @@ export default function VenueEquipmentChecklist({
                                 <button
                                   type="button"
                                   onClick={() => setUnitReturnedConditions(prev => ({ ...prev, [unitKey]: "Good", ...(currentSelectedBarcode ? { [currentSelectedBarcode]: "Good" } : {}) }))}
-                                  className={`px-2 py-0.5 rounded-lg border text-[11px] font-bold transition-all cursor-pointer ${
+                                  className={`px-2 py-0.5 rounded border text-[11px] font-semibold transition-colors cursor-pointer ${
                                     cond === "Good"
-                                      ? "border-slate-900 bg-white text-emerald-600 ring-1 ring-slate-900"
-                                      : "border-slate-200 bg-white text-slate-400 hover:text-slate-700"
+                                      ? "border-slate-800 bg-slate-900 text-white"
+                                      : "border-slate-300 bg-white text-slate-600 hover:bg-slate-50"
                                   }`}
                                 >
                                   Good
@@ -616,10 +776,10 @@ export default function VenueEquipmentChecklist({
                                 <button
                                   type="button"
                                   onClick={() => setUnitReturnedConditions(prev => ({ ...prev, [unitKey]: "Damaged", ...(currentSelectedBarcode ? { [currentSelectedBarcode]: "Damaged" } : {}) }))}
-                                  className={`px-2 py-0.5 rounded-lg border text-[11px] font-bold transition-all cursor-pointer ${
+                                  className={`px-2 py-0.5 rounded border text-[11px] font-semibold transition-colors cursor-pointer ${
                                     cond === "Damaged"
-                                      ? "border-slate-900 bg-white text-rose-600 ring-1 ring-slate-900"
-                                      : "border-slate-200 bg-white text-slate-400 hover:text-slate-700"
+                                      ? "border-rose-700 bg-rose-700 text-white"
+                                      : "border-slate-300 bg-white text-slate-600 hover:bg-slate-50"
                                   }`}
                                 >
                                   Damaged
@@ -627,10 +787,10 @@ export default function VenueEquipmentChecklist({
                                 <button
                                   type="button"
                                   onClick={() => setUnitReturnedConditions(prev => ({ ...prev, [unitKey]: "Lost", ...(currentSelectedBarcode ? { [currentSelectedBarcode]: "Lost" } : {}) }))}
-                                  className={`px-2 py-0.5 rounded-lg border text-[11px] font-bold transition-all cursor-pointer ${
+                                  className={`px-2 py-0.5 rounded border text-[11px] font-semibold transition-colors cursor-pointer ${
                                     cond === "Lost"
-                                      ? "border-slate-900 bg-white text-amber-600 ring-1 ring-slate-900"
-                                      : "border-slate-200 bg-white text-slate-400 hover:text-slate-700"
+                                      ? "border-amber-700 bg-amber-700 text-white"
+                                      : "border-slate-300 bg-white text-slate-600 hover:bg-slate-50"
                                   }`}
                                 >
                                   Lost

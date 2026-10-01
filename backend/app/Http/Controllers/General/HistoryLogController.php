@@ -7,7 +7,6 @@ use App\Services\HistoryLogService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 
 class HistoryLogController extends Controller
 {
@@ -67,60 +66,6 @@ class HistoryLogController extends Controller
                 'incidents'            => [],
                 'error'                => $e->getMessage()
             ], 200);
-        }
-    }
-
-    /**
-     * POST /general/history-log/undo
-     * Reverts a venue booking or equipment borrow to its prior active state (pending or on-going).
-     */
-    public function undo(Request $request): JsonResponse
-    {
-        try {
-            $id = $request->input('id');
-            $type = $request->input('type', 'venue');
-
-            if ($type === 'venue') {
-                $booking = DB::table('venue_bookings')->where('id', $id)->first();
-                if ($booking) {
-                    $tracking = DB::table('tracking_numbers')
-                        ->where('id', $booking->tracking_number_id)
-                        ->orWhere('reference_code', $booking->reference_code ?? '')
-                        ->first();
-                    $currentStatus = $tracking ? strtolower($tracking->status) : strtolower($booking->status);
-                    $newStatus = in_array($currentStatus, ['rejected', 'cancelled', 'cancelled_by_user']) ? 'pending' : 'on-going';
-
-                    if (Schema::hasColumn('venue_bookings', 'status')) {
-                        DB::table('venue_bookings')->where('id', $id)->update(['status' => $newStatus]);
-                    }
-                    DB::table('tracking_numbers')
-                        ->where('id', $booking->tracking_number_id)
-                        ->orWhere('reference_code', $booking->reference_code ?? '')
-                        ->update(['status' => $newStatus]);
-                }
-            } else {
-                $borrow = DB::table('equipment_borrows')->where('id', $id)->first();
-                if ($borrow) {
-                    $tracking = DB::table('tracking_numbers')
-                        ->where('id', $borrow->tracking_number_id)
-                        ->orWhere('reference_code', $borrow->reference_code ?? '')
-                        ->first();
-                    $currentStatus = $tracking ? strtolower($tracking->status) : strtolower($borrow->status);
-                    $newStatus = in_array($currentStatus, ['rejected', 'cancelled', 'cancelled_by_user']) ? 'pending' : 'on-going';
-
-                    if (Schema::hasColumn('equipment_borrows', 'status')) {
-                        DB::table('equipment_borrows')->where('id', $id)->update(['status' => $newStatus]);
-                    }
-                    DB::table('tracking_numbers')
-                        ->where('id', $borrow->tracking_number_id)
-                        ->orWhere('reference_code', $borrow->reference_code ?? '')
-                        ->update(['status' => $newStatus]);
-                }
-            }
-
-            return response()->json(['message' => 'Record successfully reverted!', 'new_status' => $newStatus ?? 'pending']);
-        } catch (\Throwable $e) {
-            return response()->json(['message' => 'Failed to revert record.', 'error' => $e->getMessage()], 500);
         }
     }
 

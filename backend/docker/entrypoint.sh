@@ -26,11 +26,23 @@ if [ "$DB_TARGET_HOST" != "127.0.0.1" ] && [ "$DB_TARGET_HOST" != "localhost" ];
   done
 fi
 
-echo "🚀 Running database migrations (safe mode)..."
-php artisan migrate --force || true
+echo "🚀 Running database migrations..."
+php artisan migrate --force
 
-echo "🚀 Caching routes and configuration..."
+echo "🚀 Optimizing configuration..."
 php artisan optimize || true
+
+# Launch background queue worker if queue connection is asynchronous
+if [ "${QUEUE_CONNECTION:-sync}" != "sync" ]; then
+  echo "🚀 Starting background queue worker..."
+  php artisan queue:work --tries=3 --timeout=90 &
+fi
+
+# Launch background scheduler worker if ENABLE_SCHEDULER is enabled
+if [ "${ENABLE_SCHEDULER:-false}" = "true" ]; then
+  echo "🚀 Starting background scheduler worker..."
+  php artisan schedule:work &
+fi
 
 PORT_TO_SERVE="${PORT:-8000}"
 echo "🌟 Starting HTTP server on port ${PORT_TO_SERVE}..."

@@ -77,6 +77,20 @@ export default function EquipmentBorrowDetailModal({
   const [inspectionSuccessMsg, setInspectionSuccessMsg] = useState(null);
   const [initialPostState, setInitialPostState] = useState(null);
 
+  // Memoized inspection changes check — toggles Save button visibility and gates the Complete button
+  const hasInspectionChanges = useMemo(() => {
+    if (!initialPostState) return false;
+    const currentConditionsStr = JSON.stringify(unitReturnedConditions);
+    const currentPhotosStr = JSON.stringify(evidencePhoto);
+    return (
+      inspectionStatus !== initialPostState.status ||
+      timeliness !== initialPostState.timeliness ||
+      violationNotes !== initialPostState.notes ||
+      currentConditionsStr !== initialPostState.conditions ||
+      currentPhotosStr !== initialPostState.photos
+    );
+  }, [initialPostState, inspectionStatus, timeliness, violationNotes, unitReturnedConditions, evidencePhoto]);
+
   // Pre-Use Inspection State
   const [preInspectionStatus, setPreInspectionStatus] = useState("clean");
   const [preUnitReturnedConditions, setPreUnitReturnedConditions] = useState({});
@@ -1263,15 +1277,6 @@ export default function EquipmentBorrowDetailModal({
               </div>
               
               {(() => {
-                const currentConditionsStr = JSON.stringify(unitReturnedConditions);
-                const currentPhotosStr = JSON.stringify(evidencePhoto);
-                const hasInspectionChanges = Boolean(initialPostState) && (
-                   inspectionStatus !== initialPostState.status ||
-                   timeliness !== initialPostState.timeliness ||
-                   violationNotes !== initialPostState.notes ||
-                   currentConditionsStr !== initialPostState.conditions ||
-                   currentPhotosStr !== initialPostState.photos
-                );
                 return (
                   <EquipBorrowInspectionForm
                     isPreRelease={false}
@@ -1396,8 +1401,9 @@ export default function EquipmentBorrowDetailModal({
                 <button
                   type="button"
                   onClick={() => setShowCompleteConfirmModal(true)}
-                  disabled={!!actionLoading}
-                  className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 disabled:opacity-60 text-white rounded-xl text-xs font-extrabold flex items-center gap-1.5 shadow-xs transition-all duration-150 cursor-pointer"
+                  disabled={!!actionLoading || hasInspectionChanges}
+                  title={hasInspectionChanges ? "Save the inspection record before completing this borrowing" : undefined}
+                  className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-xl text-xs font-extrabold flex items-center gap-1.5 shadow-xs transition-all duration-150 cursor-pointer"
                 >
                   {actionLoading === `${selected.id}-complete` || actionLoading === "complete" ? (
                     <>
