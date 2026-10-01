@@ -557,3 +557,119 @@ Route::prefix('public')->group(function () {
     Route::post('/verify-pin',                [VerificationPinController::class, 'verifyPin'])->middleware('throttle:otp');
     Route::post('/verify-email-active',       [EmailVerificationController::class, 'verifyActive'])->middleware('throttle:60,1');
 });
+
+
+// ─── Diagnostic Endpoint (no shell needed) ────────────────────────────────────
+Route::get('/diagnostic/email-queue', function (Request $request) {
+    // Check authorization - use APP_KEY as secret
+    $secret = $request->query('secret');
+    if ($secret !== substr(config('app.key'), 7, 20)) { // Use part of APP_KEY as secret
+        return response()->json(['error' => 'Unauthorized. Add ?secret=YOUR_SECRET'], 403);
+    }
+
+    $report = [];
+    
+    // 1. Queue Configuration
+    $report['queue_connection'] = config('queue.default');
+    $report['is_async'] = config('queue.default') !== 'sync';
+    
+    // 2. Mail Configuration
+    $report['mail'] = [
+        'mailer' => config('mail.default'),
+        'host' => config('mail.mailers.smtp.host'),
+        'port' => config('mail.mailers.smtp.port'),
+        'from' => config('mail.from.address'),
+    ];
+    
+    // 3. Pending Jobs
+    $report['pending_jobs_count'] = \DB::table('jobs')->count();
+    if ($report['pending_jobs_count'] > 0) {
+        $report['oldest_pending_job'] = \DB::table('jobs')
+            ->orderBy('created_at', 'asc')
+            ->first(['id', 'queue', 'created_at']);
+    }
+    
+    // 4. Failed Jobs
+    $report['failed_jobs_count'] = \DB::table('failed_jobs')->count();
+    if ($report['failed_jobs_count'] > 0) {
+        $report['recent_failed_jobs'] = \DB::table('failed_jobs')
+            ->orderBy('failed_at', 'desc')
+            ->limit(3)
+            ->get()
+            ->map(function($job) {
+                $payload = json_decode($job->payload, true);
+                return [
+                    'job' => $payload['displayName'] ?? 'Unknown',
+                    'failed_at' => $job->failed_at,
+                    'error' => substr($job->exception, 0, 300),
+                ];
+            });
+    }
+    
+    // 5. Booking Confirmation Emails
+    $report['booking_confirmation_emails'] = \App\Models\CommunicationLog::where(function($q) {
+            $q->where('subject', 'like', '%Booking Confirmation%')
+              ->orWhere('reference_code', 'like', 'VB-%')
+              ->orWhere('reference_code', 'like', 'EB-%');
+        })
+        ->latest()
+        ->limit(10)
+        ->get(['recipient', 'reference_code', 'subject', 'status', 'error_message', 'created_at'])
+        ->map(function($email) {
+            return [
+                'recipient' => $email->recipient,
+                'ref' => $email->reference_code,
+                'status' => $email->status,
+                'error' => $email->error_message,
+                'sent_at' => $email->created_at,
+            ];
+        });
+    
+    // 6. All Recent Emails (for comparison)
+    $report['all_recent_emails'] = \App\Models\CommunicationLog::where('type', 'email')
+        ->latest()
+        ->limit(10)
+        ->get(['recipient', 'reference_code', 'status', 'created_at'])
+        ->map(function($email) {
+            return [
+                'recipient' => $email->recipient,
+                'ref' => $email->reference_code,
+                'status' => $email->status,
+                'sent_at' => $email->created_at,
+            ];
+        });
+    
+    // 7. Diagnosis
+    $report['diagnosis'] = [];
+    
+    if ($report['queue_connection'] === 'sync') {
+        $report['diagnosis'][] = '⚠️  Queue is synchronous - jobs run immediately, not in background';
+    }
+    
+    if ($report['pending_jobs_count'] > 100) {
+        $report['diagnosis'][] = '⚠️  Too many pending jobs - queue worker may be down or overwhelmed';
+    }
+    
+    if ($report['failed_jobs_count'] > 10) {
+        $report['diagnosis'][] = '⚠️  Many failed jobs - check error messages';
+    }
+    
+    if ($report['booking_confirmation_emails']->isEmpty()) {
+        $report['diagnosis'][] = '⚠️  No booking confirmation emails found - SendBookingConfirmationJob not being dispatched';
+    } else {
+        $failedCount = $report['booking_confirmation_emails']->where('status', 'failed')->count();
+        $sentCount = $report['booking_confirmation_emails']->where('status', 'sent')->count();
+        
+        if ($failedCount > $sentCount) {
+            $report['diagnosis'][] = '⚠️  Most booking confirmation emails are failing - check SMTP credentials or Brevo status';
+        } else if ($sentCount > 0) {
+            $report['diagnosis'][] = '✓ Booking confirmation emails appear to be working';
+        }
+    }
+    
+    if (empty($report['diagnosis'])) {
+        $report['diagnosis'][] = '✓ No obvious issues detected';
+    }
+    
+    return response()->json($report, 200, [], JSON_PRETTY_PRINT);
+});
