@@ -57,6 +57,9 @@ class HistoryLogService
                 'venue_bookings.classification',
                 'venue_bookings.contact_number as contact_no',
                 'venue_bookings.equipment_notes',
+                'venue_bookings.rejection_reason',
+                'venue_bookings.is_auto_rejected',
+                'venue_bookings.auto_reject_winning_reference',
                 'venues.name as venue_name',
                 'tracking_numbers.reference_code',
                 'tracking_numbers.status',
@@ -115,6 +118,8 @@ class HistoryLogService
                     $item['unit_conditions'] = null;
                 }
 
+                $isAutoRejected = $isCancelledOrRejected && strtolower($b->status ?? '') === 'rejected' && !empty($b->is_auto_rejected);
+
                 return array_merge($item, [
                     'record_type'        => 'venue',
                     'equipment_notes'    => $b->equipment_notes ?? '',
@@ -129,6 +134,13 @@ class HistoryLogService
                     'assigned_units'     => $assignedUnits,
                     'unit_conditions'    => $unitConditions,
                     'violations'         => !empty($violationText) ? 1 : 0,
+                    // Distinguishes a SPEC-RULE-4 automatic rejection (competing booking
+                    // auto-rejected because another request for the same venue/slot was
+                    // approved first) from a manual staff rejection — surfaced in the
+                    // History Log UI as "Rejected (automatic)" with the winning reference.
+                    'is_auto_rejected'               => $isAutoRejected,
+                    'auto_reject_winning_reference'  => $isAutoRejected ? ($b->auto_reject_winning_reference ?? null) : null,
+                    'rejection_reason'               => $isCancelledOrRejected ? ($b->rejection_reason ?? null) : null,
                 ]);
             });
     }

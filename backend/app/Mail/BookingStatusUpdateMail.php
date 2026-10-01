@@ -63,10 +63,14 @@ class BookingStatusUpdateMail extends Mailable
         return new Content(
             view: 'emails.booking_status_update',
             with: [
-                'refCode' => $this->refCode,
-                'formattedStart' => $this->formattedStart,
-                'formattedEnd' => $this->formattedEnd,
-                'formattedSchedule' => $this->formattedSchedule,
+                'type'             => $this->type,
+                'booking'          => $this->booking,
+                'status'           => $this->status,
+                'remarks'          => $this->remarks,
+                'refCode'          => $this->refCode,
+                'formattedStart'   => $this->formattedStart,
+                'formattedEnd'     => $this->formattedEnd,
+                'formattedSchedule'=> $this->formattedSchedule,
             ]
         );
     }

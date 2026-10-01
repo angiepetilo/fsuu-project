@@ -3,6 +3,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { Search, Hash, CheckCircle2, Loader2, AlertCircle, Building2, PackageOpen, AlertTriangle, ArrowLeft, Clock, UploadCloud, FileText, Check, Hourglass } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/status-badge";
+import AlertModal from "@/components/ui/AlertModal";
 import api from "@/lib/axios";
 import echoInstance from "@/lib/echo";
 
@@ -16,6 +17,8 @@ export default function TrackBooking() {
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
   const [cancelLoading, setCancelLoading] = useState(false);
+  const [alertModal, setAlertModal] = useState({ open: false, title: "Notice", message: "" });
+  const showAlert = (message, title = "Notice") => setAlertModal({ open: true, title, message });
 
   // Missing Requirements Resubmission States
   const [resubmitFile, setResubmitFile] = useState(null);
@@ -88,6 +91,41 @@ export default function TrackBooking() {
     if (e && e.preventDefault) e.preventDefault();
     executeTrack(trackCode, false);
   };
+
+  const handleResubmit = useCallback(async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    if (!resubmitFile) {
+      setResubmitError("Please select a file to upload before submitting.");
+      return;
+    }
+
+    const refCode = booking?.reference_code || trackCode;
+    setResubmitLoading(true);
+    setResubmitError("");
+    setResubmitSuccess("");
+
+    try {
+      const formData = new FormData();
+      formData.append("reference_code", refCode);
+      formData.append("documents", resubmitFile);
+      if (resubmitRemarks && resubmitRemarks.trim()) {
+        formData.append("remarks", resubmitRemarks.trim());
+      }
+
+      const res = await api.post("/public/resubmit-requirements", formData);
+
+      setResubmitSuccess(res.data?.message || "Missing requirements uploaded successfully! Your reservation has been returned to review.");
+      setResubmitFile(null);
+      setResubmitRemarks("");
+
+      // Refresh the tracked booking so the status/timeline reflects the resubmission immediately.
+      executeTrack(refCode, true);
+    } catch (err) {
+      setResubmitError(err.response?.data?.message || "Failed to upload missing requirements. Please try again.");
+    } finally {
+      setResubmitLoading(false);
+    }
+  }, [resubmitFile, resubmitRemarks, booking?.reference_code, trackCode, executeTrack]);
 
   useEffect(() => {
     const codeFromUrl = searchParams.get("ref") || searchParams.get("code") || searchParams.get("reference_code");
@@ -251,6 +289,8 @@ export default function TrackBooking() {
     if (isNaN(dueMs)) return false;
     return Date.now() > dueMs;
   }, [booking]);
+
+  const isRejectedOrCancelled = ['rejected', 'cancelled', 'cancelled_by_user'].includes(rawStatus);
 
   const currentStep = booking
     ? (isVenue ? getVenueStepIndex(rawStatus) : getEquipmentStepIndex(rawStatus))
@@ -727,15 +767,15 @@ export default function TrackBooking() {
                 {/* Connecting Line Track */}
                 <div className="absolute top-4 left-[18px] right-[18px] -translate-y-1/2 h-1 z-0 bg-border rounded-full">
                   <div
-                    className="h-full bg-primary rounded-full transition-all duration-500 ease-out"
-                    style={{ width: `${isCompletedBooking ? 100 : Math.min(100, Math.max(0, (currentStep - 1) * 25))}%` }}
+                    className={`h-full rounded-full transition-all duration-500 ease-out ${isRejectedOrCancelled ? 'bg-rose-400' : 'bg-primary'}`}
+                    style={{ width: `${isRejectedOrCancelled ? 0 : isCompletedBooking ? 100 : Math.min(100, Math.max(0, (currentStep - 1) * 25))}%` }}
                   />
                 </div>
 
                 {activeSteps.map((step, idx) => {
                   const stepNum = idx + 1;
-                  const isStepDone = stepNum < currentStep || (stepNum <= currentStep && isCompletedBooking);
-                  const isActive = stepNum === currentStep && !isCompletedBooking;
+                  const isStepDone = !isRejectedOrCancelled && (stepNum < currentStep || (stepNum <= currentStep && isCompletedBooking));
+                  const isActive = !isRejectedOrCancelled && stepNum === currentStep && !isCompletedBooking;
 
                   return (
                     <div key={idx} className="relative z-20 flex flex-col items-center text-center max-w-[100px]">
@@ -764,8 +804,8 @@ export default function TrackBooking() {
               <div className="sm:hidden space-y-4 relative pl-4 border-l-2 border-border ml-3">
                 {activeSteps.map((step, idx) => {
                   const stepNum = idx + 1;
-                  const isStepDone = stepNum < currentStep || (stepNum <= currentStep && isCompletedBooking);
-                  const isActive = stepNum === currentStep && !isCompletedBooking;
+                  const isStepDone = !isRejectedOrCancelled && (stepNum < currentStep || (stepNum <= currentStep && isCompletedBooking));
+                  const isActive = !isRejectedOrCancelled && stepNum === currentStep && !isCompletedBooking;
 
                   return (
                     <div key={idx} className="relative flex items-center gap-3">
@@ -791,6 +831,14 @@ export default function TrackBooking() {
                 })}
               </div>
 
+              {/* Rejected / Cancelled State Banner — replaces the step-based progress indication above */}
+              {isRejectedOrCancelled && (
+                <div className="flex items-center gap-2 px-3.5 py-2.5 bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/30 rounded-xl text-rose-700 dark:text-rose-300 text-xs font-bold">
+                  <AlertCircle size={14} className="shrink-0" />
+                  <span>This {isVenue ? 'reservation' : 'borrowing request'} was {rawStatus === 'rejected' ? 'rejected' : 'cancelled'} — no further progress will occur on this timeline.</span>
+                </div>
+              )}
+
               {/* Special Requirement & Dynamic Status Callout Tags */}
               {!isVenue && (
                 <>
@@ -807,7 +855,7 @@ export default function TrackBooking() {
                     </div>
                   )}
 
-                  {currentStep === 1 && (
+                  {currentStep === 1 && !isRejectedOrCancelled && (
                     <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-2xl text-amber-900 text-xs font-bold flex items-center gap-2">
                       <Clock size={18} className="text-amber-600 shrink-0" />
                       <span><strong>Pending Staff Review:</strong> Your equipment borrowing requisition is received and awaiting staff verification.</span>
@@ -849,11 +897,13 @@ export default function TrackBooking() {
                         </h4>
                         {(booking.rejection_reason || booking.remarks) && (
                           <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-700 dark:text-rose-300 border border-rose-500/30">
-                            {String(booking.rejection_reason || booking.remarks).toLowerCase().includes('conflict') 
-                              ? 'Schedule Conflict' 
-                              : String(booking.rejection_reason || booking.remarks).toLowerCase().includes('requirement') 
-                                ? 'Incomplete Requirements' 
-                                : 'Administrative Review'}
+                            {booking.is_auto_rejected || String(booking.rejection_reason || booking.remarks).toLowerCase().includes('automatically rejected')
+                              ? 'Automatic — Schedule Conflict'
+                              : String(booking.rejection_reason || booking.remarks).toLowerCase().includes('conflict') 
+                                ? 'Schedule Conflict' 
+                                : String(booking.rejection_reason || booking.remarks).toLowerCase().includes('requirement') 
+                                  ? 'Incomplete Requirements' 
+                                  : 'Administrative Review'}
                           </span>
                         )}
                       </div>
@@ -864,7 +914,7 @@ export default function TrackBooking() {
                           Reason for Rejection:
                         </span>
                         <p className="text-xs font-semibold text-foreground leading-relaxed whitespace-pre-wrap">
-                          {booking.rejection_reason || booking.remarks || "This request was not approved due to a schedule conflict. Another reservation was confirmed for this timeslot. Please contact the PMO/AVR office."}
+                          {booking.rejection_reason || booking.remarks || "This request was not approved because another reservation for the same venue and time was approved first. Please submit a new reservation for a different venue or schedule."}
                         </p>
                       </div>
 
@@ -961,7 +1011,7 @@ export default function TrackBooking() {
                       setShowCancelModal(false);
                       executeTrack(ref);
                     } catch (err) {
-                      alert(err?.response?.data?.message || 'Failed to cancel reservation.');
+                      showAlert(err?.response?.data?.message || 'Failed to cancel reservation.', 'Cancellation Failed');
                     } finally {
                       setCancelLoading(false);
                     }
@@ -976,6 +1026,14 @@ export default function TrackBooking() {
           </div>
         )}
       </div>
+
+      {/* Flat In-App Alert Modal (replaces native window.alert()) */}
+      <AlertModal
+        open={alertModal.open}
+        onClose={() => setAlertModal((prev) => ({ ...prev, open: false }))}
+        title={alertModal.title}
+        message={alertModal.message}
+      />
     </div>
   );
 }

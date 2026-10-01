@@ -62,6 +62,16 @@
   </div>
 
 @if(($type ?? 'venue') === 'equipment')
+@php
+    $eqStartTime = null;
+    $eqEndTime   = null;
+    try {
+        $rawS = $booking->time_start ?? ($booking->start_datetime ? substr($booking->start_datetime, 11, 8) : null);
+        $rawE = $booking->time_end   ?? ($booking->end_datetime   ? substr($booking->end_datetime,   11, 8) : null);
+        $eqStartTime = $rawS ? \Carbon\Carbon::parse('2000-01-01 ' . $rawS)->format('h:i A') : null;
+        $eqEndTime   = $rawE ? \Carbon\Carbon::parse('2000-01-01 ' . $rawE)->format('h:i A') : null;
+    } catch (\Throwable $e) {}
+@endphp
   <p>Good day, <strong>{{ $requestorName }}</strong>.</p>
   <p>Thank you for submitting your equipment borrowing request. Please find your official confirmation details and Tracking Number below:</p>
 
@@ -85,15 +95,34 @@
         <td style="padding: 5px 0; color: #0f172a; font-weight: 600;">{{ $purpose }}</td>
       </tr>
       <tr>
-        <td style="padding: 5px 0; color: #475569; font-weight: bold;">Equipment Borrowed:</td>
+        <td style="padding: 5px 0; color: #475569; font-weight: bold;">Equipment Category / Items:</td>
         <td style="padding: 5px 0; color: #0f172a; font-weight: 600;">
-          {{ !empty($equipmentList) ? implode(', ', $equipmentList) : ($booking->equipment_name ?? 'Requested Equipment Items') }}
+          @if(!empty($equipmentList))
+            @foreach($equipmentList as $eqItem)
+              <div>• {{ $eqItem }}</div>
+            @endforeach
+          @else
+            {{ $booking->equipment_name ?? 'Requested Equipment Items' }}
+          @endif
         </td>
       </tr>
+      @if($eqStartTime)
+      <tr>
+        <td style="padding: 5px 0; color: #475569; font-weight: bold;">Start Time:</td>
+        <td style="padding: 5px 0; color: #0f172a; font-weight: 600;">{{ $sched }} (from {{ $eqStartTime }})</td>
+      </tr>
+      @else
       <tr>
         <td style="padding: 5px 0; color: #475569; font-weight: bold;">Date &amp; Time (Schedule):</td>
         <td style="padding: 5px 0; color: #0f172a; font-weight: 600;">{{ $sched }}</td>
       </tr>
+      @endif
+      @if($eqEndTime)
+      <tr>
+        <td style="padding: 5px 0; color: #475569; font-weight: bold;">End Time / Return By:</td>
+        <td style="padding: 5px 0; color: #0f172a; font-weight: 600;">{{ $eqEndTime }}</td>
+      </tr>
+      @endif
     </table>
   </div>
 
@@ -102,6 +131,7 @@
       📌 <strong>Grace Period &amp; Timely Arrival Advisory:</strong> Please proceed to the AVR counter with your physical <strong>School ID</strong>. Please arrive within the Grace Period (15 minutes) of your scheduled start time. Equipment not claimed within the Auto-Cancel threshold will be automatically released to other requestors.
     </p>
   </div>
+  <p style="color: #374151; font-size: 13px; margin: 14px 0;">We will notify you again once your equipment request is approved.</p>
   <p style="text-align: center; margin: 16px 0;">
     <a href="{{ $trackUrl }}" class="track-btn">Track Request Status Online</a>
   </p>
@@ -185,7 +215,11 @@
         <td style="padding: 5px 0; color: #0f172a; font-weight: 600;">{{ $venueName }} ({{ $venueLocation }})</td>
       </tr>
       <tr>
-        <td style="padding: 5px 0; color: #475569; font-weight: bold;">Purpose:</td>
+        <td style="padding: 5px 0; color: #475569; font-weight: bold;">Date &amp; Time (Schedule):</td>
+        <td style="padding: 5px 0; color: #0f172a; font-weight: 600;">{{ $sched }}</td>
+      </tr>
+      <tr>
+        <td style="padding: 5px 0; color: #475569; font-weight: bold;">Event Purpose:</td>
         <td style="padding: 5px 0; color: #0f172a; font-weight: 600;">{{ $purpose }}</td>
       </tr>
       @if(!empty($equipmentList))
@@ -194,10 +228,6 @@
         <td style="padding: 5px 0; color: #0f172a; font-weight: 600;">{{ implode(', ', $equipmentList) }}</td>
       </tr>
       @endif
-      <tr>
-        <td style="padding: 5px 0; color: #475569; font-weight: bold;">Date &amp; Time (Schedule):</td>
-        <td style="padding: 5px 0; color: #0f172a; font-weight: 600;">{{ $sched }}</td>
-      </tr>
       <tr>
         <td style="padding: 5px 0; color: #475569; font-weight: bold;">Expected Attendees:</td>
         <td style="padding: 5px 0; color: #0f172a; font-weight: 600;">{{ $persons }} persons</td>
@@ -210,6 +240,7 @@
       📌 <strong>Grace Period &amp; Timely Arrival Advisory:</strong> Please ensure you arrive within the Grace Period (15 minutes) of your scheduled start time. Unattended reservations past the Auto-Cancel threshold will be automatically released.
     </p>
   </div>
+  <p style="color: #374151; font-size: 13px; margin: 14px 0;">We will notify you again once your venue booking is approved.</p>
   <p style="text-align: center; margin: 16px 0;">
     <a href="{{ $trackUrl }}" class="track-btn">Track Booking Status Online</a>
   </p>

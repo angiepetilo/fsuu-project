@@ -26,7 +26,7 @@ class EquipmentBorrowingService
 
     public function create(array $data): EquipmentBorrow
     {
-        return DB::transaction(function () use ($data) {
+        $borrowing = DB::transaction(function () use ($data) {
             $this->assertExternalHasVenueBooking($data);
 
             foreach ($data['items'] ?? [] as $item) {

@@ -38,6 +38,7 @@ class EquipmentBorrow extends Model
         'equipment_units_id',
         'status',
         'returned_at',
+        'unit_conditions',  // virtual: populated from inspection payload for Email 4 receipt
     ];
 
     protected $casts = [

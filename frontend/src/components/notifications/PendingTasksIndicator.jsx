@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { ClipboardList, Building2, PackageOpen, ClipboardCheck } from "lucide-react";
 import api from "@/lib/axios";
@@ -13,9 +13,11 @@ export default function PendingTasksIndicator({ isSysad = false, basePath: propB
   });
   const [isOpen, setIsOpen] = useState(false);
 
-  const fetchPendingCounts = async () => {
+  const fetchPendingCounts = useCallback(async () => {
     try {
-      const res = await api.get(`/dashboard/stats?_t=${Date.now()}`);
+      // bypassCache guarantees this never serves a stale in-memory GET response —
+      // the count must always reflect the live DB state, never a cached snapshot.
+      const res = await api.get(`/dashboard/stats?_t=${Date.now()}`, { bypassCache: true });
       const data = res.data?.quick_stats || res.data || {};
       
       setCounts({
@@ -27,9 +29,39 @@ export default function PendingTasksIndicator({ isSysad = false, basePath: propB
     } catch {
       // Fallback
     }
-  };
+  }, []);
 
-  useRealtimeSync(fetchPendingCounts, { interval: 30000 });
+  // Cross-tab real-time sync via storage events (same pings VenueBookings.jsx /
+  // EquipmentBorrowings.jsx write after every approve/reject/auto-reject/cancel/undo).
+  useEffect(() => {
+    const handleStorage = (e) => {
+      if (
+        e.key === "fsuu_booking_status_updated_ping" ||
+        e.key === "fsuu_booking_created_ping" ||
+        e.key === "fsuu_realtime_sync_ping"
+      ) {
+        fetchPendingCounts();
+      }
+    };
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
+  }, [fetchPendingCounts]);
+
+  // Explicitly listen for the same events the Venue/Equipment Bookings list pages
+  // dispatch after approve/reject/auto-reject/cancel/undo (handleAction in
+  // VenueBookings.jsx / EquipmentBorrowings.jsx) and the ones GeneralLayout/SysadLayout
+  // re-dispatch after receiving a live Pusher "booking.status_updated" broadcast —
+  // so this badge updates live without depending on the incidental default event.
+  useRealtimeSync(fetchPendingCounts, {
+    interval: 30000,
+    customEvents: [
+      "venue_bookings_updated",
+      "booking_status_updated",
+      "equipment_borrowings_updated",
+      "equipment_inventory_updated",
+      "fsuu_booking_created",
+    ],
+  });
 
   const totalPending = counts.pendingVenue + counts.pendingEquip + counts.pendingPostVenue + counts.pendingPostEquip;
   const basePath = propBasePath || (isSysad ? "/sysad" : "/general");

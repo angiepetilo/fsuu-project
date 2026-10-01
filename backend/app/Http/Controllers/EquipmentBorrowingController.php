@@ -229,6 +229,9 @@ class EquipmentBorrowingController extends Controller
     {
         $this->authorize('ongoing', $equipmentBorrowing);
 
+        // Capture previous status BEFORE writes — used as idempotency guard for Email 3
+        $prevStatus = strtolower($equipmentBorrowing->status ?? $equipmentBorrowing->trackingNumber?->status ?? '');
+
         if ($request->has('assigned_units')) {
             $assignedData = $request->input('assigned_units');
             if (is_string($assignedData)) {
@@ -289,7 +292,49 @@ class EquipmentBorrowingController extends Controller
             ]);
         } catch (\Throwable $e) {}
 
+        // ── Email 3: Equipment On-Going ────────────────────────────────────
+        // Only send when transitioning FROM 'approved' (idempotency: skip if already on-going)
+        if ($prevStatus === 'approved' && !empty($barcodes)) {
+            $this->dispatchOngoingEmail($equipmentBorrowing, $barcodes);
+        }
+
         return response()->json($equipmentBorrowing->fresh(['items.equipmentType', 'trackingNumber']));
+    }
+
+    // ── Email 3: Equipment On-Going (units released to borrower) ──────────
+    // Guard: only dispatch if previous status was 'approved' (idempotency),
+    // and there are assigned physical barcodes to show in the email.
+    private function dispatchOngoingEmail(EquipmentBorrow $equipmentBorrowing, array $barcodes): void
+    {
+        if (empty($barcodes)) {
+            return; // Never send an empty unit list
+        }
+        try {
+            \App\Jobs\SendBookingStatusUpdateJob::dispatch(
+                'equipment',
+                $equipmentBorrowing->fresh(['items.equipmentType', 'trackingNumber']),
+                'on-going',
+                null
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Failed to dispatch equipment on-going email: ' . $e->getMessage());
+            // Write a failed communication log entry so it appears in the CommunicationLogsTab
+            try {
+                $email = $equipmentBorrowing->email_address ?? $equipmentBorrowing->requestor_email ?? null;
+                $ref   = $equipmentBorrowing->trackingNumber?->reference_code ?? "EQ-{$equipmentBorrowing->id}";
+                \App\Models\CommunicationLog::record([
+                    'channel'         => 'email',
+                    'category'        => 'status_update',
+                    'recipient_name'  => $equipmentBorrowing->filer_name ?? 'Borrower',
+                    'recipient_email' => $email,
+                    'reference_code'  => $ref,
+                    'subject'         => "Equipment Released (On-Going) — {$ref}",
+                    'message_preview' => 'Email 3 dispatch failed: ' . $e->getMessage(),
+                    'status'          => 'failed',
+                    'error_message'   => $e->getMessage(),
+                ]);
+            } catch (\Throwable $logErr) {}
+        }
     }
 
     public function inspection(\Illuminate\Http\Request $request, EquipmentBorrow $equipmentBorrowing): JsonResponse
@@ -556,25 +601,44 @@ class EquipmentBorrowingController extends Controller
                 ]);
             } catch (\Throwable $e) {}
 
-            // Dispatch completion or late return email notification to borrower
-            try {
-                $eqStatus = $isLate ? 'late return' : ($condition === 'damaged' ? 'damaged' : ($condition === 'lost' ? 'lost' : 'completed'));
-                $eqRemarks = $isLate
-                    ? "Equipment returned {$minutesLate} minutes late. Logged as Late Return."
-                    : ($condition === 'damaged' 
-                        ? "Equipment returned with reported damage. Inspection notes: {$notes}"
-                        : ($condition === 'lost' 
-                            ? "Equipment unit reported missing/lost."
-                            : "All borrowed equipment units returned safely and inspected in complete order. Thank you!"));
+            // Dispatch completion or late return email notification to borrower (Email 4)
+            // Idempotency guard: only dispatch when this is the FIRST completion transition
+            $terminalStatuses = ['completed', 'late return', 'damaged', 'lost', 'returned', 'done', 'cleared'];
+            $wasAlreadyTerminal = in_array(
+                strtolower($equipmentBorrowing->getOriginal('status') ?? $equipmentBorrowing->status ?? ''),
+                $terminalStatuses
+            );
 
-                \App\Jobs\SendBookingStatusUpdateJob::dispatch(
-                    'equipment',
-                    $equipmentBorrowing->fresh(['items.equipmentType', 'trackingNumber']),
-                    $eqStatus,
-                    $eqRemarks
-                );
-            } catch (\Throwable $e) {
-                \Illuminate\Support\Facades\Log::warning("Failed to dispatch equipment completion email: " . $e->getMessage());
+            if (!$wasAlreadyTerminal) {
+                try {
+                    $eqStatus = $isLate ? 'late return' : ($condition === 'damaged' ? 'damaged' : ($condition === 'lost' ? 'lost' : 'completed'));
+                    $eqRemarks = $isLate
+                        ? "Equipment returned {$minutesLate} minutes late. Logged as Late Return."
+                        : ($condition === 'damaged'
+                            ? "Equipment returned with reported damage. Inspection notes: {$notes}"
+                            : ($condition === 'lost'
+                                ? "Equipment unit reported missing/lost."
+                                : "All borrowed equipment units returned safely and inspected in complete order. Thank you!"));
+
+                    // Attach unit_conditions as a virtual attribute so the Email 4 blade
+                    // receipt template can resolve per-unit conditions without a separate DB query
+                    $freshForEmail = $equipmentBorrowing->fresh(['items.equipmentType', 'trackingNumber']);
+                    if (!empty($unitConditions)) {
+                        $freshForEmail->setRelation('_unit_conditions_temp', collect());
+                        $freshForEmail->unit_conditions = is_array($unitConditions)
+                            ? json_encode($unitConditions)
+                            : $unitConditions;
+                    }
+
+                    \App\Jobs\SendBookingStatusUpdateJob::dispatch(
+                        'equipment',
+                        $freshForEmail,
+                        $eqStatus,
+                        $eqRemarks
+                    );
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::warning("Failed to dispatch equipment completion email: " . $e->getMessage());
+                }
             }
 
             return response()->json($equipmentBorrowing->fresh(['items.equipmentType', 'trackingNumber']));

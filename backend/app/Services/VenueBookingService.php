@@ -12,6 +12,7 @@ use App\Models\Approval;
 use App\Models\VenueBooking;
 use App\Models\User;
 use App\Models\Venue;
+use App\Services\DuplicateSubmissionGuard;
 use Illuminate\Support\Facades\DB;
 
 class VenueBookingService
@@ -21,9 +22,116 @@ class VenueBookingService
         private NotificationService $notification
     ) {}
 
+    /**
+     * Read-only pre-submit duplicate check (no row locking, no writes).
+     * Lets the frontend warn the user BEFORE they hit submit, using the exact same
+     * normalized identity comparison enforced server-side in create(). Returns
+     * details of the conflicting reservation, or null if no duplicate exists.
+     *
+     * Expected $data keys (all flexible/fallback-friendly, same as create()):
+     *   venue_id, date_of_usage, reservation_end_date, time_start, time_end,
+     *   (or start_datetime/end_datetime), first_name, last_name,
+     *   email_address|requestor_email|email, program_office|requestor_program_office,
+     *   contact_number|requestor_contact_number, purpose, number_of_persons|no_of_person
+     */
+    public function checkDuplicate(array $data): ?array
+    {
+        $venueId = $data['venue_id'] ?? null;
+        if (!$venueId) {
+            return null;
+        }
+
+        $venue = Venue::find($venueId);
+        if (!$venue) {
+            return null;
+        }
+
+        $startDt = $data['start_datetime'] ?? (($data['date_of_usage'] ?? null) . ' ' . ($data['time_start'] ?? '08:00:00'));
+        $reservationEndDate = $data['reservation_end_date'] ?? $data['end_date'] ?? ($data['date_of_usage'] ?? date('Y-m-d', strtotime($startDt)));
+        $endDt = $data['end_datetime'] ?? ($reservationEndDate . ' ' . ($data['time_end'] ?? '12:00:00'));
+
+        $dateOfUsage = date('Y-m-d', strtotime($startDt));
+        $reservationEndDate = date('Y-m-d', strtotime($endDt));
+        $timeStart = date('H:i:s', strtotime($startDt));
+        $timeEnd = date('H:i:s', strtotime($endDt));
+
+        $applicantEmail = $data['email_address'] ?? $data['requestor_email'] ?? $data['email'] ?? null;
+        $firstName = $data['first_name'] ?? null;
+        $lastName = $data['last_name'] ?? null;
+
+        if (empty($applicantEmail) && (empty($firstName) || empty($lastName))) {
+            return null;
+        }
+
+        $incomingIdentity = [
+            'venue_id'       => $venue->id,
+            'email'          => $applicantEmail,
+            'first_name'     => $firstName,
+            'last_name'      => $lastName,
+            'program_office' => $data['program_office'] ?? $data['requestor_program_office'] ?? null,
+            'contact_number' => $data['contact_number'] ?? $data['requestor_contact_number'] ?? null,
+            'purpose'        => $data['purpose'] ?? null,
+            'persons'        => $data['number_of_persons'] ?? $data['no_of_person'] ?? null,
+        ];
+
+        $slotCandidates = DB::table('venue_bookings')
+            ->join('tracking_numbers', 'venue_bookings.tracking_number_id', '=', 'tracking_numbers.id')
+            ->where('venue_bookings.venue_id', $venue->id)
+            ->whereIn('tracking_numbers.status', ['pending', 'approved', 'ongoing', 'on-going'])
+            ->where(function ($q) use ($dateOfUsage, $reservationEndDate, $timeStart, $timeEnd) {
+                $q->where(function ($sub) use ($dateOfUsage, $timeStart, $timeEnd) {
+                    $sub->where('venue_bookings.date_of_usage', '<=', $dateOfUsage)
+                        ->whereRaw('COALESCE(venue_bookings.reservation_end_date, venue_bookings.date_of_usage) >= ?', [$dateOfUsage])
+                        ->where('venue_bookings.time_start', '<', $timeEnd)
+                        ->where('venue_bookings.time_end', '>', $timeStart);
+                })->orWhere(function ($sub2) use ($dateOfUsage, $reservationEndDate, $timeStart, $timeEnd) {
+                    $sub2->where('venue_bookings.date_of_usage', '<=', $reservationEndDate)
+                        ->whereRaw('COALESCE(venue_bookings.reservation_end_date, venue_bookings.date_of_usage) >= ?', [$dateOfUsage])
+                        ->where('venue_bookings.time_start', '<', $timeEnd)
+                        ->where('venue_bookings.time_end', '>', $timeStart);
+                });
+            })
+            ->select(
+                'tracking_numbers.reference_code',
+                'tracking_numbers.status',
+                'venue_bookings.venue_id',
+                'venue_bookings.email_address',
+                'venue_bookings.first_name',
+                'venue_bookings.last_name',
+                'venue_bookings.program_office',
+                'venue_bookings.contact_number',
+                'venue_bookings.purpose',
+                'venue_bookings.no_of_person'
+            )
+            ->get();
+
+        $match = $slotCandidates->first(function ($row) use ($incomingIdentity) {
+            return DuplicateSubmissionGuard::isSameRequestor($incomingIdentity, [
+                'venue_id'       => $row->venue_id,
+                'email'          => $row->email_address,
+                'first_name'     => $row->first_name,
+                'last_name'      => $row->last_name,
+                'program_office' => $row->program_office,
+                'contact_number' => $row->contact_number,
+                'purpose'        => $row->purpose,
+                'persons'        => $row->no_of_person,
+            ]);
+        });
+
+        if (!$match) {
+            return null;
+        }
+
+        return [
+            'reference_code' => $match->reference_code,
+            'status'         => $match->status,
+            'venue_name'     => $venue->name,
+        ];
+    }
+
     public function create(array $data): VenueBooking
     {
-        return DB::transaction(function () use ($data) {
+        $booking = DB::transaction(function () use ($data) {
             $startDt = $data['start_datetime'] ?? ($data['date_of_usage'] . ' ' . ($data['time_start'] ?? '08:00:00'));
             $reservationEndDate = $data['reservation_end_date'] ?? $data['end_date'] ?? ($data['date_of_usage'] ?? date('Y-m-d', strtotime($startDt)));
             $endDt   = $data['end_datetime']   ?? ($reservationEndDate . ' ' . ($data['time_end'] ?? '12:00:00'));
@@ -87,27 +195,37 @@ class VenueBookingService
 
             // Permanent Active / Pending Duplicate Reservation Check
             // A requestor cannot submit another booking for the same venue and overlapping timeslot
-            // if they already have an active (pending, approved, ongoing) reservation under their email or name.
+            // if they already have an active (pending, approved, ongoing) reservation under their identity.
+            //
+            // Identity comparison is normalized (trim + lowercase, whitespace-collapsed) via
+            // DuplicateSubmissionGuard so that name/email casing differences (e.g. "Angie Petilo"
+            // vs "ANGIE PETILO") do not slip through as two distinct requestors. A match is flagged
+            // ONLY when ALL of: same venue selected, full name, email address, AND contact number
+            // all match (normalized) — see DuplicateSubmissionGuard::isSameRequestor().
             $applicantEmail = $data['email_address'] ?? $data['email'] ?? null;
             $firstName = $data['first_name'] ?? null;
             $lastName = $data['last_name'] ?? null;
+            $applicantOffice = $data['requestor_program_office'] ?? $data['program_office'] ?? null;
+            $applicantContact = $data['requestor_contact_number'] ?? $data['contact_number'] ?? null;
+            $applicantPurpose = $data['purpose'] ?? null;
+            $applicantPersons = $data['number_of_persons'] ?? $data['no_of_person'] ?? null;
+
+            $incomingIdentity = [
+                'venue_id'       => $venue->id,
+                'email'          => $applicantEmail,
+                'first_name'     => $firstName,
+                'last_name'      => $lastName,
+                'program_office' => $applicantOffice,
+                'contact_number' => $applicantContact,
+                'purpose'        => $applicantPurpose,
+                'persons'        => $applicantPersons,
+            ];
 
             if (!empty($applicantEmail) || (!empty($firstName) && !empty($lastName))) {
-                $existingActiveBooking = DB::table('venue_bookings')
+                $slotCandidates = DB::table('venue_bookings')
                     ->join('tracking_numbers', 'venue_bookings.tracking_number_id', '=', 'tracking_numbers.id')
                     ->where('venue_bookings.venue_id', $venue->id)
                     ->whereIn('tracking_numbers.status', ['pending', 'approved', 'ongoing', 'on-going'])
-                    ->where(function ($q) use ($applicantEmail, $firstName, $lastName) {
-                        if ($applicantEmail) {
-                            $q->where('venue_bookings.email_address', $applicantEmail);
-                        }
-                        if ($firstName && $lastName) {
-                            $q->orWhere(function ($sub) use ($firstName, $lastName) {
-                                $sub->where('venue_bookings.first_name', $firstName)
-                                    ->where('venue_bookings.last_name', $lastName);
-                            });
-                        }
-                    })
                     ->where(function ($q) use ($dateOfUsage, $reservationEndDate, $timeStart, $timeEnd) {
                         $q->where(function ($sub) use ($dateOfUsage, $timeStart, $timeEnd) {
                             $sub->where('venue_bookings.date_of_usage', '<=', $dateOfUsage)
@@ -121,8 +239,32 @@ class VenueBookingService
                                 ->where('venue_bookings.time_end', '>', $timeStart);
                         });
                     })
-                    ->select('tracking_numbers.reference_code', 'tracking_numbers.status')
-                    ->first();
+                    ->select(
+                        'tracking_numbers.reference_code',
+                        'tracking_numbers.status',
+                        'venue_bookings.venue_id',
+                        'venue_bookings.email_address',
+                        'venue_bookings.first_name',
+                        'venue_bookings.last_name',
+                        'venue_bookings.program_office',
+                        'venue_bookings.contact_number',
+                        'venue_bookings.purpose',
+                        'venue_bookings.no_of_person'
+                    )
+                    ->get();
+
+                $existingActiveBooking = $slotCandidates->first(function ($row) use ($incomingIdentity) {
+                    return DuplicateSubmissionGuard::isSameRequestor($incomingIdentity, [
+                        'venue_id'       => $row->venue_id,
+                        'email'          => $row->email_address,
+                        'first_name'     => $row->first_name,
+                        'last_name'      => $row->last_name,
+                        'program_office' => $row->program_office,
+                        'contact_number' => $row->contact_number,
+                        'purpose'        => $row->purpose,
+                        'persons'        => $row->no_of_person,
+                    ]);
+                });
 
                 if ($existingActiveBooking) {
                     $statusLabel = strtoupper($existingActiveBooking->status);
@@ -130,22 +272,25 @@ class VenueBookingService
                 }
 
                 // Anti-Spam Duplicate Prevention (15-Minute Buffer for rapid repeated attempts)
-                $recentDuplicate = DB::table('venue_bookings')
+                $recentCandidates = DB::table('venue_bookings')
                     ->where('venue_id', $venue->id)
                     ->where('created_at', '>=', now()->subMinutes(15))
-                    ->where(function ($q) use ($applicantEmail, $firstName, $lastName, $dateOfUsage) {
-                        if ($applicantEmail) {
-                            $q->where('email_address', $applicantEmail);
-                        }
-                        if ($firstName && $lastName) {
-                            $q->orWhere(function ($sub) use ($firstName, $lastName, $dateOfUsage) {
-                                $sub->where('first_name', $firstName)
-                                    ->where('last_name', $lastName)
-                                    ->where('date_of_usage', $dateOfUsage);
-                            });
-                        }
-                    })
-                    ->exists();
+                    ->where('date_of_usage', $dateOfUsage)
+                    ->select('venue_id', 'email_address', 'first_name', 'last_name', 'program_office', 'contact_number', 'purpose', 'no_of_person')
+                    ->get();
+
+                $recentDuplicate = $recentCandidates->first(function ($row) use ($incomingIdentity) {
+                    return DuplicateSubmissionGuard::isSameRequestor($incomingIdentity, [
+                        'venue_id'       => $row->venue_id,
+                        'email'          => $row->email_address,
+                        'first_name'     => $row->first_name,
+                        'last_name'      => $row->last_name,
+                        'program_office' => $row->program_office,
+                        'contact_number' => $row->contact_number,
+                        'purpose'        => $row->purpose,
+                        'persons'        => $row->no_of_person,
+                    ]);
+                });
 
                 if ($recentDuplicate) {
                     throw new \InvalidArgumentException('You have already submitted a venue booking request recently. To prevent duplicate bookings, please wait 15 minutes before submitting again or check your existing tracking number.');
@@ -311,16 +456,24 @@ class VenueBookingService
 
         // Dispatch real-time Pusher event
         try {
+            $refCode    = $booking->trackingNumber?->reference_code ?? $booking->reference_code ?? "TRK-AVR{$booking->id}";
+            $filerName  = $booking->filer_name ?? $booking->requestor_name ?? 'Requestor';
+            $office     = $booking->program_office ?? $booking->requestor_program_office ?? 'Department';
+            $venueName  = $booking->venue?->name ?? 'AVR Facility';
+            $dateStr    = $booking->date_of_usage ?? date('Y-m-d');
+            $tStart     = $booking->time_start ?? '08:00:00';
+            $tEnd       = $booking->time_end ?? '12:00:00';
+
             event(new \App\Events\BookingCreated(
                 'venue_booking',
-                $referenceCode,
+                $refCode,
                 $filerName,
                 $office,
-                $venue->name ?? 'AVR Facility',
-                $dateOfUsage,
-                $timeStart,
-                $timeEnd,
-                $bookingId
+                $venueName,
+                $dateStr,
+                $tStart,
+                $tEnd,
+                $booking->id
             ));
         } catch (\Throwable $e) {}
 
@@ -329,12 +482,32 @@ class VenueBookingService
 
     public function approve(VenueBooking $booking, User $actor, ?string $remarks = null, array $extra = []): VenueBooking
     {
-        return DB::transaction(function () use ($booking, $actor, $remarks, $extra) {
-            $rawDate    = $booking->date_of_usage;
-            $rawEndDate = $booking->reservation_end_date ?? $rawDate;
+        // Collected here during the transaction, then used to send emails and
+        // broadcast events strictly AFTER the transaction commits — keeps the
+        // approval + all auto-rejections atomic (one commit/rollback unit) while
+        // guaranteeing no notification is sent for a change that got rolled back.
+        $autoRejectedForNotification = [];
+        $winningBookingForNotification = null;
+
+        $result = DB::transaction(function () use ($booking, $actor, $remarks, $extra, &$autoRejectedForNotification, &$winningBookingForNotification) {
+            // Normalize to plain 'Y-m-d' strings — $booking->date_of_usage /
+            // reservation_end_date are cast to Carbon instances by the model, which
+            // stringify as "YYYY-MM-DD 00:00:00". Comparing that against the plain
+            // "YYYY-MM-DD" strings stored in the DB column works under MySQL (which
+            // coerces types), but silently fails as a pure string comparison under
+            // SQLite (used in tests) and is fragile either way. Always compare dates
+            // as plain Y-m-d strings explicitly.
+            $rawDate    = date('Y-m-d', strtotime((string) $booking->date_of_usage));
+            $rawEndDate = $booking->reservation_end_date ? date('Y-m-d', strtotime((string) $booking->reservation_end_date)) : $rawDate;
             $timeStart  = $booking->time_start;
             $timeEnd    = $booking->time_end;
             $venueId    = $booking->venue_id;
+
+            // Lock the venue row for the duration of this transaction so that two
+            // concurrent approve() calls for conflicting bookings on the same venue
+            // cannot both pass the overlap check below (prevents a TOCTOU double-approval
+            // race). Mirrors the lock already taken in create().
+            Venue::where('id', $venueId)->lockForUpdate()->first();
 
             // SPEC RULE 1: OVERLAP VALIDATION BEFORE APPROVAL
             $existingOverlap = VenueBooking::query()
@@ -415,14 +588,7 @@ class VenueBookingService
                 $booking->email_address ?? $booking->requestor_email
             );
 
-            // Send status update email asynchronously
-            SendBookingStatusUpdateJob::dispatch('venue', $booking->fresh('venue'), 'approved', $remarks);
-
-            // Broadcast real-time status update
-            try {
-                $ref = $booking->reference_code ?? $booking->trackingNumber?->reference_code ?? ('TRK-VB-' . $booking->id);
-                event(new \App\Events\BookingStatusUpdated('venue_booking', $ref, 'approved', $booking->id, $remarks));
-            } catch (\Throwable $e) {}
+            $winningBookingForNotification = $booking->fresh('venue');
 
             // SPEC RULE 4: AUTO-REJECTION OF COMPETING PENDING & INCOMPLETE REQUESTS
             // Automatically reject all other pending or incomplete requests for the SAME date/venue/timeslot.
@@ -447,6 +613,9 @@ class VenueBookingService
                 ->select('venue_bookings.*', 'tracking_numbers.status as tracking_status')
                 ->get();
 
+            $winningRefCode = $booking->reference_code ?? $booking->trackingNumber?->reference_code ?? ('TRK-VB-' . $booking->id);
+            $winningVenueName = $booking->venue?->name ?? 'the venue';
+
             foreach ($competingPendingBookings as $competing) {
                 $competingStatus = strtolower($competing->tracking_status ?? $competing->status ?? 'pending');
                 try {
@@ -456,12 +625,16 @@ class VenueBookingService
                 } catch (\Throwable $e) {
                     $timeFormatted = "({$timeStart} - {$timeEnd})";
                 }
-                $autoRejectReason = "please come by to the office to settle the venue because there’s available venue to their selected time schedule {$timeFormatted}";
+                $autoRejectReason = "This reservation was automatically rejected because another request for {$winningVenueName} on this date and time {$timeFormatted} was approved first (Ref: {$winningRefCode}). Please submit a new reservation for a different venue or schedule.";
 
                 if (\Illuminate\Support\Facades\Schema::hasColumn('venue_bookings', 'status')) {
                     $fillData = ['status' => 'rejected'];
                     if (\Illuminate\Support\Facades\Schema::hasColumn('venue_bookings', 'rejection_reason')) {
                         $fillData['rejection_reason'] = $autoRejectReason;
+                    }
+                    if (\Illuminate\Support\Facades\Schema::hasColumn('venue_bookings', 'is_auto_rejected')) {
+                        $fillData['is_auto_rejected'] = true;
+                        $fillData['auto_reject_winning_reference'] = $winningRefCode;
                     }
                     $competing->forceFill($fillData)->save();
                 }
@@ -492,13 +665,14 @@ class VenueBookingService
 
                 $this->auditLog->log(
                     $actor,
-                    'VENUE_BOOKING_REJECTED',
+                    'VENUE_BOOKING_AUTO_REJECTED',
                     'venue_bookings',
                     $competing->id,
                     [
-                        'remarks'         => $autoRejectReason,
-                        'reference_code'  => $competing->reference_code ?? $competing->trackingNumber?->reference_code,
-                        'winning_booking' => $booking->reference_code ?? $booking->trackingNumber?->reference_code,
+                        'remarks'          => $autoRejectReason,
+                        'reference_code'   => $competing->reference_code ?? $competing->trackingNumber?->reference_code,
+                        'winning_booking'  => $winningRefCode,
+                        'is_auto_rejected' => true,
                     ]
                 );
 
@@ -510,12 +684,48 @@ class VenueBookingService
                     $competing->email_address ?? $competing->requestor_email
                 );
 
-                // Dispatch rejection email/SMS update to auto-rejected applicant with re-booking prompt
-                SendBookingStatusUpdateJob::dispatch('venue', $competing->fresh(), 'rejected', $autoRejectReason);
+                // Defer email dispatch + broadcast until AFTER commit (see below) —
+                // just record what needs to be sent while we still have the fresh model.
+                $autoRejectedForNotification[] = [
+                    'booking' => $competing->fresh(),
+                    'reason'  => $autoRejectReason,
+                ];
             }
 
             return $booking->fresh();
         });
+
+        // ─── Post-Transaction Notifications (only runs if the transaction committed) ───
+        // Winner: email + broadcast
+        try {
+            SendBookingStatusUpdateJob::dispatch('venue', $winningBookingForNotification ?? $result, 'approved', $remarks);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Failed to dispatch venue approval email: ' . $e->getMessage());
+        }
+        try {
+            $ref = $result->reference_code ?? $result->trackingNumber?->reference_code ?? ('TRK-VB-' . $result->id);
+            event(new \App\Events\BookingStatusUpdated('venue_booking', $ref, 'approved', $result->id, $remarks));
+        } catch (\Throwable $e) {}
+
+        // Auto-rejected competitors: exactly one email + one broadcast each
+        foreach ($autoRejectedForNotification as $entry) {
+            $competingBooking = $entry['booking'];
+            $autoRejectReason = $entry['reason'];
+            try {
+                SendBookingStatusUpdateJob::dispatch('venue', $competingBooking, 'rejected', $autoRejectReason);
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::error('Failed to dispatch auto-reject email: ' . $e->getMessage());
+            }
+            try {
+                $competingRef = $competingBooking->reference_code ?? $competingBooking->trackingNumber?->reference_code ?? ('TRK-VB-' . $competingBooking->id);
+                event(new \App\Events\BookingStatusUpdated('venue_booking', $competingRef, 'rejected', $competingBooking->id, $autoRejectReason, [
+                    'is_auto_rejected'  => true,
+                    'winning_reference' => $result->reference_code ?? $result->trackingNumber?->reference_code,
+                ]));
+            } catch (\Throwable $e) {}
+        }
+
+        return $result;
     }
 
     public function markIncomplete(VenueBooking $booking, User $actor, array $missingList, string $remarks, int $graceHours = 24): VenueBooking
@@ -701,7 +911,21 @@ class VenueBookingService
 
     public function ongoing(VenueBooking $booking, ?User $actor = null): VenueBooking
     {
-        return DB::transaction(function () use ($booking, $actor) {
+        $previousStatus = '';
+
+        $result = DB::transaction(function () use ($booking, $actor, &$previousStatus) {
+            // Lock tracking row to prevent concurrent race condition on status change
+            $lockedTracking = DB::table('tracking_numbers')
+                ->where('id', $booking->tracking_number_id)
+                ->lockForUpdate()
+                ->first();
+
+            $previousStatus = strtolower(
+                $lockedTracking?->status
+                    ?? $booking->status
+                    ?? ''
+            );
+
             if (\Illuminate\Support\Facades\Schema::hasColumn('venue_bookings', 'status')) {
                 $booking->forceFill(['status' => 'on-going'])->save();
             }
@@ -745,6 +969,25 @@ class VenueBookingService
 
             return $booking->fresh(['venue', 'trackingNumber', 'documents']);
         });
+
+        // ── Email 3 (Venue): Equipment unit-list released email ───────────────────
+        // Only send when the booking transitioned from 'approved' and has assigned units.
+        // Failure must NOT break the status transition (already committed above).
+        try {
+            $assignedAfter = $result->assigned_units ?? [];
+            if (is_string($assignedAfter)) {
+                try { $assignedAfter = json_decode($assignedAfter, true) ?? []; } catch (\Throwable $t) { $assignedAfter = []; }
+            }
+            $hasUnits = is_array($assignedAfter) && !empty(array_filter($assignedAfter));
+
+            if ($previousStatus === 'approved' && $hasUnits) {
+                SendBookingStatusUpdateJob::dispatch('venue', $result, 'on-going');
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Failed to dispatch venue on-going email: ' . $e->getMessage());
+        }
+
+        return $result;
     }
 
     public function postInspection(VenueBooking $booking, ?User $actor = null): VenueBooking
@@ -964,15 +1207,27 @@ class VenueBookingService
             } catch (\Throwable $e) {}
 
             // Dispatch completion or late return email notification to requestor
+            // ── Email 4 (Venue): Return receipt with per-unit condition ────────────
+            // Attach unit_conditions as a virtual attribute so booking_status_update.blade.php
+            // can render the per-unit inspection table (same pattern as EquipmentBorrow).
             try {
                 $compStatus = $isLate ? 'late return' : 'completed';
                 $compRemarks = $isLate 
                     ? "Your venue usage has concluded ({$minutesLate} minutes past scheduled end time). Inspection completed."
                     : "Your venue reservation has concluded and has been cleared in good order.";
 
+                $freshBooking = $booking->fresh(['venue', 'trackingNumber']);
+                // Pass unit_conditions into the model as a virtual field so the blade
+                // equipment_unit_table partial can merge inspection conditions.
+                if (!empty($unitConditions)) {
+                    $freshBooking->unit_conditions = is_array($unitConditions)
+                        ? json_encode($unitConditions)
+                        : $unitConditions;
+                }
+
                 SendBookingStatusUpdateJob::dispatch(
                     'venue',
-                    $booking->fresh(['venue', 'trackingNumber']),
+                    $freshBooking,
                     $compStatus,
                     $compRemarks
                 );

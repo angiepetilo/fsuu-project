@@ -76,10 +76,10 @@ class DashboardStatsController extends Controller
         $totalEquipBorrows = $ebQuery->count();
 
         // 4. Pending Venue Bookings — scoped to active term (includes incomplete review requests)
-        $pendingVbQuery = DB::table('venue_bookings')
-            ->join('tracking_numbers', 'venue_bookings.tracking_number_id', '=', 'tracking_numbers.id')
-            ->whereNull('venue_bookings.archived_at')
-            ->whereIn(DB::raw('LOWER(TRIM(tracking_numbers.status))'), ['pending', 'incomplete']);
+        // Uses VenueBooking::pendingReview(), the SAME single source of truth the Venue
+        // Bookings list page's own pending filter is built on, so the Tasks badge, the
+        // "Pending Actions" dropdown, and the list can never disagree on this count.
+        $pendingVbQuery = \App\Models\VenueBooking::query()->pendingReview();
         if ($activeTermId) {
             $pendingVbQuery->where('venue_bookings.academic_term_id', $activeTermId);
         }

@@ -100,8 +100,105 @@
 </div>
 <p>Please be reminded to adhere strictly to scheduled return times in future borrowings to ensure equipment availability for other university requestors.</p>
 
+@elseif(in_array($normStatus, ['on going', 'on-going', 'ongoing', 'released', 'on_going']))
+@php
+    // Resolve assigned physical units from barcodes/ids stored in $booking->assigned_units
+    // Works for both type='equipment' and type='venue' (venue with equipment units).
+    $assignedRaw  = $booking->assigned_units ?? [];
+    if (is_string($assignedRaw)) {
+        try { $assignedRaw = json_decode($assignedRaw, true) ?? []; } catch (\Throwable $e) { $assignedRaw = []; }
+    }
+    $barcodes = array_values(array_filter((array)$assignedRaw, fn($v) => !empty($v)));
+    $resolvedUnits = collect();
+    if (!empty($barcodes)) {
+        $numericIds = array_values(array_filter($barcodes, fn($v) => is_numeric($v) && (int)$v > 0));
+        $unitCodes  = array_values(array_filter($barcodes, fn($v) => !empty($v)));
+        try {
+            $resolvedUnits = \App\Models\EquipmentUnit::where(function($q) use ($unitCodes, $numericIds) {
+                $q->whereIn('barcode', $unitCodes);
+                if (!empty($numericIds)) { $q->orWhereIn('id', array_map('intval', $numericIds)); }
+            })->get();
+        } catch (\Throwable $e) {}
+    }
+@endphp
+<div style="border-bottom: 2px solid #dcfce7; padding-bottom: 12px; margin-bottom: 16px;">
+  <p style="font-size: 16px; font-weight: bold; color: #15803d; margin: 0;">EQUIPMENT RELEASED — BORROWING NOW ON-GOING</p>
+  <span style="font-size: 12px; color: #64748b;">Father Saturnino Urios University &bull; AVR Custodial Services</span>
+</div>
+<p>Good day, <strong>{{ $requestorName }}</strong>.</p>
+<p>Your borrowed equipment unit(s) have been officially <strong style="color:#15803d;">released and handed over</strong> to you. Please find the full unit list below:</p>
+
+<div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; margin: 16px 0;">
+  <div style="font-size: 11px; font-weight: bold; text-transform: uppercase; color: #64748b; letter-spacing: 1px; margin-bottom: 8px;">Released Units — {{ $ref }}</div>
+  @include('emails.partials.equipment_unit_table', ['units' => $resolvedUnits, 'mode' => 'release'])
+</div>
+
+<div style="background-color: #fffbeb; border-left: 4px solid #f59e0b; padding: 12px 16px; margin: 16px 0; border-radius: 4px;">
+  <p style="margin: 0; color: #92400e; font-size: 13px; font-weight: 600;">
+    ⏰ <strong>Return Deadline:</strong> {{ $formattedSchedule ?? ($formattedEnd ?? 'Please refer to your schedule.') }}
+  </p>
+</div>
+<p style="color: #374151; font-size: 13px; margin: 14px 0;">Please return the equipment on time to avoid a violation record.</p>
+
 @elseif(in_array($normStatus, ['completed', 'returned', 'done', 'cleared']))
-@if(($type ?? 'venue') === 'equipment')
+@php
+    // Resolve physical units WITH their recorded inspection conditions.
+    // Works for both type='equipment' and type='venue' (venue with equipment units).
+    $assignedRaw   = $booking->assigned_units ?? [];
+    if (is_string($assignedRaw)) {
+        try { $assignedRaw = json_decode($assignedRaw, true) ?? []; } catch (\Throwable $e) { $assignedRaw = []; }
+    }
+    $barcodes = array_values(array_filter((array)$assignedRaw, fn($v) => !empty($v)));
+
+    $unitCondMap = [];
+    if (!empty($booking->unit_conditions)) {
+        $raw = $booking->unit_conditions;
+        if (is_string($raw)) { try { $raw = json_decode($raw, true) ?? []; } catch (\Throwable $e) { $raw = []; } }
+        $unitCondMap = (array)$raw;
+    }
+
+    $resolvedUnits = collect();
+    if (!empty($barcodes)) {
+        $numericIds = array_values(array_filter($barcodes, fn($v) => is_numeric($v) && (int)$v > 0));
+        $unitCodes  = array_values(array_filter($barcodes, fn($v) => !empty($v)));
+        try {
+            $dbUnits = \App\Models\EquipmentUnit::where(function($q) use ($unitCodes, $numericIds) {
+                $q->whereIn('barcode', $unitCodes);
+                if (!empty($numericIds)) { $q->orWhereIn('id', array_map('intval', $numericIds)); }
+            })->get();
+            $resolvedUnits = $dbUnits->map(function ($unit) use ($unitCondMap, $assignedRaw) {
+                $key = $unit->barcode ?? $unit->serial_number;
+                $foundCond = $unitCondMap[$key] ?? null;
+                if (!$foundCond) {
+                    foreach ($assignedRaw as $idx => $bc) {
+                        if ((string)$bc === (string)$key && isset($unitCondMap[$idx])) {
+                            $foundCond = $unitCondMap[$idx];
+                            break;
+                        }
+                    }
+                }
+                if ($foundCond) {
+                    $condStr = is_array($foundCond) ? ($foundCond['condition'] ?? $foundCond['status'] ?? 'Good') : (string)$foundCond;
+                    $unit->condition = ucfirst(strtolower(trim($condStr)));
+                }
+                return $unit;
+            });
+        } catch (\Throwable $e) {}
+    }
+
+    $hasReturnedUnits = $resolvedUnits->isNotEmpty();
+
+    // Clearance label — used when per-unit table is shown
+    $finalBorrowStatus = strtolower($booking->status ?? $booking->trackingNumber?->status ?? 'completed');
+    $clearanceStatus = match(true) {
+        str_contains($finalBorrowStatus, 'late')    => 'CLEARED — LATE RETURN',
+        str_contains($finalBorrowStatus, 'damaged') => 'CLEARED — DAMAGE NOTED',
+        str_contains($finalBorrowStatus, 'lost')    => 'INCOMPLETE — UNIT LOST',
+        default => 'CLEARED / RETURN COMPLETED',
+    };
+    $clearanceColor = str_contains($clearanceStatus, 'CLEARED') ? '#15803d' : '#991b1b';
+@endphp
+@if($hasReturnedUnits)
 <div style="border-bottom: 2px solid #22c55e; padding-bottom: 12px; margin-bottom: 16px;">
   <p style="font-size: 16px; font-weight: bold; color: #15803d; margin: 0;">OFFICIAL RETURN RECEIPT &amp; CUSTODIAL CLEARANCE</p>
   <span style="font-size: 12px; color: #64748b;">Father Saturnino Urios University &bull; Audio-Visual Resource Center</span>
@@ -111,7 +208,7 @@
 <p>This email serves as your <strong>Official Return Receipt and Custodial Clearance Certificate</strong> for the equipment borrowing transaction below:</p>
 
 <div style="background-color: #f0fdf4; border: 2px solid #86efac; border-radius: 10px; padding: 16px; margin: 18px 0;">
-  <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed #bbf7d0; padding-bottom: 8px; margin-bottom: 10px;">
+  <div style="border-bottom: 1px dashed #bbf7d0; padding-bottom: 8px; margin-bottom: 10px; display:flex; justify-content:space-between;">
     <span style="font-size: 11px; text-transform: uppercase; font-weight: bold; color: #166534;">Tracking Number:</span>
     <span style="font-size: 14px; font-weight: 900; color: #15803d; font-family: monospace;">{{ $ref }}</span>
   </div>
@@ -125,32 +222,32 @@
       <td style="padding: 5px 0; color: #0f172a; font-weight: 600;">{{ $booking->purpose ?? 'University Activity' }}</td>
     </tr>
     <tr>
-      <td style="padding: 5px 0; color: #475569; font-weight: bold;">Equipment Returned:</td>
-      <td style="padding: 5px 0; color: #0f172a; font-weight: 600;">
-        {{ !empty($equipmentList) ? implode(', ', $equipmentList) : ($booking->equipment_name ?? 'Returned Equipment Units') }}
-      </td>
+      <td style="padding: 5px 0; color: #475569; font-weight: bold;">Borrow Schedule:</td>
+      <td style="padding: 5px 0; color: #0f172a; font-weight: 600;">{{ $formattedSchedule ?? ($formattedStart ?? 'Scheduled Time') }}</td>
     </tr>
     <tr>
-      <td style="padding: 5px 0; color: #475569; font-weight: bold;">Date &amp; Time:</td>
-      <td style="padding: 5px 0; color: #0f172a; font-weight: 600;">
-        Borrowed: {{ $formattedSchedule ?? ($formattedStart ?? 'Scheduled Time') }}<br>
-        Returned: {{ now()->format('M d, Y h:i A') }}
-      </td>
+      <td style="padding: 5px 0; color: #475569; font-weight: bold;">Returned On:</td>
+      <td style="padding: 5px 0; color: #0f172a; font-weight: 600;">{{ now()->format('M d, Y h:i A') }}</td>
     </tr>
     <tr>
       <td style="padding: 5px 0; color: #475569; font-weight: bold;">Clearance Status:</td>
-      <td style="padding: 5px 0; color: #15803d; font-weight: 800;">
-        ✓ CLEARED / RETURN COMPLETED
-      </td>
+      <td style="padding: 5px 0; font-weight: 800; color: {{ $clearanceColor }};">✓ {{ $clearanceStatus }}</td>
     </tr>
-    @if(!empty($remarks))
-    <tr>
-      <td style="padding: 5px 0; color: #475569; font-weight: bold;">Inspection Notes:</td>
-      <td style="padding: 5px 0; color: #0f172a; font-weight: 500;">{{ $remarks }}</td>
-    </tr>
-    @endif
   </table>
 </div>
+
+<div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; margin: 16px 0;">
+  <div style="font-size: 11px; font-weight: bold; text-transform: uppercase; color: #64748b; letter-spacing: 1px; margin-bottom: 8px;">Returned Units — Per-Unit Inspection Record</div>
+  @include('emails.partials.equipment_unit_table', ['units' => $resolvedUnits, 'mode' => 'receipt'])
+</div>
+
+@if(!empty($remarks))
+<div style="background-color: #fffbeb; border-left: 4px solid #f59e0b; padding: 12px 16px; margin: 16px 0;">
+  <p style="margin:0;font-weight:bold;color:#92400e;font-size:12px;">Inspection Notes:</p>
+  <p style="margin:4px 0 0;color:#78350f;font-size:13px;">{{ $remarks }}</p>
+</div>
+@endif
+
 <p style="font-size: 12px; color: #475569; font-style: italic;">
   All physical units and included accessories have been inspected and accounted for by the custodial staff. Your custodial accountability record for this requisition is officially cleared.
 </p>
@@ -253,8 +350,11 @@ Scheduled date: {{ $formattedSchedule ?? ($formattedStart ?? 'Scheduled Time') }
 
 @elseif($normStatus === 'rejected')
 <p>Good day, {{ $requestorName }}.</p>
-<p>Your {{ $itemType }} (Reference: <strong>{{ $ref }}</strong>) was not approved.<br>
-Remarks: {{ $remarks ?? 'None provided' }}</p>
+<p>Your {{ $itemType }} (Reference: <strong>{{ $ref }}</strong>) was not approved.</p>
+<div style="background-color: #fef2f2; border-left: 4px solid #ef4444; padding: 12px 16px; margin: 16px 0; border-radius: 4px;">
+  <p style="margin: 0 0 4px 0; font-weight: bold; color: #991b1b; font-size: 12px; text-transform: uppercase;">Reason:</p>
+  <p style="margin: 0; color: #7f1d1d; font-size: 13px;">{{ $remarks ?? 'This request was not approved because another reservation for the same venue and time was approved first. Please submit a new reservation for a different venue or schedule.' }}</p>
+</div>
 
 @else
 <p>Good day, {{ $requestorName }}.</p>

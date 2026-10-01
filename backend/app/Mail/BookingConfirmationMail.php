@@ -93,10 +93,12 @@ class BookingConfirmationMail extends Mailable
         return new Content(
             view: 'emails.booking_confirmation',
             with: [
-                'refCode' => $this->refCode,
-                'formattedStart' => $this->formattedStart,
-                'formattedEnd' => $this->formattedEnd,
-                'formattedSchedule' => $this->formattedSchedule,
+                'type'             => $this->type,
+                'booking'          => $this->booking,
+                'refCode'          => $this->refCode,
+                'formattedStart'   => $this->formattedStart,
+                'formattedEnd'     => $this->formattedEnd,
+                'formattedSchedule'=> $this->formattedSchedule,
             ]
         );
     }

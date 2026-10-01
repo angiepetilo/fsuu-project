@@ -258,11 +258,9 @@ export default function VenueBookingDetailModal({
 
   // Override State for Admin / SysAd (Supports Multiple Categories & Dynamic Unit Counts)
   const [isOverrideActive, setIsOverrideActive] = useState(false);
-  const [overrideCategories, setOverrideCategories] = useState([
-    { category: "NONE", quantity: 0 }
-  ]);
-  const [overrideCategory, setOverrideCategory] = useState("NONE");
-  const [overrideQuantity, setOverrideQuantity] = useState(0);
+  const [overrideCategories, setOverrideCategories] = useState([]);
+  const [overrideCategory, setOverrideCategory] = useState("");
+  const [overrideQuantity, setOverrideQuantity] = useState(1);
 
   // User Auth & Role Check
   const { user } = useAuth();
@@ -851,12 +849,41 @@ export default function VenueBookingDetailModal({
         };
       }).filter(c => c.category && c.category !== "None");
     }
+
+    // Fallback: Infer requested categories from assigned units if structured items/notes were omitted
+    if (categories.length === 0) {
+      let unitsObj = selected.assigned_units;
+      if (!unitsObj || typeof unitsObj !== "object" || Object.keys(unitsObj).length === 0) {
+        try {
+          const saved = localStorage.getItem(`fsuu_assigned_units_${selected.id}`) || localStorage.getItem(`fsuu_completed_assigned_units_${selected.id}`);
+          if (saved) unitsObj = JSON.parse(saved);
+        } catch {}
+      }
+      if (unitsObj && typeof unitsObj === "object") {
+        const inferred = {};
+        Object.values(unitsObj).forEach((barcode) => {
+          if (!barcode || barcode === "—") return;
+          const u = (physicalUnits || []).find((pu) =>
+            String(pu.barcode || pu.serial_number || pu.code || pu.id).trim().toUpperCase() === String(barcode).trim().toUpperCase()
+          );
+          const catName = u ? (u.equipmentType?.eq_name || u.equipment_type?.eq_name || u.category || resolveEquipmentName(u.equipment_type_id)) : "Equipment Item";
+          const typeId = u?.equipment_type_id || u?.equipmentType?.id || null;
+          if (!inferred[catName]) {
+            inferred[catName] = { category: catName, quantity: 0, equipment_type_id: typeId };
+          }
+          inferred[catName].quantity += 1;
+        });
+        const list = Object.values(inferred);
+        if (list.length > 0) return list;
+      }
+    }
+
     return categories;
   };
 
   const requestedCategories = getRequestedCategories();
 
-  // Sync override categories whenever booking changes: NONE / 0 if no categories selected
+  // Sync override categories whenever booking changes: empty if no categories selected
   useEffect(() => {
     if (!selected) return;
     const reqCats = getRequestedCategories();
@@ -866,18 +893,19 @@ export default function VenueBookingDetailModal({
         quantity: c.quantity || 1,
         equipment_type_id: c.equipment_type_id || null,
       })));
-      setOverrideCategory(reqCats[0]?.category || "NONE");
+      setOverrideCategory(reqCats[0]?.category || "");
       setOverrideQuantity(reqCats[0]?.quantity || 1);
     } else {
-      setOverrideCategories([{ category: "NONE", quantity: 0 }]);
-      setOverrideCategory("NONE");
-      setOverrideQuantity(0);
+      setOverrideCategories([]);
+      setOverrideCategory("");
+      setOverrideQuantity(1);
     }
-  }, [selected?.id, selected?.equipment_items, selected?.equipment_notes, fetchedEquipmentNotes]);
+  }, [selected?.id, selected?.equipment_items, selected?.equipment_notes, fetchedEquipmentNotes, physicalUnits]);
 
   const categoriesToRender = useMemo(() => {
     if (!isOverrideActive) return requestedCategories;
-    return overrideCategories.filter(c => c.category && c.category !== "NONE" && c.quantity > 0);
+    const validOverrides = overrideCategories.filter(c => c.category && c.category !== "NONE" && c.quantity > 0);
+    return validOverrides.length > 0 ? validOverrides : requestedCategories;
   }, [isOverrideActive, requestedCategories, overrideCategories]);
 
   // Physical units that are bundled as built-in components inside another parent unit
@@ -1416,11 +1444,13 @@ export default function VenueBookingDetailModal({
                     </span>
                     {(selected.rejection_reason || selected.remarks || selected.comments) && (
                       <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 border border-rose-200">
-                        {String(selected.rejection_reason || selected.remarks || '').toLowerCase().includes('conflict') 
-                          ? 'Schedule Conflict' 
-                          : String(selected.rejection_reason || selected.remarks || '').toLowerCase().includes('requirement') 
-                            ? 'Missing Requirements' 
-                            : 'Policy Review'}
+                        {selected.is_auto_rejected
+                          ? 'Rejected (Automatic)'
+                          : String(selected.rejection_reason || selected.remarks || '').toLowerCase().includes('conflict') 
+                            ? 'Schedule Conflict' 
+                            : String(selected.rejection_reason || selected.remarks || '').toLowerCase().includes('requirement') 
+                              ? 'Missing Requirements' 
+                              : 'Policy Review'}
                       </span>
                     )}
                   </div>
@@ -1434,6 +1464,11 @@ export default function VenueBookingDetailModal({
                     <p className="font-semibold text-slate-800 leading-relaxed text-xs whitespace-pre-wrap">
                       {selected.rejection_reason || selected.remarks || selected.comments || "Schedule conflict. Slot allocated per university policy."}
                     </p>
+                    {selected.is_auto_rejected && selected.auto_reject_winning_reference && (
+                      <p className="text-[11px] font-bold text-rose-700 pt-1">
+                        Conflicting booking: <span className="font-mono">{selected.auto_reject_winning_reference}</span>
+                      </p>
+                    )}
                   </div>
                   {hasConflict && vacantVenuesList.length > 0 && (
                     <div className="mt-2 p-2.5 bg-blue-50/90 border border-blue-200 rounded-xl text-xs space-y-1">
@@ -1593,6 +1628,7 @@ export default function VenueBookingDetailModal({
                   assignedUnitSelections={assignedUnitSelections}
                   setAssignedUnitSelections={updateAssignedUnitSelections}
                   getAvailableUnitsForCategory={getAvailableUnitsForCategory}
+                  allUnits={physicalUnits}
                   unitReturnedConditions={unitReturnedConditions}
                   setUnitReturnedConditions={updateUnitReturnedConditions}
                   equipmentInspectionNotes={preEquipmentInspectionNotes}
@@ -1657,6 +1693,7 @@ export default function VenueBookingDetailModal({
                     assignedUnitSelections={assignedUnitSelections}
                     setAssignedUnitSelections={updateAssignedUnitSelections}
                     getAvailableUnitsForCategory={getAvailableUnitsForCategory}
+                    allUnits={physicalUnits}
                     unitReturnedConditions={unitReturnedConditions}
                     setUnitReturnedConditions={updateUnitReturnedConditions}
                     equipmentInspectionNotes={equipmentInspectionNotes}
@@ -1665,6 +1702,7 @@ export default function VenueBookingDetailModal({
                     isSideBySide={true}
                     isApproved={false}
                     isPreEvent={false}
+                    dbEquipmentTypes={dbEquipmentTypes}
                   />
                 </div>
                 <div className="lg:col-span-6">
@@ -1826,7 +1864,7 @@ export default function VenueBookingDetailModal({
                         };
                         timeRange = ` (${formatTime(selected.time_start)} - ${formatTime(selected.time_end)})`;
                       }
-                      const msg = `Conflict : Timeslot already occupied. please come by to the office to settle the venue because there’s available venue to their selected time schedule${timeRange}`;
+                      const msg = `Conflict: Timeslot already occupied. Another reservation for this venue and time was approved first${timeRange}. Please submit a new reservation for a different venue or schedule.`;
                       setSelectedViolationType("Conflict : Timeslot already occupied");
                       setRejectionComments(msg);
                     }}
@@ -2090,6 +2128,7 @@ export default function VenueBookingDetailModal({
           showIncompleteForm={showIncompleteForm}
           setShowIncompleteForm={setShowIncompleteForm}
           isPostInspectionSaved={isPostInspectionSaved}
+          hasInspectionChanges={hasInspectionChanges}
           onRequestComplete={() => setShowCompleteConfirmModal(true)}
         />
 

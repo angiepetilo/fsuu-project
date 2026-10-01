@@ -1,4 +1,4 @@
-import { Loader2, Eye, Pencil, RotateCcw, EyeOff, MoreVertical, ChevronLeft, ChevronRight } from "lucide-react";
+import { Loader2, Eye, Pencil, EyeOff, MoreVertical, ChevronLeft, ChevronRight } from "lucide-react";
 
 /**
  * HistoryTable — Renders Venue or Equipment history records table with ActionMenuPopover and pagination.
@@ -24,7 +24,6 @@ export default function HistoryTable({
   setSelectedVenueModal,
   setSelectedEquipModal,
   handleOpenEdit,
-  handleUndoHistory,
   handleDeleteHistory,
   onViewIncident,
 }) {
@@ -310,7 +309,14 @@ export default function HistoryTable({
                       <td className="px-4 py-3 text-slate-600 font-mono whitespace-nowrap">{usageDate}</td>
                       <td className="px-4 py-3 text-slate-600 font-mono whitespace-nowrap">{timeRange}</td>
                       <td className="px-4 py-3 whitespace-nowrap">
-                        {isRejected ? (
+                        {isRejected && b.is_auto_rejected ? (
+                          <span
+                            className="font-mono text-xs font-extrabold text-rose-600 uppercase"
+                            title={b.auto_reject_winning_reference ? `Conflicting booking: ${b.auto_reject_winning_reference}` : undefined}
+                          >
+                            ● Rejected (automatic){b.auto_reject_winning_reference ? ` — ${b.auto_reject_winning_reference}` : ''}
+                          </span>
+                        ) : isRejected ? (
                           <span className="font-mono text-xs font-extrabold text-rose-600 uppercase">
                             ● Rejected
                           </span>
@@ -368,13 +374,6 @@ export default function HistoryTable({
                           </button>
                           <button
                             type="button"
-                            onClick={() => { handleUndoHistory(b.id, refCode, "venue", st); setActiveMenuId(null); setActiveMenuEl(null); }}
-                            className="w-full text-left px-3 py-1.5 rounded-lg hover:bg-slate-100 text-slate-700 flex items-center gap-2 cursor-pointer font-bold"
-                          >
-                            <RotateCcw size={13} className="text-slate-600" /> Undo
-                          </button>
-                          <button
-                            type="button"
                             onClick={() => { handleDeleteHistory(b.id, refCode, "venue"); setActiveMenuId(null); }}
                             className="w-full text-left px-3 py-1.5 rounded-lg hover:bg-slate-100 text-slate-600 flex items-center gap-2 cursor-pointer font-bold"
                           >
@@ -426,7 +425,11 @@ export default function HistoryTable({
                 <div key={`mob-v-${b.id || idx}`} className="p-4 space-y-2.5">
                   <div className="flex items-center justify-between gap-2">
                     <span className="font-mono font-extrabold text-xs text-slate-900">{refCode}</span>
-                    {isRejected ? (
+                    {isRejected && b.is_auto_rejected ? (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-50 text-rose-700 border border-rose-200">
+                        Rejected (automatic)
+                      </span>
+                    ) : isRejected ? (
                       <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-50 text-rose-700 border border-rose-200">
                         Rejected
                       </span>
@@ -458,6 +461,12 @@ export default function HistoryTable({
                     <p className="text-xs text-slate-500 font-medium">{department} • <span className="font-mono text-slate-700">{venueName}</span></p>
                   </div>
 
+                  {isRejected && b.is_auto_rejected && b.auto_reject_winning_reference && (
+                    <p className="text-[11px] text-rose-600 font-semibold">
+                      Conflicting booking: <span className="font-mono">{b.auto_reject_winning_reference}</span>
+                    </p>
+                  )}
+
                   <p className="text-xs font-mono text-slate-600 bg-slate-50 p-2 rounded-lg border border-slate-100">
                     📅 {usageDate} | ⏰ {timeRange}
                   </p>
@@ -469,15 +478,6 @@ export default function HistoryTable({
                       className="flex-1 min-h-[40px] px-3 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-extrabold flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
                     >
                       <Eye size={14} /> View Details
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => handleUndoHistory(b.id, refCode, "venue", st)}
-                      className="min-h-[40px] px-3 py-2 border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-bold flex items-center justify-center gap-1 shadow-2xs cursor-pointer"
-                      title="Undo"
-                    >
-                      <RotateCcw size={14} />
                     </button>
                   </div>
                 </div>
@@ -678,13 +678,6 @@ export default function HistoryTable({
 
                           <button
                             type="button"
-                            onClick={() => { handleUndoHistory(b.id, refCode, "equipment", st); setActiveMenuId(null); setActiveMenuEl(null); }}
-                            className="w-full text-left px-3 py-1.5 rounded-lg hover:bg-slate-100 text-slate-700 flex items-center gap-2 cursor-pointer font-bold"
-                          >
-                            <RotateCcw size={13} className="text-slate-600" /> Undo
-                          </button>
-                          <button
-                            type="button"
                             onClick={() => { handleDeleteHistory(b.id, refCode, "equipment"); setActiveMenuId(null); }}
                             className="w-full text-left px-3 py-1.5 rounded-lg hover:bg-slate-100 text-slate-600 flex items-center gap-2 cursor-pointer font-bold"
                           >
@@ -794,15 +787,6 @@ export default function HistoryTable({
                       className="flex-1 min-h-[40px] px-3 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-extrabold flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
                     >
                       <Eye size={14} /> View Details
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => handleUndoHistory(b.id, refCode, "equipment", st)}
-                      className="min-h-[40px] px-3 py-2 border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-bold flex items-center justify-center gap-1 shadow-2xs cursor-pointer"
-                      title="Undo"
-                    >
-                      <RotateCcw size={14} />
                     </button>
                   </div>
                 </div>

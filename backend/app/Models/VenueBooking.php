@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\DB;
 
 class VenueBooking extends Model
 {
@@ -52,11 +53,14 @@ class VenueBooking extends Model
         'incomplete_deadline_at',
         'resubmitted_at',
         'rejection_reason',
+        'is_auto_rejected',
+        'auto_reject_winning_reference',
     ];
 
     protected $casts = [
         'agreed_to_policy' => 'boolean',
         'is_complete'      => 'boolean',
+        'is_auto_rejected' => 'boolean',
         'no_of_person'     => 'integer',
         'date_of_usage'               => 'date:Y-m-d',
         'reservation_end_date'        => 'date:Y-m-d',
@@ -128,6 +132,31 @@ class VenueBooking extends Model
     public function getStatusAttribute(): string
     {
         return $this->attributes['status'] ?? $this->trackingNumber?->status ?? 'pending';
+    }
+
+    /**
+     * Single source of truth for "pending review" venue bookings — used by BOTH the
+     * Venue Bookings list page (via VenueBookingController@index + frontend filter)
+     * and the Tasks badge / "Pending Actions" dropdown (via DashboardStatsController),
+     * so the two can never disagree on what counts as pending.
+     *
+     * Mirrors the status source priority already used by getStatusAttribute(): prefer
+     * the venue_bookings.status column, falling back to tracking_numbers.status only
+     * when the column is empty.
+     */
+    public static function scopePendingReview($query)
+    {
+        return $query->whereNull('venue_bookings.archived_at')
+            ->where(function ($q) {
+                $q->whereIn(DB::raw("LOWER(TRIM(COALESCE(venue_bookings.status, '')))"), ['pending', 'incomplete'])
+                  ->orWhere(function ($fallback) {
+                      $fallback->where(function ($blank) {
+                          $blank->whereNull('venue_bookings.status')->orWhere('venue_bookings.status', '');
+                      })->whereHas('trackingNumber', function ($t) {
+                          $t->whereIn(DB::raw('LOWER(TRIM(status))'), ['pending', 'incomplete']);
+                      });
+                  });
+            });
     }
 
     public function getExtendReservationEndDateAttribute(): ?string
