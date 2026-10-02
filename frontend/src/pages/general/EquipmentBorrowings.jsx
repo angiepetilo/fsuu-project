@@ -57,19 +57,6 @@ export default function EquipmentBorrowings() {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState("due_asc"); // "due_asc" | "borrow_asc" | "created_desc"
 
-  if (!hasPermission("equipment_borrowing")) {
-    return (
-      <div className="p-8 max-w-md mx-auto text-center space-y-3 mt-12 bg-white rounded-3xl border border-slate-200 shadow-xs">
-        <div className="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center mx-auto">
-          <AlertCircle size={24} />
-        </div>
-        <h3 className="text-sm font-extrabold text-slate-900">Access Restricted</h3>
-        <p className="text-xs text-slate-500 font-medium">
-          You do not have permission to view or manage Equipment Borrowings.
-        </p>
-      </div>
-    );
-  }
 
   // Detail Modal & Notification Modal State (Decoupled from list array reference)
   const [selectedId, setSelectedId] = useState(null);
@@ -93,6 +80,10 @@ export default function EquipmentBorrowings() {
   const ITEMS_PER_PAGE = 10;
 
   const fetchBorrowings = useCallback(async (isSilent = false) => {
+    if (!hasPermission("equipment_borrowing")) {
+      setLoading(false);
+      return;
+    }
     if (!isSilent) setIsSyncing(true);
     setError(null);
     try {
@@ -340,6 +331,20 @@ export default function EquipmentBorrowings() {
     setFeedbackMsg(msg);
     setTimeout(() => setFeedbackMsg(null), 3000);
   };
+
+  if (!hasPermission("equipment_borrowing")) {
+    return (
+      <div className="p-8 max-w-md mx-auto text-center space-y-3 mt-12 bg-white rounded-3xl border border-slate-200 shadow-xs">
+        <div className="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center mx-auto">
+          <AlertCircle size={24} />
+        </div>
+        <h3 className="text-sm font-extrabold text-slate-900">Access Restricted</h3>
+        <p className="text-xs text-slate-500 font-medium">
+          You do not have permission to view or manage Equipment Borrowings.
+        </p>
+      </div>
+    );
+  }
 
   if (loading && borrowings.length === 0) return <PageLoader message="Loading Equipment Borrowings..." />;
 

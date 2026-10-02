@@ -22,19 +22,6 @@ export default function Reports() {
   const context = useOutletContext();
   const officeScope = context?.adminOffice || context?.selectedOffice || "All Offices";
 
-  if (!hasPermission("reports")) {
-    return (
-      <div className="p-8 max-w-md mx-auto text-center space-y-3 mt-12 bg-white rounded-3xl border border-slate-200 shadow-xs">
-        <div className="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center mx-auto">
-          <FileBarChart2 size={24} />
-        </div>
-        <h3 className="text-sm font-extrabold text-slate-900">Access Restricted</h3>
-        <p className="text-xs text-slate-500 font-medium">
-          You do not have permission to view Reports.
-        </p>
-      </div>
-    );
-  }
 
   const ALL_REPORT_TABS = [
     { id: "booking_borrowing", label: "Booking & Borrowing Report", permissionKey: "reports.booking_borrowing" },
@@ -117,6 +104,10 @@ export default function Reports() {
   const [equipmentUnits, setEquipmentUnits] = useState([]);
 
   const fetchReportsData = async (opts = false) => {
+    if (!hasPermission("reports")) {
+      setLoading(false);
+      return;
+    }
     const isSilent = typeof opts === "object" && opts !== null
       ? Boolean(opts.isSilent || opts.silent || opts.showLoading === false)
       : Boolean(opts);
@@ -350,6 +341,20 @@ export default function Reports() {
   const currentVenueNotes = localStorage.getItem("fsuu_report_venue_notes") || "";
   const currentEquipNotes = localStorage.getItem("fsuu_report_equipment_notes") || "";
   const currentBreachesNotes = localStorage.getItem("fsuu_report_breaches_notes") || "";
+
+  if (!hasPermission("reports")) {
+    return (
+      <div className="p-8 max-w-md mx-auto text-center space-y-3 mt-12 bg-white rounded-3xl border border-slate-200 shadow-xs">
+        <div className="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center mx-auto">
+          <FileBarChart2 size={24} />
+        </div>
+        <h3 className="text-sm font-extrabold text-slate-900">Access Restricted</h3>
+        <p className="text-xs text-slate-500 font-medium">
+          You do not have permission to view Reports.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

@@ -23,19 +23,6 @@ export default function ManageVenues() {
   const [selectedVenue, setSelectedVenue] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  if (!hasPermission("manage_venues")) {
-    return (
-      <div className="p-8 max-w-md mx-auto text-center space-y-3 mt-12 bg-white rounded-3xl border border-slate-200 shadow-xs">
-        <div className="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center mx-auto">
-          <AlertCircle size={24} />
-        </div>
-        <h3 className="text-sm font-extrabold text-slate-900">Access Restricted</h3>
-        <p className="text-xs text-slate-500 font-medium">
-          You do not have permission to view or manage Venues.
-        </p>
-      </div>
-    );
-  }
 
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
@@ -100,6 +87,10 @@ export default function ManageVenues() {
   }, [filteredVenues]);
 
   const fetchVenues = useCallback(async (opts = false) => {
+    if (!hasPermission("manage_venues")) {
+      setLoading(false);
+      return;
+    }
     const isSilent = typeof opts === "object" && opts !== null
       ? Boolean(opts.isSilent || opts.silent || opts.showLoading === false)
       : Boolean(opts);
@@ -547,6 +538,20 @@ export default function ManageVenues() {
       endHour: Math.min(effectiveEnd, 24),
     };
   }, [operatingHours]);
+
+  if (!hasPermission("manage_venues")) {
+    return (
+      <div className="p-8 max-w-md mx-auto text-center space-y-3 mt-12 bg-white rounded-3xl border border-slate-200 shadow-xs">
+        <div className="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center mx-auto">
+          <AlertCircle size={24} />
+        </div>
+        <h3 className="text-sm font-extrabold text-slate-900">Access Restricted</h3>
+        <p className="text-xs text-slate-500 font-medium">
+          You do not have permission to view or manage Venues.
+        </p>
+      </div>
+    );
+  }
 
   if (loading) return <PageLoader message="Loading Manage Venues..." />;
 

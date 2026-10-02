@@ -19,6 +19,8 @@ export default function EvidenceLightboxModal({
     return true;
   };
 
+  const [imgError, setImgError] = React.useState(false);
+
   if (!isValidPhoto(imageUrl)) return null;
 
   const imageTitle = typeof fullImageModal === "object" && fullImageModal?.title
@@ -33,7 +35,6 @@ export default function EvidenceLightboxModal({
     : (String(imageUrl || "").toLowerCase().includes(".pdf") || String(imageUrl || "").toLowerCase().includes("data:application/pdf"));
 
   const resolvedUrl = resolvePhotoUrl ? resolvePhotoUrl(imageUrl) : imageUrl;
-  const [imgError, setImgError] = React.useState(false);
 
   // Helper to open documents safely with PNG fallback support
   const handleOpenExternal = () => {

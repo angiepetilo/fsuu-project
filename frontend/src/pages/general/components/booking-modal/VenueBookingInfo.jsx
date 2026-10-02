@@ -13,10 +13,8 @@ export default function VenueBookingInfo({
   formatDate,
   requestedCategories = [],
 }) {
-  if (!selected) return null;
-
-  const storageKeyHardcopy = `fsuu_hardcopy_${selected.id}`;
-  const storageKeyNotes = `fsuu_hardcopy_notes_${selected.id}`;
+  const storageKeyHardcopy = selected?.id ? `fsuu_hardcopy_${selected.id}` : null;
+  const storageKeyNotes = selected?.id ? `fsuu_hardcopy_notes_${selected.id}` : null;
 
   const [isHardcopy, setIsHardcopy] = useState(false);
   const [hardcopyNotes, setHardcopyNotes] = useState("");
@@ -30,6 +28,7 @@ export default function VenueBookingInfo({
     setStaffUploadUrl(null);
     setIsHardcopy(false);
     setHardcopyNotes("");
+    if (!storageKeyHardcopy) return;
     try {
       const savedHc = localStorage.getItem(storageKeyHardcopy);
       const savedNotes = localStorage.getItem(storageKeyNotes);
@@ -37,7 +36,9 @@ export default function VenueBookingInfo({
       setHasHardcopySaved(isHcActive);
       if (savedNotes) setHardcopyNotes(savedNotes);
     } catch {}
-  }, [selected?.id]);
+  }, [selected?.id, storageKeyHardcopy, storageKeyNotes]);
+
+  if (!selected) return null;
 
   const handleFileUpload = async (e) => {
     const file = e.target.files?.[0];

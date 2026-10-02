@@ -15,6 +15,7 @@ import VenueModalHeader from "./booking-modal/VenueModalHeader";
 import VenueModalFooter from "./booking-modal/VenueModalFooter";
 import ConfirmModal from "@/components/ui/ConfirmModal";
 import { formatTime12, formatDateTime, formatRealTime } from "@/lib/dateUtils";
+import { getOverdueMinutes } from "@/lib/dateTimeUtils";
 
 
 export default function VenueBookingDetailModal({
@@ -1303,6 +1304,7 @@ export default function VenueBookingDetailModal({
     syncInspectedUnitsToInventory(false);
     
     const inspectionType = typeOverride || (isOngoing ? "pre_event" : "post_event");
+    const isPre = inspectionType === "pre_event";
     const hasDamagedOrLostUnits = Object.values(unitReturnedConditions || {}).some(c => c === "Damaged" || c === "Lost");
     const isVenueDamaged = inspectionStatus === "violation" && String(selectedViolationType || "").toLowerCase().includes("damage");
     const isVenueLost = inspectionStatus === "violation" && String(selectedViolationType || "").toLowerCase().includes("lost");

@@ -61,19 +61,6 @@ export default function VenueBookings() {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState("event_asc"); // "event_asc" | "created_desc"
 
-  if (!hasPermission("venue_bookings")) {
-    return (
-      <div className="p-8 max-w-md mx-auto text-center space-y-3 mt-12 bg-white rounded-3xl border border-slate-200 shadow-xs">
-        <div className="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center mx-auto">
-          <AlertCircle size={24} />
-        </div>
-        <h3 className="text-sm font-extrabold text-slate-900">Access Restricted</h3>
-        <p className="text-xs text-slate-500 font-medium">
-          You do not have permission to view or manage Venue Bookings.
-        </p>
-      </div>
-    );
-  } 
 
   // Detail Modal & Notification Modal State (Decoupled from list array reference)
   const [selectedId, setSelectedId] = useState(null);
@@ -104,6 +91,10 @@ export default function VenueBookings() {
   const ITEMS_PER_PAGE = 10;
 
   const fetchBookings = useCallback(async (opts = false) => {
+    if (!hasPermission("venue_bookings")) {
+      setLoading(false);
+      return;
+    }
     const isSilent = typeof opts === "object" && opts !== null
       ? Boolean(opts.isSilent || opts.silent || opts.showLoading === false)
       : Boolean(opts);
@@ -341,6 +332,20 @@ export default function VenueBookings() {
       setActionLoading(null);
     }
   };
+
+  if (!hasPermission("venue_bookings")) {
+    return (
+      <div className="p-8 max-w-md mx-auto text-center space-y-3 mt-12 bg-white rounded-3xl border border-slate-200 shadow-xs">
+        <div className="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center mx-auto">
+          <AlertCircle size={24} />
+        </div>
+        <h3 className="text-sm font-extrabold text-slate-900">Access Restricted</h3>
+        <p className="text-xs text-slate-500 font-medium">
+          You do not have permission to view or manage Venue Bookings.
+        </p>
+      </div>
+    );
+  }
 
   if (loading && bookings.length === 0) return <PageLoader message="Loading Venue Bookings..." />;
 
