@@ -59,10 +59,10 @@ export default function VenuePostInspectionForm({
   const delayMins = minutesLate > 0 ? minutesLate : getOverdueMinutes(scheduledDate, scheduledTime);
 
   useEffect(() => {
-    if (delayMins > 0 && setSelectedViolationType && !selectedViolationType && !isHistoryView) {
+    if (delayMins > 0 && setSelectedViolationType && !selectedViolationType && !isHistoryView && inspectionStatus === "violation") {
       setSelectedViolationType("Overtime");
     }
-  }, [delayMins]);
+  }, [delayMins, inspectionStatus]);
 
   const handleAddCustomCategory = async (e) => {
     e.preventDefault();

@@ -47,20 +47,7 @@ export default function VenueBookingDetailModal({
   const [fullImageModal, setFullImageModal] = useState(null);
   const [initialInspectionState, setInitialInspectionState] = useState(null);
   const [showCompleteConfirmModal, setShowCompleteConfirmModal] = useState(false);
-
-  // Memoized inspection changes check to toggle Save Record visibility and Complete readiness
-  const hasInspectionChanges = useMemo(() => {
-    if (!initialInspectionState) return true;
-    const currentPhotosStr = JSON.stringify(evidencePhoto || []);
-    return (
-      inspectionStatus !== initialInspectionState.status ||
-      selectedViolationType !== initialInspectionState.type ||
-      violationNotes !== initialInspectionState.notes ||
-      currentPhotosStr !== initialInspectionState.photos
-    );
-  }, [initialInspectionState, inspectionStatus, selectedViolationType, violationNotes, evidencePhoto]);
-
-  const isPostInspectionSaved = Boolean(initialInspectionState?.saved);
+  const [isReadyForPostInspection, setIsReadyForPostInspection] = useState(false);
 
   const rejectFormRef = useRef(null);
   useEffect(() => {
@@ -256,6 +243,46 @@ export default function VenueBookingDetailModal({
   const [assignedUnitSelections, setAssignedUnitSelections] = useState({});
   const [unitReturnedConditions, setUnitReturnedConditions] = useState({});
 
+  const normalizePhotosList = (raw) => {
+    if (!raw) return [];
+    if (Array.isArray(raw)) return raw.filter(Boolean);
+    if (typeof raw === "string") {
+      if (raw.startsWith("[") || raw.startsWith("{")) {
+        try {
+          const parsed = JSON.parse(raw);
+          return Array.isArray(parsed) ? parsed.filter(Boolean) : [raw];
+        } catch {
+          return [raw];
+        }
+      }
+      return [raw];
+    }
+    return [];
+  };
+
+  const normalizeViolationStr = (v) => {
+    if (!v) return "";
+    return v.split(",").map(s => s.trim().toLowerCase()).filter(Boolean).sort().join(", ");
+  };
+
+  // Memoized inspection changes check to toggle Save Record visibility and Complete readiness
+  const hasInspectionChanges = useMemo(() => {
+    if (!initialInspectionState) return false;
+    const currentPhotosStr = JSON.stringify(evidencePhoto || []);
+    const currentConditionsStr = JSON.stringify(unitReturnedConditions || {});
+
+    return (
+      inspectionStatus !== initialInspectionState.status ||
+      normalizeViolationStr(selectedViolationType) !== normalizeViolationStr(initialInspectionState.type) ||
+      (violationNotes || "") !== (initialInspectionState.notes || "") ||
+      currentPhotosStr !== (initialInspectionState.photos || "[]") ||
+      currentConditionsStr !== (initialInspectionState.conditions || "{}") ||
+      (equipmentInspectionNotes || "") !== (initialInspectionState.equipmentNotes || "")
+    );
+  }, [initialInspectionState, inspectionStatus, selectedViolationType, violationNotes, evidencePhoto, unitReturnedConditions, equipmentInspectionNotes]);
+
+  const isPostInspectionSaved = Boolean(initialInspectionState?.saved);
+
   // Override State for Admin / SysAd (Supports Multiple Categories & Dynamic Unit Counts)
   const [isOverrideActive, setIsOverrideActive] = useState(false);
   const [overrideCategories, setOverrideCategories] = useState([]);
@@ -348,27 +375,29 @@ export default function VenueBookingDetailModal({
       const isDamagedStatus = statusLower === "damaged" || statusLower === "violation" || Boolean(selected.has_damage) || Boolean(selected.violation);
       const cleanNotes = (selected.notes && !selected.notes.startsWith("[")) ? selected.notes : "";
       
-      setInspectionStatus(isDamagedStatus ? "violation" : "clean");
-      setViolationNotes(cleanNotes);
-      setSelectedViolationType(sanitizeViolation(selected.violation_type || selected.violation || ""));
-      setEvidencePhoto(selected.evidence_photo || selected.evidence_image || null);
-      setDamagedUnitBarcodes({});
-      setDamagedEqQty(1);
+      const scheduledD = selected.reservation_end_date || selected.date_of_usage || selected.start_datetime;
+      const scheduledT = selected.time_end || selected.end_datetime;
+      const delayMins = (selected.minutes_late || selected.inspection?.minutes_late || 0) > 0
+        ? (selected.minutes_late || selected.inspection?.minutes_late || 0)
+        : getOverdueMinutes(scheduledD, scheduledT);
 
-      const isCompletedBooking = ['completed', 'done', 'returned', 'damaged', 'lost'].includes(statusLower);
-      if (isCompletedBooking) {
-        setInitialInspectionState({
-          status: isDamagedStatus ? "violation" : "clean",
-          notes: cleanNotes,
-          type: sanitizeViolation(selected.violation_type || selected.violation || ""),
-          photos: JSON.stringify(selected.evidence_photo || selected.evidence_image || null),
-          saved: true
-        });
-      } else {
-        setInitialInspectionState(null);
+      let initialViolationType = sanitizeViolation(selected.violation_type || selected.violation || "");
+      if (!initialViolationType && isDamagedStatus && delayMins > 0) {
+        initialViolationType = "Overtime";
       }
 
+      setInspectionStatus(isDamagedStatus ? "violation" : "clean");
+      setViolationNotes(cleanNotes);
+      setSelectedViolationType(initialViolationType);
+      
+      const initialPhotos = normalizePhotosList(selected.evidence_photo || selected.evidence_image || selected.evidence_photos);
+      setEvidencePhoto(initialPhotos);
+      setDamagedUnitBarcodes({});
+      setDamagedEqQty(1);
+      setIsReadyForPostInspection(false);
+
       // Hydrate equipment notes if already on selected or empty
+      let initialEqNotes = selected.equipment_notes || "";
       if (selected.equipment_notes) {
         setFetchedEquipmentNotes(selected.equipment_notes);
       } else {
@@ -384,20 +413,22 @@ export default function VenueBookingDetailModal({
       }
 
       // 1. Restore unit returned conditions from backend record or local cache fallback
+      let initialUnitConds = {};
       if (selected.unit_conditions && typeof selected.unit_conditions === 'object') {
-        setUnitReturnedConditions(selected.unit_conditions);
+        initialUnitConds = selected.unit_conditions;
       } else {
         try {
           const savedConds = localStorage.getItem(`fsuu_unit_conditions_${selected.id}`);
           if (savedConds) {
-            setUnitReturnedConditions(JSON.parse(savedConds));
+            initialUnitConds = JSON.parse(savedConds);
           } else {
-            setUnitReturnedConditions({});
+            initialUnitConds = {};
           }
         } catch {
-          setUnitReturnedConditions({});
+          initialUnitConds = {};
         }
       }
+      setUnitReturnedConditions(initialUnitConds);
 
       // 2. Restore assigned physical unit barcodes from backend record or local cache fallback
       if (selected.assigned_units && typeof selected.assigned_units === 'object') {
@@ -414,6 +445,17 @@ export default function VenueBookingDetailModal({
           setAssignedUnitSelections({});
         }
       }
+
+      // Initialize base initialInspectionState so hasInspectionChanges is false on mount
+      setInitialInspectionState({
+        status: isDamagedStatus ? "violation" : "clean",
+        notes: cleanNotes,
+        type: initialViolationType,
+        photos: JSON.stringify(initialPhotos),
+        conditions: JSON.stringify(initialUnitConds),
+        equipmentNotes: initialEqNotes,
+        saved: true
+      });
 
       // 3. Hydrate from Backend Persisted Inspection Records (strictly skip if cancelled or rejected)
       const stLower = String(selected.status || selected.tracking_number?.status || "").toLowerCase();
@@ -455,19 +497,7 @@ export default function VenueBookingDetailModal({
 
             // Hydrate multi-photo evidence
             const rawPhoto = postUse.evidence_photos || postUse.evidence_photo || postUse.evidence_image || selected.evidence_photos || selected.evidence_photo || selected.evidence_image;
-            let photoList = [];
-            if (Array.isArray(rawPhoto)) {
-              photoList = rawPhoto.filter(Boolean);
-            } else if (typeof rawPhoto === 'string' && (rawPhoto.startsWith('[') || rawPhoto.startsWith('{'))) {
-              try {
-                const parsed = JSON.parse(rawPhoto);
-                photoList = Array.isArray(parsed) ? parsed.filter(Boolean) : [rawPhoto];
-              } catch {
-                photoList = [rawPhoto];
-              }
-            } else if (rawPhoto) {
-              photoList = [rawPhoto];
-            }
+            const photoList = normalizePhotosList(rawPhoto);
             if (setEvidencePhoto) setEvidencePhoto(photoList);
 
             // Hydrate DB unit assignments and per-unit outcomes if persisted
@@ -476,17 +506,23 @@ export default function VenueBookingDetailModal({
             } else if (selected.assigned_units && typeof selected.assigned_units === 'object') {
               setAssignedUnitSelections(selected.assigned_units);
             }
+            let postConds = initialUnitConds;
             if (postUse.unit_conditions && typeof postUse.unit_conditions === 'object') {
-              setUnitReturnedConditions(postUse.unit_conditions);
+              postConds = postUse.unit_conditions;
+              setUnitReturnedConditions(postConds);
             }
+            let postEqNotes = initialEqNotes;
             if (postUse.equipment_notes) {
-              setEquipmentInspectionNotes(postUse.equipment_notes);
+              postEqNotes = postUse.equipment_notes;
+              setEquipmentInspectionNotes(postEqNotes);
             }
             setInitialInspectionState({
               status: hasBreach ? "violation" : "clean",
               notes: existingNotes,
-              type: postUse.violation_type ? sanitizeViolation(postUse.violation_type) : "",
+              type: postUse.violation_type ? sanitizeViolation(postUse.violation_type) : initialViolationType,
               photos: JSON.stringify(photoList || []),
+              conditions: JSON.stringify(postConds || {}),
+              equipmentNotes: postEqNotes || "",
               saved: true
             });
           }
@@ -987,8 +1023,8 @@ export default function VenueBookingDetailModal({
   const isPending = currentStatus === "pending" || currentStatus === "incomplete";
   const isApproved = currentStatus === "approved";
   const isOngoing = currentStatus === "ongoing" || currentStatus === "on-going";
-  const isPostInspection = currentStatus === "post-inspection" || currentStatus === "post-event inspection" || currentStatus === "post_inspection";
   const isCompletedOrDamaged = currentStatus === "completed" || currentStatus === "damaged" || currentStatus === "solved";
+  const isPostInspection = !isCompletedOrDamaged && !isHistoryView && (isReadyForPostInspection || currentStatus === "post-inspection" || currentStatus === "post-event inspection" || currentStatus === "post_inspection" || currentStatus === "inspection");
   const isSideBySide = isPostInspection || isCompletedOrDamaged || isHistoryView;
 
   const getDisplayStatusText = () => {
@@ -1294,22 +1330,28 @@ export default function VenueBookingDetailModal({
       const msg = isPre ? "Pre-event inspection record saved." : "Post-event inspection record saved.";
       setInspectionSuccessMsg(msg);
       notify.success("Inspection Saved", msg);
+      const savedStatus = isPre ? (preInspectionStatus === "clean" ? "good" : "damaged") : ((hasDamagedOrLostUnits || inspectionStatus === "violation") ? "violation" : "clean");
       setInitialInspectionState({
-        status: isPre ? (preInspectionStatus === "clean" ? "good" : "damaged") : (hasDamagedOrLost ? "violation" : (inspectionStatus === "violation" ? "violation" : "clean")),
+        status: savedStatus,
         notes: isPre ? (preViolationNotes || "") : (violationNotes || ""),
         type: isPre ? preSelectedViolationType : selectedViolationType,
         photos: JSON.stringify((isPre ? preEvidencePhoto : evidencePhoto) || []),
+        conditions: JSON.stringify(unitReturnedConditions || {}),
+        equipmentNotes: (isPre ? preEquipmentInspectionNotes : equipmentInspectionNotes) || "",
         saved: true
       });
       setTimeout(() => setInspectionSuccessMsg(null), 3000);
     } catch {
       setInspectionSuccessMsg("Inspection record updated.");
       notify.success("Inspection Updated", "Inspection record updated.");
+      const fallbackStatus = isPre ? (preInspectionStatus === "clean" ? "good" : "damaged") : ((hasDamagedOrLostUnits || inspectionStatus === "violation") ? "violation" : "clean");
       setInitialInspectionState({
-        status: isPre ? (preInspectionStatus === "clean" ? "good" : "damaged") : (hasDamagedOrLost ? "violation" : (inspectionStatus === "violation" ? "violation" : "clean")),
+        status: fallbackStatus,
         notes: isPre ? (preViolationNotes || "") : (violationNotes || ""),
         type: isPre ? preSelectedViolationType : selectedViolationType,
         photos: JSON.stringify((isPre ? preEvidencePhoto : evidencePhoto) || []),
+        conditions: JSON.stringify(unitReturnedConditions || {}),
+        equipmentNotes: (isPre ? preEquipmentInspectionNotes : equipmentInspectionNotes) || "",
         saved: true
       });
       setTimeout(() => setInspectionSuccessMsg(null), 3000);
@@ -1655,7 +1697,7 @@ export default function VenueBookingDetailModal({
                 />
               </div>
             </div>
-          ) : isOngoing ? (
+          ) : (isOngoing && !isReadyForPostInspection) ? (
             /* ON-GOING STATUS: Clean Event In Progress Overview (No redundant pre/post inspection cards) */
             <div className="space-y-4">
               <VenueBookingInfo
@@ -1741,7 +1783,10 @@ export default function VenueBookingDetailModal({
                     savingInspection={savingInspection}
                     inspectionSuccessMsg={inspectionSuccessMsg}
                     handleSavePostInspection={(e) => handleSavePostInspection(e, "post_event")}
-                    onSetPostInspection={() => handleAction(selected.id, "post-inspection")}
+                    onSetPostInspection={() => {
+                      setIsReadyForPostInspection(true);
+                      handleAction(selected.id, "post-inspection");
+                    }}
                     isHistoryView={isHistoryView}
                     isAdminOrSuperAdmin={isAdminOrSuperAdmin}
                     user={user}

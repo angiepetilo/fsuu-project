@@ -176,27 +176,25 @@ export default function VenueModalFooter({
         </div>
       ) : isPostInspection ? (
         <div className="flex items-center gap-2.5">
-          {isPostInspectionSaved && (
-            <button
-              type="button"
-              onClick={onRequestComplete || handleDoneComplete}
-              disabled={!!actionLoading || savingInspection || hasInspectionChanges}
-              title={hasInspectionChanges ? "Save the inspection record before completing this reservation" : undefined}
-              className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-xl text-xs font-extrabold flex items-center gap-1.5 shadow-xs transition-all duration-150 cursor-pointer"
-            >
-              {actionLoading === `${selected.id}-complete` || actionLoading === "complete" ? (
-                <>
-                  <Loader2 size={13} className="animate-spin" />
-                  <span>Completing Reservation...</span>
-                </>
-              ) : (
-                <>
-                  <Check size={14} />
-                  <span>Complete Reservation</span>
-                </>
-              )}
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={onRequestComplete || handleDoneComplete}
+            disabled={!!actionLoading || savingInspection || hasInspectionChanges}
+            title={hasInspectionChanges ? "Save the inspection record before completing this reservation" : undefined}
+            className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-xl text-xs font-extrabold flex items-center gap-1.5 shadow-xs transition-all duration-150 cursor-pointer"
+          >
+            {actionLoading === `${selected.id}-complete` || actionLoading === "complete" ? (
+              <>
+                <Loader2 size={13} className="animate-spin" />
+                <span>Completing...</span>
+              </>
+            ) : (
+              <>
+                <Check size={14} />
+                <span>Complete</span>
+              </>
+            )}
+          </button>
           <button
             type="button"
             onClick={() => { setSelected(null); setShowRejectForm(false); }}
