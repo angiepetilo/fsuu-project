@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { AlertCircle } from "lucide-react";
 import MetricsOverview from "./MetricsOverview";
@@ -61,6 +62,19 @@ export default function StaffAnalyticsDashboard({
 }) {
   const inv = equipmentInventory || {};
   const total = inv.total_active || 1;
+
+  const uniqueLateBorrowers = useMemo(() => {
+    const seen = new Set();
+    const result = [];
+    (violatingStudents || []).forEach((s) => {
+      const key = s.reference_code || s.id || `${s.type}-${s.name}-${s.department}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        result.push(s);
+      }
+    });
+    return result;
+  }, [violatingStudents]);
 
   const hasAnySection =
     canQuickVenue ||
@@ -312,7 +326,7 @@ export default function StaffAnalyticsDashboard({
           <div className="flex items-center justify-between border-b border-border pb-3">
             <h3 className="font-extrabold text-foreground text-xs sm:text-sm">Borrowers with late returns</h3>
             <span className="text-[11px] font-semibold text-rose-600 dark:text-rose-400">
-              {violatingStudents.length} Incidents
+              {uniqueLateBorrowers.length} Incidents
             </span>
           </div>
           <div className="overflow-x-auto">
@@ -327,28 +341,41 @@ export default function StaffAnalyticsDashboard({
                 </tr>
               </thead>
               <tbody className="divide-y divide-border font-semibold">
-                {violatingStudents.length === 0 ? (
+                {uniqueLateBorrowers.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="text-center py-8 text-emerald-600 dark:text-emerald-400 font-bold">
                       No active student violations or late returns recorded.
                     </td>
                   </tr>
                 ) : (
-                  violatingStudents.map((s) => (
-                    <tr key={s.id} className="hover:bg-muted/60 transition-colors">
-                      <td className="py-2.5 px-3 font-bold text-foreground">{s.name}</td>
-                      <td className="py-2.5 px-3 text-muted-foreground">{s.department}</td>
-                      <td className="py-2.5 px-3 font-mono text-foreground">{s.reference_code}</td>
-                      <td className="py-2.5 px-3 text-foreground/80">{s.type}</td>
-                      <td className="py-2.5 px-3">
-                        <span className={`text-[11px] font-semibold ${
-                          s.is_late ? "text-amber-600 dark:text-amber-400" : "text-rose-600 dark:text-rose-400"
-                        }`}>
-                          {s.violation}
-                        </span>
-                      </td>
-                    </tr>
-                  ))
+                  uniqueLateBorrowers.map((s, idx) => {
+                    const linkPath = s.type === "Venue Booking"
+                      ? (isSysadRoute ? "/sysad/venue-bookings" : "/general/venue-bookings")
+                      : (isSysadRoute ? "/sysad/equipment-borrowing" : "/general/equipment-borrowing");
+                    return (
+                      <tr key={s.id || s.reference_code || idx} className="hover:bg-muted/60 transition-colors">
+                        <td className="py-2.5 px-3 font-bold text-foreground">{s.name}</td>
+                        <td className="py-2.5 px-3 text-muted-foreground">{s.department}</td>
+                        <td className="py-2.5 px-3 font-mono text-foreground">
+                          <Link
+                            to={linkPath}
+                            state={s.record_id ? { selectedId: s.record_id } : undefined}
+                            className="font-bold hover:underline hover:text-primary transition-colors cursor-pointer"
+                          >
+                            {s.reference_code}
+                          </Link>
+                        </td>
+                        <td className="py-2.5 px-3 text-foreground/80">{s.type}</td>
+                        <td className="py-2.5 px-3">
+                          <span className={`text-[11px] font-semibold ${
+                            s.is_late ? "text-amber-600 dark:text-amber-400" : "text-rose-600 dark:text-rose-400"
+                          }`}>
+                            {s.violation}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>

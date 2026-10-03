@@ -37,7 +37,7 @@ class VenueBookingController extends Controller
             $academicTermId = DB::table('academic_terms')->where('is_active', true)->value('id');
         }
 
-        $bookings = VenueBooking::with(['trackingNumber', 'venue', 'documents', 'venueBookingEquipment.equipmentType'])
+        $bookingsQuery = VenueBooking::with(['trackingNumber', 'venue', 'documents', 'venueBookingEquipment.equipmentType'])
             ->where(function ($q) {
                 $completedStatuses = ['completed', 'done', 'returned', 'damaged', 'lost', 'returned late', 'returned_late'];
                 $q->where(function ($q2) use ($completedStatuses) {
@@ -54,10 +54,14 @@ class VenueBookingController extends Controller
             ->when($academicTermId, function ($query) use ($academicTermId) {
                 $query->where('academic_term_id', $academicTermId);
             })
-            ->latest()
-            ->paginate(25);
+            ->latest();
 
-        return response()->json($bookings);
+        if ($request->query('per_page') === 'all' || $request->boolean('all') || $request->query('all') === '1') {
+            return response()->json($bookingsQuery->get());
+        }
+
+        $perPage = (int) ($request->query('per_page', 25));
+        return response()->json($bookingsQuery->paginate($perPage));
     }
 
 

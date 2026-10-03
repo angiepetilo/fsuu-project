@@ -1,177 +1,133 @@
-# 🏛️ FSUU AVR Venue Booking & Equipment Lending System
+# 🏛️ FSUU Automated Venue Reservation & Equipment Lending System
 
 **Father Saturnino Urios University (FSUU)**  
-*AVR Operations & Equipment Lending Management System*
+*Audio-Visual Resource (AVR) Operations Management System*
 
-A web-based reservation, equipment kiosk lending, and post-use inspection system built for Father Saturnino Urios University.
-
----
-
-## 💻 Tech Stack
-
-* **Backend**: Laravel 11 (PHP 8.2+), MySQL / TiDB, Laravel Sanctum, Pusher / Laravel Echo (WebSockets)
-* **Frontend**: React 18, Vite, Tailwind CSS, Lucide React, Axios
-* **Security & Auth**: Role-Based Access Control (RBAC), Granular Permission Matrix, Password Encryption, API Rate Limiting
+An intuitive, modern web platform designed for students, faculty, and administrative staff to easily reserve campus venues and borrow university equipment online—eliminating paper forms, preventing double-bookings, and tracking institutional assets with barcode precision.
 
 ---
 
-## 🌟 Key Features
+## 🌟 What is This System?
 
-### 1. Public Self-Service Portals
-* **Venue Booking**: Interactive calendar, multi-day support, arrival grace period calculation, and real-time conflict prevention.
-* **Equipment Lending**: Kiosk borrowing mode with today vs. next-day scheduling and dynamic stock checks.
-* **Live Status Tracking**: Instant reference code tracking (`TRK-...`) with real-time status updates and applicant self-cancellation.
+Before this system, booking an AVR venue or borrowing multimedia equipment required manual forms, physical routing of signed approval slips, and handwritten logbooks. 
 
-### 2. Administrative & Staff Operations
-* **Operational Dashboard**: Live metrics, pending tasks indicator, and schedule overview matrix.
-* **Venue & Schedule Management**: Operating hours bounds, multi-day availability overrides, and maintenance locks.
-* **Equipment Inventory**: Barcode unit tracking, lifecycles, and category management.
-* **Post-Use Inspection**: Turnover validation, photographic evidence upload, and policy violation tagging.
-* **Reports**:
-  * Booking & Borrowing Activity
-  * Policy Violations & Late Returns
-  * Equipment Inventory Audit
-  * Equipment Out (Live accountability of unreturned physical units currently with borrowers)
-* **System Settings & Fee Matrix**: Customizable fee schedule titles, dynamic signatory authorities, and PDF export.
-* **Role & Permission Management**: Granular action-level permissions per role (Super Admin, Staff, Student Assistant).
-
-### 3. Reliability & Anti-Spam Safeguards
-* **Button Debounce & Immediate Lock**: Prevents multi-click duplicate submissions during slow network connections.
-* **15-Minute Anti-Spam Buffer**: Soft duplicate detection with instant tracking code feedback.
-* **Database Row Locking**: Atomic transactions with `lockForUpdate` to eliminate double-booking race conditions.
-* **Rate Limiting**: Automated protection against brute-force and request flooding (`throttle:api`, `throttle:login`).
+This platform centralizes the entire process into a single, automated online portal:
+* **For Students & Faculty:** Easily browse available campus venues, check available dates and times, request equipment, and track approval status in real time from a phone or computer.
+* **For AVR Staff & Custodians:** Instantly review booking requests, approve or decline schedules without conflicting overlaps, assign equipment using barcode scanners, and record returns with post-use inspection notes.
+* **For Campus Administrators:** Monitor facility usage across university departments, track overdue items, view incident/damage reports, and generate official university summaries with one click.
 
 ---
 
-## ⚙️ Environment Configuration (`.env`)
+## 🔄 How It Works (The 5-Step Process)
 
-### Backend Environment Variables (`backend/.env`)
-
-```ini
-# Application Setup
-APP_NAME="FSUU AVR Booking System"
-APP_ENV=local
-APP_KEY=
-APP_DEBUG=true
-APP_URL=http://localhost:8000
-FRONTEND_URL=http://localhost:5173
-
-# Database Connection (MySQL / TiDB)
-DB_CONNECTION=mysql
-DB_HOST=127.0.0.1
-DB_PORT=3306
-DB_DATABASE=fsuu_booking_db
-DB_USERNAME=root
-DB_PASSWORD=
-
-# Cloud Storage for Photo Evidence & Endorsements
-CLOUDINARY_URL=cloudinary://<API_KEY>:<API_SECRET>@<CLOUD_NAME>
-
-# SMS Gateway (iPROG SMS for Tracking & Reminders)
-IPROG_SMS_API_KEY=your_api_key_here
-IPROG_SMS_API_URL=https://sms.iprogtech.com/api/v1/sms_messages
-IPROG_SMS_SENDER_NAME=FSUU_AVR
-
-# Email Dispatch (SMTP / Gmail / Brevo)
-MAIL_MAILER=smtp
-MAIL_HOST=smtp.gmail.com
-MAIL_PORT=587
-MAIL_USERNAME=your_email@gmail.com
-MAIL_PASSWORD=your_app_password
-MAIL_FROM_ADDRESS=notifications@urios.edu.ph
-MAIL_FROM_NAME="FSUU AVR Center"
+```
+1. Submit Request ──▶ 2. Instant Receipt ──▶ 3. Staff Approval ──▶ 4. Barcode Handout ──▶ 5. Return & Inspection
+   (Online Portal)      (Email + SMS Ref)      (No Double-Booking)    (Counter Pickup)      (Clearance & Restock)
 ```
 
-### Frontend Environment Variables (`frontend/.env`)
-
-```ini
-# Canonical Backend REST API URL
-VITE_API_URL=http://localhost:8000/api
-```
+1. **Submit Online:** The applicant selects their preferred venue or equipment, picks their date and timeslot, attaches their endorsement letter, and submits.
+2. **Instant Tracking Code:** The system issues a unique tracking reference code (e.g., `VN-202610-0001` or `EQ-202610-0001`) and sends an immediate email and SMS confirmation.
+3. **Staff Review & Approval:** AVR staff review the request. If approved, the system automatically reserves the timeslot and safeguards it from any competing requests.
+4. **Counter Turnover (Pickup):** When the event begins, the borrower presents their school ID at the AVR counter. Staff scan the physical equipment barcodes to officially release the items.
+5. **Return & Post-Use Inspection:** When the equipment is returned, staff inspect the units (checking for good condition, damages, or missing parts), issue an official digital return clearance, and automatically restock the inventory.
 
 ---
 
-## 🚀 Quick Setup & Installation
+## ✨ Key Benefits in Plain English
+
+### 1. 🛡️ Guaranteed No Double-Bookings
+The system automatically monitors room and equipment schedules down to the minute. Two groups can never accidentally be approved for the same venue at the same time.
+
+### 2. 📦 Real-Time Equipment Stock & Barcode Tracking
+Every projector, microphone, speaker, and HDMI cable is registered in the system with its own barcode. Staff can scan items in seconds during pickup and return, preventing lost items and human counting errors.
+
+### 3. 📱 Live "Track My Request" Kiosk
+Just like tracking an online package, applicants can visit the **Track Status** page at any time, enter their reference code, and see whether their request is *Pending*, *Approved*, *In Progress*, or *Completed*.
+
+### 4. 📬 Automated Email & SMS Notifications
+Applicants receive official notices at every stage:
+* Confirmation upon submission
+* Approval notice with room arrival reminders
+* Turnover notice listing every physical unit handed over
+* Return receipt certifying all items were safely returned
+
+### 5. 🔍 Inspection & Department Accountability
+If an item is returned damaged or past due, staff record photo evidence and incident notes. The system links the incident to the responsible collegiate department for fair, university-wide accountability.
+
+---
+
+## 👥 User Roles & Access
+
+| Role | Who It's For | What They Can Do |
+| :--- | :--- | :--- |
+| **Public User** | Students, Faculty, University Staff, Guests | Browse venue availability, submit venue or equipment requests online, upload endorsement letters, and track request status. |
+| **Student Assistant** | Student Desk Helpers at the AVR Counter | Scan barcodes for equipment checkout, assist borrowers at the counter, and view scheduled reservations. |
+| **AVR Staff** | Facility Custodians & Operational Officers | Approve or decline reservations, release equipment, conduct return inspections, log damages, and manage operating hours. |
+| **Super Admin** | AVR Director, Department Heads, System Admins | Full control over all system settings, user accounts, university fee schedules, departmental analytics, and audit logs. |
+
+---
+
+## 💻 System Architecture at a Glance
+
+* **Web Interface:** React & Tailwind CSS (Clean, responsive design that works on desktops, tablets, and smartphones)
+* **Application Engine:** Laravel (Handles validation, collision prevention, automated email notifications, and security)
+* **Cloud Database:** TiDB Cloud (High-performance, secure cloud database that keeps all university data safely preserved)
+* **Delivery & Security:** Cloudflare & Render (Fast page loads, HTTPS security, and continuous uptime)
+
+---
+
+<details>
+<summary>🛠️ <strong>Click here for Developer & IT Setup Instructions (Technical Section)</strong></summary>
 
 ### Prerequisites
 * **PHP** >= 8.2 & **Composer**
 * **Node.js** >= 18.x & **npm**
-* **MySQL** >= 8.0 (or MariaDB / TiDB)
+* **MySQL** >= 8.0 or **TiDB Cloud**
 
----
-
-### Backend Setup (Laravel API)
-
+### 1. Backend Setup (Laravel API)
 ```bash
-# 1. Navigate to backend directory
+# Navigate to backend directory
 cd backend
 
-# 2. Install PHP dependencies
+# Install dependencies
 composer install
 
-# 3. Configure environment file
+# Set up environment
 cp .env.example .env
-# Edit .env with your database and service credentials
 
-# 4. Generate application encryption key
+# Generate application key
 php artisan key:generate
 
-# 5. Run migrations and database seeders
-php artisan migrate --seed
+# Run database migrations
+php artisan migrate
 
-# 6. Start the backend API server
+# Start development API server
 php artisan serve
 ```
-*Backend API runs at `http://127.0.0.1:8000`*
+*API runs at `http://127.0.0.1:8000`*
 
----
-
-### Frontend Setup (React + Vite)
-
+### 2. Frontend Setup (React + Vite)
 ```bash
-# 1. Navigate to frontend directory
+# Navigate to frontend directory
 cd frontend
 
-# 2. Install Node dependencies
+# Install dependencies
 npm install
 
-# 3. Start the frontend development server
+# Start Vite development server
 npm run dev
 ```
-*Frontend UI runs at `http://localhost:5173`*
+*Frontend runs at `http://localhost:5173`*
+
+### 3. Cloud Production Deployment
+* **Backend:** Automated Docker deployment on Render running `php artisan migrate --force`.
+* **Frontend:** Static web deployment on Cloudflare Pages / Render Nginx.
+* **Database:** TiDB Cloud distributed SQL cluster.
+</details>
 
 ---
 
-## 🚢 Production Deployment Commands
+## 📄 Institutional Governance & Ownership
 
-When deploying to a production server (Ubuntu/VPS/Cloud):
-
-```bash
-# Backend Production Optimization
-cd backend
-php artisan config:cache
-php artisan route:cache
-php artisan view:cache
-php artisan migrate --force
-
-# Frontend Production Build
-cd ../frontend
-npm run build
-```
-
----
-
-## 🔒 Permissions & Roles Overview
-
-| Role | Default Access |
-| :--- | :--- |
-| **Super Admin** | Unrestricted access across all modules, settings, fee matrices, and permission assignments |
-| **Staff** | Operational management (bookings, borrowings, inspections, reports) governed by granular permissions |
-| **Student Assistant** | Kiosk-level claims, basic unit checkouts, and view-only permissions configured by Super Admin |
-
----
-
-## 📄 License & Attribution
-
-Developed for **Father Saturnino Urios University (FSUU)**.  
+Developed specifically for the **Audio-Visual Resource (AVR) Center** of **Father Saturnino Urios University (FSUU)**, Butuan City, Philippines.  
 All rights reserved © 2026 Father Saturnino Urios University.

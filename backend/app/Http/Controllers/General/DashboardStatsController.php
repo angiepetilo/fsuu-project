@@ -343,37 +343,29 @@ class DashboardStatsController extends Controller
         usort($lateSortedPrograms, fn($a, $b) => $b['late'] <=> $a['late']);
         $topLateDept = (!empty($lateSortedPrograms) && $lateSortedPrograms[0]['late'] > 0) ? $lateSortedPrograms[0]['program'] : 'None';
 
-        // 10b. Violating Students / Borrowers List — scoped to active term
+        // 10b. Borrowers with Late Returns — scoped to active term, fully unique real records
         $violatingStudents = [];
         try {
+            $lateRecords = collect();
+
+            // Source A: Late equipment inspections (using correct model and polymorphic types)
             if (Schema::hasTable('inspections')) {
-                $rawInspStudentsQuery = DB::table('inspections')
+                $equipInspQuery = DB::table('inspections')
+                    ->join('equipment_borrows', 'inspections.inspectable_id', '=', 'equipment_borrows.id')
+                    ->leftJoin('tracking_numbers', 'equipment_borrows.tracking_number_id', '=', 'tracking_numbers.id')
+                    ->where(function ($q) {
+                        $q->where('inspections.inspectable_type', \App\Models\EquipmentBorrow::class)
+                          ->orWhere('inspections.inspectable_type', 'equipment_borrow')
+                          ->orWhere('inspections.inspectable_type', 'avr_equipment_borrowing')
+                          ->orWhere('inspections.inspectable_type', 'like', '%EquipmentBorrow%');
+                    })
                     ->where(function ($q) {
                         $q->where('inspections.is_late', 1)
                           ->orWhere(DB::raw('LOWER(inspections.timeliness)'), 'like', '%late%')
                           ->orWhere(DB::raw('LOWER(inspections.violation_type)'), 'like', '%late%')
                           ->orWhere('inspections.minutes_late', '>', 0);
                     })
-                    ->leftJoin('equipment_borrows', function ($join) {
-                        $join->on('inspections.inspectable_id', '=', 'equipment_borrows.id')
-                             ->where(function ($q) {
-                                 $q->where('inspections.inspectable_type', 'equipment_borrow')
-                                   ->orWhere('inspections.inspectable_type', 'avr_equipment_borrowing')
-                                   ->orWhere('inspections.inspectable_type', 'App\\Models\\EquipmentBorrowing');
-                             });
-                    })
-                    ->leftJoin('venue_bookings', function ($join) {
-                        $join->on('inspections.inspectable_id', '=', 'venue_bookings.id')
-                             ->where(function ($q) {
-                                 $q->where('inspections.inspectable_type', 'venue_booking')
-                                   ->orWhere('inspections.inspectable_type', 'avr_venue_booking')
-                                   ->orWhere('inspections.inspectable_type', 'App\\Models\\VenueBooking');
-                             });
-                    })
-                    ->leftJoin('tracking_numbers', function ($join) {
-                        $join->on('equipment_borrows.tracking_number_id', '=', 'tracking_numbers.id')
-                             ->orOn('venue_bookings.tracking_number_id', '=', 'tracking_numbers.id');
-                    })
+                    ->whereNull('equipment_borrows.archived_at')
                     ->select(
                         'inspections.id as inspection_id',
                         'inspections.condition',
@@ -382,40 +374,193 @@ class DashboardStatsController extends Controller
                         'inspections.minutes_late',
                         'inspections.timeliness',
                         'inspections.created_at as incident_date',
-                        DB::raw("COALESCE(equipment_borrows.filer_name, venue_bookings.filer_name, 'Borrower') as student_name"),
-                        DB::raw("COALESCE(equipment_borrows.program_office, venue_bookings.program_office, 'Department') as department"),
-                        DB::raw("COALESCE(tracking_numbers.reference_code, 'TRK-INCIDENT') as reference_code"),
-                        DB::raw("CASE WHEN equipment_borrows.id IS NOT NULL THEN 'Equipment Loan' ELSE 'Venue Booking' END as transaction_type")
-                    )
-                    ->orderByDesc('inspections.id')
-                    ->limit(20);
+                        'equipment_borrows.id as record_id',
+                        'equipment_borrows.first_name',
+                        'equipment_borrows.middle_name',
+                        'equipment_borrows.last_name',
+                        'equipment_borrows.suffix',
+                        'equipment_borrows.filer_name',
+                        'equipment_borrows.program_office',
+                        'tracking_numbers.reference_code',
+                        DB::raw("'Equipment Loan' as transaction_type")
+                    );
 
                 if ($activeTermId) {
-                    $rawInspStudentsQuery->where(function($q) use ($activeTermId) {
-                        $q->where('venue_bookings.academic_term_id', $activeTermId)
-                          ->orWhere('equipment_borrows.academic_term_id', $activeTermId);
+                    $equipInspQuery->where(function($q) use ($activeTermId) {
+                        $q->where('equipment_borrows.academic_term_id', $activeTermId)
+                          ->orWhereNull('equipment_borrows.academic_term_id');
                     });
                 }
 
-                $rawInspStudents = $rawInspStudentsQuery->get();
+                $lateRecords = $lateRecords->concat($equipInspQuery->get());
 
-                $violatingStudents = $rawInspStudents->map(function ($row) {
-                    $dt = Carbon::parse($row->incident_date);
-                    $violationLabel = $row->violation_type ?: ($row->is_late ? "Late Return (" . ($row->minutes_late ?: 15) . " mins)" : ucfirst($row->condition));
-                    return [
-                        'id'               => $row->inspection_id,
-                        'name'             => $row->student_name,
-                        'department'       => $row->department,
-                        'reference_code'   => $row->reference_code,
-                        'type'             => $row->transaction_type,
-                        'violation'        => $violationLabel,
-                        'is_late'          => (bool)$row->is_late,
-                        'minutes_late'     => $row->minutes_late ?: 0,
-                        'date'             => $dt->format('M d, Y h:i A'),
-                    ];
-                })->all();
+                // Source B: Late venue inspections
+                $venueInspQuery = DB::table('inspections')
+                    ->join('venue_bookings', 'inspections.inspectable_id', '=', 'venue_bookings.id')
+                    ->leftJoin('tracking_numbers', 'venue_bookings.tracking_number_id', '=', 'tracking_numbers.id')
+                    ->where(function ($q) {
+                        $q->where('inspections.inspectable_type', \App\Models\VenueBooking::class)
+                          ->orWhere('inspections.inspectable_type', 'venue_booking')
+                          ->orWhere('inspections.inspectable_type', 'avr_venue_booking')
+                          ->orWhere('inspections.inspectable_type', 'like', '%VenueBooking%');
+                    })
+                    ->where(function ($q) {
+                        $q->where('inspections.is_late', 1)
+                          ->orWhere(DB::raw('LOWER(inspections.timeliness)'), 'like', '%late%')
+                          ->orWhere(DB::raw('LOWER(inspections.violation_type)'), 'like', '%late%')
+                          ->orWhere('inspections.minutes_late', '>', 0);
+                    })
+                    ->whereNull('venue_bookings.archived_at')
+                    ->select(
+                        'inspections.id as inspection_id',
+                        'inspections.condition',
+                        'inspections.violation_type',
+                        'inspections.is_late',
+                        'inspections.minutes_late',
+                        'inspections.timeliness',
+                        'inspections.created_at as incident_date',
+                        'venue_bookings.id as record_id',
+                        'venue_bookings.first_name',
+                        'venue_bookings.middle_name',
+                        'venue_bookings.last_name',
+                        'venue_bookings.suffix',
+                        'venue_bookings.filer_name',
+                        'venue_bookings.program_office',
+                        'tracking_numbers.reference_code',
+                        DB::raw("'Venue Booking' as transaction_type")
+                    );
+
+                if ($activeTermId) {
+                    $venueInspQuery->where(function($q) use ($activeTermId) {
+                        $q->where('venue_bookings.academic_term_id', $activeTermId)
+                          ->orWhereNull('venue_bookings.academic_term_id');
+                    });
+                }
+
+                $lateRecords = $lateRecords->concat($venueInspQuery->get());
             }
-        } catch (\Throwable $e) {}
+
+            // Source C: Borrows explicitly marked as 'late return' or 'returned late' in tracking status
+            $directLateEbQuery = DB::table('equipment_borrows')
+                ->join('tracking_numbers', 'equipment_borrows.tracking_number_id', '=', 'tracking_numbers.id')
+                ->whereNull('equipment_borrows.archived_at')
+                ->whereRaw("LOWER(TRIM(tracking_numbers.status)) IN ('late return', 'returned late')")
+                ->select(
+                    DB::raw("NULL as inspection_id"),
+                    DB::raw("'good' as `condition`"),
+                    DB::raw("'Late Return' as violation_type"),
+                    DB::raw("1 as is_late"),
+                    DB::raw("15 as minutes_late"),
+                    DB::raw("'late' as timeliness"),
+                    'tracking_numbers.updated_at as incident_date',
+                    'equipment_borrows.id as record_id',
+                    'equipment_borrows.first_name',
+                    'equipment_borrows.middle_name',
+                    'equipment_borrows.last_name',
+                    'equipment_borrows.suffix',
+                    'equipment_borrows.filer_name',
+                    'equipment_borrows.program_office',
+                    'tracking_numbers.reference_code',
+                    DB::raw("'Equipment Loan' as transaction_type")
+                );
+            if ($activeTermId) {
+                $directLateEbQuery->where(function($q) use ($activeTermId) {
+                    $q->where('equipment_borrows.academic_term_id', $activeTermId)
+                      ->orWhereNull('equipment_borrows.academic_term_id');
+                });
+            }
+            $lateRecords = $lateRecords->concat($directLateEbQuery->get());
+
+            // Source D: Currently overdue ongoing equipment borrows (past date_of_usage and time_end)
+            $overdueEbQuery = DB::table('equipment_borrows')
+                ->join('tracking_numbers', 'equipment_borrows.tracking_number_id', '=', 'tracking_numbers.id')
+                ->whereNull('equipment_borrows.archived_at')
+                ->whereRaw("LOWER(TRIM(tracking_numbers.status)) IN ('ongoing', 'on-going')")
+                ->where(function ($q) use ($now) {
+                    $q->where('equipment_borrows.date_of_usage', '<', $now->toDateString())
+                      ->orWhere(function ($q2) use ($now) {
+                          $q2->where('equipment_borrows.date_of_usage', '=', $now->toDateString())
+                             ->where('equipment_borrows.time_end', '<', $now->toTimeString());
+                      });
+                })
+                ->select(
+                    DB::raw("NULL as inspection_id"),
+                    DB::raw("'good' as `condition`"),
+                    DB::raw("'Overdue (Active)' as violation_type"),
+                    DB::raw("1 as is_late"),
+                    DB::raw("TIMESTAMPDIFF(MINUTE, CONCAT(equipment_borrows.date_of_usage, ' ', equipment_borrows.time_end), NOW()) as minutes_late"),
+                    DB::raw("'late' as timeliness"),
+                    DB::raw("NOW() as incident_date"),
+                    'equipment_borrows.id as record_id',
+                    'equipment_borrows.first_name',
+                    'equipment_borrows.middle_name',
+                    'equipment_borrows.last_name',
+                    'equipment_borrows.suffix',
+                    'equipment_borrows.filer_name',
+                    'equipment_borrows.program_office',
+                    'tracking_numbers.reference_code',
+                    DB::raw("'Equipment Loan' as transaction_type")
+                );
+            if ($activeTermId) {
+                $overdueEbQuery->where(function($q) use ($activeTermId) {
+                    $q->where('equipment_borrows.academic_term_id', $activeTermId)
+                      ->orWhereNull('equipment_borrows.academic_term_id');
+                });
+            }
+            $lateRecords = $lateRecords->concat($overdueEbQuery->get());
+
+            // Deduplicate by transaction (reference_code or transaction_type + record_id)
+            $seenKeys = [];
+            $uniqueViolating = [];
+            foreach ($lateRecords as $row) {
+                $refCode = $row->reference_code ?: ("TRK-" . ($row->transaction_type === 'Equipment Loan' ? 'EB' : 'VB') . "-{$row->record_id}");
+                $dedupKey = $refCode;
+                if (isset($seenKeys[$dedupKey])) {
+                    continue;
+                }
+                $seenKeys[$dedupKey] = true;
+
+                $fullName = trim(implode(' ', array_filter([$row->first_name ?? '', $row->last_name ?? ''])));
+                if (empty($fullName)) {
+                    $fullName = trim((string)($row->filer_name ?? ''));
+                }
+                if (empty($fullName)) {
+                    $fullName = 'Borrower';
+                }
+
+                $department = trim((string)($row->program_office ?? ''));
+                if (empty($department)) {
+                    $department = 'Academic Dept';
+                }
+
+                $minLate = max(0, (int)($row->minutes_late ?? 0));
+                $violationLabel = $row->violation_type;
+                if (empty($violationLabel) || strtolower($violationLabel) === 'good' || strtolower($violationLabel) === 'clean') {
+                    $violationLabel = $minLate > 0 ? "Late Return ({$minLate} mins)" : "Late Return";
+                } elseif ($minLate > 0 && !str_contains($violationLabel, (string)$minLate)) {
+                    $violationLabel = "{$violationLabel} ({$minLate} mins)";
+                }
+
+                $dt = Carbon::parse($row->incident_date ?? now());
+
+                $uniqueViolating[] = [
+                    'id'             => "late-{$row->record_id}-" . ($row->inspection_id ?? 'direct'),
+                    'record_id'      => $row->record_id,
+                    'name'           => $fullName,
+                    'department'     => $department,
+                    'reference_code' => $refCode,
+                    'type'           => $row->transaction_type,
+                    'violation'      => $violationLabel,
+                    'is_late'        => true,
+                    'minutes_late'   => $minLate,
+                    'date'           => $dt->format('M d, Y h:i A'),
+                ];
+            }
+
+            $violatingStudents = array_slice($uniqueViolating, 0, 25);
+        } catch (\Throwable $e) {
+            Log::error("violatingStudents error: " . $e->getMessage() . " at " . $e->getFile() . ":" . $e->getLine());
+        }
 
         // 11. Schedule Overview Calendar Data — scoped to active term
         $calVbQuery = DB::table('venue_bookings')
@@ -470,6 +615,185 @@ class DashboardStatsController extends Controller
         $calendarEquipBorrowings = $calEbQuery->get();
 
         $calendarBookings = $calendarVenueBookings->concat($calendarEquipBorrowings);
+
+        // ── 12. Today's Scheduled Reservations (Venues & Equipment) ────────
+        $todayReservations = [
+            'venues'    => [],
+            'equipment' => [],
+            'all'       => [],
+        ];
+        try {
+            $todayDate = $now->toDateString();
+
+            // A. Today's Scheduled Venue Bookings
+            $todayVbQuery = DB::table('venue_bookings')
+                ->join('tracking_numbers', 'venue_bookings.tracking_number_id', '=', 'tracking_numbers.id')
+                ->leftJoin('venues', 'venue_bookings.venue_id', '=', 'venues.id')
+                ->whereNull('venue_bookings.archived_at')
+                ->where(function ($q) use ($todayDate) {
+                    $q->where('venue_bookings.date_of_usage', '=', $todayDate)
+                      ->orWhere(function ($q2) use ($todayDate) {
+                          $q2->where('venue_bookings.date_of_usage', '<=', $todayDate)
+                             ->whereRaw("COALESCE(venue_bookings.reservation_end_date, venue_bookings.date_of_usage) >= ?", [$todayDate]);
+                      })
+                      ->orWhereIn(DB::raw('LOWER(TRIM(tracking_numbers.status))'), ['ongoing', 'on-going', 'post-inspection']);
+                })
+                ->whereNotIn(DB::raw('LOWER(TRIM(tracking_numbers.status))'), ['cancelled', 'rejected', 'cancelled_by_user'])
+                ->select(
+                    'venue_bookings.id',
+                    'venue_bookings.first_name',
+                    'venue_bookings.middle_name',
+                    'venue_bookings.last_name',
+                    'venue_bookings.suffix',
+                    'venue_bookings.filer_name',
+                    'venue_bookings.classification',
+                    'venue_bookings.program_office',
+                    'venue_bookings.date_of_usage',
+                    'venue_bookings.reservation_end_date',
+                    'venue_bookings.time_start',
+                    'venue_bookings.time_end',
+                    'venue_bookings.purpose',
+                    'venues.name as venue_name',
+                    'tracking_numbers.reference_code',
+                    'tracking_numbers.status'
+                )
+                ->orderBy('venue_bookings.time_start', 'asc');
+
+            if ($activeTermId) {
+                $todayVbQuery->where(function($q) use ($activeTermId) {
+                    $q->where('venue_bookings.academic_term_id', $activeTermId)
+                      ->orWhereNull('venue_bookings.academic_term_id');
+                });
+            }
+
+            $todayVbList = $todayVbQuery->get()->map(function ($row) {
+                $fullName = trim(implode(' ', array_filter([$row->first_name, $row->middle_name, $row->last_name, $row->suffix])));
+                if (empty($fullName)) {
+                    $fullName = trim((string)($row->filer_name ?: 'Client'));
+                }
+                $vName = $row->venue_name ?: ($row->purpose ?: 'Campus Facility');
+                return [
+                    'id'                   => $row->id,
+                    'type'                 => 'venue',
+                    'itemType'             => 'venue',
+                    'reference_code'       => $row->reference_code ?: "TRK-VB-{$row->id}",
+                    'first_name'           => $row->first_name,
+                    'last_name'            => $row->last_name,
+                    'filer_name'           => $fullName,
+                    'name'                 => $fullName,
+                    'classification'       => $row->classification ?: 'student',
+                    'program_office'       => $row->program_office ?: 'Academic Dept',
+                    'department'           => $row->program_office ?: 'Academic Dept',
+                    'facility_or_item'     => $vName,
+                    'venue_name'           => $row->venue_name,
+                    'date_of_usage'        => $row->date_of_usage,
+                    'reservation_end_date' => $row->reservation_end_date ?: $row->date_of_usage,
+                    'time_start'           => $row->time_start ?: '08:00',
+                    'time_end'             => $row->time_end ?: '17:00',
+                    'status'               => strtolower((string)$row->status),
+                    'purpose'              => $row->purpose,
+                ];
+            });
+
+            // B. Today's Scheduled Equipment Borrowings
+            $todayEbQuery = DB::table('equipment_borrows')
+                ->join('tracking_numbers', 'equipment_borrows.tracking_number_id', '=', 'tracking_numbers.id')
+                ->whereNull('equipment_borrows.archived_at')
+                ->where(function ($q) use ($todayDate) {
+                    $q->where('equipment_borrows.date_of_usage', '=', $todayDate)
+                      ->orWhere(function ($q2) use ($todayDate) {
+                          $q2->where('equipment_borrows.date_of_usage', '<=', $todayDate)
+                             ->whereRaw("COALESCE(equipment_borrows.extend_of_date_returned, equipment_borrows.date_of_usage) >= ?", [$todayDate]);
+                      })
+                      ->orWhereIn(DB::raw('LOWER(TRIM(tracking_numbers.status))'), ['ongoing', 'on-going', 'late return', 'returned late']);
+                })
+                ->whereNotIn(DB::raw('LOWER(TRIM(tracking_numbers.status))'), ['cancelled', 'rejected', 'cancelled_by_user'])
+                ->select(
+                    'equipment_borrows.id',
+                    'equipment_borrows.first_name',
+                    'equipment_borrows.middle_name',
+                    'equipment_borrows.last_name',
+                    'equipment_borrows.suffix',
+                    'equipment_borrows.filer_name',
+                    'equipment_borrows.classification',
+                    'equipment_borrows.program_office',
+                    'equipment_borrows.date_of_usage',
+                    'equipment_borrows.extend_of_date_returned',
+                    'equipment_borrows.time_start',
+                    'equipment_borrows.time_end',
+                    'equipment_borrows.purpose',
+                    'tracking_numbers.reference_code',
+                    'tracking_numbers.status'
+                )
+                ->orderBy('equipment_borrows.time_start', 'asc');
+
+            if ($activeTermId) {
+                $todayEbQuery->where(function($q) use ($activeTermId) {
+                    $q->where('equipment_borrows.academic_term_id', $activeTermId)
+                      ->orWhereNull('equipment_borrows.academic_term_id');
+                });
+            }
+
+            $rawEb = $todayEbQuery->get();
+            $ebIds = $rawEb->pluck('id')->all();
+
+            // Fetch equipment items for these borrowings
+            $itemsByBorrowId = [];
+            if (!empty($ebIds) && Schema::hasTable('equipment_borrow_items')) {
+                $items = DB::table('equipment_borrow_items')
+                    ->leftJoin('equipment_types', function($j) {
+                        $j->on('equipment_borrow_items.equipment_type_id', '=', 'equipment_types.id')
+                          ->orOn('equipment_borrow_items.equipment_types_id', '=', 'equipment_types.id');
+                    })
+                    ->whereIn('equipment_borrow_items.equipment_borrow_id', $ebIds)
+                    ->select(
+                        'equipment_borrow_items.equipment_borrow_id',
+                        'equipment_borrow_items.quantity_requested',
+                        DB::raw("COALESCE(equipment_types.equipment_types_name, equipment_types.eq_name, equipment_types.name, 'Equipment') as eq_name")
+                    )
+                    ->get();
+                foreach ($items as $it) {
+                    $name = $it->eq_name ?: 'Equipment';
+                    $qty = $it->quantity_requested ?: 1;
+                    $itemsByBorrowId[$it->equipment_borrow_id][] = "{$name} ({$qty})";
+                }
+            }
+
+            $todayEbList = $rawEb->map(function ($row) use ($itemsByBorrowId) {
+                $fullName = trim(implode(' ', array_filter([$row->first_name, $row->middle_name, $row->last_name, $row->suffix])));
+                if (empty($fullName)) {
+                    $fullName = trim((string)($row->filer_name ?: 'Client'));
+                }
+                $equipStr = isset($itemsByBorrowId[$row->id]) ? implode(', ', $itemsByBorrowId[$row->id]) : '';
+                return [
+                    'id'                   => $row->id,
+                    'type'                 => 'equipment',
+                    'itemType'             => 'equipment',
+                    'reference_code'       => $row->reference_code ?: "TRK-EB-{$row->id}",
+                    'first_name'           => $row->first_name,
+                    'last_name'            => $row->last_name,
+                    'filer_name'           => $fullName,
+                    'name'                 => $fullName,
+                    'classification'       => $row->classification ?: 'student',
+                    'program_office'       => $row->program_office ?: 'Academic Dept',
+                    'department'           => $row->program_office ?: 'Academic Dept',
+                    'facility_or_item'     => $equipStr ?: ($row->purpose ?: 'Audio-Visual Equipment Loan'),
+                    'equipment_name'       => $equipStr,
+                    'date_of_usage'        => $row->date_of_usage,
+                    'reservation_end_date' => $row->extend_of_date_returned ?: $row->date_of_usage,
+                    'time_start'           => $row->time_start ?: '08:00',
+                    'time_end'             => $row->time_end ?: '17:00',
+                    'status'               => strtolower((string)$row->status),
+                    'purpose'              => $row->purpose,
+                ];
+            });
+
+            $todayReservations = [
+                'venues'    => $todayVbList->all(),
+                'equipment' => $todayEbList->all(),
+                'all'       => $todayVbList->concat($todayEbList)->values()->all(),
+            ];
+        } catch (\Throwable $e) {}
 
         // ── Recent Inventory Changes (from audit logs) ──────────────────────
         $recentInventoryChanges = [];
@@ -565,6 +889,7 @@ class DashboardStatsController extends Controller
             'top_equipment'           => $topEquipment,
             'programs_with_violations' => array_slice($programsList, 0, 5),
             'violating_students'      => $violatingStudents,
+            'today_reservations'      => $todayReservations,
             'calendar_bookings'       => $calendarBookings,
         ];
     }

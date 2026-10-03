@@ -78,12 +78,13 @@ export default function Dashboard() {
     try {
       const [statsRes, vRes, eRes] = await Promise.allSettled([
         api.get(`/dashboard/stats?_t=${Date.now()}`),
-        api.get(`/avr-venue-bookings?_t=${Date.now()}`),
-        api.get(`/avr-equipment-borrowings?_t=${Date.now()}`),
+        api.get(`/avr-venue-bookings?all=1&_t=${Date.now()}`),
+        api.get(`/avr-equipment-borrowings?all=1&_t=${Date.now()}`),
       ]);
 
+      let statsData = null;
       if (statsRes.status === "fulfilled" && statsRes.value.data) {
-        const statsData = statsRes.value.data;
+        statsData = statsRes.value.data;
         const q = statsData.quick_stats || {};
         setTotalVenueBookings(q.total_venue_bookings || 0);
         setTotalEquipBorrows(q.total_equip_borrows || 0);
@@ -129,15 +130,37 @@ export default function Dashboard() {
         } catch {}
       }
 
+      // Process and merge venue bookings
+      let rawV = [];
       if (vRes.status === "fulfilled") {
-        const vData = vRes.value.data?.data ?? (Array.isArray(vRes.value.data) ? vRes.value.data : []);
-        setVenueBookings(vData);
+        rawV = vRes.value.data?.data ?? (Array.isArray(vRes.value.data) ? vRes.value.data : []);
       }
+      const vMap = new Map();
+      if (statsData?.today_reservations?.venues) {
+        statsData.today_reservations.venues.forEach((v) => vMap.set(String(v.id), v));
+      }
+      rawV.forEach((v) => {
+        const id = String(v.id);
+        const existing = vMap.get(id) || {};
+        vMap.set(id, { ...existing, ...v });
+      });
+      setVenueBookings(Array.from(vMap.values()));
 
+      // Process and merge equipment borrowings
+      let rawE = [];
       if (eRes.status === "fulfilled") {
-        const eData = eRes.value.data?.data ?? (Array.isArray(eRes.value.data) ? eRes.value.data : []);
-        setEquipBorrowings(eData);
+        rawE = eRes.value.data?.data ?? (Array.isArray(eRes.value.data) ? eRes.value.data : []);
       }
+      const eMap = new Map();
+      if (statsData?.today_reservations?.equipment) {
+        statsData.today_reservations.equipment.forEach((e) => eMap.set(String(e.id), e));
+      }
+      rawE.forEach((e) => {
+        const id = String(e.id);
+        const existing = eMap.get(id) || {};
+        eMap.set(id, { ...existing, ...e });
+      });
+      setEquipBorrowings(Array.from(eMap.values()));
 
     } catch {
       if (!isSilent) setError("Unable to sync dashboard data.");

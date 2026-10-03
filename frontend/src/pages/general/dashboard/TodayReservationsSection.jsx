@@ -22,11 +22,16 @@ export default function TodayReservationsSection({
     const rawStart = item.date_of_usage || item.date_of_use || item.booking_date || item.start_datetime || item.date;
     if (!rawStart) return false;
     const start = String(rawStart).substring(0, 10);
-    const rawEnd = item.reservation_end_date || item.end_date || item.date_of_usage_end || item.end_datetime || rawStart;
+    const rawEnd = item.reservation_end_date || item.end_date || item.date_of_usage_end || item.extend_of_date_returned || item.end_datetime || rawStart;
     const end = String(rawEnd).substring(0, 10);
 
     const status = (item.status || item.tracking_number?.status || "").toLowerCase();
-    const isOngoing = ["ongoing", "on-going"].includes(status);
+    // Exclude cancelled and rejected bookings from active scheduled reservations
+    if (["cancelled", "rejected", "cancelled_by_user"].includes(status)) {
+      return false;
+    }
+
+    const isOngoing = ["ongoing", "on-going", "post-inspection"].includes(status);
 
     if (start && end) {
       if (todayStr >= start && todayStr <= end) return true;
@@ -38,15 +43,29 @@ export default function TodayReservationsSection({
   };
 
   const todayVenues = useMemo(() => {
-    return (venueBookings || [])
-      .filter(isItemForToday)
-      .map((v) => ({ ...v, itemType: "venue" }));
+    const seen = new Set();
+    const result = [];
+    (venueBookings || []).filter(isItemForToday).forEach((v) => {
+      const key = v.id || v.reference_code || v.tracking_number?.reference_code;
+      if (key && !seen.has(key)) {
+        seen.add(key);
+        result.push({ ...v, itemType: "venue" });
+      }
+    });
+    return result;
   }, [venueBookings, todayStr]);
 
   const todayEquipment = useMemo(() => {
-    return (equipBorrowings || [])
-      .filter(isItemForToday)
-      .map((e) => ({ ...e, itemType: "equipment" }));
+    const seen = new Set();
+    const result = [];
+    (equipBorrowings || []).filter(isItemForToday).forEach((e) => {
+      const key = e.id || e.reference_code || e.tracking_number?.reference_code;
+      if (key && !seen.has(key)) {
+        seen.add(key);
+        result.push({ ...e, itemType: "equipment" });
+      }
+    });
+    return result;
   }, [equipBorrowings, todayStr]);
 
   const filteredList = useMemo(() => {
@@ -54,13 +73,24 @@ export default function TodayReservationsSection({
     if (activeTab === "all" || activeTab === "venues") list = list.concat(todayVenues);
     if (activeTab === "all" || activeTab === "equipment") list = list.concat(todayEquipment);
 
-    if (!searchQuery.trim()) return list;
+    // Guaranteed deduplication across merged list
+    const seen = new Set();
+    const uniqueList = [];
+    for (const item of list) {
+      const key = `${item.itemType}-${item.id || item.reference_code || item.tracking_number?.reference_code}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        uniqueList.push(item);
+      }
+    }
+
+    if (!searchQuery.trim()) return uniqueList;
 
     const q = searchQuery.toLowerCase().trim();
-    return list.filter((item) => {
+    return uniqueList.filter((item) => {
       const ref = (item.reference_code || item.tracking_number?.reference_code || "").toLowerCase();
-      const filer = (item.filer_name || item.name || "").toLowerCase();
-      const facility = (item.venue?.name || item.venue_name || item.purpose || "").toLowerCase();
+      const filer = ([item.first_name, item.last_name].filter(Boolean).join(" ") || item.filer_name || item.name || "").toLowerCase();
+      const facility = (item.venue?.name || item.venue_name || item.facility_or_item || item.purpose || "").toLowerCase();
       const dept = (item.program_office || item.department || "").toLowerCase();
       return ref.includes(q) || filer.includes(q) || facility.includes(q) || dept.includes(q);
     });
@@ -124,6 +154,42 @@ export default function TodayReservationsSection({
         Student
       </span>
     );
+  };
+
+  const getFacilityOrItem = (item, isVenue) => {
+    if (isVenue) {
+      return item.venue?.name || item.venue_name || item.facility_or_item || item.purpose || "Campus Facility";
+    }
+    // For equipment: prioritize real equipment item names and quantities
+    if (item.facility_or_item && item.facility_or_item !== "Audio-Visual Equipment Loan" && item.facility_or_item !== "Equipment Loan") {
+      return item.facility_or_item;
+    }
+    if (item.equipment_name) {
+      return item.equipment_name;
+    }
+    if (Array.isArray(item.items) && item.items.length > 0) {
+      const names = item.items
+        .map((it) => {
+          const eqName = it.equipment_type?.eq_name || it.equipmentType?.eq_name || it.name || it.category || "Equipment";
+          const qty = it.quantity_requested || it.quantity || 1;
+          return `${eqName} (${qty})`;
+        })
+        .filter(Boolean);
+      if (names.length > 0) return names.join(", ");
+    }
+    if (Array.isArray(item.equipment_items) && item.equipment_items.length > 0) {
+      const names = item.equipment_items
+        .map((it) => `${it.name || it.eq_name || "Equipment"} (${it.quantity || 1})`)
+        .filter(Boolean);
+      if (names.length > 0) return names.join(", ");
+    }
+    return item.purpose || "Audio-Visual Equipment Loan";
+  };
+
+  const getRequestorName = (item) => {
+    const parts = [item.first_name, item.middle_name, item.last_name, item.suffix].filter(Boolean);
+    if (parts.length > 0) return parts.join(" ").trim();
+    return item.filer_name || item.name || item.requestor_name || "Client";
   };
 
   return (
@@ -201,7 +267,7 @@ export default function TodayReservationsSection({
               <th className="py-3.5 px-4">Type</th>
               <th className="py-3.5 px-4">Reference</th>
               <th className="py-3.5 px-4">Requestor</th>
-              <th className="py-3.5 px-4">Facility</th>
+              <th className="py-3.5 px-4">Facility / Item</th>
               <th className="py-3.5 px-4">Time</th>
               <th className="py-3.5 px-4">Status</th>
               <th className="py-3.5 px-4 text-right">Action</th>
@@ -223,13 +289,11 @@ export default function TodayReservationsSection({
             ) : (
               filteredList.map((item) => {
                 const isVenue = item.itemType === "venue";
-                const refCode = item.reference_code || item.tracking_number?.reference_code || `TRK-${item.id}`;
-                const filer = [item.first_name, item.last_name].filter(Boolean).join(" ").trim() || item.filer_name || item.name || "Client";
-                const classification = item.classification || item.identity_type || "student";
-                const dept = item.program_office || item.department || "Academic Dept";
-                const facilityOrItem = isVenue
-                  ? (item.venue?.name || item.venue_name || item.purpose || "Campus Facility")
-                  : (item.purpose || item.equipment_name || "Audio-Visual Equipment Loan");
+                const refCode = item.reference_code || item.tracking_number?.reference_code || (item.id ? `TRK-${isVenue ? "VB" : "EB"}-${item.id}` : "TRK-TODAY");
+                const filer = getRequestorName(item);
+                const classification = item.classification || item.identity_type || item.requestor_identity_type || "student";
+                const dept = item.program_office || item.department || item.requestor_program_office || "Academic Dept";
+                const facilityOrItem = getFacilityOrItem(item, isVenue);
                 const timeDisplay = `${formatTime(item.time_start || "08:00")} - ${formatTime(item.time_end || "17:00")}`;
                 const status = (item.status || item.tracking_number?.status || "pending").toLowerCase();
                 const detailPath = isVenue
@@ -242,7 +306,7 @@ export default function TodayReservationsSection({
                 else if (status === "ongoing" || status === "on-going") dutyAction = isVenue ? "Inspect" : "Receive";
 
                 return (
-                  <tr key={`${item.itemType}-${item.id}`} className="hover:bg-muted/40 transition-colors">
+                  <tr key={`${item.itemType}-${item.id || item.reference_code}`} className="hover:bg-muted/40 transition-colors">
                     <td className="py-3.5 px-4">
                       <span className={`text-xs font-semibold ${
                         isVenue ? "text-blue-600 dark:text-blue-400" : "text-emerald-600 dark:text-emerald-400"
