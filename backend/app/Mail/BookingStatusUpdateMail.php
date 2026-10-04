@@ -38,24 +38,39 @@ class BookingStatusUpdateMail extends Mailable
         $label = $this->type === 'venue' ? 'Venue Reservation' : 'Equipment Borrowing';
         $normalized = strtolower(str_replace(['_', '-'], ' ', (string)$this->status));
 
-        $statusLabel = match ($normalized) {
-            'approved' => 'Approved',
-            'rejected' => 'Reservation Not Approved',
-            'overdue', 'passed due', 'return past due notice' => 'Return Past Due Notice',
-            'late return', 'late' => 'Notice of Late Return',
-            'exceed end time', 'exceeded end time', 'overtime' => 'URGENT: Usage Exceeded Scheduled End Time',
-            'completed', 'returned', 'done', 'cleared' => 'Completed & Cleared',
-            'requirements resubmitted', 'resubmitted requirements' => 'Missing Requirements Received & Under Review',
-            'incomplete' => 'Action Required: Incomplete Requirements',
-            'cancelled' => 'Cancelled',
-            'reassigned' => 'Venue Referral & Reassignment',
-            'urgent approval', 'urgent_approval' => 'Urgent Approval Requested',
-            default => ucfirst($this->status),
+        $classification = strtolower(trim((string)($this->booking->requestor_identity_type ?? $this->booking->classification ?? 'student')));
+        $isExternal = str_contains($classification, 'external');
+        $extTag = $isExternal ? ' [External Client]' : '';
+
+        $subject = match (true) {
+            in_array($normalized, ['approved']) => $this->type === 'venue'
+                ? "CONFIRMED: Venue Reservation [{$this->refCode}]{$extTag}"
+                : "READY FOR PICKUP: Equipment Borrowing Approved [{$this->refCode}]{$extTag}",
+            in_array($normalized, ['on going', 'on-going', 'ongoing', 'released', 'on_going']) => $this->type === 'venue'
+                ? "CHECK-IN LOGGED: Event Now In Progress [{$this->refCode}]{$extTag}"
+                : "CUSTODY HANDOVER RECEIPT: Equipment Units Released [{$this->refCode}]{$extTag}",
+            in_array($normalized, ['overdue', 'passed due', 'return past due notice']) =>
+                "OVERDUE NOTICE: Equipment Return Required Immediately [{$this->refCode}]{$extTag}",
+            in_array($normalized, ['exceed end time', 'exceeded end time', 'overtime']) =>
+                "URGENT: Reservation Exceeded Scheduled End Time [{$this->refCode}]{$extTag}",
+            in_array($normalized, ['late return', 'late']) =>
+                "NOTICE OF LATE RETURN [{$this->refCode}]{$extTag}",
+            in_array($normalized, ['completed', 'returned', 'done', 'cleared']) => $this->type === 'venue'
+                ? "CLEARED: Facility Turnover Completed [{$this->refCode}]{$extTag}"
+                : "CLEARANCE RECEIPT: Equipment Returned & Inspected [{$this->refCode}]{$extTag}",
+            in_array($normalized, ['reminder', 'due soon', 'due_soon', 'return reminder', 'return_reminder']) => $this->type === 'venue'
+                ? "REMINDER: Your reservation is scheduled for today [{$this->refCode}]{$extTag}"
+                : "DUE SOON: Equipment Return Deadline Approaching [{$this->refCode}]{$extTag}",
+            in_array($normalized, ['incomplete', 'missing requirements']) =>
+                "ACTION REQUIRED: Missing Requirements for [{$this->refCode}]{$extTag}",
+            in_array($normalized, ['cancelled', 'auto cancelled', 'auto-cancelled', 'auto_cancelled']) =>
+                "NOTICE: Reservation Cancelled [{$this->refCode}]{$extTag}",
+            in_array($normalized, ['rejected']) =>
+                "NOTICE: Reservation Not Approved [{$this->refCode}]{$extTag}",
+            default => "[{$this->refCode}] FSUU {$label} — " . ucfirst($this->status) . $extTag,
         };
 
-        return new Envelope(
-            subject: "[{$this->refCode}] FSUU {$label} — {$statusLabel}"
-        );
+        return new Envelope(subject: $subject);
     }
 
     public function content(): Content

@@ -11,7 +11,7 @@ import {
   LayoutDashboard, Building2, PackageOpen, Box, CalendarCheck,
   FileBarChart2, Settings, ShieldCheck, ChevronRight,
   ChevronDown, Menu, X, LogOut, Globe, Monitor, Loader2, Sun, Moon,
-  User, History
+  User, History, PanelLeft
 } from "lucide-react";
 import NotificationDropdown from "@/components/notifications/NotificationDropdown";
 import IncidentDetailModal from "@/components/notifications/IncidentDetailModal";
@@ -524,18 +524,6 @@ export default function GeneralLayout() {
           })}
         </nav>
 
-        {/* Collapse toggle (desktop) */}
-        <button
-          type="button"
-          onClick={() => setSidebarOpen(v => !v)}
-          className="hidden lg:flex items-center h-9 mx-2.5 mb-2 px-2.5 rounded-lg transition-colors text-xs gap-3 font-medium cursor-pointer overflow-hidden whitespace-nowrap text-muted-foreground hover:text-foreground hover:bg-muted"
-        >
-          <div className="w-5 h-5 flex-shrink-0 flex items-center justify-center">
-            <ChevronRight size={14} className={`transition-transform duration-200 ${sidebarOpen ? "rotate-180" : ""}`} />
-          </div>
-          <span className="truncate">Collapse</span>
-        </button>
-
         {/* User Card */}
         <div className="border-t border-sidebar-border p-2.5 overflow-hidden whitespace-nowrap bg-sidebar">
           {/* Full Card View: Always on mobile, or desktop when sidebarOpen is true */}
@@ -608,12 +596,25 @@ export default function GeneralLayout() {
         {/* Top Header */}
         <header className="sticky top-0 z-20 border-b border-border bg-card/95 backdrop-blur-xs text-foreground shadow-2xs">
           <div className="flex items-center justify-between px-4 sm:px-6 h-14 sm:h-16">
-            <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+            <div className="flex items-center gap-2.5 sm:gap-3.5 min-w-0">
+              {/* Mobile Menu Toggle */}
               <button
-                className="lg:hidden p-1.5 sm:p-2 rounded-lg transition-colors flex-shrink-0 text-muted-foreground hover:text-foreground hover:bg-muted"
+                className="lg:hidden p-1.5 sm:p-2 rounded-lg transition-colors flex-shrink-0 text-muted-foreground hover:text-foreground hover:bg-muted cursor-pointer"
                 onClick={() => setMobileOpen(v => !v)}
+                aria-label="Toggle mobile menu"
               >
                 {mobileOpen ? <X size={18} /> : <Menu size={18} />}
+              </button>
+
+              {/* Desktop Sidebar Toggle beside Feature Title */}
+              <button
+                type="button"
+                onClick={() => setSidebarOpen(v => !v)}
+                title={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
+                aria-label={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
+                className="hidden lg:flex items-center justify-center p-1.5 sm:p-2 rounded-lg transition-colors flex-shrink-0 text-muted-foreground hover:text-foreground hover:bg-muted cursor-pointer"
+              >
+                <PanelLeft size={18} />
               </button>
 
               <div className="flex flex-col justify-center min-w-0">

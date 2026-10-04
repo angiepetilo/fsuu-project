@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Log;
 class CheckOverdueEquipmentCommand extends Command
 {
     protected $signature = 'equipment:check-overdue';
-    protected $description = 'Scan on-going equipment borrowings and send SMS alerts for past due / overdue physical units';
+    protected $description = 'Scan on-going equipment borrowings and send the advance "due soon" reminder (overdue alerts are handled by bookings:check-overdue-and-exceeded)';
 
     public function handle(): int
     {
@@ -46,24 +46,13 @@ class CheckOverdueEquipmentCommand extends Command
                 continue;
             }
 
-            // Case A: Equipment is Overdue (past end time)
+            // Past the end time: owned by OverdueAndExceededAlertService (avoids duplicate overdue notices).
             if ($now->greaterThan($schedEnd)) {
-                $minutesLate = (int) $now->diffInMinutes($schedEnd);
-                $cacheKey = "overdue_sms_sent_{$borrowing->id}_" . floor($minutesLate / 30); // Throttle to every 30 mins
+                continue;
+            }
 
-                if (!\Illuminate\Support\Facades\Cache::has($cacheKey)) {
-                    $this->warn("Borrowing #{$borrowing->id} ({$borrowing->reference_code}) is {$minutesLate} mins overdue.");
-                    try {
-                        SmsService::sendOverdueAlert($borrowing, $minutesLate);
-                        \Illuminate\Support\Facades\Cache::put($cacheKey, true, now()->addMinutes(35));
-                        $overdueCount++;
-                    } catch (\Throwable $e) {
-                        Log::error("Failed to send overdue SMS for Borrowing #{$borrowing->id}: " . $e->getMessage());
-                    }
-                }
-            } 
-            // Case B: Equipment is Approaching End Time (15 minutes before return time)
-            elseif ($schedEnd->diffInMinutes($now) <= 15 && $now->lessThan($schedEnd)) {
+            // Approaching end time (within 15 minutes of the scheduled return)
+            if ($schedEnd->diffInMinutes($now) <= 15) {
                 $advanceKey = "advance_due_sms_sent_{$borrowing->id}";
                 if (!\Illuminate\Support\Facades\Cache::has($advanceKey)) {
                     $minutesRemaining = max(1, (int) $schedEnd->diffInMinutes($now));
@@ -79,7 +68,7 @@ class CheckOverdueEquipmentCommand extends Command
             }
         }
 
-        $this->info("Scan completed: {$advanceCount} advance reminder(s) and {$overdueCount} overdue alert(s) sent.");
+        $this->info("Scan completed: {$advanceCount} advance reminder(s) sent.");
         return Command::SUCCESS;
     }
 }

@@ -82,9 +82,13 @@ class BookingConfirmationMail extends Mailable
 
     public function envelope(): Envelope
     {
+        $classification = strtolower(trim((string)($this->booking->requestor_identity_type ?? $this->booking->classification ?? 'student')));
+        $isExternal = str_contains($classification, 'external');
         $label = $this->type === 'venue' ? 'Venue Reservation' : 'Equipment Borrowing';
+        $prefix = $isExternal ? '[External Client]' : '[AVR Notice]';
+
         return new Envelope(
-            subject: "[{$this->refCode}] FSUU {$label} — Received & Pending Review"
+            subject: "{$prefix} {$label} Received — Ref: {$this->refCode}"
         );
     }
 

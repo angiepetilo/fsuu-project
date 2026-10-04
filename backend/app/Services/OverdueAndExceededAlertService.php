@@ -88,7 +88,7 @@ class OverdueAndExceededAlertService
             if (Schema::hasTable('equipment_borrows') && Schema::hasTable('tracking_numbers')) {
                 $activeBorrows = DB::table('equipment_borrows')
                     ->join('tracking_numbers', 'equipment_borrows.tracking_number_id', '=', 'tracking_numbers.id')
-                    ->whereIn('tracking_numbers.status', ['ongoing', 'on-going', 'approved'])
+                    ->whereIn('tracking_numbers.status', ['ongoing', 'on-going'])
                     ->select(
                         'equipment_borrows.id',
                         'equipment_borrows.date_of_usage',

@@ -233,7 +233,7 @@ class SmsService
         ]);
 
         // Dual Dispatch: Also send Email Advance Reminder
-        $email = $borrowing->requestor_email ?? $borrowing->email ?? $borrowing->filer_email ?? null;
+        $email = $borrowing->email_address ?? $borrowing->requestor_email ?? $borrowing->email ?? $borrowing->filer_email ?? null;
         if ($email) {
             try {
                 Mail::to($email)->send(new BookingStatusUpdateMail('equipment', $borrowing, 'due_soon', $message));
@@ -296,7 +296,7 @@ class SmsService
         ]);
 
         // Dual Dispatch: Also send Email Return Notice
-        $email = $borrowing->requestor_email ?? $borrowing->email ?? $borrowing->filer_email ?? null;
+        $email = $borrowing->email_address ?? $borrowing->requestor_email ?? $borrowing->email ?? $borrowing->filer_email ?? null;
         if ($email) {
             try {
                 Mail::to($email)->send(new BookingStatusUpdateMail('equipment', $borrowing, 'return_reminder', $message));
@@ -345,7 +345,13 @@ class SmsService
         $typeLabel = $type === 'venue' ? 'Venue Reservation' : 'Equipment Borrowing';
         $remarksNote = $remarks ? " Note: {$remarks}" : "";
 
-        $message = "FSUU Notice: Good day, {$requestorName}. Your {$typeLabel} [{$refCode}] status has been updated to {$statusUpper}.{$remarksNote}";
+        $isReminder = in_array(strtolower(str_replace(['_', '-'], ' ', $status)), ['reminder', 'due soon', 'return reminder'], true);
+        if ($isReminder) {
+            $sched = \App\Mail\BookingConfirmationMail::formatSchedule($booking);
+            $message = "FSUU AVR Reminder: Good day, {$requestorName}. Your {$typeLabel} [{$refCode}] is scheduled for {$sched}. Please arrive 15 minutes early and bring a valid ID.";
+        } else {
+            $message = "FSUU Notice: Good day, {$requestorName}. Your {$typeLabel} [{$refCode}] status has been updated to {$statusUpper}.{$remarksNote}";
+        }
 
         $res = self::send($contactNumber, $message);
 

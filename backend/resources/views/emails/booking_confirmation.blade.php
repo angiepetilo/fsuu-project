@@ -2,37 +2,194 @@
 <html>
 <head>
   <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FSUU Reservation Notice</title>
   <style>
-    body { font-family: Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #111827; background-color: #f8fafc; margin: 0; padding: 20px; }
-    .container { max-width: 580px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 28px; }
-    .header { font-size: 18px; font-weight: bold; color: #1e3a8a; margin-bottom: 16px; border-bottom: 2px solid #eff6ff; padding-bottom: 12px; }
-    .ref-box { background-color: #eff6ff; border: 2px dashed #3b82f6; border-radius: 10px; padding: 14px; text-align: center; margin: 18px 0; }
-    .ref-label { font-size: 11px; text-transform: uppercase; font-weight: bold; color: #1e40af; letter-spacing: 1px; }
-    .ref-code { font-size: 24px; font-weight: 900; color: #1d4ed8; letter-spacing: 2px; margin-top: 4px; }
-    .track-btn { display: inline-block; background-color: #2563eb; color: #ffffff !important; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-weight: bold; font-size: 13px; margin-top: 10px; }
-    .details-box { background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; margin: 16px 0; }
-    .details-row { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 13px; }
-    .details-row:last-child { margin-bottom: 0; }
-    .details-label { font-weight: bold; color: #475569; }
-    .details-value { color: #0f172a; font-weight: 600; }
-    p { margin-bottom: 14px; }
-    .signoff { margin-top: 24px; border-top: 1px solid #f1f5f9; padding-top: 14px; font-size: 12px; color: #64748b; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      font-size: 14px;
+      line-height: 1.6;
+      color: #0f172a;
+      background-color: #f1f5f9;
+      margin: 0;
+      padding: 24px 12px;
+    }
+    .wrapper {
+      max-width: 620px;
+      margin: 0 auto;
+      background-color: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    }
+    .top-banner {
+      background-color: #0f172a;
+      color: #ffffff;
+      padding: 18px 24px;
+      border-bottom: 3px solid #2563eb;
+    }
+    .top-banner .org-title {
+      font-size: 15px;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      margin: 0;
+    }
+    .top-banner .sub-title {
+      font-size: 12px;
+      color: #94a3b8;
+      margin-top: 3px;
+    }
+    .content {
+      padding: 24px;
+    }
+    .ref-card {
+      background-color: #f8fafc;
+      border: 1px solid #cbd5e1;
+      border-left: 4px solid #2563eb;
+      border-radius: 6px;
+      padding: 14px 18px;
+      margin: 18px 0;
+    }
+    .ref-label {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: #475569;
+    }
+    .ref-value {
+      font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+      font-size: 22px;
+      font-weight: 800;
+      color: #1e40af;
+      margin-top: 4px;
+      letter-spacing: 1px;
+    }
+    .badge-external {
+      display: inline-block;
+      background-color: #fef3c7;
+      color: #92400e;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 4px;
+      border: 1px solid #fde68a;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-left: 8px;
+      vertical-align: middle;
+    }
+    .badge-internal {
+      display: inline-block;
+      background-color: #eff6ff;
+      color: #1e40af;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 4px;
+      border: 1px solid #bfdbfe;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-left: 8px;
+      vertical-align: middle;
+    }
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      margin: 16px 0;
+    }
+    .data-table td {
+      padding: 8px 10px;
+      border-bottom: 1px solid #f1f5f9;
+      vertical-align: top;
+    }
+    .data-table tr:last-child td {
+      border-bottom: none;
+    }
+    .data-label {
+      width: 36%;
+      font-weight: 700;
+      color: #475569;
+    }
+    .data-value {
+      color: #0f172a;
+      font-weight: 500;
+    }
+    .notice-box {
+      border-radius: 6px;
+      padding: 14px 16px;
+      margin: 18px 0;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    .notice-info {
+      background-color: #eff6ff;
+      border: 1px solid #bfdbfe;
+      color: #1e3a8a;
+    }
+    .notice-warning {
+      background-color: #fffbeb;
+      border: 1px solid #fde68a;
+      color: #92400e;
+    }
+    .notice-external {
+      background-color: #faf5ff;
+      border: 1px solid #e9d5ff;
+      color: #581c87;
+    }
+    .notice-title {
+      font-weight: 700;
+      margin-bottom: 4px;
+      display: block;
+    }
+    .track-btn {
+      display: inline-block;
+      background-color: #0f172a;
+      color: #ffffff !important;
+      text-decoration: none;
+      padding: 10px 22px;
+      border-radius: 6px;
+      font-weight: 700;
+      font-size: 13px;
+      margin: 12px 0 6px 0;
+    }
+    .signoff {
+      border-top: 1px solid #e2e8f0;
+      padding: 20px 24px;
+      background-color: #f8fafc;
+      font-size: 12px;
+      color: #64748b;
+      line-height: 1.6;
+    }
   </style>
 </head>
 <body>
-<div class="container">
+
 @php
     $mode = $mode ?? ($status ?? 'pending');
-    $requestorName = $booking->requestor_name ?? $booking->filer_name ?? $booking->borrower_name ?? 'Requestor';
+    $requestorName = $booking->filer_name 
+        ?? $booking->requestor_name 
+        ?? $booking->borrower_name 
+        ?? trim(($booking->first_name ?? '') . ' ' . ($booking->last_name ?? '')) 
+        ?: 'Requestor';
+
     $ref = $refCode ?? ($booking->reference_code ?? ($booking->trackingNumber?->reference_code ?? 'TRK-FSUU'));
     $venueName = $booking->venue?->name ?? 'AVR Facility';
     $venueLocation = $booking->venue?->location ?? 'Main Campus';
-    $sched = $formattedSchedule ?? ($formattedStart ?? ($start . ' to ' . $end));
-    $purpose = $booking->purpose ?? 'University Event';
+    $sched = $formattedSchedule ?? ($formattedStart ?? ($booking->date_of_usage ? \Carbon\Carbon::parse($booking->date_of_usage)->format('M d, Y') : 'Scheduled Time'));
+    $purpose = $booking->purpose ?? 'University Activity';
     $persons = $booking->no_of_person ?? ($booking->number_of_persons ?? 'N/A');
     $baseUrl = rtrim(config('app.frontend_url') ?: env('FRONTEND_URL', 'https://fsuu-project.vercel.app'), '/');
     $trackUrl = $baseUrl . '/track?tracking=' . urlencode($ref);
 
+    $classification = strtolower(trim((string)($booking->requestor_identity_type ?? $booking->classification ?? 'student')));
+    $isExternal = str_contains($classification, 'external');
+    $organization = $booking->program_office ?? $booking->department?->name ?? ($isExternal ? 'External Organization' : 'Department');
+
+    // Build equipment list
     $equipmentList = [];
     if (!empty($booking->items) && count($booking->items) > 0) {
         foreach ($booking->items as $item) {
@@ -57,205 +214,281 @@
     }
 @endphp
 
-  <div class="header">
-    Father Saturnino Urios University
+<div class="wrapper">
+  <!-- Top Banner -->
+  <div class="top-banner">
+    <div class="org-title">Father Saturnino Urios University</div>
+    <div class="sub-title">Audio-Visual Resource Center (AVR / PMO) &bull; Facilities &amp; Equipment Lending</div>
   </div>
 
-@if(($type ?? 'venue') === 'equipment')
-@php
-    $eqStartTime = null;
-    $eqEndTime   = null;
-    try {
-        $rawS = $booking->time_start ?? ($booking->start_datetime ? substr($booking->start_datetime, 11, 8) : null);
-        $rawE = $booking->time_end   ?? ($booking->end_datetime   ? substr($booking->end_datetime,   11, 8) : null);
-        $eqStartTime = $rawS ? \Carbon\Carbon::parse('2000-01-01 ' . $rawS)->format('h:i A') : null;
-        $eqEndTime   = $rawE ? \Carbon\Carbon::parse('2000-01-01 ' . $rawE)->format('h:i A') : null;
-    } catch (\Throwable $e) {}
-@endphp
-  <p>Good day, <strong>{{ $requestorName }}</strong>.</p>
-  <p>Thank you for submitting your equipment borrowing request. Please find your official confirmation details and Tracking Number below:</p>
+  <div class="content">
 
-  <div class="ref-box">
-    <div class="ref-label">Official Tracking Number</div>
-    <div class="ref-code">{{ $ref }}</div>
-  </div>
+  @if(($type ?? 'venue') === 'equipment')
+    {{-- =========================================================
+         EQUIPMENT BORROWING: PENDING / SUBMISSION RECEIPT
+       ========================================================= --}}
+    <p style="margin-top: 0;">Hi <strong>{{ $requestorName }}</strong>,</p>
+    <p>Your equipment borrowing request has been logged in the AVR queue. The custodial desk is checking inventory and unit readiness for your schedule.</p>
 
-  <div class="details-box">
-    <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+    <div class="ref-card">
+      <div class="ref-label">
+        Official Reference Code
+        @if($isExternal)
+          <span class="badge-external">External Client</span>
+        @else
+          <span class="badge-internal">FSUU Internal</span>
+        @endif
+      </div>
+      <div class="ref-value">{{ $ref }}</div>
+    </div>
+
+    <table class="data-table">
       <tr>
-        <td style="padding: 5px 0; color: #475569; font-weight: bold; width: 38%;">Borrower Name:</td>
-        <td style="padding: 5px 0; color: #0f172a; font-weight: 600;">{{ $requestorName }}</td>
+        <td class="data-label">Accountable Borrower:</td>
+        <td class="data-value"><strong>{{ $requestorName }}</strong></td>
       </tr>
       <tr>
-        <td style="padding: 5px 0; color: #475569; font-weight: bold;">Tracking Number:</td>
-        <td style="padding: 5px 0; color: #2563eb; font-weight: bold; font-family: monospace;">{{ $ref }}</td>
+        <td class="data-label">{{ $isExternal ? 'Office / Organization:' : 'Department / College:' }}</td>
+        <td class="data-value">{{ $organization }}</td>
       </tr>
       <tr>
-        <td style="padding: 5px 0; color: #475569; font-weight: bold;">Purpose:</td>
-        <td style="padding: 5px 0; color: #0f172a; font-weight: 600;">{{ $purpose }}</td>
+        <td class="data-label">Intended Purpose:</td>
+        <td class="data-value">{{ $purpose }}</td>
       </tr>
       <tr>
-        <td style="padding: 5px 0; color: #475569; font-weight: bold;">Equipment Category / Items:</td>
-        <td style="padding: 5px 0; color: #0f172a; font-weight: 600;">
+        <td class="data-label">Requested Items:</td>
+        <td class="data-value">
           @if(!empty($equipmentList))
             @foreach($equipmentList as $eqItem)
-              <div>• {{ $eqItem }}</div>
+              <div>&bull; {{ $eqItem }}</div>
             @endforeach
           @else
-            {{ $booking->equipment_name ?? 'Requested Equipment Items' }}
+            {{ $booking->equipment_name ?? 'Equipment requested' }}
           @endif
         </td>
       </tr>
-      @if($eqStartTime)
       <tr>
-        <td style="padding: 5px 0; color: #475569; font-weight: bold;">Start Time:</td>
-        <td style="padding: 5px 0; color: #0f172a; font-weight: 600;">{{ $sched }} (from {{ $eqStartTime }})</td>
+        <td class="data-label">Borrow Schedule:</td>
+        <td class="data-value"><strong>{{ $sched }}</strong></td>
       </tr>
+      <tr>
+        <td class="data-label">Pickup Location:</td>
+        <td class="data-value">AVR Custodial Counter (2nd Floor, Main Building)</td>
+      </tr>
+    </table>
+
+    @if($isExternal)
+      <!-- External Client Guidance -->
+      <div class="notice-box notice-external">
+        <span class="notice-title">📌 External Client Verification Protocols:</span>
+        <div>1. <strong>Identification:</strong> You must present a valid Government-Issued Photo ID (e.g. PhilID, Passport, Driver's License) or official Company/Agency ID upon pickup.</div>
+        <div style="margin-top: 4px;">2. <strong>On-Campus Bound:</strong> External equipment loans must remain within the approved campus venue and cannot be transported off-campus.</div>
+        <div style="margin-top: 4px;">3. <strong>Gate Clearance:</strong> Present this reference code at the FSUU Security Gate for entry verification.</div>
+      </div>
+    @else
+      <!-- Internal Member Guidance -->
+      <div class="notice-box notice-info">
+        <span class="notice-title">📌 Counter Pickup Checklist:</span>
+        <div>&bull; Present your physical <strong>FSUU School ID</strong> at the AVR Counter.</div>
+        <div>&bull; Arrive 15 minutes before your scheduled start time. Unclaimed units are returned to stock after 20 minutes.</div>
+      </div>
+    @endif
+
+    <div style="text-align: center; margin-top: 20px;">
+      <a href="{{ $trackUrl }}" class="track-btn">Track Request Status Online &rarr;</a>
+    </div>
+
+  @elseif($mode === 'approved')
+    {{-- =========================================================
+         VENUE BOOKING: APPROVED
+       ========================================================= --}}
+    <p style="margin-top: 0;">Hi <strong>{{ $requestorName }}</strong>,</p>
+    <p>Your reservation request for <strong>{{ $venueName }}</strong> is confirmed. The room has been locked on the university facility calendar.</p>
+
+    <div class="ref-card">
+      <div class="ref-label">
+        Booking Reference Code
+        @if($isExternal)
+          <span class="badge-external">External Reservation</span>
+        @else
+          <span class="badge-internal">FSUU Confirmed</span>
+        @endif
+      </div>
+      <div class="ref-value">{{ $ref }}</div>
+    </div>
+
+    <table class="data-table">
+      <tr>
+        <td class="data-label">Organizer / Filer:</td>
+        <td class="data-value"><strong>{{ $requestorName }}</strong></td>
+      </tr>
+      <tr>
+        <td class="data-label">{{ $isExternal ? 'Organization / Agency:' : 'Collegiate Department:' }}</td>
+        <td class="data-value">{{ $organization }}</td>
+      </tr>
+      <tr>
+        <td class="data-label">Reserved Venue:</td>
+        <td class="data-value"><strong>{{ $venueName }}</strong> ({{ $venueLocation }})</td>
+      </tr>
+      <tr>
+        <td class="data-label">Event Purpose:</td>
+        <td class="data-value">{{ $purpose }}</td>
+      </tr>
+      <tr>
+        <td class="data-label">Event Schedule:</td>
+        <td class="data-value"><strong>{{ $sched }}</strong></td>
+      </tr>
+      <tr>
+        <td class="data-label">Expected Pax:</td>
+        <td class="data-value">{{ $persons }} attendees</td>
+      </tr>
+      @if(!empty($equipmentList))
+      <tr>
+        <td class="data-label">Bundled AV Equipment:</td>
+        <td class="data-value">{{ implode(', ', $equipmentList) }}</td>
+      </tr>
+      @endif
+    </table>
+
+    @if($isExternal)
+      <!-- External Client Financial / Entry Advisory -->
+      <div class="notice-box notice-external">
+        <span class="notice-title">🏢 External Client Venue &amp; Billing Advisory:</span>
+        <div>1. <strong>Cashier Settlement:</strong> Rental fees and utility assessment must be settled at the FSUU Cashier (Main Building Ground Floor). Present the Official Receipt (O.R.) at the AVR office to validate room turnover.</div>
+        <div style="margin-top: 4px;">2. <strong>Gate Pass &amp; Parking:</strong> Provide your Reference Code ({{ $ref }}) and attendee list to Campus Security at the main gate for smooth visitor ingress.</div>
+        <div style="margin-top: 4px;">3. <strong>Photo ID:</strong> The designated event coordinator must present a valid Government Photo ID upon arrival.</div>
+      </div>
+    @else
+      <div class="notice-box notice-info">
+        <span class="notice-title">🏛️ Room Access &amp; Turnover Protocol:</span>
+        <div>&bull; Have an authorized representative present their physical <strong>FSUU School ID</strong> at the AVR Counter 15 minutes before start time to collect the room key and aircon remotes.</div>
+        <div style="margin-top: 4px;">&bull; Slots unattended 15 minutes past start time are subject to no-show release.</div>
+      </div>
+    @endif
+
+    <div style="text-align: center; margin-top: 20px;">
+      <a href="{{ $trackUrl }}" class="track-btn">View Reservation Pass &rarr;</a>
+    </div>
+
+  @elseif($mode === 'reminder')
+    {{-- =========================================================
+         VENUE BOOKING: REMINDER
+       ========================================================= --}}
+    <p style="margin-top: 0;">Hi <strong>{{ $requestorName }}</strong>,</p>
+    <p>This is an operational reminder that your reservation for <strong>{{ $venueName }}</strong> is scheduled for today.</p>
+
+    <div class="ref-card">
+      <div class="ref-label">Reference: {{ $ref }}</div>
+      <div style="font-size: 16px; font-weight: 700; color: #0f172a; margin-top: 4px;">
+        {{ $sched }}
+      </div>
+    </div>
+
+    <div class="notice-box notice-warning">
+      <span class="notice-title">⏰ Arrival &amp; Setup Window:</span>
+      <div>&bull; The room will be opened 15–30 minutes before your program begins.</div>
+      <div>&bull; Report to the AVR Custodial Counter or meet the on-duty technician at the venue.</div>
+      @if($isExternal)
+        <div style="margin-top: 4px;">&bull; Ensure the Cashier Official Receipt (O.R.) and valid Government ID are ready upon facility check-in.</div>
       @else
-      <tr>
-        <td style="padding: 5px 0; color: #475569; font-weight: bold;">Date &amp; Time (Schedule):</td>
-        <td style="padding: 5px 0; color: #0f172a; font-weight: 600;">{{ $sched }}</td>
-      </tr>
+        <div style="margin-top: 4px;">&bull; Please ensure your group vacates on time to allow scheduled cleanup for succeeding university reservations.</div>
       @endif
-      @if($eqEndTime)
-      <tr>
-        <td style="padding: 5px 0; color: #475569; font-weight: bold;">End Time / Return By:</td>
-        <td style="padding: 5px 0; color: #0f172a; font-weight: 600;">{{ $eqEndTime }}</td>
-      </tr>
-      @endif
-    </table>
-  </div>
+    </div>
 
-  <div style="background-color: #eff6ff; border-left: 4px solid #3b82f6; padding: 12px 16px; margin: 16px 0; border-radius: 4px;">
-    <p style="margin: 0; color: #1e40af; font-size: 13px; font-weight: 600;">
-      📌 <strong>Grace Period &amp; Timely Arrival Advisory:</strong> Please proceed to the AVR counter with your physical <strong>School ID</strong>. Please arrive within the Grace Period (15 minutes) of your scheduled start time. Equipment not claimed within the Auto-Cancel threshold will be automatically released to other requestors.
-    </p>
-  </div>
-  <p style="color: #374151; font-size: 13px; margin: 14px 0;">We will notify you again once your equipment request is approved.</p>
-  <p style="text-align: center; margin: 16px 0;">
-    <a href="{{ $trackUrl }}" class="track-btn">Track Request Status Online</a>
-  </p>
-@elseif($mode === 'approved')
-  <p>Good day, <strong>{{ $requestorName }}</strong>.</p>
-  <p>Your venue reservation has been <strong style="color: #15803d;">APPROVED</strong>!</p>
+    <div style="text-align: center; margin-top: 18px;">
+      <a href="{{ $trackUrl }}" class="track-btn">Track Live Status &rarr;</a>
+    </div>
 
-  <div class="ref-box">
-    <div class="ref-label">Booking Tracking Number</div>
-    <div class="ref-code">{{ $ref }}</div>
-  </div>
+  @else
+    {{-- =========================================================
+         VENUE BOOKING: PENDING / SUBMISSION RECEIPT
+       ========================================================= --}}
+    <p style="margin-top: 0;">Hi <strong>{{ $requestorName }}</strong>,</p>
+    <p>Your venue reservation request has been submitted to the AVR Facility Office. Our staff is verifying schedule availability and facility maintenance calendars.</p>
 
-  <div class="details-box">
-    <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+    <div class="ref-card">
+      <div class="ref-label">
+        Official Reference Code
+        @if($isExternal)
+          <span class="badge-external">External Client</span>
+        @else
+          <span class="badge-internal">FSUU Internal</span>
+        @endif
+      </div>
+      <div class="ref-value">{{ $ref }}</div>
+    </div>
+
+    <table class="data-table">
       <tr>
-        <td style="padding: 5px 0; color: #475569; font-weight: bold; width: 38%;">Requestor Name:</td>
-        <td style="padding: 5px 0; color: #0f172a; font-weight: 600;">{{ $requestorName }}</td>
+        <td class="data-label">Organizer Name:</td>
+        <td class="data-value"><strong>{{ $requestorName }}</strong></td>
       </tr>
       <tr>
-        <td style="padding: 5px 0; color: #475569; font-weight: bold;">Tracking Number:</td>
-        <td style="padding: 5px 0; color: #2563eb; font-weight: bold; font-family: monospace;">{{ $ref }}</td>
+        <td class="data-label">{{ $isExternal ? 'Office / Organization:' : 'Department / College:' }}</td>
+        <td class="data-value">{{ $organization }}</td>
       </tr>
       <tr>
-        <td style="padding: 5px 0; color: #475569; font-weight: bold;">Venue:</td>
-        <td style="padding: 5px 0; color: #0f172a; font-weight: 600;">{{ $venueName }} ({{ $venueLocation }})</td>
+        <td class="data-label">Requested Venue:</td>
+        <td class="data-value"><strong>{{ $venueName }}</strong> ({{ $venueLocation }})</td>
       </tr>
       <tr>
-        <td style="padding: 5px 0; color: #475569; font-weight: bold;">Purpose:</td>
-        <td style="padding: 5px 0; color: #0f172a; font-weight: 600;">{{ $purpose }}</td>
+        <td class="data-label">Date &amp; Schedule:</td>
+        <td class="data-value"><strong>{{ $sched }}</strong></td>
+      </tr>
+      <tr>
+        <td class="data-label">Event Purpose:</td>
+        <td class="data-value">{{ $purpose }}</td>
+      </tr>
+      <tr>
+        <td class="data-label">Expected Pax:</td>
+        <td class="data-value">{{ $persons }} persons</td>
       </tr>
       @if(!empty($equipmentList))
       <tr>
-        <td style="padding: 5px 0; color: #475569; font-weight: bold;">Equipment Borrowed:</td>
-        <td style="padding: 5px 0; color: #0f172a; font-weight: 600;">{{ implode(', ', $equipmentList) }}</td>
+        <td class="data-label">Included Equipment:</td>
+        <td class="data-value">{{ implode(', ', $equipmentList) }}</td>
       </tr>
       @endif
-      <tr>
-        <td style="padding: 5px 0; color: #475569; font-weight: bold;">Date &amp; Time (Schedule):</td>
-        <td style="padding: 5px 0; color: #0f172a; font-weight: 600;">{{ $sched }}</td>
-      </tr>
-      <tr>
-        <td style="padding: 5px 0; color: #475569; font-weight: bold;">Expected Attendees:</td>
-        <td style="padding: 5px 0; color: #0f172a; font-weight: 600;">{{ $persons }} persons</td>
-      </tr>
     </table>
+
+    @if($isExternal)
+      <div class="notice-box notice-external">
+        <span class="notice-title">🏢 Note for External Clients &amp; Organizations:</span>
+        <div>&bull; Venue rental rates and utility requirements are assessed according to the university Fee Matrix.</div>
+        <div style="margin-top: 4px;">&bull; Payment scheduling will be finalized only after administrative approval. You will receive an approved billing assessment notice before payment is required.</div>
+        <div style="margin-top: 4px;">&bull; Present a valid Government ID at the security gate on the date of activity.</div>
+      </div>
+    @else
+      <div class="notice-box notice-info">
+        <span class="notice-title">📌 Next Steps for Organizers:</span>
+        <div>&bull; Keep your Reference Code <strong>{{ $ref }}</strong> for tracking.</div>
+        <div>&bull; If your event requires an endorsement letter, ensure the file is clearly legible on your submission portal.</div>
+        <div>&bull; You will receive an official notification once the slot is confirmed.</div>
+      </div>
+    @endif
+
+    <div style="text-align: center; margin-top: 20px;">
+      <a href="{{ $trackUrl }}" class="track-btn">Track Reservation Status &rarr;</a>
+    </div>
+  @endif
+
   </div>
 
-  <div style="background-color: #eff6ff; border-left: 4px solid #3b82f6; padding: 12px 16px; margin: 16px 0; border-radius: 4px;">
-    <p style="margin: 0; color: #1e40af; font-size: 13px; font-weight: 600;">
-      📌 <strong>Grace Period &amp; Timely Arrival Advisory:</strong> Please ensure your organizers arrive within the Grace Period (15 minutes) of your scheduled start time. Reservations unattended past the Auto-Cancel threshold will be released.
-    </p>
-  </div>
-  <p style="text-align: center; margin: 16px 0;">
-    <a href="{{ $trackUrl }}" class="track-btn">Track Reservation Status</a>
-  </p>
-@elseif($mode === 'reminder')
-  <p>Good day, <strong>{{ $requestorName }}</strong>.</p>
-  <p>This is a friendly reminder that your venue reservation for <strong>{{ $venueName }}</strong> (Tracking Number: <strong>{{ $ref }}</strong>) is scheduled for <strong>{{ $sched }}</strong>.</p>
-  <p><em>Advisory: Please ensure you arrive within the Grace Period (15 minutes) of your scheduled start time.</em></p>
-@else
-  <p>Good day, <strong>{{ $requestorName }}</strong>.</p>
-  <p>Thank you for submitting your venue reservation request. Please find your official confirmation details and Tracking Number below:</p>
-
-  <div class="ref-box">
-    <div class="ref-label">Official Tracking Number</div>
-    <div class="ref-code">{{ $ref }}</div>
-  </div>
-
-  <div class="details-box">
-    <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
-      <tr>
-        <td style="padding: 5px 0; color: #475569; font-weight: bold; width: 38%;">Requestor Name:</td>
-        <td style="padding: 5px 0; color: #0f172a; font-weight: 600;">{{ $requestorName }}</td>
-      </tr>
-      <tr>
-        <td style="padding: 5px 0; color: #475569; font-weight: bold;">Tracking Number:</td>
-        <td style="padding: 5px 0; color: #2563eb; font-weight: bold; font-family: monospace;">{{ $ref }}</td>
-      </tr>
-      <tr>
-        <td style="padding: 5px 0; color: #475569; font-weight: bold;">Reserved Venue:</td>
-        <td style="padding: 5px 0; color: #0f172a; font-weight: 600;">{{ $venueName }} ({{ $venueLocation }})</td>
-      </tr>
-      <tr>
-        <td style="padding: 5px 0; color: #475569; font-weight: bold;">Date &amp; Time (Schedule):</td>
-        <td style="padding: 5px 0; color: #0f172a; font-weight: 600;">{{ $sched }}</td>
-      </tr>
-      <tr>
-        <td style="padding: 5px 0; color: #475569; font-weight: bold;">Event Purpose:</td>
-        <td style="padding: 5px 0; color: #0f172a; font-weight: 600;">{{ $purpose }}</td>
-      </tr>
-      @if(!empty($equipmentList))
-      <tr>
-        <td style="padding: 5px 0; color: #475569; font-weight: bold;">Equipment Borrowed:</td>
-        <td style="padding: 5px 0; color: #0f172a; font-weight: 600;">{{ implode(', ', $equipmentList) }}</td>
-      </tr>
-      @endif
-      <tr>
-        <td style="padding: 5px 0; color: #475569; font-weight: bold;">Expected Attendees:</td>
-        <td style="padding: 5px 0; color: #0f172a; font-weight: 600;">{{ $persons }} persons</td>
-      </tr>
-    </table>
-  </div>
-
-  <div style="background-color: #eff6ff; border-left: 4px solid #3b82f6; padding: 12px 16px; margin: 16px 0; border-radius: 4px;">
-    <p style="margin: 0; color: #1e40af; font-size: 13px; font-weight: 600;">
-      📌 <strong>Grace Period &amp; Timely Arrival Advisory:</strong> Please ensure you arrive within the Grace Period (15 minutes) of your scheduled start time. Unattended reservations past the Auto-Cancel threshold will be automatically released.
-    </p>
-  </div>
-  <p style="color: #374151; font-size: 13px; margin: 14px 0;">We will notify you again once your venue booking is approved.</p>
-  <p style="text-align: center; margin: 16px 0;">
-    <a href="{{ $trackUrl }}" class="track-btn">Track Booking Status Online</a>
-  </p>
-@endif
-
-@php
-    $sysSettings = \App\Models\SystemSetting::getSettings();
-@endphp
-  <div class="signoff" style="margin-top: 24px; border-top: 1px solid #f1f5f9; padding-top: 14px; font-size: 12px; color: #64748b;">
-    Respectfully,<br>
-    <strong>{{ $sysSettings->system_name ?: 'System Administrator' }}</strong><br>
-    {{ $sysSettings->organization_name ?: 'Father Saturnino Urios University' }}<br>
-    @if(!empty($sysSettings->contact_phone)) Contact Phone: {{ $sysSettings->contact_phone }} &bull; @endif
-    @if(!empty($sysSettings->contact_email)) Email: <a href="mailto:{{ $sysSettings->contact_email }}" style="color: #2563eb;">{{ $sysSettings->contact_email }}</a> @endif
+  @php
+      $sysSettings = \App\Models\SystemSetting::getSettings();
+  @endphp
+  <!-- Footer / Signoff -->
+  <div class="signoff">
+    <strong>{{ $sysSettings->system_name ?: 'AVR Operations Management' }}</strong><br>
+    {{ $sysSettings->organization_name ?: 'Father Saturnino Urios University' }} &bull; Audio-Visual Resource Center (AVR / PMO)<br>
+    Location: Main Building, Ground &amp; 2nd Floor &bull; Desk Extension: Local 214<br>
+    @if(!empty($sysSettings->contact_email)) Email: <a href="mailto:{{ $sysSettings->contact_email }}" style="color: #2563eb; text-decoration: none;">{{ $sysSettings->contact_email }}</a> &bull; @endif
+    @if(!empty($sysSettings->contact_phone)) Phone: {{ $sysSettings->contact_phone }} @endif
+    <div style="margin-top: 8px; font-size: 11px; color: #94a3b8;">
+      This is an automated operational notice generated by the FSUU Venue Reservation &amp; Equipment Lending System.
+    </div>
   </div>
 </div>
+
 </body>
 </html>
