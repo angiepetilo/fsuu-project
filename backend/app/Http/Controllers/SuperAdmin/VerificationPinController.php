@@ -16,10 +16,8 @@ class VerificationPinController extends Controller
     public function show(Request $request): JsonResponse
     {
         $authUser = $request->user();
-        if (!$authUser || !$authUser->isSuperAdmin()) {
-            return response()->json([
-                'message' => 'Unauthorized. Only Super Administrator can access Verification PIN settings.'
-            ], 403);
+        if (!$authUser) {
+            return response()->json(['message' => 'Unauthorized.'], 403);
         }
 
         $setting = VerificationPinSetting::first();
@@ -66,10 +64,8 @@ class VerificationPinController extends Controller
     public function update(Request $request): JsonResponse
     {
         $authUser = $request->user();
-        if (!$authUser || !$authUser->isSuperAdmin()) {
-            return response()->json([
-                'message' => 'Unauthorized. Only Super Administrator can modify Verification PIN settings.'
-            ], 403);
+        if (!$authUser) {
+            return response()->json(['message' => 'Unauthorized.'], 403);
         }
 
         $validated = $request->validate([

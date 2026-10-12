@@ -29,7 +29,7 @@ class VenueLeadTimeTest extends TestCase
         $service->create([
             'venue_id'                 => $venue->id,
             'requestor_name'           => 'Test Student',
-            'requestor_email'          => 'student@fsuu.edu.ph',
+            'requestor_email'          => 'student@urios.edu.ph',
             'requestor_contact_number' => '09171234567',
             'purpose'                  => 'Activity',
             'date_of_usage'            => now()->toDateString(),
@@ -53,7 +53,7 @@ class VenueLeadTimeTest extends TestCase
         $booking = $service->create([
             'venue_id'                 => $venue->id,
             'requestor_name'           => 'Test Student',
-            'requestor_email'          => 'student@fsuu.edu.ph',
+            'requestor_email'          => 'student@urios.edu.ph',
             'requestor_contact_number' => '09171234567',
             'purpose'                  => 'Activity Ahead',
             'date_of_usage'            => now()->addDays(5)->toDateString(),
@@ -79,7 +79,7 @@ class VenueLeadTimeTest extends TestCase
 
         $admin = User::create([
             'name' => 'Admin User',
-            'email' => 'admin@fsuu.edu.ph',
+            'email' => 'admin@urios.edu.ph',
             'password' => bcrypt('secret123'),
             'role_id' => $role->id,
         ]);
@@ -89,7 +89,7 @@ class VenueLeadTimeTest extends TestCase
         $booking = $service->create([
             'venue_id'                 => $venue->id,
             'requestor_name'           => 'Emergency Booking',
-            'requestor_email'          => 'emergency@fsuu.edu.ph',
+            'requestor_email'          => 'emergency@urios.edu.ph',
             'requestor_contact_number' => '09171234567',
             'purpose'                  => 'Urgent Faculty Meeting',
             'date_of_usage'            => now()->toDateString(),

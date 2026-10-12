@@ -108,7 +108,7 @@ export default function HistoryTable({
                           </div>
                         ) : (
                           <span className="truncate block" title={inc.notes || inc.violation_type}>
-                            {inc.violation_type ? `[${inc.violation_type}] ` : ""}{inc.notes || "No details provided"}
+                            {inc.violation_type ? `[${String(inc.violation_type).replace(/Late Return\s*\/\s*Extension/gi, "Late Return, Extension").replace(/\s*\/\s*/g, ", ")}] ` : ""}{inc.notes ? String(inc.notes).replace(/Late Return\s*\/\s*Extension/gi, "Late Return, Extension").replace(/\s*\/\s*/g, ", ") : "No details provided"}
                           </span>
                         )}
                       </td>

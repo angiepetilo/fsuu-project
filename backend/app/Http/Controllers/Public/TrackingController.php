@@ -6,12 +6,18 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Public\TrackBookingRequest;
 use App\Models\VenueBooking;
 use App\Models\EquipmentBorrow;
+use App\Jobs\SendBookingStatusUpdateJob;
+use App\Events\BookingStatusUpdated;
 use Illuminate\Http\JsonResponse;
 
 class TrackingController extends Controller
 {
     public function track(TrackBookingRequest $request): JsonResponse
     {
+        try {
+            app(\App\Services\NoShowAutoReleaseService::class)->processNoShows();
+        } catch (\Throwable $e) {}
+
         $referenceCode = trim($request->input('reference_code') ?? '');
         $email = trim($request->input('requestor_email') ?? '');
 
@@ -249,6 +255,39 @@ class TrackingController extends Controller
                 }
                 $vb->update(['status' => 'cancelled', 'rejection_reason' => $reason]);
                 \Illuminate\Support\Facades\DB::table('tracking_numbers')->where('id', $tracking->id)->update(['status' => 'cancelled']);
+
+                // Release assigned units if any
+                $assigned = $vb->assigned_units ?? [];
+                if (is_string($assigned)) {
+                    try { $assigned = json_decode($assigned, true); } catch (\Throwable $t) { $assigned = []; }
+                }
+                if (is_array($assigned) && !empty($assigned) && \Illuminate\Support\Facades\Schema::hasTable('equipment_units')) {
+                    $codes = array_values(array_filter($assigned));
+                    \App\Models\EquipmentUnit::whereIn('barcode', $codes)
+                        ->whereIn('status', ['reserved', 'released'])
+                        ->update(['status' => 'available']);
+                }
+
+                if (\Illuminate\Support\Facades\Schema::hasTable('approvals')) {
+                    \App\Models\Approval::forceCreate([
+                        'reference_type' => 'avr_venue_booking',
+                        'reference_id'   => $vb->id,
+                        'action'         => 'cancelled',
+                        'remarks'        => $reason ?: 'Cancelled by user',
+                        'approved_by'    => null,
+                    ]);
+                }
+
+                try {
+                    SendBookingStatusUpdateJob::dispatch('venue', $vb->fresh(['venue', 'trackingNumber', 'documents']), 'cancelled', $reason);
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::error("TrackingController cancel venue email failed: " . $e->getMessage());
+                }
+
+                try {
+                    event(new BookingStatusUpdated('venue_booking', $tracking->reference_code ?? $referenceCode, 'cancelled', $vb->id, $reason));
+                } catch (\Throwable $e) {}
+
                 return response()->json(['message' => 'Venue reservation successfully cancelled.', 'status' => 'cancelled']);
             }
         }
@@ -259,10 +298,89 @@ class TrackingController extends Controller
                 if (in_array(strtolower($eb->status), ['completed', 'cancelled', 'returned', 'rejected', 'damaged'])) {
                     return response()->json(['message' => 'This borrowing can no longer be cancelled.'], 400);
                 }
-                $eb->update(['status' => 'cancelled', 'notes' => $reason]);
+                $eb->forceFill(['status' => 'cancelled', 'rejection_reason' => $reason])->save();
                 \Illuminate\Support\Facades\DB::table('tracking_numbers')->where('id', $tracking->id)->update(['status' => 'cancelled']);
+
+                // Release assigned units if any
+                $assigned = $eb->assigned_units ?? [];
+                if (is_string($assigned)) {
+                    try { $assigned = json_decode($assigned, true); } catch (\Throwable $t) { $assigned = []; }
+                }
+                if (is_array($assigned) && !empty($assigned) && \Illuminate\Support\Facades\Schema::hasTable('equipment_units')) {
+                    $codes = array_values(array_filter($assigned));
+                    \App\Models\EquipmentUnit::whereIn('barcode', $codes)
+                        ->whereIn('status', ['reserved', 'released'])
+                        ->update(['status' => 'available']);
+                }
+
+                if (\Illuminate\Support\Facades\Schema::hasTable('approvals')) {
+                    \App\Models\Approval::forceCreate([
+                        'reference_type' => 'equipment_borrowing',
+                        'reference_id'   => $eb->id,
+                        'action'         => 'cancelled',
+                        'remarks'        => $reason ?: 'Cancelled by user',
+                        'approved_by'    => null,
+                    ]);
+                }
+
+                try {
+                    SendBookingStatusUpdateJob::dispatch('equipment', $eb->fresh(['items.equipmentType', 'trackingNumber']), 'cancelled', $reason);
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::error("TrackingController cancel equipment email failed: " . $e->getMessage());
+                }
+
+                try {
+                    event(new BookingStatusUpdated('equipment_borrowing', $tracking->reference_code ?? $referenceCode, 'cancelled', $eb->id, $reason));
+                } catch (\Throwable $e) {}
+
                 return response()->json(['message' => 'Equipment borrowing successfully cancelled.', 'status' => 'cancelled']);
             }
+        }
+
+        // Direct fallback on EquipmentBorrow
+        $eb = EquipmentBorrow::where('reference_code', $referenceCode)->first();
+        if ($eb) {
+            if (in_array(strtolower($eb->status), ['completed', 'cancelled', 'returned', 'rejected', 'damaged'])) {
+                return response()->json(['message' => 'This borrowing can no longer be cancelled.'], 400);
+            }
+            $eb->forceFill(['status' => 'cancelled', 'rejection_reason' => $reason])->save();
+            if ($eb->tracking_number_id) {
+                \Illuminate\Support\Facades\DB::table('tracking_numbers')->where('id', $eb->tracking_number_id)->update(['status' => 'cancelled']);
+            }
+
+            // Release assigned units if any
+            $assigned = $eb->assigned_units ?? [];
+            if (is_string($assigned)) {
+                try { $assigned = json_decode($assigned, true); } catch (\Throwable $t) { $assigned = []; }
+            }
+            if (is_array($assigned) && !empty($assigned) && \Illuminate\Support\Facades\Schema::hasTable('equipment_units')) {
+                $codes = array_values(array_filter($assigned));
+                \App\Models\EquipmentUnit::whereIn('barcode', $codes)
+                    ->whereIn('status', ['reserved', 'released'])
+                    ->update(['status' => 'available']);
+            }
+
+            if (\Illuminate\Support\Facades\Schema::hasTable('approvals')) {
+                \App\Models\Approval::forceCreate([
+                    'reference_type' => 'equipment_borrowing',
+                    'reference_id'   => $eb->id,
+                    'action'         => 'cancelled',
+                    'remarks'        => $reason ?: 'Cancelled by user',
+                    'approved_by'    => null,
+                ]);
+            }
+
+            try {
+                SendBookingStatusUpdateJob::dispatch('equipment', $eb->fresh(['items.equipmentType', 'trackingNumber']), 'cancelled', $reason);
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::error("TrackingController fallback cancel equipment email failed: " . $e->getMessage());
+            }
+
+            try {
+                event(new BookingStatusUpdated('equipment_borrowing', $referenceCode, 'cancelled', $eb->id, $reason));
+            } catch (\Throwable $e) {}
+
+            return response()->json(['message' => 'Equipment borrowing successfully cancelled.', 'status' => 'cancelled']);
         }
 
         // Direct fallback on VenueBooking
@@ -272,6 +390,42 @@ class TrackingController extends Controller
                 return response()->json(['message' => 'This reservation can no longer be cancelled.'], 400);
             }
             $vb->update(['status' => 'cancelled', 'rejection_reason' => $reason]);
+            if ($vb->tracking_number_id) {
+                \Illuminate\Support\Facades\DB::table('tracking_numbers')->where('id', $vb->tracking_number_id)->update(['status' => 'cancelled']);
+            }
+
+            // Release assigned units if any
+            $assigned = $vb->assigned_units ?? [];
+            if (is_string($assigned)) {
+                try { $assigned = json_decode($assigned, true); } catch (\Throwable $t) { $assigned = []; }
+            }
+            if (is_array($assigned) && !empty($assigned) && \Illuminate\Support\Facades\Schema::hasTable('equipment_units')) {
+                $codes = array_values(array_filter($assigned));
+                \App\Models\EquipmentUnit::whereIn('barcode', $codes)
+                    ->whereIn('status', ['reserved', 'released'])
+                    ->update(['status' => 'available']);
+            }
+
+            if (\Illuminate\Support\Facades\Schema::hasTable('approvals')) {
+                \App\Models\Approval::forceCreate([
+                    'reference_type' => 'avr_venue_booking',
+                    'reference_id'   => $vb->id,
+                    'action'         => 'cancelled',
+                    'remarks'        => $reason ?: 'Cancelled by user',
+                    'approved_by'    => null,
+                ]);
+            }
+
+            try {
+                SendBookingStatusUpdateJob::dispatch('venue', $vb->fresh(['venue', 'trackingNumber', 'documents']), 'cancelled', $reason);
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::error("TrackingController fallback cancel venue email failed: " . $e->getMessage());
+            }
+
+            try {
+                event(new BookingStatusUpdated('venue_booking', $referenceCode, 'cancelled', $vb->id, $reason));
+            } catch (\Throwable $e) {}
+
             return response()->json(['message' => 'Venue reservation successfully cancelled.', 'status' => 'cancelled']);
         }
 

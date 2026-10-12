@@ -56,7 +56,7 @@ export default function FeatureCards() {
             </h2>
 
             <p className="text-sm font-medium text-slate-600 dark:text-slate-300 leading-relaxed text-center mx-auto max-w-sm w-full">
-              Borrow audiovisual equipment presentation accessories.
+              Borrow audio-visual equipment and presentation accessories.
             </p>
           </div>
         </Link>

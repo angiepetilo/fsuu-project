@@ -7,7 +7,7 @@ import {
   PackageOpen, Plus, Search, Filter, Edit3, Ban, CheckCircle2,
   AlertTriangle, Barcode, Eye, Copy, Check,
   ChevronLeft, ChevronRight, LayoutGrid, Loader2, MoreVertical,
-  CircleCheck, Layers, PackageCheck
+  CircleCheck, Layers, PackageCheck, ArrowUpDown
 } from "lucide-react";
 import EquipmentDetailModal from "./components/EquipmentDetailModal";
 import EquipmentModal, { generateSequentialBarcodes } from "./components/EquipmentModal";
@@ -27,6 +27,7 @@ export default function ManageEquipments() {
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [sortOrder, setSortOrder] = useState("oldest"); // "oldest" | "newest"
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [selectedItem, setSelectedItem] = useState(null);
@@ -63,6 +64,7 @@ export default function ManageEquipments() {
   const [formData, setFormData] = useState({
     brand: "",
     model: "",
+    seq_no: "",
     serial_number: "",
     barcode: "",
     category: "",
@@ -78,6 +80,7 @@ export default function ManageEquipments() {
   const [editFormData, setEditFormData] = useState({
     brand: "",
     model: "",
+    seq_no: "",
     serial_number: "",
     barcode: "",
     category: "",
@@ -178,6 +181,7 @@ export default function ManageEquipments() {
           equipment_type_id: u.equipment_type_id,
           brand: u.brand || '',
           model: u.model || '',
+          seq_no: u.seq_no || '',
           serial_number: u.serial_number || u.barcode || bCode,
           barcode: bCode,
           name: derivedName,
@@ -195,6 +199,7 @@ export default function ManageEquipments() {
           is_disabled: !!u.is_disabled,
           raw_status: dbStatusRaw,
           raw_condition: dbCondition,
+          created_at: u.created_at || null,
           built_in_units: Array.isArray(u.built_in_units)
             ? u.built_in_units
             : (typeof u.built_in_units === 'string'
@@ -271,6 +276,7 @@ export default function ManageEquipments() {
     setFormData({
       brand: "",
       model: "",
+      seq_no: "",
       serial_number: "",
       barcode: "",
       category: defaultCatName,
@@ -310,17 +316,44 @@ export default function ManageEquipments() {
       }
     }
 
-    setIsSubmitting(true);
-
     const matchedCat = categories.find(c =>
       (c.eq_name || c.name || "").toLowerCase() === (formData.category || "").toLowerCase()
     ) || categories[0];
 
     if (!matchedCat || !matchedCat.id) {
-      setIsSubmitting(false);
       notify.error("Category Error", "Please select or create an Equipment Category before adding units.");
       return;
     }
+
+    // Duplicate check for Seq No. within the SAME Equipment Category
+    const enteredSeqNo = (formData.seq_no || "").trim();
+    if (enteredSeqNo) {
+      const isSameCategory = (u) => {
+        const uCat = String(u.category || u.equipment_type?.eq_name || u.equipment_type?.name || "").trim().toLowerCase();
+        const targetCat = String(formData.category || matchedCat.eq_name || matchedCat.name || "").trim().toLowerCase();
+        if (uCat && uCat === targetCat) return true;
+        if (matchedCat && matchedCat.id && u.equipment_type_id && String(u.equipment_type_id) === String(matchedCat.id)) return true;
+        return false;
+      };
+
+      const duplicateSeq = units.find(u =>
+        u.seq_no !== null &&
+        u.seq_no !== undefined &&
+        String(u.seq_no).trim() !== "" &&
+        String(u.seq_no).trim().toLowerCase() === enteredSeqNo.toLowerCase() &&
+        isSameCategory(u)
+      );
+
+      if (duplicateSeq) {
+        notify.error(
+          "Duplicate Seq. No.",
+          `Seq. No. "${enteredSeqNo}" already exists in "${formData.category || matchedCat.eq_name || matchedCat.name}". Seq. No. must be unique within the same Equipment Category.`
+        );
+        return;
+      }
+    }
+
+    setIsSubmitting(true);
 
     const brandModel = [formData.brand, formData.model].filter(Boolean).join(' ');
     const unitDisplayName = brandModel || matchedCat.eq_name || matchedCat.name || 'Unit';
@@ -333,6 +366,7 @@ export default function ManageEquipments() {
       equipment_type_id: matchedCat.id,
       brand: formData.brand || "",
       model: formData.model || "",
+      seq_no: formData.seq_no || "",
       serial_number: enteredSerial || `SN-${Date.now().toString().slice(-6)}`,
       barcode: enteredSerial || `SN-${Date.now().toString().slice(-6)}`,
       name: unitDisplayName,
@@ -345,6 +379,7 @@ export default function ManageEquipments() {
       lifespan_years: parseInt(formData.lifespan_years, 10) || 5,
       description: "",
       built_in_units: validBuiltIns,
+      created_at: new Date().toISOString(),
       _optimistic: true,
     };
 
@@ -358,6 +393,7 @@ export default function ManageEquipments() {
         equipment_type_id: matchedCat.id,
         brand: formData.brand || undefined,
         model: formData.model || undefined,
+        seq_no: formData.seq_no || undefined,
         serial_number: enteredSerial || undefined,
         barcode: enteredSerial || undefined,
         purchased_at: formData.date_purchased || undefined,
@@ -377,9 +413,11 @@ export default function ManageEquipments() {
             ? {
                 ...optimisticUnit,
                 id: saved.id,
+                seq_no: saved.seq_no || optimisticUnit.seq_no,
                 serial_number: saved.serial_number || optimisticUnit.serial_number,
                 barcode: saved.barcode || optimisticUnit.barcode,
                 built_in_units: Array.isArray(saved.built_in_units) ? saved.built_in_units : validBuiltIns,
+                created_at: saved.created_at || optimisticUnit.created_at,
                 _optimistic: false,
               }
             : u
@@ -403,6 +441,7 @@ export default function ManageEquipments() {
       setFormData({
         brand: "",
         model: "",
+        seq_no: "",
         serial_number: "",
         barcode: "",
         category: matchedCat.eq_name || matchedCat.name || "",
@@ -451,11 +490,40 @@ export default function ManageEquipments() {
       }
     }
 
-    setIsSubmitting(true);
-
     const matchedCat = categories.find(c =>
       (c.eq_name || c.name || "").toLowerCase() === (editFormData.category || "").toLowerCase()
     ) || categories[0];
+
+    // Duplicate check for Seq No. within the SAME Equipment Category
+    const enteredSeqNo = (editFormData.seq_no || "").trim();
+    if (enteredSeqNo) {
+      const isSameCategory = (u) => {
+        const uCat = String(u.category || u.equipment_type?.eq_name || u.equipment_type?.name || "").trim().toLowerCase();
+        const targetCat = String(editFormData.category || matchedCat?.eq_name || matchedCat?.name || "").trim().toLowerCase();
+        if (uCat && uCat === targetCat) return true;
+        if (matchedCat && matchedCat.id && u.equipment_type_id && String(u.equipment_type_id) === String(matchedCat.id)) return true;
+        return false;
+      };
+
+      const duplicateSeq = units.find(u =>
+        u.id !== editingItem.id &&
+        u.seq_no !== null &&
+        u.seq_no !== undefined &&
+        String(u.seq_no).trim() !== "" &&
+        String(u.seq_no).trim().toLowerCase() === enteredSeqNo.toLowerCase() &&
+        isSameCategory(u)
+      );
+
+      if (duplicateSeq) {
+        notify.error(
+          "Duplicate Seq. No.",
+          `Seq. No. "${enteredSeqNo}" already exists in "${editFormData.category || matchedCat?.eq_name || matchedCat?.name}". Seq. No. must be unique within the same Equipment Category.`
+        );
+        return;
+      }
+    }
+
+    setIsSubmitting(true);
 
     const brandModel = [editFormData.brand, editFormData.model].filter(Boolean).join(' ');
     const unitDisplayName = brandModel || matchedCat.eq_name || matchedCat.name || 'Unit';
@@ -467,6 +535,7 @@ export default function ManageEquipments() {
       name: unitDisplayName,
       brand: editFormData.brand || "",
       model: editFormData.model || "",
+      seq_no: editFormData.seq_no || "",
       serial_number: enteredSerial || editFormData.serial_number,
       barcode: enteredSerial || editFormData.serial_number,
       category: matchedCat.eq_name || matchedCat.name || editingItem.category,
@@ -488,6 +557,7 @@ export default function ManageEquipments() {
         equipment_type_id: matchedCat.id,
         brand: editFormData.brand || undefined,
         model: editFormData.model || undefined,
+        seq_no: editFormData.seq_no || undefined,
         serial_number: enteredSerial || undefined,
         barcode: enteredSerial || undefined,
         purchased_at: editFormData.date_purchased,
@@ -598,7 +668,7 @@ export default function ManageEquipments() {
   const selectedOfficeId = context?.selectedOfficeId;
 
   const filtered = useMemo(() => {
-    return units.filter(item => {
+    const list = units.filter(item => {
       if (selectedOfficeId && selectedOfficeId !== "all") {
         const offId = item.office_id || item.equipment_type?.office_id || item.equipmentType?.office_id;
         const offName = item.office_name || item.office?.name;
@@ -612,10 +682,27 @@ export default function ManageEquipments() {
       const matchSearch = !searchQuery ||
         (item.name || "").toLowerCase().includes(q) ||
         (item.serial_number || "").toLowerCase().includes(q) ||
-        (item.barcode || "").toLowerCase().includes(q);
+        (item.barcode || "").toLowerCase().includes(q) ||
+        (item.seq_no && String(item.seq_no).toLowerCase().includes(q));
       return matchCategory && matchSearch;
     });
-  }, [units, selectedOfficeId, officeScope, activeCategory, searchQuery]);
+
+    return list.sort((a, b) => {
+      const timeA = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const timeB = b.created_at ? new Date(b.created_at).getTime() : 0;
+
+      let diff = 0;
+      if (timeA && timeB && timeA !== timeB) {
+        diff = timeA - timeB;
+      } else {
+        const idA = typeof a.id === "number" ? a.id : (parseInt(String(a.id).replace(/\D/g, ""), 10) || 0);
+        const idB = typeof b.id === "number" ? b.id : (parseInt(String(b.id).replace(/\D/g, ""), 10) || 0);
+        diff = idA - idB;
+      }
+
+      return sortOrder === "newest" ? -diff : diff;
+    });
+  }, [units, selectedOfficeId, officeScope, activeCategory, searchQuery, sortOrder]);
 
   const parentUnitMap = useMemo(() => {
     const map = new Map();
@@ -680,7 +767,7 @@ export default function ManageEquipments() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [activeCategory, searchQuery]);
+  }, [activeCategory, searchQuery, sortOrder]);
 
   const totalPages = useMemo(() => Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE)), [filtered.length]);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -758,11 +845,11 @@ export default function ManageEquipments() {
 
       {/* Search & Category Filter */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white dark:bg-[#111827] p-3 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
-        <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-200">
+        <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-200 w-full sm:w-auto">
           <select
             value={activeCategory}
             onChange={(e) => setActiveCategory(e.target.value)}
-            className="bg-transparent font-bold text-slate-900 dark:text-white focus:outline-none cursor-pointer text-xs pr-2"
+            className="bg-transparent font-bold text-slate-900 dark:text-white focus:outline-none cursor-pointer text-xs pr-2 w-full sm:w-auto"
           >
             {categoryList.map(t => (
               <option key={t.id} value={t.id} className="dark:bg-slate-900">{t.label}</option>
@@ -770,15 +857,31 @@ export default function ManageEquipments() {
           </select>
         </div>
 
-        <div className="relative w-full sm:w-64">
-          <Search size={14} className="absolute left-3 top-2.5 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Search unit name, serial no., barcode..."
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-3 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
-          />
+        <div className="flex flex-col sm:flex-row items-center gap-2.5 w-full sm:w-auto">
+          {/* Sort Dropdown */}
+          <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200 w-full sm:w-auto">
+            <ArrowUpDown size={14} className="text-slate-400 shrink-0" />
+            <span className="text-[11px] text-slate-400 font-bold whitespace-nowrap">Sort:</span>
+            <select
+              value={sortOrder}
+              onChange={(e) => setSortOrder(e.target.value)}
+              className="bg-transparent font-bold text-slate-900 dark:text-white focus:outline-none cursor-pointer text-xs pr-1"
+            >
+              <option value="oldest" className="dark:bg-slate-900">Oldest to Newest</option>
+              <option value="newest" className="dark:bg-slate-900">Newest to Oldest</option>
+            </select>
+          </div>
+
+          <div className="relative w-full sm:w-64">
+            <Search size={14} className="absolute left-3 top-2.5 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Search unit name, serial no., barcode..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-3 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-900 dark:text-white focus:outline-none focus:border-blue-600"
+            />
+          </div>
         </div>
       </div>
 
@@ -788,8 +891,8 @@ export default function ManageEquipments() {
           <table className="w-full text-sm min-w-[760px]">
             <thead>
               <tr className="bg-slate-50/80 dark:bg-slate-800/80 border-b border-slate-100 dark:border-slate-800">
-                {["#", "Serial No.", "Equipment Unit Name", "Built-In", "Status", "Date Purchased", "Lifespan vs Current", "Action"].map((h, i) => (
-                  <th key={h} className={`px-4 py-3.5 text-left text-[11px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap ${i === 0 ? 'rounded-tl-2xl' : i === 7 ? 'rounded-tr-2xl' : ''}`}>
+                {["#", "Serial No.", "Seq No.", "Equipment Unit Name", "Built-In", "Status", "Date Purchased", "Lifespan vs Current", "Action"].map((h, i) => (
+                  <th key={h} className={`px-4 py-3.5 text-left text-[11px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap ${i === 0 ? 'rounded-tl-2xl' : i === 8 ? 'rounded-tr-2xl' : ''}`}>
                     {h}
                   </th>
                 ))}
@@ -798,13 +901,13 @@ export default function ManageEquipments() {
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-xs font-semibold">
               {loading && units.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="text-center py-12 text-slate-400">
+                  <td colSpan={9} className="text-center py-12 text-slate-400">
                     <Loader2 size={20} className="animate-spin inline mr-2" /> Loading equipment units...
                   </td>
                 </tr>
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="text-center py-12 text-slate-400">
+                  <td colSpan={9} className="text-center py-12 text-slate-400">
                     {categories.length === 0
                       ? "⚠️ Create an Equipment Category in Settings first before adding physical equipment units."
                       : "📦 No physical equipment units added yet. Click 'Add Equipment' to add units to a category."}
@@ -825,6 +928,13 @@ export default function ManageEquipments() {
                       <td className="px-4 py-3.5 font-bold text-slate-400 dark:text-slate-500">{displayIndex}</td>
                       <td className="px-4 py-3.5 font-mono text-xs font-bold text-slate-800 dark:text-slate-200 whitespace-nowrap">
                         {item.serial_number || item.barcode}
+                      </td>
+                      <td className="px-4 py-3.5 whitespace-nowrap text-xs font-semibold text-slate-800 dark:text-slate-200">
+                        {item.seq_no ? (
+                          item.seq_no
+                        ) : (
+                          <span className="text-slate-300 dark:text-slate-600 font-bold">—</span>
+                        )}
                       </td>
                       <td className="px-4 py-3.5 max-w-[280px]">
                         <span className="font-extrabold text-slate-900 dark:text-white truncate block text-xs" title={item.name}>
@@ -939,6 +1049,7 @@ export default function ManageEquipments() {
                                 setEditFormData({
                                   brand: item.brand || "",
                                   model: item.model || "",
+                                  seq_no: item.seq_no || "",
                                   serial_number: item.serial_number || item.barcode || "",
                                   barcode: item.barcode || "",
                                   category: item.category || "",
@@ -967,6 +1078,7 @@ export default function ManageEquipments() {
                                 setEditFormData({
                                   brand: item.brand || "",
                                   model: item.model || "",
+                                  seq_no: item.seq_no || "",
                                   serial_number: item.serial_number || item.barcode || "",
                                   barcode: item.barcode || "",
                                   category: item.category || "",

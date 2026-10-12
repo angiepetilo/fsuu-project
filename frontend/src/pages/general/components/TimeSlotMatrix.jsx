@@ -68,7 +68,11 @@ export default function TimeSlotMatrix({
     }
   }, [selectedDate]);
 
-  const resourceHeader = title.toLowerCase().includes("venue") ? "Venue / Facility" : "Equipment Resource";
+  const resourceHeader = title.toLowerCase().includes("borrow")
+    ? "Borrowing"
+    : title.toLowerCase().includes("venue")
+    ? "Venue"
+    : "Resource";
 
   return (
     <div className="bg-white dark:bg-[#111827] rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden">

@@ -309,12 +309,21 @@ class OtpController extends Controller
         // Dispatch async email job
         SendOtpEmailJob::dispatch($email, $code, $resType);
 
-        return response()->json([
+        // Log verification code for dev traceability
+        \Illuminate\Support\Facades\Log::info("[OTP] Email verification code for {$email}: {$code}");
+
+        $response = [
             'message'    => 'Verification code sent successfully. Please check your inbox.',
             'channel'    => 'email',
             'expires_in' => 600,
             'cooldown'   => 60,
-        ]);
+        ];
+
+        if (app()->environment('local')) {
+            $response['dev_code'] = $code;
+        }
+
+        return response()->json($response);
     }
 
     /**

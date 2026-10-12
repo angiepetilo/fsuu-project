@@ -14,6 +14,16 @@ class ListingController extends Controller
     {
         try {
             if (\Illuminate\Support\Facades\Schema::hasTable('venues')) {
+                if (!\Illuminate\Support\Facades\Schema::hasColumn('venues', 'min_capacity')) {
+                    \Illuminate\Support\Facades\Schema::table('venues', function ($table) {
+                        $table->integer('min_capacity')->default(1)->nullable();
+                    });
+                }
+                if (!\Illuminate\Support\Facades\Schema::hasColumn('venues', 'max_capacity')) {
+                    \Illuminate\Support\Facades\Schema::table('venues', function ($table) {
+                        $table->integer('max_capacity')->default(100)->nullable();
+                    });
+                }
                 if (!\Illuminate\Support\Facades\Schema::hasColumn('venues', 'allowed_equipment')) {
                     \Illuminate\Support\Facades\Schema::table('venues', function ($table) {
                         $table->longText('allowed_equipment')->nullable();
@@ -90,9 +100,10 @@ class ListingController extends Controller
      */
     public function equipmentTypes(\Illuminate\Http\Request $request): JsonResponse
     {
-        // Proactively clear expired no-show reservations past grace period to restock inventory
+        // Proactively clear expired reservations past grace period and check overdue alerts
         try {
-            app(\App\Services\NoShowAutoReleaseService::class)->processNoShows(15);
+            app(\App\Services\NoShowAutoReleaseService::class)->processNoShows();
+            app(\App\Services\OverdueAndExceededAlertService::class)->processAlerts();
         } catch (\Throwable $e) {}
 
         $startDatetime = $request->query('start_datetime');
@@ -154,7 +165,7 @@ class ListingController extends Controller
                 })
                 ->where(function ($q) {
                     $q->whereIn(\Illuminate\Support\Facades\DB::raw("LOWER(COALESCE(status, ''))"), ['damaged', 'lost', 'decommissioned'])
-                      ->orWhereIn(\Illuminate\Support\Facades\DB::raw("LOWER(COALESCE(condition, ''))"), ['damaged', 'lost']);
+                      ->orWhereIn(\Illuminate\Support\Facades\DB::raw("LOWER(COALESCE(`condition`, ''))"), ['damaged', 'lost']);
                 })
                 ->get(['id', 'barcode', 'serial_number']);
 
@@ -200,7 +211,12 @@ class ListingController extends Controller
                         if (!empty($numIds)) {
                             $q->whereNotIn('equipment_units.id', $numIds);
                         }
-                        $q->whereNotIn('equipment_units.barcode', $globalChildIds);
+                        // Use whereRaw to avoid the MySQL NULL NOT IN (...) trap:
+                        // `NULL NOT IN (list)` evaluates to NULL (not TRUE), so units
+                        // with null barcodes are silently excluded by whereNotIn().
+                        // We must explicitly allow NULL barcodes to pass through.
+                        $placeholders = implode(',', array_fill(0, count($globalChildIds), '?'));
+                        $q->whereRaw("(equipment_units.barcode IS NULL OR equipment_units.barcode NOT IN ({$placeholders}))", array_values($globalChildIds));
                     }
                     // Exclude parent units that have damaged/lost built-in children
                     if (!empty($parentIdsWithDamagedChildren)) {
@@ -219,11 +235,13 @@ class ListingController extends Controller
         if ($dateStr && $startTimeStr && $endTimeStr) {
             $cleanDate = substr($dateStr, 0, 10);
 
-            // 1. Single aggregated query for all overlapping Equipment Borrow Items
+            // 1. Single aggregated query for unreleased overlapping Equipment Borrow Items
+            // Note: Ongoing/released items are already physically marked as released in equipment_units,
+            // so they are already deducted from calculated_available. Only future unreleased reservations are deducted here.
             $rawBorrowItems = DB::table('equipment_borrow_items')
                 ->join('equipment_borrows', 'equipment_borrow_items.equipment_borrow_id', '=', 'equipment_borrows.id')
                 ->join('tracking_numbers', 'equipment_borrows.tracking_number_id', '=', 'tracking_numbers.id')
-                ->whereRaw("LOWER(COALESCE(tracking_numbers.status, 'pending')) NOT IN ('rejected', 'cancelled', 'completed', 'done', 'damaged', 'lost')")
+                ->whereRaw("LOWER(COALESCE(tracking_numbers.status, 'pending')) NOT IN ('rejected', 'cancelled', 'completed', 'done', 'damaged', 'lost', 'ongoing', 'on-going', 'released', 'in_use', 'in-use', 'borrowed')")
                 ->where('equipment_borrows.date_of_usage', '=', $cleanDate)
                 ->where('equipment_borrows.time_start', '<', $endTimeStr)
                 ->where('equipment_borrows.time_end', '>', $startTimeStr)
@@ -235,10 +253,10 @@ class ListingController extends Controller
                 $borrowCommittedMap[strtoupper(trim((string)$bi->equipment_type_id))] = (int)$bi->total_qty;
             }
 
-            // 2. Single query for all overlapping Venue Bookings
+            // 2. Single query for unreleased overlapping Venue Bookings
             $overlappingVenueBookings = DB::table('venue_bookings')
                 ->join('tracking_numbers', 'venue_bookings.tracking_number_id', '=', 'tracking_numbers.id')
-                ->whereRaw("LOWER(COALESCE(tracking_numbers.status, 'pending')) NOT IN ('rejected', 'cancelled', 'completed', 'done', 'damaged', 'lost')")
+                ->whereRaw("LOWER(COALESCE(tracking_numbers.status, 'pending')) NOT IN ('rejected', 'cancelled', 'completed', 'done', 'damaged', 'lost', 'ongoing', 'on-going', 'released', 'in_use', 'in-use', 'borrowed')")
                 ->where('venue_bookings.date_of_usage', '<=', $cleanDate)
                 ->whereRaw('COALESCE(venue_bookings.reservation_end_date, venue_bookings.date_of_usage) >= ?', [$cleanDate])
                 ->where('venue_bookings.time_start', '<', $endTimeStr)
@@ -307,9 +325,14 @@ class ListingController extends Controller
 
             $totalCommitted = $borrowCommitted + $venueCommitted;
 
-            // Available stock is strictly capped by operational shelf stock minus commitments
+            // Available stock = lendable units minus active commitments for the requested time slot.
+            // We use $availableNow as the base (it already excludes built-in, damaged, reserved, etc.)
+            // and simply subtract overlapping borrowing/venue commitments from it.
+            // NOTE: We must NOT use ($operational - $totalCommitted) because $operational
+            // includes built-in child units, which inflates the base and causes the
+            // borrow page to show 0 when the Reports page shows 5 (or vice versa).
             if ($dateStr && $startTimeStr && $endTimeStr) {
-                $avail = max(0, min($availableNow, $operational - $totalCommitted));
+                $avail = max(0, $availableNow - $totalCommitted);
             } else {
                 $avail = $availableNow;
             }
@@ -351,6 +374,7 @@ class ListingController extends Controller
     {
         try {
             app(\App\Services\NoShowAutoReleaseService::class)->processNoShows();
+            app(\App\Services\OverdueAndExceededAlertService::class)->processAlerts();
         } catch (\Throwable $e) {}
 
         $bookings = DB::table('venue_bookings')

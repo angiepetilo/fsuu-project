@@ -21,11 +21,18 @@ class EquipmentUnitController extends Controller
     {
         \App\Services\EquipmentCategoryService::autoSyncUnitConditions();
 
-        // Include disabled (soft-deleted) units so the UI can show them greyed out.
-        $units = EquipmentUnit::withTrashed()
-            ->with('equipmentType')
-            ->latest()
-            ->get()
+        $sort = strtolower((string)$request->input('sort', 'oldest'));
+
+        $query = EquipmentUnit::withTrashed()
+            ->with('equipmentType');
+
+        if ($sort === 'newest') {
+            $query->orderBy('created_at', 'desc')->orderBy('id', 'desc');
+        } else {
+            $query->orderBy('created_at', 'asc')->orderBy('id', 'asc');
+        }
+
+        $units = $query->get()
             ->map(function ($unit) {
                 $arr = $unit->toArray();
                 $arr['is_disabled'] = !is_null($unit->archived_at);
@@ -196,6 +203,7 @@ class EquipmentUnitController extends Controller
             'equipment_type_id' => 'required|exists:equipment_types,id',
             'brand'             => 'nullable|string|max:255',
             'model'             => 'nullable|string|max:255',
+            'seq_no'            => 'nullable|string|max:255',
             'serial_number'     => 'nullable|string|max:255',
             'barcode'           => 'nullable|string|max:255',
             'purchased_at'      => 'nullable|date',
@@ -226,6 +234,21 @@ class EquipmentUnitController extends Controller
             }
         }
 
+        $finalSeqNo = $request->filled('seq_no') ? trim((string)$request->input('seq_no')) : null;
+        if ($finalSeqNo !== null) {
+            $duplicateSeq = EquipmentUnit::where('equipment_type_id', $validated['equipment_type_id'])
+                ->where('seq_no', $finalSeqNo)
+                ->whereNull('archived_at')
+                ->first();
+
+            if ($duplicateSeq) {
+                return response()->json([
+                    'message' => "The Seq. No. '{$finalSeqNo}' is already assigned to another physical unit in this category. Seq. No. must be unique within the same category.",
+                    'errors'  => ['seq_no' => ["Seq. No. '{$finalSeqNo}' is already in use in this category."]],
+                ], 422);
+            }
+        }
+
         $rawCondition = $request->input('condition', 'Good');
         $canonicalCondition = match(strtolower(trim((string)$rawCondition))) {
             'damaged' => 'Damaged',
@@ -248,6 +271,7 @@ class EquipmentUnitController extends Controller
             'equipment_type_id' => $validated['equipment_type_id'],
             'brand'             => $validated['brand'] ?? null,
             'model'             => $validated['model'] ?? null,
+            'seq_no'            => $request->filled('seq_no') ? trim((string)$request->input('seq_no')) : null,
             'serial_number'     => $finalSerial,
             'barcode'           => $finalSerial,
             'purchased_at'      => $validated['purchased_at'] ?? now()->toDateString(),
@@ -321,6 +345,7 @@ class EquipmentUnitController extends Controller
             'equipment_type_id' => 'sometimes|exists:equipment_types,id',
             'brand'             => 'nullable|string|max:255',
             'model'             => 'nullable|string|max:255',
+            'seq_no'            => 'nullable|string|max:255',
             'serial_number'     => 'nullable|string|max:255',
             'barcode'           => 'nullable|string|max:255',
             'purchased_at'      => 'nullable|date',
@@ -335,6 +360,10 @@ class EquipmentUnitController extends Controller
 
         $userReason = trim($request->input('reason', ''));
         unset($validated['reason']);
+
+        if ($request->has('seq_no')) {
+            $validated['seq_no'] = $request->filled('seq_no') ? trim((string)$request->input('seq_no')) : null;
+        }
 
         $serialVal = trim((string)(
             $request->input('serial_number') 
@@ -360,6 +389,22 @@ class EquipmentUnitController extends Controller
 
             $validated['serial_number'] = $serialVal;
             $validated['barcode'] = $serialVal;
+        }
+
+        if (array_key_exists('seq_no', $validated) && $validated['seq_no'] !== null && $validated['seq_no'] !== '') {
+            $targetTypeId = $validated['equipment_type_id'] ?? $unit->equipment_type_id;
+            $duplicateSeq = EquipmentUnit::where('id', '!=', $unit->id)
+                ->where('equipment_type_id', $targetTypeId)
+                ->where('seq_no', $validated['seq_no'])
+                ->whereNull('archived_at')
+                ->first();
+
+            if ($duplicateSeq) {
+                return response()->json([
+                    'message' => "The Seq. No. '{$validated['seq_no']}' is already assigned to another physical unit in this category. Seq. No. must be unique within the same category.",
+                    'errors'  => ['seq_no' => ["Seq. No. '{$validated['seq_no']}' is already in use in this category."]],
+                ], 422);
+            }
         }
 
         if (isset($validated['condition'])) {

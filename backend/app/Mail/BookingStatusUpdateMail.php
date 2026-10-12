@@ -49,12 +49,16 @@ class BookingStatusUpdateMail extends Mailable
             in_array($normalized, ['on going', 'on-going', 'ongoing', 'released', 'on_going']) => $this->type === 'venue'
                 ? "CHECK-IN LOGGED: Event Now In Progress [{$this->refCode}]{$extTag}"
                 : "CUSTODY HANDOVER RECEIPT: Equipment Units Released [{$this->refCode}]{$extTag}",
-            in_array($normalized, ['overdue', 'passed due', 'return past due notice']) =>
-                "OVERDUE NOTICE: Equipment Return Required Immediately [{$this->refCode}]{$extTag}",
-            in_array($normalized, ['exceed end time', 'exceeded end time', 'overtime']) =>
-                "URGENT: Reservation Exceeded Scheduled End Time [{$this->refCode}]{$extTag}",
-            in_array($normalized, ['late return', 'late']) =>
-                "NOTICE OF LATE RETURN [{$this->refCode}]{$extTag}",
+            in_array($normalized, ['past due', 'past_due', 'passed due']) =>
+                "PAST DUE NOTICE: Venue Reservation Exceeded Scheduled End Time [{$this->refCode}]{$extTag}",
+            in_array($normalized, ['late return', 'late_return', 'late']) =>
+                "NOTICE OF LATE RETURN: Equipment Past Due for Return [{$this->refCode}]{$extTag}",
+            in_array($normalized, ['overdue', 'return past due notice']) => $this->type === 'venue'
+                ? "PAST DUE NOTICE: Venue Reservation Exceeded Scheduled End Time [{$this->refCode}]{$extTag}"
+                : "NOTICE OF LATE RETURN: Equipment Past Due for Return [{$this->refCode}]{$extTag}",
+            in_array($normalized, ['exceed end time', 'exceeded end time', 'overtime']) => $this->type === 'venue'
+                ? "PAST DUE NOTICE: Venue Reservation Exceeded Scheduled End Time [{$this->refCode}]{$extTag}"
+                : "NOTICE OF LATE RETURN: Equipment Past Due for Return [{$this->refCode}]{$extTag}",
             in_array($normalized, ['completed', 'returned', 'done', 'cleared']) => $this->type === 'venue'
                 ? "CLEARED: Facility Turnover Completed [{$this->refCode}]{$extTag}"
                 : "CLEARANCE RECEIPT: Equipment Returned & Inspected [{$this->refCode}]{$extTag}",
@@ -63,8 +67,9 @@ class BookingStatusUpdateMail extends Mailable
                 : "DUE SOON: Equipment Return Deadline Approaching [{$this->refCode}]{$extTag}",
             in_array($normalized, ['incomplete', 'missing requirements']) =>
                 "ACTION REQUIRED: Missing Requirements for [{$this->refCode}]{$extTag}",
-            in_array($normalized, ['cancelled', 'auto cancelled', 'auto-cancelled', 'auto_cancelled']) =>
-                "NOTICE: Reservation Cancelled [{$this->refCode}]{$extTag}",
+            in_array($normalized, ['cancelled', 'auto cancelled', 'auto-cancelled', 'auto_cancelled']) => $this->type === 'venue'
+                ? "NOTICE: Venue Reservation Cancelled [{$this->refCode}]{$extTag}"
+                : "NOTICE: Equipment Borrowing Cancelled [{$this->refCode}]{$extTag}",
             in_array($normalized, ['rejected']) =>
                 "NOTICE: Reservation Not Approved [{$this->refCode}]{$extTag}",
             default => "[{$this->refCode}] FSUU {$label} — " . ucfirst($this->status) . $extTag,

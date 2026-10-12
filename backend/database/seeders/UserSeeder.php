@@ -23,13 +23,13 @@ class UserSeeder extends Seeder
 
         // 1. Super Administrator
         User::withTrashed()->updateOrCreate(
-            ['email' => 'superadmin@fsuu.edu.ph'],
+            ['email' => 'superadmin@urios.edu.ph'],
             [
                 'name'           => 'Super Administrator',
                 'first_name'     => 'Super',
                 'last_name'      => 'Administrator',
-                'email_address'  => 'superadmin@fsuu.edu.ph',
-                'email'          => 'superadmin@fsuu.edu.ph',
+                'email_address'  => 'superadmin@urios.edu.ph',
+                'email'          => 'superadmin@urios.edu.ph',
                 'password'       => $defaultPassword,
                 'role_id'        => $superAdminRole->id,
                 'created_by'     => null,

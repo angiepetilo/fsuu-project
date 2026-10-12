@@ -5,7 +5,6 @@ import {
 } from "lucide-react";
 import api from "@/lib/axios";
 import PasswordSecurityStrength, { checkPasswordSecurity } from "@/components/ui/PasswordSecurityStrength";
-import ConfirmModal from "@/components/ui/ConfirmModal";
 
 export default function UserFormModal({
   showModal,
@@ -36,18 +35,6 @@ export default function UserFormModal({
   const [adminPwError, setAdminPwError] = useState("");
   const [verifyingAdminPw, setVerifyingAdminPw] = useState(false);
 
-  // Dirty guard
-  const [isFormDirty, setIsFormDirty] = useState(false);
-  const [showDiscardModal, setShowDiscardModal] = useState(false);
-
-  const handleClose = () => {
-    if (isFormDirty || newPassword || confirmPassword) {
-      setShowDiscardModal(true);
-    } else {
-      setShowModal(false);
-    }
-  };
-
   useEffect(() => {
     setEmailStatus(null);
     setNewPassword("");
@@ -56,18 +43,17 @@ export default function UserFormModal({
     setShowAdminPwModal(false);
     setAdminPassword("");
     setAdminPwError("");
-    setIsFormDirty(false);
   }, [showModal, editUser]);
 
   const checkEmailActive = async () => {
-    const email = (form.email_address || "").trim();
+    const email = (form.email_address || "").trim().toLowerCase();
     if (!email || !email.includes("@")) return;
 
-    const parts = email.toLowerCase().split("@");
-    if (parts.length === 2 && (parts[1] === "urios.edu.ph" || parts[1] === "fsuu.edu.ph") && /[0-9]/.test(parts[0])) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
       setEmailStatus({
         valid: false,
-        message: "Official institutional emails (@urios.edu.ph) do not contain numbers (e.g. 202100452@urios.edu.ph is not valid). Please use your official name-based email.",
+        message: "Please enter a valid email address format.",
       });
       return;
     }
@@ -122,6 +108,16 @@ export default function UserFormModal({
   const onSubmitForm = (e) => {
     e.preventDefault();
     setPwValidationError("");
+
+    const targetEmail = (form.email_address || "").trim().toLowerCase();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!targetEmail || !emailRegex.test(targetEmail)) {
+      setEmailStatus({
+        valid: false,
+        message: "Please enter a valid email address.",
+      });
+      return;
+    }
 
     // If editUser and password fields are filled
     if (editUser && (newPassword || confirmPassword)) {
@@ -183,264 +179,249 @@ export default function UserFormModal({
   return (
     <>
       {/* ── Main Create / Edit Modal ── */}
-      <div className="fixed inset-0 bg-black/40 z-[1500] flex items-center justify-center p-4">
-        <div className="bg-white rounded-xl border border-slate-200 shadow-xl w-full max-w-2xl p-5 space-y-4">
-          <div className="flex items-center justify-between pb-2.5 border-b border-slate-100">
+      <div className="fixed inset-0 bg-black/40 backdrop-blur-xs z-[1500] flex items-center justify-center p-4 sm:p-6">
+        <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl w-full max-w-md max-h-[92vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95">
+          <div className="flex items-center justify-between p-5 pb-4 border-b border-slate-100 shrink-0">
             <div>
-              <h3 className="text-sm font-semibold text-slate-900">
-                {editUser ? "Edit" : "Create"}
+              <h3 className="text-sm font-black text-slate-900 tracking-tight">
+                {editUser ? "Edit Account" : "Create Account"}
               </h3>
-              <p className="text-xs text-slate-500 font-normal mt-0.5">
+              <p className="text-xs text-slate-500 font-medium mt-0.5">
                 {editUser
-                  ? "Update account details and credentials."
-                  : "An invitation email will be sent."}
+                  ? "Update account details and security credentials."
+                  : "An invitation email will be sent to the address below."}
               </p>
             </div>
             <button
               type="button"
-              onClick={handleClose}
-              className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors cursor-pointer"
+              onClick={() => setShowModal(false)}
+              className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors cursor-pointer"
             >
               <X size={16} />
             </button>
           </div>
 
-          <form onSubmit={onSubmitForm} className="space-y-4 text-xs">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 items-start">
-              {/* Left Column: Role & Email */}
-              <div className="space-y-3.5">
-                {/* Account Role */}
-                <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1.5">
-                    Role *
-                  </label>
-                  {loadingRoles ? (
-                    <div className="flex items-center justify-center p-3 text-slate-400 gap-2 border border-slate-200 rounded-lg">
-                      <Loader2 size={13} className="animate-spin text-blue-600" />
-                      <span className="text-xs font-normal">Loading...</span>
-                    </div>
-                  ) : availableRoles.length === 0 ? (
-                    <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-xs">
-                      No roles found.
-                    </div>
-                  ) : (
-                    <div className={`grid ${availableRoles.length <= 2 ? "grid-cols-2" : "grid-cols-2"} gap-2`}>
-                      {availableRoles.map((r) => {
-                        const val = r.name;
-                        const label = formatRoleLabel(r.name);
-                        const isSelected = form.role === val || form.role_id === r.id;
-
-                        return (
-                          <button
-                            key={r.id || val}
-                            type="button"
-                            onClick={() => {
-                              setIsFormDirty(true);
-                              setForm((f) => ({ ...f, role: val, role_id: r.id }));
-                            }}
-                            className={`py-2 px-2.5 rounded-lg border text-xs font-medium transition-colors text-center cursor-pointer ${
-                              isSelected
-                                ? "bg-blue-600 border-blue-600 text-white"
-                                : "border-slate-200 text-slate-700 hover:bg-slate-50"
-                            }`}
-                          >
-                            <span>{label}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
+          <form onSubmit={onSubmitForm} className="flex flex-col flex-1 min-h-0 text-xs">
+            <div className="p-5 overflow-y-auto flex-1 space-y-4">
+              {/* Account Role */}
+              <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                Account Role
+              </label>
+              {loadingRoles ? (
+                <div className="flex items-center justify-center p-3 text-slate-400 gap-2 border border-slate-200 rounded-xl">
+                  <Loader2 size={13} className="animate-spin text-blue-600" />
+                  <span className="text-xs font-semibold">Loading roles...</span>
                 </div>
+              ) : availableRoles.length === 0 ? (
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-xs flex items-center gap-2">
+                  <AlertCircle size={14} className="shrink-0 text-amber-600" />
+                  <span>No roles found. Please configure a role in the <strong>Roles</strong> tab first.</span>
+                </div>
+              ) : (
+                <div className={`grid ${availableRoles.length <= 2 ? "grid-cols-2" : "grid-cols-2 sm:grid-cols-3"} gap-2`}>
+                  {availableRoles.map((r) => {
+                    const val = r.name;
+                    const label = formatRoleLabel(r.name);
+                    const Icon = getRoleIcon(r.name);
+                    const isSelected = form.role === val || form.role_id === r.id;
 
-                {/* Email Address */}
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="block text-xs font-medium text-slate-700">
-                      Email Address *
-                    </label>
-                    {emailChecking && (
-                      <span className="text-[10px] text-slate-400 flex items-center gap-1 font-normal">
-                        <Loader2 size={10} className="animate-spin" /> Checking mail server...
-                      </span>
-                    )}
-                    {!emailChecking && emailStatus && (
-                      <span
-                        className={`text-[10px] font-medium flex items-center gap-1 ${
-                          emailStatus.valid ? "text-emerald-600" : "text-rose-600"
-                        }`}
+                    return (
+                      <button
+                        key={r.id || val}
+                        type="button"
+                        onClick={() => setForm((f) => ({ ...f, role: val, role_id: r.id }))}
+                        className={`py-2.5 px-3 rounded-xl border text-xs font-extrabold transition-all text-center flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs ${isSelected
+                            ? "bg-blue-600 border-blue-600 text-white shadow-xs"
+                            : "border-slate-200 text-slate-700 hover:bg-slate-50"
+                          }`}
                       >
-                        {emailStatus.valid ? (
-                          <>
-                            <CheckCircle2 size={11} /> Mail Server Active
-                          </>
-                        ) : (
-                          <>
-                            <AlertCircle size={11} /> Undeliverable
-                          </>
-                        )}
-                      </span>
-                    )}
-                  </div>
-                  <input
-                    type="email"
-                    required
-                    placeholder="e.g. juan.delacruz@urios.edu.ph"
-                    value={form.email_address}
-                    onChange={(e) => {
-                      setIsFormDirty(true);
-                      setForm((f) => ({ ...f, email_address: e.target.value }));
-                    }}
-                    onBlur={checkEmailActive}
-                    className={`w-full px-3 py-2 border rounded-lg font-mono text-xs font-normal text-slate-900 focus:outline-none transition-colors ${
-                      emailStatus?.valid === false
-                        ? "border-rose-300 bg-rose-50/20 focus:border-rose-500"
-                        : emailStatus?.valid === true
-                        ? "border-emerald-300 bg-emerald-50/20 focus:border-emerald-500"
-                        : "border-slate-200 focus:border-blue-600 bg-white"
-                    }`}
-                  />
-                  {emailStatus?.valid === false ? (
-                    <div className="flex items-start gap-1.5 mt-1.5 text-rose-600">
-                      <AlertCircle size={13} className="shrink-0 mt-0.5" />
-                      <span className="text-[11px] font-normal leading-tight">{emailStatus.message}</span>
-                    </div>
-                  ) : (
-                    <p className="text-[11px] text-slate-400 font-normal mt-1">
-                      Must be an active email address capable of receiving messages.
-                    </p>
-                  )}
+                        <Icon size={14} /> {label}
+                      </button>
+                    );
+                  })}
                 </div>
-
-                {/* Resend Invitation — only on edit */}
-                {editUser && (
-                  <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-200">
-                    <div>
-                      <span className="text-xs font-medium text-slate-800 block">
-                        Resend Invitation
-                      </span>
-                      <span className="text-[11px] text-slate-500 font-normal">
-                        Send a new account setup link to this user.
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleResend(editUser)}
-                      className="px-3 py-1.5 border border-slate-200 bg-white hover:bg-slate-100 rounded-lg text-xs font-medium text-slate-700 transition-colors cursor-pointer"
-                    >
-                      Resend
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* Right Column: Password Change or Invitation Info */}
-              <div className="space-y-3.5">
-                {editUser ? (
-                  <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-lg space-y-3">
-                    <div className="flex items-center justify-between border-b border-slate-200 pb-2">
-                      <span className="text-xs font-semibold text-slate-900">
-                        Password
-                      </span>
-                    </div>
-
-                    {pwValidationError && (
-                      <div className="p-2 bg-rose-50 border border-rose-200 rounded-lg text-rose-700 text-[11px] font-normal flex items-center gap-1.5">
-                        <AlertCircle size={12} className="shrink-0" />
-                        <span>{pwValidationError}</span>
-                      </div>
-                    )}
-
-                    <div className="space-y-2.5">
-                      <div>
-                        <label className="block text-[11px] font-medium text-slate-700 mb-1">
-                          New Password
-                        </label>
-                        <div className="relative">
-                          <input
-                            type={showNewPw ? "text" : "password"}
-                            placeholder="At least 8 characters"
-                            value={newPassword}
-                            onChange={(e) => {
-                              setNewPassword(e.target.value);
-                              setPwValidationError("");
-                            }}
-                            className="w-full pl-2.5 pr-8 py-1.5 border border-slate-200 rounded-lg text-xs font-normal text-slate-900 bg-white focus:border-blue-600 focus:outline-none"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setShowNewPw(!showNewPw)}
-                            className="absolute right-2 top-2 text-slate-400 hover:text-slate-600 cursor-pointer"
-                          >
-                            {showNewPw ? <EyeOff size={13} /> : <Eye size={13} />}
-                          </button>
-                        </div>
-                      </div>
-
-                      <PasswordSecurityStrength password={newPassword} showGuidance={true} />
-
-                      <div>
-                        <label className="block text-[11px] font-medium text-slate-700 mb-1">
-                          Confirm New Password
-                        </label>
-                        <div className="relative">
-                          <input
-                            type={showConfirmPw ? "text" : "password"}
-                            placeholder="Re-enter new password"
-                            value={confirmPassword}
-                            onChange={(e) => {
-                              setConfirmPassword(e.target.value);
-                              setPwValidationError("");
-                            }}
-                            className="w-full pl-2.5 pr-8 py-1.5 border border-slate-200 rounded-lg text-xs font-normal text-slate-900 bg-white focus:border-blue-600 focus:outline-none"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setShowConfirmPw(!showConfirmPw)}
-                            className="absolute right-2 top-2 text-slate-400 hover:text-slate-600 cursor-pointer"
-                          >
-                            {showConfirmPw ? <EyeOff size={13} /> : <Eye size={13} />}
-                          </button>
-                        </div>
-                      </div>
-
-                      {newPassword.length > 0 && confirmPassword.length > 0 && (
-                        <div className={`p-2 rounded-lg text-[11px] font-normal border ${newPassword === confirmPassword ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-rose-50 text-rose-700 border-rose-200"}`}>
-                          {newPassword === confirmPassword ? "✓ Passwords match" : "✕ Passwords do not match yet"}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg space-y-2.5 text-slate-600">
-                    <div className="flex items-center gap-1.5 pb-2 border-b border-slate-200">
-                      <Mail size={14} className="text-blue-600" />
-                      <span className="text-xs font-medium text-slate-900">Invitation Delivery</span>
-                    </div>
-                    <p className="text-xs text-slate-600 leading-relaxed font-normal">
-                      An invitation email with a secure setup link will be dispatched automatically to the user's email address.
-                    </p>
-                    <p className="text-[11px] text-slate-500 leading-relaxed font-normal">
-                      The recipient will set their own password upon first sign-in and will receive access permissions corresponding to their assigned account role.
-                    </p>
-                  </div>
-                )}
-              </div>
+              )}
             </div>
 
-            <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-100">
+            {/* Email Address */}
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-bold text-slate-700">
+                  Email Address
+                </label>
+                {emailChecking && (
+                  <span className="text-[10px] text-slate-400 flex items-center gap-1 font-semibold">
+                    <Loader2 size={10} className="animate-spin" /> Checking mail server...
+                  </span>
+                )}
+                {!emailChecking && emailStatus && (
+                  <span
+                    className={`text-[10px] font-bold flex items-center gap-1 ${emailStatus.valid ? "text-emerald-600" : "text-rose-600"
+                      }`}
+                  >
+                    {emailStatus.valid ? (
+                      <>
+                        <CheckCircle2 size={11} /> Mail Server Active
+                      </>
+                    ) : (
+                      <>
+                        <AlertCircle size={11} /> Undeliverable
+                      </>
+                    )}
+                  </span>
+                )}
+              </div>
+              <input
+                type="email"
+                required
+                placeholder="e.g. juan.delacruz@urios.edu.ph or name@gmail.com"
+                value={form.email_address}
+                onChange={(e) => setForm((f) => ({ ...f, email_address: e.target.value }))}
+                onBlur={checkEmailActive}
+                className={`w-full px-3.5 py-2.5 border rounded-xl font-mono text-xs font-semibold text-slate-900 focus:outline-none transition-colors ${emailStatus?.valid === false
+                    ? "border-rose-300 bg-rose-50/20 focus:border-rose-500"
+                    : emailStatus?.valid === true
+                      ? "border-emerald-300 bg-emerald-50/20 focus:border-emerald-500"
+                      : "border-slate-200 focus:border-blue-600 bg-slate-50 focus:bg-white"
+                  }`}
+              />
+              {emailStatus?.valid === false ? (
+                <div className="flex items-start gap-1.5 mt-1.5 text-rose-600">
+                  <AlertCircle size={13} className="shrink-0 mt-0.5" />
+                  <span className="text-[11px] font-semibold leading-tight">{emailStatus.message}</span>
+                </div>
+              ) : (
+                <p className="text-[11px] text-slate-400 font-medium mt-1">
+                  Must be an active email address capable of receiving messages.
+                </p>
+              )}
+            </div>
+
+            {/* Change Password Section — ONLY in Edit Mode */}
+            {editUser && (
+              <div className="border-t border-slate-100 pt-3.5 space-y-3">
+                <div className="flex items-center gap-1.5">
+                  <KeyRound size={14} className="text-blue-600" />
+                  <span className="text-xs font-extrabold text-slate-900">
+                    Change Password
+                  </span>
+                  <span className="text-[10px] text-slate-400 font-medium ml-auto">
+                    (Leave blank to keep existing)
+                  </span>
+                </div>
+
+                {pwValidationError && (
+                  <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-[11px] font-bold flex items-center gap-1.5">
+                    <AlertCircle size={13} className="shrink-0" />
+                    <span>{pwValidationError}</span>
+                  </div>
+                )}
+
+                <div className="space-y-2.5">
+                  {/* New Password */}
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                      New Password
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showNewPw ? "text" : "password"}
+                        placeholder="At least 8 characters, letters & numbers"
+                        value={newPassword}
+                        onChange={(e) => {
+                          setNewPassword(e.target.value);
+                          setPwValidationError("");
+                        }}
+                        className="w-full pl-3 pr-9 py-2 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 bg-slate-50 focus:bg-white focus:border-blue-600 focus:outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowNewPw(!showNewPw)}
+                        className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600"
+                      >
+                        {showNewPw ? <EyeOff size={14} /> : <Eye size={14} />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Password Security Strength checklist & meter */}
+                  <PasswordSecurityStrength password={newPassword} showGuidance={true} />
+
+                  {/* Confirm New Password */}
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                      Confirm New Password
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showConfirmPw ? "text" : "password"}
+                        placeholder="Re-enter new password"
+                        value={confirmPassword}
+                        onChange={(e) => {
+                          setConfirmPassword(e.target.value);
+                          setPwValidationError("");
+                        }}
+                        className="w-full pl-3 pr-9 py-2 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 bg-slate-50 focus:bg-white focus:border-blue-600 focus:outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPw(!showConfirmPw)}
+                        className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600"
+                      >
+                        {showConfirmPw ? <EyeOff size={14} /> : <Eye size={14} />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {newPassword.length > 0 && confirmPassword.length > 0 && (
+                    <div className={`p-2 rounded-xl text-[11px] font-semibold border ${newPassword === confirmPassword ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-rose-50 text-rose-700 border-rose-200"}`}>
+                      {newPassword === confirmPassword ? "✓ Passwords match" : "✕ Passwords do not match yet"}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Resend Invitation — only on edit */}
+            {editUser && (
+              <div className="flex items-center justify-between p-3 bg-slate-50 rounded-2xl border border-slate-200/80">
+                <div>
+                  <span className="text-xs font-extrabold text-slate-800 block">
+                    Resend Invitation
+                  </span>
+                  <span className="text-[11px] text-slate-500 font-medium">
+                    Send a new account setup link to this user.
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleResend(editUser)}
+                  className="px-3.5 py-1.5 border border-slate-200 bg-white hover:bg-slate-100 rounded-xl text-xs font-extrabold text-slate-700 transition-colors cursor-pointer flex items-center gap-1.5 shadow-2xs"
+                >
+                  <Mail size={12} /> Resend
+                </button>
+              </div>
+            )}
+
+            </div>
+
+            {/* Always-visible Footer */}
+            <div className="flex gap-2.5 p-4 px-5 bg-slate-50 border-t border-slate-100 shrink-0 rounded-b-3xl">
               <button
                 type="button"
-                onClick={handleClose}
-                className="px-4 py-2 border border-slate-200 rounded-lg text-xs font-normal text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer"
+                onClick={() => setShowModal(false)}
+                className="flex-1 py-2.5 border border-slate-200 bg-white hover:bg-slate-100 rounded-xl text-xs font-extrabold text-slate-600 transition-colors cursor-pointer shadow-2xs"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={formLoading}
-                className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-medium transition-colors cursor-pointer disabled:opacity-60"
+                className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-xl text-xs font-extrabold transition-colors cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-60 shadow-xs"
               >
-                {formLoading ? "Saving" : editUser ? "Save" : "Invite"}
+                {formLoading && <Loader2 size={13} className="animate-spin" />}
+                {editUser ? "Save Changes" : "Send Invitation"}
               </button>
             </div>
           </form>
@@ -449,40 +430,46 @@ export default function UserFormModal({
 
       {/* ── Super Admin Password Confirmation Pop-up Modal ── */}
       {showAdminPwModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs z-[1600] flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg border border-slate-200 shadow-lg w-full max-w-sm p-5 space-y-4">
-            <div>
-              <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                Authorize
-              </h4>
-              <p className="text-[11px] text-slate-500 font-normal mt-0.5">
-                Enter admin password to confirm.
-              </p>
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[1600] flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl w-full max-w-sm max-h-[90vh] overflow-y-auto p-6 space-y-4 animate-in fade-in zoom-in-95">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-blue-50 border border-blue-200 text-blue-600 flex items-center justify-center shrink-0">
+                <ShieldCheck size={20} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h4 className="text-sm font-black text-slate-900 tracking-tight">
+                  Confirm Password Change
+                </h4>
+                <p className="text-[11px] text-slate-500 font-medium mt-0.5 leading-relaxed">
+                  Please enter your Super Administrator password to authorize setting a new password for this user.
+                </p>
+              </div>
             </div>
 
             <form onSubmit={handleConfirmAdminPassword} className="space-y-3.5 pt-1">
               {adminPwError && (
-                <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-lg text-rose-700 text-xs font-medium">
+                <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs font-bold flex items-center gap-1.5">
+                  <AlertCircle size={13} className="shrink-0" />
                   <span>{adminPwError}</span>
                 </div>
               )}
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Password
+                  Super Admin Password
                 </label>
                 <div className="relative">
                   <input
                     type={showAdminPw ? "text" : "password"}
                     required
                     autoFocus
-                    placeholder="Password"
+                    placeholder="Enter your admin password"
                     value={adminPassword}
                     onChange={(e) => {
                       setAdminPassword(e.target.value);
                       setAdminPwError("");
                     }}
-                    className="w-full pl-3 pr-9 py-2 border border-slate-200 rounded-lg text-xs font-medium text-slate-900 bg-slate-50 focus:bg-white focus:border-blue-600 focus:outline-none"
+                    className="w-full pl-3 pr-9 py-2 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 bg-slate-50 focus:bg-white focus:border-blue-600 focus:outline-none"
                   />
                   <button
                     type="button"
@@ -499,38 +486,26 @@ export default function UserFormModal({
                   type="button"
                   onClick={() => setShowAdminPwModal(false)}
                   disabled={verifyingAdminPw}
-                  className="flex-1 py-2 border border-slate-200 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-50"
+                  className="flex-1 py-2 border border-slate-200 rounded-xl text-xs font-extrabold text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-50"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={verifyingAdminPw || !adminPassword.trim()}
-                  className="flex-1 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-medium transition-colors cursor-pointer disabled:opacity-50"
+                  className="flex-1 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-xl text-xs font-extrabold transition-colors cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-50 shadow-xs"
                 >
-                  {verifyingAdminPw ? "Verifying" : "Authorize"}
+                  {verifyingAdminPw ? (
+                    <><Loader2 size={13} className="animate-spin" /> Verifying...</>
+                  ) : (
+                    "Authorize & Save"
+                  )}
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
-
-      {/* Discard Confirmation Modal */}
-      <ConfirmModal
-        open={showDiscardModal}
-        onClose={() => setShowDiscardModal(false)}
-        onConfirm={() => {
-          setShowDiscardModal(false);
-          setIsFormDirty(false);
-          setShowModal(false);
-        }}
-        variant="warning"
-        title="Discard"
-        message="Discard unsaved changes?"
-        confirmLabel="Discard"
-        cancelLabel="Keep"
-      />
     </>
   );
 }

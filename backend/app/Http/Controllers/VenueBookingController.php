@@ -25,9 +25,10 @@ class VenueBookingController extends Controller
     {
         $this->authorize('viewAny', VenueBooking::class);
 
-        // Automatically auto-release unclaimed no-show bookings past 15m grace period
+        // Automatically auto-release unclaimed/expired bookings based on dynamic operating hours rules and check overdue alerts
         try {
-            app(\App\Services\NoShowAutoReleaseService::class)->processNoShows(15);
+            app(\App\Services\NoShowAutoReleaseService::class)->processNoShows();
+            app(\App\Services\OverdueAndExceededAlertService::class)->processAlerts();
         } catch (\Throwable $e) {}
 
         $user = $request->user();
@@ -353,9 +354,23 @@ class VenueBookingController extends Controller
 
         $status = strtolower($booking->status ?? $booking->trackingNumber?->status ?? 'pending');
         
+        $isPastDue = false;
+        try {
+            $endDate = $booking->reservation_end_date ?: $booking->date_of_usage;
+            $timeEnd = $booking->time_end ?: '17:00:00';
+            if ($endDate) {
+                $endDtStr = substr($endDate, 0, 10) . ' ' . substr($timeEnd, 0, 8);
+                if (\Carbon\Carbon::parse($endDtStr)->isPast()) {
+                    $isPastDue = true;
+                }
+            }
+        } catch (\Throwable $t) {}
+
         try {
             if ($status === 'pending') {
                 \App\Jobs\SendBookingConfirmationJob::dispatch('venue', $booking);
+            } elseif ($isPastDue && in_array($status, ['ongoing', 'on-going', 'in_use', 'in-use'])) {
+                \App\Jobs\SendBookingStatusUpdateJob::dispatch('venue', $booking, 'past_due', 'URGENT: Your venue reservation schedule has ended and is past due. Please vacate the venue and finalize post-event inspection.');
             } else {
                 \App\Jobs\SendBookingStatusUpdateJob::dispatch('venue', $booking, $status, 'Resent notification by admin');
             }

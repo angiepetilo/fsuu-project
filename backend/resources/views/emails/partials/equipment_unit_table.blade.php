@@ -18,7 +18,7 @@
         <th style="text-align: left; padding: 9px 12px; font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; border-right: 1px solid #1e293b;">Asset Barcode</th>
         <th style="text-align: left; padding: 9px 12px; font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; border-right: 1px solid #1e293b;">Serial Number</th>
         <th style="text-align: left; padding: 9px 12px; font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; border-right: 1px solid #1e293b;">Brand &amp; Model</th>
-        <th style="text-align: left; padding: 9px 12px; font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; border-right: 1px solid #1e293b;">Included Accessories</th>
+        <th style="text-align: left; padding: 9px 12px; font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; border-right: 1px solid #1e293b;">Borrowed Equipment</th>
         @if($mode === 'receipt')
         <th style="text-align: center; padding: 9px 12px; font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">Inspection Result</th>
         @endif
@@ -31,15 +31,76 @@
           $serial   = is_object($unit) ? ($unit->serial_number ?: ($unit->barcode ?? 'N/A')) : ($unit['serial_number'] ?? $unit['barcode'] ?? 'N/A');
           
           $brandVal = is_object($unit) ? (is_string($unit->brand ?? null) ? $unit->brand : '') : ($unit['brand'] ?? '');
-          $modelVal = is_object($unit) ? ($unit->model ?? $unit->equipmentType?->eq_name ?? $unit->equipmentType?->name ?? 'Equipment Unit') : ($unit['model'] ?? 'Equipment Unit');
+          $modelVal = is_object($unit) ? ($unit->model ?? '') : ($unit['model'] ?? '');
           $brandModel = trim("{$brandVal} {$modelVal}") ?: 'Standard Unit';
 
-          // Extract accessories / peripherals
-          $builtIn = is_object($unit) ? ($unit->built_in_units ?? $unit->built_in_models ?? []) : ($unit['built_in_units'] ?? $unit['built_in_models'] ?? []);
-          if (is_string($builtIn)) {
-              try { $builtIn = json_decode($builtIn, true) ?? []; } catch (\Throwable $e) { $builtIn = []; }
+          // Resolve Equipment Category Name
+          $equipmentTypeName = is_object($unit)
+              ? ($unit->equipmentType?->eq_name ?? $unit->equipmentType?->name ?? null)
+              : ($unit['equipment_type_name'] ?? null);
+
+          if (!$equipmentTypeName && is_object($unit) && !empty($unit->equipment_type_id)) {
+              try {
+                  $et = \App\Models\EquipmentType::withTrashed()->find($unit->equipment_type_id);
+                  $equipmentTypeName = $et?->eq_name ?? $et?->name;
+              } catch (\Throwable $e) {}
           }
-          $accessoriesList = !empty($builtIn) && is_array($builtIn) ? implode(', ', $builtIn) : 'Power Cord / Standard Cable Set';
+
+          if (!$equipmentTypeName && !empty($equipmentList)) {
+              $firstEq = is_array($equipmentList) ? reset($equipmentList) : null;
+              if ($firstEq) {
+                  $equipmentTypeName = is_array($firstEq) ? ($firstEq['name'] ?? null) : null;
+              }
+          }
+
+          if (!$equipmentTypeName && !empty($booking?->equipment_name)) {
+              $equipmentTypeName = $booking->equipment_name;
+          }
+
+          if (!$equipmentTypeName) {
+              $equipmentTypeName = $modelVal ?: 'Equipment Unit';
+          }
+
+          // Resolve Built-in accessory names
+          $builtInNames = [];
+          if (is_object($unit) && !empty($unit->equipmentType?->built_in_names)) {
+              $builtInNames = $unit->equipmentType->built_in_names;
+          }
+
+          $rawBuilt = is_object($unit) ? ($unit->built_in_units ?? $unit->built_in_models ?? []) : ($unit['built_in_units'] ?? $unit['built_in_models'] ?? []);
+          if (is_string($rawBuilt)) {
+              try { $rawBuilt = json_decode($rawBuilt, true) ?? []; } catch (\Throwable $e) { $rawBuilt = []; }
+          }
+
+          if (empty($builtInNames) && !empty($rawBuilt) && is_array($rawBuilt)) {
+              $numericIds = array_values(array_filter($rawBuilt, fn($v) => is_numeric($v) && (int)$v > 0));
+              if (!empty($numericIds)) {
+                  try {
+                      $childUnits = \App\Models\EquipmentUnit::with('equipmentType')->whereIn('id', array_map('intval', $numericIds))->get();
+                      foreach ($childUnits as $cu) {
+                          $cName = $cu->equipmentType?->eq_name ?? $cu->equipmentType?->name ?? $cu->model;
+                          if ($cName && !in_array($cName, $builtInNames)) {
+                              $builtInNames[] = $cName;
+                          }
+                      }
+                  } catch (\Throwable $e) {}
+              }
+              foreach ($rawBuilt as $val) {
+                  if (is_string($val) && !is_numeric($val) && !empty($val) && !in_array($val, $builtInNames)) {
+                      $builtInNames[] = trim($val);
+                  }
+              }
+          }
+
+          // Fallback from $equipmentList if built-ins still empty
+          if (empty($builtInNames) && !empty($equipmentList)) {
+              foreach ($equipmentList as $eqItem) {
+                  if (is_array($eqItem) && !empty($eqItem['built_ins'])) {
+                      $builtInNames = $eqItem['built_ins'];
+                      break;
+                  }
+              }
+          }
 
           // Condition check
           $cond = is_object($unit) ? ($unit->condition ?? 'Good') : ($unit['condition'] ?? 'Good');
@@ -78,8 +139,18 @@
         <td style="padding: 10px 12px; color: #0f172a; font-weight: 600; border-right: 1px solid #e2e8f0;">
           {{ $brandModel }}
         </td>
-        <td style="padding: 10px 12px; color: #475569; font-size: 12px; border-right: 1px solid #e2e8f0;">
-          {{ $accessoriesList }}
+        <td style="padding: 10px 12px; color: #0f172a; border-right: 1px solid #e2e8f0;">
+          <div style="font-weight: 700; color: #0f172a; font-size: 13px;">
+            {{ $equipmentTypeName }}
+          </div>
+          @if(!empty($builtInNames) && count($builtInNames) > 0)
+            <div style="margin-top: 4px; font-size: 11px; color: #475569;">
+              <span style="font-weight: 700; color: #1e40af; margin-right: 2px;">Built-in:</span>
+              @foreach($builtInNames as $bName)
+                <span style="display: inline-block; background-color: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; border-radius: 4px; padding: 1px 7px; font-size: 11px; font-weight: 700; margin: 1px 2px;">{{ $bName }}</span>
+              @endforeach
+            </div>
+          @endif
         </td>
         @if($mode === 'receipt')
         <td style="text-align: center; padding: 10px 12px;">

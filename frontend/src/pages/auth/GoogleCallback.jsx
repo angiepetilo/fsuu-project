@@ -67,7 +67,7 @@ export default function GoogleCallback() {
     api.get(`/auth/google/callback?code=${code}`)
       .then(({ data }) => {
         login(data.user, data.token);
-        const isSuper = data.user?.role === "superadmin" || data.user?.role?.name === "superadmin" || data.user?.role_id === 1 || data.user?.email === "superadmin@fsuu.edu.ph";
+        const isSuper = data.user?.role === "superadmin" || data.user?.role?.name === "superadmin" || data.user?.role_id === 1 || data.user?.email === "superadmin@urios.edu.ph";
         if (isSuper) {
           navigate("/sysad/dashboard", { replace: true });
         } else {

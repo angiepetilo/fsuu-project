@@ -61,7 +61,13 @@ export default function EquipmentDetailModal({
 
           {/* Grid Specifications */}
           <div className="grid grid-cols-2 gap-4">
-            
+            {selectedItem.seq_no && (
+              <div className="p-3.5 bg-slate-50/80 rounded-xl border border-slate-100">
+                <span className="text-slate-400 font-bold block text-[10px] uppercase">Sequence Number</span>
+                <span className="font-mono font-extrabold text-blue-600 text-sm mt-0.5 block">{selectedItem.seq_no}</span>
+              </div>
+            )}
+
             <div className="p-3.5 bg-slate-50/80 rounded-xl border border-slate-100">
               <span className="text-slate-400 font-bold block text-[10px] uppercase">Equipment Barcode</span>
               <span className="font-mono font-extrabold text-blue-600 text-sm mt-0.5 block">{selectedItem.barcode}</span>

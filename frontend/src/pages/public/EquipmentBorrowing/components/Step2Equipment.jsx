@@ -1,9 +1,11 @@
-import { useState, useEffect, useCallback } from "react";
-import { Check, PackageOpen, ChevronLeft, ChevronRight, XCircle, Clock, CalendarDays, AlertTriangle, AlertCircle, Search, Loader2 } from "lucide-react";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
+import { Check, PackageOpen, ChevronLeft, ChevronRight, XCircle, Clock, CalendarDays, AlertTriangle, AlertCircle, Search, Loader2, Home, Wrench, ShieldAlert, Ban } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import CustomTimePicker from "@/components/ui/custom-time-picker";
 import api from "@/lib/axios";
 import { getTodayISO, isPastTimeToday, isPastDateTime } from "@/lib/dateTimeUtils";
+import { getEquipmentBlockMessage, getEquipmentBlockInfo } from "@/lib/dateUtils";
 
 export default function Step2Equipment({
   identity,
@@ -26,6 +28,8 @@ export default function Step2Equipment({
   catalogLoading = false,
   isPortal = false,
 }) {
+  const navigate = useNavigate();
+
   // Responsive equipment pagination: 1 item on mobile, 4 items on desktop/tablet
   const [isMobile, setIsMobile] = useState(() => typeof window !== "undefined" ? window.innerWidth < 640 : false);
 
@@ -138,9 +142,17 @@ export default function Step2Equipment({
         if (Array.isArray(res.data)) {
           const map = {};
           res.data.forEach(item => {
-            const d = (item.override_date || "").substring(0, 10);
+            const raw = String(item.override_date || "").trim();
+            let d = raw.substring(0, 10);
+            if (raw.includes("T") && raw.length > 10) {
+              const dt = new Date(raw);
+              if (!isNaN(dt.getTime())) {
+                const p = n => String(n).padStart(2, "0");
+                d = `${dt.getFullYear()}-${p(dt.getMonth() + 1)}-${p(dt.getDate())}`;
+              }
+            }
             if (d && (item.status === "closed" || item.status === "maintenance")) {
-              map[d] = item;
+              map[d] = { ...item, override_date: d };
             }
           });
           setEquipmentOverrides(map);
@@ -163,19 +175,84 @@ export default function Step2Equipment({
     };
   }, [fetchEquipmentOverrides]);
 
-  const isTodayClosed = Boolean(equipmentOverrides[todayISO]);
-  const isTomorrowClosed = Boolean(equipmentOverrides[tomorrowISO]);
+  const todayOverride = equipmentOverrides[todayISO];
+  const isTodayMaintenance = (todayOverride?.status || "").toLowerCase() === "maintenance";
+  const isTodayClosed = (todayOverride?.status || "").toLowerCase() === "closed";
+  const isTodayBlocked = isTodayMaintenance || isTodayClosed;
+
+  const tomorrowOverride = equipmentOverrides[tomorrowISO];
+  const isTomorrowMaintenance = (tomorrowOverride?.status || "").toLowerCase() === "maintenance";
+  const isTomorrowClosed = (tomorrowOverride?.status || "").toLowerCase() === "closed";
+  const isTomorrowBlocked = isTomorrowMaintenance || isTomorrowClosed;
 
   // Check if current real-time is past today's operating hours close or before opening
   const now = new Date();
   const currentHHMM = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
   const isPastClosingToday = currentHHMM >= kioskClose || currentHHMM < kioskOpen;
 
-  // Determine initial borrow date mode (if past closing hours or today is closed, auto-shift to tomorrow)
-  const initialDateMode = (isPastClosingToday || isTodayClosed) && !isTomorrowClosed ? "tomorrow" : "today";
+  // Determine initial borrow date mode (always start with today unless it's past operating hours AND today is not blocked)
+  const initialDateMode = (isPastClosingToday && !isTodayBlocked && !isTomorrowBlocked) ? "tomorrow" : "today";
   const [borrowDateMode, setBorrowDateMode] = useState(initialDateMode);
 
   const activeBorrowDate = borrowDateMode === "tomorrow" ? tomorrowISO : todayISO;
+  const activeOverride = equipmentOverrides[activeBorrowDate];
+  const isActiveMaintenance = (activeOverride?.status || "").toLowerCase() === "maintenance";
+  const isActiveClosed = (activeOverride?.status || "").toLowerCase() === "closed";
+  const isActiveBlocked = isActiveMaintenance || isActiveClosed;
+
+  // Dynamically calculate reopen info: earliest upcoming date/time when equipment is available
+  const reopenInfo = useMemo(() => {
+    if (!activeOverride) return null;
+    const rawEnd = (activeOverride.end_time || activeOverride.endTime || kioskClose || "17:00").substring(0, 5);
+    const rawClose = (kioskClose || "17:00").substring(0, 5);
+    const rawOpen = (kioskOpen || "07:30").substring(0, 5);
+    const isPartial = rawEnd < rawClose;
+
+    if (isPartial) {
+      const parts = activeBorrowDate.split("-").map(Number);
+      const dObj = new Date(parts[0], parts[1] - 1, parts[2]);
+      const dateFormatted = dObj.toLocaleDateString("en-US", {
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+      });
+      return {
+        dateFormatted,
+        timeFormatted: formatTime12(rawEnd),
+        displayText: `${dateFormatted} at ${formatTime12(rawEnd)}`,
+      };
+    }
+
+    // Full-day block: find earliest upcoming date from activeBorrowDate where equipment is available
+    let cur = new Date(activeBorrowDate + "T00:00:00");
+    for (let i = 1; i <= 60; i++) {
+      cur.setDate(cur.getDate() + 1);
+      const y = cur.getFullYear();
+      const m = String(cur.getMonth() + 1).padStart(2, '0');
+      const d = String(cur.getDate()).padStart(2, '0');
+      const iso = `${y}-${m}-${d}`;
+      const ov = equipmentOverrides[iso];
+      if (!ov || (ov.status !== "maintenance" && ov.status !== "closed")) {
+        const dateFormatted = cur.toLocaleDateString("en-US", {
+          month: "long",
+          day: "numeric",
+          year: "numeric"
+        });
+        return {
+          dateFormatted,
+          timeFormatted: formatTime12(rawOpen),
+          displayText: `${dateFormatted} at ${formatTime12(rawOpen)}`,
+        };
+      }
+    }
+
+    return {
+      dateFormatted: "a later date",
+      timeFormatted: formatTime12(rawOpen),
+      displayText: "a later date",
+    };
+  }, [activeBorrowDate, activeOverride, equipmentOverrides, kioskOpen, kioskClose]);
+
   const defaultStart = isPastClosingToday || borrowDateMode === "tomorrow" ? kioskOpen : (currentHHMM > kioskOpen && currentHHMM < kioskClose ? currentHHMM : kioskOpen);
   const defaultEnd = kioskClose;
   const startTimeVal = getTimePart(startTime, defaultStart);
@@ -193,7 +270,6 @@ export default function Step2Equipment({
 
   const targetDateObj = borrowDateMode === "tomorrow" ? new Date(Date.now() + 86400000) : new Date();
   const formattedDisplayDate = targetDateObj.toLocaleDateString("en-US", {
-    weekday: "long",
     month: "long",
     day: "numeric",
     year: "numeric"
@@ -208,6 +284,127 @@ export default function Step2Equipment({
 
     return 0;
   };
+
+  // Dedicated Under Maintenance / Closed Screen when equipment borrowing is blocked
+  if (isActiveBlocked) {
+    const blockInfo = getEquipmentBlockInfo(activeOverride, activeBorrowDate, equipmentOverrides, kioskOpen, kioskClose) || {
+      prefixText: isActiveMaintenance
+        ? "Sorry the Borrowing is Under on Maintenance."
+        : "Sorry the Borrowing Equipment Are Closed.",
+      reopenDate: reopenInfo?.dateFormatted || "Upcoming date",
+      reopenTime: reopenInfo?.timeFormatted || "Opening time",
+      displayText: reopenInfo?.displayText || "Upcoming available date",
+    };
+
+    return (
+      <div className="p-4 sm:p-6 md:p-8 animate-in fade-in duration-300 max-w-4xl mx-auto space-y-6">
+        {/* Primary Blocking Notice Card */}
+        <div className={`relative overflow-hidden rounded-[32px] border-2 p-6 sm:p-10 text-center shadow-xl backdrop-blur-xs transition-all ${
+          isActiveMaintenance
+            ? "border-amber-400/80 bg-gradient-to-b from-amber-50/90 via-amber-50/30 to-white dark:from-amber-950/40 dark:via-[#111827] dark:to-[#111827] shadow-amber-500/10"
+            : "border-rose-400/80 bg-gradient-to-b from-rose-50/90 via-rose-50/30 to-white dark:from-rose-950/40 dark:via-[#111827] dark:to-[#111827] shadow-rose-500/10"
+        }`}>
+          {/* Status Badge */}
+          <div className="inline-flex items-center gap-2 px-4 py-1 rounded-full text-[11px] font-black uppercase tracking-wider mb-6 shadow-2xs border">
+            {isActiveMaintenance ? (
+              <span className="bg-amber-500/15 border-amber-500/30 text-amber-800 dark:text-amber-300 flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                Under Maintenance
+              </span>
+            ) : (
+              <span className="bg-rose-500/15 border-rose-500/30 text-rose-800 dark:text-rose-300 flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-rose-600 animate-pulse" />
+                Equipment Borrowing Closed
+              </span>
+            )}
+          </div>
+
+          {/* Icon Hero Graphic */}
+          <div className="mb-6 flex justify-center">
+            <div className={`w-20 h-20 sm:w-24 sm:h-24 rounded-3xl flex items-center justify-center shadow-lg transition-transform hover:scale-105 ${
+              isActiveMaintenance
+                ? "bg-amber-500 text-white shadow-amber-500/30 ring-8 ring-amber-100 dark:ring-amber-950/60"
+                : "bg-rose-600 text-white shadow-rose-600/30 ring-8 ring-rose-100 dark:ring-rose-950/60"
+            }`}>
+              {isActiveMaintenance ? <Wrench size={42} className="stroke-[2.2]" /> : <ShieldAlert size={42} className="stroke-[2.2]" />}
+            </div>
+          </div>
+
+          {/* Headline */}
+          <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight mb-3">
+            {isActiveMaintenance ? "Equipment Borrowing Under Maintenance" : "Equipment Borrowing is Closed"}
+          </h2>
+
+          {/* Exact Required Notice Message - Centered & Clean Two-Line Alignment */}
+          <div className="max-w-2xl mx-auto mb-6 text-center space-y-1.5">
+            <p className="text-sm sm:text-base font-bold text-slate-800 dark:text-slate-100 leading-snug">
+              {blockInfo.prefixText}
+            </p>
+            <p className="text-sm sm:text-base font-medium text-slate-600 dark:text-slate-300 leading-snug">
+              Come back at <span className="font-bold text-slate-900 dark:text-white whitespace-nowrap">{blockInfo.reopenDate}</span> at <span className="font-bold text-slate-900 dark:text-white whitespace-nowrap">{blockInfo.reopenTime}</span>.
+            </p>
+          </div>
+
+          {/* Optional Admin Reason/Notes */}
+          {(activeOverride?.notes || activeOverride?.reason) && (
+            <div className="mb-6 max-w-lg mx-auto p-3.5 bg-white/80 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs text-slate-700 dark:text-slate-300 font-medium text-left flex items-start gap-2.5 shadow-2xs">
+              <AlertCircle size={16} className={`shrink-0 mt-0.5 ${isActiveMaintenance ? "text-amber-600" : "text-rose-600"}`} />
+              <div>
+                <span className="font-extrabold text-slate-900 dark:text-white block mb-0.5">Notice:</span>
+                <span>{activeOverride.notes || activeOverride.reason}</span>
+              </div>
+            </div>
+          )}
+
+          {/* Metadata pill container */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-2xl mx-auto text-left mb-8">
+            <div className="p-3.5 bg-white dark:bg-slate-900/90 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xs">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Schedule Date</span>
+              <span className="text-xs font-black text-slate-900 dark:text-white mt-1 block">
+                {formattedDisplayDate}
+              </span>
+            </div>
+            <div className="p-3.5 bg-white dark:bg-slate-900/90 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xs">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Operating Hours</span>
+              <span className="text-xs font-black text-slate-900 dark:text-white mt-1 block">
+                {formatTime12(kioskOpen)} – {formatTime12(kioskClose)}
+              </span>
+            </div>
+            <div className="p-3.5 bg-white dark:bg-slate-900/90 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xs">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Expected Return/Reopen</span>
+              <span className="text-xs font-black text-slate-900 dark:text-white mt-1 block leading-tight">
+                {blockInfo.displayText || reopenInfo?.displayText || "Upcoming available date"}
+              </span>
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+            {/* Primary Back Button to Home Page */}
+            <Button
+              type="button"
+              onClick={() => navigate("/")}
+              className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white px-7 py-3 rounded-full font-extrabold text-xs flex items-center justify-center gap-2 shadow-md shadow-blue-600/20 cursor-pointer transition-all"
+            >
+              <Home size={15} />
+              <span>Back to Home Page</span>
+            </Button>
+
+            {/* Back to Step 1 (Role Selection) */}
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => onBack && onBack()}
+              className="w-full sm:w-auto text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white font-bold text-xs py-3 px-5 rounded-full flex items-center justify-center gap-1.5 cursor-pointer"
+            >
+              <ChevronLeft size={15} />
+              <span>Change Role</span>
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-3 sm:p-6 md:p-8 animate-in slide-in-from-top-2 duration-300">
@@ -270,16 +467,19 @@ export default function Step2Equipment({
                 <div
                   key={item.id}
                   onClick={() => {
-                    if (isAvailable) handleEquipmentToggle(item.id);
+                    if (isAvailable && !isActiveBlocked) handleEquipmentToggle(item.id);
                   }}
-                  className={`relative border rounded-2xl p-4 transition-all duration-200 flex flex-col justify-between overflow-hidden ${isMaintenance
-                    ? "border-amber-300/80 bg-amber-50/20 opacity-90 cursor-not-allowed shadow-2xs"
-                    : !isAvailable
+                  className={`relative border rounded-2xl p-4 transition-all duration-200 flex flex-col justify-between overflow-hidden ${
+                    isActiveBlocked
+                      ? "border-slate-200 bg-slate-50/50 dark:bg-card/50 opacity-60 cursor-not-allowed shadow-none"
+                      : isMaintenance
+                      ? "border-amber-300/80 bg-amber-50/20 opacity-90 cursor-not-allowed shadow-2xs"
+                      : !isAvailable
                       ? "border-slate-200 bg-white dark:bg-card opacity-90 cursor-pointer"
                       : isChecked
-                        ? "border-blue-600 bg-white dark:bg-card shadow-md ring-2 ring-blue-500/20 cursor-pointer"
-                        : "border-slate-200 dark:border-border bg-white dark:bg-card hover:border-blue-500/60 hover:shadow-xs cursor-pointer"
-                    }`}
+                      ? "border-blue-600 bg-white dark:bg-card shadow-md ring-2 ring-blue-500/20 cursor-pointer"
+                      : "border-slate-200 dark:border-border bg-white dark:bg-card hover:border-blue-500/60 hover:shadow-xs cursor-pointer"
+                  }`}
                 >
                   <div>
                     {/* Top Image Box: Full view, never cropped or cut off */}
@@ -424,50 +624,62 @@ export default function Step2Equipment({
                 <button
                   type="button"
                   onClick={() => setBorrowDateMode("today")}
-                  disabled={isPastClosingToday || isTodayClosed}
+                  disabled={isPastClosingToday || (isTodayBlocked && !isTomorrowBlocked && borrowDateMode === "tomorrow")}
                   className={`flex-1 py-1.5 rounded-lg text-xs font-extrabold transition-all ${borrowDateMode === "today"
-                    ? "bg-white dark:bg-[#18264B] text-blue-600 dark:text-[#93C5FD] shadow-2xs"
-                    : (isPastClosingToday || isTodayClosed)
+                    ? (isTodayMaintenance
+                        ? "bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-200 shadow-2xs"
+                        : isTodayClosed
+                        ? "bg-rose-100 dark:bg-rose-900/60 text-rose-800 dark:text-rose-200 shadow-2xs"
+                        : "bg-white dark:bg-[#18264B] text-blue-600 dark:text-[#93C5FD] shadow-2xs")
+                    : (isPastClosingToday)
                       ? "text-slate-400 dark:text-slate-600 cursor-not-allowed opacity-50"
                       : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-[#F8FAFC] cursor-pointer"
                     }`}
                 >
-                  Today {isTodayClosed ? "(Closed)" : ""}
+                  Today {isTodayMaintenance ? "(Maintenance)" : isTodayClosed ? "(Closed)" : ""}
                 </button>
                 <button
                   type="button"
                   onClick={() => {
-                    if ((!isPortal && !isPastClosingToday && !isTodayClosed) || isTomorrowClosed) return;
+                    if ((!isPortal && !isPastClosingToday && !isTodayBlocked) || isTomorrowBlocked) return;
                     setBorrowDateMode("tomorrow");
                   }}
-                  disabled={((!isPortal && !isPastClosingToday && !isTodayClosed) || isTomorrowClosed)}
+                  disabled={((!isPortal && !isPastClosingToday && !isTodayBlocked) || isTomorrowBlocked)}
                   className={`flex-1 py-1.5 rounded-lg text-xs font-extrabold transition-all ${borrowDateMode === "tomorrow"
-                    ? "bg-white dark:bg-[#18264B] text-blue-600 dark:text-[#93C5FD] shadow-2xs"
-                    : ((!isPortal && !isPastClosingToday && !isTodayClosed) || isTomorrowClosed)
+                    ? (isTomorrowMaintenance
+                        ? "bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-200 shadow-2xs"
+                        : isTomorrowClosed
+                        ? "bg-rose-100 dark:bg-rose-900/60 text-rose-800 dark:text-rose-200 shadow-2xs"
+                        : "bg-white dark:bg-[#18264B] text-blue-600 dark:text-[#93C5FD] shadow-2xs")
+                    : ((!isPortal && !isPastClosingToday && !isTodayBlocked) || isTomorrowBlocked)
                       ? "text-slate-400 dark:text-slate-600 cursor-not-allowed opacity-50"
                       : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-[#F8FAFC] cursor-pointer"
                     }`}
                   title={
-                    isTomorrowClosed
+                    isTomorrowMaintenance
+                      ? "Tomorrow is under maintenance for equipment borrowing"
+                      : isTomorrowClosed
                       ? "Tomorrow is closed for equipment borrowing"
-                      : (!isPortal && !isPastClosingToday && !isTodayClosed)
+                      : (!isPortal && !isPastClosingToday && !isTodayBlocked)
                         ? `Tomorrow's borrowing is only available after operating hours end (${formatTime12(kioskClose)})`
                         : "Next-Day Borrowing"
                   }
                 >
-                  Tomorrow {isTomorrowClosed ? "(Closed)" : ""}
+                  Tomorrow {isTomorrowMaintenance ? "(Maintenance)" : isTomorrowClosed ? "(Closed)" : ""}
                 </button>
               </div>
 
-              {isTodayClosed && borrowDateMode === "today" ? (
-                <div className="p-3 bg-rose-50/80 dark:bg-rose-950/40 border border-rose-200/80 dark:border-rose-800/60 rounded-xl flex items-start gap-2 text-xs text-rose-900 dark:text-rose-200 font-bold leading-relaxed">
-                  <AlertCircle size={15} className="text-rose-600 shrink-0 mt-0.5" />
-                  <span>Equipment borrowing is closed today ({equipmentOverrides[todayISO]?.notes || "Scheduled admin closure"}).</span>
+              {isActiveMaintenance ? (
+                <div className="p-3 bg-amber-50/90 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700/60 rounded-xl flex items-start gap-2 text-xs text-amber-950 dark:text-amber-200 font-bold leading-relaxed">
+                  <AlertCircle size={15} className="text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                  <span>
+                    Sorry the Borrowing is Under on Maintenance. Come back at <span className="whitespace-nowrap">{reopenInfo?.displayText || "a later date"}</span>.
+                  </span>
                 </div>
-              ) : isTomorrowClosed && borrowDateMode === "tomorrow" ? (
+              ) : isActiveClosed ? (
                 <div className="p-3 bg-rose-50/80 dark:bg-rose-950/40 border border-rose-200/80 dark:border-rose-800/60 rounded-xl flex items-start gap-2 text-xs text-rose-900 dark:text-rose-200 font-bold leading-relaxed">
                   <AlertCircle size={15} className="text-rose-600 shrink-0 mt-0.5" />
-                  <span>Equipment borrowing is closed tomorrow ({equipmentOverrides[tomorrowISO]?.notes || "Scheduled admin closure"}).</span>
+                  <span>Sorry the Borrowing Equipment Are Closed. Come back at <span className="whitespace-nowrap">{reopenInfo?.displayText || "a later date"}</span>.</span>
                 </div>
               ) : isPastClosingToday ? (
                 <div className="p-3 bg-amber-50/80 dark:bg-amber-950/40 border border-amber-200/80 dark:border-amber-700/60 rounded-xl flex items-start gap-2 text-xs text-amber-900 dark:text-[#FCD34D] font-bold leading-relaxed">
@@ -663,7 +875,7 @@ export default function Step2Equipment({
           const isBlocked = requiresPin && !isPinVerified;
 
           const isPastSlot = borrowDateMode === "today" && isPastTimeToday(todayISO, startTimeVal);
-          const isDateClosed = (borrowDateMode === "today" && isTodayClosed) || (borrowDateMode === "tomorrow" && isTomorrowClosed);
+          const isDateBlocked = isActiveBlocked;
 
           return (
             <div className="flex flex-col items-end gap-1">
@@ -673,7 +885,7 @@ export default function Step2Equipment({
                   !selectedItems ||
                   selectedItems.length === 0 ||
                   isPastSlot ||
-                  isDateClosed ||
+                  isDateBlocked ||
                   endTimeVal <= startTimeVal ||
                   isBlocked
                 }

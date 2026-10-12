@@ -37,6 +37,7 @@ class EquipmentBorrow extends Model
         'assigned_units',
         'equipment_units_id',
         'status',
+        'rejection_reason',
         'returned_at',
         'unit_conditions',  // virtual: populated from inspection payload for Email 4 receipt
     ];
@@ -66,7 +67,7 @@ class EquipmentBorrow extends Model
                       ->orWhere('reference_type', 'avr_equipment_borrowing');
                 })
                 ->where('reference_id', $this->id)
-                ->where('action', 'rejected')
+                ->whereIn('action', ['rejected', 'cancelled'])
                 ->latest('id')
                 ->value('remarks');
             if (!empty($lastApproval)) {
@@ -101,6 +102,22 @@ class EquipmentBorrow extends Model
         return \App\Models\EmailVerification::where('email', strtolower(trim($this->email_address)))
             ->whereNotNull('verified_at')
             ->exists();
+    }
+
+    public function getRequestorEmailAttribute(): ?string
+    {
+        return $this->attributes['email_address'] 
+            ?? $this->attributes['requestor_email'] 
+            ?? $this->attributes['email'] 
+            ?? null;
+    }
+
+    public function getEmailAttribute(): ?string
+    {
+        return $this->attributes['email_address'] 
+            ?? $this->attributes['requestor_email'] 
+            ?? $this->attributes['email'] 
+            ?? null;
     }
 
     public function getReferenceCodeAttribute(): ?string

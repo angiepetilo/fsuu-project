@@ -264,7 +264,11 @@ export default function VenuePostInspectionForm({
 
           {isHistoryView ? (
             <div className="font-mono text-xs font-bold text-rose-600 py-1">
-              {selectedViolationType || "Policy Violation Identified"}
+              {String(selectedViolationType || "Policy Violation Identified")
+                .replace(/Late Return\s*\/\s*Extension/gi, "Late Return, Extension")
+                .replace(/Physical Facility\s*\/\s*Equipment Damage/gi, "Physical Facility, Equipment Damage")
+                .replace(/Physical Facility\s*\/\s*Furniture Damage/gi, "Property Damaged")
+                .replace(/\s*\/\s*/g, ", ")}
             </div>
           ) : (
             <div className="space-y-2 mt-2 max-h-48 overflow-y-auto">

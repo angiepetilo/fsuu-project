@@ -24,4 +24,21 @@ class OperatingHour extends Model
         'auto_cancel_mins'        => 'integer',
         'requirement_grace_hours' => 'integer',
     ];
+
+    public static function getSettings(): self
+    {
+        $record = static::first();
+        if (!$record) {
+            $record = static::create([
+                'venue_open'              => '07:30:00',
+                'venue_close'             => '17:00:00',
+                'equipment_open'          => '07:30:00',
+                'equipment_close'         => '17:00:00',
+                'arrival_grace_mins'      => 15,
+                'auto_cancel_mins'        => 30,
+                'requirement_grace_hours' => 24,
+            ]);
+        }
+        return $record;
+    }
 }

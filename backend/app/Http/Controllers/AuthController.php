@@ -20,6 +20,13 @@ class AuthController extends Controller
 
         $loginInput = trim($request->email);
 
+        // Validate email format if input contains @
+        if (str_contains($loginInput, '@') && !filter_var($loginInput, FILTER_VALIDATE_EMAIL)) {
+            throw ValidationException::withMessages([
+                'email' => ['Please enter a valid email address.'],
+            ]);
+        }
+
         // Case-insensitive user lookup by primary email or email_address
         $user = \App\Models\User::where(function ($query) use ($loginInput) {
             $lower = strtolower($loginInput);
@@ -524,6 +531,13 @@ class AuthController extends Controller
         }
         $newEmail = $validated['email_address'] ?? $validated['email'] ?? null;
         if ($newEmail) {
+            $newEmail = strtolower(trim($newEmail));
+            if (!filter_var($newEmail, FILTER_VALIDATE_EMAIL)) {
+                return response()->json([
+                    'message' => 'Please enter a valid email address.',
+                    'errors'  => ['email_address' => ['Invalid email address format.']]
+                ], 422);
+            }
             $user->email_address = $newEmail;
             $user->email = $newEmail;
         }
@@ -607,6 +621,13 @@ class AuthController extends Controller
         ]);
 
         $email = strtolower(trim($request->email));
+
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            return response()->json([
+                'message' => 'Please enter a valid email address.',
+                'errors'  => ['email' => ['Invalid email address format.']]
+            ], 422);
+        }
         $cooldownKey = 'pwd_reset_cooldown_' . hash('sha256', $email);
 
         if (\Illuminate\Support\Facades\Cache::has($cooldownKey)) {

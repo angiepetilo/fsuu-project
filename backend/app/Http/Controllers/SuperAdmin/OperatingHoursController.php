@@ -17,22 +17,7 @@ class OperatingHoursController extends Controller
 
     public function publicShow(Request $request): JsonResponse
     {
-        $hours = OperatingHour::first();
-
-        if (!$hours) {
-            return response()->json([
-                'venue_open'          => '07:30:00',
-                'venue_close'         => '17:00:00',
-                'equipment_open'      => '07:30:00',
-                'equipment_close'     => '17:00:00',
-                'venue_open_12'       => '07:30 AM',
-                'venue_close_12'      => '05:00 PM',
-                'equipment_open_12'   => '07:30 AM',
-                'equipment_close_12'  => '05:00 PM',
-                'arrival_grace_mins'  => 15,
-                'auto_cancel_mins'    => 30,
-            ]);
-        }
+        $hours = OperatingHour::getSettings();
 
         $res = $hours->toArray();
         $res['venue_open_12']      = $this->formatTo12Hour($hours->venue_open);
@@ -45,23 +30,7 @@ class OperatingHoursController extends Controller
 
     public function show(Request $request): JsonResponse
     {
-        $hours = OperatingHour::first();
-
-        if (!$hours) {
-            return response()->json([
-                'venue_open'              => '07:30:00',
-                'venue_close'             => '17:00:00',
-                'equipment_open'          => '07:30:00',
-                'equipment_close'         => '17:00:00',
-                'venue_open_12'           => '07:30 AM',
-                'venue_close_12'          => '05:00 PM',
-                'equipment_open_12'       => '07:30 AM',
-                'equipment_close_12'      => '05:00 PM',
-                'arrival_grace_mins'      => 15,
-                'auto_cancel_mins'        => 30,
-                'requirement_grace_hours' => 24,
-            ]);
-        }
+        $hours = OperatingHour::getSettings();
 
         $res = $hours->toArray();
         $res['venue_open_12']      = $this->formatTo12Hour($hours->venue_open);
@@ -79,8 +48,8 @@ class OperatingHoursController extends Controller
             'venue_close'             => 'required',
             'equipment_open'          => 'required',
             'equipment_close'         => 'required',
-            'arrival_grace_mins'      => 'required|integer|min:0|max:120',
-            'auto_cancel_mins'        => 'required|integer|min:0|max:120',
+            'arrival_grace_mins'      => 'required|integer|min:0|max:240',
+            'auto_cancel_mins'        => 'required|integer|min:0|max:240',
             'requirement_grace_hours' => 'nullable|integer|in:24,48',
         ]);
         $data['requirement_grace_hours'] = (int) ($data['requirement_grace_hours'] ?? 24);
@@ -106,12 +75,8 @@ class OperatingHoursController extends Controller
         $data['equipment_open'] = $formatTime($data['equipment_open']);
         $data['equipment_close'] = $formatTime($data['equipment_close']);
 
-        $hours = OperatingHour::first();
-        if ($hours) {
-            $hours->update($data);
-        } else {
-            $hours = OperatingHour::create($data);
-        }
+        $hours = OperatingHour::getSettings();
+        $hours->update($data);
 
         $res = $hours->fresh()->toArray();
         $res['venue_open_12']      = $this->formatTo12Hour($hours->venue_open);

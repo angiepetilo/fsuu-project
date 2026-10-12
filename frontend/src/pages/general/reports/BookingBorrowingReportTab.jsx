@@ -10,6 +10,7 @@ import {
   Clock,
 } from "lucide-react";
 import { formatDate, formatTimeRange12 } from "@/lib/dateUtils";
+import { formatTimeLate, formatTimeLateFull } from "@/lib/dateTimeUtils";
 
 export default function BookingBorrowingReportTab({
   venueBookings = [],
@@ -131,9 +132,13 @@ export default function BookingBorrowingReportTab({
       "";
 
     if (typeof rawNote === "string") {
-      rawNote = rawNote.replace(/Physical Facility \/ Furniture Damage/gi, "Property Damaged");
+      rawNote = rawNote.replace(/Late Return\s*\/\s*Extension/gi, "Late Return, Extension");
+      rawNote = rawNote.replace(/Physical Facility\s*\/\s*Equipment Damage/gi, "Physical Facility, Equipment Damage");
+      rawNote = rawNote.replace(/Physical Facility\s*\/\s*Furniture Damage/gi, "Property Damaged");
       rawNote = rawNote.replace(/Facility or Property Damage/gi, "Property Damaged");
       rawNote = rawNote.replace(/Property Damaged,\s*Property Damaged/gi, "Property Damaged");
+      // Remove slash separators from violation type labels (e.g. "Late Return / Extension" → "Late Return, Extension")
+      rawNote = rawNote.replace(/\s*\/\s*/g, ", ");
     }
     const condition = (record.inspection_condition || record.condition || "").toLowerCase();
 
@@ -284,7 +289,7 @@ export default function BookingBorrowingReportTab({
                 <th className="py-3 px-4">DATE</th>
                 <th className="py-3 px-4">TIME</th>
                 <th className="py-3 px-4">LATE RETURN</th>
-                <th className="py-3 px-4">MINS LATE</th>
+                <th className="py-3 px-4">TIME LATE</th>
                 <th className="py-3 px-4 text-center">NOTE</th>
               </tr>
             </thead>
@@ -331,8 +336,14 @@ export default function BookingBorrowingReportTab({
                           {isLate ? "Late" : "Ontime"}
                         </span>
                       </td>
-                      <td className="py-3 px-4 text-slate-500 dark:text-slate-400 font-mono">
-                        {isLate ? (minutesLate > 0 ? `${minutesLate}m` : "—") : "—"}
+                      <td className="py-3 px-4 text-slate-500 dark:text-slate-400 font-mono whitespace-nowrap">
+                        {isLate ? (
+                          minutesLate > 0 ? (
+                            <span title={formatTimeLateFull(minutesLate)}>
+                              {formatTimeLate(minutesLate)}
+                            </span>
+                          ) : "—"
+                        ) : "—"}
                       </td>
                       <td className="py-3 px-4 text-center">{renderStatusAndInspectionNote(eb, status)}</td>
                     </tr>
@@ -437,11 +448,11 @@ export default function BookingBorrowingReportTab({
                     </span>
                   </div>
                   <div className="flex justify-between py-1.5 border-b border-slate-100 dark:border-slate-800">
-                    <span className="text-slate-500 dark:text-slate-400 font-semibold">Mins of Late Return:</span>
+                    <span className="text-slate-500 dark:text-slate-400 font-semibold">Time Late:</span>
                     <span className="font-bold text-slate-900 dark:text-white font-mono">
                       {Number(selectedRecord.data.minutes_late || 0) > 0
-                        ? `${selectedRecord.data.minutes_late} mins`
-                        : "0 mins"}
+                        ? `${formatTimeLate(selectedRecord.data.minutes_late)} (${formatTimeLateFull(selectedRecord.data.minutes_late)})`
+                        : "—"}
                     </span>
                   </div>
                 </>

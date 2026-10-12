@@ -19,6 +19,7 @@ class EquipmentUnit extends Model
         'model',
         'serial_number',
         'barcode',
+        'seq_no',
         'purchased_at',
         'eq_lifespan',
         'status',

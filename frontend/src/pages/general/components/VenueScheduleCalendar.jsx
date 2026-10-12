@@ -13,9 +13,15 @@ export default function VenueScheduleCalendar({
   setupForm,
   hoveredDayData,
   setHoveredDayData,
+  activeMode = "venue",
+  venueOpen = "07:30",
+  venueClose = "17:00",
+  equipmentOpen = "07:30",
+  equipmentClose = "17:00",
 }) {
   const pad = (n) => String(n).padStart(2, "0");
-  const todayStr = new Date().toISOString().substring(0, 10);
+  const _now = new Date();
+  const todayStr = `${_now.getFullYear()}-${pad(_now.getMonth() + 1)}-${pad(_now.getDate())}`;
 
   const monthName = monthNames && monthNames[currentMonth] 
     ? monthNames[currentMonth] 
@@ -26,18 +32,102 @@ export default function VenueScheduleCalendar({
   const endDate = setupForm?.endDate || "";
 
   const handleDateClick = (dateStr) => {
+    // Get the actual status of the clicked day to pre-fill Operating Status
+    const dayStatus = getVenueDayStatus(dateStr);
+    const rawStatus = dayStatus?.status || "available";
+    // Map internal status keys to form status values
+    const statusMap = {
+      closed: "Closed",
+      maintenance: "Maintenance",
+      damaged: "Maintenance",
+      available: "Available",
+      booked: "Available",
+      fully: "Available",
+      partial: "Available",
+    };
+    const mappedStatus = statusMap[rawStatus] || "Available";
+
+    const defaultOpen = activeMode === "equipment" ? (equipmentOpen || "07:30") : (venueOpen || "07:30");
+    const defaultClose = activeMode === "equipment" ? (equipmentClose || "17:00") : (venueClose || "17:00");
+    const newStart = dayStatus?.override?.startTime || dayStatus?.override?.start_time || defaultOpen;
+    const newEnd = dayStatus?.override?.endTime || dayStatus?.override?.end_time || defaultClose;
+    const newReason = mappedStatus === "Available" ? "" : (dayStatus?.override?.notes || dayStatus?.override?.reason || "");
+
     if (isMultiDay) {
-      if (!startDate || (startDate && endDate)) {
-        setSetupForm((prev) => ({ ...prev, startDate: dateStr, endDate: "" }));
-      } else {
+      if (!startDate) {
+        setSetupForm((prev) => ({
+          ...prev,
+          startDate: dateStr,
+          endDate: "",
+          status: mappedStatus,
+          startTime: newStart,
+          endTime: newEnd,
+          reason: newReason,
+        }));
+      } else if (!endDate || endDate === startDate) {
         if (dateStr < startDate) {
-          setSetupForm((prev) => ({ ...prev, startDate: dateStr, endDate: prev.startDate }));
+          setSetupForm((prev) => ({
+            ...prev,
+            startDate: dateStr,
+            endDate: prev.startDate,
+            status: mappedStatus,
+            startTime: newStart,
+            endTime: newEnd,
+            reason: newReason,
+          }));
+        } else if (dateStr > startDate) {
+          setSetupForm((prev) => ({
+            ...prev,
+            endDate: dateStr,
+          }));
         } else {
-          setSetupForm((prev) => ({ ...prev, endDate: dateStr }));
+          setSetupForm((prev) => ({
+            ...prev,
+            endDate: "",
+          }));
+        }
+      } else {
+        // Range is already active (both startDate and endDate are set)
+        if (dateStr > endDate) {
+          // Extend end date further to allow selecting 3, 4, 5+ days
+          setSetupForm((prev) => ({
+            ...prev,
+            endDate: dateStr,
+          }));
+        } else if (dateStr < startDate) {
+          // Extend start date backwards
+          setSetupForm((prev) => ({
+            ...prev,
+            startDate: dateStr,
+            status: mappedStatus,
+            startTime: newStart,
+            endTime: newEnd,
+            reason: newReason,
+          }));
+        } else if (dateStr > startDate && dateStr <= endDate) {
+          // Clicked inside or at current end date: adjust end date
+          setSetupForm((prev) => ({
+            ...prev,
+            endDate: dateStr === endDate ? "" : dateStr,
+          }));
+        } else if (dateStr === startDate) {
+          // Clicked start date: collapse range to just start date
+          setSetupForm((prev) => ({
+            ...prev,
+            endDate: "",
+          }));
         }
       }
     } else {
-      setSetupForm((prev) => ({ ...prev, startDate: dateStr, endDate: "" }));
+      setSetupForm((prev) => ({
+        ...prev,
+        startDate: dateStr,
+        endDate: "",
+        status: mappedStatus,
+        startTime: newStart,
+        endTime: newEnd,
+        reason: newReason,
+      }));
     }
   };
 
@@ -158,7 +248,9 @@ export default function VenueScheduleCalendar({
                   ) : isBooked ? (
                     <span className="flex items-center gap-1">
                       <span className="w-2 h-2 rounded-full bg-blue-600 ring-2 ring-blue-200 dark:ring-blue-900 inline-block"></span>
-                      <span className="hidden md:inline text-[9px] font-bold text-blue-700 dark:text-blue-300">Booked</span>
+                      <span className="hidden md:inline text-[9px] font-bold text-blue-700 dark:text-blue-300">
+                        {activeMode === "equipment" ? "Borrowed" : "Booked"}
+                      </span>
                     </span>
                   ) : (
                     <span className="flex items-center gap-1">
@@ -181,7 +273,9 @@ export default function VenueScheduleCalendar({
         </span>
         <span className="flex items-center gap-1.5">
           <span className="w-2.5 h-2.5 rounded-full bg-blue-600 ring-2 ring-blue-200 dark:ring-blue-900 inline-block"></span>
-          <span className="text-blue-700 dark:text-blue-400 font-semibold">Booked</span>
+          <span className="text-blue-700 dark:text-blue-400 font-semibold">
+            {activeMode === "equipment" ? "Borrowed" : "Booked"}
+          </span>
         </span>
         <span className="flex items-center gap-1.5">
           <span className="w-2.5 h-2.5 rounded-full bg-rose-600 ring-2 ring-rose-200 dark:ring-rose-900 inline-block"></span>

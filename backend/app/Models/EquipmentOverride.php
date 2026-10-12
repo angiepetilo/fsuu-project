@@ -22,7 +22,7 @@ class EquipmentOverride extends Model
     ];
 
     protected $casts = [
-        'override_date' => 'date',
+        'override_date' => 'date:Y-m-d',
     ];
 
     public function creator(): BelongsTo

@@ -143,3 +143,54 @@ export function formatOverdueDuration(mins) {
   const remainingHrs = hrs % 24;
   return remainingHrs > 0 ? `${days}d ${remainingHrs}h overdue` : `${days}d overdue`;
 }
+
+/**
+ * Format late minutes into readable time duration:
+ * e.g. 59 -> "59m"
+ *      60 -> "1h"
+ *      69 -> "1h 9m"
+ *      120 -> "2h"
+ *      125 -> "2h 5m"
+ */
+export function formatTimeLate(mins) {
+  const m = Math.round(Number(mins || 0));
+  if (!m || m <= 0) return "—";
+  if (m < 60) return `${m}m`;
+  const hrs = Math.floor(m / 60);
+  const remMins = m % 60;
+  if (hrs < 24) {
+    return remMins > 0 ? `${hrs}h ${remMins}m` : `${hrs}h`;
+  }
+  const days = Math.floor(hrs / 24);
+  const remHrs = hrs % 24;
+  if (remHrs === 0 && remMins === 0) return `${days}d`;
+  if (remMins === 0) return `${days}d ${remHrs}h`;
+  if (remHrs === 0) return `${days}d ${remMins}m`;
+  return `${days}d ${remHrs}h ${remMins}m`;
+}
+
+/**
+ * Full verbose label for tooltips and modal details:
+ * e.g. 59 -> "59 mins"
+ *      60 -> "1 hour"
+ *      69 -> "1 hour 9 mins"
+ *      120 -> "2 hours"
+ */
+export function formatTimeLateFull(mins) {
+  const m = Math.round(Number(mins || 0));
+  if (!m || m <= 0) return "—";
+  if (m < 60) return `${m} min${m === 1 ? '' : 's'}`;
+  const hrs = Math.floor(m / 60);
+  const remMins = m % 60;
+  if (hrs < 24) {
+    const hrText = `${hrs} hour${hrs === 1 ? '' : 's'}`;
+    return remMins > 0 ? `${hrText} ${remMins} min${remMins === 1 ? '' : 's'}` : hrText;
+  }
+  const days = Math.floor(hrs / 24);
+  const remHrs = hrs % 24;
+  let text = `${days} day${days === 1 ? '' : 's'}`;
+  if (remHrs > 0) text += ` ${remHrs} hour${remHrs === 1 ? '' : 's'}`;
+  if (remMins > 0) text += ` ${remMins} min${remMins === 1 ? '' : 's'}`;
+  return text;
+}
+

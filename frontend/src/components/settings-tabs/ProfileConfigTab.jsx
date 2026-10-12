@@ -42,7 +42,7 @@ export default function ProfileConfigTab({ showMsg }) {
 
   const [profileData, setProfileData] = useState(() => ({
     name: user?.name || "Super Administrator",
-    email: user?.email_address || user?.email || "superadmin@fsuu.edu.ph",
+    email: user?.email_address || user?.email || "superadmin@urios.edu.ph",
     avatar: user?.avatar || null,
   }));
 
@@ -51,7 +51,7 @@ export default function ProfileConfigTab({ showMsg }) {
     if (user) {
       setProfileData({
         name: user.name || "Super Administrator",
-        email: user.email_address || user.email || "superadmin@fsuu.edu.ph",
+        email: user.email_address || user.email || "superadmin@urios.edu.ph",
         avatar: user.avatar || null,
       });
       setAvatarPreview(user.avatar || null);
@@ -78,10 +78,16 @@ export default function ProfileConfigTab({ showMsg }) {
 
   const handleSaveProfile = async () => {
     if (saveLoading) return;
+    const trimmedEmail = (profileData.email || "").trim().toLowerCase();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!trimmedEmail || !emailRegex.test(trimmedEmail)) {
+      notify.error("Validation Error", "Please enter a valid email address.");
+      return;
+    }
     const payload = {
       name: profileData.name,
-      email: profileData.email,
-      email_address: profileData.email,
+      email: trimmedEmail,
+      email_address: trimmedEmail,
       avatar: avatarPreview || profileData.avatar,
     };
     setSaveLoading(true);
@@ -314,7 +320,7 @@ export default function ProfileConfigTab({ showMsg }) {
                   disabled={!isEditing}
                   value={profileData.email}
                   onChange={(e) => setProfileData({ ...profileData, email: e.target.value })}
-                  placeholder="e.g. admin@fsuu.edu.ph"
+                  placeholder="e.g. admin@urios.edu.ph or name@gmail.com"
                   className={`w-full p-2.5 border rounded-lg font-mono font-medium text-xs transition-colors ${
                     isEditing
                       ? "bg-white border-slate-300 text-slate-900 focus:outline-none focus:border-blue-600"

@@ -68,9 +68,10 @@ export default function ForgotPassword() {
 
   // --- Step 1: Submit Email for Reset Code ---
   const handleRequestCode = async (e) => {
-    e?.preventDefault();
-    if (!email || !email.includes("@")) {
-      setError("Please provide a valid university email address.");
+    const trimmedEmail = (email || "").trim().toLowerCase();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!trimmedEmail || !emailRegex.test(trimmedEmail)) {
+      setError("Please provide a valid email address.");
       return;
     }
 
@@ -275,7 +276,7 @@ export default function ForgotPassword() {
                   autoFocus
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="e.g. name@urios.edu.ph"
+                  placeholder="e.g. name@urios.edu.ph or name@gmail.com"
                   className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 bg-slate-50/50 focus:bg-white transition-all"
                 />
               </div>

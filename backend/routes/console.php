@@ -7,10 +7,11 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
-Artisan::command('bookings:auto-release-no-shows {--grace=15}', function () {
-    $grace = (int)($this->option('grace') ?: 15);
-    $this->info("Running No-Show Auto-Release check with {$grace}m grace period...");
-    $result = app(\App\Services\NoShowAutoReleaseService::class)->processNoShows($grace);
+Artisan::command('bookings:auto-release-no-shows {--cancel=} {--grace=}', function () {
+    $cancel = $this->option('cancel') !== null ? (int)$this->option('cancel') : null;
+    $grace  = $this->option('grace') !== null ? (int)$this->option('grace') : null;
+    $this->info("Running Auto-Release check based on operating hours rules...");
+    $result = app(\App\Services\NoShowAutoReleaseService::class)->processNoShows($cancel, $grace);
     $this->info("Cancelled " . count($result['venue_bookings']) . " venue bookings and " . count($result['equipment_borrows']) . " equipment borrows.");
 })->purpose('Auto-release unclaimed reservations past grace period and restock equipment');
 
@@ -27,8 +28,8 @@ Artisan::command('bookings:send-venue-reminders {--minutes=120}', function () {
     $this->info('Reminded ' . count($result['venue_reminded']) . ' venue booking(s).');
 })->purpose('Send a one-time reminder email for approved venue bookings that start soon');
 
-\Illuminate\Support\Facades\Schedule::command('bookings:auto-release-no-shows')->everyTenMinutes();
-\Illuminate\Support\Facades\Schedule::command('bookings:check-overdue-and-exceeded')->everyFifteenMinutes();
+\Illuminate\Support\Facades\Schedule::command('bookings:auto-release-no-shows')->everyMinute();
+\Illuminate\Support\Facades\Schedule::command('bookings:check-overdue-and-exceeded')->everyFiveMinutes();
 \Illuminate\Support\Facades\Schedule::command('bookings:send-venue-reminders')->everyTenMinutes();
 \Illuminate\Support\Facades\Schedule::command('equipment:check-overdue')->everyFiveMinutes();
 \Illuminate\Support\Facades\Schedule::command('email:update-disposable-domains')->weekly();

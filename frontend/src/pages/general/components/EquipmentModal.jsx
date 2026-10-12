@@ -372,6 +372,41 @@ export default function EquipmentModal({
      (u.barcode || "").trim().toLowerCase() === addSerialClean)
   ) : null;
 
+  // Duplicate checks for Seq. No. within the SAME Equipment Category
+  const isUnitInSameCategory = (unit, targetCatName) => {
+    if (!unit || !targetCatName) return false;
+    const targetNorm = String(targetCatName).trim().toLowerCase();
+    const uCat = String(unit.category || unit.equipment_type?.eq_name || unit.equipment_type?.name || "").trim().toLowerCase();
+    if (uCat && uCat === targetNorm) return true;
+    const catObj = (categories || []).find(c => {
+      const cName = (typeof c === "string" ? c : (c.eq_name || c.name || "")).trim().toLowerCase();
+      return cName === targetNorm;
+    });
+    if (catObj && catObj.id && unit.equipment_type_id && String(unit.equipment_type_id) === String(catObj.id)) {
+      return true;
+    }
+    return false;
+  };
+
+  const addSeqClean = String(formData?.seq_no || "").trim().toLowerCase();
+  const addSeqDuplicate = showAddModal && addSeqClean ? existingUnits.find(u =>
+    u.seq_no !== null &&
+    u.seq_no !== undefined &&
+    String(u.seq_no).trim() !== "" &&
+    String(u.seq_no).trim().toLowerCase() === addSeqClean &&
+    isUnitInSameCategory(u, formData?.category)
+  ) : null;
+
+  const editSeqClean = String(editFormData?.seq_no || "").trim().toLowerCase();
+  const editSeqDuplicate = editingItem && editSeqClean ? existingUnits.find(u =>
+    u.id !== editingItem.id &&
+    u.seq_no !== null &&
+    u.seq_no !== undefined &&
+    String(u.seq_no).trim() !== "" &&
+    String(u.seq_no).trim().toLowerCase() === editSeqClean &&
+    isUnitInSameCategory(u, editFormData?.category)
+  ) : null;
+
   const isEditingUnitChild = useMemo(() => {
     if (!editingItem) return false;
     const eId = String(editingItem.id).toLowerCase();
@@ -589,20 +624,21 @@ export default function EquipmentModal({
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className={labelClasses}>Lifespan (Yrs) *</label>
+                      <label className={labelClasses}>Seq. No.</label>
                       <input
-                        type="number"
-                        min={1}
-                        max={50}
-                        step={1}
-                        required
-                        placeholder="5"
-                        value={editFormData.lifespan_years || 5}
-                        onChange={e => setEditFormData({ ...editFormData, lifespan_years: e.target.value })}
-                        className={inputClasses}
+                        type="text"
+                        placeholder="e.g. 01"
+                        value={editFormData.seq_no || ""}
+                        onChange={e => setEditFormData({ ...editFormData, seq_no: e.target.value })}
+                        className={`${inputClasses} ${editSeqDuplicate ? 'border-rose-400 focus:border-rose-500 focus:ring-rose-200 bg-rose-50/20' : ''}`}
                       />
+                      {editSeqDuplicate && (
+                        <p className="mt-1 text-[11px] font-medium text-rose-600 leading-tight">
+                          ⚠️ Seq. No. "{editFormData.seq_no}" already exists in "{editFormData.category || 'this category'}". Seq. No. must be unique within the same category.
+                        </p>
+                      )}
                     </div>
 
                     <div>
@@ -623,6 +659,23 @@ export default function EquipmentModal({
                           }
                           setEditFormData({ ...editFormData, date_purchased: val });
                         }}
+                        className={inputClasses}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                      <label className={labelClasses}>Lifespan (Yrs) *</label>
+                      <input
+                        type="number"
+                        min={1}
+                        max={50}
+                        step={1}
+                        required
+                        placeholder="5"
+                        value={editFormData.lifespan_years || 5}
+                        onChange={e => setEditFormData({ ...editFormData, lifespan_years: e.target.value })}
                         className={inputClasses}
                       />
                     </div>
@@ -714,7 +767,7 @@ export default function EquipmentModal({
                 </button>
                 <button
                   type="submit"
-                  disabled={isSubmitting || !!editSerialDuplicate}
+                  disabled={isSubmitting || !!editSerialDuplicate || !!editSeqDuplicate}
                   className="px-5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold transition-colors shadow-xs flex items-center justify-center cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isSubmitting ? (
@@ -849,20 +902,21 @@ export default function EquipmentModal({
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className={labelClasses}>Lifespan (Yrs) *</label>
+                      <label className={labelClasses}>Seq. No.</label>
                       <input
-                        type="number"
-                        min={1}
-                        max={50}
-                        step={1}
-                        required
-                        placeholder="5"
-                        value={formData.lifespan_years || 5}
-                        onChange={e => setFormData({ ...formData, lifespan_years: e.target.value })}
-                        className={inputClasses}
+                        type="text"
+                        placeholder="e.g. 01"
+                        value={formData.seq_no || ""}
+                        onChange={e => setFormData({ ...formData, seq_no: e.target.value })}
+                        className={`${inputClasses} ${addSeqDuplicate ? 'border-rose-400 focus:border-rose-500 focus:ring-rose-200 bg-rose-50/20' : ''}`}
                       />
+                      {addSeqDuplicate && (
+                        <p className="mt-1 text-[11px] font-medium text-rose-600 leading-tight">
+                          ⚠️ Seq. No. "{formData.seq_no}" already exists in "{formData.category || 'this category'}". Seq. No. must be unique within the same category.
+                        </p>
+                      )}
                     </div>
 
                     <div>
@@ -883,6 +937,23 @@ export default function EquipmentModal({
                           }
                           setFormData({ ...formData, date_purchased: val });
                         }}
+                        className={inputClasses}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                      <label className={labelClasses}>Lifespan (Yrs) *</label>
+                      <input
+                        type="number"
+                        min={1}
+                        max={50}
+                        step={1}
+                        required
+                        placeholder="5"
+                        value={formData.lifespan_years || 5}
+                        onChange={e => setFormData({ ...formData, lifespan_years: e.target.value })}
                         className={inputClasses}
                       />
                     </div>
@@ -938,7 +1009,7 @@ export default function EquipmentModal({
                 </button>
                 <button
                   type="submit"
-                  disabled={isSubmitting || !!addSerialDuplicate}
+                  disabled={isSubmitting || !!addSerialDuplicate || !!addSeqDuplicate}
                   className="px-5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold transition-colors shadow-xs flex items-center justify-center cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isSubmitting ? (

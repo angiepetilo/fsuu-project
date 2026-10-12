@@ -94,7 +94,10 @@ class GoogleAuthController extends Controller
         }
 
         // Lookup by google_id, email_address, or email
-        $googleEmail = $googleUser->getEmail();
+        $googleEmail = strtolower(trim($googleUser->getEmail() ?? ''));
+
+        // Pre-created accounts (institutional or personal) are looked up below
+
         $user = User::where('google_id', $googleUser->getId())->first()
             ?? User::where('email_address', $googleEmail)->first()
             ?? User::where('email', $googleEmail)->first();

@@ -150,7 +150,7 @@ export default function VerificationPinTab({
             enableExternalEquipment: parsed.enableExternal !== false,
             applicabilityMatrix: parsed.applicabilityMatrix || DEFAULT_APPLICABILITY_MATRIX,
           }));
-          setOriginalPinSettings(prev => ({
+          setOriginalPinSettings(prev => prev ? ({
             ...prev,
             masterPin: parsed.pin || prev.masterPin,
             requirePinOutsideHours: parsed.requireOutsideHours !== false,
@@ -158,7 +158,7 @@ export default function VerificationPinTab({
             enableExternalVenue: parsed.enableExternal !== false,
             enableExternalEquipment: parsed.enableExternal !== false,
             applicabilityMatrix: parsed.applicabilityMatrix || DEFAULT_APPLICABILITY_MATRIX,
-          }));
+          }) : null);
         }
       } catch {}
     } finally {

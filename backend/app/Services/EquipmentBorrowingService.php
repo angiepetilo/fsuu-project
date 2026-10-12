@@ -108,6 +108,22 @@ class EquipmentBorrowingService
         $borrowing = DB::transaction(function () use ($data) {
             $this->assertExternalHasVenueBooking($data);
 
+            // Check equipment override (maintenance / closed)
+            $dateOfUsage = substr($data['start_datetime'], 0, 10);
+            $equipOverride = DB::table('equipment_overrides')
+                ->where('override_date', $dateOfUsage)
+                ->whereIn('status', ['maintenance', 'closed'])
+                ->first();
+
+            if ($equipOverride) {
+                $st = strtolower($equipOverride->status);
+                if ($st === 'maintenance') {
+                    throw new \InvalidArgumentException("Sorry, equipment borrowing is under maintenance on {$dateOfUsage}.");
+                } else {
+                    throw new \InvalidArgumentException("Equipment borrowing is closed on {$dateOfUsage}.");
+                }
+            }
+
             foreach ($data['items'] ?? [] as $item) {
                 $this->assertQuantityAvailable(
                     $item['equipment_type_id'],
@@ -349,7 +365,7 @@ class EquipmentBorrowingService
         // ─── Post-Transaction Notifications (safely executed outside DB::transaction) ─
         $recordToBroadcast = null;
         try {
-            $recordToBroadcast = $borrowing->fresh(['items', 'trackingNumber']);
+            $recordToBroadcast = $borrowing->fresh(['items.equipmentType', 'trackingNumber']);
         } catch (\Throwable $e) {
             $recordToBroadcast = $borrowing;
         }
@@ -451,15 +467,30 @@ class EquipmentBorrowingService
     public function reject(EquipmentBorrow $borrowing, User $actor, string $remarks): EquipmentBorrow
     {
         return DB::transaction(function () use ($borrowing, $actor, $remarks) {
-            if (\Illuminate\Support\Facades\Schema::hasColumn('equipment_borrows', 'status')) {
-                $borrowing->forceFill(['status' => 'rejected'])->save();
+            $fillData = ['status' => 'rejected'];
+            if (\Illuminate\Support\Facades\Schema::hasColumn('equipment_borrows', 'rejection_reason')) {
+                $fillData['rejection_reason'] = $remarks;
             }
+            $borrowing->forceFill($fillData)->save();
+
             if ($borrowing->tracking_number_id) {
                 DB::table('tracking_numbers')->where('id', $borrowing->tracking_number_id)->update([
                     'status' => 'rejected',
                     'rejected_by' => $actor->id,
                     'approved_by' => null,
                 ]);
+            }
+
+            // Release assigned units back to available
+            $assigned = $borrowing->assigned_units ?? [];
+            if (is_string($assigned)) {
+                try { $assigned = json_decode($assigned, true); } catch (\Throwable $t) { $assigned = []; }
+            }
+            if (is_array($assigned) && !empty($assigned) && \Illuminate\Support\Facades\Schema::hasTable('equipment_units')) {
+                $unitCodes = array_values(array_filter($assigned));
+                \App\Models\EquipmentUnit::whereIn('barcode', $unitCodes)
+                    ->whereIn('status', ['reserved', 'released'])
+                    ->update(['status' => 'available']);
             }
 
             if (\Illuminate\Support\Facades\Schema::hasTable('approvals')) {
@@ -509,11 +540,26 @@ class EquipmentBorrowingService
         $this->assertCancelAllowed($borrowing, $actor);
 
         return DB::transaction(function () use ($borrowing, $actor, $remarks) {
-            if (\Illuminate\Support\Facades\Schema::hasColumn('equipment_borrows', 'status')) {
-                $borrowing->forceFill(['status' => 'cancelled'])->save();
+            $fillData = ['status' => 'cancelled'];
+            if (\Illuminate\Support\Facades\Schema::hasColumn('equipment_borrows', 'rejection_reason')) {
+                $fillData['rejection_reason'] = $remarks;
             }
+            $borrowing->forceFill($fillData)->save();
+
             if ($borrowing->tracking_number_id) {
                 DB::table('tracking_numbers')->where('id', $borrowing->tracking_number_id)->update(['status' => 'cancelled']);
+            }
+
+            // Release assigned units back to available
+            $assigned = $borrowing->assigned_units ?? [];
+            if (is_string($assigned)) {
+                try { $assigned = json_decode($assigned, true); } catch (\Throwable $t) { $assigned = []; }
+            }
+            if (is_array($assigned) && !empty($assigned) && \Illuminate\Support\Facades\Schema::hasTable('equipment_units')) {
+                $unitCodes = array_values(array_filter($assigned));
+                \App\Models\EquipmentUnit::whereIn('barcode', $unitCodes)
+                    ->whereIn('status', ['reserved', 'released'])
+                    ->update(['status' => 'available']);
             }
 
             if (\Illuminate\Support\Facades\Schema::hasTable('approvals')) {
@@ -581,14 +627,37 @@ class EquipmentBorrowingService
         $type = EquipmentType::where('id', $equipmentTypeId)->lockForUpdate()->first();
         if (!$type) return;
 
-        // Accurate physical unit inventory count (operational, non-damaged, non-lost, non-decommissioned)
-        $operationalUnitsCount = \App\Models\EquipmentUnit::where('equipment_type_id', $equipmentTypeId)
+        // Accurate physical unit inventory count (operational, non-damaged, non-lost, non-decommissioned, standalone non-bundled)
+        $unitsQuery = \App\Models\EquipmentUnit::where('equipment_type_id', $equipmentTypeId)
             ->whereNull('archived_at')
-            ->whereNotIn('status', ['damaged', 'lost', 'decommissioned', 'maintenance', 'Damaged', 'Lost', 'Decommissioned', 'Maintenance'])
-            ->whereNotIn('condition', ['damaged', 'lost', 'under repair', 'under_repair', 'Damaged', 'Lost', 'Under Repair'])
-            ->count();
+            ->whereNotIn('status', ['damaged', 'lost', 'decommissioned', 'maintenance', 'Damaged', 'Lost', 'Decommissioned', 'Maintenance', 'unavailable', 'built-in', 'built_in'])
+            ->whereNotIn('condition', ['damaged', 'lost', 'under repair', 'under_repair', 'Damaged', 'Lost', 'Under Repair', 'worn', 'minor wear']);
 
-        $totalStock = $operationalUnitsCount > 0 ? $operationalUnitsCount : max(1, $type->total_quantity ?? 1);
+        if (\Illuminate\Support\Facades\Schema::hasColumn('equipment_units', 'built_in_units')) {
+            $globalChildIds = [];
+            $parentUnitsData = \App\Models\EquipmentUnit::whereNotNull('built_in_units')->whereNull('archived_at')->get(['id', 'built_in_units']);
+            foreach ($parentUnitsData as $pu) {
+                $raw = is_array($pu->built_in_units) ? $pu->built_in_units : json_decode($pu->built_in_units, true);
+                if (is_array($raw)) {
+                    foreach ($raw as $ref) {
+                        if (!empty($ref)) $globalChildIds[] = (string)$ref;
+                    }
+                }
+            }
+            $globalChildIds = array_values(array_unique($globalChildIds));
+            if (!empty($globalChildIds)) {
+                $numIds = array_values(array_filter(array_map('intval', $globalChildIds), fn($id) => $id > 0));
+                if (!empty($numIds)) {
+                    $unitsQuery->whereNotIn('id', $numIds);
+                }
+                $placeholders = implode(',', array_fill(0, count($globalChildIds), '?'));
+                $unitsQuery->whereRaw("(barcode IS NULL OR barcode NOT IN ({$placeholders}))", array_values($globalChildIds));
+            }
+        }
+
+        $operationalUnitsCount = $unitsQuery->count();
+
+        $totalStock = $operationalUnitsCount;
 
         $dateStr = substr($startDatetime, 0, 10);
         $startTimeStr = substr($startDatetime, 11, 8);

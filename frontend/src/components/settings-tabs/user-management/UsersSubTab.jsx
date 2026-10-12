@@ -7,7 +7,6 @@ import {
   Search,
   Mail,
   Ban,
-  Power,
   GraduationCap,
   MoreVertical,
   AlertCircle,
@@ -79,15 +78,13 @@ export default function UsersSubTab({ showMsg }) {
 
   const openCreate = () => {
     setEditUser(null);
-    const defaultRole = availableRoles[0];
     setForm({
       first_name: "",
       middle_name: "",
       last_name: "",
       suffix: "",
       email_address: "",
-      role: defaultRole?.name || "staff",
-      role_id: defaultRole?.id || null,
+      role: "staff",
       isDisabled: false,
     });
     setShowModal(true);
@@ -99,8 +96,9 @@ export default function UsersSubTab({ showMsg }) {
       u.status === "inactive" ||
       u.is_active === false ||
       u.is_active === 0;
-    const userRoleName = u.role?.name || (typeof u.role === "string" ? u.role : "staff");
-    const userRoleId = u.role_id || u.role?.id || null;
+    const roleStr = (u.role?.name || "staff").toLowerCase();
+    const isSA =
+      roleStr.includes("student") || roleStr.includes("assistant") || u.role_id === 3;
     setEditUser(u);
     setForm({
       first_name: u.first_name || "",
@@ -108,8 +106,7 @@ export default function UsersSubTab({ showMsg }) {
       last_name: u.last_name || "",
       suffix: u.suffix || "",
       email_address: u.email_address || u.email || "",
-      role: userRoleName,
-      role_id: userRoleId,
+      role: isSA ? "student_assistant" : "staff",
       isDisabled,
     });
     setShowModal(true);
@@ -117,8 +114,13 @@ export default function UsersSubTab({ showMsg }) {
 
   const handleSave = async (e, newPassword = null) => {
     if (e && e.preventDefault) e.preventDefault();
-    setFormLoading(true);
-    const email = (form.email_address || "").trim();
+    const email = (form.email_address || "").trim().toLowerCase();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!email || !emailRegex.test(email)) {
+      notify.error("Invalid Email", "Please enter a valid email address.");
+      setFormLoading(false);
+      return;
+    }
     const payload = {
       email_address: email,
       email: email,
@@ -228,25 +230,31 @@ export default function UsersSubTab({ showMsg }) {
   return (
     <div className="space-y-5">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <h3 className="text-xs font-semibold text-slate-900 uppercase tracking-wider">Users</h3>
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <div>
+          <h3 className="text-sm font-semibold text-slate-900">User Accounts</h3>
+          <p className="text-xs text-slate-500 mt-0.5">
+            Create and manage staff and student assistant accounts.
+          </p>
+        </div>
         <button
           onClick={openCreate}
-          className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold transition-colors cursor-pointer"
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold transition-colors cursor-pointer shadow-xs"
         >
-          Add
+          <Plus size={14} /> Create Account
         </button>
       </div>
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-2.5">
         <div className="relative flex-1 max-w-xs">
+          <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
-            placeholder="Search..."
+            placeholder="Search by name or email..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-slate-400 transition-colors"
+            className="w-full pl-8 pr-3 py-2 border border-slate-200 rounded-lg text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-slate-400 transition-colors"
           />
         </div>
         <select
@@ -254,7 +262,7 @@ export default function UsersSubTab({ showMsg }) {
           onChange={(e) => setRoleFilter(e.target.value)}
           className="px-3 py-2 border border-slate-200 rounded-lg text-xs font-medium text-slate-700 focus:outline-none focus:border-slate-400 bg-white cursor-pointer"
         >
-          <option value="all">All</option>
+          <option value="all">All Roles</option>
           {availableRoles.map((r) => {
             const roleName = r.name || r;
             const roleLabel = roleName === "staff" ? "Staff" : roleName === "student_assistant" ? "Student Assistant" : roleName.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
@@ -270,7 +278,7 @@ export default function UsersSubTab({ showMsg }) {
           onChange={(e) => setStatusFilter(e.target.value)}
           className="px-3 py-2 border border-slate-200 rounded-lg text-xs font-medium text-slate-700 focus:outline-none focus:border-slate-400 bg-white cursor-pointer"
         >
-          <option value="all">All</option>
+          <option value="all">All Statuses</option>
           <option value="active">Active</option>
           <option value="pending">Pending</option>
           <option value="disabled">Disabled</option>
@@ -278,164 +286,161 @@ export default function UsersSubTab({ showMsg }) {
       </div>
 
       {/* Table with horizontal scroll */}
-      <div className="border border-slate-200 rounded-lg overflow-hidden bg-white">
+      <div className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-xs">
         <div className="overflow-x-auto w-full">
           <table className="w-full text-left text-xs min-w-[760px]">
-          <thead className="bg-slate-50 border-b border-slate-200">
-            <tr>
-              <th className="px-4 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                User
-              </th>
-              <th className="px-4 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                Email
-              </th>
-              <th className="px-4 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                Role
-              </th>
-              <th className="px-4 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                Verified
-              </th>
-              <th className="px-4 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                Status
-              </th>
-              <th className="px-4 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                Created
-              </th>
-              <th className="px-4 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider text-right">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {loading ? (
+            <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
-                <td colSpan={7} className="py-12 text-center">
-                  <div className="flex items-center justify-center gap-2 text-slate-400">
-                    <RotateCw size={14} className="animate-spin" />
-                    <span className="text-xs">Loading accounts...</span>
-                  </div>
-                </td>
+                <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                  User
+                </th>
+                <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                  Email
+                </th>
+                <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                  Role
+                </th>
+                <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                  Email Verified
+                </th>
+                <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                  Status
+                </th>
+                <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                  Date Added
+                </th>
+                <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider text-right">
+                  Actions
+                </th>
               </tr>
-            ) : filteredUsers.length === 0 ? (
-              <tr>
-                <td colSpan={7} className="py-12 text-center text-xs text-slate-400">
-                  No user accounts found.
-                </td>
-              </tr>
-            ) : (
-              filteredUsers.map((u) => {
-                const roleName = u.role?.name || (u.role_id === 3 ? "student_assistant" : "staff");
-                const isSA = roleName.toLowerCase().includes("student") || roleName.toLowerCase().includes("assistant") || u.role_id === 3;
-                const roleLabel = roleName === "staff" ? "Staff" : roleName === "student_assistant" ? "SA" : roleName.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {loading ? (
+                <tr>
+                  <td colSpan={7} className="py-12 text-center">
+                    <div className="flex items-center justify-center gap-2 text-slate-400">
+                      <RotateCw size={14} className="animate-spin" />
+                      <span className="text-xs">Loading accounts...</span>
+                    </div>
+                  </td>
+                </tr>
+              ) : filteredUsers.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="py-12 text-center text-xs text-slate-400">
+                    No user accounts found.
+                  </td>
+                </tr>
+              ) : (
+                filteredUsers.map((u) => {
+                  const roleName = u.role?.name || (u.role_id === 3 ? "student_assistant" : "staff");
+                  const isSA = roleName.toLowerCase().includes("student") || roleName.toLowerCase().includes("assistant") || u.role_id === 3;
+                  const roleLabel = roleName === "staff" ? "Staff" : roleName === "student_assistant" ? "SA" : roleName.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 
-                const isDisabled =
-                  u.status === "disabled" ||
-                  u.status === "inactive" ||
-                  u.is_active === false ||
-                  u.is_active === 0;
-                const isPending =
-                  u.status === "pending_activation" || (!isDisabled && !!u.invite_token);
-                const isVerified = !!u.email_verified_at;
-                const displayEmail = u.email_address || u.email;
-                const fullName = [u.first_name, u.middle_name, u.last_name, u.suffix].filter(Boolean).join(" ") || (u.name && u.name !== "Pending Activation" ? u.name : null);
-                const displayName = fullName || (displayEmail ? displayEmail.split("@")[0] : "—");
-                const initialChar = displayName ? displayName.charAt(0).toUpperCase() : "?";
+                  const isDisabled =
+                    u.status === "disabled" ||
+                    u.status === "inactive" ||
+                    u.is_active === false ||
+                    u.is_active === 0;
+                  const isPending =
+                    u.status === "pending_activation" || (!isDisabled && !!u.invite_token);
+                  const isVerified = !!u.email_verified_at;
+                  const displayEmail = u.email_address || u.email;
+                  const fullName = [u.first_name, u.middle_name, u.last_name, u.suffix].filter(Boolean).join(" ") || (u.name && u.name !== "Pending Activation" ? u.name : null);
+                  const displayName = fullName || (displayEmail ? displayEmail.split("@")[0] : "—");
+                  const initialChar = displayName ? displayName.charAt(0).toUpperCase() : "?";
 
-                const dateAdded = u.created_at
-                  ? new Date(u.created_at).toLocaleDateString("en-PH", {
+                  const dateAdded = u.created_at
+                    ? new Date(u.created_at).toLocaleDateString("en-PH", {
                       month: "short",
                       day: "numeric",
                       year: "numeric",
                     })
-                  : "—";
+                    : "—";
 
-                return (
-                  <tr key={u.id} className="hover:bg-slate-50/60 transition-colors">
-                    {/* User */}
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-7 h-7 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-[11px] font-bold text-slate-600 flex-shrink-0 uppercase">
-                          {initialChar}
+                  return (
+                    <tr key={u.id} className="hover:bg-slate-50/60 transition-colors">
+                      {/* User */}
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-7 h-7 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-[11px] font-bold text-slate-600 flex-shrink-0 uppercase">
+                            {initialChar}
+                          </div>
+                          <div className="flex flex-col">
+                            <span
+                              className={`font-medium ${isDisabled ? "text-slate-400 line-through" : "text-slate-800"
+                                }`}
+                            >
+                              {displayName}
+                            </span>
+                            {isPending && (
+                              <span className="text-[10px] text-amber-600 font-normal">Pending Invite</span>
+                            )}
+                          </div>
                         </div>
-                        <div className="flex flex-col">
-                          <span
-                            className={`font-medium ${
-                              isDisabled ? "text-slate-400 line-through" : "text-slate-800"
-                            }`}
-                          >
-                            {displayName}
+                      </td>
+
+                      {/* Email */}
+                      <td className="px-4 py-3 font-mono text-slate-600 text-[11px]">
+                        {displayEmail}
+                      </td>
+
+                      {/* Role */}
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold border ${isSA
+                            ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                            : "bg-blue-50 text-blue-700 border-blue-200"
+                          }`}>
+                          {isSA ? <GraduationCap size={10} /> : <Users size={10} />}
+                          {roleLabel}
+                        </span>
+                      </td>
+
+                      {/* Email Verified */}
+                      <td className="px-4 py-3">
+                        {isVerified ? (
+                          <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-emerald-600">
+                            <CheckCircle2 size={13} /> Verified
                           </span>
-                          {isPending && (
-                            <span className="text-[10px] text-amber-600 font-normal">Pending Invite</span>
+                        ) : (
+                          <span
+                            className="inline-flex items-center gap-1.5 text-[11px] font-medium text-amber-600"
+                            title="This email has not been verified. The user may be using an undeliverable or invalid address."
+                          >
+                            <AlertCircle size={13} /> Unverified
+                          </span>
+                        )}
+                      </td>
+
+                      {/* Status */}
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <IosToggle
+                            size="sm"
+                            enabled={!isDisabled}
+                            onChange={() => handleToggleDisable(u)}
+                            title={isDisabled ? "Account is disabled. Click to enable." : "Account is active. Click to disable."}
+                          />
+                          {isDisabled ? (
+                            <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-rose-50 text-rose-600 border border-rose-200">
+                              Disabled
+                            </span>
+                          ) : isPending ? (
+                            <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-amber-50 text-amber-600 border border-amber-200">
+                              Pending
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-50 text-emerald-600 border border-emerald-200">
+                              Active
+                            </span>
                           )}
                         </div>
-                      </div>
-                    </td>
+                      </td>
 
-                    {/* Email */}
-                    <td className="px-4 py-3 font-mono text-slate-600 text-[11px]">
-                      {displayEmail}
-                    </td>
+                      {/* Date Added */}
+                      <td className="px-4 py-3 text-slate-500">{dateAdded}</td>
 
-                    {/* Role */}
-                    <td className="px-4 py-3">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold border ${
-                        isSA
-                          ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                          : "bg-blue-50 text-blue-700 border-blue-200"
-                      }`}>
-                        {roleLabel}
-                      </span>
-                    </td>
-
-                    {/* Email Verified */}
-                    <td className="px-4 py-3">
-                      {isVerified ? (
-                        <span className="text-[11px] font-medium text-emerald-600">
-                          Verified
-                        </span>
-                      ) : (
-                        <span className="text-[11px] font-medium text-amber-600">
-                          Unverified
-                        </span>
-                      )}
-                    </td>
-
-                    {/* Status */}
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      {isDisabled ? (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-600 border border-rose-200">
-                          Disabled
-                        </span>
-                      ) : isPending ? (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-600 border border-amber-200">
-                          Pending
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-600 border border-emerald-200">
-                          Active
-                        </span>
-                      )}
-                    </td>
-
-                    {/* Date Added */}
-                    <td className="px-4 py-3 text-slate-500 whitespace-nowrap">{dateAdded}</td>
-
-                    {/* Actions */}
-                    <td className="px-4 py-3 text-right">
-                      <div className="flex items-center justify-end gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => handleToggleDisable(u)}
-                          className={`px-2 py-1 rounded border text-xs font-medium cursor-pointer ${
-                            !isDisabled
-                              ? "text-rose-600 bg-rose-50 border-rose-200 hover:bg-rose-100"
-                              : "text-emerald-600 bg-emerald-50 border-emerald-200 hover:bg-emerald-100"
-                          }`}
-                        >
-                          {isDisabled ? "Enable" : "Disable"}
-                        </button>
-
+                      {/* Actions */}
+                      <td className="px-4 py-3 text-right">
                         <div className="action-menu-wrap inline-block">
                           <button
                             type="button"
@@ -449,11 +454,10 @@ export default function UsersSubTab({ showMsg }) {
                                 setActionAnchorEl(e.currentTarget);
                               }
                             }}
-                            className={`p-1.5 rounded-lg border text-xs transition-all cursor-pointer ${
-                              openActionId === u.id
+                            className={`p-1.5 rounded-lg border text-xs transition-all cursor-pointer ${openActionId === u.id
                                 ? "bg-blue-600 border-blue-600 text-white"
                                 : "border-slate-200 text-slate-600 hover:bg-slate-50"
-                            }`}
+                              }`}
                           >
                             <MoreVertical size={13} />
                           </button>
@@ -473,9 +477,9 @@ export default function UsersSubTab({ showMsg }) {
                                 setActionAnchorEl(null);
                                 openEdit(u);
                               }}
-                              className="w-full px-3.5 py-2 text-left text-xs font-medium text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                              className="w-full px-3.5 py-2 text-left text-xs font-medium text-slate-700 hover:bg-slate-50 flex items-center gap-2 transition-colors cursor-pointer"
                             >
-                              Edit
+                              <Edit2 size={12} /> Edit Account
                             </button>
                             <button
                               type="button"
@@ -485,9 +489,10 @@ export default function UsersSubTab({ showMsg }) {
                                 handleResend(u);
                               }}
                               disabled={resendingId === u.id}
-                              className="w-full px-3.5 py-2 text-left text-xs font-medium text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                              className="w-full px-3.5 py-2 text-left text-xs font-medium text-slate-700 hover:bg-slate-50 flex items-center gap-2 transition-colors cursor-pointer"
                             >
-                              {resendingId === u.id ? "Sending" : "Invite"}
+                              <Mail size={12} />{" "}
+                              {resendingId === u.id ? "Sending..." : "Resend Invite"}
                             </button>
                             <div className="border-t border-slate-100 my-0.5" />
                             <button
@@ -497,24 +502,20 @@ export default function UsersSubTab({ showMsg }) {
                                 setActionAnchorEl(null);
                                 handleToggleDisable(u);
                               }}
-                              className={`w-full px-3.5 py-2 text-left text-xs font-medium transition-colors cursor-pointer ${
-                                !isDisabled
-                                  ? "text-rose-600 hover:bg-rose-50"
-                                  : "text-emerald-600 hover:bg-emerald-50"
-                              }`}
+                              className="w-full px-3.5 py-2 text-left text-xs font-medium text-rose-600 hover:bg-rose-50 flex items-center gap-2 transition-colors cursor-pointer"
                             >
-                              {isDisabled ? "Enable" : "Disable"}
+                              <Ban size={12} />{" "}
+                              {isDisabled ? "Enable Account" : "Disable Account"}
                             </button>
                           </ActionPopover>
                         </div>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
 

@@ -22,15 +22,22 @@ export default function StaffLogin() {
       return;
     }
 
+    const trimmedEmail = email.trim();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (trimmedEmail.includes("@") && !emailRegex.test(trimmedEmail)) {
+      setError("Please enter a valid email address.");
+      return;
+    }
+
     setLoading(true);
     setError("");
 
     try {
-      const { data } = await api.post("/login", { email: email.trim(), password });
+      const { data } = await api.post("/login", { email: trimmedEmail, password });
       login(data.user, data.token, rememberMe);
 
       const userRoleName = typeof data.user?.role === "object" ? data.user?.role?.name : data.user?.role;
-      const isSuper = userRoleName === "super_admin" || userRoleName === "superadmin" || email.toLowerCase() === "admin@fsuu.edu.ph" || email.toLowerCase() === "superadmin@fsuu.edu.ph";
+      const isSuper = userRoleName === "super_admin" || userRoleName === "superadmin" || trimmedEmail.toLowerCase() === "admin@urios.edu.ph" || trimmedEmail.toLowerCase() === "superadmin@urios.edu.ph";
 
       if (isSuper) {
         navigate("/sysad/dashboard");
@@ -91,7 +98,7 @@ export default function StaffLogin() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="e.g. name@urios.edu.ph"
+                placeholder="e.g. name@urios.edu.ph or name@gmail.com"
                 className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 bg-slate-50/50 focus:bg-white transition-all"
               />
             </div>

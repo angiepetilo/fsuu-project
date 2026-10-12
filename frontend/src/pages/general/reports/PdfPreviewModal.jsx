@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Printer, Download, X, Loader2, Edit3 } from "lucide-react";
+import { formatTimeLate } from "@/lib/dateTimeUtils";
 
 export default function PdfPreviewModal({
   open,
@@ -225,7 +226,7 @@ export default function PdfPreviewModal({
                         <th className="border border-slate-300 p-2.5 text-left">Equipment Details</th>
                         <th className="border border-slate-300 p-2.5 text-left">Date</th>
                         <th className="border border-slate-300 p-2.5 text-center">Late Return</th>
-                        <th className="border border-slate-300 p-2.5 text-center">Mins Late</th>
+                        <th className="border border-slate-300 p-2.5 text-center">Time Late</th>
                         <th className="border border-slate-300 p-2.5 text-center">Status</th>
                       </tr>
                     </thead>
@@ -275,13 +276,13 @@ export default function PdfPreviewModal({
                                   </span>
                                 )}
                               </td>
-                              <td className="border border-slate-300 p-2.5 text-center font-mono font-bold text-[11px]">
+                              <td className="border border-slate-300 p-2.5 text-center font-mono font-bold text-[11px] whitespace-nowrap">
                                 {isLate ? (
                                   <span className="text-rose-700 font-black">
-                                    {minutesLate > 0 ? `${minutesLate} mins` : "Late"}
+                                    {minutesLate > 0 ? formatTimeLate(minutesLate) : "Late"}
                                   </span>
                                 ) : (
-                                  <span className="text-slate-400">0 mins</span>
+                                  <span className="text-slate-400">—</span>
                                 )}
                               </td>
                               <td className="border border-slate-300 p-2.5 text-center font-bold uppercase text-[10.5px]">

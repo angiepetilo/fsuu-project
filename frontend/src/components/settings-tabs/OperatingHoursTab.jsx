@@ -45,6 +45,7 @@ function PhilippineTimeSelect({ label, value, onChange }) {
 
   return (
     <div className="space-y-1.5">
+      {/* Label row */}
       <div className="flex items-center justify-between">
         <label className="text-[11px] font-medium text-slate-600 dark:text-slate-400">
           {label}
@@ -54,12 +55,13 @@ function PhilippineTimeSelect({ label, value, onChange }) {
         </span>
       </div>
 
-      <div className="flex items-center gap-1">
+      {/* Hour : Minute row */}
+      <div className="flex items-center gap-1.5">
         {/* Hour */}
         <select
           value={hour}
           onChange={(e) => update(e.target.value, minute, period)}
-          className="flex-1 px-2 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-900 dark:text-white cursor-pointer"
+          className="flex-1 min-w-0 px-2 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-900 dark:text-white cursor-pointer"
         >
           {HOURS_12.map((h) => (
             <option key={h} value={h}>
@@ -68,13 +70,13 @@ function PhilippineTimeSelect({ label, value, onChange }) {
           ))}
         </select>
 
-        <span className="text-slate-400 text-xs font-bold">:</span>
+        <span className="text-slate-400 text-xs font-bold shrink-0">:</span>
 
         {/* Minute */}
         <select
           value={minute}
           onChange={(e) => update(hour, e.target.value, period)}
-          className="flex-1 px-2 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-900 dark:text-white cursor-pointer"
+          className="flex-1 min-w-0 px-2 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-900 dark:text-white cursor-pointer"
         >
           {MINUTES_5.map((m) => (
             <option key={m} value={m}>
@@ -82,32 +84,32 @@ function PhilippineTimeSelect({ label, value, onChange }) {
             </option>
           ))}
         </select>
+      </div>
 
-        {/* AM / PM Toggle */}
-        <div className="flex rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden shrink-0">
-          <button
-            type="button"
-            onClick={() => update(hour, minute, "AM")}
-            className={`px-2.5 py-1.5 text-xs font-bold transition-colors cursor-pointer ${
-              period === "AM"
-                ? "bg-blue-600 text-white"
-                : "bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50"
-            }`}
-          >
-            AM
-          </button>
-          <button
-            type="button"
-            onClick={() => update(hour, minute, "PM")}
-            className={`px-2.5 py-1.5 text-xs font-bold transition-colors cursor-pointer border-l border-slate-200 dark:border-slate-700 ${
-              period === "PM"
-                ? "bg-blue-600 text-white"
-                : "bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50"
-            }`}
-          >
-            PM
-          </button>
-        </div>
+      {/* AM / PM toggle — full-width pill on its own row */}
+      <div className="flex rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden w-full">
+        <button
+          type="button"
+          onClick={() => update(hour, minute, "AM")}
+          className={`flex-1 py-1.5 text-xs font-bold transition-colors cursor-pointer ${
+            period === "AM"
+              ? "bg-blue-600 text-white"
+              : "bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700"
+          }`}
+        >
+          AM
+        </button>
+        <button
+          type="button"
+          onClick={() => update(hour, minute, "PM")}
+          className={`flex-1 py-1.5 text-xs font-bold transition-colors cursor-pointer border-l border-slate-200 dark:border-slate-700 ${
+            period === "PM"
+              ? "bg-blue-600 text-white"
+              : "bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700"
+          }`}
+        >
+          PM
+        </button>
       </div>
     </div>
   );
@@ -254,7 +256,7 @@ export default function OperatingHoursTab({ showMsg }) {
             <h4 className="font-semibold text-slate-800 dark:text-slate-200 text-xs">
               Venues
             </h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-3">
               <PhilippineTimeSelect
                 label="Open"
                 value={operatingHours.venue_open}
@@ -277,7 +279,7 @@ export default function OperatingHoursTab({ showMsg }) {
             <h4 className="font-semibold text-slate-800 dark:text-slate-200 text-xs">
               Equipment
             </h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-3">
               <PhilippineTimeSelect
                 label="Open"
                 value={operatingHours.equipment_open}
@@ -314,41 +316,61 @@ export default function OperatingHoursTab({ showMsg }) {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="p-3.5 bg-slate-50 dark:bg-slate-800/40 rounded-lg border border-slate-200 dark:border-slate-700/60 space-y-1.5">
-            <label className="block text-[11px] font-medium text-slate-700 dark:text-slate-300">
-              Grace
-            </label>
-            <input
-              type="number"
-              min={0}
-              max={120}
-              value={operatingHours.arrival_grace_mins}
-              onChange={(e) =>
-                setOperatingHours({
-                  ...operatingHours,
-                  arrival_grace_mins: parseInt(e.target.value, 10) || 0,
-                })
-              }
-              className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-900 dark:text-white"
-            />
+            <div className="flex items-center justify-between">
+              <label className="block text-[11px] font-medium text-slate-700 dark:text-slate-300">
+                Grace
+              </label>
+              <span className="text-[10px] font-bold text-slate-500 font-mono">
+                {operatingHours.arrival_grace_mins} mins
+              </span>
+            </div>
+            <div className="relative">
+              <input
+                type="number"
+                min={0}
+                max={240}
+                value={operatingHours.arrival_grace_mins}
+                onChange={(e) =>
+                  setOperatingHours({
+                    ...operatingHours,
+                    arrival_grace_mins: parseInt(e.target.value, 10) || 0,
+                  })
+                }
+                className="w-full pl-3 pr-12 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+              <span className="absolute inset-y-0 right-3 flex items-center text-xs font-medium text-slate-400 pointer-events-none">
+                mins
+              </span>
+            </div>
           </div>
 
           <div className="p-3.5 bg-slate-50 dark:bg-slate-800/40 rounded-lg border border-slate-200 dark:border-slate-700/60 space-y-1.5">
-            <label className="block text-[11px] font-medium text-slate-700 dark:text-slate-300">
-              Cancel
-            </label>
-            <input
-              type="number"
-              min={0}
-              max={120}
-              value={operatingHours.auto_cancel_mins}
-              onChange={(e) =>
-                setOperatingHours({
-                  ...operatingHours,
-                  auto_cancel_mins: parseInt(e.target.value, 10) || 0,
-                })
-              }
-              className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-900 dark:text-white"
-            />
+            <div className="flex items-center justify-between">
+              <label className="block text-[11px] font-medium text-slate-700 dark:text-slate-300">
+                Cancel
+              </label>
+              <span className="text-[10px] font-bold text-slate-500 font-mono">
+                {operatingHours.auto_cancel_mins} mins
+              </span>
+            </div>
+            <div className="relative">
+              <input
+                type="number"
+                min={0}
+                max={240}
+                value={operatingHours.auto_cancel_mins}
+                onChange={(e) =>
+                  setOperatingHours({
+                    ...operatingHours,
+                    auto_cancel_mins: parseInt(e.target.value, 10) || 0,
+                  })
+                }
+                className="w-full pl-3 pr-12 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+              <span className="absolute inset-y-0 right-3 flex items-center text-xs font-medium text-slate-400 pointer-events-none">
+                mins
+              </span>
+            </div>
           </div>
         </div>
 

@@ -16,6 +16,10 @@ class OverdueAndExceededAlertService
     /**
      * Check active reservations that have exceeded their scheduled time or passed due,
      * and automatically dispatch notification emails to requestors.
+     *
+     * Runs every 5 minutes via scheduler.
+     * Notifications fire immediately once end time has passed (any amount of time).
+     * Cache keys are scoped per day so that reminders can repeat daily for extended overdue items.
      */
     public function processAlerts(): array
     {
@@ -27,12 +31,14 @@ class OverdueAndExceededAlertService
 
         $now = Carbon::now();
 
-        // 1. Process Venue Bookings that have exceeded end time
+        // ─────────────────────────────────────────────────────────────────
+        // 1. Venue Bookings — notify when ON-GOING and past end time
+        // ─────────────────────────────────────────────────────────────────
         try {
             if (Schema::hasTable('venue_bookings') && Schema::hasTable('tracking_numbers')) {
                 $activeVenues = DB::table('venue_bookings')
                     ->join('tracking_numbers', 'venue_bookings.tracking_number_id', '=', 'tracking_numbers.id')
-                    ->whereIn('tracking_numbers.status', ['ongoing', 'on-going', 'approved'])
+                    ->whereIn('tracking_numbers.status', ['ongoing', 'on-going'])   // only truly on-going; NOT 'approved'
                     ->whereNull('venue_bookings.archived_at')
                     ->select(
                         'venue_bookings.id',
@@ -44,11 +50,15 @@ class OverdueAndExceededAlertService
                     )
                     ->get();
 
+                Log::info("OverdueAndExceededAlertService: Found {$activeVenues->count()} on-going venue booking(s) to check.");
+
                 foreach ($activeVenues as $vb) {
+                    // Use reservation_end_date if present (multi-day bookings), else date_of_usage
                     $endDate = $vb->reservation_end_date ?: $vb->date_of_usage;
                     $timeEnd = $vb->time_end ?: '17:00:00';
 
                     if (empty($endDate)) {
+                        Log::warning("OverdueAndExceededAlertService: Venue booking ID {$vb->id} has no end date, skipping.");
                         continue;
                     }
 
@@ -56,84 +66,101 @@ class OverdueAndExceededAlertService
                     try {
                         $endCarbon = Carbon::parse($endDtStr);
                     } catch (\Throwable $e) {
+                        Log::warning("OverdueAndExceededAlertService: Could not parse venue end datetime '{$endDtStr}' for ID {$vb->id}.");
                         continue;
                     }
 
-                    // If currently past the scheduled end datetime
+                    Log::info("OverdueAndExceededAlertService: Venue {$vb->reference_code} (ID {$vb->id}) — end: {$endCarbon} vs now: {$now}");
+
                     if ($now->greaterThan($endCarbon)) {
-                        $cacheKey = "alert_venue_exceeded_{$vb->id}";
+                        $minutesPast = max(1, abs((int) $now->diffInMinutes($endCarbon)));
+                        $statusType  = 'past_due';
+
+                        // Cache key scoped per day so extended overdue can re-notify next day
+                        $cacheKey = "alert_venue_{$statusType}_{$vb->id}_" . $now->format('Y-m-d');
+
                         if (!Cache::has($cacheKey)) {
                             $bookingModel = VenueBooking::with(['venue', 'trackingNumber'])->find($vb->id);
                             if ($bookingModel) {
+                                $refCode = $bookingModel->trackingNumber?->reference_code ?? "TRK-{$bookingModel->id}";
+                                $venueName = $bookingModel->venue?->name ?? 'AVR Facility';
+
+                                $remarks = "Your scheduled venue reservation for {$refCode} ({$venueName}) has ended (was scheduled until " . $endCarbon->format('h:i A') . ", past due by {$minutesPast} minute(s)). This reservation is now officially marked as Past Due. Please conclude your activity, vacate the facility, and coordinate turnover inspection with AVR custodial staff immediately.";
+
                                 SendBookingStatusUpdateJob::dispatch(
                                     'venue',
                                     $bookingModel,
-                                    'exceed_end_time',
-                                    'Your scheduled venue reservation has exceeded its end time. Please conclude your activity or coordinate with the AVR Administrator immediately.'
+                                    $statusType,
+                                    $remarks
                                 );
                                 Cache::put($cacheKey, true, now()->addHours(6));
                                 $notified['venue_exceeded'][] = $vb->reference_code;
-                                Log::info("OverdueAndExceededAlertService: Exceeded end time email sent for Venue {$vb->reference_code}");
+
+                                Log::info("OverdueAndExceededAlertService: [{$statusType}] email dispatched for Venue {$vb->reference_code} (ID {$vb->id}), {$minutesPast} min past due. Email: {$vb->email_address}");
                             }
+                        } else {
+                            Log::info("OverdueAndExceededAlertService: Skipping Venue {$vb->reference_code} (ID {$vb->id}) — already notified today (cache: {$cacheKey}).");
                         }
                     }
                 }
             }
         } catch (\Throwable $e) {
-            Log::error("OverdueAndExceededAlertService error on venue bookings: " . $e->getMessage());
+            Log::error("OverdueAndExceededAlertService error on venue bookings: " . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
         }
 
-        // 2. Process Equipment Borrowings that have exceeded end time or passed due
+        // ─────────────────────────────────────────────────────────────────
+        // 2. Equipment Borrowings — notify when ON-GOING and past end time
+        // ─────────────────────────────────────────────────────────────────
         try {
             if (Schema::hasTable('equipment_borrows') && Schema::hasTable('tracking_numbers')) {
                 $activeBorrows = DB::table('equipment_borrows')
                     ->join('tracking_numbers', 'equipment_borrows.tracking_number_id', '=', 'tracking_numbers.id')
                     ->whereIn('tracking_numbers.status', ['ongoing', 'on-going'])
+                    ->whereNull('equipment_borrows.archived_at')
                     ->select(
                         'equipment_borrows.id',
                         'equipment_borrows.date_of_usage',
-                        'equipment_borrows.reservation_end_date',
                         'equipment_borrows.time_end',
-                        'equipment_borrows.end_datetime',
-                        'equipment_borrows.start_datetime',
                         'equipment_borrows.email_address',
                         'tracking_numbers.reference_code'
                     )
                     ->get();
 
-                foreach ($activeBorrows as $eb) {
-                    $endDt = $eb->end_datetime;
-                    if (!$endDt) {
-                        $endDate = $eb->reservation_end_date ?: $eb->date_of_usage;
-                        $timeEnd = $eb->time_end ?: '17:00:00';
-                        if ($endDate) {
-                            $endDt = substr($endDate, 0, 10) . ' ' . substr($timeEnd, 0, 8);
-                        }
-                    }
+                Log::info("OverdueAndExceededAlertService: Found {$activeBorrows->count()} on-going equipment borrow(s) to check.");
 
-                    if (!$endDt) {
+                foreach ($activeBorrows as $eb) {
+                    $endDate = $eb->date_of_usage;
+                    $timeEnd = $eb->time_end ?: '17:00:00';
+
+                    if (!$endDate) {
+                        Log::warning("OverdueAndExceededAlertService: Equipment borrow ID {$eb->id} has no date_of_usage, skipping.");
                         continue;
                     }
+
+                    $endDtStr = substr($endDate, 0, 10) . ' ' . substr($timeEnd, 0, 8);
 
                     try {
-                        $endCarbon = Carbon::parse($endDt);
+                        $endCarbon = Carbon::parse($endDtStr);
                     } catch (\Throwable $e) {
+                        Log::warning("OverdueAndExceededAlertService: Could not parse equipment end datetime '{$endDtStr}' for ID {$eb->id}.");
                         continue;
                     }
 
-                    if ($now->greaterThan($endCarbon)) {
-                        $minutesPast = $now->diffInMinutes($endCarbon);
-                        $isOverdue = $minutesPast >= 60; // 1+ hour past is considered overdue
-                        $statusType = $isOverdue ? 'overdue' : 'exceed end time';
+                    Log::info("OverdueAndExceededAlertService: Equipment {$eb->reference_code} (ID {$eb->id}) — end: {$endCarbon} vs now: {$now}");
 
-                        $cacheKey = "alert_eq_{$statusType}_{$eb->id}";
+                    if ($now->greaterThan($endCarbon)) {
+                        $minutesPast = max(1, abs((int) $now->diffInMinutes($endCarbon)));
+                        $statusType  = 'late_return';
+
+                        // Cache key scoped per day so each day gets a fresh notification
+                        $cacheKey = "alert_eq_{$statusType}_{$eb->id}_" . $now->format('Y-m-d');
+
                         if (!Cache::has($cacheKey)) {
                             $borrowModel = EquipmentBorrow::with(['items.equipmentType', 'trackingNumber'])->find($eb->id);
                             if ($borrowModel) {
-                                $refCode = $borrowModel->reference_code ?? ($borrowModel->trackingNumber?->reference_code ?? "EQ-2026-{$borrowModel->id}");
-                                $remarks = $isOverdue
-                                    ? "The scheduled return time for the equipment unit(s) borrowed under Reference Code {$refCode} has elapsed. Please return all physical units immediately to the PMO / AVR office finalize condition clearance and prevent late policy penalties."
-                                    : "Your scheduled borrowing duration has ended. Please proceed to turnover all physical equipment units to the PMO / AVR office.";
+                                $refCode = $borrowModel->trackingNumber?->reference_code ?? "EQ-{$borrowModel->id}";
+
+                                $remarks = "The scheduled return time for the equipment unit(s) borrowed under Reference Code {$refCode} has elapsed (was due at " . $endCarbon->format('h:i A') . ", past due by {$minutesPast} minute(s)). This borrowing transaction is now officially marked as Late Return. Please return all physical units and accessories immediately to the PMO / AVR custodial counter to finalize condition clearance and prevent late policy penalties.";
 
                                 SendBookingStatusUpdateJob::dispatch(
                                     'equipment',
@@ -143,19 +170,18 @@ class OverdueAndExceededAlertService
                                 );
                                 Cache::put($cacheKey, true, now()->addHours(6));
 
-                                if ($isOverdue) {
-                                    $notified['equipment_overdue'][] = $eb->reference_code;
-                                } else {
-                                    $notified['equipment_exceeded'][] = $eb->reference_code;
-                                }
-                                Log::info("OverdueAndExceededAlertService: {$statusType} email sent for Equipment {$eb->reference_code}");
+                                $notified['equipment_overdue'][] = $eb->reference_code;
+
+                                Log::info("OverdueAndExceededAlertService: [{$statusType}] email dispatched for Equipment {$eb->reference_code} (ID {$eb->id}), {$minutesPast} min past due. Email: {$eb->email_address}");
                             }
+                        } else {
+                            Log::info("OverdueAndExceededAlertService: Skipping Equipment {$eb->reference_code} (ID {$eb->id}) — already notified today (cache: {$cacheKey}).");
                         }
                     }
                 }
             }
         } catch (\Throwable $e) {
-            Log::error("OverdueAndExceededAlertService error on equipment borrows: " . $e->getMessage());
+            Log::error("OverdueAndExceededAlertService error on equipment borrows: " . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
         }
 
         return $notified;

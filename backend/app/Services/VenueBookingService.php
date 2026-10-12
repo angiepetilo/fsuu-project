@@ -164,6 +164,22 @@ class VenueBookingService
                 ->lockForUpdate()
                 ->firstOrFail();
 
+            // Venue Availability Override Check (Maintenance / Closed)
+            $venueOverride = DB::table('venue_overrides')
+                ->where(function ($q) use ($venue) {
+                    $q->where('venue_id', $venue->id)
+                      ->orWhereNull('venue_id');
+                })
+                ->where('override_date', $dateOfUsage)
+                ->whereIn('status', ['maintenance', 'closed', 'damaged'])
+                ->first();
+
+            if ($venueOverride) {
+                $st = strtolower($venueOverride->status);
+                $stLabel = in_array($st, ['maintenance', 'damaged']) ? 'maintenance' : 'closed';
+                throw new \InvalidArgumentException("Cannot book {$venue->name} on {$dateOfUsage}. Venue is currently under {$stLabel}.");
+            }
+
             // SPEC RULE 1 & 5: Pending state does NOT lock the venue/date/timeslot.
             // Multiple pending requests can coexist. Only approved/ongoing bookings hard-lock the slot against new submissions.
             // Arrival Grace Period allows the next booker to reserve starting up to arrival_grace_mins before end time.
@@ -1097,7 +1113,7 @@ class VenueBookingService
                 if ($explicitClean) {
                     $violationType = null;
                 } else {
-                    $violationType = array_key_exists('violation_type', $data) ? $data['violation_type'] : ($isLate ? 'Late Return / Extension' : ($condition === 'damaged' ? 'Physical Facility / Equipment Damage' : null));
+                    $violationType = array_key_exists('violation_type', $data) ? $data['violation_type'] : ($isLate ? 'Late Return, Extension' : ($condition === 'damaged' ? 'Physical Facility, Equipment Damage' : null));
                 }
                 $notes = $data['notes'] ?? $data['remarks'] ?? ($isLate ? "Completed {$minutesLate} minutes after scheduled end." : ($condition === 'damaged' ? 'Venue equipment damage reported.' : 'Inspection completed on time.'));
 

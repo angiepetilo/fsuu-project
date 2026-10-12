@@ -328,7 +328,10 @@ export default function Step3Details({
       setIsOtpRequested(true);
       setOtpCooldown(60);
       setOtpExpiresIn(600);
-      setOtpSuccess(res.data?.message || (channel === "sms" ? "6-digit verification code sent to your mobile phone via SMS." : "6-digit verification code sent to your inbox."));
+      const successMsg = res.data?.dev_code
+        ? `${res.data?.message || 'Verification code sent.'} (Code: ${res.data.dev_code})`
+        : (res.data?.message || (channel === "sms" ? "6-digit verification code sent to your mobile phone via SMS." : "6-digit verification code sent to your inbox."));
+      setOtpSuccess(successMsg);
     } catch (err) {
       if (err.response?.data?.duplicate) {
         setDuplicateRef(err.response.data.reference_code || null);

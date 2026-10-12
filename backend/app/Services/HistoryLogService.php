@@ -14,7 +14,13 @@ class HistoryLogService
     public function getVenueBookingsHistory(?int $officeId = null, bool $isSuperAdmin = true, ?int $academicTermId = null): Collection
     {
         $vbQuery = DB::table('venue_bookings')
-            ->join('tracking_numbers', 'venue_bookings.tracking_number_id', '=', 'tracking_numbers.id')
+            ->leftJoin('tracking_numbers', function ($join) {
+                $join->on('venue_bookings.tracking_number_id', '=', 'tracking_numbers.id')
+                     ->orWhere(function ($q) {
+                         $q->where('tracking_numbers.reservation_type', 'venue_booking')
+                           ->whereColumn('tracking_numbers.reservation_id', 'venue_bookings.id');
+                     });
+            })
             ->leftJoin('venues', 'venue_bookings.venue_id', '=', 'venues.id')
             ->leftJoin('inspections', function ($join) {
                 $join->on('venue_bookings.id', '=', 'inspections.inspectable_id')
@@ -37,12 +43,20 @@ class HistoryLogService
             ->whereNull('venue_bookings.archived_at')
             ->where(function ($query) {
                 $activeStatuses = ['pending', 'approved', 'ongoing', 'on-going', 'post-inspection', 'reserved'];
-                $query->whereNotNull('tracking_numbers.status')
-                      ->whereNotIn(DB::raw('LOWER(tracking_numbers.status)'), $activeStatuses);
+                $query->where(function ($q) use ($activeStatuses) {
+                    $q->whereNotNull('tracking_numbers.status')
+                      ->whereNotIn(DB::raw('LOWER(TRIM(tracking_numbers.status))'), $activeStatuses);
+                })->orWhere(function ($q) use ($activeStatuses) {
+                    $q->whereNotNull('venue_bookings.status')
+                      ->whereNotIn(DB::raw('LOWER(TRIM(venue_bookings.status))'), $activeStatuses);
+                });
             });
 
         if ($academicTermId) {
-            $vbQuery->where('venue_bookings.academic_term_id', $academicTermId);
+            $vbQuery->where(function ($q) use ($academicTermId) {
+                $q->where('venue_bookings.academic_term_id', $academicTermId)
+                  ->orWhereNull('venue_bookings.academic_term_id');
+            });
         }
 
         $vbQuery->select(
@@ -62,7 +76,7 @@ class HistoryLogService
                 'venue_bookings.auto_reject_winning_reference',
                 'venues.name as venue_name',
                 'tracking_numbers.reference_code',
-                'tracking_numbers.status',
+                DB::raw("COALESCE(tracking_numbers.status, venue_bookings.status) as status"),
                 'inspections.condition as inspection_condition',
                 'inspections.notes as inspection_notes',
                 'inspections.evidence_photo as evidence_photo',
@@ -88,10 +102,25 @@ class HistoryLogService
                 $item = (array) $b;
                 $isCancelledOrRejected = in_array(strtolower($b->status ?? ''), ['cancelled', 'rejected', 'cancelled_by_user']);
                 
+                $reason = $b->rejection_reason ?? null;
+                if ($isCancelledOrRejected && empty($reason)) {
+                    try {
+                        $reason = DB::table('approvals')
+                            ->where(function ($q) {
+                                $q->where('reference_type', 'avr_venue_booking')
+                                  ->orWhere('reference_type', 'venue_booking');
+                            })
+                            ->where('reference_id', $b->id)
+                            ->whereIn('action', ['rejected', 'cancelled'])
+                            ->latest('id')
+                            ->value('remarks');
+                    } catch (\Throwable $e) {}
+                }
+
                 $isLate = !$isCancelledOrRejected && (!empty($b->is_late) || str_contains(strtolower($b->timeliness ?? ''), 'late') || str_contains(strtolower($b->violation_type ?? ''), 'late'));
                 
-                // If violation_type is strictly "Late Return / Extension", do not treat it as physical damage unless condition is damaged.
-                $isStrictlyLate = $isLate && (strtolower($b->violation_type ?? '') === 'late return / extension' || strtolower($b->violation_type ?? '') === 'late return');
+                // If violation_type is strictly "Late Return, Extension", do not treat it as physical damage unless condition is damaged.
+                $isStrictlyLate = $isLate && (strtolower($b->violation_type ?? '') === 'late return, extension' || strtolower($b->violation_type ?? '') === 'late return' || strtolower($b->violation_type ?? '') === 'late return / extension');
                 
                 $hasDamage = !$isCancelledOrRejected && (($b->inspection_condition ?? '') === 'damaged' || strtolower($b->status ?? '') === 'damaged' || (!empty($b->violation_type) && !$isStrictlyLate));
                 
@@ -119,9 +148,11 @@ class HistoryLogService
                 }
 
                 $isAutoRejected = $isCancelledOrRejected && strtolower($b->status ?? '') === 'rejected' && !empty($b->is_auto_rejected);
+                $finalReason = $isCancelledOrRejected ? ($reason ?: ($b->rejection_reason ?? null)) : null;
 
                 return array_merge($item, [
                     'record_type'        => 'venue',
+                    'reference_code'     => $b->reference_code ?: "TRK-AVR{$b->id}",
                     'equipment_notes'    => $b->equipment_notes ?? '',
                     'is_late'            => $isLate,
                     'has_damage'         => $hasDamage,
@@ -140,7 +171,9 @@ class HistoryLogService
                     // History Log UI as "Rejected (automatic)" with the winning reference.
                     'is_auto_rejected'               => $isAutoRejected,
                     'auto_reject_winning_reference'  => $isAutoRejected ? ($b->auto_reject_winning_reference ?? null) : null,
-                    'rejection_reason'               => $isCancelledOrRejected ? ($b->rejection_reason ?? null) : null,
+                    'rejection_reason'               => $finalReason,
+                    'remarks'                        => $finalReason,
+                    'notes'                          => $finalReason ?: ($b->inspection_notes ?? null),
                 ]);
             });
     }
@@ -151,7 +184,13 @@ class HistoryLogService
     public function getEquipmentBorrowingsHistory(?int $officeId = null, bool $isSuperAdmin = true, ?int $academicTermId = null): Collection
     {
         $ebQuery = DB::table('equipment_borrows')
-            ->join('tracking_numbers', 'equipment_borrows.tracking_number_id', '=', 'tracking_numbers.id')
+            ->leftJoin('tracking_numbers', function ($join) {
+                $join->on('equipment_borrows.tracking_number_id', '=', 'tracking_numbers.id')
+                     ->orWhere(function ($q) {
+                         $q->whereIn('tracking_numbers.reservation_type', ['equipment_borrow', 'equipment_borrowing'])
+                           ->whereColumn('tracking_numbers.reservation_id', 'equipment_borrows.id');
+                     });
+            })
             ->leftJoin('inspections', function ($join) {
                 $join->on('equipment_borrows.id', '=', 'inspections.inspectable_id')
                      ->where(function ($q) {
@@ -167,13 +206,21 @@ class HistoryLogService
             ->whereNull('equipment_borrows.archived_at')
             ->where(function ($query) {
                 $activeStatuses = ['pending', 'approved', 'ongoing', 'on-going', 'inspection', 'post-inspection', 'reserved'];
-                $query->whereNotNull('tracking_numbers.status')
-                      ->whereNotIn(DB::raw('LOWER(tracking_numbers.status)'), $activeStatuses);
+                $query->where(function ($q) use ($activeStatuses) {
+                    $q->whereNotNull('tracking_numbers.status')
+                      ->whereNotIn(DB::raw('LOWER(TRIM(tracking_numbers.status))'), $activeStatuses);
+                })->orWhere(function ($q) use ($activeStatuses) {
+                    $q->whereNotNull('equipment_borrows.status')
+                      ->whereNotIn(DB::raw('LOWER(TRIM(equipment_borrows.status))'), $activeStatuses);
+                });
             })
             ->orderBy('inspections.id', 'desc');
 
         if ($academicTermId) {
-            $ebQuery->where('equipment_borrows.academic_term_id', $academicTermId);
+            $ebQuery->where(function ($q) use ($academicTermId) {
+                $q->where('equipment_borrows.academic_term_id', $academicTermId)
+                  ->orWhereNull('equipment_borrows.academic_term_id');
+            });
         }
 
         $ebQuery->select(
@@ -186,8 +233,9 @@ class HistoryLogService
                 'equipment_borrows.time_end',
                 'equipment_borrows.purpose',
                 'equipment_borrows.contact_number as contact_no',
+                'equipment_borrows.rejection_reason',
                 'tracking_numbers.reference_code',
-                'tracking_numbers.status',
+                DB::raw("COALESCE(tracking_numbers.status, equipment_borrows.status) as status"),
                 'inspections.condition as inspection_condition',
                 'inspections.notes as inspection_notes',
                 'inspections.evidence_photo as evidence_photo',
@@ -208,6 +256,24 @@ class HistoryLogService
             ->values()
             ->map(function ($b) {
                 $item = (array) $b;
+                $isCancelledOrRejected = in_array(strtolower($b->status ?? ''), ['cancelled', 'rejected', 'cancelled_by_user']);
+
+                $reason = $b->rejection_reason ?? null;
+                if ($isCancelledOrRejected && empty($reason)) {
+                    try {
+                        $reason = DB::table('approvals')
+                            ->where(function ($q) {
+                                $q->where('reference_type', 'equipment_borrow')
+                                  ->orWhere('reference_type', 'equipment_borrowing')
+                                  ->orWhere('reference_type', 'avr_equipment_borrowing');
+                            })
+                            ->where('reference_id', $b->id)
+                            ->whereIn('action', ['rejected', 'cancelled'])
+                            ->latest('id')
+                            ->value('remarks');
+                    } catch (\Throwable $e) {}
+                }
+
                 $assignedRaw = $b->inspection_assigned_units ?? $b->eb_assigned_units ?? null;
                 $assignedUnits = $assignedRaw ? (is_string($assignedRaw) ? json_decode($assignedRaw, true) : $assignedRaw) : null;
                 $unitCondRaw = $b->inspection_unit_conditions ?? null;
@@ -227,6 +293,22 @@ class HistoryLogService
 
                 $hasViolation = $isDamaged || $isLost || $isLate || !empty($b->violation_type);
                 $violationText = $b->violation_type ?? ($hasViolation ? ($b->inspection_notes ?? 'Policy Breach / Inspection Outcome Recorded') : null);
+
+                if ($isCancelledOrRejected) {
+                    $item['inspection_condition'] = null;
+                    $item['inspection_notes'] = null;
+                    $item['evidence_photo'] = null;
+                    $item['violation_type'] = null;
+                    $item['inspection_assigned_units'] = null;
+                    $item['inspection_unit_conditions'] = null;
+                    $assignedUnits = null;
+                    $unitConditions = null;
+                    $isDamaged = false;
+                    $isLost = false;
+                    $isLate = false;
+                    $hasViolation = false;
+                    $violationText = null;
+                }
 
                 // Attach items
                 $items = [];
@@ -256,8 +338,7 @@ class HistoryLogService
                     $items = [];
                 }
 
-
-                $rawEbPhoto = $b->evidence_photo ?? null;
+                $rawEbPhoto = !$isCancelledOrRejected ? ($b->evidence_photo ?? null) : null;
                 $ebPhotoList = [];
                 if (is_string($rawEbPhoto) && (str_starts_with(trim($rawEbPhoto), '[') || str_starts_with(trim($rawEbPhoto), '{'))) {
                     $decoded = json_decode($rawEbPhoto, true);
@@ -266,8 +347,11 @@ class HistoryLogService
                     $ebPhotoList = [$rawEbPhoto];
                 }
 
+                $finalReason = $isCancelledOrRejected ? ($reason ?: ($b->rejection_reason ?? null)) : null;
+
                 return array_merge($item, [
                     'record_type'     => 'equipment',
+                    'reference_code'  => $b->reference_code ?: "EQ-{$b->id}",
                     'items'           => $items,
                     'equipment_name'  => !empty($items) ? ($items[0]['equipment_name'] ?? 'Equipment') : 'Equipment Item',
                     'quantity'        => !empty($items) ? ($items[0]['quantity_requested'] ?? 1) : 1,
@@ -282,6 +366,9 @@ class HistoryLogService
                     'assigned_units'  => $assignedUnits,
                     'unit_conditions' => $unitConditions,
                     'violations'      => $hasViolation ? 1 : 0,
+                    'rejection_reason'=> $finalReason,
+                    'remarks'         => $finalReason,
+                    'notes'           => $finalReason ?: ($b->inspection_notes ?? null),
                 ]);
             });
     }

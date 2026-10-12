@@ -137,8 +137,8 @@ export default function VenuesTab({ showMsg }) {
     setFormLoading(true);
     setFormError("");
     const photoData = form.photo || form.avatar || "";
-    const minCap = form.min_capacity ? Number(form.min_capacity) : 1;
-    const maxCap = (form.max_capacity ? Number(form.max_capacity) : null) || (form.capacity ? Number(form.capacity) : 100);
+    const minCap = (form.min_capacity !== undefined && form.min_capacity !== "") ? Number(form.min_capacity) : 1;
+    const maxCap = (form.max_capacity !== undefined && form.max_capacity !== "") ? Number(form.max_capacity) : ((form.capacity ? Number(form.capacity) : null) || 100);
     const payload = {
       name: (form.name || "").trim(),
       photo: photoData,
@@ -157,7 +157,7 @@ export default function VenuesTab({ showMsg }) {
       try {
         const res = await api.put(`/general/venues/${editItem.id}`, payload);
         const saved = res.data?.venue || res.data;
-        const updated = venues.map(v => v.id === editItem.id ? { ...v, ...saved } : v);
+        const updated = venues.map(v => v.id === editItem.id ? { ...v, ...saved, min_capacity: minCap, max_capacity: maxCap, capacity: maxCap } : v);
         setVenues(updated);
         try {
           localStorage.setItem("fsuu_venues_catalog", JSON.stringify(updated));
@@ -179,7 +179,8 @@ export default function VenuesTab({ showMsg }) {
       try {
         const res = await api.post("/general/venues", payload);
         const actualVenue = res.data?.venue || res.data;
-        const nextVenues = [actualVenue, ...venues];
+        const venueObj = { ...actualVenue, min_capacity: minCap, max_capacity: maxCap, capacity: maxCap };
+        const nextVenues = [venueObj, ...venues];
         setVenues(nextVenues);
         try {
           localStorage.setItem("fsuu_venues_catalog", JSON.stringify(nextVenues));
@@ -210,15 +211,18 @@ export default function VenuesTab({ showMsg }) {
       try { parsedAllowed = JSON.parse(rawAllowed); } catch { parsedAllowed = []; }
     }
 
+    const minCap = (v.min_capacity !== undefined && v.min_capacity !== null) ? Number(v.min_capacity) : 1;
+    const maxCap = (v.max_capacity !== undefined && v.max_capacity !== null) ? Number(v.max_capacity) : (Number(v.capacity) || 100);
+
     setForm({
       name: v.name || "",
       photo: v.photo || v.avatar || "",
       avatar: v.photo || v.avatar || "",
       status: v.status || "available",
       location: v.location || "",
-      capacity: v.capacity || v.max_capacity || 100,
-      min_capacity: v.min_capacity || 1,
-      max_capacity: v.max_capacity || v.capacity || 100,
+      capacity: maxCap,
+      min_capacity: minCap,
+      max_capacity: maxCap,
       allowed_equipment: parsedAllowed,
       equipment_max_qtys: v.equipment_max_qtys || {},
     });
@@ -254,6 +258,16 @@ export default function VenuesTab({ showMsg }) {
     }
   };
 
+  const getAvailableStock = (eq) => {
+    if (!eq) return 1;
+    if (typeof eq.available_count === "number" && eq.available_count > 0) return eq.available_count;
+    if (typeof eq.available_units === "number" && eq.available_units > 0) return eq.available_units;
+    if (typeof eq.available === "number" && eq.available > 0) return eq.available;
+    if (typeof eq.present_count === "number" && eq.present_count > 0) return eq.present_count;
+    if (typeof eq.total_quantity === "number" && eq.total_quantity > 0) return eq.total_quantity;
+    return 1;
+  };
+
   const isItemChecked = (eq) => {
     if (!Array.isArray(form.allowed_equipment)) return false;
     const eqIdStr = String(eq.id);
@@ -269,11 +283,13 @@ export default function VenuesTab({ showMsg }) {
     const eqId = Number(eq.id) || eq.id;
     const eqIdStr = String(eq.id);
     const eqNameLower = String(eq.name || eq.eq_name || "").trim().toLowerCase();
+    const defaultAvailable = getAvailableStock(eq);
 
     if (checked) {
       updateForm((prev) => {
         const nextQtys = { ...prev.equipment_max_qtys };
         delete nextQtys[eqId];
+        delete nextQtys[eqIdStr];
         return {
           ...prev,
           allowed_equipment: (prev.allowed_equipment || []).filter(item => {
@@ -289,7 +305,7 @@ export default function VenuesTab({ showMsg }) {
         allowed_equipment: [...(prev.allowed_equipment || []), eqId],
         equipment_max_qtys: {
           ...prev.equipment_max_qtys,
-          [eqId]: prev.equipment_max_qtys?.[eqId] || eq.total_quantity || 1,
+          [eqId]: prev.equipment_max_qtys?.[eqId] ?? prev.equipment_max_qtys?.[eqIdStr] ?? defaultAvailable,
         }
       }));
     }
@@ -300,7 +316,7 @@ export default function VenuesTab({ showMsg }) {
       ...prev,
       equipment_max_qtys: {
         ...prev.equipment_max_qtys,
-        [eqId]: Math.max(1, Number(qty) || 1),
+        [eqId]: qty === "" ? "" : Math.max(1, Number(qty) || 1),
       }
     }));
   };
@@ -394,7 +410,7 @@ export default function VenuesTab({ showMsg }) {
 
                     <td className="px-4 py-3">
                       <div className="font-extrabold text-slate-900">{v.name}</div>
-                      <div className="text-[11px] text-slate-400 font-medium">{v.location || "FSUU Main Campus"} • Cap: {v.capacity || 100}</div>
+                      <div className="text-[11px] text-slate-400 font-medium">{v.location || "FSUU Main Campus"} • Cap: {v.min_capacity && Number(v.min_capacity) > 1 ? `${v.min_capacity} - ${v.max_capacity || v.capacity || 100}` : (v.max_capacity || v.capacity || 100)}</div>
                     </td>
 
                     <td className="px-4 py-3">
@@ -538,7 +554,8 @@ export default function VenuesTab({ showMsg }) {
                     <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg max-h-44 overflow-y-auto space-y-1.5">
                       {equipmentCatalog.map(eq => {
                         const checked = isItemChecked(eq);
-                        const currentMax = form.equipment_max_qtys?.[eq.id] ?? (eq.total_quantity || 1) ?? 1;
+                        const defaultAvailable = getAvailableStock(eq);
+                        const currentMax = form.equipment_max_qtys?.[eq.id] ?? form.equipment_max_qtys?.[String(eq.id)] ?? defaultAvailable;
 
                         return (
                           <div key={eq.id} className="flex items-center justify-between p-1.5 rounded-md bg-white border border-slate-200">

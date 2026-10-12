@@ -48,6 +48,8 @@ class DashboardStatsController extends Controller
         // 1. Auto-synchronize physical unit condition/status before computing statistics
         try {
             EquipmentCategoryService::autoSyncUnitConditions();
+            app(\App\Services\NoShowAutoReleaseService::class)->processNoShows();
+            app(\App\Services\OverdueAndExceededAlertService::class)->processAlerts();
         } catch (\Throwable $e) {
             Log::warning("autoSyncUnitConditions warning: " . $e->getMessage());
         }

@@ -26,9 +26,10 @@ class EquipmentBorrowingController extends Controller
     {
         $this->authorize('viewAny', EquipmentBorrow::class);
 
-        // Automatically auto-release unclaimed no-show equipment loans past 15m grace period
+        // Automatically auto-release unclaimed/expired equipment loans based on dynamic operating hours rules and check overdue alerts
         try {
-            app(\App\Services\NoShowAutoReleaseService::class)->processNoShows(15);
+            app(\App\Services\NoShowAutoReleaseService::class)->processNoShows();
+            app(\App\Services\OverdueAndExceededAlertService::class)->processAlerts();
         } catch (\Throwable $e) {}
 
         $user = $request->user();
@@ -689,9 +690,19 @@ class EquipmentBorrowingController extends Controller
 
         $status = strtolower($borrow->status ?? $borrow->trackingNumber?->status ?? 'pending');
 
+        $isPastDue = false;
+        try {
+            $endDt = $borrow->end_datetime ?? ($borrow->date_of_usage ? ($borrow->date_of_usage . ' ' . ($borrow->time_end ?? '17:00:00')) : null);
+            if ($endDt && \Carbon\Carbon::parse($endDt)->isPast()) {
+                $isPastDue = true;
+            }
+        } catch (\Throwable $t) {}
+
         try {
             if ($status === 'pending') {
                 \App\Jobs\SendBookingConfirmationJob::dispatch('equipment', $borrow);
+            } elseif ($isPastDue && in_array($status, ['ongoing', 'on-going', 'released', 'in_use', 'in-use', 'borrowed'])) {
+                \App\Jobs\SendBookingStatusUpdateJob::dispatch('equipment', $borrow, 'late_return', 'URGENT: Your equipment borrowing return time has elapsed. Please return all borrowed physical units immediately.');
             } else {
                 \App\Jobs\SendBookingStatusUpdateJob::dispatch('equipment', $borrow, $status, 'Resent notification by admin');
             }
@@ -737,7 +748,7 @@ class EquipmentBorrowingController extends Controller
                         $isOverdue = true;
                     }
                 } catch (\Throwable $t) {}
-                $notificationType = $isOverdue ? 'overdue' : 'exceed end time';
+                $notificationType = $isOverdue ? 'late_return' : 'reminder';
             }
 
             try {
@@ -745,9 +756,9 @@ class EquipmentBorrowingController extends Controller
                     'equipment',
                     $borrow,
                     $notificationType,
-                    $customMessage ?: ($notificationType === 'overdue'
+                    $customMessage ?: ($notificationType === 'late_return'
                         ? 'Your equipment borrowing period has passed due. Please return all borrowed physical units immediately to the AVR Center.'
-                        : 'Your equipment usage has exceeded its scheduled return end time. Please coordinate turnover immediately.')
+                        : 'Your equipment borrowing return deadline is approaching. Please return all borrowed units promptly to the AVR Center.')
                 );
                 $results[] = "Email sent to {$email}";
             } catch (\Throwable $e) {}

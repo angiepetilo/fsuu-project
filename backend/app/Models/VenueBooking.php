@@ -87,7 +87,7 @@ class VenueBooking extends Model
                       ->orWhere('reference_type', 'venue_booking');
                 })
                 ->where('reference_id', $this->id)
-                ->where('action', 'rejected')
+                ->whereIn('action', ['rejected', 'cancelled'])
                 ->latest('id')
                 ->value('remarks');
             if (!empty($lastApproval)) {

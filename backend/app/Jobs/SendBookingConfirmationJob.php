@@ -48,7 +48,7 @@ class SendBookingConfirmationJob implements ShouldQueue
         if ($this->type === 'venue') {
             $this->booking->loadMissing(['venue', 'trackingNumber', 'documents']);
         } else {
-            $this->booking->loadMissing(['items', 'trackingNumber']);
+            $this->booking->loadMissing(['items.equipmentType', 'trackingNumber']);
         }
 
         // Dynamically apply database-configured SMTP settings

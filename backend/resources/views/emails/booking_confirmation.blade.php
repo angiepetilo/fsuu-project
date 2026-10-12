@@ -189,28 +189,73 @@
     $isExternal = str_contains($classification, 'external');
     $organization = $booking->program_office ?? $booking->department?->name ?? ($isExternal ? 'External Organization' : 'Department');
 
-    // Build equipment list
+    // Build equipment list with built-in accessories/components
     $equipmentList = [];
     if (!empty($booking->items) && count($booking->items) > 0) {
         foreach ($booking->items as $item) {
             $name = $item->equipmentType?->eq_name ?? $item->equipmentType?->name ?? $item->equipment_name ?? 'Equipment Item';
             $qty = $item->quantity_requested ?? $item->quantity ?? 1;
-            $equipmentList[] = "{$qty}x {$name}";
+            $builtIns = [];
+            if (!empty($item->built_in_names) && is_array($item->built_in_names)) {
+                $builtIns = $item->built_in_names;
+            } elseif (!empty($item->equipmentType?->built_in_names)) {
+                $builtIns = $item->equipmentType->built_in_names;
+            } elseif (!empty($item->equipment_type_id)) {
+                try {
+                    $eqType = \App\Models\EquipmentType::withTrashed()->find($item->equipment_type_id);
+                    $builtIns = $eqType?->built_in_names ?? [];
+                } catch (\Throwable $e) {}
+            }
+            $equipmentList[] = [
+                'name'      => $name,
+                'quantity'  => $qty,
+                'label'     => "{$qty}x {$name}",
+                'built_ins' => $builtIns,
+            ];
         }
     } elseif (!empty($booking->venueBookingEquipment) && count($booking->venueBookingEquipment) > 0) {
         foreach ($booking->venueBookingEquipment as $item) {
             $name = $item->equipmentType?->eq_name ?? $item->equipmentType?->name ?? 'Equipment Item';
             $qty = $item->quantity_requested ?? 1;
-            $equipmentList[] = "{$qty}x {$name}";
+            $builtIns = $item->equipmentType?->built_in_names ?? [];
+            if (empty($builtIns) && !empty($item->equipment_type_id)) {
+                try {
+                    $eqType = \App\Models\EquipmentType::withTrashed()->find($item->equipment_type_id);
+                    $builtIns = $eqType?->built_in_names ?? [];
+                } catch (\Throwable $e) {}
+            }
+            $equipmentList[] = [
+                'name'      => $name,
+                'quantity'  => $qty,
+                'label'     => "{$qty}x {$name}",
+                'built_ins' => $builtIns,
+            ];
         }
     } elseif (!empty($booking->equipment_items) && is_array($booking->equipment_items)) {
         foreach ($booking->equipment_items as $item) {
             $name = $item['name'] ?? $item['equipment_name'] ?? 'Equipment Item';
             $qty = $item['quantity'] ?? $item['quantity_requested'] ?? 1;
-            $equipmentList[] = "{$qty}x {$name}";
+            $builtIns = $item['built_in_names'] ?? [];
+            if (empty($builtIns) && !empty($item['equipment_type_id'])) {
+                try {
+                    $eqType = \App\Models\EquipmentType::withTrashed()->find($item['equipment_type_id']);
+                    $builtIns = $eqType?->built_in_names ?? [];
+                } catch (\Throwable $e) {}
+            }
+            $equipmentList[] = [
+                'name'      => $name,
+                'quantity'  => $qty,
+                'label'     => "{$qty}x {$name}",
+                'built_ins' => $builtIns,
+            ];
         }
     } elseif (!empty($booking->equipment_name)) {
-        $equipmentList[] = $booking->equipment_name;
+        $equipmentList[] = [
+            'name'      => $booking->equipment_name,
+            'quantity'  => 1,
+            'label'     => $booking->equipment_name,
+            'built_ins' => [],
+        ];
     }
 @endphp
 
@@ -260,7 +305,21 @@
         <td class="data-value">
           @if(!empty($equipmentList))
             @foreach($equipmentList as $eqItem)
-              <div>&bull; {{ $eqItem }}</div>
+              @php
+                $itemLabel = is_array($eqItem) ? ($eqItem['label'] ?? ($eqItem['name'] ?? 'Equipment Item')) : $eqItem;
+                $builtIns = is_array($eqItem) ? ($eqItem['built_ins'] ?? []) : [];
+              @endphp
+              <div style="margin-bottom: 6px;">
+                <div>&bull; <strong>{{ $itemLabel }}</strong></div>
+                @if(!empty($builtIns) && count($builtIns) > 0)
+                  <div style="margin-left: 14px; margin-top: 3px; font-size: 12px; color: #475569;">
+                    <span style="font-weight: 700; color: #1e40af;">Built-in:</span>
+                    @foreach($builtIns as $bName)
+                      <span style="display: inline-block; background-color: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; border-radius: 4px; padding: 1px 7px; font-size: 11px; font-weight: 700; margin: 1px 2px;">{{ $bName }}</span>
+                    @endforeach
+                  </div>
+                @endif
+              </div>
             @endforeach
           @else
             {{ $booking->equipment_name ?? 'Equipment requested' }}

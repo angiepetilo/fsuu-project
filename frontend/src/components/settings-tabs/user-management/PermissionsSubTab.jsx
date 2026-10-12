@@ -7,11 +7,11 @@ import {
   expandPermissions,
 } from "./permissionsConfig";
 
-function ModuleCheckbox({ allEnabled, someEnabled, onClick }) {
+function ModuleCheckbox({ someEnabled, onClick }) {
   return (
     <input
       type="checkbox"
-      checked={allEnabled}
+      checked={someEnabled}
       onChange={onClick}
       className="w-4 h-4 accent-blue-600 text-blue-600 rounded cursor-pointer shrink-0 mt-0.5"
       onClick={(e) => e.stopPropagation()}
@@ -258,7 +258,7 @@ export default function PermissionsSubTab({ initialRoleId }) {
                           <div className="flex items-center justify-between">
                             <span
                               className={`text-xs font-semibold ${
-                                allEnabled
+                                someEnabled
                                   ? "text-blue-600 dark:text-blue-400"
                                   : "text-slate-800 dark:text-slate-200"
                               }`}

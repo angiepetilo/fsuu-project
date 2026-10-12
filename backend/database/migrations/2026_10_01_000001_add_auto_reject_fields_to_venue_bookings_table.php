@@ -18,8 +18,8 @@ return new class extends Migration
     {
         if (Schema::hasTable('venue_bookings') && !Schema::hasColumn('venue_bookings', 'is_auto_rejected')) {
             Schema::table('venue_bookings', function (Blueprint $table) {
-                $table->boolean('is_auto_rejected')->default(false)->after('rejection_reason');
-                $table->string('auto_reject_winning_reference')->nullable()->after('is_auto_rejected');
+                $table->boolean('is_auto_rejected')->default(false);
+                $table->string('auto_reject_winning_reference')->nullable();
             });
         }
     }

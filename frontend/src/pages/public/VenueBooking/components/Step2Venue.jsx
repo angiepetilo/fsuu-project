@@ -339,23 +339,30 @@ export default function Step2Venue({
     const defaultTimeRange = `${venueOpenTime} - ${venueCloseTime}`;
 
     if (!selectedVenue) {
-      // Check if this date has a global facility closure or maintenance override
-      const globalOverride = dbOverrides.find(o => {
-        const oVenueId = o.venue_id || o.venue?.id;
+      // Check if this date has any facility closure or maintenance override
+      const dayOverrides = dbOverrides.filter(o => {
         const oDate = o.override_date ? o.override_date.substring(0, 10) : null;
-        return (!oVenueId || oVenueId === 'all') && oDate === dateStr;
+        return oDate === dateStr && (o.status === "maintenance" || o.status === "closed");
       });
 
-      if (globalOverride && (globalOverride.status === "maintenance" || globalOverride.status === "closed")) {
-        const isMaint = globalOverride.status === "maintenance";
+      if (dayOverrides.length > 0) {
+        const hasClosed = dayOverrides.some(o => o.status === "closed");
+        const statusKey = hasClosed ? "closed" : "maintenance";
+        const isMaint = statusKey === "maintenance";
+        const sample = dayOverrides.find(o => o.status === statusKey) || dayOverrides[0];
+        const isAll = dayOverrides.some(o => !o.venue_id || o.venue_id === 'all');
+        const affectedVenues = isAll
+          ? "All Campus Venues"
+          : dayOverrides.map(o => o.venue?.name || (filteredVenues.find(v => String(v.id) === String(o.venue_id))?.name) || "Venue").join(", ");
+
         return {
-          status: isMaint ? "maintenance" : "closed",
-          tooltip: `${monthLabel} ${day}: All Campus Venues are ${isMaint ? 'Under Maintenance' : 'Closed'} (${globalOverride.notes || 'Blocked by Admin'})`,
+          status: statusKey,
+          tooltip: `${monthLabel} ${day}: ${affectedVenues} are ${isMaint ? 'Under Maintenance' : 'Closed'} (${sample.notes || 'Blocked by Admin'})`,
           box: {
             status: isMaint ? "Maintenance" : "Closed",
             badgeClass: isMaint ? "bg-amber-500 text-white" : "bg-rose-600 text-white",
-            time: globalOverride.start_time && globalOverride.end_time ? `${formatTime12(globalOverride.start_time)} - ${formatTime12(globalOverride.end_time)}` : defaultTimeRange,
-            details: globalOverride.notes || (isMaint ? 'Campus Facility Maintenance' : 'All Facilities Closed'),
+            time: sample.start_time && sample.end_time ? `${formatTime12(sample.start_time)} - ${formatTime12(sample.end_time)}` : defaultTimeRange,
+            details: sample.notes || `${affectedVenues} ${isMaint ? 'Under Maintenance' : 'Closed'}`,
           },
           bookings: [],
         };
@@ -622,20 +629,35 @@ export default function Step2Venue({
                 };
 
                 const venueInfo = getVenueData(v);
-                const isMaintenance = venueInfo.status === "Maintenance Block";
+                const activeOverrideForCard = dbOverrides.find(o => {
+                  const oVenueId = o.venue_id || o.venue?.id;
+                  const oDate = o.override_date ? o.override_date.substring(0, 10) : null;
+                  const matchesVenue = !oVenueId || oVenueId === 'all' || String(oVenueId) === String(v.id);
+                  if (!matchesVenue) return false;
+                  if (selectedEndDate && selectedEndDate > selectedDate) {
+                    return oDate >= selectedDate && oDate <= selectedEndDate && (o.status === "maintenance" || o.status === "closed");
+                  }
+                  return oDate === selectedDate && (o.status === "maintenance" || o.status === "closed");
+                });
+
+                const isMaintenance = venueInfo.status === "Maintenance Block" || activeOverrideForCard?.status === "maintenance";
+                const isClosed = venueInfo.status === "Closed" || activeOverrideForCard?.status === "closed";
+                const isCardBlocked = isMaintenance || isClosed;
 
                 return (
                   <div
                     key={v.id}
                     onClick={() => {
-                      if (!isMaintenance) onSelectVenue(v);
+                      if (!isCardBlocked) onSelectVenue(v);
                     }}
                     className={`border rounded-lg p-4 transition-colors flex flex-col justify-between overflow-hidden ${
-                      isMaintenance
-                        ? "border-amber-300 bg-amber-50/20 opacity-90 cursor-not-allowed"
-                        : isSelected
-                          ? "border-blue-600 bg-white dark:bg-slate-800 cursor-pointer"
-                          : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-blue-500 cursor-pointer"
+                      isClosed
+                        ? "border-rose-300 bg-rose-50/20 opacity-90 cursor-not-allowed"
+                        : isMaintenance
+                          ? "border-amber-300 bg-amber-50/20 opacity-90 cursor-not-allowed"
+                          : isSelected
+                            ? "border-blue-600 bg-white dark:bg-slate-800 cursor-pointer"
+                            : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-blue-500 cursor-pointer"
                     }`}
                   >
                     <div>
@@ -663,11 +685,13 @@ export default function Step2Venue({
                             {v.name}
                           </h4>
                           <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
-                            isMaintenance 
+                            isClosed
+                              ? "bg-rose-100 dark:bg-rose-950/40 text-rose-800 dark:text-rose-400"
+                              : isMaintenance 
                               ? "bg-amber-100 dark:bg-amber-950/40 text-amber-800 dark:text-amber-400"
                               : "bg-emerald-100 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-400"
                           }`}>
-                            {isMaintenance ? "Maintenance" : "Available"}
+                            {isClosed ? "Closed" : isMaintenance ? "Maintenance" : "Available"}
                           </span>
                         </div>
                         <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium line-clamp-1">
@@ -681,7 +705,14 @@ export default function Step2Venue({
 
                     {/* Primary Action Button */}
                     <div className="mt-3.5">
-                      {isMaintenance ? (
+                      {isClosed ? (
+                        <button
+                          disabled
+                          className="w-full h-9 rounded-lg border border-rose-300 bg-rose-50 text-rose-800 text-xs font-semibold flex items-center justify-center opacity-90 cursor-not-allowed"
+                        >
+                          Closed
+                        </button>
+                      ) : isMaintenance ? (
                         <button
                           disabled
                           className="w-full h-9 rounded-lg border border-amber-300 bg-amber-50 text-amber-800 text-xs font-semibold flex items-center justify-center opacity-90 cursor-not-allowed"
@@ -776,6 +807,15 @@ export default function Step2Venue({
               />
             </div>
 
+            {isMultiDay && selectedDate && selectedEndDate && selectedEndDate > selectedDate && (
+              <div className="text-[11px] font-bold text-blue-700 dark:text-blue-300 bg-blue-50/70 dark:bg-blue-950/60 border border-blue-200/60 dark:border-blue-800/60 px-2.5 py-1 rounded-lg flex items-center justify-between">
+                <span>Multi-Day Range</span>
+                <span>
+                  {Math.max(1, Math.round((new Date(selectedEndDate) - new Date(selectedDate)) / (1000 * 60 * 60 * 24))) + 1} Days
+                </span>
+              </div>
+            )}
+
             {/* Interactive Calendar Container */}
             <div className="bg-white dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700 space-y-4">
               {/* Header: < Month Year > */}
@@ -832,7 +872,16 @@ export default function Step2Venue({
                   const isBooked = info.status === "booked" || info.status === "fully" || info.status === "partial";
                   const isMaintenance = info.status === "maintenance";
                   const isClosed = info.status === "closed";
-                  const isDisabled = isPast || isPublicBlockedNotice || isMaintenance || isClosed || isBooked;
+                  const areAllVenuesBlocked = !selectedVenue
+                    ? (filteredVenues.length > 0 && filteredVenues.every(v => {
+                        return dbOverrides.some(o => {
+                          const oVenueId = o.venue_id || o.venue?.id;
+                          const oDate = o.override_date ? o.override_date.substring(0, 10) : null;
+                          return oDate === dateStr && (!oVenueId || oVenueId === 'all' || String(oVenueId) === String(v.id)) && (o.status === 'maintenance' || o.status === 'closed');
+                        });
+                      }))
+                    : (isMaintenance || isClosed);
+                  const isDisabled = isPast || isPublicBlockedNotice || isBooked || (selectedVenue ? (isMaintenance || isClosed) : areAllVenuesBlocked);
 
                   return (
                     <div
@@ -854,15 +903,32 @@ export default function Step2Venue({
                             handleDateSelect(dateStr);
                             if (setSelectedEndDate) setSelectedEndDate(dateStr);
                           } else {
-                            if (!selectedDate || (selectedDate && selectedEndDate && selectedEndDate !== selectedDate)) {
+                            if (!selectedDate) {
                               handleDateSelect(dateStr);
                               if (setSelectedEndDate) setSelectedEndDate(dateStr);
-                            } else if (selectedDate && (!selectedEndDate || selectedEndDate === selectedDate)) {
+                            } else if (!selectedEndDate || selectedEndDate === selectedDate) {
                               if (dateStr < selectedDate) {
                                 handleDateSelect(dateStr);
+                                if (setSelectedEndDate) setSelectedEndDate(selectedDate);
+                              } else if (dateStr > selectedDate) {
                                 if (setSelectedEndDate) setSelectedEndDate(dateStr);
                               } else {
+                                if (setSelectedEndDate) setSelectedEndDate(selectedDate);
+                              }
+                            } else {
+                              // Both selectedDate and selectedEndDate are set (> 1 day selected)
+                              if (dateStr > selectedEndDate) {
+                                // Extend to more days! (3, 4, 5+ days)
                                 if (setSelectedEndDate) setSelectedEndDate(dateStr);
+                              } else if (dateStr < selectedDate) {
+                                // Extend start date backwards
+                                handleDateSelect(dateStr);
+                              } else if (dateStr > selectedDate && dateStr <= selectedEndDate) {
+                                // Adjust end date
+                                if (setSelectedEndDate) setSelectedEndDate(dateStr === selectedEndDate ? selectedDate : dateStr);
+                              } else if (dateStr === selectedDate) {
+                                // Collapse to 1 day
+                                if (setSelectedEndDate) setSelectedEndDate(selectedDate);
                               }
                             }
                           }

@@ -194,15 +194,19 @@
     $normStatus = strtolower(str_replace(['_', '-'], ' ', (string)($status ?? '')));
 
     // Terminal outcomes recorded at return inspection share the clearance-receipt layout,
-    // but keep their own label/tone so a damaged/lost/late return is never shown as a clean clearance.
-    $terminalOutcome = match (true) {
-        in_array($normStatus, ['late return', 'late'], true) => 'late',
-        $normStatus === 'damaged'                           => 'damaged',
-        $normStatus === 'lost'                              => 'lost',
-        default                                             => null,
-    };
-    if ($terminalOutcome) {
-        $normStatus = 'completed';
+    // but ONLY when the transaction is actually completed / returned by custodial staff.
+    $isActuallyCompleted = in_array(strtolower((string)($booking->status ?? $booking->trackingNumber?->status ?? '')), ['completed', 'returned', 'done', 'cleared']);
+    $terminalOutcome = null;
+    if ($isActuallyCompleted) {
+        $terminalOutcome = match (true) {
+            in_array($normStatus, ['late return', 'late', 'late_return'], true) => 'late',
+            $normStatus === 'damaged'                                           => 'damaged',
+            $normStatus === 'lost'                                              => 'lost',
+            default                                                             => null,
+        };
+        if ($terminalOutcome) {
+            $normStatus = 'completed';
+        }
     }
     $clearanceLabel = match ($terminalOutcome) {
         'late'    => 'CLEARED — LATE RETURN LOGGED',
@@ -219,28 +223,73 @@
     $statusLabel = ucwords(str_replace(['_', '-'], ' ', (string)($status ?? 'updated')));
     $isVenue = ($type ?? 'venue') === 'venue';
 
-    // Equipment items summary list
+    // Equipment items summary list with built-ins
     $equipmentList = [];
     if (!empty($booking->items) && count($booking->items) > 0) {
         foreach ($booking->items as $item) {
             $name = $item->equipmentType?->eq_name ?? $item->equipmentType?->name ?? $item->equipment_name ?? 'Equipment Item';
             $qty = $item->quantity_requested ?? $item->quantity ?? 1;
-            $equipmentList[] = "{$qty}x {$name}";
+            $builtIns = [];
+            if (!empty($item->built_in_names) && is_array($item->built_in_names)) {
+                $builtIns = $item->built_in_names;
+            } elseif (!empty($item->equipmentType?->built_in_names)) {
+                $builtIns = $item->equipmentType->built_in_names;
+            } elseif (!empty($item->equipment_type_id)) {
+                try {
+                    $eqType = \App\Models\EquipmentType::withTrashed()->find($item->equipment_type_id);
+                    $builtIns = $eqType?->built_in_names ?? [];
+                } catch (\Throwable $e) {}
+            }
+            $equipmentList[] = [
+                'name'      => $name,
+                'quantity'  => $qty,
+                'label'     => "{$qty}x {$name}",
+                'built_ins' => $builtIns,
+            ];
         }
     } elseif (!empty($booking->venueBookingEquipment) && count($booking->venueBookingEquipment) > 0) {
         foreach ($booking->venueBookingEquipment as $item) {
             $name = $item->equipmentType?->eq_name ?? $item->equipmentType?->name ?? 'Equipment Item';
             $qty = $item->quantity_requested ?? 1;
-            $equipmentList[] = "{$qty}x {$name}";
+            $builtIns = $item->equipmentType?->built_in_names ?? [];
+            if (empty($builtIns) && !empty($item->equipment_type_id)) {
+                try {
+                    $eqType = \App\Models\EquipmentType::withTrashed()->find($item->equipment_type_id);
+                    $builtIns = $eqType?->built_in_names ?? [];
+                } catch (\Throwable $e) {}
+            }
+            $equipmentList[] = [
+                'name'      => $name,
+                'quantity'  => $qty,
+                'label'     => "{$qty}x {$name}",
+                'built_ins' => $builtIns,
+            ];
         }
     } elseif (!empty($booking->equipment_items) && is_array($booking->equipment_items)) {
         foreach ($booking->equipment_items as $item) {
             $name = $item['name'] ?? $item['equipment_name'] ?? 'Equipment Item';
             $qty = $item['quantity'] ?? $item['quantity_requested'] ?? 1;
-            $equipmentList[] = "{$qty}x {$name}";
+            $builtIns = $item['built_in_names'] ?? [];
+            if (empty($builtIns) && !empty($item['equipment_type_id'])) {
+                try {
+                    $eqType = \App\Models\EquipmentType::withTrashed()->find($item['equipment_type_id']);
+                    $builtIns = $eqType?->built_in_names ?? [];
+                } catch (\Throwable $e) {}
+            }
+            $equipmentList[] = [
+                'name'      => $name,
+                'quantity'  => $qty,
+                'label'     => "{$qty}x {$name}",
+                'built_ins' => $builtIns,
+            ];
         }
     } elseif (!empty($booking->equipment_name)) {
-        $equipmentList[] = $booking->equipment_name;
+        $equipmentList[] = [
+            'name'      => $booking->equipment_name,
+            'quantity'  => 1,
+            'label'     => $booking->equipment_name,
+            'built_ins' => [],
+        ];
     }
 
     // Resolve individual physical equipment units
@@ -292,11 +341,11 @@
 {{-- =========================================================================
      BANNER SELECTION BASED ON STATUS
    ========================================================================= --}}
-@if(in_array($normStatus, ['overdue', 'passed due', 'return past due notice', 'exceed end time', 'exceeded end time', 'overtime']))
+@if(in_array($normStatus, ['overdue', 'passed due', 'past due', 'past_due', 'return past due notice', 'exceed end time', 'exceeded end time', 'overtime', 'late return', 'late_return', 'late']))
   <div class="top-banner banner-danger">
-    <div class="status-badge">Overdue / Action Required</div>
+    <div class="status-badge">{{ $isVenue ? 'Past Due / Action Required' : 'Late Return / Action Required' }}</div>
     <div class="banner-title">
-      {{ $isVenue ? 'URGENT: Reservation Exceeded Scheduled End Time' : 'OVERDUE NOTICE: Equipment Return Required Immediately' }}
+      {{ $isVenue ? 'PAST DUE NOTICE: Venue Reservation Exceeded Scheduled End Time' : 'NOTICE OF LATE RETURN: Equipment Return Required Immediately' }}
     </div>
     <div class="sub-title">Father Saturnino Urios University &bull; Audio-Visual Resource Center</div>
   </div>
@@ -305,7 +354,7 @@
   <div class="top-banner banner-danger">
     <div class="status-badge">Notice of Status</div>
     <div class="banner-title">
-      {{ in_array($normStatus, ['rejected']) ? 'Reservation Request Not Approved' : 'Reservation Automatically Cancelled' }}
+      {{ in_array($normStatus, ['rejected']) ? 'Reservation Request Not Approved' : ($isVenue ? 'Venue Reservation Cancelled' : 'Equipment Borrowing Cancelled') }}
     </div>
     <div class="sub-title">Father Saturnino Urios University &bull; Audio-Visual Resource Center</div>
   </div>
@@ -366,26 +415,33 @@
 {{-- =========================================================================
      1. OVERDUE / PAST DUE / OVERTIME
    ========================================================================= --}}
-@if(in_array($normStatus, ['overdue', 'passed due', 'return past due notice']))
+@if(in_array($normStatus, ['overdue', 'passed due', 'past due', 'past_due', 'return past due notice', 'exceed end time', 'exceeded end time', 'overtime', 'late return', 'late_return', 'late']))
   <p style="margin-top: 0;">Hi <strong>{{ $requestorName }}</strong>,</p>
 
   @if(!$isVenue)
-    <p>The scheduled return time for the equipment units issued under Reference <strong>{{ $ref }}</strong> has passed. These items are officially marked as <strong>PAST DUE</strong>.</p>
+    <p>The scheduled return time for the equipment units issued under Reference <strong>{{ $ref }}</strong> has passed. This borrowing transaction is officially marked as <strong>LATE RETURN</strong>.</p>
     
     <div class="ref-card ref-card-danger">
-      <div class="ref-label">Overdue Reference</div>
+      <div class="ref-label">Late Return Notice</div>
       <div class="ref-value" style="color: #991b1b;">{{ $ref }}</div>
       <div style="font-size: 13px; font-weight: 700; color: #7f1d1d; margin-top: 4px;">
         Scheduled Return Deadline: {{ $sched }}
       </div>
     </div>
 
+    @if(!empty($remarks))
+      <div class="callout callout-danger" style="margin: 14px 0;">
+        <strong style="display:block; margin-bottom: 2px;">⚠️ Custodial Notice:</strong>
+        <div>{{ $remarks }}</div>
+      </div>
+    @endif
+
     @if($resolvedUnits->isNotEmpty())
       <div style="margin: 16px 0;">
         <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #475569; letter-spacing: 0.5px; margin-bottom: 6px;">
           Unreturned Physical Equipment Units:
         </div>
-        @include('emails.partials.equipment_unit_table', ['units' => $resolvedUnits, 'mode' => 'release'])
+        @include('emails.partials.equipment_unit_table', ['units' => $resolvedUnits, 'mode' => 'release', 'equipmentList' => $equipmentList ?? [], 'booking' => $booking ?? null])
       </div>
     @endif
 
@@ -394,28 +450,35 @@
       <div class="callout callout-danger">
         <strong style="display:block; margin-bottom: 4px;">⚠️ Immediate Action Required (External Client Accountability):</strong>
         <div>1. Return all equipment units and bundled accessories to the AVR Custodial Counter immediately (Main Building 2nd Floor).</div>
-        <div style="margin-top: 4px;">2. <strong>Financial Liability:</strong> As an external client, past-due borrowings incur hourly rental penalties per the university Fee Matrix and may result in the forfeiture of your security deposit.</div>
+        <div style="margin-top: 4px;">2. <strong>Financial Liability:</strong> As an external client, late equipment returns incur hourly rental penalties per the university Fee Matrix and may result in the forfeiture of your security deposit.</div>
         <div style="margin-top: 4px;">3. Unreturned university property is escalated to the University Legal and Accounting Offices for property recovery.</div>
       </div>
     @else
       <!-- Internal Member Overdue Advisory -->
       <div class="callout callout-danger">
         <strong style="display:block; margin-bottom: 4px;">⚠️ Immediate Action Required:</strong>
-        <div>Please return all borrowed units to the AVR Custodial Counter immediately. Unreturned gear disrupts other scheduled academic classes. Failure to return items before the daily counter cutoff freezes student/faculty borrowing privileges and initiates an administrative clearance hold.</div>
+        <div>Please return all borrowed units to the AVR Custodial Counter immediately. Unreturned gear disrupts other scheduled academic classes. Failure to return items promptly freezes student/faculty borrowing privileges and initiates an administrative clearance hold.</div>
       </div>
     @endif
 
   @else
     {{-- Venue Past Due / Overtime --}}
-    <p>Your scheduled timeslot for <strong>{{ $venueName }}</strong> (Reference: <strong>{{ $ref }}</strong>) has exceeded its scheduled end time.</p>
+    <p>Your scheduled timeslot for <strong>{{ $venueName }}</strong> (Reference: <strong>{{ $ref }}</strong>) has exceeded its scheduled end time and is officially marked as <strong>PAST DUE</strong>.</p>
     
     <div class="ref-card ref-card-danger">
-      <div class="ref-label">Exceeded Venue Timeslot</div>
+      <div class="ref-label">Past Due Venue Reservation</div>
       <div class="ref-value" style="color: #991b1b;">{{ $ref }}</div>
       <div style="font-size: 13px; font-weight: 700; color: #7f1d1d; margin-top: 4px;">
         Scheduled Session: {{ $sched }}
       </div>
     </div>
+
+    @if(!empty($remarks))
+      <div class="callout callout-danger" style="margin: 14px 0;">
+        <strong style="display:block; margin-bottom: 2px;">⚠️ AVR Operations Notice:</strong>
+        <div>{{ $remarks }}</div>
+      </div>
+    @endif
 
     @if($isExternal)
       <div class="callout callout-danger">
@@ -460,7 +523,7 @@
       <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #475569; letter-spacing: 0.5px; margin-bottom: 6px;">
         Scanned Units Handed Over:
       </div>
-      @include('emails.partials.equipment_unit_table', ['units' => $resolvedUnits, 'mode' => 'release'])
+      @include('emails.partials.equipment_unit_table', ['units' => $resolvedUnits, 'mode' => 'release', 'equipmentList' => $equipmentList ?? [], 'booking' => $booking ?? null])
     </div>
 
     @if($isExternal)
@@ -539,7 +602,7 @@
       <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #475569; letter-spacing: 0.5px; margin-bottom: 6px;">
         Returned Unit Inspection Record:
       </div>
-      @include('emails.partials.equipment_unit_table', ['units' => $resolvedUnits, 'mode' => 'receipt'])
+      @include('emails.partials.equipment_unit_table', ['units' => $resolvedUnits, 'mode' => 'receipt', 'equipmentList' => $equipmentList ?? [], 'booking' => $booking ?? null])
     </div>
 
     @if(!empty($remarks))
@@ -620,7 +683,21 @@
       <div style="margin: 14px 0; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px 16px;">
         <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #475569; letter-spacing: 0.5px; margin-bottom: 6px;">Approved Items:</div>
         @foreach($equipmentList as $eqItem)
-          <div style="font-size: 13px; color: #0f172a;">&bull; {{ $eqItem }}</div>
+          @php
+            $itemLabel = is_array($eqItem) ? ($eqItem['label'] ?? ($eqItem['name'] ?? 'Equipment Item')) : $eqItem;
+            $builtIns = is_array($eqItem) ? ($eqItem['built_ins'] ?? []) : [];
+          @endphp
+          <div style="font-size: 13px; color: #0f172a; margin-bottom: 4px;">
+            <div>&bull; <strong>{{ $itemLabel }}</strong></div>
+            @if(!empty($builtIns) && count($builtIns) > 0)
+              <div style="margin-left: 14px; margin-top: 2px; font-size: 11.5px; color: #475569;">
+                <span style="font-weight: 700; color: #2563eb;">Built-in:</span>
+                @foreach($builtIns as $bName)
+                  <span style="display: inline-block; background-color: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; border-radius: 4px; padding: 1px 6px; font-size: 10.5px; font-weight: 700; margin: 1px 2px;">{{ $bName }}</span>
+                @endforeach
+              </div>
+            @endif
+          </div>
         @endforeach
       </div>
     @endif
@@ -681,7 +758,7 @@
       @if(!empty($equipmentList))
       <tr>
         <td class="data-label">Bundled AV Gear:</td>
-        <td class="data-value">{{ implode(', ', $equipmentList) }}</td>
+        <td class="data-value">{{ implode(', ', array_map(fn($e) => is_array($e) ? ($e['label'] ?? '') : (string)$e, $equipmentList)) }}</td>
       </tr>
       @endif
     </table>
@@ -785,15 +862,70 @@
 
   @else
     {{-- Auto-cancelled / Cancelled --}}
-    <p>Your reservation for {{ $isVenue ? $venueName : 'equipment borrowing' }} [<strong>{{ $ref }}</strong>] scheduled for {{ $sched }} has been cancelled.</p>
+    <p>Your request for <strong>{{ $isVenue ? $venueName : 'Equipment Borrowing' }}</strong> under Reference <strong>{{ $ref }}</strong> has been cancelled.</p>
 
-    <div class="callout callout-danger">
-      <strong style="display:block; margin-bottom: 2px;">Cancellation Notice:</strong>
-      <div>{{ $remarks ?? 'The scheduled start time and auto-cancel threshold elapsed without check-in or equipment collection.' }}</div>
+    <div class="ref-card ref-card-danger">
+      <div class="ref-label">Cancelled Reference</div>
+      <div class="ref-value" style="color: #991b1b;">{{ $ref }}</div>
+      <div style="font-size: 13px; font-weight: 700; color: #7f1d1d; margin-top: 4px;">
+        Scheduled Time: {{ $sched }}
+      </div>
     </div>
 
+    <div class="callout callout-danger">
+      <strong style="display:block; margin-bottom: 2px;">Reason / Cancellation Notice:</strong>
+      <div>{{ $remarks ?? ($normStatus === 'cancelled' ? 'Cancelled per applicant request.' : 'The scheduled start time and auto-cancel threshold elapsed without check-in or equipment collection.') }}</div>
+    </div>
+
+    <table class="data-table">
+      <tr>
+        <td class="data-label">Accountable {{ $isVenue ? 'Organizer' : 'Borrower' }}:</td>
+        <td class="data-value"><strong>{{ $requestorName }}</strong></td>
+      </tr>
+      <tr>
+        <td class="data-label">{{ $isExternal ? 'Office / Organization:' : 'Department / College:' }}</td>
+        <td class="data-value">{{ $organization }}</td>
+      </tr>
+      <tr>
+        <td class="data-label">Intended Purpose:</td>
+        <td class="data-value">{{ $purpose }}</td>
+      </tr>
+      @if(!$isVenue)
+      <tr>
+        <td class="data-label">Requested Items:</td>
+        <td class="data-value">
+          @if(!empty($equipmentList))
+            @foreach($equipmentList as $eqItem)
+              @php
+                $itemLabel = is_array($eqItem) ? ($eqItem['label'] ?? ($eqItem['name'] ?? 'Equipment Item')) : $eqItem;
+                $builtIns = is_array($eqItem) ? ($eqItem['built_ins'] ?? []) : [];
+              @endphp
+              <div style="margin-bottom: 6px;">
+                <div>&bull; <strong>{{ $itemLabel }}</strong></div>
+                @if(!empty($builtIns) && count($builtIns) > 0)
+                  <div style="margin-left: 14px; margin-top: 3px; font-size: 12px; color: #475569;">
+                    <span style="font-weight: 700; color: #1e40af;">Built-in:</span>
+                    @foreach($builtIns as $bName)
+                      <span style="display: inline-block; background-color: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; border-radius: 4px; padding: 1px 7px; font-size: 11px; font-weight: 700; margin: 1px 2px;">{{ $bName }}</span>
+                    @endforeach
+                  </div>
+                @endif
+              </div>
+            @endforeach
+          @else
+            {{ $booking->equipment_name ?? 'Equipment requested' }}
+          @endif
+        </td>
+      </tr>
+      @endif
+      <tr>
+        <td class="data-label">Current Status:</td>
+        <td class="data-value"><strong style="color: #b91c1c;">CANCELLED</strong></td>
+      </tr>
+    </table>
+
     <p style="font-size: 13px; color: #475569;">
-      The reserved timeslot or equipment items have been released back to the general university calendar.
+      The reserved timeslot and equipment units have been released back to university inventory. If you wish to submit a new request, you may do so through the online portal.
     </p>
   @endif
 

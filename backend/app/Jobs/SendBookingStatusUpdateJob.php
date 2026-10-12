@@ -48,6 +48,13 @@ class SendBookingStatusUpdateJob implements ShouldQueue
             return;
         }
 
+        // Load relationships needed by the blade template
+        if ($this->type === 'venue') {
+            $this->booking->loadMissing(['venue', 'trackingNumber', 'documents', 'venueBookingEquipment.equipmentType']);
+        } else {
+            $this->booking->loadMissing(['items.equipmentType', 'trackingNumber']);
+        }
+
         // Dynamically apply database-configured SMTP settings
         \App\Models\SystemSetting::configureMailer();
 

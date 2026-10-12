@@ -1382,7 +1382,14 @@ export default function VenueBookingDetailModal({
       `[${selectedViolationType}] Post-event inspection breach.`
     ];
     
-    let venuePart = inspectionStatus === "violation" ? `Policy Violation: ${selectedViolationType}` : "Satisfactory";
+    const cleanedViolation = (selectedViolationType || "")
+      .replace(/Late Return\s*\/\s*Extension/gi, "Late Return, Extension")
+      .replace(/Physical Facility\s*\/\s*Equipment Damage/gi, "Physical Facility, Equipment Damage")
+      .replace(/Physical Facility\s*\/\s*Furniture Damage/gi, "Property Damaged")
+      .replace(/\s*\/\s*/g, ", ")
+      .trim();
+
+    let venuePart = inspectionStatus === "violation" ? `Policy Violation: ${cleanedViolation}` : "Satisfactory";
     let eqPart = "";
     if (Object.keys(unitReturnedConditions || {}).length > 0) {
       let eqCounts = { Good: 0, Damaged: 0, Lost: 0 };
@@ -1417,7 +1424,7 @@ export default function VenueBookingDetailModal({
         inspectable_id: selected.id,
         inspection_type: "post_event",
         condition: finalOutcomeCondition,
-        violation_type: inspectionStatus === "violation" ? selectedViolationType : null,
+        violation_type: inspectionStatus === "violation" ? cleanedViolation : null,
         notes: smartNote,
         equipment_notes: equipmentInspectionNotes,
         evidence_photos: evidencePhoto,
@@ -1433,7 +1440,7 @@ export default function VenueBookingDetailModal({
       inspection_status: inspectionStatus,
       condition: finalOutcomeCondition,
       has_damage: (hasDamagedOrLost || isVenueDamaged) ? 1 : 0,
-      violation_type: inspectionStatus === "violation" ? selectedViolationType : null,
+      violation_type: inspectionStatus === "violation" ? cleanedViolation : null,
       evidence_photos: evidencePhoto,
       evidence_photo: evidencePhoto,
       notes: smartNote,

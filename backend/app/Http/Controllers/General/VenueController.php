@@ -14,6 +14,16 @@ class VenueController extends Controller
     {
         try {
             if (\Illuminate\Support\Facades\Schema::hasTable('venues')) {
+                if (!\Illuminate\Support\Facades\Schema::hasColumn('venues', 'min_capacity')) {
+                    \Illuminate\Support\Facades\Schema::table('venues', function ($table) {
+                        $table->integer('min_capacity')->default(1)->nullable();
+                    });
+                }
+                if (!\Illuminate\Support\Facades\Schema::hasColumn('venues', 'max_capacity')) {
+                    \Illuminate\Support\Facades\Schema::table('venues', function ($table) {
+                        $table->integer('max_capacity')->default(100)->nullable();
+                    });
+                }
                 if (!\Illuminate\Support\Facades\Schema::hasColumn('venues', 'allowed_equipment')) {
                     \Illuminate\Support\Facades\Schema::table('venues', function ($table) {
                         $table->longText('allowed_equipment')->nullable();
@@ -117,7 +127,7 @@ class VenueController extends Controller
             );
         } catch (\Throwable $t) {}
 
-        return response()->json($venue, 201);
+        return response()->json($venue->fresh(), 201);
     }
 
     public function update(Request $request, int $id): JsonResponse
@@ -193,7 +203,7 @@ class VenueController extends Controller
             );
         } catch (\Throwable $t) {}
 
-        return response()->json($venue);
+        return response()->json($venue->fresh());
     }
 
     public function destroy(Request $request, int $id): JsonResponse
