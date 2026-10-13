@@ -18,6 +18,18 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 
+const getUnitSeqNumber = (item) => {
+  if (item?.seq_no !== null && item?.seq_no !== undefined && String(item.seq_no).trim() !== "") {
+    const match = String(item.seq_no).trim().match(/\d+/);
+    if (match) return parseInt(match[0], 10);
+  }
+  // Fallback for legacy units where seq_no was embedded in name or model (e.g. "#1", "PHILIPS #001")
+  const fallbackStr = `${item?.name || ""} ${item?.model || ""}`;
+  const match = fallbackStr.match(/#(\d+)/);
+  if (match) return parseInt(match[1], 10);
+  return null;
+};
+
 export default function ManageEquipments() {
   const { hasPermission } = usePermissions();
   const context = useOutletContext();
@@ -27,7 +39,7 @@ export default function ManageEquipments() {
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const [sortOrder, setSortOrder] = useState("oldest"); // "oldest" | "newest"
+  const [sortOrder, setSortOrder] = useState("seq_asc"); // "seq_asc" | "seq_desc" | "oldest" | "newest"
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [selectedItem, setSelectedItem] = useState(null);
@@ -688,6 +700,36 @@ export default function ManageEquipments() {
     });
 
     return list.sort((a, b) => {
+      if (sortOrder === "seq_asc" || sortOrder === "seq_desc") {
+        // 1. Group by Category first (alphabetically)
+        const catA = (a.category || "").toLowerCase();
+        const catB = (b.category || "").toLowerCase();
+        if (catA !== catB) {
+          return catA.localeCompare(catB);
+        }
+
+        // 2. Sort by Sequence Number starting from 001 within this category
+        const numA = getUnitSeqNumber(a);
+        const numB = getUnitSeqNumber(b);
+
+        if (numA !== null && numB !== null) {
+          if (numA !== numB) {
+            return sortOrder === "seq_desc" ? numB - numA : numA - numB;
+          }
+        } else if (numA !== null) {
+          return -1; // Numbered units come first (starting from 001)
+        } else if (numB !== null) {
+          return 1;
+        }
+
+        // 3. Tie-breaker for identical or missing seq_no: creation time then id
+        const timeA = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const timeB = b.created_at ? new Date(b.created_at).getTime() : 0;
+        if (timeA && timeB && timeA !== timeB) return timeA - timeB;
+        return (a.id || 0) - (b.id || 0);
+      }
+
+      // Traditional date sorting (Oldest to Newest / Newest to Oldest)
       const timeA = a.created_at ? new Date(a.created_at).getTime() : 0;
       const timeB = b.created_at ? new Date(b.created_at).getTime() : 0;
 
@@ -867,8 +909,10 @@ export default function ManageEquipments() {
               onChange={(e) => setSortOrder(e.target.value)}
               className="bg-transparent font-bold text-slate-900 dark:text-white focus:outline-none cursor-pointer text-xs pr-1"
             >
-              <option value="oldest" className="dark:bg-slate-900">Oldest to Newest</option>
-              <option value="newest" className="dark:bg-slate-900">Newest to Oldest</option>
+              <option value="seq_asc" className="dark:bg-slate-900">Sequence (Ascending)</option>
+              <option value="seq_desc" className="dark:bg-slate-900">Sequence (Descending)</option>
+              <option value="oldest" className="dark:bg-slate-900">Date (Oldest First)</option>
+              <option value="newest" className="dark:bg-slate-900">Date (Newest First)</option>
             </select>
           </div>
 
@@ -930,11 +974,17 @@ export default function ManageEquipments() {
                         {item.serial_number || item.barcode}
                       </td>
                       <td className="px-4 py-3.5 whitespace-nowrap text-xs font-semibold text-slate-800 dark:text-slate-200">
-                        {item.seq_no ? (
-                          item.seq_no
-                        ) : (
-                          <span className="text-slate-300 dark:text-slate-600 font-bold">—</span>
-                        )}
+                        {(() => {
+                          if (item.seq_no && String(item.seq_no).trim() !== "") {
+                            const trimmed = String(item.seq_no).trim();
+                            return trimmed.startsWith("#") ? trimmed : `#${trimmed}`;
+                          }
+                          const num = getUnitSeqNumber(item);
+                          if (num !== null) {
+                            return `#${String(num).padStart(3, "0")}`;
+                          }
+                          return <span className="text-slate-300 dark:text-slate-600 font-bold">—</span>;
+                        })()}
                       </td>
                       <td className="px-4 py-3.5 max-w-[280px]">
                         <span className="font-extrabold text-slate-900 dark:text-white truncate block text-xs" title={item.name}>

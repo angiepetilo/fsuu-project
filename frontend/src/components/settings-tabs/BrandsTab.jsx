@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { 
   Tag, Plus, Search, Edit2, Ban, CheckCircle2,
-  AlertCircle, X, Loader2
+  AlertCircle, X, Loader2, ChevronLeft, ChevronRight
 } from "lucide-react";
 import api, { clearApiCache } from "@/lib/axios";
 import { invalidateCache } from "@/lib/apiCache";
@@ -21,6 +21,8 @@ export default function BrandsTab({ isActive = true }) {
   const [loadingCategories, setLoadingCategories] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
 
   // Modal states
   const [showAddModal, setShowAddModal] = useState(false);
@@ -162,6 +164,7 @@ export default function BrandsTab({ isActive = true }) {
 
   const handleSearch = (e) => {
     e.preventDefault();
+    setCurrentPage(1);
     fetchBrands();
   };
 
@@ -299,6 +302,11 @@ export default function BrandsTab({ isActive = true }) {
     }
   };
 
+  const totalPages = Math.max(1, Math.ceil(brands.length / ITEMS_PER_PAGE));
+  const validCurrentPage = Math.min(Math.max(1, currentPage), totalPages);
+  const startIndex = (validCurrentPage - 1) * ITEMS_PER_PAGE;
+  const paginatedBrands = brands.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
   return (
     <div className="space-y-5 font-sans">
       {/* Action and Search Bar */}
@@ -310,7 +318,10 @@ export default function BrandsTab({ isActive = true }) {
               type="text"
               placeholder="Search brand name, description..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1);
+              }}
               className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:border-blue-600"
             />
           </div>
@@ -329,7 +340,10 @@ export default function BrandsTab({ isActive = true }) {
             <select
               value={categoryFilter}
               onFocus={() => refreshCategories(true)}
-              onChange={(e) => setCategoryFilter(e.target.value)}
+              onChange={(e) => {
+                setCategoryFilter(e.target.value);
+                setCurrentPage(1);
+              }}
               className="bg-transparent text-xs font-semibold text-slate-800 dark:text-slate-100 focus:outline-none cursor-pointer"
             >
               <option value="all" className="bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100">All</option>
@@ -382,7 +396,7 @@ export default function BrandsTab({ isActive = true }) {
                   </td>
                 </tr>
               ) : (
-                brands.map((brand) => {
+                paginatedBrands.map((brand) => {
                   const resolvedCatName = brand.equipment_category_name || categories.find(c => String(c.id) === String(brand.equipment_type_id))?.eq_name || categories.find(c => String(c.id) === String(brand.equipment_type_id))?.name;
                   return (
                     <tr key={brand.id} className="hover:bg-slate-50/70 transition-colors">
@@ -440,6 +454,40 @@ export default function BrandsTab({ isActive = true }) {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination Footer */}
+        {brands.length > 0 && (
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-6 py-4 bg-slate-50/80 dark:bg-slate-800/60 border-t border-slate-100 dark:border-slate-800 text-xs font-semibold text-slate-600 dark:text-slate-400">
+            <div>
+              Showing <span className="font-extrabold text-slate-900 dark:text-white">{startIndex + 1}</span> to{" "}
+              <span className="font-extrabold text-slate-900 dark:text-white">{Math.min(startIndex + ITEMS_PER_PAGE, brands.length)}</span> of{" "}
+              <span className="font-extrabold text-slate-900 dark:text-white">{brands.length}</span> brands
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-slate-500 dark:text-slate-400 font-bold mr-2">
+                Page {validCurrentPage} of {totalPages}
+              </span>
+              <button
+                type="button"
+                disabled={validCurrentPage === 1}
+                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                className="flex items-center gap-1 px-3.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all shadow-xs font-bold text-xs"
+              >
+                <ChevronLeft size={14} /> Previous
+              </button>
+
+              <button
+                type="button"
+                disabled={validCurrentPage >= totalPages}
+                onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                className="flex items-center gap-1 px-3.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all shadow-xs font-bold text-xs"
+              >
+                Next <ChevronRight size={14} />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Add Brand Modal */}

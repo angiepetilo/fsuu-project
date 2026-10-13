@@ -187,7 +187,7 @@ export default function SysadLayout() {
       if (Array.isArray(saved) && saved.length > 0) {
         setReadNotifIds(prev => new Set([...prev, ...saved]));
       }
-    } catch {}
+    } catch { }
   }, [user?.id]);
 
   const fetchNotifs = useCallback(() => {
@@ -202,7 +202,7 @@ export default function SysadLayout() {
             try {
               localStorage.setItem(userStorageKey, JSON.stringify(Array.from(merged)));
               localStorage.setItem("fsuu_read_sysad_notification_ids", JSON.stringify(Array.from(merged)));
-            } catch {}
+            } catch { }
             return merged;
           });
         }
@@ -269,7 +269,7 @@ export default function SysadLayout() {
             `${title} • ${payload.ref || ''}`,
             `${payload.filer || 'Applicant'} - ${payload.place || 'Campus'}`
           );
-        } catch {}
+        } catch { }
         fetchNotifs();
         window.dispatchEvent(new Event("equipment_inventory_updated"));
         window.dispatchEvent(new Event("venue_bookings_updated"));
@@ -328,13 +328,13 @@ export default function SysadLayout() {
       try {
         localStorage.setItem(userStorageKey, JSON.stringify(Array.from(next)));
         localStorage.setItem("fsuu_read_sysad_notification_ids", JSON.stringify(Array.from(next)));
-      } catch {}
+      } catch { }
       return next;
     });
     setSysadNotifications(prev => prev.map(n => n.id === notifId ? { ...n, is_read: true } : n));
     try {
       await api.post("/sysad/notifications/mark-as-read", { notification_id: notifId });
-    } catch {}
+    } catch { }
   }, [userStorageKey]);
 
   const markAllAsRead = useCallback(async () => {
@@ -344,10 +344,10 @@ export default function SysadLayout() {
     try {
       localStorage.setItem(userStorageKey, JSON.stringify(Array.from(allIds)));
       localStorage.setItem("fsuu_read_sysad_notification_ids", JSON.stringify(Array.from(allIds)));
-    } catch {}
+    } catch { }
     try {
       await api.post("/sysad/notifications/mark-all-read", { notification_ids: Array.from(allIds) });
-    } catch {}
+    } catch { }
   }, [sysadNotifications, userStorageKey]);
 
   const filteredNotifications = useMemo(() => sysadNotifications, [sysadNotifications]);
@@ -586,9 +586,9 @@ export default function SysadLayout() {
 
         {/* Page Main Canvas */}
         <main className="flex-1 p-3 sm:p-5 lg:p-8 overflow-y-auto overflow-x-hidden">
-          <Outlet context={{ 
-            isSuperAdmin: true, 
-            adminOffice: "Main Campus" 
+          <Outlet context={{
+            isSuperAdmin: true,
+            adminOffice: "Main Campus"
           }} />
         </main>
 
