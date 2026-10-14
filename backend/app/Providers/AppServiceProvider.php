@@ -30,8 +30,23 @@ class AppServiceProvider extends ServiceProvider
         }
         // ─── Custom Mail Drivers ─────────────────────────────────────────────
         \Illuminate\Support\Facades\Mail::extend('brevo', function (array $config = []) {
-            $key = $config['key'] ?? config('services.brevo.key') ?? env('BREVO_API_KEY') ?? env('BREVO_KEY');
-            return new \Symfony\Component\Mailer\Bridge\Brevo\Transport\BrevoApiTransport((string) $key);
+            $key = $config['key'] 
+                ?? config('services.brevo.key') 
+                ?? env('BREVO_API_KEY') 
+                ?? env('BREVO_KEY')
+                ?? env('MAIL_PASSWORD');
+
+            if (empty($key)) {
+                try {
+                    $dbSettings = \App\Models\SystemSetting::first();
+                    if (!empty($dbSettings?->smtp_password)) {
+                        $key = $dbSettings->smtp_password;
+                    }
+                } catch (\Throwable $e) {}
+            }
+
+            $cleanKey = trim((string) $key, " \t\n\r\0\x0B\"'");
+            return new \Symfony\Component\Mailer\Bridge\Brevo\Transport\BrevoApiTransport($cleanKey);
         });
 
         Gate::policy(VenueBooking::class, VenueBookingPolicy::class);

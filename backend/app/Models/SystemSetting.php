@@ -196,11 +196,33 @@ class SystemSetting extends Model
                     if (!empty($settings->mail_from_name)) {
                         Config::set('mail.from.name', $settings->mail_from_name);
                     }
+                    if ($configuredMailer === 'brevo') {
+                        $key = env('BREVO_API_KEY', env('BREVO_KEY'));
+                        if (empty($key) && !empty($settings->smtp_password)) {
+                            $key = $settings->smtp_password;
+                        }
+                        if (!empty($key)) {
+                            Config::set('mail.mailers.brevo.key', trim((string) $key, " \t\n\r\0\x0B\"'"));
+                        }
+                    }
                 }
                 return;
             }
 
             $settings = self::first();
+
+            // Auto-detect Brevo API Key if typed into the password field
+            if (!empty($settings?->smtp_password) && str_starts_with(trim($settings->smtp_password), 'xkeysib-')) {
+                Config::set('mail.default', 'brevo');
+                Config::set('mail.mailers.brevo.key', trim((string) $settings->smtp_password, " \t\n\r\0\x0B\"'"));
+                if (!empty($settings->mail_from_address)) {
+                    Config::set('mail.from.address', $settings->mail_from_address);
+                }
+                if (!empty($settings->mail_from_name)) {
+                    Config::set('mail.from.name', $settings->mail_from_name);
+                }
+                return;
+            }
             $envHost = env('MAIL_HOST');
             $envUser = env('MAIL_USERNAME');
             $envPass = env('MAIL_PASSWORD');
