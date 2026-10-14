@@ -49,12 +49,17 @@ return Application::configure(basePath: dirname(__DIR__))
                     ], $e->getStatusCode(), $corsHeaders);
                 }
 
-                return response()->json([
-                    'message' => $e->getMessage(),
-                    'error'   => $e->getMessage(),
-                    'file'    => $e->getFile(),
-                    'line'    => $e->getLine(),
-                ], 500, $corsHeaders);
+                $isDebug = config('app.debug', false);
+                $errorResponse = [
+                    'message' => $isDebug ? $e->getMessage() : 'An unexpected server error occurred. Please try again or contact system support.',
+                ];
+                if ($isDebug) {
+                    $errorResponse['error'] = $e->getMessage();
+                    $errorResponse['file']  = $e->getFile();
+                    $errorResponse['line']  = $e->getLine();
+                }
+
+                return response()->json($errorResponse, 500, $corsHeaders);
             }
         });
     })->create();

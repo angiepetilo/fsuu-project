@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Pencil, Ban, Power, CheckCircle2, X, Package, Loader2, Image as ImageIcon, ChevronLeft, ChevronRight, Camera, MoreVertical, Send, HelpCircle, AlertCircle } from "lucide-react";
+import { Plus, Pencil, Ban, Power, CheckCircle2, X, Package, Loader2, Image as ImageIcon, ChevronLeft, ChevronRight, Camera, MoreVertical, Send, HelpCircle, AlertCircle, Eye, EyeOff } from "lucide-react";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 import api, { clearApiCache } from "@/lib/axios";
@@ -18,6 +18,7 @@ export default function EquipmentCategoriesTab({ showMsg }) {
 
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [togglingPublicId, setTogglingPublicId] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [showDiscardModal, setShowDiscardModal] = useState(false);
   const [isFormDirty, setIsFormDirty] = useState(false);
@@ -69,6 +70,7 @@ export default function EquipmentCategoriesTab({ showMsg }) {
     total_quantity: 0,
     available_count: 0,
     status: "available",
+    is_public: true,
     description: "",
     built_in_units: [],
   });
@@ -119,6 +121,7 @@ export default function EquipmentCategoriesTab({ showMsg }) {
       total_quantity: 0,
       available_count: 0,
       status: "available",
+      is_public: true,
       description: "",
       built_in_units: [],
     });
@@ -138,6 +141,7 @@ export default function EquipmentCategoriesTab({ showMsg }) {
       total_quantity: cat.total_quantity || 0,
       available_count: cat.available_count || 0,
       status: cat.status || "available",
+      is_public: cat.is_public !== undefined ? Boolean(cat.is_public) : true,
       description: cat.description || "",
       built_in_units: Array.isArray(cat.built_in_units) ? cat.built_in_units.map(String) : [],
     });
@@ -162,6 +166,7 @@ export default function EquipmentCategoriesTab({ showMsg }) {
       avatar: photoData,
       description: form.description,
       status: form.status || "available",
+      is_public: form.is_public !== undefined ? Boolean(form.is_public) : true,
       built_in_units: form.built_in_units || [],
     };
 
@@ -245,6 +250,42 @@ export default function EquipmentCategoriesTab({ showMsg }) {
     }
   };
 
+  const togglePublicVisibility = async (cat) => {
+    if (!canEdit) return;
+    const catId = cat.id;
+    const currentVal = cat.is_public !== undefined ? Boolean(cat.is_public) : true;
+    const nextVal = !currentVal;
+    const catName = cat.eq_name || cat.name;
+
+    const prevCats = categories;
+    const updated = prevCats.map(c => c.id === catId ? { ...c, is_public: nextVal } : c);
+    setCategories(updated);
+    setTogglingPublicId(catId);
+
+    try {
+      await api.put(`/general/equipment-types/${catId}`, { is_public: nextVal });
+      try {
+        localStorage.setItem("fsuu_equipment_types", JSON.stringify(updated));
+        localStorage.setItem("fsuu_equipment_updated_ping", Date.now().toString());
+        localStorage.setItem("fsuu_category_updated_ping", Date.now().toString());
+      } catch {}
+      invalidateCache("equipment_types_list");
+      clearApiCache();
+      window.dispatchEvent(new Event("equipment_updated"));
+      window.dispatchEvent(new Event("equipment_inventory_updated"));
+      window.dispatchEvent(new Event("equipment_categories_updated"));
+      notify.success(
+        nextVal ? "Category Visible in Public" : "Category Hidden from Public",
+        `"${catName}" will ${nextVal ? 'now appear' : 'no longer appear'} on the public equipment borrowing catalog.`
+      );
+    } catch (err) {
+      setCategories(prevCats);
+      notify.error("Update Failed", err.response?.data?.message || "Could not update public view visibility.");
+    } finally {
+      setTogglingPublicId(null);
+    }
+  };
+
   const handleCategoryRequestSubmit = async (e) => {
     e.preventDefault();
     if (!requestForm.proposed_name.trim()) return;
@@ -296,13 +337,14 @@ export default function EquipmentCategoriesTab({ showMsg }) {
         )}
       </div>
 
-      {/* Table: [Photo, Category, Status, Action] */}
+      {/* Table: [Photo, Category, Public View, Status, Action] */}
       <div className="bg-white dark:bg-[#111827] rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs overflow-x-auto w-full">
-        <table className="w-full text-xs text-left min-w-[600px]">
+        <table className="w-full text-xs text-left min-w-[650px]">
           <thead className="bg-slate-50/80 dark:bg-slate-800/80 border-b border-slate-100 dark:border-slate-800 text-slate-400 dark:text-slate-500 font-bold uppercase text-[10px] tracking-wider">
             <tr>
               <th className="px-4 py-3.5 w-16">Photo</th>
               <th className="px-4 py-3.5">Category Name</th>
+              <th className="px-4 py-3.5 text-center w-32">Public View</th>
               <th className="px-4 py-3.5">Status</th>
               <th className="px-4 py-3.5 text-right">Action</th>
             </tr>
@@ -310,7 +352,7 @@ export default function EquipmentCategoriesTab({ showMsg }) {
           <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium text-slate-700 dark:text-slate-300">
             {loading ? (
               <tr>
-                <td colSpan={4} className="text-center py-10 text-slate-400 dark:text-slate-500">
+                <td colSpan={5} className="text-center py-10 text-slate-400 dark:text-slate-500">
                   <div className="flex items-center justify-center gap-2">
                     <Loader2 size={16} className="animate-spin text-blue-600" />
                     <span>Loading equipment categories...</span>
@@ -319,7 +361,7 @@ export default function EquipmentCategoriesTab({ showMsg }) {
               </tr>
             ) : paginatedCategories.length === 0 ? (
               <tr>
-                <td colSpan={4} className="text-center py-10 text-slate-400 dark:text-slate-500">
+                <td colSpan={5} className="text-center py-10 text-slate-400 dark:text-slate-500">
                   📦 No equipment categories registered yet. Click "Add Category" to get started.
                 </td>
               </tr>
@@ -327,6 +369,8 @@ export default function EquipmentCategoriesTab({ showMsg }) {
               paginatedCategories.map((cat) => {
                 const displayPhoto = cat.photo || cat.avatar;
                 const isItemDisabled = cat.status === "disabled" || cat.status === "inactive" || cat.status === "unavailable";
+                const isPublic = cat.is_public !== undefined ? Boolean(cat.is_public) : true;
+                const isToggling = togglingPublicId === cat.id;
 
                 return (
                   <tr key={cat.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
@@ -353,6 +397,40 @@ export default function EquipmentCategoriesTab({ showMsg }) {
                       {cat.description && (
                         <div className="text-[11px] text-slate-400 dark:text-slate-500 truncate max-w-xs">{cat.description}</div>
                       )}
+                    </td>
+                    <td className="px-4 py-3 text-center whitespace-nowrap">
+                      <label 
+                        onClick={(e) => e.stopPropagation()} 
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border transition-all select-none ${
+                          canEdit 
+                            ? 'cursor-pointer hover:shadow-xs' 
+                            : 'cursor-not-allowed opacity-80'
+                        } ${
+                          isPublic
+                            ? 'bg-blue-50/80 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800/60'
+                            : 'bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700'
+                        }`}
+                        title={
+                          canEdit
+                            ? (isPublic ? "Click to Hide from Public Equipment Borrowing" : "Click to Show in Public Equipment Borrowing")
+                            : "Public visibility status"
+                        }
+                      >
+                        {isToggling ? (
+                          <Loader2 size={13} className="animate-spin text-blue-600" />
+                        ) : (
+                          <input
+                            type="checkbox"
+                            checked={isPublic}
+                            disabled={!canEdit || isToggling}
+                            onChange={() => togglePublicVisibility(cat)}
+                            className="accent-blue-600 w-3.5 h-3.5 rounded cursor-pointer shrink-0"
+                          />
+                        )}
+                        <span className="text-[11px] font-bold">
+                          {isPublic ? "Visible" : "Hidden"}
+                        </span>
+                      </label>
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-md text-[10.5px] font-bold ${
@@ -547,6 +625,27 @@ export default function EquipmentCategoriesTab({ showMsg }) {
                       )}
                     </div>
                   </div>
+
+                  {/* Public View Visibility Setting */}
+                  <div className="pt-2 border-t border-slate-200">
+                    <label className="flex items-start gap-2.5 p-2.5 rounded-lg border border-slate-200 bg-slate-50/60 hover:bg-slate-50 cursor-pointer transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={Boolean(form.is_public)}
+                        onChange={(e) => updateForm({ ...form, is_public: e.target.checked })}
+                        className="accent-blue-600 w-4 h-4 mt-0.5 rounded cursor-pointer shrink-0"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 font-bold text-slate-800 text-xs">
+                          {form.is_public ? <Eye size={13} className="text-blue-600" /> : <EyeOff size={13} className="text-slate-400" />}
+                          <span>Allow in Public Equipment Borrowing</span>
+                        </div>
+                        <p className="text-[11px] text-slate-500 font-normal mt-0.5 leading-snug">
+                          When checked, this category appears in the public equipment borrowing catalog. When unchecked, it is hidden from walk-in requisition.
+                        </p>
+                      </div>
+                    </label>
+                  </div>
                 </div>
 
                 {/* Right Column: Photo Upload & Card Preview */}
@@ -645,10 +744,17 @@ export default function EquipmentCategoriesTab({ showMsg }) {
                             {form.eq_name || "Equipment Name"}
                           </p>
                           <div className="mt-0.5">
-                            <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[10px] font-normal text-emerald-700 bg-emerald-50">
-                              <span className="w-1 h-1 rounded-full bg-emerald-500" />
-                              Public View
-                            </span>
+                            {form.is_public ? (
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                Public View Active
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold text-slate-500 bg-slate-100 border border-slate-200">
+                                <EyeOff size={10} className="text-slate-400" />
+                                Hidden in Public
+                              </span>
+                            )}
                           </div>
                         </div>
                       </div>

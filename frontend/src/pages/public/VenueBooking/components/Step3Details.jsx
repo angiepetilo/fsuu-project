@@ -84,6 +84,7 @@ export default function Step3Details({
     const fetchEquipment = async () => {
       try {
         const params = new URLSearchParams();
+        params.append("context", "venue_booking");
         if (selectedDate) params.append("date", selectedDate);
         if (startTime) params.append("time_start", startTime);
         if (endTime) params.append("time_end", endTime);

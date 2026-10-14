@@ -28,12 +28,14 @@ class EquipmentType extends Model
         'date_purchased',
         'lifespan_years',
         'status',
+        'is_public',
         'description',
         'built_in_units',
     ];
 
     protected $casts = [
         'built_in_units' => 'array',
+        'is_public'      => 'boolean',
     ];
 
     protected $appends = ['name', 'category', 'built_in_names'];

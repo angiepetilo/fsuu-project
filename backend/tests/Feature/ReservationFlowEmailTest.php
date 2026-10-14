@@ -375,4 +375,32 @@ class ReservationFlowEmailTest extends TestCase
         $this->assertStringContainsString('EPSON', $completeHtml);
         $this->assertStringContainsString('EB-695Wi', $completeHtml);
     }
+
+    public function test_public_equipment_types_honors_is_public_visibility(): void
+    {
+        $visibleType = EquipmentType::create([
+            'eq_name'   => 'Visible Mic Category',
+            'status'    => 'available',
+            'is_public' => true,
+        ]);
+        $hiddenType = EquipmentType::create([
+            'eq_name'   => 'Internal High-End Camera',
+            'status'    => 'available',
+            'is_public' => false,
+        ]);
+
+        // Default public query (borrowing landing page) -> hiddenType must NOT appear
+        $resBorrowing = $this->getJson('/api/public/equipment-types');
+        $resBorrowing->assertStatus(200);
+        $borrowNames = collect($resBorrowing->json())->pluck('name')->all();
+        $this->assertContains('Visible Mic Category', $borrowNames);
+        $this->assertNotContains('Internal High-End Camera', $borrowNames);
+
+        // Venue booking query (context=venue_booking) -> all categories available for venue assignment
+        $resVenue = $this->getJson('/api/public/equipment-types?context=venue_booking');
+        $resVenue->assertStatus(200);
+        $venueNames = collect($resVenue->json())->pluck('name')->all();
+        $this->assertContains('Visible Mic Category', $venueNames);
+        $this->assertContains('Internal High-End Camera', $venueNames);
+    }
 }

@@ -193,7 +193,15 @@ class ListingController extends Controller
             }
         }
 
-        $query = EquipmentType::withCount([
+        // If requested for equipment borrowing (default public view), filter by is_public = true
+        // If context=venue_booking, allow all categories so venue-specific allowed equipment can still be requested
+        $context = $request->query('context', 'borrowing');
+        $query = EquipmentType::query();
+        if ($context !== 'venue_booking' && \Illuminate\Support\Facades\Schema::hasColumn('equipment_types', 'is_public')) {
+            $query->where('is_public', true);
+        }
+
+        $query->withCount([
                 'equipmentUnits as calculated_total' => function ($q) {
                     $q->whereNull('archived_at');
                 },
@@ -224,7 +232,6 @@ class ListingController extends Controller
                     }
                 }
             ]);
-
 
         $allTypes = $query->get();
 

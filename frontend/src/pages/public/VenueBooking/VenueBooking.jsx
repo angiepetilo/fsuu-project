@@ -162,6 +162,7 @@ export default function VenueBooking({ isPortal: isPortalProp }) {
 
   useEffect(() => {
     const params = new URLSearchParams();
+    params.append("context", "venue_booking");
     if (selectedDate) params.append("date", selectedDate);
     if (startTime) params.append("time_start", startTime);
     if (endTime) params.append("time_end", endTime);

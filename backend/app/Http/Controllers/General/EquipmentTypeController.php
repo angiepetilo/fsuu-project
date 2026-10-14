@@ -51,10 +51,14 @@ class EquipmentTypeController extends Controller
             'date_purchased'   => 'nullable|date',
             'lifespan_years'   => 'nullable|integer|min:1',
             'status'           => 'nullable|string',
+            'is_public'        => 'nullable|boolean',
             'description'      => 'nullable|string',
             'built_in_units'   => 'nullable',
         ]);
         $validated['eq_name'] = $name;
+        if ($request->has('is_public')) {
+            $validated['is_public'] = filter_var($request->input('is_public'), FILTER_VALIDATE_BOOLEAN);
+        }
         unset($validated['name']);
 
         if ($request->has('built_in_units')) {
@@ -128,6 +132,10 @@ class EquipmentTypeController extends Controller
                 $rawBuilt = json_decode($rawBuilt, true) ?: [];
             }
             $updateData['built_in_units'] = is_array($rawBuilt) ? array_values(array_filter($rawBuilt, fn($v) => !empty($v))) : [];
+        }
+
+        if (array_key_exists('is_public', $updateData)) {
+            $updateData['is_public'] = filter_var($updateData['is_public'], FILTER_VALIDATE_BOOLEAN);
         }
 
         // Defensive schema check: prevent update failure if column doesn't exist yet
