@@ -1,6 +1,13 @@
-import ExcelJS from "exceljs";
 import { formatDate, formatTimeRange12, formatDateTime } from "@/lib/dateUtils";
 import { formatTimeLateFull } from "@/lib/dateTimeUtils";
+
+let _excelJsPromise = null;
+async function getExcelJS() {
+  if (!_excelJsPromise) {
+    _excelJsPromise = import("exceljs").then((m) => m.default || m);
+  }
+  return _excelJsPromise;
+}
 
 /**
  * Styling Constants for FSUU Excel Documents
@@ -386,6 +393,7 @@ export async function exportReportsToExcel({
   officeScope = "All Offices",
   activeTab = "all", // "all" | "booking_borrowing" | "breaches" | "inventory" | "equipment_out" | "incident_reports"
 }) {
+  const ExcelJS = await getExcelJS();
   const workbook = new ExcelJS.Workbook();
   workbook.creator = "Father Saturnino Urios University - AVR Management";
   workbook.created = new Date();

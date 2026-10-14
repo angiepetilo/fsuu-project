@@ -1,10 +1,17 @@
-import ExcelJS from "exceljs";
 import {
   formatDate,
   formatTimeRange,
   formatDateTime,
   formatDateRange,
 } from "@/lib/dateUtils";
+
+let _excelJsPromise = null;
+async function getExcelJS() {
+  if (!_excelJsPromise) {
+    _excelJsPromise = import("exceljs").then((m) => m.default || m);
+  }
+  return _excelJsPromise;
+}
 import { formatPhilippineNumber } from "@/lib/phoneValidation";
 import {
   getVenueOutcome,
@@ -671,6 +678,7 @@ const EQUIP_HEADERS = [
  * Exports Venue Bookings History to Excel (.xlsx)
  */
 export async function exportVenueHistoryToExcel(records, termLabel = "") {
+  const ExcelJS = await getExcelJS();
   const workbook = new ExcelJS.Workbook();
   workbook.creator = "Father Saturnino Urios University - AVR Management";
   workbook.created = new Date();
@@ -697,6 +705,7 @@ export async function exportVenueHistoryToExcel(records, termLabel = "") {
  * Exports Equipment Borrowings History to Excel (.xlsx)
  */
 export async function exportEquipmentHistoryToExcel(records, termLabel = "") {
+  const ExcelJS = await getExcelJS();
   const workbook = new ExcelJS.Workbook();
   workbook.creator = "Father Saturnino Urios University - AVR Management";
   workbook.created = new Date();
@@ -723,6 +732,7 @@ export async function exportEquipmentHistoryToExcel(records, termLabel = "") {
  * Exports Combined History (both Venue and Equipment) in a multi-tab workbook (.xlsx)
  */
 export async function exportAllHistoryToExcel(venueRecords, equipRecords, termLabel = "") {
+  const ExcelJS = await getExcelJS();
   const workbook = new ExcelJS.Workbook();
   workbook.creator = "Father Saturnino Urios University - AVR Management";
   workbook.created = new Date();

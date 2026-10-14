@@ -24,34 +24,71 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->render(function (\Throwable $e, \Illuminate\Http\Request $request) {
             if ($request->is('api/*')) {
                 $origin = $request->header('Origin');
-                $allowOrigin = $origin ?: '*';
+                // Match origin whitelist safely
+                $allowedOrigins = array_filter(array_map('trim', explode(',', env('CORS_ALLOWED_ORIGINS', ''))));
+                $frontend = config('app.frontend_url', env('FRONTEND_URL', 'http://localhost:5173'));
+                if ($frontend) $allowedOrigins[] = rtrim($frontend, '/');
+                $isLocalDev = config('app.debug', false) || app()->environment('local', 'testing');
+
+                $isAllowed = false;
+                if (!empty($origin)) {
+                    $norm = rtrim($origin, '/');
+                    if (in_array($norm, $allowedOrigins, true)) {
+                        $isAllowed = true;
+                    } elseif ($isLocalDev && (
+                        preg_match('/^http:\/\/localhost(:\d+)?$/', $norm) ||
+                        preg_match('/^http:\/\/127\.0\.0\.1(:\d+)?$/', $norm)
+                    )) {
+                        $isAllowed = true;
+                    }
+                }
+
                 $corsHeaders = [
-                    'Access-Control-Allow-Origin'  => $allowOrigin,
                     'Access-Control-Allow-Methods' => 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
                     'Access-Control-Allow-Headers' => 'Content-Type, Authorization, X-Requested-With, X-Idempotency-Key, Accept, Origin, Application',
                 ];
-                if (!empty($origin)) {
+                if ($isAllowed) {
+                    $corsHeaders['Access-Control-Allow-Origin'] = $origin;
                     $corsHeaders['Access-Control-Allow-Credentials'] = 'true';
+                } elseif (!$origin) {
+                    $corsHeaders['Access-Control-Allow-Origin'] = '*';
                 }
 
                 if ($e instanceof \Illuminate\Auth\AuthenticationException) {
-                    return response()->json(['message' => 'Unauthenticated.'], 401, $corsHeaders);
+                    return response()->json([
+                        'success'    => false,
+                        'error_code' => 'UNAUTHENTICATED',
+                        'message'    => 'Unauthenticated. Please log in to proceed.',
+                    ], 401, $corsHeaders);
                 }
                 if ($e instanceof \Illuminate\Validation\ValidationException) {
                     return response()->json([
-                        'message' => $e->getMessage(),
-                        'errors'  => $e->errors(),
+                        'success'    => false,
+                        'error_code' => 'VALIDATION_FAILED',
+                        'message'    => $e->getMessage(),
+                        'errors'     => $e->errors(),
                     ], 422, $corsHeaders);
                 }
                 if ($e instanceof \Symfony\Component\HttpKernel\Exception\HttpExceptionInterface) {
+                    $status = $e->getStatusCode();
+                    $codeMap = [
+                        403 => 'FORBIDDEN',
+                        404 => 'NOT_FOUND',
+                        405 => 'METHOD_NOT_ALLOWED',
+                        429 => 'TOO_MANY_REQUESTS',
+                    ];
                     return response()->json([
-                        'message' => $e->getMessage() ?: 'HTTP Error',
-                    ], $e->getStatusCode(), $corsHeaders);
+                        'success'    => false,
+                        'error_code' => $codeMap[$status] ?? 'HTTP_ERROR',
+                        'message'    => $e->getMessage() ?: 'HTTP Error occurred.',
+                    ], $status, $corsHeaders);
                 }
 
                 $isDebug = config('app.debug', false);
                 $errorResponse = [
-                    'message' => $isDebug ? $e->getMessage() : 'An unexpected server error occurred. Please try again or contact system support.',
+                    'success'    => false,
+                    'error_code' => 'SERVER_ERROR',
+                    'message'    => $isDebug ? $e->getMessage() : 'An unexpected server error occurred. Please try again or contact system support.',
                 ];
                 if ($isDebug) {
                     $errorResponse['error'] = $e->getMessage();

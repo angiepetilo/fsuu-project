@@ -553,11 +553,15 @@ Route::prefix('public')->group(function () {
 
     // Pre-submit duplicate identity checks (read-only, no throttle beyond default)
     Route::post('/avr-venue-bookings/check-duplicate',       [PublicVenueBookingController::class, 'checkDuplicate']);
+    Route::post('/venue-bookings/check-duplicate',           [PublicVenueBookingController::class, 'checkDuplicate']);
     Route::post('/avr-equipment-borrowings/check-duplicate', [PublicEquipmentBorrowingController::class, 'checkDuplicate']);
+    Route::post('/equipment-borrowings/check-duplicate',     [PublicEquipmentBorrowingController::class, 'checkDuplicate']);
 
     // Form submissions
     Route::post('/avr-venue-bookings',       [PublicVenueBookingController::class, 'store'])->middleware('throttle:public-submissions');
+    Route::post('/venue-bookings',           [PublicVenueBookingController::class, 'store'])->middleware('throttle:public-submissions');
     Route::post('/avr-equipment-borrowings', [PublicEquipmentBorrowingController::class, 'store'])->middleware('throttle:public-submissions');
+    Route::post('/equipment-borrowings',     [PublicEquipmentBorrowingController::class, 'store'])->middleware('throttle:public-submissions');
 
     // Tracking & OTP & PIN Verification
     Route::post('/track',                     [TrackingController::class, 'track'])->middleware('throttle:tracking');
