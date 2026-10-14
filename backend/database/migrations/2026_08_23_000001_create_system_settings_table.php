@@ -37,7 +37,9 @@ return new class extends Migration
             // SMS & External Notification Services
             $table->string('sms_api_key')->nullable();
             $table->string('sms_api_url')->nullable();
+            $table->string('abstract_email_api_key', 255)->nullable();
             $table->string('facebook_url')->nullable()->default('https://www.facebook.com/fsuubutuan');
+            $table->string('facebook_name')->nullable()->default('Father Saturnino Urios University');
 
             $table->timestamps();
         });
@@ -62,7 +64,9 @@ return new class extends Migration
             'mail_from_name'                 => env('MAIL_FROM_NAME', 'FSUU Facilities & Equipment Booking'),
             'sms_api_key'                    => null,
             'sms_api_url'                    => null,
+            'abstract_email_api_key'         => env('ABSTRACT_EMAIL_API_KEY', ''),
             'facebook_url'                   => 'https://www.facebook.com/fsuubutuan',
+            'facebook_name'                  => 'Father Saturnino Urios University',
             'created_at'                     => now(),
             'updated_at'                     => now(),
         ]);
