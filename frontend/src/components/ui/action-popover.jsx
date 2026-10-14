@@ -12,8 +12,10 @@ export default function ActionPopover({
   onClose,
   children,
   width = 160,
+  menuWidth,
   minHeight = 110,
 }) {
+  const effectiveWidth = menuWidth || width;
   const [pos, setPos] = useState({ top: 0, left: 0, openAbove: false });
   const popoverRef = useRef(null);
 
@@ -24,7 +26,7 @@ export default function ActionPopover({
       const r = anchorEl.getBoundingClientRect();
       const popoverEl = popoverRef.current;
       const actualHeight = popoverEl ? popoverEl.offsetHeight : minHeight;
-      const actualWidth = popoverEl ? popoverEl.offsetWidth : width;
+      const actualWidth = popoverEl ? popoverEl.offsetWidth : effectiveWidth;
 
       const spaceBelow = window.innerHeight - r.bottom;
       const openAbove = spaceBelow < actualHeight && r.top > actualHeight;
@@ -52,7 +54,7 @@ export default function ActionPopover({
       window.removeEventListener("scroll", updatePosition, true);
       window.removeEventListener("resize", updatePosition);
     };
-  }, [isOpen, anchorEl, width, minHeight]);
+  }, [isOpen, anchorEl, effectiveWidth, minHeight]);
 
   if (!isOpen || !anchorEl) return null;
 

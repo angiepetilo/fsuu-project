@@ -3,7 +3,7 @@ import api from "@/lib/axios";
 import { notify } from "@/lib/notify";
 import { Download, FileText, UploadCloud, X, Paperclip, Eye, MoreVertical, Pencil, Trash2 } from "lucide-react";
 import DocxPreviewModal from "@/components/ui/DocxPreviewModal";
-import ActionPopover from "@/components/ui/ActionPopover";
+import ActionPopover from "@/components/ui/action-popover";
 import ConfirmModal from "@/components/ui/ConfirmModal";
 import IosToggle from "@/components/ui/ios-toggle";
 
