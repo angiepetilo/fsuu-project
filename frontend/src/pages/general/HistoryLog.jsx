@@ -6,7 +6,7 @@ import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 import {
   History, CheckCircle, Building2, PackageOpen, Search, Loader2,
   Eye, Pencil, CheckCircle2, X, AlertTriangle, ChevronLeft, ChevronRight, MoreVertical,
-  ArrowUpDown, Download, ChevronDown, FileSpreadsheet, Layers
+  ArrowUpDown, Download, ChevronDown, FileSpreadsheet, Layers, Trash2
 } from "lucide-react";
 import notify from "@/lib/notify";
 import { PageLoader } from "@/components/ui/page-loader";
@@ -250,6 +250,41 @@ export default function HistoryLog() {
       setEquipmentHistory(prevEquip);
       setFeedback(`Failed to disable "${refCode}" — changes reverted.`);
       setTimeout(() => setFeedback(null), 3000);
+    }
+  };
+
+  const handleClearAllHistory = () => {
+    const targetLabel = historyType === "venue" ? "Venue Bookings" : "Equipment Borrowings";
+    setConfirmModal({
+      open: true,
+      action: "clear_all",
+      payload: { type: historyType },
+      title: `Clear ${targetLabel} History`,
+      message: `Are you sure you want to clear all data in ${targetLabel} history? This will archive all completed and past records so they no longer appear in the history log.`,
+      variant: "delete",
+      confirmLabel: "Yes, Clear History"
+    });
+  };
+
+  const processClearAllHistory = async ({ type }) => {
+    try {
+      await api.post(`/general/history-log/clear`, {
+        type: type || historyType,
+        academic_term_id: selectedTermId || null,
+      });
+      if (type === "venue") {
+        setVenueHistory([]);
+      } else if (type === "equipment") {
+        setEquipmentHistory([]);
+      } else {
+        setVenueHistory([]);
+        setEquipmentHistory([]);
+      }
+      notify.success("History Cleared", "Historical data has been successfully cleared.");
+      fetchHistory(true);
+    } catch (err) {
+      console.error("Failed to clear history log:", err);
+      notify.error("Clear Failed", "Could not clear history data. Please try again.");
     }
   };
 
@@ -668,6 +703,18 @@ export default function HistoryLog() {
                 </div>
               )}
             </div>
+
+            {/* Clear History Button */}
+            <button
+              type="button"
+              onClick={handleClearAllHistory}
+              disabled={activeRecordCount === 0}
+              className="inline-flex items-center gap-1.5 px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:hover:bg-rose-900/60 dark:text-rose-300 font-bold text-xs rounded-xl border border-rose-200 dark:border-rose-900/50 transition-all shadow-2xs cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+              title={`Clear all ${historyType === "venue" ? "Venue Bookings" : "Equipment Borrowings"} history data`}
+            >
+              <Trash2 size={13} className="shrink-0 text-rose-600 dark:text-rose-400" />
+              <span>Clear History</span>
+            </button>
           </div>
         </div>
 
@@ -791,6 +838,7 @@ export default function HistoryLog() {
         onConfirm={() => {
           setConfirmModal({ ...confirmModal, open: false });
           if (confirmModal.action === "disable") processDeleteHistory(confirmModal.payload);
+          if (confirmModal.action === "clear_all") processClearAllHistory(confirmModal.payload);
         }}
         variant={confirmModal.variant}
         title={confirmModal.title}

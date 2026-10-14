@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
-import { Loader2, X } from "lucide-react";
+import { Loader2, X, Trash2 } from "lucide-react";
 import api from "@/lib/axios";
+import notify from "@/lib/notify";
 import { formatDate } from "@/lib/dateUtils";
+import ConfirmModal from "@/components/ui/ConfirmModal";
 
 export default function CommunicationLogsTab() {
   const [logs, setLogs] = useState([]);
@@ -16,8 +18,10 @@ export default function CommunicationLogsTab() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
 
-  // Modal inspection
+  // Modal inspection & Clear
   const [selectedLog, setSelectedLog] = useState(null);
+  const [showClearModal, setShowClearModal] = useState(false);
+  const [clearLoading, setClearLoading] = useState(false);
 
   const fetchLogs = async () => {
     try {
@@ -52,6 +56,21 @@ export default function CommunicationLogsTab() {
     e.preventDefault();
     setPage(1);
     fetchLogs();
+  };
+
+  const handleClearLogs = async () => {
+    try {
+      setClearLoading(true);
+      await api.delete("/general/communication-logs/clear").catch(() => api.delete("/admin/communication-logs/clear"));
+      notify.success("Communication Logs Cleared", "All email and SMS logs have been cleared.");
+      setShowClearModal(false);
+      setPage(1);
+      fetchLogs();
+    } catch (err) {
+      notify.error("Clear Failed", "Could not clear communication logs.");
+    } finally {
+      setClearLoading(false);
+    }
   };
 
   const getChannelBadge = (channel) => {
@@ -131,6 +150,17 @@ export default function CommunicationLogsTab() {
             Audit history of automated and manual emails, SMS notices, booking confirmations, overdue reminders, and credentials.
           </p>
         </div>
+
+        <button
+          type="button"
+          onClick={() => setShowClearModal(true)}
+          disabled={totalCount === 0 || loading}
+          className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:hover:bg-rose-900/60 dark:text-rose-300 font-bold text-xs rounded-xl border border-rose-200 dark:border-rose-900/50 transition-all shadow-2xs cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap self-start sm:self-auto shrink-0"
+          title="Clear all email and SMS communication logs"
+        >
+          <Trash2 size={13} className="shrink-0 text-rose-600 dark:text-rose-400" />
+          <span>Clear Logs</span>
+        </button>
       </div>
 
       {/* Filter & Search Bar */}
@@ -388,6 +418,18 @@ export default function CommunicationLogsTab() {
           </div>
         </div>
       )}
+
+      {/* Clear Communication Logs Confirm Modal */}
+      <ConfirmModal
+        open={showClearModal}
+        onClose={() => setShowClearModal(false)}
+        onConfirm={handleClearLogs}
+        loading={clearLoading}
+        title="Clear Communication Logs"
+        message="Are you sure you want to permanently clear all SMS and email communication logs? This action cannot be undone."
+        confirmLabel="Yes, Clear All Logs"
+        variant="delete"
+      />
     </div>
   );
 }

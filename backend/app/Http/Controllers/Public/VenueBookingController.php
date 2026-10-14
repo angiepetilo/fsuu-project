@@ -32,14 +32,61 @@ class VenueBookingController extends Controller
         $data = $request->validated();
         $data['submitted_by'] = null;
 
-        if ($request->hasFile('endorsement_file')) {
-            $data['endorsement_url'] = app(\App\Services\MediaUploadService::class)->upload($request->file('endorsement_file'), 'endorsements');
+        $uploadedUrls = [];
+        $mediaUploadService = app(\App\Services\MediaUploadService::class);
+
+        if ($request->hasFile('endorsement_files')) {
+            foreach ($request->file('endorsement_files') as $file) {
+                if ($file) {
+                    $url = $mediaUploadService->upload($file, 'endorsements');
+                    if ($url) $uploadedUrls[] = $url;
+                }
+            }
+        } elseif (is_array($request->input('endorsement_files'))) {
+            foreach ($request->input('endorsement_files') as $fileInput) {
+                if (!empty($fileInput)) {
+                    $url = $mediaUploadService->upload($fileInput, 'endorsements');
+                    if ($url) $uploadedUrls[] = $url;
+                }
+            }
+        } elseif ($request->hasFile('endorsement_file')) {
+            $url = $mediaUploadService->upload($request->file('endorsement_file'), 'endorsements');
+            if ($url) $uploadedUrls[] = $url;
         } elseif ($request->filled('endorsement_file')) {
-            $data['endorsement_url'] = app(\App\Services\MediaUploadService::class)->upload($request->input('endorsement_file'), 'endorsements');
+            $url = $mediaUploadService->upload($request->input('endorsement_file'), 'endorsements');
+            if ($url) $uploadedUrls[] = $url;
+        }
+
+        $uploadedUrls = array_values(array_unique(array_filter($uploadedUrls)));
+
+        if (!empty($uploadedUrls)) {
+            $data['endorsement_url'] = $uploadedUrls[0];
+            $data['endorsement_letter'] = $uploadedUrls[0];
         }
 
         try {
             $booking = $this->service->create($data);
+
+            if (!empty($uploadedUrls) && $booking && isset($booking->id)) {
+                foreach ($uploadedUrls as $fileUrl) {
+                    $alreadyInserted = \Illuminate\Support\Facades\DB::table('documents')
+                        ->where('venue_booking_id', $booking->id)
+                        ->where('file_path', $fileUrl)
+                        ->exists();
+
+                    if (!$alreadyInserted) {
+                        \Illuminate\Support\Facades\DB::table('documents')->insert([
+                            'venue_booking_id' => $booking->id,
+                            'document_type'    => 'endorsement_letter',
+                            'file_path'        => $fileUrl,
+                            'status'           => 'pending',
+                            'uploaded_at'      => now(),
+                            'created_at'       => now(),
+                            'updated_at'       => now(),
+                        ]);
+                    }
+                }
+            }
         } catch (VenueOverlapException $e) {
             return response()->json(['message' => $e->getMessage()], 409);
         } catch (\App\Exceptions\VenueReservationTooSoonException $e) {

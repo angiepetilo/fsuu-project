@@ -1101,7 +1101,7 @@ export default function EquipmentBorrowDetailModal({
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-0 sm:p-6 overflow-hidden animate-in fade-in duration-200">
-      <div className="bg-white rounded-none sm:rounded-2xl border-0 sm:border border-slate-200 shadow-sm w-full max-w-5xl h-full sm:h-auto sm:max-h-[90vh] flex flex-col overflow-hidden">
+      <div className="bg-white dark:bg-slate-900/80 rounded-none sm:rounded-2xl border-0 sm:border border-slate-200 dark:border-blue-900/50 shadow-sm w-full max-w-5xl h-full sm:h-auto sm:max-h-[90vh] flex flex-col overflow-hidden text-slate-800 dark:text-slate-200">
 
         <EquipBorrowHeader
           selected={selected}
@@ -1130,111 +1130,162 @@ export default function EquipmentBorrowDetailModal({
             <div className="lg:col-span-6 space-y-4">
               
               {/* Requestor & Schedule Information */}
-              <div className="bg-slate-50/80 border border-slate-200/90 rounded-2xl p-4 space-y-2.5 shadow-xs">
-                <div className="flex items-center justify-between border-b border-slate-200/70 pb-2">
-                  <span className="text-[11px] font-extrabold text-slate-800 uppercase tracking-wider">
+              <div className="bg-slate-50/80 dark:bg-slate-900/80 border border-slate-200/90 dark:border-blue-900/50 rounded-2xl p-4 space-y-2.5 shadow-xs">
+                <div className="flex items-center justify-between border-b border-slate-200/70 dark:border-slate-800 pb-2">
+                  <span className="text-[11px] font-extrabold text-slate-800 dark:text-white uppercase tracking-wider">
                     Borrowing Request Details
                   </span>
-                  <span className="font-mono text-[10px] font-bold text-slate-500 bg-white px-2 py-0.5 rounded-full border border-slate-200">
+                  <span className="font-mono text-[10px] font-bold text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-800 px-2 py-0.5 rounded-full border border-slate-200 dark:border-slate-700">
                     ID: #{selected.id}
                   </span>
                 </div>
                 
                 <div className="grid grid-cols-3 py-1 text-xs">
-                  <span className="text-slate-500 font-bold">Requestor</span>
-                  <span className="col-span-2 font-extrabold text-slate-900">{[selected.first_name, selected.middle_name, selected.last_name, selected.suffix].filter(Boolean).join(" ").trim() || selected.requestor_name || selected.filer_name || selected.requestor || "FSUU Filer"}</span>
+                  <span className="text-slate-500 dark:text-slate-400 font-bold">Requestor</span>
+                  <span className="col-span-2 font-extrabold text-slate-900 dark:text-white">{[selected.first_name, selected.middle_name, selected.last_name, selected.suffix].filter(Boolean).join(" ").trim() || selected.requestor_name || selected.filer_name || selected.requestor || "FSUU Filer"}</span>
                 </div>
-                <div className="grid grid-cols-3 py-1 border-t border-slate-200/60 text-xs">
-                  <span className="text-slate-500 font-bold">Identity</span>
-                  <span className="col-span-2 font-extrabold capitalize text-slate-900">{selected.requestor_identity_type || selected.identity_type || selected.identity || "Student"}</span>
+                <div className="grid grid-cols-3 py-1 border-t border-slate-200/60 dark:border-slate-800 text-xs">
+                  <span className="text-slate-500 dark:text-slate-400 font-bold">Identity</span>
+                  <span className="col-span-2 font-extrabold capitalize text-slate-900 dark:text-white">{selected.requestor_identity_type || selected.identity_type || selected.identity || "Student"}</span>
                 </div>
-                <div className="grid grid-cols-3 py-1 border-t border-slate-200/60">
-                  <span className="text-slate-500 font-bold">Department</span>
-                  <span className="col-span-2 font-extrabold text-slate-900">{selected.requestor_program_office || selected.program_office || selected.department || "Academic Dept"}</span>
+                <div className="grid grid-cols-3 py-1 border-t border-slate-200/60 dark:border-slate-800">
+                  <span className="text-slate-500 dark:text-slate-400 font-bold">Department</span>
+                  <span className="col-span-2 font-extrabold text-slate-900 dark:text-white">{selected.requestor_program_office || selected.program_office || selected.department || "Academic Dept"}</span>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 py-1 border-t border-slate-200/60 gap-1">
-                  <span className="text-slate-500 font-bold">Contact</span>
+                <div className="grid grid-cols-1 sm:grid-cols-3 py-1 border-t border-slate-200/60 dark:border-slate-800 gap-1">
+                  <span className="text-slate-500 dark:text-slate-400 font-bold">Contact</span>
                   <div className="sm:col-span-2 flex items-center gap-1.5 flex-wrap">
-                    <span className="font-extrabold text-slate-900 font-mono">
+                    <span className="font-extrabold text-slate-900 dark:text-white font-mono">
                       {formatPhilippineNumber(selected.requestor_contact_number || selected.contact_number || selected.contact_no) || "—"}
                     </span>
                     {(selected.is_phone_verified ?? true) && (
-                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0" title="Contact phone number verified via SMS OTP">
-                        <CheckCircle2 size={11} className="text-emerald-600" />
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 shrink-0" title="Contact phone number verified via SMS OTP">
+                        <CheckCircle2 size={11} className="text-emerald-600 dark:text-emerald-400" />
                         Verified
                       </span>
                     )}
                   </div>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 py-1 border-t border-slate-200/60 gap-1">
-                  <span className="text-slate-500 font-bold">Email</span>
+                <div className="grid grid-cols-1 sm:grid-cols-3 py-1 border-t border-slate-200/60 dark:border-slate-800 gap-1">
+                  <span className="text-slate-500 dark:text-slate-400 font-bold">Email</span>
                   <div className="sm:col-span-2 flex items-center gap-1.5 flex-wrap">
-                    <span className="font-bold text-slate-800 break-all">{selected.requestor_email || selected.email_address || selected.email || "—"}</span>
+                    <span className="font-bold text-slate-800 dark:text-slate-200 break-all">{selected.requestor_email || selected.email_address || selected.email || "—"}</span>
                     {(selected.is_email_verified) && (
-                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0" title="Email address verified via OTP">
-                        <CheckCircle2 size={11} className="text-emerald-600" />
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 shrink-0" title="Email address verified via OTP">
+                        <CheckCircle2 size={11} className="text-emerald-600 dark:text-emerald-400" />
                         Verified
                       </span>
                     )}
                   </div>
                 </div>
-                <div className="grid grid-cols-3 py-1 border-t border-slate-200/60">
-                  <span className="text-slate-500 font-bold">Usage Schedule</span>
-                  <span className="col-span-2 font-extrabold text-slate-900">
+                <div className="grid grid-cols-3 py-1 border-t border-slate-200/60 dark:border-slate-800">
+                  <span className="text-slate-500 dark:text-slate-400 font-bold">Usage Schedule</span>
+                  <span className="col-span-2 font-extrabold text-slate-900 dark:text-white">
                     {formatDate(selected.date_of_usage || selected.start_datetime || selected.date)} ({formatTimeRange12(selected.time_start || selected.start_datetime, selected.time_end || selected.end_datetime)})
                   </span>
                 </div>
-                <div className="grid grid-cols-3 py-1 border-t border-slate-200/60">
-                  <span className="text-slate-500 font-bold">Place of Use</span>
-                  <span className="col-span-2 font-bold text-slate-800">{selected.place_of_use || "Main Campus"}</span>
+                <div className="grid grid-cols-3 py-1 border-t border-slate-200/60 dark:border-slate-800">
+                  <span className="text-slate-500 dark:text-slate-400 font-bold">Place of Use</span>
+                  <span className="col-span-2 font-bold text-slate-800 dark:text-slate-200">{selected.place_of_use || "Main Campus"}</span>
                 </div>
-                <div className="grid grid-cols-3 py-1 border-t border-slate-200/60">
-                  <span className="text-slate-500 font-bold">Purpose</span>
-                  <span className="col-span-2 text-slate-800 font-bold">{selected.purpose || "Academic / Administrative loan"}</span>
+                <div className="grid grid-cols-3 py-1 border-t border-slate-200/60 dark:border-slate-800">
+                  <span className="text-slate-500 dark:text-slate-400 font-bold">Purpose</span>
+                  <span className="col-span-2 text-slate-800 dark:text-slate-200 font-bold">{selected.purpose || "Academic / Administrative loan"}</span>
                 </div>
               </div>
 
               {/* Equipment Category with Quantity Borrowed Card */}
-              <div className="bg-white border border-slate-200/90 rounded-2xl p-4 space-y-2.5 shadow-xs">
-                <div className="flex items-center justify-between border-b border-slate-200/70 pb-2">
-                  <span className="text-[11px] font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                    <FileText size={14} className="text-blue-600" />
+              <div className="bg-white dark:bg-slate-900/80 border border-slate-200/90 dark:border-blue-900/50 rounded-2xl p-4 space-y-2.5 shadow-xs">
+                <div className="flex items-center justify-between border-b border-slate-200/70 dark:border-slate-800 pb-2">
+                  <span className="text-[11px] font-extrabold text-slate-800 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
+                    <FileText size={14} className="text-blue-600 dark:text-blue-400" />
                     Equipment Categories &amp; Qty Borrowed
                   </span>
-                  <span className="text-[10.5px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">
+                  <span className="text-[10.5px] font-bold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/60 px-2 py-0.5 rounded-full border border-blue-200 dark:border-blue-800">
                     {categoriesToRender.reduce((sum, c) => sum + (parseInt(c.quantity, 10) || 1), 0)} Total Unit(s)
                   </span>
                 </div>
 
-                <div className="divide-y divide-slate-100">
-                  {categoriesToRender.map((catItem, cIdx) => (
-                    <div key={cIdx} className="py-2.5 flex items-center justify-between">
-                      <div className="space-y-1">
-                        <span className="font-extrabold text-slate-900 text-xs block">
-                          {catItem.category}
+                <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {categoriesToRender.map((catItem, cIdx) => {
+                    const reqQty = parseInt(catItem.quantity, 10) || 1;
+                    const assignedList = [];
+                    for (let u = 0; u < reqQty; u++) {
+                      const bCode = assignedUnitSelections[`${cIdx}-${u}`] || assignedUnitSelections[`${catItem.category}-${u}`];
+                      if (bCode && bCode !== "—") {
+                        const match = (physicalUnits || []).find(
+                          (unit) => String(unit.barcode || unit.serial_number || unit.code || unit.id).trim().toUpperCase() === String(bCode).trim().toUpperCase()
+                        );
+                        const rawSeq = match?.seq_no ?? match?.sequence_no;
+                        const seqNo = rawSeq !== undefined && rawSeq !== null && String(rawSeq).trim() !== ""
+                          ? (String(rawSeq).trim().startsWith("#") ? String(rawSeq).trim() : `#${String(rawSeq).trim()}`)
+                          : null;
+                        const brand = match?.brand ? String(match.brand).trim() : "";
+                        const model = match?.model ? String(match.model).trim() : "";
+                        const brandModel = brand && model ? `${brand} • ${model}` : (brand || model || match?.name || "");
+                        assignedList.push({
+                          slot: u + 1,
+                          barcode: bCode,
+                          seqNo,
+                          brandModel,
+                        });
+                      }
+                    }
+
+                    return (
+                      <div key={cIdx} className="py-2.5 flex items-start justify-between gap-3">
+                        <div className="space-y-1 min-w-0 flex-1">
+                          <span className="font-extrabold text-slate-900 dark:text-white text-xs block">
+                            {catItem.category}
+                          </span>
+                          <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium block">
+                            Borrow request specification
+                          </span>
+                          {catItem.builtInNames && catItem.builtInNames.length > 0 && (
+                            <div className="flex items-center flex-wrap gap-1 pt-0.5">
+                              <span className="text-[10.5px] font-bold text-slate-600 dark:text-slate-400">Built-in:</span>
+                              {catItem.builtInNames.map((biName, biIdx) => (
+                                <span
+                                  key={biIdx}
+                                  className="inline-flex items-center px-2 py-0.5 rounded-md bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 text-[10px] font-bold border border-blue-200 dark:border-blue-800"
+                                >
+                                  {biName}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                          {assignedList.length > 0 && (
+                            <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                              <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">Assigned:</span>
+                              {assignedList.map((au, aIdx) => (
+                                <span
+                                  key={aIdx}
+                                  className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs shadow-2xs"
+                                >
+                                  {au.seqNo && (
+                                    <span className="font-mono text-[10px] font-black text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 px-1.5 py-0.2 rounded border border-amber-200 dark:border-amber-800/80 shrink-0">
+                                      {au.seqNo}
+                                    </span>
+                                  )}
+                                  {au.brandModel && (
+                                    <span className="font-bold text-slate-800 dark:text-slate-200 truncate max-w-[140px]">
+                                      {au.brandModel}
+                                    </span>
+                                  )}
+                                  <span className="font-mono text-[10px] font-bold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/60 px-1 py-0.2 rounded border border-blue-200 dark:border-blue-800 shrink-0">
+                                    {au.barcode}
+                                  </span>
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        <span className="font-extrabold text-xs text-slate-800 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-xl border border-slate-200/80 dark:border-slate-700 shrink-0">
+                          Qty: {catItem.quantity}
                         </span>
-                        <span className="text-[11px] text-slate-500 font-medium block">
-                          Borrow request specification
-                        </span>
-                        {catItem.builtInNames && catItem.builtInNames.length > 0 && (
-                          <div className="flex items-center flex-wrap gap-1 pt-0.5">
-                            <span className="text-[10.5px] font-bold text-slate-600">Built-in:</span>
-                            {catItem.builtInNames.map((biName, biIdx) => (
-                              <span
-                                key={biIdx}
-                                className="inline-flex items-center px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 text-[10px] font-bold border border-blue-200"
-                              >
-                                {biName}
-                              </span>
-                            ))}
-                          </div>
-                        )}
                       </div>
-                      <span className="font-extrabold text-xs text-slate-800 bg-slate-100 px-3 py-1 rounded-xl border border-slate-200/80">
-                        Qty: {catItem.quantity}
-                      </span>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
 
@@ -1334,7 +1385,7 @@ export default function EquipmentBorrowDetailModal({
         </div>
 
         {/* Modal Footer: Action Buttons with Vivid Hover Colors */}
-        <div className="px-6 py-3.5 bg-white border-t border-slate-200 flex items-center justify-end gap-3 shrink-0">
+        <div className="px-6 py-3.5 bg-white dark:bg-slate-900/80 border-t border-slate-200 dark:border-blue-900/50 flex items-center justify-end gap-3 shrink-0">
           {isPending ? (
             <>
               {!canApprove ? (
@@ -1357,7 +1408,7 @@ export default function EquipmentBorrowDetailModal({
                       type="button"
                       onClick={() => handleAction(selected.id, "reject")}
                       disabled={!!actionLoading}
-                      className="px-6 py-2 bg-rose-50 hover:bg-rose-600 text-rose-700 hover:text-white border border-rose-200 hover:border-rose-600 font-bold text-xs rounded-lg shadow-2xs transition-all duration-150 cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+                      className="px-6 py-2 bg-rose-50 hover:bg-rose-600 dark:bg-rose-950/60 dark:hover:bg-rose-700 text-rose-700 hover:text-white dark:text-rose-300 border border-rose-200 hover:border-rose-600 dark:border-rose-900 font-bold text-xs rounded-lg shadow-2xs transition-all duration-150 cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
                     >
                       {actionLoading === `${selected.id}-reject` ? <Loader2 size={14} className="animate-spin" /> : null}
                       Reject
@@ -1421,7 +1472,7 @@ export default function EquipmentBorrowDetailModal({
               <button
                 type="button"
                 onClick={() => { setSelected(null); setShowNotifyModal(false); }}
-                className="px-5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 border border-slate-300 rounded-lg text-xs font-bold transition-all duration-150 cursor-pointer"
+                className="px-5 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 hover:text-slate-900 dark:text-slate-200 dark:hover:text-white border border-slate-300 dark:border-slate-700 rounded-lg text-xs font-bold transition-all duration-150 cursor-pointer"
               >
                 Close
               </button>

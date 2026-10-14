@@ -888,11 +888,30 @@ class EquipmentBorrowingController extends Controller
             \Illuminate\Support\Facades\Log::warning('assign-units overlap check failed: ' . $overlapEx->getMessage());
         }
 
+        $previousAssignedData = $equipmentBorrowing->assigned_units;
+        if (is_string($previousAssignedData)) {
+            try { $previousAssignedData = json_decode($previousAssignedData, true); } catch (\Throwable $t) { $previousAssignedData = []; }
+        }
+
         $equipmentBorrowing->update([
             'assigned_units' => $assignedData,
         ]);
 
         $currentStatus = strtolower($equipmentBorrowing->status ?? $equipmentBorrowing->trackingNumber?->status ?? '');
+
+        // If units were changed or swapped, revert unassigned units back to 'available'
+        if (is_array($previousAssignedData) && !empty($previousAssignedData)) {
+            $prevBarcodes = [];
+            foreach ($previousAssignedData as $pv) {
+                if ($pv) $prevBarcodes[] = trim((string)$pv);
+            }
+            $unassignedBarcodes = array_values(array_diff($prevBarcodes, $barcodes));
+            if (!empty($unassignedBarcodes)) {
+                \App\Models\EquipmentUnit::whereIn('barcode', $unassignedBarcodes)
+                    ->whereNotIn('status', ['damaged', 'lost', 'under_repair'])
+                    ->update(['status' => 'available']);
+            }
+        }
 
         if (!empty($barcodes)) {
             $newUnitStatus = in_array($currentStatus, ['ongoing', 'on-going', 'borrowed']) ? 'released' : 'reserved';

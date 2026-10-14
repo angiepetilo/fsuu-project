@@ -20,8 +20,31 @@ function BorrowSlotBarcodeSelector({
   const [searchTerm, setSearchTerm] = useState("");
   const containerRef = useRef(null);
 
+  const getUnitSeqNo = (unit) => {
+    if (!unit) return null;
+    const raw = unit.seq_no ?? unit.sequence_no;
+    if (raw !== undefined && raw !== null && String(raw).trim() !== "") {
+      const trimmed = String(raw).trim();
+      return trimmed.startsWith("#") ? trimmed : `#${trimmed}`;
+    }
+    return null;
+  };
+
+  const getUnitBrand = (unit) => {
+    return unit?.brand ? String(unit.brand).trim() : "";
+  };
+
+  const getUnitModel = (unit) => {
+    return unit?.model ? String(unit.model).trim() : "";
+  };
+
   const getUnitModelName = (unit) => {
-    return [unit.brand, unit.model].filter(Boolean).join(" ") || unit.name || categoryName || "Equipment Unit";
+    const brand = getUnitBrand(unit);
+    const model = getUnitModel(unit);
+    if (brand && model) return `${brand} • ${model}`;
+    if (brand) return brand;
+    if (model) return model;
+    return unit?.name || categoryName || "Equipment Unit";
   };
 
   const getUnitBuiltIns = (unit) => {
@@ -44,7 +67,10 @@ function BorrowSlotBarcodeSelector({
 
   useEffect(() => {
     if (selectedUnit) {
-      setSearchTerm(`${getUnitModelName(selectedUnit)} [${selectedUnit.barcode || `UNIT-${selectedUnit.id}`}]`);
+      const seq = getUnitSeqNo(selectedUnit);
+      const bCode = selectedUnit.barcode || `UNIT-${selectedUnit.id}`;
+      const brandModel = getUnitModelName(selectedUnit);
+      setSearchTerm(`${seq ? `${seq} ` : ""}${brandModel} [${bCode}]`);
     } else {
       setSearchTerm(currentBarcode || "");
     }
@@ -72,17 +98,22 @@ function BorrowSlotBarcodeSelector({
 
   const searchFiltered = slotEligibleUnits.filter((u) => {
     const bCode = String(u.barcode || u.serial_number || u.code || `UNIT-${u.id}`).toLowerCase();
-    const uModel = getUnitModelName(u).toLowerCase();
+    const seqNo = String(u.seq_no || u.sequence_no || "").toLowerCase();
+    const brand = String(u.brand || "").toLowerCase();
+    const model = String(u.model || "").toLowerCase();
+    const name = String(u.name || "").toLowerCase();
     const uBuiltIns = getUnitBuiltIns(u).join(" ").toLowerCase();
     const q = searchTerm.toLowerCase().trim();
     if (!q) return true;
-    return bCode.includes(q) || uModel.includes(q) || uBuiltIns.includes(q);
+    return bCode.includes(q) || seqNo.includes(q) || brand.includes(q) || model.includes(q) || name.includes(q) || uBuiltIns.includes(q);
   });
 
   const handleChoose = (unit) => {
     const bCode = unit.barcode || unit.serial_number || unit.code || `UNIT-${unit.id}`;
+    const seq = getUnitSeqNo(unit);
+    const brandModel = getUnitModelName(unit);
     onSelectBarcode(bCode);
-    setSearchTerm(`${getUnitModelName(unit)} [${bCode}]`);
+    setSearchTerm(`${seq ? `${seq} ` : ""}${brandModel} [${bCode}]`);
     setIsOpen(false);
   };
 
@@ -99,7 +130,10 @@ function BorrowSlotBarcodeSelector({
     setIsOpen(true);
     const exactMatch = slotEligibleUnits.find((u) => {
       const bCode = String(u.barcode || u.serial_number || u.code || `UNIT-${u.id}`).trim().toUpperCase();
-      return bCode === val.trim().toUpperCase() || getUnitModelName(u).toLowerCase() === val.trim().toLowerCase();
+      const seq = String(u.seq_no || u.sequence_no || "").trim().toUpperCase();
+      return bCode === val.trim().toUpperCase() ||
+        seq === val.trim().toUpperCase() ||
+        getUnitModelName(u).toLowerCase() === val.trim().toLowerCase();
     });
     if (exactMatch) {
       const exactCode = exactMatch.barcode || exactMatch.serial_number || exactMatch.code || `UNIT-${exactMatch.id}`;
@@ -158,7 +192,7 @@ function BorrowSlotBarcodeSelector({
       </div>
 
       {isOpen && (
-        <div className="absolute z-50 left-0 right-0 mt-1 max-h-64 overflow-y-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-blue-900/50 rounded-xl shadow-sm py-1 text-xs animate-in fade-in">
+        <div className="absolute z-50 left-0 right-0 mt-1 max-h-64 overflow-y-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-blue-900/50 rounded-xl shadow-lg py-1 text-xs animate-in fade-in">
           <div className="px-3 py-1.5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between text-[10.5px] font-bold text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-900/80">
             <span>AVAILABLE MODELS FOR {String(categoryName).toUpperCase()}</span>
             <span>{searchFiltered.length} Available</span>
@@ -173,7 +207,9 @@ function BorrowSlotBarcodeSelector({
           ) : (
             searchFiltered.map((unit, idx) => {
               const bCode = unit.barcode || unit.serial_number || unit.code || `UNIT-${unit.id}`;
-              const uModel = getUnitModelName(unit);
+              const seqNo = getUnitSeqNo(unit);
+              const brand = getUnitBrand(unit);
+              const model = getUnitModel(unit);
               const builtIns = getUnitBuiltIns(unit);
               const isSelected = bCode === currentBarcode;
 
@@ -189,11 +225,19 @@ function BorrowSlotBarcodeSelector({
                   }`}
                 >
                   <div className="flex flex-col gap-0.5 min-w-0 pr-2">
-                    <div className="flex items-center gap-2 flex-wrap">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {seqNo && (
+                        <span className="font-mono text-[10.5px] font-black text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 px-1.5 py-0.5 rounded border border-amber-200 dark:border-amber-800/80 shrink-0">
+                          {seqNo}
+                        </span>
+                      )}
                       <span className="font-extrabold text-slate-900 dark:text-white text-xs truncate max-w-[220px]">
-                        {uModel}
+                        {brand && <span>{brand}</span>}
+                        {brand && model && <span className="text-slate-400 dark:text-slate-500 mx-1">•</span>}
+                        {model && <span className="font-semibold text-slate-700 dark:text-slate-300">{model}</span>}
+                        {!brand && !model && (unit.name || categoryName || "Equipment Unit")}
                       </span>
-                      <span className="font-mono text-[10.5px] font-bold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/60 px-1.5 py-0.5 rounded border border-blue-200 dark:border-blue-800">
+                      <span className="font-mono text-[10.5px] font-bold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/60 px-1.5 py-0.5 rounded border border-blue-200 dark:border-blue-800 shrink-0">
                         {bCode}
                       </span>
                     </div>
@@ -282,11 +326,20 @@ export default function EquipBorrowUnitAssignment({
       );
       if (match) {
         const catName = match.equipmentType?.eq_name || match.equipment_type?.eq_name || match.category || "";
-        const uName = match.name || [match.brand, match.model].filter(Boolean).join(" ") || "Unit";
+        const rawSeq = match.seq_no ?? match.sequence_no;
+        const seqNo = rawSeq !== undefined && rawSeq !== null && String(rawSeq).trim() !== ""
+          ? (String(rawSeq).trim().startsWith("#") ? String(rawSeq).trim() : `#${String(rawSeq).trim()}`)
+          : null;
+        const brand = match.brand ? String(match.brand).trim() : "";
+        const model = match.model ? String(match.model).trim() : "";
+        const brandModel = brand && model ? `${brand} • ${model}` : (brand || model || match.name || "Unit");
         return {
           id: match.id,
           barcode: match.barcode || `UNIT-${match.id}`,
-          name: uName,
+          name: brandModel,
+          brand,
+          model,
+          seq_no: seqNo,
           category: catName,
         };
       }
@@ -366,13 +419,13 @@ export default function EquipBorrowUnitAssignment({
           }`}>
             {isPending ? "REQUESTED EQUIPMENT" : "EQUIPMENT UNIT ASSIGNMENT"}
           </span>
-          {isApproved && (
+          {(isApproved || isOngoing) && (
             <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border ${
               allUnitsAssigned
-                ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                : "bg-amber-50 text-amber-700 border-amber-200"
+                ? "bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800"
+                : "bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800"
             }`}>
-              {totalAssignedUnits} of {totalRequestedUnits} units selected
+              {totalAssignedUnits} of {totalRequestedUnits} units {isOngoing ? "dispatched" : "selected"}
             </span>
           )}
           {isCompleted && (
@@ -413,13 +466,13 @@ export default function EquipBorrowUnitAssignment({
                 </div>
               )}
 
-              {/* State 2: Approved (Typeable model combobox) */}
-              {isApproved && (
+              {/* State 2: Approved OR On-Going (Changeable typeable model combobox) */}
+              {(isApproved || isOngoing) && (
                 <>
                   <div className="flex items-center justify-between text-[11px] font-semibold text-slate-600 dark:text-slate-300">
-                    <span>Select Equipment Unit / Model:</span>
+                    <span>{isOngoing ? "Dispatched Unit / Model (Changeable):" : "Select Equipment Unit / Model:"}</span>
                     <span className={catAssignedCount >= reqQty ? "text-emerald-600 dark:text-emerald-400 font-extrabold" : "text-amber-600 dark:text-amber-400 font-extrabold"}>
-                      {catAssignedCount} of {reqQty} selected
+                      {catAssignedCount} of {reqQty} {isOngoing ? "dispatched" : "selected"}
                     </span>
                   </div>
 
@@ -443,10 +496,19 @@ export default function EquipBorrowUnitAssignment({
                               <span>Unit Slot #{uIdx + 1}</span>
                               {val ? (() => {
                                 const match = (allUnits || []).find(u => String(u.barcode || u.id).trim().toUpperCase() === String(val).trim().toUpperCase());
-                                const modelName = match ? ([match.brand, match.model].filter(Boolean).join(" ") || match.name) : "";
+                                const seq = match?.seq_no ? (String(match.seq_no).trim().startsWith("#") ? String(match.seq_no).trim() : `#${String(match.seq_no).trim()}`) : null;
+                                const brand = match?.brand ? String(match.brand).trim() : "";
+                                const model = match?.model ? String(match.model).trim() : "";
+                                const brandModel = brand && model ? `${brand} • ${model}` : (brand || model || match?.name || "");
+                                const prefix = [seq, brandModel].filter(Boolean).join(" ");
                                 return (
                                   <span className="text-emerald-600 dark:text-emerald-400 flex items-center gap-1 font-bold">
-                                    <Check size={11} className="stroke-[3]" /> {modelName ? `${modelName} [${val}]` : `Assigned [${val}]`}
+                                    <Check size={11} className="stroke-[3]" /> {prefix ? `${prefix} [${val}]` : `Assigned [${val}]`}
+                                    {isOngoing && (
+                                      <span className="ml-1 text-[9.5px] font-bold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/60 px-1.5 py-0.2 rounded border border-blue-200 dark:border-blue-800">
+                                        Released • Changeable
+                                      </span>
+                                    )}
                                   </span>
                                 );
                               })() : (
@@ -494,7 +556,12 @@ export default function EquipBorrowUnitAssignment({
                                         key={biIdx}
                                         className="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-950 border border-blue-200 dark:border-blue-900/50 text-slate-800 dark:text-slate-200 text-xs font-semibold shadow-2xs"
                                       >
-                                        <div className="flex items-center gap-2">
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                          {biUnit.seq_no && (
+                                            <span className="font-mono font-bold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 px-1.5 py-0.5 rounded border border-amber-200 dark:border-amber-800/80 text-[10.5px]">
+                                              {biUnit.seq_no}
+                                            </span>
+                                          )}
                                           <span className="font-mono font-bold text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-1.5 py-0.5 rounded border border-blue-200 dark:border-blue-800 text-[11px]">
                                             {biUnit.barcode}
                                           </span>
@@ -519,8 +586,8 @@ export default function EquipBorrowUnitAssignment({
                 </>
               )}
 
-              {/* State 3 & 4: Released (On-Going) or Completed */}
-              {(isOngoing || isCompleted) && (
+              {/* State 3: Completed (Read-only summary with returned condition badges) */}
+              {isCompleted && (
                 <div className="space-y-1.5 pt-1">
                   <span className="text-[10.5px] font-mono text-slate-400 font-bold uppercase">
                     Dispatched Physical Units:
@@ -530,102 +597,62 @@ export default function EquipBorrowUnitAssignment({
                     const catKey = `${reqCat.category}-${uIdx}`;
                     const val = assignedUnitSelections[idxKey] || assignedUnitSelections[catKey] || "";
 
-                    if (isOngoing && (!val || val === "—")) {
-                      const otherSelectedBarcodes = Object.entries(assignedUnitSelections || {})
-                        .filter(([k, v]) => k !== idxKey && k !== catKey && k !== String(uIdx) && Boolean(v))
-                        .map(([_, v]) => String(v).trim().toUpperCase());
-
-                      const filteredUnits = availableUnits.filter((unit) => {
-                        const bCode = String(unit.barcode || unit.serial_number || unit.code || unit.id || "").trim().toUpperCase();
-                        const uName = String(unit.name || "").trim().toUpperCase();
-                        return !otherSelectedBarcodes.includes(bCode) && (!uName || !otherSelectedBarcodes.includes(uName));
-                      });
-
-                      return (
-                        <div key={uIdx} className="relative">
-                          <select
-                            value={val}
-                            onChange={(e) => {
-                              const updated = { ...assignedUnitSelections, [idxKey]: e.target.value };
-                              if (catKey !== idxKey && catKey in updated) {
-                                delete updated[catKey];
-                              }
-                              setAssignedUnitSelections(updated);
-                              if (selected && selected.id) {
-                                localStorage.setItem(`fsuu_assigned_units_eb_${selected.id}`, JSON.stringify(updated));
-                                api.put(`/avr-equipment-borrowings/${selected.id}/assign-units`, { assigned_units: updated }).catch(() => {});
-                              }
-                            }}
-                            className="w-full p-2 bg-amber-50/50 border border-amber-300 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-50 cursor-pointer"
-                          >
-                            <option value="">
-                              -- Assign Barcode (Unit {uIdx + 1} of {reqCat.quantity}) --
-                            </option>
-                            {filteredUnits.map((unit) => {
-                              const displayCode = unit.barcode || unit.serial_number || unit.code || `UNIT-${unit.id}`;
-                              return (
-                                <option key={unit.id} value={displayCode}>
-                                  {displayCode} — {unit.name || reqCat.category}
-                                </option>
-                              );
-                            })}
-                          </select>
-                        </div>
-                      );
-                    }
-
-                    // Condition badge should ONLY be shown when the borrowing is COMPLETED.
-                    // For ONGOING / APPROVED: equipment is currently out with borrower, so never show Lost/Damaged badge.
-                    const resolvedCond = (isCompleted && val)
-                      ? unitReturnedConditions[val] || unitReturnedConditions[idxKey] || unitReturnedConditions[catKey]
+                    const resolvedCond = val
+                      ? unitReturnedConditions[val] || unitReturnedConditions[idxKey] || unitReturnedConditions[catKey] || "Complete"
                       : null;
 
-                    let displayCond = null;
-                    if (isCompleted) {
-                      if (resolvedCond) {
-                        displayCond = resolvedCond;
-                      } else {
-                        displayCond = "Complete";
-                      }
-                    }
-
                     const slotBuiltIns = getBuiltInUnitsForBarcode(val);
+                    const match = (allUnits || []).find(u => String(u.barcode || u.id).trim().toUpperCase() === String(val).trim().toUpperCase());
+                    const seq = match?.seq_no ? (String(match.seq_no).trim().startsWith("#") ? String(match.seq_no).trim() : `#${String(match.seq_no).trim()}`) : null;
+                    const brand = match?.brand ? String(match.brand).trim() : "";
+                    const model = match?.model ? String(match.model).trim() : "";
+                    const brandModel = brand && model ? `${brand} • ${model}` : (brand || model || match?.name || "");
 
                     return (
-                      <div key={uIdx} className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between text-xs font-mono font-bold text-slate-800 gap-2">
+                      <div key={uIdx} className="p-2.5 bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-xl space-y-1.5">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between text-xs font-mono font-bold text-slate-800 dark:text-slate-200 gap-2">
                           <span>Unit {uIdx + 1}</span>
                           <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                            {seq && (
+                              <span className="font-mono text-[10.5px] font-black text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 px-1.5 py-0.5 rounded border border-amber-200 dark:border-amber-800/80">
+                                {seq}
+                              </span>
+                            )}
+                            {brandModel && (
+                              <span className="font-bold text-slate-800 dark:text-slate-200 text-xs">
+                                {brandModel}
+                              </span>
+                            )}
                             <span className={`px-2 py-0.5 rounded-lg border font-extrabold ${
                               val && val !== "—"
-                                ? "bg-white border-slate-200 text-blue-700 shadow-xs"
-                                : "bg-amber-100/60 border-amber-300 text-amber-800"
+                                ? "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-blue-700 dark:text-blue-300 shadow-xs"
+                                : "bg-amber-100/60 dark:bg-amber-950/60 border-amber-300 dark:border-amber-800 text-amber-800 dark:text-amber-300"
                             }`}>
                               {val || "Unassigned"}
                             </span>
 
-                            {displayCond && val && val !== "—" && (
+                            {resolvedCond && val && val !== "—" && (
                               <span className={`px-2 py-0.5 rounded-lg border font-extrabold shadow-xs ${
-                                ['good', 'clean', 'complete'].includes(displayCond.toLowerCase())
-                                  ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                                  : displayCond.toLowerCase() === 'late return' || displayCond.toLowerCase() === 'late'
-                                  ? "bg-amber-50 text-amber-700 border-amber-200"
-                                  : "bg-rose-50 text-rose-700 border-rose-200"
+                                ['good', 'clean', 'complete'].includes(resolvedCond.toLowerCase())
+                                  ? "bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800"
+                                  : resolvedCond.toLowerCase() === 'late return' || resolvedCond.toLowerCase() === 'late'
+                                  ? "bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800"
+                                  : "bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800"
                               }`}>
-                                {displayCond}
+                                {resolvedCond}
                               </span>
                             )}
                           </div>
                         </div>
 
                         {slotBuiltIns.length > 0 && (
-                          <div className="pt-1.5 border-t border-slate-200/80 space-y-1">
-                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                          <div className="pt-1.5 border-t border-slate-200/80 dark:border-slate-800 space-y-1">
+                            <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
                               Built-in Linked Units ({slotBuiltIns.length}):
                             </span>
                             <div className="flex flex-wrap gap-1.5">
                               {slotBuiltIns.map((biUnit, biIdx) => {
-                                const biCond = (isCompleted && biUnit.barcode) ? (unitReturnedConditions[biUnit.barcode] || "Complete") : null;
+                                const biCond = (biUnit.barcode) ? (unitReturnedConditions[biUnit.barcode] || "Complete") : null;
                                 const isBiLost = biCond && biCond.toLowerCase() === "lost";
                                 const isBiDamaged = biCond && biCond.toLowerCase() === "damaged";
                                 return (
@@ -633,13 +660,18 @@ export default function EquipBorrowUnitAssignment({
                                     key={biIdx}
                                     className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border text-[11px] font-medium shadow-2xs ${
                                       isBiLost
-                                        ? "bg-rose-100 text-rose-900 border-rose-300 font-bold"
+                                        ? "bg-rose-100 dark:bg-rose-950/80 text-rose-900 dark:text-rose-300 border-rose-300 dark:border-rose-800 font-bold"
                                         : isBiDamaged
-                                        ? "bg-rose-50 text-rose-700 border-rose-200 font-bold"
-                                        : "bg-white border-slate-200 text-slate-700"
+                                        ? "bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800 font-bold"
+                                        : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300"
                                     }`}
                                   >
-                                    <span className="font-mono font-bold text-blue-600 bg-blue-50 px-1 py-0.2 rounded border border-blue-100 text-[10px]">
+                                    {biUnit.seq_no && (
+                                      <span className="font-mono font-bold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 px-1 py-0.2 rounded border border-amber-200 dark:border-amber-800 text-[10px]">
+                                        {biUnit.seq_no}
+                                      </span>
+                                    )}
+                                    <span className="font-mono font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-1 py-0.2 rounded border border-blue-100 dark:border-blue-800 text-[10px]">
                                       {biUnit.barcode}
                                     </span>
                                     <span>{biUnit.name}</span>
@@ -665,17 +697,17 @@ export default function EquipBorrowUnitAssignment({
       </div>
 
       {/* Workflow Actions Section */}
-      <div className="space-y-2 pt-2 border-t border-slate-200">
+      <div className="space-y-2 pt-2 border-t border-slate-200 dark:border-slate-800">
         {isApproved && (
-          <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-2">
+          <div className="p-3 bg-slate-50 dark:bg-slate-900/80 rounded-2xl border border-slate-200/80 dark:border-blue-900/50 space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-xs text-slate-700 font-bold">Fulfillment:</span>
+              <span className="text-xs text-slate-700 dark:text-slate-300 font-bold">Fulfillment:</span>
               <span className={`text-xs font-extrabold ${
                 hasCompromisedUnits
-                  ? "text-rose-600"
+                  ? "text-rose-600 dark:text-rose-400"
                   : allUnitsAssigned
-                  ? "text-emerald-600"
-                  : "text-amber-600"
+                  ? "text-emerald-600 dark:text-emerald-400"
+                  : "text-amber-600 dark:text-amber-400"
               }`}>
                 {hasCompromisedUnits
                   ? "Unit / Built-in Damaged or Lost"
@@ -685,8 +717,8 @@ export default function EquipBorrowUnitAssignment({
               </span>
             </div>
             {hasCompromisedUnits && (
-              <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-xl text-[11px] font-semibold text-rose-800 flex items-start gap-2">
-                <AlertCircle size={14} className="text-rose-600 shrink-0 mt-0.5" />
+              <div className="p-2.5 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 rounded-xl text-[11px] font-semibold text-rose-800 dark:text-rose-300 flex items-start gap-2">
+                <AlertCircle size={14} className="text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
                 <span>One or more assigned units or linked built-in components are damaged or lost. The equipment cannot be released until the damaged component or unit is replaced.</span>
               </div>
             )}
@@ -694,10 +726,10 @@ export default function EquipBorrowUnitAssignment({
               type="button"
               onClick={() => handleAction(selected.id, "ongoing")}
               disabled={!canRelease || !!actionLoading}
-              className={`w-full py-2 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition-all shadow-xs ${
+              className={`w-full py-2.5 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition-all shadow-xs ${
                 canRelease
-                  ? "bg-slate-900 hover:bg-slate-800 text-white cursor-pointer"
-                  : "bg-slate-200 text-slate-400 border border-slate-300 cursor-not-allowed"
+                  ? "bg-slate-900 hover:bg-slate-800 text-white dark:bg-blue-600 dark:hover:bg-blue-700 dark:text-white cursor-pointer active:scale-[0.99]"
+                  : "bg-slate-200 dark:bg-slate-800/80 text-slate-400 dark:text-slate-500 border border-slate-300 dark:border-slate-700/80 cursor-not-allowed"
               }`}
             >
               {actionLoading === `${selected.id}-ongoing` ? <Loader2 size={13} className="animate-spin" /> : <Play size={13} />}
@@ -707,9 +739,9 @@ export default function EquipBorrowUnitAssignment({
         )}
 
         {isOngoing && (
-          <div className="p-3 bg-blue-50/60 border border-blue-200/80 rounded-2xl flex items-center gap-2 text-xs font-bold text-blue-800">
-            <CheckCircle2 size={16} className="text-blue-600 shrink-0" />
-            <span>Equipment dispatched. Awaiting return & post-use inspection.</span>
+          <div className="p-3 bg-blue-50/60 dark:bg-blue-950/40 border border-blue-200/80 dark:border-blue-900/50 rounded-2xl flex items-center gap-2 text-xs font-bold text-blue-800 dark:text-blue-300">
+            <CheckCircle2 size={16} className="text-blue-600 dark:text-blue-400 shrink-0" />
+            <span>Equipment dispatched. Awaiting return &amp; post-use inspection.</span>
           </div>
         )}
       </div>

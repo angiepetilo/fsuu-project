@@ -266,11 +266,21 @@ export default function RolesSubTab() {
                           >
                             Edit
                           </button>
-                          {!r.is_protected && (
+                          {r.is_protected ? (
+                            <button
+                              type="button"
+                              disabled
+                              title="System roles are protected and cannot be deleted"
+                              className="px-2.5 py-1 rounded border border-slate-200 dark:border-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed text-xs font-medium opacity-50"
+                            >
+                              Delete
+                            </button>
+                          ) : (
                             <button
                               type="button"
                               onClick={() => handleDelete(r)}
                               disabled={deletingId === r.id || r.users_count > 0}
+                              title={r.users_count > 0 ? "Cannot delete role while assigned to active users" : "Delete role"}
                               className="px-2.5 py-1 rounded border border-rose-200 dark:border-rose-900/50 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors cursor-pointer text-xs font-medium disabled:opacity-40"
                             >
                               Delete

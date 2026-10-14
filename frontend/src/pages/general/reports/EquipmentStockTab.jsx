@@ -92,8 +92,9 @@ export default function EquipmentStockTab({
 
       setCategories(catList);
 
-      // Identify all child units assigned to parents
+      // Identify all child units assigned to parents and map parent references
       const childIdSet = new Set();
+      const parentUnitLookup = new Map();
       unitData.forEach(p => {
         let raw = p.built_in_units;
         if (typeof raw === 'string') {
@@ -102,11 +103,11 @@ export default function EquipmentStockTab({
         if (Array.isArray(raw)) {
           raw.forEach(id => {
             if (id) {
-              if (typeof id === 'object' && id !== null && id.id) {
-                childIdSet.add(String(id.id).trim().toLowerCase());
-              } else {
-                childIdSet.add(String(id).trim().toLowerCase());
-              }
+              const childKey = (typeof id === 'object' && id !== null && id.id)
+                ? String(id.id).trim().toLowerCase()
+                : String(id).trim().toLowerCase();
+              childIdSet.add(childKey);
+              parentUnitLookup.set(childKey, p);
             }
           });
         }
@@ -129,9 +130,14 @@ export default function EquipmentStockTab({
         else if (dbStatusRaw === 'decommissioned' || dbStatusRaw === 'lost') conditionLabel = 'Lost';
         else conditionLabel = 'Good';
 
-        const isChild = childIdSet.has(String(u.id).toLowerCase()) ||
-          (u.barcode && childIdSet.has(String(u.barcode).trim().toLowerCase())) ||
-          (u.serial_number && childIdSet.has(String(u.serial_number).trim().toLowerCase()));
+        const childKey1 = String(u.id).toLowerCase();
+        const childKey2 = u.barcode ? String(u.barcode).trim().toLowerCase() : null;
+        const childKey3 = u.serial_number ? String(u.serial_number).trim().toLowerCase() : null;
+        const parentUnitObj = parentUnitLookup.get(childKey1) || (childKey2 ? parentUnitLookup.get(childKey2) : null) || (childKey3 ? parentUnitLookup.get(childKey3) : null);
+
+        const isChild = childIdSet.has(childKey1) ||
+          (childKey2 && childIdSet.has(childKey2)) ||
+          (childKey3 && childIdSet.has(childKey3));
 
         let dbStatus = dbStatusRaw;
         // Damaged / Lost / Repair takes precedence
@@ -141,7 +147,13 @@ export default function EquipmentStockTab({
         ) {
           dbStatus = 'unavailable';
         } else if (isChild || dbStatusRaw === 'built-in' || dbStatusRaw === 'built_in') {
-          dbStatus = 'Built-in';
+          const parentSt = parentUnitObj ? String(parentUnitObj.status || '').toLowerCase() : '';
+          const isParentOut = ['released', 'in_use', 'in-use', 'borrowed', 'checked_out'].includes(parentSt);
+          if (isParentOut || ['released', 'in_use', 'in-use', 'borrowed'].includes(dbStatusRaw)) {
+            dbStatus = 'Released';
+          } else {
+            dbStatus = 'Built-in';
+          }
         } else if (dbStatusRaw === 'released' || dbStatusRaw === 'in-use' || dbStatusRaw === 'released / in-use' || dbStatusRaw === 'release / in - use') {
           dbStatus = 'Released';
         } else if (dbStatusRaw === 'reserved') {
@@ -381,13 +393,23 @@ export default function EquipmentStockTab({
               unavailableCount++;
               return;
             }
+            // If parent unit is released / on-loan, the built-in child is also released with it!
+            const isParentReleased = ['released', 'in_use', 'in-use', 'borrowed', 'checked_out'].includes(pSt);
+            if (isParentReleased || ['released', 'in_use', 'in-use', 'borrowed'].includes(st)) {
+              currentReleased++;
+              return;
+            }
+            if (pSt === 'reserved' || st === 'reserved') {
+              reservedCount++;
+              return;
+            }
           } else if (st === 'unavailable') {
             unavailableCount++;
             return;
           }
 
-          // Every healthy built-in child of another unit is NEVER counted as available, but as built-in
-          if (['released', 'in_use', 'in-use'].includes(st)) {
+          // Every healthy built-in child of another unit is counted as released if in-use, or built-in if idle
+          if (['released', 'in_use', 'in-use', 'borrowed'].includes(st)) {
             currentReleased++;
           } else if (st === 'reserved') {
             reservedCount++;

@@ -45,4 +45,18 @@ class CommunicationLogController extends Controller
 
         return response()->json($logs);
     }
+
+    /**
+     * DELETE /api/general/communication-logs/clear
+     * Clears all email and SMS communication logs.
+     */
+    public function clear(Request $request): JsonResponse
+    {
+        try {
+            CommunicationLog::query()->delete();
+            return response()->json(['message' => 'Communication logs cleared successfully.']);
+        } catch (\Throwable $e) {
+            return response()->json(['message' => 'Failed to clear communication logs: ' . $e->getMessage()], 500);
+        }
+    }
 }

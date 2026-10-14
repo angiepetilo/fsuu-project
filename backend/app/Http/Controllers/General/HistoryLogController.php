@@ -32,16 +32,18 @@ class HistoryLogController extends Controller
                 $academicTermId = $academicTermId ? (int)$academicTermId : null;
             }
 
+            $includeArchived = $request->boolean('include_archived', false) || $request->boolean('for_reports', false);
+
             $venueBookings       = in_array($type, ['venue', 'all']) 
-                ? $this->historyService->getVenueBookingsHistory(null, true, $academicTermId) 
+                ? $this->historyService->getVenueBookingsHistory(null, true, $academicTermId, $includeArchived) 
                 : collect();
 
             $equipmentBorrowings = in_array($type, ['equipment', 'all']) 
-                ? $this->historyService->getEquipmentBorrowingsHistory(null, true, $academicTermId) 
+                ? $this->historyService->getEquipmentBorrowingsHistory(null, true, $academicTermId, $includeArchived) 
                 : collect();
 
             $incidents           = in_array($type, ['incidents', 'all'])
-                ? $this->historyService->getIncidentsHistory(null, true, $academicTermId)
+                ? $this->historyService->getIncidentsHistory(null, true, $academicTermId, $includeArchived)
                 : collect();
 
             if ($type === 'venue') {
@@ -92,6 +94,49 @@ class HistoryLogController extends Controller
             return response()->json(['message' => 'Equipment history record archived.']);
         } catch (\Throwable $e) {
             return response()->json(['message' => 'Failed to archive record.'], 500);
+        }
+    }
+
+    /**
+     * POST /general/history-log/clear — archive historical records for venue and/or equipment
+     */
+    public function clear(Request $request): JsonResponse
+    {
+        try {
+            $type = $request->input('type', 'all'); // 'venue' | 'equipment' | 'all'
+            $termId = $request->input('academic_term_id');
+
+            $activeStatuses = ['pending', 'approved', 'ongoing', 'on-going', 'post-inspection', 'reserved'];
+
+            if (in_array($type, ['venue', 'all'])) {
+                $vbQuery = DB::table('venue_bookings')
+                    ->whereNull('archived_at')
+                    ->where(function ($q) use ($activeStatuses) {
+                        $q->whereNotIn(DB::raw('LOWER(TRIM(status))'), $activeStatuses)
+                          ->orWhereNull('status');
+                    });
+                if ($termId) {
+                    $vbQuery->where('academic_term_id', $termId);
+                }
+                $vbQuery->update(['archived_at' => now()]);
+            }
+
+            if (in_array($type, ['equipment', 'all'])) {
+                $ebQuery = DB::table('equipment_borrows')
+                    ->whereNull('archived_at')
+                    ->where(function ($q) use ($activeStatuses) {
+                        $q->whereNotIn(DB::raw('LOWER(TRIM(status))'), $activeStatuses)
+                          ->orWhereNull('status');
+                    });
+                if ($termId) {
+                    $ebQuery->where('academic_term_id', $termId);
+                }
+                $ebQuery->update(['archived_at' => now()]);
+            }
+
+            return response()->json(['message' => 'History log cleared successfully.']);
+        } catch (\Throwable $e) {
+            return response()->json(['message' => 'Failed to clear history log: ' . $e->getMessage()], 500);
         }
     }
 }

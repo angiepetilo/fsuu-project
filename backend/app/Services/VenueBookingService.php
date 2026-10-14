@@ -442,13 +442,20 @@ class VenueBookingService
 
             if (!empty($data['endorsement_url'])) {
                 if (\Illuminate\Support\Facades\Schema::hasTable('documents')) {
-                    DB::table('documents')->insert([
-                        'venue_booking_id' => $bookingId,
-                        'file_path'        => $data['endorsement_url'],
-                        'document_type'    => 'endorsement_letter',
-                        'created_at'       => now(),
-                        'updated_at'       => now(),
-                    ]);
+                    $exists = DB::table('documents')
+                        ->where('venue_booking_id', $bookingId)
+                        ->where('file_path', $data['endorsement_url'])
+                        ->exists();
+
+                    if (!$exists) {
+                        DB::table('documents')->insert([
+                            'venue_booking_id' => $bookingId,
+                            'file_path'        => $data['endorsement_url'],
+                            'document_type'    => 'endorsement_letter',
+                            'created_at'       => now(),
+                            'updated_at'       => now(),
+                        ]);
+                    }
                 }
             }
 

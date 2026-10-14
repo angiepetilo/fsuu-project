@@ -1460,7 +1460,7 @@ export default function VenueBookingDetailModal({
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 overflow-y-auto animate-in fade-in duration-200">
-      <div className="bg-white rounded-2xl max-w-5xl w-full border border-slate-200 shadow-sm flex flex-col max-h-[92vh] overflow-hidden my-auto animate-in zoom-in-95 duration-150 font-sans">
+      <div className="bg-white dark:bg-slate-900/80 rounded-2xl max-w-5xl w-full border border-slate-200 dark:border-blue-900/50 shadow-sm flex flex-col max-h-[92vh] overflow-hidden my-auto animate-in zoom-in-95 duration-150 font-sans">
         {/* Modal Header */}
         <VenueModalHeader
           selected={selected}
@@ -1471,7 +1471,7 @@ export default function VenueBookingDetailModal({
         />
 
         {/* Modal Body Scroll Area */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 bg-slate-50/50">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 bg-slate-50/50 dark:bg-slate-950/70">
           {/* Conditional Layout Rendering */}
           {isCancelledOrRejected ? (
             /* CANCELLED / REJECTED STATUS: No Inspection Form or Checklist */
@@ -1624,20 +1624,20 @@ export default function VenueBookingDetailModal({
                 </div>
               )}
               {currentStatus === "incomplete" ? (
-                <div className="py-3 px-4 bg-amber-50 border-2 border-amber-300 rounded-xl text-xs space-y-1.5 shadow-2xs">
+                <div className="py-3 px-4 bg-amber-50 dark:bg-amber-950/40 border-2 border-amber-300 dark:border-amber-700/60 rounded-xl text-xs space-y-1.5 shadow-2xs">
                   <div className="flex items-center justify-between">
-                    <span className="font-extrabold text-amber-900 flex items-center gap-1.5">
-                      <AlertTriangle size={15} className="text-amber-600" />
+                    <span className="font-extrabold text-amber-900 dark:text-amber-200 flex items-center gap-1.5">
+                      <AlertTriangle size={15} className="text-amber-600 dark:text-amber-400" />
                       Status: INCOMPLETE (Awaiting Applicant Requirements)
                     </span>
                     {selected.incomplete_deadline_at && (
-                      <span className="text-[11px] font-mono font-bold bg-amber-200/70 text-amber-900 px-2 py-0.5 rounded">
+                      <span className="text-[11px] font-mono font-bold bg-amber-200/70 dark:bg-amber-900/60 text-amber-900 dark:text-amber-200 px-2 py-0.5 rounded">
                         Deadline: {new Date(selected.incomplete_deadline_at).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
                       </span>
                     )}
                   </div>
                   {selected.missing_requirements_remarks && (
-                    <p className="text-xs text-amber-800 font-medium">
+                    <p className="text-xs text-amber-800 dark:text-amber-300 font-medium">
                       <strong>Remarks:</strong> {selected.missing_requirements_remarks}
                     </p>
                   )}
@@ -1649,22 +1649,22 @@ export default function VenueBookingDetailModal({
                           ? JSON.parse(selected.missing_requirements_list)
                           : [selected.missing_requirements_list]
                       ).map((item, idx) => (
-                        <span key={idx} className="px-2 py-0.5 rounded bg-amber-100 border border-amber-300 text-[10.5px] font-bold text-amber-800">
+                        <span key={idx} className="px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-900/50 border border-amber-300 dark:border-amber-700 text-[10.5px] font-bold text-amber-800 dark:text-amber-200">
                           {item}
                         </span>
                       ))}
                     </div>
                   )}
                   {selected.resubmitted_at && (
-                    <p className="text-[11px] font-bold text-emerald-700 pt-1">
+                    <p className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 pt-1">
                       ✓ Supplementary requirements re-uploaded on {new Date(selected.resubmitted_at).toLocaleString()}
                     </p>
                   )}
                 </div>
               ) : (
-                <div className="py-2.5 px-3.5 bg-amber-50/70 border border-amber-200/80 rounded-xl text-xs font-medium text-slate-700 flex items-center justify-between">
-                  <span>Reservation Status: <strong className="text-amber-700 font-mono font-bold uppercase">Pending Review</strong></span>
-                  <span className="text-[11px] text-slate-500 font-medium">Review request details before approving, rejecting, or marking incomplete.</span>
+                <div className="py-2.5 px-3.5 bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200/80 dark:border-amber-900/50 rounded-xl text-xs font-medium text-slate-700 dark:text-slate-300 flex items-center justify-between">
+                  <span>Reservation Status: <strong className="text-amber-700 dark:text-amber-400 font-mono font-bold uppercase">Pending Review</strong></span>
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Review request details before approving, rejecting, or marking incomplete.</span>
                 </div>
               )}
             </div>
@@ -1813,15 +1813,15 @@ export default function VenueBookingDetailModal({
 
           {/* Reject Form Drawer */}
           {showRejectForm && (
-            <div ref={rejectFormRef} className="p-4 bg-white border border-rose-200 rounded-xl space-y-3 animate-in fade-in shadow-2xs">
+            <div ref={rejectFormRef} className="p-4 bg-white dark:bg-slate-900 border border-rose-200 dark:border-rose-900/60 rounded-xl space-y-3 animate-in fade-in shadow-2xs">
               
               <div className="flex items-center justify-between">
-                <label className="block text-xs font-bold text-slate-900">Reason for Rejection *</label>
+                <label className="block text-xs font-bold text-slate-900 dark:text-white">Reason for Rejection *</label>
                 {!isHistoryView && (
                   <button
                     type="button"
                     onClick={() => setShowAddRejection(!showAddRejection)}
-                    className="text-[11px] font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 cursor-pointer transition-colors"
+                    className="text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 flex items-center gap-1 cursor-pointer transition-colors"
                   >
                     {showAddRejection ? <X size={12} /> : <Edit size={12} />}
                     <span>{showAddRejection ? "Save Editing" : "Edit Category"}</span>
@@ -1830,18 +1830,18 @@ export default function VenueBookingDetailModal({
               </div>
 
               {showAddRejection && !isHistoryView ? (
-                <div className="p-3 bg-white rounded-lg border border-blue-200 shadow-2xs space-y-3 mb-2 animate-in fade-in zoom-in-95 duration-200">
+                <div className="p-3 bg-white dark:bg-slate-900 rounded-lg border border-blue-200 dark:border-blue-900/50 shadow-2xs space-y-3 mb-2 animate-in fade-in zoom-in-95 duration-200">
                   <div className="space-y-1 max-h-40 overflow-y-auto pr-1">
                     {rejectionReasons.length === 0 && (
                       <p className="text-xs text-slate-400 font-medium p-2 text-center">No rejection reasons added yet.</p>
                     )}
                     {rejectionReasons.map((cat, idx) => (
-                      <div key={`rej-cat-${idx}`} className="flex justify-between items-center text-xs p-1.5 hover:bg-slate-50 rounded border border-transparent hover:border-slate-200 transition-colors">
-                        <span className="font-semibold text-slate-600">{cat}</span>
+                      <div key={`rej-cat-${idx}`} className="flex justify-between items-center text-xs p-1.5 hover:bg-slate-50 dark:hover:bg-slate-800 rounded border border-transparent hover:border-slate-200 dark:hover:border-slate-700 transition-colors">
+                        <span className="font-semibold text-slate-600 dark:text-slate-300">{cat}</span>
                         <button 
                           type="button" 
                           onClick={() => handleDeleteRejection(cat)} 
-                          className="text-slate-500 hover:text-rose-600 cursor-pointer p-1 rounded hover:bg-rose-50 transition-colors flex items-center gap-1 font-bold"
+                          className="text-slate-500 hover:text-rose-600 cursor-pointer p-1 rounded hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors flex items-center gap-1 font-bold"
                           title="Remove Category"
                         >
                           <Trash2 size={12} />
@@ -1850,13 +1850,13 @@ export default function VenueBookingDetailModal({
                       </div>
                     ))}
                   </div>
-                  <div className="flex items-center gap-2 border-t border-slate-100 pt-3">
+                  <div className="flex items-center gap-2 border-t border-slate-100 dark:border-slate-800 pt-3">
                     <input
                       type="text"
                       placeholder="Enter custom rejection reason..."
                       value={newRejectionInput}
                       onChange={(e) => setNewRejectionInput(e.target.value)}
-                      className="flex-1 px-2.5 py-1.5 text-xs border border-slate-200 rounded focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
+                      className="flex-1 px-2.5 py-1.5 text-xs bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
                     />
                     {newRejectionInput.trim() && (
                       <button
@@ -1879,7 +1879,7 @@ export default function VenueBookingDetailModal({
                     const selectedRejectionCatsArray = selectedViolationType ? selectedViolationType.split(", ").filter(Boolean) : [];
                     const isChecked = selectedRejectionCatsArray.includes(reason);
                     return (
-                      <label key={`rej-opt-${idx}`} className="flex items-center gap-2.5 cursor-pointer p-2 hover:bg-slate-50 rounded-lg border border-transparent hover:border-slate-200 hover:shadow-2xs transition-all">
+                      <label key={`rej-opt-${idx}`} className="flex items-center gap-2.5 cursor-pointer p-2 hover:bg-slate-50 dark:hover:bg-slate-800/60 rounded-lg border border-transparent hover:border-slate-200 dark:hover:border-slate-700 hover:shadow-2xs transition-all">
                         <input 
                           type="checkbox" 
                           checked={isChecked}
@@ -1892,9 +1892,9 @@ export default function VenueBookingDetailModal({
                             }
                             setSelectedViolationType(newArr.join(", "));
                           }}
-                          className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer"
+                          className="w-4 h-4 text-blue-600 rounded border-slate-300 dark:border-slate-700 focus:ring-blue-500 cursor-pointer"
                         />
-                        <span className={`text-xs font-semibold ${isChecked ? 'text-blue-700' : 'text-slate-700'}`}>{reason}</span>
+                        <span className={`text-xs font-semibold ${isChecked ? 'text-blue-700 dark:text-blue-400' : 'text-slate-700 dark:text-slate-300'}`}>{reason}</span>
                       </label>
                     );
                   })}
@@ -1903,7 +1903,7 @@ export default function VenueBookingDetailModal({
 
               {/* Quick Template Reasons */}
               <div className="space-y-1.5 pt-1">
-                <span className="text-[10.5px] font-extrabold uppercase text-slate-500 tracking-wider block">
+                <span className="text-[10.5px] font-extrabold uppercase text-slate-500 dark:text-slate-400 tracking-wider block">
                   Quick Conflict
                 </span>
                 <div className="flex flex-wrap gap-1.5">
@@ -1928,7 +1928,7 @@ export default function VenueBookingDetailModal({
                       setSelectedViolationType("Conflict : Timeslot already occupied");
                       setRejectionComments(msg);
                     }}
-                    className="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-rose-50 hover:text-rose-700 text-slate-700 text-xs font-semibold border border-slate-200 transition-colors cursor-pointer text-left"
+                    className="px-2.5 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-rose-50 dark:hover:bg-rose-950/40 hover:text-rose-700 dark:hover:text-rose-300 text-slate-700 dark:text-slate-300 text-xs font-semibold border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer text-left"
                   >
                     ⚡ Conflict : Timeslot already occupied
                   </button>
@@ -1936,7 +1936,7 @@ export default function VenueBookingDetailModal({
               </div>
 
               <div className="pt-1">
-                <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1">
                   Rejection Remarks
                 </label>
                 <textarea
@@ -1944,7 +1944,7 @@ export default function VenueBookingDetailModal({
                   value={rejectionComments}
                   onChange={(e) => setRejectionComments(e.target.value)}
                   placeholder="Explain why this reservation was rejected (e.g. Schedule conflict, missing endorsement, or vacant venue referral)..."
-                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-medium text-slate-800 focus:outline-none focus:border-rose-500 leading-relaxed"
+                  className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-800 dark:text-white focus:outline-none focus:border-rose-500 leading-relaxed"
                 />
               </div>
 
@@ -1952,7 +1952,7 @@ export default function VenueBookingDetailModal({
                 <button
                   type="button"
                   onClick={() => setShowRejectForm(false)}
-                  className="px-3.5 py-1.5 bg-white border border-slate-300 text-slate-600 hover:bg-slate-50 rounded-lg text-xs font-bold cursor-pointer"
+                  className="px-3.5 py-1.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg text-xs font-bold cursor-pointer"
                 >
                   Cancel
                 </button>

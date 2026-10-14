@@ -356,7 +356,61 @@
     if (is_string($assignedRaw)) {
         try { $assignedRaw = json_decode($assignedRaw, true) ?? []; } catch (\Throwable $e) { $assignedRaw = []; }
     }
-    $barcodes = array_values(array_filter((array)$assignedRaw, fn($v) => !empty($v)));
+
+    // Fallback: check inspections or equipment_units column if assigned_units is empty
+    if (empty($assignedRaw) || (is_array($assignedRaw) && empty(array_filter($assignedRaw)))) {
+        try {
+            $inspAssigned = \App\Models\Inspection::where(function($q) use ($booking) {
+                $q->where('inspectable_id', $booking->id)
+                  ->where(function($sq) {
+                      $sq->where('inspectable_type', 'venue_booking')
+                         ->orWhere('inspectable_type', 'avr_venue_booking')
+                         ->orWhere('inspectable_type', 'venue')
+                         ->orWhere('inspectable_type', 'equipment_borrow')
+                         ->orWhere('inspectable_type', 'equipment_borrowing');
+                  });
+            })->orWhere(function($q) use ($booking) {
+                $q->where('reference_id', $booking->id)
+                  ->where(function($sq) {
+                      $sq->where('reference_type', 'venue_booking')
+                         ->orWhere('reference_type', 'avr_venue_booking');
+                  });
+            })->latest('id')->value('assigned_units');
+
+            if (!empty($inspAssigned)) {
+                if (is_string($inspAssigned)) {
+                    try { $inspAssigned = json_decode($inspAssigned, true); } catch (\Throwable $t) {}
+                }
+                if (is_array($inspAssigned) && !empty($inspAssigned)) {
+                    $assignedRaw = $inspAssigned;
+                }
+            }
+        } catch (\Throwable $e) {}
+    }
+
+    if (empty($assignedRaw) && !empty($booking->equipment_units)) {
+        $rawEqU = $booking->equipment_units;
+        if (is_string($rawEqU)) {
+            $dec = json_decode($rawEqU, true);
+            $assignedRaw = is_array($dec) ? $dec : array_map('trim', explode(',', $rawEqU));
+        } elseif (is_array($rawEqU)) {
+            $assignedRaw = $rawEqU;
+        }
+    }
+
+    $flatBarcodes = [];
+    foreach ((array)$assignedRaw as $item) {
+        if (is_string($item) || is_numeric($item)) {
+            if (!empty($item)) $flatBarcodes[] = trim((string)$item);
+        } elseif (is_array($item)) {
+            $bc = $item['barcode'] ?? $item['serial_number'] ?? $item['id'] ?? null;
+            if (!empty($bc)) $flatBarcodes[] = trim((string)$bc);
+        } elseif (is_object($item)) {
+            $bc = $item->barcode ?? $item->serial_number ?? $item->id ?? null;
+            if (!empty($bc)) $flatBarcodes[] = trim((string)$bc);
+        }
+    }
+    $barcodes = array_values(array_unique(array_filter($flatBarcodes)));
 
     $unitCondMap = [];
     if (!empty($booking->unit_conditions)) {
@@ -371,15 +425,17 @@
         $unitCodes  = array_values(array_filter($barcodes, fn($v) => !empty($v)));
         try {
             $dbUnits = \App\Models\EquipmentUnit::with(['equipmentType'])->where(function($q) use ($unitCodes, $numericIds) {
-                $q->whereIn('barcode', $unitCodes);
+                $q->whereIn('barcode', $unitCodes)
+                  ->orWhereIn('serial_number', $unitCodes);
                 if (!empty($numericIds)) { $q->orWhereIn('id', array_map('intval', $numericIds)); }
             })->get();
             $resolvedUnits = $dbUnits->map(function ($unit) use ($unitCondMap, $assignedRaw) {
                 $key = $unit->barcode ?? $unit->serial_number;
                 $foundCond = $unitCondMap[$key] ?? null;
                 if (!$foundCond) {
-                    foreach ($assignedRaw as $idx => $bc) {
-                        if ((string)$bc === (string)$key && isset($unitCondMap[$idx])) {
+                    foreach ((array)$assignedRaw as $idx => $bc) {
+                        $bcStr = is_string($bc) ? $bc : (is_array($bc) ? ($bc['barcode'] ?? $bc['serial_number'] ?? '') : '');
+                        if ((string)$bcStr === (string)$key && isset($unitCondMap[$idx])) {
                             $foundCond = $unitCondMap[$idx];
                             break;
                         }
@@ -391,6 +447,30 @@
                 }
                 return $unit;
             });
+
+            // Ensure any barcodes passed in assigned_units that weren't in dbUnits still render
+            $foundBarcodes = [];
+            foreach ($resolvedUnits as $ru) {
+                if ($ru->barcode) $foundBarcodes[] = (string)$ru->barcode;
+                if ($ru->serial_number) $foundBarcodes[] = (string)$ru->serial_number;
+                if ($ru->id) $foundBarcodes[] = (string)$ru->id;
+            }
+            foreach ($unitCodes as $uc) {
+                $ucStr = (string)$uc;
+                if (!in_array($ucStr, $foundBarcodes, true)) {
+                    $resolvedUnits->push((object)[
+                        'id' => is_numeric($ucStr) ? (int)$ucStr : null,
+                        'barcode' => $ucStr,
+                        'serial_number' => $ucStr,
+                        'seq_no' => null,
+                        'brand' => null,
+                        'model' => null,
+                        'condition' => 'Good',
+                        'equipmentType' => null,
+                    ]);
+                    $foundBarcodes[] = $ucStr;
+                }
+            }
         } catch (\Throwable $e) {}
     }
 
@@ -546,6 +626,30 @@
       </div>
     </div>
 
+    <table class="data-table">
+      <tr>
+        <td class="data-label">Venue:</td>
+        <td class="data-value"><strong>{{ $venueName }}</strong> ({{ $venueLocation }})</td>
+      </tr>
+      <tr>
+        <td class="data-label">{{ $isExternal ? 'Organization:' : 'Department:' }}</td>
+        <td class="data-value">{{ $organization }}</td>
+      </tr>
+      <tr>
+        <td class="data-label">Event Purpose:</td>
+        <td class="data-value">{{ $purpose }}</td>
+      </tr>
+    </table>
+
+    @if($resolvedUnits->isNotEmpty())
+      <div style="margin: 16px 0;">
+        <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #475569; letter-spacing: 0.5px; margin-bottom: 6px;">
+          Assigned Venue Equipment Units Due for Turnover (Seq No., Serial No., Brand &amp; Model):
+        </div>
+        @include('emails.partials.equipment_unit_table', ['units' => $resolvedUnits, 'mode' => 'release', 'equipmentList' => $equipmentList ?? [], 'booking' => $booking ?? null])
+      </div>
+    @endif
+
     @if(!empty($remarks))
       <div class="callout callout-danger" style="margin: 14px 0;">
         <strong style="display:block; margin-bottom: 2px;">⚠️ AVR Operations Notice:</strong>
@@ -639,6 +743,36 @@
       </tr>
     </table>
 
+    @if($resolvedUnits->isNotEmpty())
+      <div style="margin: 16px 0;">
+        <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #475569; letter-spacing: 0.5px; margin-bottom: 6px;">
+          Assigned Venue Equipment Units (Seq No., Serial No., Brand &amp; Model):
+        </div>
+        @include('emails.partials.equipment_unit_table', ['units' => $resolvedUnits, 'mode' => 'release', 'equipmentList' => $equipmentList ?? [], 'booking' => $booking ?? null])
+      </div>
+    @elseif(!empty($equipmentList))
+      <div style="margin: 14px 0; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px 16px;">
+        <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #475569; letter-spacing: 0.5px; margin-bottom: 6px;">Requested Venue Equipment:</div>
+        @foreach($equipmentList as $eqItem)
+          @php
+            $itemLabel = is_array($eqItem) ? ($eqItem['label'] ?? ($eqItem['name'] ?? 'Equipment Item')) : $eqItem;
+            $builtIns = is_array($eqItem) ? ($eqItem['built_ins'] ?? []) : [];
+          @endphp
+          <div style="font-size: 13px; color: #0f172a; margin-bottom: 4px;">
+            <div>&bull; <strong>{{ $itemLabel }}</strong></div>
+            @if(!empty($builtIns) && count($builtIns) > 0)
+              <div style="margin-left: 14px; margin-top: 2px; font-size: 11.5px; color: #475569;">
+                <span style="font-weight: 700; color: #2563eb;">Built-in:</span>
+                @foreach($builtIns as $bName)
+                  <span style="display: inline-block; background-color: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; border-radius: 4px; padding: 1px 6px; font-size: 10.5px; font-weight: 700; margin: 1px 2px;">{{ $bName }}</span>
+                @endforeach
+              </div>
+            @endif
+          </div>
+        @endforeach
+      </div>
+    @endif
+
     <div class="callout callout-info">
       <strong style="display:block; margin-bottom: 4px;">🏛️ Operational Guidelines During Event:</strong>
       <div>&bull; Keep emergency exits and fire doors unobstructed.</div>
@@ -726,7 +860,7 @@
   @if($resolvedUnits->isNotEmpty())
     <div style="margin: 18px 0;">
       <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #475569; letter-spacing: 0.5px; margin-bottom: 6px;">
-        Returned Unit Inspection Serial Number Record:
+        Returned Unit Inspection &amp; Custodial Clearance Record (Seq No., Asset Barcode &amp; Inspection Results):
       </div>
       @include('emails.partials.equipment_unit_table', ['units' => $resolvedUnits, 'mode' => 'receipt', 'equipmentList' => $equipmentList ?? [], 'booking' => $booking ?? null])
     </div>
@@ -1070,7 +1204,27 @@
           <td class="data-label">Expected Pax:</td>
           <td class="data-value">{{ $persons }} attendees</td>
         </tr>
+        @if(!empty($equipmentList))
+        <tr>
+          <td class="data-label">Requested AV Gear:</td>
+          <td class="data-value">{{ implode(', ', array_map(fn($e) => is_array($e) ? ($e['label'] ?? '') : (string)$e, $equipmentList)) }}</td>
+        </tr>
+        @endif
       </table>
+
+      @if($resolvedUnits->isNotEmpty())
+        <div style="margin: 14px 0 8px 0;">
+          <div style="font-size: 11px; font-weight: 800; text-transform: uppercase; color: #166534; letter-spacing: 0.6px; margin-bottom: 6px;">
+            Assigned AV Equipment Units (Seq No., Serial No., Brand &amp; Model):
+          </div>
+          @include('emails.partials.equipment_unit_table', [
+            'units' => $resolvedUnits,
+            'mode' => 'release',
+            'equipmentList' => $equipmentList ?? [],
+            'booking' => $booking ?? null
+          ])
+        </div>
+      @endif
 
       <div class="callout callout-info">
         <strong style="display:block; margin-bottom: 4px;">🏛️ Room Access Keys:</strong>
@@ -1109,6 +1263,28 @@
       <div class="ref-label">Event Schedule</div>
       <div class="ref-value" style="color: #92400e;">{{ $sched }}</div>
     </div>
+
+    @if($resolvedUnits->isNotEmpty())
+      <div style="margin: 16px 0;">
+        <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #475569; letter-spacing: 0.5px; margin-bottom: 6px;">
+          Assigned Venue Equipment Units (Seq No., Serial No., Brand &amp; Model):
+        </div>
+        @include('emails.partials.equipment_unit_table', ['units' => $resolvedUnits, 'mode' => 'release', 'equipmentList' => $equipmentList ?? [], 'booking' => $booking ?? null])
+      </div>
+    @elseif(!empty($equipmentList))
+      <div style="margin: 14px 0; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px 16px;">
+        <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #475569; letter-spacing: 0.5px; margin-bottom: 6px;">Requested Venue Equipment:</div>
+        @foreach($equipmentList as $eqItem)
+          @php
+            $itemLabel = is_array($eqItem) ? ($eqItem['label'] ?? ($eqItem['name'] ?? 'Equipment Item')) : $eqItem;
+            $builtIns = is_array($eqItem) ? ($eqItem['built_ins'] ?? []) : [];
+          @endphp
+          <div style="font-size: 13px; color: #0f172a; margin-bottom: 4px;">
+            <div>&bull; <strong>{{ $itemLabel }}</strong></div>
+          </div>
+        @endforeach
+      </div>
+    @endif
 
     <div class="callout callout-info">
       <strong style="display:block; margin-bottom: 4px;">⏰ Arrival Setup:</strong>

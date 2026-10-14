@@ -300,4 +300,79 @@ class ReservationFlowEmailTest extends TestCase
 
         $this->assertContains('VN-REMIND-01', $res['venue_reminded']);
     }
+
+    public function test_venue_booking_email_renders_unique_equipment_units_with_seq_serial_brand_model(): void
+    {
+        $venue = $this->makeVenue();
+        $eqType = EquipmentType::create([
+            'name'        => 'Interactive Projector',
+            'eq_name'     => 'Interactive Projector',
+            'status'      => 'available',
+        ]);
+
+        $unit = EquipmentUnit::create([
+            'equipment_type_id' => $eqType->id,
+            'brand'             => 'EPSON',
+            'model'             => 'EB-695Wi',
+            'serial_number'     => 'SN-EPSON-695001',
+            'barcode'           => 'BC-PROJ-695',
+            'seq_no'            => '003',
+            'status'            => 'released',
+            'condition'         => 'Good',
+        ]);
+
+        $tracking = TrackingNumber::forceCreate([
+            'reference_code'   => 'TRK-AVR1258',
+            'reservation_type' => 'venue_booking',
+            'reservation_id'   => 50,
+            'status'           => 'on-going',
+        ]);
+
+        $booking = VenueBooking::create([
+            'tracking_number_id'      => $tracking->id,
+            'venue_id'                => $venue->id,
+            'submission_channel'      => 'online_self',
+            'first_name'              => 'Ad',
+            'last_name'               => 'Asd',
+            'filer_name'              => 'Ad Asd',
+            'email_address'           => 'adasd@fsuu.edu.ph',
+            'contact_number'          => '09191234567',
+            'classification'          => 'student',
+            'requestor_identity_type' => 'student',
+            'program_office'          => 'CORE',
+            'purpose'                 => 'sdad',
+            'no_of_person'            => 20,
+            'date_of_usage'           => '2026-10-17',
+            'time_start'              => '08:00:00',
+            'time_end'                => '10:00:00',
+            'assigned_units'          => [$unit->barcode],
+            'status'                  => 'on-going',
+        ]);
+
+        // 1. On-Going check-in email test (matching user screenshot)
+        $mail = new BookingStatusUpdateMail('venue', $booking, 'on-going');
+        $html = $mail->render();
+
+        $this->assertStringContainsString('Event Check-In Logged — Session Now On-Going', $html);
+        $this->assertStringContainsString('TRK-AVR1258', $html);
+        $this->assertStringContainsString('CORE', $html);
+        $this->assertStringContainsString('sdad', $html);
+        $this->assertStringContainsString('Assigned Venue Equipment Units', $html);
+
+        // Verify the 4 key unit details are displayed
+        $this->assertStringContainsString('#003', $html);              // Seq No. (formatted with #)
+        $this->assertStringContainsString('SN-EPSON-695001', $html);  // Serial No.
+        $this->assertStringContainsString('BC-PROJ-695', $html);      // Asset Barcode
+        $this->assertStringContainsString('EPSON', $html);            // Brand
+        $this->assertStringContainsString('EB-695Wi', $html);         // Model Name
+
+        // 2. Completed / Return clearance email test
+        $completeMail = new BookingStatusUpdateMail('venue', $booking, 'completed');
+        $completeHtml = $completeMail->render();
+        $this->assertStringContainsString('Returned Unit Inspection', $completeHtml);
+        $this->assertStringContainsString('#003', $completeHtml);
+        $this->assertStringContainsString('SN-EPSON-695001', $completeHtml);
+        $this->assertStringContainsString('EPSON', $completeHtml);
+        $this->assertStringContainsString('EB-695Wi', $completeHtml);
+    }
 }

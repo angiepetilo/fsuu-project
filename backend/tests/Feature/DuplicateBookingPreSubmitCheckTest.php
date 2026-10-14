@@ -261,6 +261,11 @@ class DuplicateBookingPreSubmitCheckTest extends TestCase
             'eq_name' => 'Projector',
             'total_quantity' => 5,
         ]);
+        \App\Models\EquipmentUnit::create([
+            'equipment_type_id' => $eqType->id,
+            'barcode' => 'PROJ-TEST-001',
+            'status' => 'available',
+        ]);
 
         $service = app(EquipmentBorrowingService::class);
 

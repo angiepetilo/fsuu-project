@@ -257,6 +257,49 @@
             'built_ins' => [],
         ];
     }
+
+    // Resolve individual physical equipment units
+    $assignedRaw = $booking->assigned_units ?? [];
+    if (is_string($assignedRaw)) {
+        try { $assignedRaw = json_decode($assignedRaw, true) ?? []; } catch (\Throwable $e) { $assignedRaw = []; }
+    }
+
+    if (empty($assignedRaw) && !empty($booking->equipment_units)) {
+        $rawEqU = $booking->equipment_units;
+        if (is_string($rawEqU)) {
+            $dec = json_decode($rawEqU, true);
+            $assignedRaw = is_array($dec) ? $dec : array_map('trim', explode(',', $rawEqU));
+        } elseif (is_array($rawEqU)) {
+            $assignedRaw = $rawEqU;
+        }
+    }
+
+    $flatBarcodes = [];
+    foreach ((array)$assignedRaw as $item) {
+        if (is_string($item) || is_numeric($item)) {
+            if (!empty($item)) $flatBarcodes[] = trim((string)$item);
+        } elseif (is_array($item)) {
+            $bc = $item['barcode'] ?? $item['serial_number'] ?? $item['id'] ?? null;
+            if (!empty($bc)) $flatBarcodes[] = trim((string)$bc);
+        } elseif (is_object($item)) {
+            $bc = $item->barcode ?? $item->serial_number ?? $item->id ?? null;
+            if (!empty($bc)) $flatBarcodes[] = trim((string)$bc);
+        }
+    }
+    $barcodes = array_values(array_unique(array_filter($flatBarcodes)));
+
+    $resolvedUnits = collect();
+    if (!empty($barcodes)) {
+        $numericIds = array_values(array_filter($barcodes, fn($v) => is_numeric($v) && (int)$v > 0));
+        $unitCodes  = array_values(array_filter($barcodes, fn($v) => !empty($v)));
+        try {
+            $resolvedUnits = \App\Models\EquipmentUnit::with(['equipmentType'])->where(function($q) use ($unitCodes, $numericIds) {
+                $q->whereIn('barcode', $unitCodes)
+                  ->orWhereIn('serial_number', $unitCodes);
+                if (!empty($numericIds)) { $q->orWhereIn('id', array_map('intval', $numericIds)); }
+            })->get();
+        } catch (\Throwable $e) {}
+    }
 @endphp
 
 <div class="wrapper">
@@ -404,10 +447,19 @@
       @if(!empty($equipmentList))
       <tr>
         <td class="data-label">Bundled AV Equipment:</td>
-        <td class="data-value">{{ implode(', ', $equipmentList) }}</td>
+        <td class="data-value">{{ implode(', ', array_map(fn($e) => is_array($e) ? ($e['label'] ?? ($e['name'] ?? 'Equipment Item')) : (string)$e, $equipmentList)) }}</td>
       </tr>
       @endif
     </table>
+
+    @if($resolvedUnits->isNotEmpty())
+      <div style="margin: 16px 0;">
+        <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #475569; letter-spacing: 0.5px; margin-bottom: 6px;">
+          Assigned Venue Equipment Units (Seq No., Serial No., Brand &amp; Model):
+        </div>
+        @include('emails.partials.equipment_unit_table', ['units' => $resolvedUnits, 'mode' => 'release', 'equipmentList' => $equipmentList ?? [], 'booking' => $booking ?? null])
+      </div>
+    @endif
 
     @if($isExternal)
       <!-- External Client Financial / Entry Advisory -->

@@ -42,14 +42,18 @@ class EquipmentUnit extends Model
     {
         $val = !is_null($value) ? trim((string)$value) : null;
         $this->attributes['serial_number'] = $val;
-        $this->attributes['barcode'] = $val;
+        if (!isset($this->attributes['barcode']) || $this->attributes['barcode'] === null) {
+            $this->attributes['barcode'] = $val;
+        }
     }
 
     public function setBarcodeAttribute($value)
     {
         $val = !is_null($value) ? trim((string)$value) : null;
         $this->attributes['barcode'] = $val;
-        $this->attributes['serial_number'] = $val;
+        if (!isset($this->attributes['serial_number']) || $this->attributes['serial_number'] === null) {
+            $this->attributes['serial_number'] = $val;
+        }
     }
 
     public function getSerialNumberAttribute($value)

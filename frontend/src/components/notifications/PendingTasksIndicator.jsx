@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { Link } from "react-router-dom";
-import { ClipboardList, Building2, PackageOpen, ClipboardCheck } from "lucide-react";
-import api from "@/lib/axios";
+import { Link, useLocation } from "react-router-dom";
+import { ClipboardList, Building2, PackageOpen, ClipboardCheck, RefreshCw } from "lucide-react";
+import api, { clearApiCache } from "@/lib/axios";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 
 export default function PendingTasksIndicator({ isSysad = false, basePath: propBasePath }) {
+  const location = useLocation();
   const [counts, setCounts] = useState({
     pendingVenue: 0,
     pendingEquip: 0,
@@ -12,11 +13,13 @@ export default function PendingTasksIndicator({ isSysad = false, basePath: propB
     pendingPostEquip: 0,
   });
   const [isOpen, setIsOpen] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const fetchPendingCounts = useCallback(async () => {
+  const fetchPendingCounts = useCallback(async (isSilent = false) => {
+    if (!isSilent) setIsRefreshing(true);
     try {
-      // bypassCache guarantees this never serves a stale in-memory GET response —
-      // the count must always reflect the live DB state, never a cached snapshot.
+      // Clear memory cache so stats are never stale
+      clearApiCache();
       const res = await api.get(`/dashboard/stats?_t=${Date.now()}`, { bypassCache: true });
       const data = res.data?.quick_stats || res.data || {};
       
@@ -28,8 +31,15 @@ export default function PendingTasksIndicator({ isSysad = false, basePath: propB
       });
     } catch {
       // Fallback
+    } finally {
+      if (!isSilent) setIsRefreshing(false);
     }
   }, []);
+
+  // Re-fetch instantly on page/route navigation so navigation never shows stale numbers
+  useEffect(() => {
+    fetchPendingCounts(true);
+  }, [location.pathname, location.search, fetchPendingCounts]);
 
   // Cross-tab real-time sync via storage events (same pings VenueBookings.jsx /
   // EquipmentBorrowings.jsx write after every approve/reject/auto-reject/cancel/undo).
@@ -40,20 +50,16 @@ export default function PendingTasksIndicator({ isSysad = false, basePath: propB
         e.key === "fsuu_booking_created_ping" ||
         e.key === "fsuu_realtime_sync_ping"
       ) {
-        fetchPendingCounts();
+        fetchPendingCounts(true);
       }
     };
     window.addEventListener("storage", handleStorage);
     return () => window.removeEventListener("storage", handleStorage);
   }, [fetchPendingCounts]);
 
-  // Explicitly listen for the same events the Venue/Equipment Bookings list pages
-  // dispatch after approve/reject/auto-reject/cancel/undo (handleAction in
-  // VenueBookings.jsx / EquipmentBorrowings.jsx) and the ones GeneralLayout/SysadLayout
-  // re-dispatch after receiving a live Pusher "booking.status_updated" broadcast —
-  // so this badge updates live without depending on the incidental default event.
+  // Explicitly listen for real-time events across the app
   useRealtimeSync(fetchPendingCounts, {
-    interval: 30000,
+    interval: 10000,
     customEvents: [
       "venue_bookings_updated",
       "booking_status_updated",
@@ -66,12 +72,21 @@ export default function PendingTasksIndicator({ isSysad = false, basePath: propB
   const totalPending = counts.pendingVenue + counts.pendingEquip + counts.pendingPostVenue + counts.pendingPostEquip;
   const basePath = propBasePath || (isSysad ? "/sysad" : "/general");
 
+  const handleToggle = () => {
+    setIsOpen((prev) => {
+      if (!prev) {
+        fetchPendingCounts(false);
+      }
+      return !prev;
+    });
+  };
+
   return (
     <div className="relative">
       {/* Flat Trigger Button */}
       <button
         type="button"
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={handleToggle}
         title="Pending Bookings, Borrowings & Post Inspections"
         className="relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors shadow-none cursor-pointer"
       >
@@ -94,9 +109,20 @@ export default function PendingTasksIndicator({ isSysad = false, basePath: propB
               <span className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">
                 Pending Actions
               </span>
-              <span className="text-[11px] font-mono font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">
-                {totalPending} Total
-              </span>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => fetchPendingCounts(false)}
+                  disabled={isRefreshing}
+                  title="Invalidate cache and refresh tasks"
+                  className="p-1 rounded text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                >
+                  <RefreshCw size={12} className={isRefreshing ? "animate-spin text-blue-600" : ""} />
+                </button>
+                <span className="text-[11px] font-mono font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">
+                  {totalPending} Total
+                </span>
+              </div>
             </div>
 
             {/* Flat Action Rows */}

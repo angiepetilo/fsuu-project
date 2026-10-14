@@ -62,7 +62,7 @@ export default function VenueModalFooter({
   };
 
   return (
-    <div className="px-6 py-3.5 bg-white border-t border-slate-200 flex items-center justify-end gap-3 shrink-0">
+    <div className="px-6 py-3.5 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-blue-900/50 flex items-center justify-end gap-3 shrink-0">
       {isPending ? (
         <div className="flex items-center gap-2 flex-wrap justify-end">
           {/* Mark Incomplete is available to both Student Assistants and Staff/Admins */}
@@ -73,10 +73,10 @@ export default function VenueModalFooter({
               if (setShowRejectForm) setShowRejectForm(false);
             }}
             disabled={!!actionLoading}
-            className="px-4 py-2.5 bg-amber-50 hover:bg-amber-100 active:bg-amber-200 text-amber-900 border border-amber-300 font-extrabold text-xs rounded-xl shadow-2xs transition-all duration-150 cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+            className="px-4 py-2.5 bg-amber-50 hover:bg-amber-100 active:bg-amber-200 dark:bg-amber-950/60 dark:hover:bg-amber-900/80 dark:text-amber-200 dark:border-amber-800/80 text-amber-900 border border-amber-300 font-extrabold text-xs rounded-xl shadow-2xs transition-all duration-150 cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
             title="Mark booking incomplete and set 24-48h grace period"
           >
-            <AlertTriangle size={14} className="text-amber-600" />
+            <AlertTriangle size={14} className="text-amber-600 dark:text-amber-400" />
             <span>Mark Incomplete</span>
           </button>
 
@@ -85,7 +85,7 @@ export default function VenueModalFooter({
               type="button"
               onClick={handleNotifyUrgent}
               disabled={notifyingUrgent}
-              className="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white font-extrabold text-xs rounded-xl shadow-xs transition-all duration-150 cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+              className="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 active:bg-amber-700 dark:bg-amber-600 dark:hover:bg-amber-500 text-white font-extrabold text-xs rounded-xl shadow-xs transition-all duration-150 cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
               title="Urgent Approval"
             >
               {notifyingUrgent ? <Loader2 size={14} className="animate-spin" /> : <BellRing size={14} />}
@@ -101,7 +101,7 @@ export default function VenueModalFooter({
                     if (setShowIncompleteForm) setShowIncompleteForm(false);
                   }}
                   disabled={!!actionLoading}
-                  className="px-5 py-2.5 bg-rose-50 hover:bg-rose-600 text-rose-700 hover:text-white border border-rose-200 hover:border-rose-600 font-bold text-xs rounded-xl shadow-2xs transition-all duration-150 cursor-pointer disabled:opacity-50"
+                  className="px-5 py-2.5 bg-rose-50 hover:bg-rose-600 text-rose-700 hover:text-white border border-rose-200 hover:border-rose-600 dark:bg-rose-950/60 dark:hover:bg-rose-600 dark:text-rose-300 dark:hover:text-white dark:border-rose-900/60 font-bold text-xs rounded-xl shadow-2xs transition-all duration-150 cursor-pointer disabled:opacity-50"
                 >
                   Reject Booking
                 </button>
@@ -110,7 +110,7 @@ export default function VenueModalFooter({
                 type="button"
                 onClick={() => handleAction(selected.id, "approve")}
                 disabled={!!actionLoading}
-                className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-extrabold text-xs rounded-xl shadow-2xs transition-all duration-150 cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+                className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 dark:bg-blue-600 dark:hover:bg-blue-500 text-white font-extrabold text-xs rounded-xl shadow-2xs transition-all duration-150 cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
               >
                 {actionLoading === `${selected.id}-approve` ? <Loader2 size={14} className="animate-spin" /> : null}
                 <span>Approve Booking</span>
@@ -124,7 +124,7 @@ export default function VenueModalFooter({
             type="button"
             onClick={() => handleAction(selected.id, "ongoing")}
             disabled={!!actionLoading}
-            className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:opacity-60 text-white rounded-xl text-xs font-extrabold flex items-center gap-1.5 shadow-xs transition-all duration-150 cursor-pointer"
+            className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 dark:bg-blue-600 dark:hover:bg-blue-500 disabled:opacity-60 text-white rounded-xl text-xs font-extrabold flex items-center gap-1.5 shadow-xs transition-all duration-150 cursor-pointer"
           >
             {actionLoading === `${selected.id}-ongoing` || actionLoading === "ongoing" ? (
               <>
@@ -141,7 +141,7 @@ export default function VenueModalFooter({
           <button
             type="button"
             onClick={() => { setSelected(null); setShowRejectForm(false); }}
-            className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 border border-slate-300 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer"
+            className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer"
           >
             Close
           </button>
@@ -152,7 +152,7 @@ export default function VenueModalFooter({
             type="button"
             onClick={() => handleAction(selected.id, "post-inspection")}
             disabled={!!actionLoading}
-            className="px-5 py-2.5 bg-amber-600 hover:bg-amber-700 active:bg-amber-800 disabled:opacity-60 text-white rounded-xl text-xs font-extrabold flex items-center gap-1.5 shadow-xs transition-all duration-150 cursor-pointer"
+            className="px-5 py-2.5 bg-amber-600 hover:bg-amber-700 active:bg-amber-800 dark:bg-amber-600 dark:hover:bg-amber-500 disabled:opacity-60 text-white rounded-xl text-xs font-extrabold flex items-center gap-1.5 shadow-xs transition-all duration-150 cursor-pointer"
           >
             {actionLoading === `${selected.id}-post-inspection` ? (
               <>
@@ -169,7 +169,7 @@ export default function VenueModalFooter({
           <button
             type="button"
             onClick={() => { setSelected(null); setShowRejectForm(false); }}
-            className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 border border-slate-300 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer"
+            className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer"
           >
             Close
           </button>
@@ -181,7 +181,7 @@ export default function VenueModalFooter({
             onClick={onRequestComplete || handleDoneComplete}
             disabled={!!actionLoading || savingInspection || hasInspectionChanges}
             title={hasInspectionChanges ? "Save the inspection record before completing this reservation" : undefined}
-            className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-xl text-xs font-extrabold flex items-center gap-1.5 shadow-xs transition-all duration-150 cursor-pointer"
+            className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 dark:bg-emerald-600 dark:hover:bg-emerald-500 disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-xl text-xs font-extrabold flex items-center gap-1.5 shadow-xs transition-all duration-150 cursor-pointer"
           >
             {actionLoading === `${selected.id}-complete` || actionLoading === "complete" ? (
               <>
@@ -198,7 +198,7 @@ export default function VenueModalFooter({
           <button
             type="button"
             onClick={() => { setSelected(null); setShowRejectForm(false); }}
-            className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 border border-slate-300 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer"
+            className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer"
           >
             Close
           </button>
@@ -207,7 +207,7 @@ export default function VenueModalFooter({
         <button
           type="button"
           onClick={() => { setSelected(null); setShowRejectForm(false); }}
-          className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 border border-slate-300 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer"
+          className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer"
         >
           Close
         </button>

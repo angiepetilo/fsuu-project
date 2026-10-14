@@ -115,10 +115,10 @@ export default function Reports() {
 
     if (!isSilent) setLoading(true);
     try {
-      const termParam = selectedTermId ? `?academic_term_id=${selectedTermId}` : "";
+      const termParam = selectedTermId ? `&academic_term_id=${selectedTermId}` : "";
       const [histRes, daRes, eqData, unitsRes, activeEbRes] = await Promise.all([
-        api.get(`/general/history-log${termParam}`).catch(() => ({ data: { venue_bookings: [], equipment_borrowings: [] } })),
-        api.get(`/general/department-analytics${termParam}`).catch(() => ({ data: { rule_violations: [], late_returns: [] } })),
+        api.get(`/general/history-log?include_archived=1${termParam}`).catch(() => ({ data: { venue_bookings: [], equipment_borrowings: [] } })),
+        api.get(`/general/department-analytics${termParam ? `?academic_term_id=${selectedTermId}` : ''}`).catch(() => ({ data: { rule_violations: [], late_returns: [] } })),
         api.get("/general/equipment-types").then(r => r.data).catch(() => []),
         api.get("/general/equipment-units").then(r => r.data).catch(() => []),
         api.get(`/avr-equipment-borrowings?all=1&include_returned=1${termParam ? `&academic_term_id=${selectedTermId}` : ''}`).catch(() => ({ data: [] })),

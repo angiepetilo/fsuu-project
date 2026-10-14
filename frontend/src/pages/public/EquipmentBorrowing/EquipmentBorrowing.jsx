@@ -87,6 +87,11 @@ export default function EquipmentBorrowing({ isPortal: isPortalProp }) {
   const [suffix, setSuffix] = useState("");
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
+  // Email Deliverability & Anti-Spam / Anti-Disposable State
+  const [emailCheckStatus, setEmailCheckStatus] = useState("idle");
+  const [emailCheckMessage, setEmailCheckMessage] = useState("");
+  const [lastCheckedEmail, setLastCheckedEmail] = useState("");
+  const [emailSuggestion, setEmailSuggestion] = useState("");
   const [department, setDepartment] = useState("");
   const [purpose, setPurpose] = useState("");
   const [placeOfUse, setPlaceOfUse] = useState("");
@@ -379,20 +384,42 @@ export default function EquipmentBorrowing({ isPortal: isPortalProp }) {
     e.preventDefault();
     const cleanEmail = (email || "").trim().toLowerCase();
     if (!cleanEmail) {
-      showAlert("Please provide an email address.", "Email Required", "warning");
+      setEmailCheckStatus("invalid");
+      setEmailCheckMessage("Please provide an email address.");
+      return;
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+      setEmailCheckStatus("invalid");
+      setEmailCheckMessage("Please enter a valid email format (e.g. name@gmail.com or name@urios.edu.ph).");
       return;
     }
 
     // Follow the Abstract API email deliverability & anti-fake validation
-    try {
-      const res = await api.post("/public/verify-email-active", { email: cleanEmail });
-      if (!res.data?.valid) {
-        showAlert(res.data?.message || "This email address is not deliverable or has been flagged as fake/disposable.", "Invalid Email");
+    if (emailCheckStatus !== "valid" || cleanEmail !== lastCheckedEmail) {
+      setEmailCheckStatus("checking");
+      setEmailCheckMessage("Checking email deliverability & temporary domain list...");
+      try {
+        const res = await api.post("/public/verify-email-active", { email: cleanEmail });
+        if (!res.data?.valid) {
+          setEmailCheckStatus("invalid");
+          setEmailCheckMessage(res.data?.message || "This email address is not deliverable or has been flagged as fake/disposable.");
+          if (res.data?.autocorrect) {
+            setEmailSuggestion(res.data.autocorrect);
+          }
+          return;
+        }
+        setEmailCheckStatus("valid");
+        setEmailCheckMessage(res.data?.message || "Email address is active and deliverable.");
+        setLastCheckedEmail(cleanEmail);
+      } catch (err) {
+        setEmailCheckStatus("invalid");
+        setEmailCheckMessage(err.response?.data?.message || "Disposable, temporary, or invalid email addresses are not accepted.");
+        if (err.response?.data?.autocorrect) {
+          setEmailSuggestion(err.response.data.autocorrect);
+        }
         return;
       }
-    } catch (err) {
-      showAlert(err.response?.data?.message || "Disposable, temporary, or invalid email addresses are not accepted.", "Invalid Email");
-      return;
     }
 
     const requireVerify = pinRules ? (pinRules.isEnabled !== false && (pinRules.equipmentVerifyEmail === true || pinRules.equipmentVerifyPhone === true)) : false;
@@ -654,6 +681,10 @@ export default function EquipmentBorrowing({ isPortal: isPortalProp }) {
             suffix={suffix} setSuffix={setSuffix}
             fullName={fullName} setFullName={setFullName}
             email={email} setEmail={setEmail}
+            emailCheckStatus={emailCheckStatus} setEmailCheckStatus={setEmailCheckStatus}
+            emailCheckMessage={emailCheckMessage} setEmailCheckMessage={setEmailCheckMessage}
+            lastCheckedEmail={lastCheckedEmail} setLastCheckedEmail={setLastCheckedEmail}
+            emailSuggestion={emailSuggestion} setEmailSuggestion={setEmailSuggestion}
             contactNumber={contactNumber} handleContactChange={handleContactChange}
             startTime={startTime} setStartTime={setStartTime}
             department={department} setDepartment={setDepartment}

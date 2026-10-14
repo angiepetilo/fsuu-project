@@ -935,8 +935,8 @@ export default function ManageEquipments() {
           <table className="w-full text-sm min-w-[760px]">
             <thead>
               <tr className="bg-slate-50/80 dark:bg-slate-800/80 border-b border-slate-100 dark:border-slate-800">
-                {["#", "Serial No.", "Seq No.", "Equipment Unit Name", "Built-In", "Status", "Date Purchased", "Lifespan vs Current", "Action"].map((h, i) => (
-                  <th key={h} className={`px-4 py-3.5 text-left text-[11px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap ${i === 0 ? 'rounded-tl-2xl' : i === 8 ? 'rounded-tr-2xl' : ''}`}>
+                {["#", "Serial No.", "Seq No.", "Equipment Unit Name", "Built-In", "Status", "Action"].map((h, i) => (
+                  <th key={h} className={`px-4 py-3.5 text-left text-[11px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap ${i === 0 ? 'rounded-tl-2xl' : i === 6 ? 'rounded-tr-2xl' : ''}`}>
                     {h}
                   </th>
                 ))}
@@ -945,13 +945,13 @@ export default function ManageEquipments() {
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-xs font-semibold">
               {loading && units.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="text-center py-12 text-slate-400">
+                  <td colSpan={7} className="text-center py-12 text-slate-400">
                     <Loader2 size={20} className="animate-spin inline mr-2" /> Loading equipment units...
                   </td>
                 </tr>
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="text-center py-12 text-slate-400">
+                  <td colSpan={7} className="text-center py-12 text-slate-400">
                     {categories.length === 0
                       ? "⚠️ Create an Equipment Category in Settings first before adding physical equipment units."
                       : "📦 No physical equipment units added yet. Click 'Add Equipment' to add units to a category."}
@@ -1043,8 +1043,6 @@ export default function ManageEquipments() {
                           return <span className="text-[11px] font-bold text-amber-500 dark:text-amber-400">Unavailable</span>;
                         })()}
                       </td>
-                      <td className="px-4 py-3.5 text-slate-600 dark:text-slate-300 whitespace-nowrap">{item.date_purchased}</td>
-                      <td className="px-4 py-3.5 text-slate-600 dark:text-slate-300 whitespace-nowrap">{ageYears.toFixed(1)} / {lifespanYears} yrs</td>
                       <td className="px-4 py-3.5 relative">
                         <div className="relative action-menu-container inline-block">
                           <button
@@ -1117,35 +1115,6 @@ export default function ManageEquipments() {
                             >
                               <Edit3 size={14} className="text-slate-500" />
                               <span>Edit Unit</span>
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setOpenActionId(null);
-                                setActionAnchorEl(null);
-                                setEditingItem(item);
-                                setEditFormData({
-                                  brand: item.brand || "",
-                                  model: item.model || "",
-                                  seq_no: item.seq_no || "",
-                                  serial_number: item.serial_number || item.barcode || "",
-                                  barcode: item.barcode || "",
-                                  category: item.category || "",
-                                  date_purchased: item.date_purchased || "",
-                                  lifespan_years: String(item.lifespan_years || 5),
-                                  status: item.status || "available",
-                                  condition: item.condition || "Good",
-                                  description: item.description || "",
-                                  reason: "",
-                                  built_in_units: Array.isArray(item.built_in_units) && item.built_in_units.length > 0 ? item.built_in_units : [""],
-                                  built_in_models: item.built_in_models || {},
-                                });
-                              }}
-                              className="w-full px-3.5 py-2 text-left text-xs font-bold text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/60 flex items-center gap-2.5 transition-colors cursor-pointer"
-                            >
-                              <PackageOpen size={14} className="text-blue-500" />
-                              <span>Built-in Units {Array.isArray(item.built_in_units) && item.built_in_units.length > 0 ? `(${item.built_in_units.length})` : ""}</span>
                             </button>
 
                             <div className="border-t border-slate-100 dark:border-slate-800 my-1"></div>

@@ -11,12 +11,14 @@ import {
   MoreVertical,
   AlertCircle,
   CheckCircle2,
+  Trash2,
 } from "lucide-react";
 import api from "@/lib/axios";
 import { notify } from "@/lib/notify";
 import ActionPopover from "./ActionPopover";
 import UserFormModal from "./UserFormModal";
 import IosToggle from "@/components/ui/ios-toggle";
+import ConfirmModal from "@/components/ui/ConfirmModal";
 
 export default function UsersSubTab({ showMsg }) {
   const [availableRoles, setAvailableRoles] = useState([]);
@@ -28,6 +30,7 @@ export default function UsersSubTab({ showMsg }) {
   const [openActionId, setOpenActionId] = useState(null);
   const [actionAnchorEl, setActionAnchorEl] = useState(null);
   const [resendingId, setResendingId] = useState(null);
+  const [confirmModal, setConfirmModal] = useState({ open: false, user: null, loading: false });
 
   const [showModal, setShowModal] = useState(false);
   const [editUser, setEditUser] = useState(null);
@@ -191,6 +194,29 @@ export default function UsersSubTab({ showMsg }) {
     } finally {
       setResendingId(null);
       fetchUsers();
+    }
+  };
+
+  const handleDeleteClick = (u) => {
+    setConfirmModal({
+      open: true,
+      user: u,
+      loading: false,
+    });
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!confirmModal.user) return;
+    const target = confirmModal.user;
+    setConfirmModal((prev) => ({ ...prev, loading: true }));
+    try {
+      await api.delete(`/general/users/${target.id}`).catch(() => api.delete(`/admin/users/${target.id}`));
+      notify.success("User Deleted", `Account "${target.name || target.email_address || target.email}" has been deleted.`);
+      setConfirmModal({ open: false, user: null, loading: false });
+      fetchUsers();
+    } catch (err) {
+      setConfirmModal((prev) => ({ ...prev, loading: false }));
+      notify.error("Delete Failed", err.response?.data?.message || "Could not delete user account.");
     }
   };
 
@@ -441,73 +467,95 @@ export default function UsersSubTab({ showMsg }) {
 
                       {/* Actions */}
                       <td className="px-4 py-3 text-right">
-                        <div className="action-menu-wrap inline-block">
+                        <div className="flex items-center justify-end gap-1.5">
                           <button
                             type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (openActionId === u.id) {
-                                setOpenActionId(null);
-                                setActionAnchorEl(null);
-                              } else {
-                                setOpenActionId(u.id);
-                                setActionAnchorEl(e.currentTarget);
-                              }
-                            }}
-                            className={`p-1.5 rounded-lg border text-xs transition-all cursor-pointer ${openActionId === u.id
-                                ? "bg-blue-600 border-blue-600 text-white"
-                                : "border-slate-200 text-slate-600 hover:bg-slate-50"
-                              }`}
+                            onClick={() => handleDeleteClick(u)}
+                            title="Delete User Account"
+                            className="p-1.5 rounded-lg border border-rose-200 dark:border-rose-900/50 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer text-xs"
                           >
-                            <MoreVertical size={13} />
+                            <Trash2 size={13} />
                           </button>
 
-                          <ActionPopover
-                            isOpen={openActionId === u.id}
-                            anchorEl={actionAnchorEl}
-                            onClose={() => {
-                              setOpenActionId(null);
-                              setActionAnchorEl(null);
-                            }}
-                          >
+                          <div className="action-menu-wrap inline-block">
                             <button
                               type="button"
-                              onClick={() => {
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (openActionId === u.id) {
+                                  setOpenActionId(null);
+                                  setActionAnchorEl(null);
+                                } else {
+                                  setOpenActionId(u.id);
+                                  setActionAnchorEl(e.currentTarget);
+                                }
+                              }}
+                              className={`p-1.5 rounded-lg border text-xs transition-all cursor-pointer ${openActionId === u.id
+                                  ? "bg-blue-600 border-blue-600 text-white"
+                                  : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                                }`}
+                            >
+                              <MoreVertical size={13} />
+                            </button>
+
+                            <ActionPopover
+                              isOpen={openActionId === u.id}
+                              anchorEl={actionAnchorEl}
+                              onClose={() => {
                                 setOpenActionId(null);
                                 setActionAnchorEl(null);
-                                openEdit(u);
                               }}
-                              className="w-full px-3.5 py-2 text-left text-xs font-medium text-slate-700 hover:bg-slate-50 flex items-center gap-2 transition-colors cursor-pointer"
                             >
-                              <Edit2 size={12} /> Edit Account
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setOpenActionId(null);
-                                setActionAnchorEl(null);
-                                handleResend(u);
-                              }}
-                              disabled={resendingId === u.id}
-                              className="w-full px-3.5 py-2 text-left text-xs font-medium text-slate-700 hover:bg-slate-50 flex items-center gap-2 transition-colors cursor-pointer"
-                            >
-                              <Mail size={12} />{" "}
-                              {resendingId === u.id ? "Sending..." : "Resend Invite"}
-                            </button>
-                            <div className="border-t border-slate-100 my-0.5" />
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setOpenActionId(null);
-                                setActionAnchorEl(null);
-                                handleToggleDisable(u);
-                              }}
-                              className="w-full px-3.5 py-2 text-left text-xs font-medium text-rose-600 hover:bg-rose-50 flex items-center gap-2 transition-colors cursor-pointer"
-                            >
-                              <Ban size={12} />{" "}
-                              {isDisabled ? "Enable Account" : "Disable Account"}
-                            </button>
-                          </ActionPopover>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setOpenActionId(null);
+                                  setActionAnchorEl(null);
+                                  openEdit(u);
+                                }}
+                                className="w-full px-3.5 py-2 text-left text-xs font-medium text-slate-700 hover:bg-slate-50 flex items-center gap-2 transition-colors cursor-pointer"
+                              >
+                                <Edit2 size={12} /> Edit Account
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setOpenActionId(null);
+                                  setActionAnchorEl(null);
+                                  handleResend(u);
+                                }}
+                                disabled={resendingId === u.id}
+                                className="w-full px-3.5 py-2 text-left text-xs font-medium text-slate-700 hover:bg-slate-50 flex items-center gap-2 transition-colors cursor-pointer"
+                              >
+                                <Mail size={12} />{" "}
+                                {resendingId === u.id ? "Sending..." : "Resend Invite"}
+                              </button>
+                              <div className="border-t border-slate-100 my-0.5" />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setOpenActionId(null);
+                                  setActionAnchorEl(null);
+                                  handleToggleDisable(u);
+                                }}
+                                className="w-full px-3.5 py-2 text-left text-xs font-medium text-slate-700 hover:bg-slate-50 flex items-center gap-2 transition-colors cursor-pointer"
+                              >
+                                <Ban size={12} />{" "}
+                                {isDisabled ? "Enable Account" : "Disable Account"}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setOpenActionId(null);
+                                  setActionAnchorEl(null);
+                                  handleDeleteClick(u);
+                                }}
+                                className="w-full px-3.5 py-2 text-left text-xs font-medium text-rose-600 hover:bg-rose-50 flex items-center gap-2 transition-colors cursor-pointer"
+                              >
+                                <Trash2 size={12} /> Delete Account
+                              </button>
+                            </ActionPopover>
+                          </div>
                         </div>
                       </td>
                     </tr>
@@ -529,6 +577,18 @@ export default function UsersSubTab({ showMsg }) {
         formLoading={formLoading}
         handleSave={handleSave}
         handleResend={handleResend}
+      />
+
+      {/* Delete User Confirm Modal */}
+      <ConfirmModal
+        open={confirmModal.open}
+        onClose={() => setConfirmModal({ open: false, user: null, loading: false })}
+        onConfirm={handleConfirmDelete}
+        loading={confirmModal.loading}
+        title="Delete User Account"
+        message={`Are you sure you want to delete the user account "${confirmModal.user?.name || confirmModal.user?.email_address || confirmModal.user?.email}"? This action will archive this account.`}
+        confirmLabel="Yes, Delete User"
+        variant="delete"
       />
     </div>
   );

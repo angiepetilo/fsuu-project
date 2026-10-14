@@ -16,6 +16,14 @@ export default function Step3Details({
   suffix, setSuffix,
   fullName, setFullName,
   email, setEmail,
+  emailCheckStatus: propEmailCheckStatus,
+  setEmailCheckStatus: propSetEmailCheckStatus,
+  emailCheckMessage: propEmailCheckMessage,
+  setEmailCheckMessage: propSetEmailCheckMessage,
+  lastCheckedEmail: propLastCheckedEmail,
+  setLastCheckedEmail: propSetLastCheckedEmail,
+  emailSuggestion: propEmailSuggestion,
+  setEmailSuggestion: propSetEmailSuggestion,
   contactNumber, handleContactChange,
   department, setDepartment,
   identity,
@@ -31,6 +39,21 @@ export default function Step3Details({
   pinRules,
   onBack,
 }) {
+  const [localEmailCheckStatus, setLocalEmailCheckStatus] = useState("idle");
+  const emailCheckStatus = propEmailCheckStatus !== undefined ? propEmailCheckStatus : localEmailCheckStatus;
+  const setEmailCheckStatus = propSetEmailCheckStatus || setLocalEmailCheckStatus;
+
+  const [localEmailCheckMessage, setLocalEmailCheckMessage] = useState("");
+  const emailCheckMessage = propEmailCheckMessage !== undefined ? propEmailCheckMessage : localEmailCheckMessage;
+  const setEmailCheckMessage = propSetEmailCheckMessage || setLocalEmailCheckMessage;
+
+  const [localLastCheckedEmail, setLocalLastCheckedEmail] = useState("");
+  const lastCheckedEmail = propLastCheckedEmail !== undefined ? propLastCheckedEmail : localLastCheckedEmail;
+  const setLastCheckedEmail = propSetLastCheckedEmail || setLocalLastCheckedEmail;
+
+  const [localEmailSuggestion, setLocalEmailSuggestion] = useState("");
+  const emailSuggestion = propEmailSuggestion !== undefined ? propEmailSuggestion : localEmailSuggestion;
+  const setEmailSuggestion = propSetEmailSuggestion || setLocalEmailSuggestion;
   const isSystemEnabled = pinRules ? pinRules.isEnabled !== false : false;
   const requireEmailVerify = pinRules ? (pinRules.isEnabled !== false && pinRules.venueVerifyEmail === true) : false;
   const requirePhoneVerify = pinRules ? (pinRules.isEnabled !== false && pinRules.venueVerifyPhone === true) : false;
@@ -103,10 +126,6 @@ export default function Step3Details({
   const isExternal = (identity || "").toLowerCase() === "external";
 
   // Email Domain Check & Inline OTP States
-  const [emailCheckStatus, setEmailCheckStatus] = useState("idle"); // idle | checking | valid | invalid
-  const [emailCheckMessage, setEmailCheckMessage] = useState("");
-  const [lastCheckedEmail, setLastCheckedEmail] = useState("");
-  const [emailSuggestion, setEmailSuggestion] = useState("");
   const [isOtpRequested, setIsOtpRequested] = useState(false);
   const [isSendingOtp, setIsSendingOtp] = useState(false);
   const [otpCode, setOtpCode] = useState("");
@@ -116,6 +135,16 @@ export default function Step3Details({
   const [otpCooldown, setOtpCooldown] = useState(0);
   const [otpExpiresIn, setOtpExpiresIn] = useState(0);
   const [duplicateRef, setDuplicateRef] = useState(null);
+
+  const [otpChannel, setOtpChannel] = useState(requirePhoneVerify && !requireEmailVerify ? "sms" : "email");
+
+  useEffect(() => {
+    if (requirePhoneVerify && !requireEmailVerify) {
+      setOtpChannel("sms");
+    } else if (requireEmailVerify && !requirePhoneVerify) {
+      setOtpChannel("email");
+    }
+  }, [requireEmailVerify, requirePhoneVerify]);
 
   // OTP Cooldown & Expiration Timers
   useEffect(() => {
@@ -229,16 +258,6 @@ export default function Step3Details({
 
     return () => clearTimeout(timer);
   }, [email]);
-
-  const [otpChannel, setOtpChannel] = useState("email"); // "email" | "sms"
-
-  useEffect(() => {
-    if (requirePhoneVerify && !requireEmailVerify) {
-      setOtpChannel("sms");
-    } else if (requireEmailVerify && !requirePhoneVerify) {
-      setOtpChannel("email");
-    }
-  }, [requireEmailVerify, requirePhoneVerify]);
 
   const phoneInfo = validatePhilippineMobile(contactNumber);
 
@@ -569,9 +588,9 @@ export default function Step3Details({
               placeholder="email address"
               className={`w-full p-3 ${requireVerification && otpChannel === "email" ? 'pr-24' : ''} border rounded-xl text-sm transition-all focus:outline-none ${(requireVerification && isEmailVerified && otpChannel === "email")
                 ? "bg-emerald-50/40 dark:bg-emerald-950/30 border-emerald-300 dark:border-emerald-700 text-slate-800 dark:text-emerald-300 font-semibold cursor-not-allowed"
-                : emailCheckStatus === "invalid"
+                : (requireVerification && otpChannel === "email" && emailCheckStatus === "invalid")
                   ? "bg-white dark:bg-slate-900/80 border-rose-300 dark:border-rose-700 focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
-                  : emailCheckStatus === "valid"
+                  : (requireVerification && otpChannel === "email" && emailCheckStatus === "valid")
                     ? "bg-white dark:bg-slate-900/80 border-blue-400 dark:border-blue-700 focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
                     : "bg-white dark:bg-slate-900/80 border-slate-200 dark:border-slate-700 focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
                 }`}
@@ -623,8 +642,8 @@ export default function Step3Details({
             )}
           </div>
 
-          {/* Part 1 Inline Domain & Deliverability Feedback below placeholder */}
-          {requireVerification && otpChannel === "email" && !isEmailVerified && (
+          {/* Inline Domain & Deliverability Feedback below placeholder */}
+          {!isEmailVerified && (emailCheckStatus !== "idle" || (requireVerification && otpChannel === "email")) && (
             <div className="min-h-[20px] space-y-1 mt-0.5">
               {emailCheckStatus === "checking" && (
                 <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 font-medium py-0.5">
@@ -635,7 +654,7 @@ export default function Step3Details({
               {emailCheckStatus === "valid" && !isOtpRequested && (
                 <div className="flex items-center gap-1.5 text-[11px] text-emerald-700 dark:text-emerald-300 font-semibold bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200/80 dark:border-emerald-800 px-2.5 py-1 rounded-lg">
                   <CheckCircle2 size={13} className="shrink-0 text-emerald-600 dark:text-emerald-400" />
-                  <span>{emailCheckMessage || "Email address is deliverable. Click 'Verify' to receive OTP code."}</span>
+                  <span>{emailCheckMessage || (requireVerification && otpChannel === "email" ? "Email address is deliverable. Click 'Verify' to receive OTP code." : "Email address is active and deliverable.")}</span>
                 </div>
               )}
               {emailCheckStatus === "invalid" && (
@@ -1022,28 +1041,25 @@ export default function Step3Details({
         </div>
 
         {/* BOOKING CLASSIFICATION (SIDE BY SIDE WITH DEPARTMENT) */}
-        {selectedVenue?.type === "avr" && (
-          <div className="flex flex-col gap-1.5 sm:col-span-1">
-            <label className="text-xs font-bold text-slate-900 dark:text-white">
-              Booking Classification <span className="text-red-500">*</span>
-            </label>
-            <select
-              required
-              value={classification}
-              onChange={e => setClassification(e.target.value)}
-              className="w-full p-3 bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all font-semibold"
-            >
-              <option value="" className="dark:bg-slate-900 dark:text-white">Select Classification...</option>
-              <option value="organization" className="dark:bg-slate-900 dark:text-white">Student Organization Event</option>
-              <option value="academic" className="dark:bg-slate-900 dark:text-white">Academic Class</option>
-              <option value="admin" className="dark:bg-slate-900 dark:text-white">Administrative Meeting</option>
-            </select>
-          </div>
-        )}
+        <div className="flex flex-col gap-1.5 sm:col-span-1">
+          <label className="text-xs font-bold text-slate-900 dark:text-white">
+            Booking Classification <span className="text-red-500">*</span>
+          </label>
+          <select
+            required
+            value={classification}
+            onChange={e => setClassification(e.target.value)}
+            className="w-full p-3 bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all font-semibold"
+          >
+            <option value="" className="dark:bg-slate-900 dark:text-white">Select Classification...</option>
+            <option value="organization" className="dark:bg-slate-900 dark:text-white">Student Organization Event</option>
+            <option value="academic" className="dark:bg-slate-900 dark:text-white">Academic Class</option>
+            <option value="admin" className="dark:bg-slate-900 dark:text-white">Administrative Meeting</option>
+          </select>
+        </div>
 
-        {/* FORM SPECIFIC FIELDS: AVR FORM (FORM A) */}
-        {selectedVenue?.type === "avr" && (
-          <>
+        {/* FORM SPECIFIC FIELDS */}
+        <>
             {/* Endorsement Letter Notice Based on Booking Classification */}
             {classification && (
               <div className="sm:col-span-2 p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 rounded-xl text-xs font-semibold text-amber-900 dark:text-amber-200 animate-in fade-in">
@@ -1252,7 +1268,6 @@ export default function Step3Details({
               </p>
             </div>
           </>
-        )}
 
         <div className="sm:col-span-2 flex items-center justify-between mt-6 pt-4 border-t border-slate-100 dark:border-slate-800">
           <Button

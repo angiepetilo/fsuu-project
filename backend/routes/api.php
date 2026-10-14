@@ -291,9 +291,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/general/history-log',                        [HistoryLogController::class, 'index']);
     Route::delete('/general/history-log/venue/{id}',          [HistoryLogController::class, 'destroyVenue']);
     Route::delete('/general/history-log/equipment/{id}',      [HistoryLogController::class, 'destroyEquipment']);
+    Route::post('/general/history-log/clear',                 [HistoryLogController::class, 'clear']);
     Route::get('/admin/history-log',                          [HistoryLogController::class, 'index']);
     Route::delete('/admin/history-log/venue/{id}',            [HistoryLogController::class, 'destroyVenue']);
     Route::delete('/admin/history-log/equipment/{id}',        [HistoryLogController::class, 'destroyEquipment']);
+    Route::post('/admin/history-log/clear',                   [HistoryLogController::class, 'clear']);
 
     // ── General & SysAd: Notifications (office-scoped & global) ────────────────
     Route::get('/general/notifications',                 [NotificationController::class, 'index']);
@@ -307,7 +309,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/sysad/notifications/mark-as-read',     [NotificationController::class, 'markAsRead']);
     Route::post('/sysad/notifications/mark-all-read',    [NotificationController::class, 'markAllRead']);
     Route::get('/sysad/audit-logs',                      [\App\Http\Controllers\SuperAdmin\AuditLogController::class, 'index']);
+    Route::post('/sysad/audit-logs/clear',               [\App\Http\Controllers\SuperAdmin\AuditLogController::class, 'clear']);
+    Route::delete('/sysad/audit-logs/clear',             [\App\Http\Controllers\SuperAdmin\AuditLogController::class, 'clear']);
     Route::get('/general/audit-logs',                    [\App\Http\Controllers\SuperAdmin\AuditLogController::class, 'index']);
+    Route::post('/general/audit-logs/clear',             [\App\Http\Controllers\SuperAdmin\AuditLogController::class, 'clear']);
+    Route::delete('/general/audit-logs/clear',           [\App\Http\Controllers\SuperAdmin\AuditLogController::class, 'clear']);
 
     // ── Brands Management ──────────────────────────────────────────────────
     Route::get('/general/brands',                         [\App\Http\Controllers\BrandController::class, 'index']);
@@ -416,6 +422,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/general/system-settings/test-sms',   [SystemSettingController::class, 'testSms']);
     Route::post('/general/system-settings/test-abstract-api', [SystemSettingController::class, 'testAbstractApi']);
     Route::get('/general/communication-logs',          [CommunicationLogController::class, 'index']);
+    Route::post('/general/communication-logs/clear',    [CommunicationLogController::class, 'clear']);
+    Route::delete('/general/communication-logs/clear',  [CommunicationLogController::class, 'clear']);
     
     Route::apiResource('general/violation-categories', ViolationCategoryController::class)->only(['index', 'store', 'destroy']);
     Route::apiResource('general/rejection-reasons', RejectionReasonController::class)->only(['index', 'store', 'destroy']);
@@ -426,6 +434,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/admin/system-settings/test-sms',     [SystemSettingController::class, 'testSms']);
     Route::post('/admin/system-settings/test-abstract-api', [SystemSettingController::class, 'testAbstractApi']);
     Route::get('/admin/communication-logs',            [CommunicationLogController::class, 'index']);
+    Route::post('/admin/communication-logs/clear',      [CommunicationLogController::class, 'clear']);
+    Route::delete('/admin/communication-logs/clear',    [CommunicationLogController::class, 'clear']);
     Route::post('/sysad/system-migrate', function (\Illuminate\Http\Request $request) {
         if (!$request->user()?->isSuperAdmin()) {
             return response()->json(['message' => 'Unauthorized. Only Super Administrator can trigger migrations.'], 403);

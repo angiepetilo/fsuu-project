@@ -83,22 +83,40 @@ export default function VenueBookingInfo({
     setTimeout(() => setSaveSuccessMsg(null), 3000);
   };
 
+  const allDocs = (() => {
+    const list = [];
+    if (staffUploadUrl) list.push({ url: staffUploadUrl, label: "Staff Upload" });
+    if (Array.isArray(selected.documents) && selected.documents.length > 0) {
+      selected.documents.forEach((d, idx) => {
+        if (d?.file_path && !list.some(existing => existing.url === d.file_path)) {
+          list.push({ url: d.file_path, label: d.document_type ? d.document_type.replace(/_/g, " ") : `Doc #${idx + 1}` });
+        }
+      });
+    }
+    if (selected.endorsement_url && !list.some(d => d.url === selected.endorsement_url)) {
+      list.push({ url: selected.endorsement_url, label: "Endorsement" });
+    }
+    if (selected.endorsement_letter && !list.some(d => d.url === selected.endorsement_letter)) {
+      list.push({ url: selected.endorsement_letter, label: "Endorsement Letter" });
+    }
+    if (selected.attachment && !list.some(d => d.url === selected.attachment)) {
+      list.push({ url: selected.attachment, label: "Attachment" });
+    }
+    return list;
+  })();
+
+  const [selectedDocIndex, setSelectedDocIndex] = useState(0);
+
   const getDocumentUrl = () => {
+    if (allDocs.length > 0) {
+      const active = allDocs[selectedDocIndex] || allDocs[0];
+      return resolveStorageUrl(active.url);
+    }
     if (staffUploadUrl) return resolveStorageUrl(staffUploadUrl);
     if (selected.endorsement_url) return resolveStorageUrl(selected.endorsement_url);
     if (selected.endorsement_letter) return resolveStorageUrl(selected.endorsement_letter);
     if (selected.endorsement_letter_url) return resolveStorageUrl(selected.endorsement_letter_url);
     if (selected.endorsement_file) return resolveStorageUrl(selected.endorsement_file);
-
-    if (Array.isArray(selected.documents) && selected.documents.length > 0) {
-      const docsReversed = [...selected.documents].reverse();
-      const endorsementDoc = docsReversed.find(d => 
-        (d.document_type || d.type || "").toLowerCase().includes("endorsement")
-      );
-      if (endorsementDoc?.file_path) return resolveStorageUrl(endorsementDoc.file_path);
-      if (docsReversed[0]?.file_path) return resolveStorageUrl(docsReversed[0].file_path);
-    }
-
     if (selected.file_path) return resolveStorageUrl(selected.file_path);
     if (selected.attachment) return resolveStorageUrl(selected.attachment);
     return null;
@@ -123,52 +141,52 @@ export default function VenueBookingInfo({
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
       {/* Left Column (7/12): Core Request Details */}
-      <div className="lg:col-span-7 bg-white p-4 rounded-2xl border border-slate-200 space-y-2 text-xs">
-        <div className="flex justify-between items-baseline py-1 border-b border-slate-100">
-          <span className="text-slate-500">Applicant Name :</span>
-          <span className="font-bold text-slate-900">{filerFullName}</span>
+      <div className="lg:col-span-7 bg-white dark:bg-slate-900/80 p-4 rounded-2xl border border-slate-200 dark:border-blue-900/50 space-y-2 text-xs">
+        <div className="flex justify-between items-baseline py-1 border-b border-slate-100 dark:border-slate-800/80">
+          <span className="text-slate-500 dark:text-slate-400">Applicant Name :</span>
+          <span className="font-bold text-slate-900 dark:text-white">{filerFullName}</span>
         </div>
 
-        <div className="flex justify-between items-baseline py-1 border-b border-slate-100">
-          <span className="text-slate-500">Identity :</span>
-          <span className="font-mono text-slate-800 uppercase font-bold">{displayClassification}</span>
+        <div className="flex justify-between items-baseline py-1 border-b border-slate-100 dark:border-slate-800/80">
+          <span className="text-slate-500 dark:text-slate-400">Identity :</span>
+          <span className="font-mono text-slate-800 dark:text-slate-200 uppercase font-bold">{displayClassification}</span>
         </div>
 
-        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-baseline py-1 border-b border-slate-100 gap-1">
-          <span className="text-slate-500 shrink-0">Email Address :</span>
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-baseline py-1 border-b border-slate-100 dark:border-slate-800/80 gap-1">
+          <span className="text-slate-500 dark:text-slate-400 shrink-0">Email Address :</span>
           <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="font-mono text-slate-800 break-all">{selected.email_address || selected.email || "—"}</span>
+            <span className="font-mono text-slate-800 dark:text-slate-200 break-all">{selected.email_address || selected.email || "—"}</span>
             {(selected.is_email_verified ?? true) && (
-              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0" title="Email address verified via OTP">
-                <CheckCircle2 size={11} className="text-emerald-600" />
+              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60 shrink-0" title="Email address verified via OTP">
+                <CheckCircle2 size={11} className="text-emerald-600 dark:text-emerald-400" />
                 Verified
               </span>
             )}
           </div>
         </div>
 
-        <div className="flex justify-between items-baseline py-1 border-b border-slate-100">
-          <span className="text-slate-500">Contact Number :</span>
+        <div className="flex justify-between items-baseline py-1 border-b border-slate-100 dark:border-slate-800/80">
+          <span className="text-slate-500 dark:text-slate-400">Contact Number :</span>
           <div className="flex items-center gap-1.5">
-            <span className="font-mono text-slate-800 font-bold">
+            <span className="font-mono text-slate-800 dark:text-slate-200 font-bold">
               {formatPhilippineNumber(selected.contact_number || selected.contact_no || selected.phone) || "—"}
             </span>
           </div>
         </div>
 
-        <div className="flex justify-between items-baseline py-1 border-b border-slate-100">
-          <span className="text-slate-500">Department / Office :</span>
-          <span className="font-bold text-slate-900">{selected.program_office || selected.department || "Academic Dept"}</span>
+        <div className="flex justify-between items-baseline py-1 border-b border-slate-100 dark:border-slate-800/80">
+          <span className="text-slate-500 dark:text-slate-400">Department / Office :</span>
+          <span className="font-bold text-slate-900 dark:text-white">{selected.program_office || selected.department || "Academic Dept"}</span>
         </div>
 
-        <div className="flex justify-between items-baseline py-1 border-b border-slate-100">
-          <span className="text-slate-500">Venue Reserved :</span>
-          <span className="font-bold text-slate-900 font-mono">{selected.venue_name || selected.venue?.name || "AVR Hall 1"}</span>
+        <div className="flex justify-between items-baseline py-1 border-b border-slate-100 dark:border-slate-800/80">
+          <span className="text-slate-500 dark:text-slate-400">Venue Reserved :</span>
+          <span className="font-bold text-slate-900 dark:text-white font-mono">{selected.venue_name || selected.venue?.name || "AVR Hall 1"}</span>
         </div>
 
-        <div className="flex justify-between items-baseline py-1 border-b border-slate-100">
-          <span className="text-slate-500">Date Range :</span>
-          <span className="font-mono text-slate-900 font-bold">
+        <div className="flex justify-between items-baseline py-1 border-b border-slate-100 dark:border-slate-800/80">
+          <span className="text-slate-500 dark:text-slate-400">Date Range :</span>
+          <span className="font-mono text-slate-900 dark:text-white font-bold">
             {formatDateRange(
               selected.date_of_usage || selected.start_datetime || selected.date,
               selected.reservation_end_date || selected.end_datetime || selected.end_date
@@ -176,27 +194,27 @@ export default function VenueBookingInfo({
           </span>
         </div>
 
-        <div className="flex justify-between items-baseline py-1 border-b border-slate-100">
-          <span className="text-slate-500">Time Range :</span>
-          <span className="font-mono text-slate-900 font-bold">
+        <div className="flex justify-between items-baseline py-1 border-b border-slate-100 dark:border-slate-800/80">
+          <span className="text-slate-500 dark:text-slate-400">Time Range :</span>
+          <span className="font-mono text-slate-900 dark:text-white font-bold">
             {formatRealTime(selected.time_start || selected.start_datetime)} - {formatRealTime(selected.time_end || selected.end_datetime)}
           </span>
         </div>
 
-        <div className="flex justify-between items-baseline py-1 border-b border-slate-100">
-          <span className="text-slate-500">Purpose :</span>
-          <span className="font-mono text-slate-800">{selected.purpose || "Event / Meeting"}</span>
+        <div className="flex justify-between items-baseline py-1 border-b border-slate-100 dark:border-slate-800/80">
+          <span className="text-slate-500 dark:text-slate-400">Purpose :</span>
+          <span className="font-mono text-slate-800 dark:text-slate-200">{selected.purpose || "Event / Meeting"}</span>
         </div>
 
         {/* Requested Equipment Types Badges */}
         {requestedCategories && requestedCategories.length > 0 && (
-          <div className="pt-2 border-t border-slate-100">
-            <span className="text-slate-500 block mb-1.5 font-bold">Requested Equipment Types :</span>
+          <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80">
+            <span className="text-slate-500 dark:text-slate-400 block mb-1.5 font-bold">Requested Equipment Types :</span>
             <div className="flex flex-wrap gap-1.5">
               {requestedCategories.map((cat, idx) => (
                 <span
                   key={idx}
-                  className="px-2.5 py-1 bg-slate-100 text-slate-800 border border-slate-200 rounded-lg text-xs font-bold font-mono"
+                  className="px-2.5 py-1 bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold font-mono"
                 >
                   {cat.name || cat.category || cat.equipment_types_name} ({cat.quantity || 1} {Number(cat.quantity || 1) === 1 ? 'unit' : 'units'})
                 </span>
@@ -207,20 +225,40 @@ export default function VenueBookingInfo({
       </div>
 
       {/* Right Column (5/12): Endorsement Document & Walk-in Hardcopy Management */}
-      <div className="lg:col-span-5 bg-white p-4 rounded-2xl border border-slate-200 flex flex-col justify-between space-y-3">
+      <div className="lg:col-span-5 bg-white dark:bg-slate-900/80 p-4 rounded-2xl border border-slate-200 dark:border-blue-900/50 flex flex-col justify-between space-y-3">
         <div className="space-y-2">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-            <span className="font-extrabold text-slate-900 text-xs flex items-center gap-1.5">
-              <FileText size={14} className="text-blue-600" />
+          <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800/80 pb-2">
+            <span className="font-extrabold text-slate-900 dark:text-white text-xs flex items-center gap-1.5">
+              <FileText size={14} className="text-blue-600 dark:text-blue-400" />
               Endorsement Document :
             </span>
-            <span className="text-[10px] font-bold text-slate-400 font-mono">
+            <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 font-mono">
               {docUrl ? (isPdf ? 'PDF Document' : 'Image File') : (hasHardcopySaved ? 'Hardcopy Filed' : 'Pending File')}
             </span>
           </div>
 
+          {/* Multiple Document Selector Tabs */}
+          {allDocs.length > 1 && (
+            <div className="flex items-center gap-1 overflow-x-auto pb-1">
+              {allDocs.map((doc, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => setSelectedDocIndex(idx)}
+                  className={`px-2 py-0.5 rounded text-[10px] font-bold transition-colors cursor-pointer shrink-0 ${
+                    selectedDocIndex === idx
+                      ? "bg-blue-600 text-white"
+                      : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
+                  }`}
+                >
+                  Doc #{idx + 1}
+                </button>
+              ))}
+            </div>
+          )}
+
           {/* Document Preview Viewport */}
-          <div className="w-full h-[180px] bg-slate-950 rounded-xl overflow-hidden flex items-center justify-center relative group border border-slate-200">
+          <div className="w-full h-[180px] bg-slate-950 rounded-xl overflow-hidden flex items-center justify-center relative group border border-slate-200 dark:border-blue-900/50">
             {docUrl ? (
               isPdf ? (
                 <div className="w-full h-full p-4 bg-slate-900 flex flex-col items-center justify-center text-center space-y-2">
@@ -234,7 +272,7 @@ export default function VenueBookingInfo({
                   <button
                     type="button"
                     onClick={() => handleOpenDocument(docUrl)}
-                    className="px-3.5 py-1.5 bg-white hover:bg-slate-100 text-slate-900 border border-slate-300 rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
+                    className="px-3.5 py-1.5 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-900 dark:text-white border border-slate-300 dark:border-slate-700 rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
                   >
                     <ExternalLink size={13} /> Open in New Tab
                   </button>
@@ -259,30 +297,30 @@ export default function VenueBookingInfo({
               )
             ) : (
               <div className="text-center p-4 space-y-1">
-                <FileText size={28} className="mx-auto text-slate-600 mb-1" />
-                <p className="text-xs font-bold text-slate-300">No Endorsement Document</p>
-                <p className="text-[10.5px] text-slate-500 font-mono">Client may submit physical hardcopy at AVR counter</p>
+                <FileText size={28} className="mx-auto text-slate-600 dark:text-slate-500 mb-1" />
+                <p className="text-xs font-bold text-slate-300 dark:text-slate-300">No Endorsement Document</p>
+                <p className="text-[10.5px] text-slate-500 dark:text-slate-400 font-mono">Client may submit physical hardcopy at AVR counter</p>
               </div>
             )}
           </div>
         </div>
 
         {/* Walk-in Hardcopy & Staff Upload Actions */}
-        <div className="space-y-2 pt-2 border-t border-slate-100">
+        <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800/80">
           <div className="flex items-center justify-between">
-            <label className="flex items-center gap-2 text-xs font-bold text-slate-700 cursor-pointer">
+            <label className="flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-300 cursor-pointer">
               <input
                 type="checkbox"
                 checked={isHardcopy}
                 onChange={(e) => setIsHardcopy(e.target.checked)}
-                className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 cursor-pointer"
+                className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 dark:border-slate-700 cursor-pointer"
               />
               <span>Physical Hardcopy Received</span>
             </label>
             
             {/* Attach File is invisible if Hardcopy is already saved/filed */}
             {!hasHardcopySaved && (
-              <label className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 text-[11px] font-bold cursor-pointer transition-colors">
+              <label className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/60 border border-blue-200 dark:border-blue-800/60 text-[11px] font-bold cursor-pointer transition-colors">
                 <Upload size={12} />
                 <span>{isUploading ? "Uploading..." : "Attach File"}</span>
                 <input
@@ -303,7 +341,7 @@ export default function VenueBookingInfo({
                 placeholder="Receiver note (e.g. Received signed memo by Prof. Santos)"
                 value={hardcopyNotes}
                 onChange={(e) => setHardcopyNotes(e.target.value)}
-                className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-[11px] font-medium text-slate-800 focus:outline-none focus:border-blue-600"
+                className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-[11px] font-medium text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-600"
               />
               <button
                 type="button"
@@ -316,7 +354,7 @@ export default function VenueBookingInfo({
           )}
 
           {saveSuccessMsg && (
-            <p className="text-[11px] font-bold text-emerald-600 flex items-center gap-1 animate-in fade-in">
+            <p className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1 animate-in fade-in">
               <CheckCircle size={12} /> {saveSuccessMsg}
             </p>
           )}

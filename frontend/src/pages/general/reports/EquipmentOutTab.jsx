@@ -238,48 +238,53 @@ export default function EquipmentOutTab({ equipmentBorrowings = [], loading = fa
 
                   const st = (b.status || b.tracking_number?.status || "").toLowerCase();
                   const isReturned = ["returned", "completed", "late return", "late_return"].includes(st);
-                  const returnedTimeFormatted = formatReturnedAt(b.returned_at || (isReturned ? b.updated_at : null));
+                  const actualReturnTime = b.actual_return_time ? formatTime12(b.actual_return_time)
+                    : b.returned_time ? formatTime12(b.returned_time)
+                    : formatReturnedAt(b.returned_at || b.post_inspected_at || (isReturned ? b.updated_at : null));
 
                   return (
-                    <tr key={`eq-out-${b.id || idx}`} className="hover:bg-slate-50/70 transition-colors">
+                    <tr key={`eq-out-${b.id || idx}`} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/50 transition-colors">
                       <td className="py-3 px-4 font-mono text-slate-400 text-xs">{idx + 1}</td>
                       <td className="py-3 px-4">
-                        <p className="font-extrabold text-slate-900 text-xs">{borrower}</p>
+                        <p className="font-extrabold text-slate-900 dark:text-slate-100 text-xs">{borrower}</p>
                         <p className="font-mono text-[10px] text-slate-400 font-bold">{refCode}</p>
                       </td>
-                      <td className="py-3 px-4 font-bold text-slate-700 text-xs">{dept}</td>
-                      <td className="py-3 px-4 font-extrabold text-slate-900 text-xs">{equip}</td>
-                      <td className="py-3 px-4 text-center font-semibold text-slate-800 text-xs">
+                      <td className="py-3 px-4 font-bold text-slate-700 dark:text-slate-300 text-xs">{dept}</td>
+                      <td className="py-3 px-4 font-extrabold text-slate-900 dark:text-slate-100 text-xs">{equip}</td>
+                      <td className="py-3 px-4 text-center font-semibold text-slate-800 dark:text-slate-200 text-xs">
                         {qty}
                       </td>
-                      <td className="py-3 px-4 font-mono text-[11px] text-slate-700 font-bold max-w-xs truncate">
+                      <td className="py-3 px-4 font-mono text-[11px] text-slate-700 dark:text-slate-300 font-bold max-w-xs truncate">
                         {barcodes.length > 0 ? (
-                          <span title={barcodes.join(", ")} className="text-blue-700 font-bold">
+                          <span title={barcodes.join(", ")} className="text-blue-700 dark:text-blue-400 font-bold">
                             {barcodes.join(", ")}
                           </span>
                         ) : (
                           <span className="text-slate-400 italic font-normal">Not Tagged</span>
                         )}
                       </td>
-                      <td className="py-3 px-4 text-xs font-semibold text-slate-600 whitespace-nowrap">{borrowDate}</td>
+                      <td className="py-3 px-4 text-xs font-semibold text-slate-600 dark:text-slate-300 whitespace-nowrap">{borrowDate}</td>
                       <td className="py-3 px-4 text-xs whitespace-nowrap">
                         {isReturned ? (
-                          <div className="flex flex-col">
-                            <span className="inline-flex items-center gap-1 font-bold text-emerald-700">
-                              <CheckCircle2 size={12} className="text-emerald-600" />
-                              {returnedTimeFormatted || returnTime}
+                          <div className="flex flex-col gap-0.5">
+                            <span className="inline-flex items-center gap-1 font-bold text-emerald-600 dark:text-emerald-400">
+                              <CheckCircle2 size={12} className="text-emerald-500 shrink-0" />
+                              Returned: {actualReturnTime || returnTime}
                             </span>
-                            {b.returned_at && (
-                              <span className="text-[10px] text-slate-400 font-semibold">
-                                {formatDate(b.returned_at)}
-                              </span>
-                            )}
+                            <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">
+                              Expected: {returnTime} {b.returned_at ? `• ${formatDate(b.returned_at)}` : ""}
+                            </span>
                           </div>
                         ) : (
-                          <span className="inline-flex items-center gap-1 text-slate-800 font-extrabold">
-                            <Clock size={12} className="text-blue-600" />
-                            {returnTime}
-                          </span>
+                          <div className="flex flex-col gap-0.5">
+                            <span className="inline-flex items-center gap-1 text-slate-800 dark:text-slate-200 font-extrabold">
+                              <Clock size={12} className="text-blue-600 dark:text-blue-400 shrink-0" />
+                              Expected: {returnTime}
+                            </span>
+                            <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold">
+                              Out on loan
+                            </span>
+                          </div>
                         )}
                       </td>
                       <td className="py-3 px-4 text-center whitespace-nowrap">

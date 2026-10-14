@@ -22,8 +22,31 @@ function SlotBarcodeSelector({
   const [searchTerm, setSearchTerm] = useState("");
   const containerRef = useRef(null);
 
+  const getUnitSeqNo = (unit) => {
+    if (!unit) return null;
+    const raw = unit.seq_no ?? unit.sequence_no;
+    if (raw !== undefined && raw !== null && String(raw).trim() !== "") {
+      const trimmed = String(raw).trim();
+      return trimmed.startsWith("#") ? trimmed : `#${trimmed}`;
+    }
+    return null;
+  };
+
+  const getUnitBrand = (unit) => {
+    return unit?.brand ? String(unit.brand).trim() : "";
+  };
+
+  const getUnitModel = (unit) => {
+    return unit?.model ? String(unit.model).trim() : "";
+  };
+
   const getUnitModelName = (unit) => {
-    return [unit.brand, unit.model].filter(Boolean).join(" ") || unit.name || categoryName || "Equipment Unit";
+    const brand = getUnitBrand(unit);
+    const model = getUnitModel(unit);
+    if (brand && model) return `${brand} • ${model}`;
+    if (brand) return brand;
+    if (model) return model;
+    return unit?.name || categoryName || "Equipment Unit";
   };
 
   const getUnitBuiltIns = (unit) => {
@@ -54,7 +77,10 @@ function SlotBarcodeSelector({
 
   useEffect(() => {
     if (selectedUnit) {
-      setSearchTerm(`${getUnitModelName(selectedUnit)} [${selectedUnit.barcode || `UNIT-${selectedUnit.id}`}]`);
+      const seq = getUnitSeqNo(selectedUnit);
+      const bCode = selectedUnit.barcode || `UNIT-${selectedUnit.id}`;
+      const brandModel = getUnitModelName(selectedUnit);
+      setSearchTerm(`${seq ? `${seq} ` : ""}${brandModel} [${bCode}]`);
     } else {
       setSearchTerm(currentBarcode || "");
     }
@@ -86,17 +112,22 @@ function SlotBarcodeSelector({
   // Search filtered options
   const searchFiltered = slotEligibleUnits.filter((u) => {
     const bCode = String(u.barcode || u.serial_number || u.code || `UNIT-${u.id}`).toLowerCase();
-    const uModel = getUnitModelName(u).toLowerCase();
+    const seqNo = String(u.seq_no || u.sequence_no || "").toLowerCase();
+    const brand = String(u.brand || "").toLowerCase();
+    const model = String(u.model || "").toLowerCase();
+    const name = String(u.name || "").toLowerCase();
     const uBuiltIns = getUnitBuiltIns(u).join(" ").toLowerCase();
     const q = searchTerm.toLowerCase().trim();
     if (!q) return true;
-    return bCode.includes(q) || uModel.includes(q) || uBuiltIns.includes(q);
+    return bCode.includes(q) || seqNo.includes(q) || brand.includes(q) || model.includes(q) || name.includes(q) || uBuiltIns.includes(q);
   });
 
   const handleChoose = (unit) => {
     const bCode = unit.barcode || unit.serial_number || unit.code || `UNIT-${unit.id}`;
+    const seq = getUnitSeqNo(unit);
+    const brandModel = getUnitModelName(unit);
     onSelectBarcode(bCode);
-    setSearchTerm(`${getUnitModelName(unit)} [${bCode}]`);
+    setSearchTerm(`${seq ? `${seq} ` : ""}${brandModel} [${bCode}]`);
     setIsOpen(false);
   };
 
@@ -114,7 +145,10 @@ function SlotBarcodeSelector({
 
     const exactMatch = slotEligibleUnits.find((u) => {
       const bCode = String(u.barcode || u.serial_number || u.code || `UNIT-${u.id}`).trim().toUpperCase();
-      return bCode === val.trim().toUpperCase() || getUnitModelName(u).toLowerCase() === val.trim().toLowerCase();
+      const seq = String(u.seq_no || u.sequence_no || "").trim().toUpperCase();
+      return bCode === val.trim().toUpperCase() ||
+        seq === val.trim().toUpperCase() ||
+        getUnitModelName(u).toLowerCase() === val.trim().toLowerCase();
     });
 
     if (exactMatch) {
@@ -196,7 +230,9 @@ function SlotBarcodeSelector({
           ) : (
             searchFiltered.map((unit, idx) => {
               const bCode = unit.barcode || unit.serial_number || unit.code || `UNIT-${unit.id}`;
-              const uModel = getUnitModelName(unit);
+              const seqNo = getUnitSeqNo(unit);
+              const brand = getUnitBrand(unit);
+              const model = getUnitModel(unit);
               const builtIns = getUnitBuiltIns(unit);
               const isSelected = bCode === currentBarcode;
 
@@ -212,11 +248,19 @@ function SlotBarcodeSelector({
                   }`}
                 >
                   <div className="flex flex-col gap-0.5 min-w-0 pr-2">
-                    <div className="flex items-center gap-2 flex-wrap">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {seqNo && (
+                        <span className="font-mono text-[10.5px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 shrink-0">
+                          {seqNo}
+                        </span>
+                      )}
                       <span className="font-semibold text-slate-900 text-xs truncate max-w-[220px]">
-                        {uModel}
+                        {brand && <span>{brand}</span>}
+                        {brand && model && <span className="text-slate-400 mx-1">•</span>}
+                        {model && <span className="text-slate-600">{model}</span>}
+                        {!brand && !model && (unit.name || categoryName || "Equipment Unit")}
                       </span>
-                      <span className="font-mono text-[10.5px] text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
+                      <span className="font-mono text-[10.5px] text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200 shrink-0">
                         {bCode}
                       </span>
                     </div>
@@ -308,11 +352,16 @@ export default function VenueEquipmentChecklist({
       if (match) {
         const catName = match.equipmentType?.eq_name || match.equipment_type?.eq_name || match.category || "";
         const uName = [match.brand, match.model].filter(Boolean).join(" ") || match.name || "Unit";
+        const rawSeq = match.seq_no ?? match.sequence_no;
+        const seqNo = rawSeq !== undefined && rawSeq !== null && String(rawSeq).trim() !== ""
+          ? (String(rawSeq).trim().startsWith("#") ? String(rawSeq).trim() : `#${String(rawSeq).trim()}`)
+          : null;
         return {
           id: match.id,
           barcode: match.barcode || `UNIT-${match.id}`,
           name: uName,
           category: catName,
+          seq_no: seqNo,
         };
       }
 
@@ -629,13 +678,36 @@ export default function VenueEquipmentChecklist({
                       const cond = (assignedBarcode && unitReturnedConditions[assignedBarcode]) || unitReturnedConditions[unitKey] || "Good";
                       const slotBuiltIns = assignedBarcode ? getBuiltInUnitsForBarcode(assignedBarcode) : [];
 
+                      const match = (allUnits || []).find((u) => {
+                        const code = String(u.barcode || u.serial_number || "").trim().toUpperCase();
+                        const target = String(assignedBarcode).trim().toUpperCase();
+                        return code && target && code === target;
+                      });
+                      const rawSeq = match?.seq_no ?? match?.sequence_no;
+                      const seqNo = rawSeq !== undefined && rawSeq !== null && String(rawSeq).trim() !== ""
+                        ? (String(rawSeq).trim().startsWith("#") ? String(rawSeq).trim() : `#${String(rawSeq).trim()}`)
+                        : null;
+                      const brand = match?.brand ? String(match.brand).trim() : "";
+                      const model = match?.model ? String(match.model).trim() : "";
+                      const brandModel = brand && model ? `${brand} • ${model}` : (brand || model || match?.name || "");
+
                       return (
                         <div key={`ret-unit-${catIdx}-${uIdx}`} className="py-2 border-b border-slate-100 last:border-b-0 space-y-1 text-xs">
                           <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-1.5 flex-wrap">
                               <span className="text-[11px] font-bold text-slate-700">Unit #{uIdx + 1}</span>
+                              {seqNo && (
+                                <span className="font-mono text-[10px] font-black text-amber-700 bg-amber-50 px-1.5 py-0.2 rounded border border-amber-200 shrink-0">
+                                  {seqNo}
+                                </span>
+                              )}
+                              {brandModel && (
+                                <span className="font-bold text-slate-800 text-xs">
+                                  {brandModel}
+                                </span>
+                              )}
                               {assignedBarcode && (
-                                <span className="font-mono text-[10.5px] text-slate-500">
+                                <span className="font-mono text-[10.5px] font-bold text-blue-700 bg-blue-50 px-1.5 py-0.2 rounded border border-blue-200">
                                   [{assignedBarcode}]
                                 </span>
                               )}
@@ -696,6 +768,11 @@ export default function VenueEquipmentChecklist({
                                 {slotBuiltIns.map((bi) => (
                                   <span key={bi.id || bi.barcode} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-white border border-slate-300 text-[10px] font-medium text-slate-700">
                                     <span className="text-slate-400">•</span>
+                                    {bi.seq_no && (
+                                      <span className="font-mono text-[9px] font-black text-amber-700 bg-amber-50 px-1 rounded border border-amber-200">
+                                        {bi.seq_no}
+                                      </span>
+                                    )}
                                     <span>{bi.name}</span>
                                     <span className="font-mono text-[9px] text-slate-400">[{bi.barcode}]</span>
                                   </span>
@@ -716,7 +793,11 @@ export default function VenueEquipmentChecklist({
                       const cond = unitReturnedConditions[unitKey] || (currentSelectedBarcode ? unitReturnedConditions[currentSelectedBarcode] : "Good") || "Good";
 
                       const matchedUnit = (allUnits || []).find(u => String(u.barcode || u.serial_number || u.code || u.id).trim().toUpperCase() === String(currentSelectedBarcode).trim().toUpperCase());
-                      const modelName = matchedUnit ? ([matchedUnit.brand, matchedUnit.model].filter(Boolean).join(" ") || matchedUnit.name) : "";
+                      const seq = matchedUnit?.seq_no ? (String(matchedUnit.seq_no).trim().startsWith("#") ? String(matchedUnit.seq_no).trim() : `#${String(matchedUnit.seq_no).trim()}`) : null;
+                      const brand = matchedUnit?.brand ? String(matchedUnit.brand).trim() : "";
+                      const model = matchedUnit?.model ? String(matchedUnit.model).trim() : "";
+                      const brandModel = brand && model ? `${brand} • ${model}` : (brand || model || matchedUnit?.name || "");
+                      const prefix = [seq, brandModel].filter(Boolean).join(" ");
                       const slotBuiltIns = currentSelectedBarcode ? getBuiltInUnitsForBarcode(currentSelectedBarcode) : [];
 
                       return (
@@ -727,7 +808,7 @@ export default function VenueEquipmentChecklist({
                             </span>
                             {currentSelectedBarcode ? (
                               <span className="text-xs font-mono font-semibold text-slate-700 flex items-center gap-1">
-                                <Check size={12} className="stroke-[3] text-slate-600" /> {modelName ? `${modelName} [${currentSelectedBarcode}]` : `Assigned [${currentSelectedBarcode}]`}
+                                <Check size={12} className="stroke-[3] text-slate-600" /> {prefix ? `${prefix} [${currentSelectedBarcode}]` : `Assigned [${currentSelectedBarcode}]`}
                               </span>
                             ) : (
                               <span className="text-xs font-mono text-slate-400">

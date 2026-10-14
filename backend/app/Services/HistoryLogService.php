@@ -11,7 +11,7 @@ class HistoryLogService
     /**
      * Fetch and format completed/archived venue booking history records
      */
-    public function getVenueBookingsHistory(?int $officeId = null, bool $isSuperAdmin = true, ?int $academicTermId = null): Collection
+    public function getVenueBookingsHistory(?int $officeId = null, bool $isSuperAdmin = true, ?int $academicTermId = null, bool $includeArchived = false): Collection
     {
         $vbQuery = DB::table('venue_bookings')
             ->leftJoin('tracking_numbers', function ($join) {
@@ -39,9 +39,13 @@ class HistoryLogService
             })
             ->leftJoin('documents', function ($join) {
                 $join->on('venue_bookings.id', '=', 'documents.venue_booking_id');
-            })
-            ->whereNull('venue_bookings.archived_at')
-            ->where(function ($query) {
+            });
+
+        if (!$includeArchived) {
+            $vbQuery->whereNull('venue_bookings.archived_at');
+        }
+
+        $vbQuery->where(function ($query) {
                 $activeStatuses = ['pending', 'approved', 'ongoing', 'on-going', 'post-inspection', 'reserved'];
                 $query->where(function ($q) use ($activeStatuses) {
                     $q->whereNotNull('tracking_numbers.status')
@@ -340,7 +344,7 @@ class HistoryLogService
     /**
      * Fetch and format completed/archived equipment borrowing history records
      */
-    public function getEquipmentBorrowingsHistory(?int $officeId = null, bool $isSuperAdmin = true, ?int $academicTermId = null): Collection
+    public function getEquipmentBorrowingsHistory(?int $officeId = null, bool $isSuperAdmin = true, ?int $academicTermId = null, bool $includeArchived = false): Collection
     {
         $ebQuery = DB::table('equipment_borrows')
             ->leftJoin('tracking_numbers', function ($join) {
@@ -361,9 +365,13 @@ class HistoryLogService
                           $q2->whereIn('inspections.inspection_type', ['post_use', 'post_event'])
                              ->orWhereNull('inspections.inspection_type');
                      });
-            })
-            ->whereNull('equipment_borrows.archived_at')
-            ->where(function ($query) {
+            });
+
+        if (!$includeArchived) {
+            $ebQuery->whereNull('equipment_borrows.archived_at');
+        }
+
+        $ebQuery->where(function ($query) {
                 $activeStatuses = ['pending', 'approved', 'ongoing', 'on-going', 'inspection', 'post-inspection', 'reserved'];
                 $query->where(function ($q) use ($activeStatuses) {
                     $q->whereNotNull('tracking_numbers.status')
@@ -568,10 +576,10 @@ class HistoryLogService
     /**
      * Fetch and format all incident, damages, lost units, and policy violation history records
      */
-    public function getIncidentsHistory(?int $officeId = null, bool $isSuperAdmin = true, ?int $academicTermId = null): Collection
+    public function getIncidentsHistory(?int $officeId = null, bool $isSuperAdmin = true, ?int $academicTermId = null, bool $includeArchived = false): Collection
     {
-        $venues = $this->getVenueBookingsHistory($officeId, $isSuperAdmin, $academicTermId);
-        $equipment = $this->getEquipmentBorrowingsHistory($officeId, $isSuperAdmin, $academicTermId);
+        $venues = $this->getVenueBookingsHistory($officeId, $isSuperAdmin, $academicTermId, $includeArchived);
+        $equipment = $this->getEquipmentBorrowingsHistory($officeId, $isSuperAdmin, $academicTermId, $includeArchived);
 
         $incidents = collect();
 

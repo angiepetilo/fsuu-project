@@ -601,4 +601,18 @@ class AuditLogController extends Controller
             ], 200);
         }
     }
+
+    /**
+     * DELETE /sysad/audit-logs/clear or POST /general/audit-logs/clear
+     * Clears all activity audit logs.
+     */
+    public function clear(Request $request): JsonResponse
+    {
+        try {
+            DB::table('audit_logs')->delete();
+            return response()->json(['message' => 'Activity audit trail cleared successfully.']);
+        } catch (\Throwable $e) {
+            return response()->json(['message' => 'Failed to clear audit trail: ' . $e->getMessage()], 500);
+        }
+    }
 }

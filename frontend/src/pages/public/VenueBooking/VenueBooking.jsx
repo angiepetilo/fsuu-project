@@ -118,6 +118,12 @@ export default function VenueBooking({ isPortal: isPortalProp }) {
   const [avrEquipment, setAvrEquipment] = useState({ mic: false, proj: false, sound: false, podium: false });
   const [equipmentRemarks, setEquipmentRemarks] = useState("");
 
+  // Email Deliverability & Anti-Spam / Anti-Disposable State
+  const [emailCheckStatus, setEmailCheckStatus] = useState("idle");
+  const [emailCheckMessage, setEmailCheckMessage] = useState("");
+  const [lastCheckedEmail, setLastCheckedEmail] = useState("");
+  const [emailSuggestion, setEmailSuggestion] = useState("");
+
   // Email & PIN Verification State
   const [isEmailVerified, setIsEmailVerified] = useState(false);
   const [showPinModal, setShowPinModal] = useState(false);
@@ -493,20 +499,42 @@ export default function VenueBooking({ isPortal: isPortalProp }) {
     e.preventDefault();
     const cleanEmail = (email || "").trim().toLowerCase();
     if (!cleanEmail) {
-      showAlert("Please provide an email address.", "Email Required", "warning");
+      setEmailCheckStatus("invalid");
+      setEmailCheckMessage("Please provide an email address.");
+      return;
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+      setEmailCheckStatus("invalid");
+      setEmailCheckMessage("Please enter a valid email address (e.g. name@gmail.com or name@urios.edu.ph).");
       return;
     }
 
     // Follow the Abstract API email deliverability & anti-fake validation
-    try {
-      const res = await api.post("/public/verify-email-active", { email: cleanEmail });
-      if (!res.data?.valid) {
-        showAlert(res.data?.message || "This email address is not deliverable or has been flagged as fake/disposable.", "Invalid Email");
+    if (emailCheckStatus !== "valid" || cleanEmail !== lastCheckedEmail) {
+      setEmailCheckStatus("checking");
+      setEmailCheckMessage("Checking email deliverability & temporary domain list...");
+      try {
+        const res = await api.post("/public/verify-email-active", { email: cleanEmail });
+        if (!res.data?.valid) {
+          setEmailCheckStatus("invalid");
+          setEmailCheckMessage(res.data?.message || "This email address is not deliverable or has been flagged as fake/disposable.");
+          if (res.data?.autocorrect) {
+            setEmailSuggestion(res.data.autocorrect);
+          }
+          return;
+        }
+        setEmailCheckStatus("valid");
+        setEmailCheckMessage(res.data?.message || "Email address is active and deliverable.");
+        setLastCheckedEmail(cleanEmail);
+      } catch (err) {
+        setEmailCheckStatus("invalid");
+        setEmailCheckMessage(err.response?.data?.message || "Disposable, temporary, or invalid email addresses are not accepted.");
+        if (err.response?.data?.autocorrect) {
+          setEmailSuggestion(err.response.data.autocorrect);
+        }
         return;
       }
-    } catch (err) {
-      showAlert(err.response?.data?.message || "Disposable, temporary, or invalid email addresses are not accepted.", "Invalid Email");
-      return;
     }
 
     const requireEmailVerify = pinRules ? (pinRules.isEnabled !== false && pinRules.venueVerifyEmail === true) : false;
@@ -618,9 +646,18 @@ export default function VenueBooking({ isPortal: isPortalProp }) {
         }
       });
       if (endorsementFile) {
-        const fileToAppend = endorsementFile instanceof File ? endorsementFile : (endorsementFile?.file instanceof File ? endorsementFile.file : endorsementFile);
-        if (fileToAppend) {
-          formData.append('endorsement_file', fileToAppend);
+        if (Array.isArray(endorsementFile)) {
+          endorsementFile.forEach((item) => {
+            const f = item instanceof File ? item : (item?.file instanceof File ? item.file : null);
+            if (f) {
+              formData.append('endorsement_files[]', f);
+            }
+          });
+        } else {
+          const fileToAppend = endorsementFile instanceof File ? endorsementFile : (endorsementFile?.file instanceof File ? endorsementFile.file : endorsementFile);
+          if (fileToAppend) {
+            formData.append('endorsement_files[]', fileToAppend);
+          }
         }
       }
 
@@ -651,6 +688,7 @@ export default function VenueBooking({ isPortal: isPortalProp }) {
           place_of_use: selectedVenue?.name || 'Venue'
         }
       }));
+      window.dispatchEvent(new CustomEvent('venue_bookings_updated'));
     } catch (err) {
       showAlert(err.response?.data?.message || 'Submission failed. Please check form details.', 'Submission Failed');
     } finally {
@@ -776,6 +814,10 @@ export default function VenueBooking({ isPortal: isPortalProp }) {
             suffix={suffix} setSuffix={setSuffix}
             fullName={fullName} setFullName={setFullName}
             email={email} setEmail={setEmail}
+            emailCheckStatus={emailCheckStatus} setEmailCheckStatus={setEmailCheckStatus}
+            emailCheckMessage={emailCheckMessage} setEmailCheckMessage={setEmailCheckMessage}
+            lastCheckedEmail={lastCheckedEmail} setLastCheckedEmail={setLastCheckedEmail}
+            emailSuggestion={emailSuggestion} setEmailSuggestion={setEmailSuggestion}
             contactNumber={contactNumber} handleContactChange={handleContactChange}
             department={department} setDepartment={setDepartment}
             purpose={purpose} setPurpose={setPurpose}
