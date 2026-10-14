@@ -940,7 +940,7 @@ export default function EndorsementLetterTemplateModal({
                 className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all cursor-pointer shadow-xs"
               >
                 <Download size={13} />
-                <span>{downloading ? "Downloading..." : "Download as DOCS"}</span>
+                <span>{downloading ? "Downloading..." : "Download Template"}</span>
               </button>
             )}
           </div>

@@ -150,11 +150,11 @@ export default function DocxPreviewModal({
                 type="button"
                 onClick={handleDownload}
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-xl text-xs font-bold shadow-xs transition-all cursor-pointer"
-                title="Download original DOCX template"
+                title="Download original template file"
               >
                 <Download size={13} />
-                <span className="hidden sm:inline">Download</span>
-                <span className="font-mono text-[10.5px] opacity-80 sm:hidden">DOCX</span>
+                <span className="hidden sm:inline">Download Template</span>
+                <span className="sm:hidden">Download</span>
               </button>
             )}
 
@@ -202,7 +202,7 @@ export default function DocxPreviewModal({
                   className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
                 >
                   <Download size={14} />
-                  <span>Download .DOCX File</span>
+                  <span>Download Template</span>
                 </button>
               )}
             </div>

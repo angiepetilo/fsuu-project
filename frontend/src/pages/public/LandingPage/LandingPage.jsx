@@ -1,10 +1,11 @@
 import { Link } from "react-router-dom";
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { Loader2, FileText, Download } from "lucide-react";
+import { Loader2, Eye } from "lucide-react";
 import api from "@/lib/axios";
 import Hero from "./components/Hero";
 import FeatureCards from "./components/FeatureCards";
 import EndorsementLetterTemplateModal from "@/components/ui/EndorsementLetterTemplateModal";
+import DocxPreviewModal from "@/components/ui/DocxPreviewModal";
 
 export default function LandingPage() {
   const [requirements, setRequirements] = useState([]);
@@ -12,6 +13,8 @@ export default function LandingPage() {
   const [showTemplateModal, setShowTemplateModal] = useState(false);
   const [selectedTemplateType, setSelectedTemplateType] = useState("organization");
   const [selectedTemplateRequirement, setSelectedTemplateRequirement] = useState(null);
+  const [showDocxModal, setShowDocxModal] = useState(false);
+  const [selectedDocx, setSelectedDocx] = useState({ url: "", name: "", title: "" });
 
   useEffect(() => {
     api.get("/public/booking-requirements")
@@ -37,10 +40,19 @@ export default function LandingPage() {
     });
   }, [requirements]);
 
-  const handleOpenTemplate = useCallback((req) => {
-    setSelectedTemplateRequirement(req);
-    setSelectedTemplateType(req.classification || "organization");
-    setShowTemplateModal(true);
+  const handleOpenPreview = useCallback((req) => {
+    if (req.template_file_url && req.template_display_mode !== "digital_format") {
+      setSelectedDocx({
+        url: req.template_file_url,
+        name: req.template_file_name || `${req.label || "Requirement"}.docx`,
+        title: req.label || "Requirement Template",
+      });
+      setShowDocxModal(true);
+    } else {
+      setSelectedTemplateRequirement(req);
+      setSelectedTemplateType(req.classification || "organization");
+      setShowTemplateModal(true);
+    }
   }, []);
 
   return (
@@ -101,29 +113,14 @@ export default function LandingPage() {
                     <span className="text-[11px] font-normal text-muted-foreground">
                       Signatures: Dean, {isAcad ? "OVPASA" : "OISAA"}, PMO
                     </span>
-                    <div className="flex items-center gap-2">
-                      {req.template_file_url && (
-                        <a
-                          href={req.template_file_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          download
-                          className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 dark:hover:bg-blue-900/50 border border-blue-200 dark:border-blue-800 rounded-lg text-xs font-semibold transition-all shadow-2xs min-h-[36px]"
-                          title={req.template_file_name || "Download Template File"}
-                        >
-                          <Download size={13} className="text-blue-600 dark:text-blue-400" />
-                          <span>Download Template</span>
-                        </a>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => handleOpenTemplate(req)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-card hover:bg-muted text-foreground border border-border rounded-lg text-xs font-semibold transition-all shadow-2xs cursor-pointer min-h-[36px]"
-                      >
-                        <FileText size={13} className="text-primary" />
-                        <span>View Format</span>
-                      </button>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleOpenPreview(req)}
+                      className="flex items-center gap-1.5 px-3.5 py-1.5 bg-card hover:bg-muted text-foreground border border-border rounded-lg text-xs font-semibold transition-all shadow-2xs cursor-pointer min-h-[36px]"
+                    >
+                      <Eye size={13} className="text-primary" />
+                      <span>Preview</span>
+                    </button>
                   </div>
                 </div>
               );
@@ -148,6 +145,18 @@ export default function LandingPage() {
         initialType={selectedTemplateType}
         allowEdit={false}
         showTypeTabs={false}
+      />
+
+      {/* DOCX Template Preview Modal */}
+      <DocxPreviewModal
+        isOpen={showDocxModal}
+        onClose={() => {
+          setShowDocxModal(false);
+          setSelectedDocx({ url: "", name: "", title: "" });
+        }}
+        fileUrl={selectedDocx.url}
+        fileName={selectedDocx.name}
+        title={selectedDocx.title}
       />
 
       {/* Action Links Below Requirements Card */}
