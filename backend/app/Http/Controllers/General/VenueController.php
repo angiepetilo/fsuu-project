@@ -210,8 +210,37 @@ class VenueController extends Controller
     {
         $this->ensureSchema();
         $venue = Venue::findOrFail($id);
+
+        $hasActiveBookings = \App\Models\VenueBooking::where('venue_id', $venue->id)
+            ->where(function ($q) {
+                $q->whereHas('trackingNumber', function ($t) {
+                    $t->whereIn('status', ['pending', 'approved', 'ongoing', 'on-going']);
+                });
+                if (\Illuminate\Support\Facades\Schema::hasColumn('venue_bookings', 'status')) {
+                    $q->orWhereIn('status', ['pending', 'approved', 'ongoing', 'on-going']);
+                }
+            })
+            ->exists();
+
+        if ($hasActiveBookings && !$request->boolean('force')) {
+            return response()->json([
+                'message' => "Cannot delete venue '{$venue->name}' because it has active or pending bookings. You can disable the venue instead.",
+            ], 422);
+        }
+
+        $venueName = $venue->name;
         $venue->delete();
 
-        return response()->json(['message' => 'Venue deleted successfully']);
+        try {
+            app(\App\Services\AuditLogService::class)->log(
+                $request->user(),
+                'VENUE_DELETED',
+                'venues',
+                $id,
+                ['description' => "Venue facility '{$venueName}' deleted."]
+            );
+        } catch (\Throwable $t) {}
+
+        return response()->json(['message' => "Venue '{$venueName}' deleted successfully."]);
     }
 }

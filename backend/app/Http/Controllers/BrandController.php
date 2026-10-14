@@ -253,7 +253,12 @@ class BrandController extends Controller
      */
     public function destroy(Request $request, Brand $brand): JsonResponse
     {
-        $unitsCount = EquipmentUnit::where('brand', $brand->name)->count();
+        $unitsCount = EquipmentUnit::where(function ($q) use ($brand) {
+            $q->where('brand', $brand->name);
+            if (\Illuminate\Support\Facades\Schema::hasColumn('equipment_units', 'brand_id')) {
+                $q->orWhere('brand_id', $brand->id);
+            }
+        })->count();
 
         if ($unitsCount > 0 && !$request->boolean('force')) {
             return response()->json([

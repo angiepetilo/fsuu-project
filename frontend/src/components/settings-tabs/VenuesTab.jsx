@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
-import { Plus, Edit2, Ban, Power, CheckCircle2, X, Building, Loader2, Image as ImageIcon, Camera, AlertCircle } from "lucide-react";
+import { Plus, Edit2, Ban, Power, CheckCircle2, X, Building, Loader2, Image as ImageIcon, Camera, AlertCircle, MoreVertical, Trash2, Pencil } from "lucide-react";
 import { usePermissions } from "@/hooks/usePermissions";
 import api, { clearApiCache } from "@/lib/axios";
 import { invalidateCache } from "@/lib/apiCache";
 import ConfirmModal from "@/components/ui/ConfirmModal";
+import ActionPopover from "@/components/ui/action-popover";
 import IosToggle from "@/components/ui/ios-toggle";
 
 export default function VenuesTab({ showMsg }) {
@@ -11,6 +12,7 @@ export default function VenuesTab({ showMsg }) {
   const canAdd = isSuperAdmin || hasPermission("settings.venues") || hasPermission("settings.add") || hasPermission("manage_venues.add");
   const canEdit = isSuperAdmin || hasPermission("settings.venues") || hasPermission("settings.edit") || hasPermission("manage_venues.edit");
   const canDisable = isSuperAdmin || hasPermission("settings.venues") || hasPermission("settings.disable") || hasPermission("manage_venues.disable");
+  const canDelete = isSuperAdmin || hasPermission("settings.venues") || hasPermission("settings.delete") || hasPermission("manage_venues.delete");
 
   const [venues, setVenues] = useState([]);
   const [equipmentCatalog, setEquipmentCatalog] = useState([]);
@@ -22,6 +24,10 @@ export default function VenuesTab({ showMsg }) {
   const [formLoading, setFormLoading] = useState(false);
   const [formError, setFormError] = useState("");
   const [disableTarget, setDisableTarget] = useState(null); // { id, name, status }
+  const [openActionId, setOpenActionId] = useState(null);
+  const [actionAnchorEl, setActionAnchorEl] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null); // { id, name }
+  const [deleting, setDeleting] = useState(false);
 
   const handleRequestClose = () => {
     if (isFormDirty) {
@@ -258,6 +264,24 @@ export default function VenuesTab({ showMsg }) {
     }
   };
 
+  const handleDeleteVenue = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      await api.delete(`/general/venues/${deleteTarget.id}`);
+      setVenues((prev) => prev.filter((v) => v.id !== deleteTarget.id));
+      clearApiCache();
+      invalidateCache("venues");
+      window.dispatchEvent(new Event("venues_updated"));
+      showMsg(`Venue "${deleteTarget.name}" has been deleted successfully.`);
+      setDeleteTarget(null);
+    } catch (err) {
+      showMsg(err.response?.data?.message || `Failed to delete venue "${deleteTarget.name}".`);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const getAvailableStock = (eq) => {
     if (!eq) return 1;
     if (typeof eq.available_count === "number" && eq.available_count > 0) return eq.available_count;
@@ -365,11 +389,11 @@ export default function VenuesTab({ showMsg }) {
         <table className="w-full text-sm min-w-[750px]">
           <thead>
             <tr className="bg-slate-50/80 border-b border-slate-100">
-              {["#", "Photo", "Venue", "Status", "Action"].map((h) => (
-                <th key={h} className="px-4 py-3.5 text-left text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                  {h}
-                </th>
-              ))}
+              <th className="px-4 py-3.5 text-left text-[11px] font-bold text-slate-400 uppercase tracking-wider w-12">#</th>
+              <th className="px-4 py-3.5 text-left text-[11px] font-bold text-slate-400 uppercase tracking-wider w-16">Photo</th>
+              <th className="px-4 py-3.5 text-left text-[11px] font-bold text-slate-400 uppercase tracking-wider">Venue</th>
+              <th className="px-4 py-3.5 text-left text-[11px] font-bold text-slate-400 uppercase tracking-wider w-36">Status</th>
+              <th className="px-4 py-3.5 text-right text-[11px] font-bold text-slate-400 uppercase tracking-wider w-24">Action</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 text-xs font-semibold">
@@ -395,10 +419,10 @@ export default function VenuesTab({ showMsg }) {
 
                 return (
                   <tr key={v.id} className="hover:bg-slate-50/70 transition-colors">
-                    <td className="px-4 py-3 text-slate-400 font-mono">{i + 1}</td>
+                    <td className="px-4 py-3 text-slate-400 font-mono w-12">{i + 1}</td>
                     
                     {/* Photo Column */}
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 w-16">
                       <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 overflow-hidden flex items-center justify-center shadow-2xs">
                         {displayPhoto ? (
                           <img src={displayPhoto} alt={v.name} className="w-full h-full object-cover" />
@@ -413,7 +437,7 @@ export default function VenuesTab({ showMsg }) {
                       <div className="text-[11px] text-slate-400 font-medium">{v.location || "FSUU Main Campus"} • Cap: {v.min_capacity && Number(v.min_capacity) > 1 ? `${v.min_capacity} - ${v.max_capacity || v.capacity || 100}` : (v.max_capacity || v.capacity || 100)}</div>
                     </td>
 
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 w-36">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10.5px] font-extrabold border ${
                         !isItemDisabled
                           ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800"
@@ -424,32 +448,101 @@ export default function VenuesTab({ showMsg }) {
                       </span>
                     </td>
 
-                    <td className="px-4 py-3">
-                      {canEdit || canDisable ? (
-                        <div className="flex items-center gap-2.5">
-                          {canDisable && (
-                            <button
-                              type="button"
-                              onClick={() => setDisableTarget({ id: v.id, name: v.name, status: v.status })}
-                              className={`p-1.5 rounded-xl border transition-all cursor-pointer ${
-                                !isItemDisabled
-                                  ? "text-rose-600 bg-rose-50 border-rose-200 hover:bg-rose-100 dark:text-rose-400/80 dark:bg-rose-950/40 dark:border-rose-900/40 hover:dark:bg-rose-900/40 hover:dark:text-rose-300"
-                                  : "text-emerald-600 bg-emerald-50 border-emerald-200 hover:bg-emerald-100 dark:text-emerald-400/80 dark:bg-emerald-950/40 dark:border-emerald-900/40 hover:dark:bg-emerald-900/40 hover:dark:text-emerald-300"
-                              }`}
-                              title={isItemDisabled ? "Click to Enable Venue" : "Click to Disable Venue"}
-                            >
-                              {!isItemDisabled ? <Ban size={13} /> : <CheckCircle2 size={13} />}
-                            </button>
-                          )}
-                          {canEdit && (
-                            <button
-                              onClick={() => handleEditClick(v)}
-                              className="p-1.5 rounded-xl border border-slate-200 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 text-slate-600 cursor-pointer transition-all"
-                              title="Edit Venue"
-                            >
-                              <Edit2 size={13} />
-                            </button>
-                          )}
+                    <td className="px-4 py-3 text-right w-24">
+                      {canEdit || canDisable || canDelete ? (
+                        <div className="flex items-center justify-end">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (openActionId === v.id) {
+                                setOpenActionId(null);
+                                setActionAnchorEl(null);
+                              } else {
+                                setOpenActionId(v.id);
+                                setActionAnchorEl(e.currentTarget);
+                              }
+                            }}
+                            className={`w-8 h-8 rounded-xl border flex items-center justify-center transition-all cursor-pointer shadow-2xs ${
+                              openActionId === v.id
+                                ? "bg-blue-600 border-blue-600 text-white shadow-md shadow-blue-600/20"
+                                : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white"
+                            }`}
+                            title="Actions"
+                          >
+                            <MoreVertical size={14} />
+                          </button>
+
+                          <ActionPopover
+                            isOpen={openActionId === v.id}
+                            anchorEl={actionAnchorEl}
+                            onClose={() => {
+                              setOpenActionId(null);
+                              setActionAnchorEl(null);
+                            }}
+                            width={160}
+                          >
+                            {canEdit && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setOpenActionId(null);
+                                  setActionAnchorEl(null);
+                                  handleEditClick(v);
+                                }}
+                                className="w-full px-3 py-2 text-left text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100/80 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white flex items-center gap-2.5 transition-colors cursor-pointer rounded-xl"
+                              >
+                                <Pencil size={13} className="text-slate-500" />
+                                <span>Edit Venue</span>
+                              </button>
+                            )}
+
+                            {canDisable && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setOpenActionId(null);
+                                  setActionAnchorEl(null);
+                                  setDisableTarget({ id: v.id, name: v.name, status: v.status });
+                                }}
+                                className={`w-full px-3 py-2 text-left text-xs font-semibold flex items-center gap-2.5 transition-colors cursor-pointer rounded-xl ${
+                                  !isItemDisabled
+                                    ? "text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50"
+                                    : "text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/50"
+                                }`}
+                              >
+                                {!isItemDisabled ? (
+                                  <>
+                                    <Ban size={13} className="text-rose-500" />
+                                    <span>Disable Venue</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <CheckCircle2 size={13} className="text-emerald-500" />
+                                    <span>Enable Venue</span>
+                                  </>
+                                )}
+                              </button>
+                            )}
+
+                            {canDelete && (
+                              <>
+                                <div className="border-t border-slate-100 dark:border-slate-800 my-1 mx-1"></div>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setOpenActionId(null);
+                                    setActionAnchorEl(null);
+                                    setDeleteTarget({ id: v.id, name: v.name });
+                                  }}
+                                  className="w-full px-3 py-2 text-left text-xs font-semibold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 flex items-center gap-2.5 transition-colors cursor-pointer rounded-xl"
+                                >
+                                  <Trash2 size={13} className="text-rose-500" />
+                                  <span>Delete Venue</span>
+                                </button>
+                              </>
+                            )}
+                          </ActionPopover>
                         </div>
                       ) : (
                         <span className="text-[10.5px] font-bold text-slate-400 italic">View Only</span>
@@ -744,6 +837,17 @@ export default function VenuesTab({ showMsg }) {
         message={`Are you sure you want to ${disableTarget?.status === "disabled" ? 'enable' : 'disable'} venue "${disableTarget?.name}"?`}
         confirmText={disableTarget?.status === "disabled" ? "Enable" : "Disable"}
         variant={disableTarget?.status === "disabled" ? "primary" : "danger"}
+      />
+
+      <ConfirmModal
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={handleDeleteVenue}
+        title="Delete Venue"
+        message={`Are you sure you want to permanently delete venue "${deleteTarget?.name}"? This action cannot be undone.`}
+        confirmText="Delete"
+        variant="delete"
+        loading={deleting}
       />
     </div>
   );

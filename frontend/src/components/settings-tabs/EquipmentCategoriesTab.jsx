@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Pencil, Ban, Power, CheckCircle2, X, Package, Loader2, Image as ImageIcon, ChevronLeft, ChevronRight, Camera, MoreVertical, Send, HelpCircle, AlertCircle, Eye, EyeOff } from "lucide-react";
+import { Plus, Pencil, Ban, Power, CheckCircle2, X, Package, Loader2, Image as ImageIcon, ChevronLeft, ChevronRight, Camera, MoreVertical, Send, HelpCircle, AlertCircle, Eye, EyeOff, Trash2 } from "lucide-react";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 import api, { clearApiCache } from "@/lib/axios";
@@ -14,6 +14,7 @@ export default function EquipmentCategoriesTab({ showMsg }) {
   const canAdd = isSuperAdmin || hasPermission("settings.equipment") || hasPermission("settings.add") || hasPermission("manage_equipments.add");
   const canEdit = isSuperAdmin || hasPermission("settings.equipment") || hasPermission("settings.edit") || hasPermission("manage_equipments.edit");
   const canDisable = isSuperAdmin || hasPermission("settings.equipment") || hasPermission("settings.disable") || hasPermission("manage_equipments.disable");
+  const canDelete = isSuperAdmin || hasPermission("settings.equipment") || hasPermission("settings.delete") || hasPermission("manage_equipments.delete");
   const canDirectEdit = canAdd;
 
   const [categories, setCategories] = useState([]);
@@ -45,6 +46,8 @@ export default function EquipmentCategoriesTab({ showMsg }) {
   const [formLoading, setFormLoading] = useState(false);
   const [formError, setFormError] = useState("");
   const [disableTarget, setDisableTarget] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null); // { id, name }
+  const [deleting, setDeleting] = useState(false);
 
   const [previewScale, setPreviewScale] = useState(100);
   const [previewFit, setPreviewFit] = useState("contain");
@@ -250,6 +253,27 @@ export default function EquipmentCategoriesTab({ showMsg }) {
     }
   };
 
+  const handleDeleteCategory = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      await api.delete(`/general/equipment-types/${deleteTarget.id}`);
+      setCategories((prev) => prev.filter((c) => c.id !== deleteTarget.id));
+      clearApiCache();
+      invalidateCache("equipment_types");
+      invalidateCache("equipment_types_list");
+      window.dispatchEvent(new Event("equipment_updated"));
+      window.dispatchEvent(new Event("equipment_categories_updated"));
+      notify.success("Category Deleted", `Category "${deleteTarget.name}" has been deleted successfully.`);
+      setDeleteTarget(null);
+    } catch (err) {
+      notify.error("Cannot Delete", err.response?.data?.message || `Failed to delete category "${deleteTarget.name}".`);
+      setDeleteTarget(null);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const togglePublicVisibility = async (cat) => {
     if (!canEdit) return;
     const catId = cat.id;
@@ -346,7 +370,7 @@ export default function EquipmentCategoriesTab({ showMsg }) {
               <th className="px-4 py-3.5">Category Name</th>
               <th className="px-4 py-3.5 text-center w-32">Public View</th>
               <th className="px-4 py-3.5">Status</th>
-              <th className="px-4 py-3.5 text-right">Action</th>
+              <th className="px-4 py-3.5 text-right w-24">Action</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium text-slate-700 dark:text-slate-300">
@@ -442,39 +466,105 @@ export default function EquipmentCategoriesTab({ showMsg }) {
                         {!isItemDisabled ? "Active" : "Inactive"}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="flex items-center justify-end gap-1.5">
-                        {canDisable && (
+                    <td className="px-4 py-3 text-right w-24">
+                      {canEdit || canDisable || canDelete ? (
+                        <div className="flex items-center justify-end">
                           <button
                             type="button"
-                            onClick={() => {
-                              setDisableTarget({ id: cat.id, name: cat.eq_name || cat.name, status: cat.status });
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (openActionId === cat.id) {
+                                setOpenActionId(null);
+                                setActionAnchorEl(null);
+                              } else {
+                                setOpenActionId(cat.id);
+                                setActionAnchorEl(e.currentTarget);
+                              }
                             }}
-                            className={`p-1.5 rounded-xl border transition-all cursor-pointer shadow-2xs ${
-                              !isItemDisabled
-                                ? "text-rose-600 bg-rose-50 border-rose-200 hover:bg-rose-100 dark:text-rose-400/80 dark:bg-rose-950/40 dark:border-rose-900/40 hover:dark:bg-rose-900/40 hover:dark:text-rose-300"
-                                : "text-emerald-600 bg-emerald-50 border-emerald-200 hover:bg-emerald-100 dark:text-emerald-400/80 dark:bg-emerald-950/40 dark:border-emerald-900/40 hover:dark:bg-emerald-900/40 hover:dark:text-emerald-300"
+                            className={`w-8 h-8 rounded-xl border flex items-center justify-center transition-all cursor-pointer shadow-2xs ${
+                              openActionId === cat.id
+                                ? "bg-blue-600 border-blue-600 text-white shadow-md shadow-blue-600/20"
+                                : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white"
                             }`}
-                            title={isItemDisabled ? "Click to Enable Category" : "Click to Disable Category"}
+                            title="Actions"
                           >
-                            {!isItemDisabled ? <Ban size={13} /> : <CheckCircle2 size={13} />}
+                            <MoreVertical size={14} />
                           </button>
-                        )}
 
-                        {canEdit && (
-                          <button
-                            type="button"
-                            onClick={() => handleOpenEditModal(cat)}
-                            className="p-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-blue-50 dark:hover:bg-blue-900/40 hover:text-blue-600 dark:hover:text-blue-300 transition-all cursor-pointer shadow-2xs"
-                            title="Edit Category"
+                          <ActionPopover
+                            isOpen={openActionId === cat.id}
+                            anchorEl={actionAnchorEl}
+                            onClose={() => {
+                              setOpenActionId(null);
+                              setActionAnchorEl(null);
+                            }}
+                            width={160}
                           >
-                            <Pencil size={13} />
-                          </button>
-                        )}
-                        {!canEdit && !canDisable && (
-                          <span className="text-[10.5px] font-bold text-slate-400 italic">View Only</span>
-                        )}
-                      </div>
+                            {canEdit && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setOpenActionId(null);
+                                  setActionAnchorEl(null);
+                                  handleOpenEditModal(cat);
+                                }}
+                                className="w-full px-3 py-2 text-left text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100/80 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white flex items-center gap-2.5 transition-colors cursor-pointer rounded-xl"
+                              >
+                                <Pencil size={13} className="text-slate-500" />
+                                <span>Edit Category</span>
+                              </button>
+                            )}
+
+                            {canDisable && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setOpenActionId(null);
+                                  setActionAnchorEl(null);
+                                  setDisableTarget({ id: cat.id, name: cat.eq_name || cat.name, status: cat.status });
+                                }}
+                                className={`w-full px-3 py-2 text-left text-xs font-semibold flex items-center gap-2.5 transition-colors cursor-pointer rounded-xl ${
+                                  !isItemDisabled
+                                    ? "text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50"
+                                    : "text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/50"
+                                }`}
+                              >
+                                {!isItemDisabled ? (
+                                  <>
+                                    <Ban size={13} className="text-rose-500" />
+                                    <span>Disable Category</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <CheckCircle2 size={13} className="text-emerald-500" />
+                                    <span>Enable Category</span>
+                                  </>
+                                )}
+                              </button>
+                            )}
+
+                            {canDelete && (
+                              <>
+                                <div className="border-t border-slate-100 dark:border-slate-800 my-1 mx-1"></div>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setOpenActionId(null);
+                                    setActionAnchorEl(null);
+                                    setDeleteTarget({ id: cat.id, name: cat.eq_name || cat.name });
+                                  }}
+                                  className="w-full px-3 py-2 text-left text-xs font-semibold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 flex items-center gap-2.5 transition-colors cursor-pointer rounded-xl"
+                                >
+                                  <Trash2 size={13} className="text-rose-500" />
+                                  <span>Delete Category</span>
+                                </button>
+                              </>
+                            )}
+                          </ActionPopover>
+                        </div>
+                      ) : (
+                        <span className="text-[10.5px] font-bold text-slate-400 italic">View Only</span>
+                      )}
                     </td>
                   </tr>
                 );
@@ -882,6 +972,17 @@ export default function EquipmentCategoriesTab({ showMsg }) {
         message={`Are you sure you want to ${disableTarget?.status === "disabled" ? 'enable' : 'disable'} category "${disableTarget?.name}"?`}
         confirmText={disableTarget?.status === "disabled" ? "Enable" : "Disable"}
         variant={disableTarget?.status === "disabled" ? "primary" : "danger"}
+      />
+
+      <ConfirmModal
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={handleDeleteCategory}
+        title="Delete Equipment Category"
+        message={`Are you sure you want to permanently delete equipment category "${deleteTarget?.name}"? This action cannot be undone.`}
+        confirmText="Delete"
+        variant="delete"
+        loading={deleting}
       />
     </div>
   );

@@ -162,6 +162,14 @@ class EquipmentTypeController extends Controller
     {
         $type = EquipmentType::findOrFail($id);
         $name = $type->eq_name;
+
+        $linkedUnits = \App\Models\EquipmentUnit::where('equipment_type_id', $type->id)->count();
+        if ($linkedUnits > 0 && !$request->boolean('force')) {
+            return response()->json([
+                'message' => "Cannot delete equipment category '{$name}' because {$linkedUnits} physical equipment unit(s) are associated with it. Please disable the category or delete the units first.",
+            ], 422);
+        }
+
         $type->delete();
 
         try {
@@ -174,6 +182,6 @@ class EquipmentTypeController extends Controller
             );
         } catch (\Throwable $t) {}
 
-        return response()->json(['message' => 'Equipment category deleted successfully']);
+        return response()->json(['message' => "Equipment category '{$name}' deleted successfully."]);
     }
 }

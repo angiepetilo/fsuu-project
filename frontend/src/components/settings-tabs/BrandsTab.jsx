@@ -1,12 +1,14 @@
 import { useState, useEffect, useCallback } from "react";
 import { 
   Tag, Plus, Search, Edit2, Ban, CheckCircle2,
-  AlertCircle, X, Loader2, ChevronLeft, ChevronRight
+  AlertCircle, X, Loader2, ChevronLeft, ChevronRight,
+  MoreVertical, Trash2, Pencil
 } from "lucide-react";
 import api, { clearApiCache } from "@/lib/axios";
 import { invalidateCache } from "@/lib/apiCache";
 import notify from "@/lib/notify";
 import ConfirmModal from "@/components/ui/ConfirmModal";
+import ActionPopover from "@/components/ui/action-popover";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 
 export default function BrandsTab({ isActive = true }) {
@@ -31,6 +33,8 @@ export default function BrandsTab({ isActive = true }) {
   const [showDiscardModal, setShowDiscardModal] = useState(false);
   const [discardTarget, setDiscardTarget] = useState(null); // 'add' | 'edit'
   const [selectedBrand, setSelectedBrand] = useState(null);
+  const [openActionId, setOpenActionId] = useState(null);
+  const [actionAnchorEl, setActionAnchorEl] = useState(null);
 
   // Form states
   const [formData, setFormData] = useState({ name: "", description: "", status: "active", equipment_type_id: "" });
@@ -374,7 +378,7 @@ export default function BrandsTab({ isActive = true }) {
               <tr>
                 <th className="px-4 py-3.5">Brand Name</th>
                 <th className="px-4 py-3.5">Associated Equipment</th>
-                <th className="px-4 py-3.5 text-right">Actions</th>
+                <th className="px-4 py-3.5 text-right w-24">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 font-medium">
@@ -423,28 +427,94 @@ export default function BrandsTab({ isActive = true }) {
                       </span>
                     </td>
 
-                    <td className="px-4 py-3.5 text-right">
-                      <div className="flex items-center justify-end gap-1.5">
+                    <td className="px-4 py-3.5 text-right w-24">
+                      <div className="flex items-center justify-end">
                         <button
                           type="button"
-                          onClick={() => handleOpenEdit(brand)}
-                          className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
-                          title="Edit Brand"
-                        >
-                          <Edit2 size={14} />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleToggleStatus(brand)}
-                          className={`p-1.5 rounded-lg border transition-all cursor-pointer shadow-2xs ${
-                            brand.status === "active"
-                              ? "text-rose-600 bg-rose-50 border-rose-200 hover:bg-rose-100 dark:text-rose-400/80 dark:bg-rose-950/40 dark:border-rose-900/40 hover:dark:bg-rose-900/40 hover:dark:text-rose-300"
-                              : "text-emerald-600 bg-emerald-50 border-emerald-200 hover:bg-emerald-100 dark:text-emerald-400/80 dark:bg-emerald-950/40 dark:border-emerald-900/40 hover:dark:bg-emerald-900/40 hover:dark:text-emerald-300"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (openActionId === brand.id) {
+                              setOpenActionId(null);
+                              setActionAnchorEl(null);
+                            } else {
+                              setOpenActionId(brand.id);
+                              setActionAnchorEl(e.currentTarget);
+                            }
+                          }}
+                          className={`w-8 h-8 rounded-xl border flex items-center justify-center transition-all cursor-pointer shadow-2xs ${
+                            openActionId === brand.id
+                              ? "bg-blue-600 border-blue-600 text-white shadow-md shadow-blue-600/20"
+                              : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white"
                           }`}
-                          title={brand.status === "active" ? "Disable brand" : "Enable brand"}
+                          title="Actions"
                         >
-                          {brand.status === "active" ? <Ban size={14} /> : <CheckCircle2 size={14} />}
+                          <MoreVertical size={14} />
                         </button>
+
+                        <ActionPopover
+                          isOpen={openActionId === brand.id}
+                          anchorEl={actionAnchorEl}
+                          onClose={() => {
+                            setOpenActionId(null);
+                            setActionAnchorEl(null);
+                          }}
+                          width={160}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setOpenActionId(null);
+                              setActionAnchorEl(null);
+                              handleOpenEdit(brand);
+                            }}
+                            className="w-full px-3 py-2 text-left text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100/80 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white flex items-center gap-2.5 transition-colors cursor-pointer rounded-xl"
+                          >
+                            <Pencil size={13} className="text-slate-500" />
+                            <span>Edit Brand</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setOpenActionId(null);
+                              setActionAnchorEl(null);
+                              handleToggleStatus(brand);
+                            }}
+                            className={`w-full px-3 py-2 text-left text-xs font-semibold flex items-center gap-2.5 transition-colors cursor-pointer rounded-xl ${
+                              brand.status === "active"
+                                ? "text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50"
+                                : "text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/50"
+                            }`}
+                          >
+                            {brand.status === "active" ? (
+                              <>
+                                <Ban size={13} className="text-rose-500" />
+                                <span>Disable Brand</span>
+                              </>
+                            ) : (
+                              <>
+                                <CheckCircle2 size={13} className="text-emerald-500" />
+                                <span>Enable Brand</span>
+                              </>
+                            )}
+                          </button>
+
+                          <div className="border-t border-slate-100 dark:border-slate-800 my-1 mx-1"></div>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setOpenActionId(null);
+                              setActionAnchorEl(null);
+                              setSelectedBrand(brand);
+                              setShowDeleteModal(true);
+                            }}
+                            className="w-full px-3 py-2 text-left text-xs font-semibold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 flex items-center gap-2.5 transition-colors cursor-pointer rounded-xl"
+                          >
+                            <Trash2 size={13} className="text-rose-500" />
+                            <span>Delete Brand</span>
+                          </button>
+                        </ActionPopover>
                       </div>
                     </td>
                   </tr>
@@ -715,6 +785,19 @@ export default function BrandsTab({ isActive = true }) {
         message="You have unsaved changes in this brand form. Are you sure you want to close without saving?"
         confirmLabel="Discard"
         cancelLabel="Keep Editing"
+      />
+
+      {/* Delete Brand Confirmation */}
+      <ConfirmModal
+        open={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        onConfirm={handleDeleteConfirm}
+        variant="delete"
+        title="Delete Equipment Brand"
+        message={`Are you sure you want to permanently delete brand "${selectedBrand?.name}"? This action cannot be undone.`}
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        loading={submitting}
       />
     </div>
   );

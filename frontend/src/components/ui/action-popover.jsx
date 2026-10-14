@@ -77,9 +77,10 @@ export default function ActionPopover({
           position: "fixed",
           top: pos.top,
           left: pos.left,
+          width: effectiveWidth ? `${effectiveWidth}px` : undefined,
           zIndex: 9999,
         }}
-        className="w-44 popover-content bg-white dark:bg-[#1E293B] border border-slate-200/90 dark:border-slate-700/80 rounded-2xl shadow-2xl p-1 text-xs animate-in fade-in zoom-in-95 backdrop-blur-md"
+        className="popover-content bg-white dark:bg-[#1E293B] border border-slate-200/90 dark:border-slate-700/80 rounded-2xl shadow-xl p-1.5 text-xs animate-in fade-in zoom-in-95 backdrop-blur-md"
         onClick={(e) => e.stopPropagation()}
       >
         {children}
