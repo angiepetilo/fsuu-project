@@ -188,6 +188,15 @@ class SystemSetting extends Model
             // If the app is configured with an API transport (brevo, resend), respect it
             if (in_array($configuredMailer, ['brevo', 'resend'])) {
                 Config::set('mail.default', $configuredMailer);
+                $settings = self::first();
+                if ($settings) {
+                    if (!empty($settings->mail_from_address)) {
+                        Config::set('mail.from.address', $settings->mail_from_address);
+                    }
+                    if (!empty($settings->mail_from_name)) {
+                        Config::set('mail.from.name', $settings->mail_from_name);
+                    }
+                }
                 return;
             }
 
