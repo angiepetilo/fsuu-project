@@ -566,7 +566,7 @@ export default function Step3Details({
               value={email}
               onChange={handleEmailChange}
               onBlur={handleEmailBlur}
-              placeholder="[EMAIL_ADDRESS]"
+              placeholder="email address"
               className={`w-full p-3 ${requireVerification && otpChannel === "email" ? 'pr-24' : ''} border rounded-xl text-sm transition-all focus:outline-none ${(requireVerification && isEmailVerified && otpChannel === "email")
                 ? "bg-emerald-50/40 dark:bg-emerald-950/30 border-emerald-300 dark:border-emerald-700 text-slate-800 dark:text-emerald-300 font-semibold cursor-not-allowed"
                 : emailCheckStatus === "invalid"
@@ -627,9 +627,9 @@ export default function Step3Details({
           {requireVerification && otpChannel === "email" && !isEmailVerified && (
             <div className="min-h-[20px] space-y-1 mt-0.5">
               {emailCheckStatus === "checking" && (
-                <div className="flex items-center gap-1.5 text-[11px] text-blue-600 dark:text-blue-400 font-medium animate-pulse py-0.5">
-                  <Loader2 size={12} className="animate-spin shrink-0 text-blue-600 dark:text-blue-400" />
-                  <span>Checking mailbox deliverability & 75k+ temporary email blacklist...</span>
+                <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 font-medium py-0.5">
+                  <Loader2 size={13} className="animate-spin shrink-0 text-blue-600 dark:text-blue-400" />
+                  <span>Checking email address...</span>
                 </div>
               )}
               {emailCheckStatus === "valid" && !isOtpRequested && (

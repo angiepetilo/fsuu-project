@@ -30,6 +30,7 @@ class SystemSettingController extends Controller
             'allow_advance_equipment_booking'=> $settings->allow_advance_equipment_booking,
             'max_items_per_borrow'           => $settings->max_items_per_borrow,
             'facebook_url'                   => $settings->facebook_url ?: 'https://www.facebook.com/fsuubutuan',
+            'facebook_name'                  => $settings->facebook_name ?: 'Father Saturnino Urios University',
         ]);
     }
 
@@ -39,6 +40,8 @@ class SystemSettingController extends Controller
      */
     public function show(): JsonResponse
     {
+        SystemSetting::configureMailer();
+        \Illuminate\Support\Facades\Cache::forget('system_settings_singleton');
         $settings = SystemSetting::getSettings();
         return response()->json($settings);
     }
@@ -58,6 +61,7 @@ class SystemSettingController extends Controller
             'contact_phone'                  => 'nullable|string|max:100',
             'telephone_no'                   => 'nullable|string|max:100',
             'facebook_url'                   => 'nullable|string|max:500',
+            'facebook_name'                  => 'nullable|string|max:255',
             'timezone'                       => 'nullable|string|max:100',
             'auto_shift_tomorrow_after_hours'=> 'nullable|boolean',
             'allow_advance_equipment_booking'=> 'nullable|boolean',
@@ -71,6 +75,7 @@ class SystemSettingController extends Controller
             'mail_from_name'                 => 'nullable|string|max:255',
             'sms_api_key'                    => 'nullable|string|max:500',
             'sms_api_url'                    => 'nullable|url|max:500',
+            'abstract_email_api_key'         => 'nullable|string|max:500',
         ]);
 
         if (!empty($validated['university_name']) && empty($validated['organization_name'])) {
@@ -81,8 +86,41 @@ class SystemSettingController extends Controller
         }
 
         $settings = SystemSetting::getSettings();
+
+        // If password is blank or not supplied, do not overwrite the existing password
+        if (!isset($validated['smtp_password']) || trim((string)$validated['smtp_password']) === '') {
+            unset($validated['smtp_password']);
+        }
+
         $settings->update($validated);
         \Illuminate\Support\Facades\Cache::forget('system_settings_singleton');
+
+        // Synchronize with .env file so both DB and .env remain identical
+        $envUpdates = [];
+        if (!empty($validated['smtp_host']))         $envUpdates['MAIL_HOST'] = $validated['smtp_host'];
+        if (!empty($validated['smtp_port']))         $envUpdates['MAIL_PORT'] = (string)$validated['smtp_port'];
+        if (isset($validated['smtp_username']))      $envUpdates['MAIL_USERNAME'] = $validated['smtp_username'];
+        if (!empty($validated['smtp_password']))     $envUpdates['MAIL_PASSWORD'] = $validated['smtp_password'];
+        if (!empty($validated['smtp_encryption']))   $envUpdates['MAIL_ENCRYPTION'] = $validated['smtp_encryption'];
+        if (!empty($validated['mail_from_address'])) $envUpdates['MAIL_FROM_ADDRESS'] = $validated['mail_from_address'];
+        if (!empty($validated['mail_from_name']))    $envUpdates['MAIL_FROM_NAME'] = $validated['mail_from_name'];
+        if (isset($validated['sms_api_key'])) {
+            $envUpdates['IPROG_SMS_API_KEY'] = $validated['sms_api_key'];
+            $envUpdates['SMS_API_KEY'] = $validated['sms_api_key'];
+        }
+        if (isset($validated['sms_api_url'])) {
+            $envUpdates['IPROG_SMS_API_URL'] = $validated['sms_api_url'];
+            $envUpdates['SMS_API_URL'] = $validated['sms_api_url'];
+        }
+        if (isset($validated['abstract_email_api_key'])) {
+            $envUpdates['ABSTRACT_EMAIL_API_KEY'] = $validated['abstract_email_api_key'];
+        }
+
+        if (!empty($envUpdates)) {
+            SystemSetting::updateEnvFile($envUpdates);
+        }
+
+        SystemSetting::configureMailer();
 
         return response()->json([
             'message'  => 'System settings updated successfully',
@@ -154,5 +192,70 @@ class SystemSettingController extends Controller
                 'message' => "❌ SMTP Connection failed: " . $e->getMessage(),
             ], 422);
         }
+    }
+
+    /**
+     * POST /api/general/system-settings/test-sms
+     * Test SMS gateway configuration by attempting to send a test message.
+     */
+    public function testSms(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'test_phone' => 'required|string|min:10|max:20',
+        ]);
+
+        $recipient = $validated['test_phone'];
+
+        try {
+            $settings = SystemSetting::getSettings();
+            $systemTitle = $settings->system_name ?: 'FSUU Booking System';
+            $testMsg = "FSUU TEST: Hello! This is a test SMS notification from {$systemTitle}. Your SMS gateway is connected and working.";
+
+            $res = \App\Services\SmsService::send($recipient, $testMsg);
+
+            if ($res === null) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'SMS dispatch failed. Please verify your SMS API Key and API URL in settings.',
+                ], 422);
+            }
+
+            CommunicationLog::record([
+                'channel'         => 'sms',
+                'category'        => 'test_sms',
+                'recipient_name'  => 'Admin Tester',
+                'recipient_phone' => $recipient,
+                'subject'         => 'SMS Connection Test',
+                'message_preview' => $testMsg,
+                'status'          => 'sent',
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => "✅ Test SMS dispatched successfully to {$recipient}.",
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'success' => false,
+                'message' => "❌ SMS Connection failed: " . $e->getMessage(),
+            ], 422);
+        }
+    }
+
+    /**
+     * POST /api/general/system-settings/test-abstract-api
+     * Test Abstract API email validation key connectivity.
+     */
+    public function testAbstractApi(Request $request): JsonResponse
+    {
+        $key = $request->input('api_key');
+        if (!$key) {
+            $settings = SystemSetting::getSettings();
+            $key = $settings->abstract_email_api_key ?: env('ABSTRACT_EMAIL_API_KEY');
+        }
+
+        $result = \App\Services\AbstractEmailValidationService::testApiKey($key);
+
+        return response()->json($result, $result['success'] ? 200 : 422);
     }
 }

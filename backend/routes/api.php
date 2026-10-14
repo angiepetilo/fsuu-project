@@ -413,6 +413,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/general/system-settings',             [SystemSettingController::class, 'show']);
     Route::put('/general/system-settings',             [SystemSettingController::class, 'update']);
     Route::post('/general/system-settings/test-smtp',  [SystemSettingController::class, 'testSmtp']);
+    Route::post('/general/system-settings/test-sms',   [SystemSettingController::class, 'testSms']);
+    Route::post('/general/system-settings/test-abstract-api', [SystemSettingController::class, 'testAbstractApi']);
     Route::get('/general/communication-logs',          [CommunicationLogController::class, 'index']);
     
     Route::apiResource('general/violation-categories', ViolationCategoryController::class)->only(['index', 'store', 'destroy']);
@@ -421,6 +423,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/admin/system-settings',               [SystemSettingController::class, 'show']);
     Route::put('/admin/system-settings',               [SystemSettingController::class, 'update']);
     Route::post('/admin/system-settings/test-smtp',    [SystemSettingController::class, 'testSmtp']);
+    Route::post('/admin/system-settings/test-sms',     [SystemSettingController::class, 'testSms']);
+    Route::post('/admin/system-settings/test-abstract-api', [SystemSettingController::class, 'testAbstractApi']);
     Route::get('/admin/communication-logs',            [CommunicationLogController::class, 'index']);
     Route::post('/sysad/system-migrate', function (\Illuminate\Http\Request $request) {
         if (!$request->user()?->isSuperAdmin()) {

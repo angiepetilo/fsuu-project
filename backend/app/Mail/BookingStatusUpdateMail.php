@@ -42,10 +42,25 @@ class BookingStatusUpdateMail extends Mailable
         $isExternal = str_contains($classification, 'external');
         $extTag = $isExternal ? ' [External Client]' : '';
 
+        $assignedRaw = $this->booking->assigned_units ?? [];
+        if (is_string($assignedRaw)) {
+            try { $assignedRaw = json_decode($assignedRaw, true) ?? []; } catch (\Throwable $e) { $assignedRaw = []; }
+        }
+        $hasUniqueUnits = !empty(array_filter((array)$assignedRaw, fn($v) => !empty($v)));
+
+        // Rule: Campus Gate Pass applies if:
+        // - Equipment borrowing: ONLY when together with unique units with serial numbers ($hasUniqueUnits)
+        // - Venue reservation: external client ($isExternal) OR has unique units assigned ($hasUniqueUnits)
+        $hasGatePass = $this->type === 'venue' ? ($isExternal || $hasUniqueUnits) : $hasUniqueUnits;
+
         $subject = match (true) {
             in_array($normalized, ['approved']) => $this->type === 'venue'
-                ? "CONFIRMED: Venue Reservation [{$this->refCode}]{$extTag}"
-                : "READY FOR PICKUP: Equipment Borrowing Approved [{$this->refCode}]{$extTag}",
+                ? ($hasGatePass
+                    ? "CONFIRMED & GATE PASS: Venue Reservation [{$this->refCode}]{$extTag}"
+                    : "CONFIRMED: Venue Reservation [{$this->refCode}]{$extTag}")
+                : ($hasGatePass
+                    ? "READY FOR PICKUP & GATE PASS: Equipment Borrowing Approved [{$this->refCode}]{$extTag}"
+                    : "READY FOR PICKUP: Equipment Borrowing Approved [{$this->refCode}]{$extTag}"),
             in_array($normalized, ['on going', 'on-going', 'ongoing', 'released', 'on_going']) => $this->type === 'venue'
                 ? "CHECK-IN LOGGED: Event Now In Progress [{$this->refCode}]{$extTag}"
                 : "CUSTODY HANDOVER RECEIPT: Equipment Units Released [{$this->refCode}]{$extTag}",

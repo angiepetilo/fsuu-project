@@ -662,9 +662,9 @@ export default function Step3Details({
           {requireVerification && otpChannel === "email" && !isEmailVerified && (
             <div className="min-h-[20px] space-y-1 mt-0.5">
               {emailCheckStatus === "checking" && (
-                <div className="flex items-center gap-1.5 text-[11px] text-blue-600 font-medium animate-pulse py-0.5">
-                  <Loader2 size={12} className="animate-spin shrink-0 text-blue-600" />
-                  <span>Checking mailbox deliverability & 75k+ temporary email blacklist...</span>
+                <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium py-0.5">
+                  <Loader2 size={13} className="animate-spin shrink-0 text-blue-600" />
+                  <span>Checking email address...</span>
                 </div>
               )}
               {emailCheckStatus === "valid" && !isOtpRequested && (

@@ -657,7 +657,8 @@ class DashboardStatsController extends Controller
                     'venue_bookings.purpose',
                     'venues.name as venue_name',
                     'tracking_numbers.reference_code',
-                    'tracking_numbers.status'
+                    'tracking_numbers.status as tracking_status',
+                    'venue_bookings.status as vb_status'
                 )
                 ->orderBy('venue_bookings.time_start', 'asc');
 
@@ -692,7 +693,7 @@ class DashboardStatsController extends Controller
                     'reservation_end_date' => $row->reservation_end_date ?: $row->date_of_usage,
                     'time_start'           => $row->time_start ?: '08:00',
                     'time_end'             => $row->time_end ?: '17:00',
-                    'status'               => strtolower((string)$row->status),
+                    'status'               => strtolower((string)($row->vb_status ?: $row->tracking_status)),
                     'purpose'              => $row->purpose,
                 ];
             });
@@ -724,8 +725,10 @@ class DashboardStatsController extends Controller
                     'equipment_borrows.time_start',
                     'equipment_borrows.time_end',
                     'equipment_borrows.purpose',
+                    'equipment_borrows.returned_at',
+                    'equipment_borrows.status as eb_status',
                     'tracking_numbers.reference_code',
-                    'tracking_numbers.status'
+                    'tracking_numbers.status as tracking_status'
                 )
                 ->orderBy('equipment_borrows.time_start', 'asc');
 
@@ -785,7 +788,8 @@ class DashboardStatsController extends Controller
                     'reservation_end_date' => $row->extend_of_date_returned ?: $row->date_of_usage,
                     'time_start'           => $row->time_start ?: '08:00',
                     'time_end'             => $row->time_end ?: '17:00',
-                    'status'               => strtolower((string)$row->status),
+                    'status'               => strtolower((string)($row->eb_status ?: $row->tracking_status)),
+                    'returned_at'          => $row->returned_at ?? null,
                     'purpose'              => $row->purpose,
                 ];
             });

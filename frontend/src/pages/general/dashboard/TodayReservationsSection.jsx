@@ -96,33 +96,66 @@ export default function TodayReservationsSection({
     });
   }, [activeTab, todayVenues, todayEquipment, searchQuery]);
 
-  const getStatusBadge = (status) => {
-    const s = (status || "").toLowerCase();
-    if (s === "approved") {
+  const getStatusBadge = (status, item = null) => {
+    const s = (status || item?.status || item?.tracking_number?.status || "").toLowerCase().trim();
+    const isReturned = Boolean(item?.returned_at);
+
+    if (s === "approved" || s === "confirmed" || s === "scheduled") {
       return (
         <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
           Approved
         </span>
       );
     }
-    if (s === "ongoing" || s === "on-going") {
+    if (s === "ongoing" || s === "on-going" || s === "borrowed" || s === "in_use" || s === "in-use") {
       return (
         <span className="text-[11px] font-bold text-blue-600 dark:text-blue-400">
           Ongoing
         </span>
       );
     }
-    if (s === "completed") {
+    if (["completed", "returned", "done"].includes(s) || (isReturned && !["damaged", "lost", "late return", "returned late"].includes(s))) {
       return (
         <span className="text-[11px] font-bold text-slate-600 dark:text-slate-400">
           Completed
         </span>
       );
     }
-    if (s === "rejected" || s === "cancelled") {
+    if (s === "damaged") {
+      return (
+        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-600 dark:text-slate-400">
+          <span>Completed</span>
+          <span className="text-[10px] text-rose-600 dark:text-rose-400 font-semibold">(Damaged)</span>
+        </span>
+      );
+    }
+    if (s === "lost") {
+      return (
+        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-600 dark:text-slate-400">
+          <span>Completed</span>
+          <span className="text-[10px] text-rose-600 dark:text-rose-400 font-semibold">(Lost)</span>
+        </span>
+      );
+    }
+    if (s === "late return" || s === "returned late" || s === "returned_late") {
+      return (
+        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-600 dark:text-slate-400">
+          <span>Completed</span>
+          <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold">(Late)</span>
+        </span>
+      );
+    }
+    if (s === "post-inspection" || s === "inspection") {
+      return (
+        <span className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400">
+          Post-Inspection
+        </span>
+      );
+    }
+    if (s === "rejected" || s === "cancelled" || s === "cancelled_by_user") {
       return (
         <span className="text-[11px] font-bold text-rose-600 dark:text-rose-400">
-          {s === "cancelled" ? "Cancelled" : "Rejected"}
+          {s.includes("cancel") ? "Cancelled" : "Rejected"}
         </span>
       );
     }
@@ -296,14 +329,37 @@ export default function TodayReservationsSection({
                 const facilityOrItem = getFacilityOrItem(item, isVenue);
                 const timeDisplay = `${formatTime(item.time_start || "08:00")} - ${formatTime(item.time_end || "17:00")}`;
                 const status = (item.status || item.tracking_number?.status || "pending").toLowerCase();
-                const detailPath = isVenue
-                  ? (isSysadRoute ? "/sysad/venue-bookings" : "/general/venue-bookings")
-                  : (isSysadRoute ? "/sysad/equipment-borrowing" : "/general/equipment-borrowing");
+                const isCompleted = [
+                  "completed",
+                  "returned",
+                  "done",
+                  "damaged",
+                  "lost",
+                  "late return",
+                  "returned late",
+                  "returned_late",
+                ].includes(status) || Boolean(item.returned_at);
 
                 let dutyAction = "Clearance";
-                if (status === "pending") dutyAction = isVenue ? "Verify" : "Review";
-                else if (status === "approved") dutyAction = isVenue ? "Inspect" : "Release";
-                else if (status === "ongoing" || status === "on-going") dutyAction = isVenue ? "Inspect" : "Receive";
+                if (isCompleted) {
+                  dutyAction = "View";
+                } else if (status === "pending" || status === "incomplete") {
+                  dutyAction = isVenue ? "Verify" : "Review";
+                } else if (status === "approved") {
+                  dutyAction = isVenue ? "Inspect" : "Release";
+                } else if (status === "ongoing" || status === "on-going" || status === "borrowed") {
+                  dutyAction = isVenue ? "Inspect" : "Receive";
+                }
+
+                const detailPath = isCompleted
+                  ? (isSysadRoute ? "/sysad/history-log" : "/general/history-log")
+                  : (isVenue
+                      ? (isSysadRoute ? "/sysad/venue-bookings" : "/general/venue-bookings")
+                      : (isSysadRoute ? "/sysad/equipment-borrowing" : "/general/equipment-borrowing"));
+
+                const linkState = isCompleted
+                  ? { selectedId: item.id, targetType: isVenue ? "venue" : "equipment" }
+                  : { selectedId: item.id };
 
                 return (
                   <tr key={`${item.itemType}-${item.id || item.reference_code}`} className="hover:bg-muted/40 transition-colors">
@@ -331,12 +387,12 @@ export default function TodayReservationsSection({
                       {timeDisplay}
                     </td>
                     <td className="py-3.5 px-4">
-                      {getStatusBadge(status)}
+                      {getStatusBadge(status, item)}
                     </td>
                     <td className="py-3.5 px-4 text-right">
                       <Link
                         to={detailPath}
-                        state={{ selectedId: item.id }}
+                        state={linkState}
                         className="px-3 py-1.5 rounded-lg text-xs font-bold border border-border hover:bg-muted text-foreground transition-colors cursor-pointer inline-block"
                       >
                         {dutyAction}

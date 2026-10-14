@@ -315,10 +315,39 @@ export default function VenueEquipmentChecklist({
           category: catName,
         };
       }
+
+      // If not a physical unit, resolve category/accessory name (e.g. ID 8 -> HDMI)
+      const eqType = unit.equipmentType || unit.equipment_type;
+      let resolvedTypeName = null;
+      if (Array.isArray(eqType?.built_in_names) && eqType.built_in_names.length > 0) {
+        const rawIdx = rawList.indexOf(biId);
+        if (rawIdx !== -1 && eqType.built_in_names[rawIdx]) {
+          resolvedTypeName = eqType.built_in_names[rawIdx];
+        } else {
+          const matchByName = eqType.built_in_names.find(
+            (n) => String(n).toLowerCase() === String(biId).toLowerCase()
+          );
+          if (matchByName) resolvedTypeName = matchByName;
+        }
+      }
+      if (!resolvedTypeName && Array.isArray(dbEquipmentTypes)) {
+        const typeMatch = dbEquipmentTypes.find((t) => String(t.id) === String(biId));
+        if (typeMatch) resolvedTypeName = typeMatch.eq_name || typeMatch.name;
+      }
+
+      if (resolvedTypeName) {
+        return {
+          id: biId,
+          barcode: resolvedTypeName,
+          name: resolvedTypeName,
+          category: "Built-in Accessory",
+        };
+      }
+
       return {
         id: biId,
         barcode: String(biId),
-        name: `Physical Unit #${biId}`,
+        name: isNaN(Number(biId)) ? String(biId) : `Physical Unit #${biId}`,
         category: "",
       };
     }).filter(Boolean);

@@ -98,7 +98,7 @@ export default function StaffLogin() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="e.g. name@urios.edu.ph or name@gmail.com"
+                placeholder="email address"
                 className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 bg-slate-50/50 focus:bg-white transition-all"
               />
             </div>

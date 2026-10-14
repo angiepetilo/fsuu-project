@@ -61,43 +61,96 @@
               $equipmentTypeName = $modelVal ?: 'Equipment Unit';
           }
 
-          // Resolve Built-in accessory names
-          $builtInNames = [];
-          if (is_object($unit) && !empty($unit->equipmentType?->built_in_names)) {
-              $builtInNames = $unit->equipmentType->built_in_names;
-          }
+          // Resolve Built-in accessories and physical units with serial numbers
+          $builtInItems = []; // Array of ['name' => ..., 'serial' => ..., 'label' => ...]
+          $builtInHandledIds = [];
 
           $rawBuilt = is_object($unit) ? ($unit->built_in_units ?? $unit->built_in_models ?? []) : ($unit['built_in_units'] ?? $unit['built_in_models'] ?? []);
           if (is_string($rawBuilt)) {
               try { $rawBuilt = json_decode($rawBuilt, true) ?? []; } catch (\Throwable $e) { $rawBuilt = []; }
           }
-
-          if (empty($builtInNames) && !empty($rawBuilt) && is_array($rawBuilt)) {
-              $numericIds = array_values(array_filter($rawBuilt, fn($v) => is_numeric($v) && (int)$v > 0));
-              if (!empty($numericIds)) {
-                  try {
-                      $childUnits = \App\Models\EquipmentUnit::with('equipmentType')->whereIn('id', array_map('intval', $numericIds))->get();
-                      foreach ($childUnits as $cu) {
-                          $cName = $cu->equipmentType?->eq_name ?? $cu->equipmentType?->name ?? $cu->model;
-                          if ($cName && !in_array($cName, $builtInNames)) {
-                              $builtInNames[] = $cName;
-                          }
-                      }
-                  } catch (\Throwable $e) {}
+          if (empty($rawBuilt) && is_object($unit) && !empty($unit->equipmentType?->built_in_units)) {
+              $rawBuilt = $unit->equipmentType->built_in_units;
+              if (is_string($rawBuilt)) {
+                  try { $rawBuilt = json_decode($rawBuilt, true) ?? []; } catch (\Throwable $e) { $rawBuilt = []; }
               }
-              foreach ($rawBuilt as $val) {
-                  if (is_string($val) && !is_numeric($val) && !empty($val) && !in_array($val, $builtInNames)) {
-                      $builtInNames[] = trim($val);
+          }
+
+          if (!empty($rawBuilt) && is_array($rawBuilt)) {
+              $idsAndCodes = array_values(array_filter($rawBuilt, fn($v) => !empty($v)));
+              $numericIds  = array_values(array_filter($idsAndCodes, fn($v) => is_numeric($v) && (int)$v > 0));
+              $stringCodes = array_values(array_filter($idsAndCodes, fn($v) => !is_numeric($v) && is_string($v)));
+
+              $childUnits = collect();
+              try {
+                  $childUnits = \App\Models\EquipmentUnit::with('equipmentType')->where(function($q) use ($numericIds, $stringCodes) {
+                      if (!empty($numericIds)) {
+                          $q->whereIn('id', array_map('intval', $numericIds));
+                      }
+                      if (!empty($stringCodes)) {
+                          $q->orWhereIn('barcode', $stringCodes)
+                            ->orWhereIn('serial_number', $stringCodes);
+                      }
+                  })->get();
+              } catch (\Throwable $e) {}
+
+              foreach ($childUnits as $cu) {
+                  $cName = $cu->equipmentType?->eq_name ?? $cu->equipmentType?->name ?? $cu->model ?? 'Built-in Unit';
+                  $cSerial = $cu->serial_number ?: ($cu->barcode ?: null);
+                  $builtInItems[] = [
+                      'name'   => $cName,
+                      'serial' => $cSerial,
+                      'label'  => $cSerial ? "{$cName} (SN: {$cSerial})" : $cName,
+                  ];
+                  $builtInHandledIds[] = (string)$cu->id;
+                  if ($cu->barcode) $builtInHandledIds[] = (string)$cu->barcode;
+                  if ($cu->serial_number) $builtInHandledIds[] = (string)$cu->serial_number;
+              }
+
+              foreach ($idsAndCodes as $val) {
+                  $strVal = trim((string)$val);
+                  if (!in_array($strVal, $builtInHandledIds)) {
+                      $typeName = null;
+                      if (is_numeric($strVal)) {
+                          try {
+                              $et = \App\Models\EquipmentType::withTrashed()->find((int)$strVal);
+                              if ($et) {
+                                  $typeName = $et->eq_name ?? $et->name;
+                              }
+                          } catch (\Throwable $e) {}
+                      }
+                      $finalName = $typeName ?: $strVal;
+                      $builtInItems[] = [
+                          'name'   => $finalName,
+                          'serial' => null,
+                          'label'  => $finalName,
+                      ];
                   }
               }
           }
 
-          // Fallback from $equipmentList if built-ins still empty
-          if (empty($builtInNames) && !empty($equipmentList)) {
-              foreach ($equipmentList as $eqItem) {
-                  if (is_array($eqItem) && !empty($eqItem['built_ins'])) {
-                      $builtInNames = $eqItem['built_ins'];
-                      break;
+          // If child units not found in rawBuilt, fallback to category built_in_names
+          if (empty($builtInItems)) {
+              $typeBuiltIns = [];
+              if (is_object($unit) && !empty($unit->equipmentType?->built_in_names)) {
+                  $typeBuiltIns = $unit->equipmentType->built_in_names;
+              } elseif (!empty($equipmentList)) {
+                  foreach ($equipmentList as $eqItem) {
+                      if (is_array($eqItem) && !empty($eqItem['built_ins'])) {
+                          $typeBuiltIns = $eqItem['built_ins'];
+                          break;
+                      }
+                  }
+              }
+              if (is_array($typeBuiltIns)) {
+                  foreach ($typeBuiltIns as $bName) {
+                      if (!empty($bName)) {
+                          $builtInItems[] = [
+                              'name'   => (string)$bName,
+                              'serial' => null,
+                              'label'  => (string)$bName,
+                          ];
+                      }
                   }
               }
           }
@@ -143,12 +196,19 @@
           <div style="font-weight: 700; color: #0f172a; font-size: 13px;">
             {{ $equipmentTypeName }}
           </div>
-          @if(!empty($builtInNames) && count($builtInNames) > 0)
-            <div style="margin-top: 4px; font-size: 11px; color: #475569;">
-              <span style="font-weight: 700; color: #1e40af; margin-right: 2px;">Built-in:</span>
-              @foreach($builtInNames as $bName)
-                <span style="display: inline-block; background-color: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; border-radius: 4px; padding: 1px 7px; font-size: 11px; font-weight: 700; margin: 1px 2px;">{{ $bName }}</span>
-              @endforeach
+          @if(!empty($builtInItems) && count($builtInItems) > 0)
+            <div style="margin-top: 5px; font-size: 11px; color: #475569; line-height: 1.4;">
+              <span style="font-weight: 700; color: #1e40af; margin-right: 2px;">Built-in Accessories / Units:</span>
+              <div style="margin-top: 3px;">
+                @foreach($builtInItems as $bItem)
+                  <span style="display: inline-block; background-color: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; border-radius: 4px; padding: 2px 7px; font-size: 11px; margin: 1px 3px 2px 0;">
+                    <strong>{{ $bItem['name'] }}</strong>
+                    @if(!empty($bItem['serial']))
+                      <span style="font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace; color: #047857; font-weight: 700; background-color: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 3px; padding: 0 4px; margin-left: 3px; font-size: 10.5px;">SN: {{ $bItem['serial'] }}</span>
+                    @endif
+                  </span>
+                @endforeach
+              </div>
             </div>
           @endif
         </td>

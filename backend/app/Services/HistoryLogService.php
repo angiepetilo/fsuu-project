@@ -61,19 +61,29 @@ class HistoryLogService
 
         $vbQuery->select(
                 'venue_bookings.id',
+                'venue_bookings.first_name',
+                'venue_bookings.middle_name',
+                'venue_bookings.last_name',
+                'venue_bookings.suffix',
                 'venue_bookings.filer_name',
                 'venue_bookings.program_office',
                 'venue_bookings.email_address',
+                'venue_bookings.submission_channel',
                 'venue_bookings.date_of_usage',
+                'venue_bookings.reservation_end_date',
                 'venue_bookings.time_start',
                 'venue_bookings.time_end',
                 'venue_bookings.purpose',
                 'venue_bookings.classification',
                 'venue_bookings.contact_number as contact_no',
+                'venue_bookings.equipment_types',
+                'venue_bookings.equipment_units',
                 'venue_bookings.equipment_notes',
                 'venue_bookings.rejection_reason',
                 'venue_bookings.is_auto_rejected',
                 'venue_bookings.auto_reject_winning_reference',
+                'venue_bookings.assigned_units as booking_assigned_units',
+                'venue_bookings.endorsement_url',
                 'venues.name as venue_name',
                 'tracking_numbers.reference_code',
                 DB::raw("COALESCE(tracking_numbers.status, venue_bookings.status) as status"),
@@ -95,10 +105,105 @@ class HistoryLogService
             ->orderByDesc('inspections.id')
             ->orderByDesc('venue_bookings.created_at');
 
-        return $vbQuery->get()
-            ->unique('id')
-            ->values()
-            ->map(function ($b) {
+        $rawRecords = $vbQuery->get()->unique('id')->values();
+        $bookingIds = $rawRecords->pluck('id')->filter()->unique()->all();
+
+        // 1. Load equipment requested via venue_booking_equipment
+        $equipmentItemsMap = [];
+        if (!empty($bookingIds)) {
+            $eqItems = DB::table('venue_booking_equipment')
+                ->leftJoin('equipment_types', 'venue_booking_equipment.equipment_type_id', '=', 'equipment_types.id')
+                ->whereIn('venue_booking_equipment.venue_booking_id', $bookingIds)
+                ->select(
+                    'venue_booking_equipment.venue_booking_id',
+                    'venue_booking_equipment.equipment_type_id',
+                    'venue_booking_equipment.quantity_requested as quantity',
+                    DB::raw("COALESCE(equipment_types.name, equipment_types.eq_name, equipment_types.equipment_types_name, 'Equipment') as name"),
+                    'equipment_types.built_in_units'
+                )
+                ->get();
+            foreach ($eqItems as $item) {
+                $equipmentItemsMap[$item->venue_booking_id][] = [
+                    'name' => $item->name,
+                    'quantity' => (int)($item->quantity ?: 1),
+                    'equipment_type_id' => $item->equipment_type_id,
+                ];
+            }
+        }
+
+        // 2. Load equipment units and types for barcode & built-in inspection mapping
+        $allUnitsList = DB::table('equipment_units')
+            ->leftJoin('equipment_types', 'equipment_units.equipment_type_id', '=', 'equipment_types.id')
+            ->select(
+                'equipment_units.id',
+                'equipment_units.barcode',
+                'equipment_units.serial_number',
+                'equipment_units.brand',
+                'equipment_units.model',
+                'equipment_units.built_in_units',
+                DB::raw("COALESCE(equipment_types.name, equipment_types.eq_name, equipment_types.equipment_types_name, 'Equipment') as type_name"),
+                'equipment_types.built_in_units as type_built_in_units'
+            )
+            ->get();
+
+        $allTypesList = DB::table('equipment_types')->get();
+        $typeMap = [];
+        foreach ($allTypesList as $t) {
+            $tName = $t->eq_name ?: ($t->name ?: ($t->equipment_types_name ?: 'Component'));
+            $typeMap[(string)$t->id] = $tName;
+            $typeMap[strtolower($tName)] = $tName;
+        }
+
+        $unitLookup = [];
+        foreach ($allUnitsList as $u) {
+            $bCode = strtoupper(trim($u->barcode ?: ($u->serial_number ?: "UNIT-{$u->id}")));
+            $unitLookup[$bCode] = $u;
+            if ($u->id) $unitLookup[(string)$u->id] = $u;
+        }
+
+        $resolveUnitBuiltIns = function ($unit) use ($unitLookup, $typeMap, $allUnitsList) {
+            if (!$unit) return [];
+            $rawList = [];
+            if (!empty($unit->built_in_units)) {
+                $rawList = is_string($unit->built_in_units) ? json_decode($unit->built_in_units, true) : (array)$unit->built_in_units;
+            } elseif (!empty($unit->type_built_in_units)) {
+                $rawList = is_string($unit->type_built_in_units) ? json_decode($unit->type_built_in_units, true) : (array)$unit->type_built_in_units;
+            }
+            if (!is_array($rawList) || empty($rawList)) return [];
+
+            $builtIns = [];
+            foreach ($rawList as $biId) {
+                $targetCode = strtoupper(trim((string)$biId));
+                $found = $unitLookup[$targetCode] ?? null;
+                if (!$found) {
+                    $found = $allUnitsList->first(function ($item) use ($targetCode) {
+                        return (string)$item->id === $targetCode || strtoupper(trim($item->barcode ?: '')) === $targetCode || strtoupper(trim($item->serial_number ?: '')) === $targetCode;
+                    });
+                }
+                if ($found) {
+                    $uName = trim(($found->brand ?: '') . ' ' . ($found->model ?: '')) ?: ($found->type_name ?: "Component #{$biId}");
+                    $builtIns[] = [
+                        'name' => $uName,
+                        'barcode' => $found->barcode ?: ($found->serial_number ?: "UNIT-{$found->id}"),
+                    ];
+                } elseif (isset($typeMap[(string)$biId])) {
+                    $tName = $typeMap[(string)$biId];
+                    $builtIns[] = [
+                        'name' => $tName,
+                        'barcode' => $tName,
+                    ];
+                } else {
+                    $builtIns[] = [
+                        'name' => "Component #{$biId}",
+                        'barcode' => (string)$biId,
+                    ];
+                }
+            }
+            return $builtIns;
+        };
+
+        return $rawRecords
+            ->map(function ($b) use ($equipmentItemsMap, $unitLookup, $resolveUnitBuiltIns) {
                 $item = (array) $b;
                 $isCancelledOrRejected = in_array(strtolower($b->status ?? ''), ['cancelled', 'rejected', 'cancelled_by_user']);
                 
@@ -126,8 +231,56 @@ class HistoryLogService
                 
                 $violationText = !$isCancelledOrRejected ? ($b->violation_type ?? ($hasDamage ? ($b->inspection_notes ?? 'Rule Violation / Damage Reported') : null)) : null;
 
-                $assignedUnits = !$isCancelledOrRejected && $b->assigned_units ? (is_string($b->assigned_units) ? json_decode($b->assigned_units, true) : $b->assigned_units) : null;
+                $rawAssigned = $b->assigned_units ?: ($b->booking_assigned_units ?? null);
+                $assignedUnits = !$isCancelledOrRejected && $rawAssigned ? (is_string($rawAssigned) ? json_decode($rawAssigned, true) : $rawAssigned) : null;
                 $unitConditions = !$isCancelledOrRejected && $b->unit_conditions ? (is_string($b->unit_conditions) ? json_decode($b->unit_conditions, true) : $b->unit_conditions) : null;
+
+                $assignedUnitDetails = [];
+                if (!$isCancelledOrRejected && !empty($assignedUnits) && is_array($assignedUnits)) {
+                    $slotIdx = 1;
+                    foreach ($assignedUnits as $slotKey => $barcode) {
+                        if (empty($barcode)) continue;
+                        $uBarcode = (string)$barcode;
+                        $matchedUnit = $unitLookup[strtoupper(trim($uBarcode))] ?? null;
+                        $catName = $matchedUnit ? $matchedUnit->type_name : 'Equipment';
+                        $cond = $unitConditions[$uBarcode] ?? ($unitConditions[$slotKey] ?? ($b->inspection_condition === 'damaged' ? 'Damaged' : 'Good'));
+                        $builtIns = $matchedUnit ? $resolveUnitBuiltIns($matchedUnit) : [];
+                        $assignedUnitDetails[] = [
+                            'category' => $catName,
+                            'slot' => "Unit #{$slotIdx}",
+                            'barcode' => $uBarcode,
+                            'condition' => ucfirst(strtolower((string)$cond)),
+                            'built_ins' => $builtIns,
+                        ];
+                        $slotIdx++;
+                    }
+                }
+
+                $eqItems = $equipmentItemsMap[$b->id] ?? [];
+                if (empty($eqItems) && !empty($assignedUnitDetails)) {
+                    $counts = [];
+                    foreach ($assignedUnitDetails as $detail) {
+                        $c = $detail['category'] ?: 'Equipment';
+                        $counts[$c] = ($counts[$c] ?? 0) + 1;
+                    }
+                    foreach ($counts as $cName => $cQty) {
+                        $eqItems[] = [
+                            'name' => $cName,
+                            'quantity' => $cQty,
+                        ];
+                    }
+                }
+
+                $fullNameParts = array_filter([$b->first_name ?? null, $b->middle_name ?? null, $b->last_name ?? null, $b->suffix ?? null]);
+                $applicantName = !empty($fullNameParts) ? implode(' ', $fullNameParts) : ($b->filer_name ?: 'Applicant');
+
+                $isEmailVerified = in_array($b->submission_channel ?? null, ['online_self', 'online', null], true);
+                if (!$isEmailVerified && !empty($b->email_address)) {
+                    $isEmailVerified = DB::table('email_verifications')
+                        ->where('email', strtolower(trim($b->email_address)))
+                        ->whereNotNull('verified_at')
+                        ->exists();
+                }
 
                 $rawPhoto = !$isCancelledOrRejected ? ($b->evidence_photo ?? null) : null;
                 $photoList = [];
@@ -145,35 +298,41 @@ class HistoryLogService
                     $item['violation_type'] = null;
                     $item['assigned_units'] = null;
                     $item['unit_conditions'] = null;
+                    $assignedUnitDetails = [];
+                    $eqItems = [];
                 }
 
                 $isAutoRejected = $isCancelledOrRejected && strtolower($b->status ?? '') === 'rejected' && !empty($b->is_auto_rejected);
                 $finalReason = $isCancelledOrRejected ? ($reason ?: ($b->rejection_reason ?? null)) : null;
 
                 return array_merge($item, [
-                    'record_type'        => 'venue',
-                    'reference_code'     => $b->reference_code ?: "TRK-AVR{$b->id}",
-                    'equipment_notes'    => $b->equipment_notes ?? '',
-                    'is_late'            => $isLate,
-                    'has_damage'         => $hasDamage,
-                    'has_violation'      => !empty($violationText),
-                    'violation'          => $violationText,
-                    'violation_type'     => $b->violation_type ?? ($hasDamage ? 'Policy Breach Identified' : ($isLate ? 'Late Return' : null)),
-                    'evidence_photo'     => $photoList[0] ?? null,
-                    'evidence_photos'    => $photoList,
-                    'endorsement_letter' => $b->endorsement_letter ?? null,
-                    'assigned_units'     => $assignedUnits,
-                    'unit_conditions'    => $unitConditions,
-                    'violations'         => !empty($violationText) ? 1 : 0,
+                    'record_type'           => 'venue',
+                    'reference_code'        => $b->reference_code ?: "TRK-AVR{$b->id}",
+                    'applicant_name'        => $applicantName,
+                    'is_email_verified'     => $isEmailVerified,
+                    'equipment_items'       => $eqItems,
+                    'assigned_unit_details' => $assignedUnitDetails,
+                    'equipment_notes'       => $b->equipment_notes ?? '',
+                    'is_late'               => $isLate,
+                    'has_damage'            => $hasDamage,
+                    'has_violation'         => !empty($violationText),
+                    'violation'             => $violationText,
+                    'violation_type'        => $b->violation_type ?? ($hasDamage ? 'Policy Breach Identified' : ($isLate ? 'Late Return' : null)),
+                    'evidence_photo'        => $photoList[0] ?? null,
+                    'evidence_photos'       => $photoList,
+                    'endorsement_letter'    => $b->endorsement_letter ?: ($b->endorsement_url ?? null),
+                    'assigned_units'        => $assignedUnits,
+                    'unit_conditions'       => $unitConditions,
+                    'violations'            => !empty($violationText) ? 1 : 0,
                     // Distinguishes a SPEC-RULE-4 automatic rejection (competing booking
                     // auto-rejected because another request for the same venue/slot was
                     // approved first) from a manual staff rejection — surfaced in the
                     // History Log UI as "Rejected (automatic)" with the winning reference.
-                    'is_auto_rejected'               => $isAutoRejected,
-                    'auto_reject_winning_reference'  => $isAutoRejected ? ($b->auto_reject_winning_reference ?? null) : null,
-                    'rejection_reason'               => $finalReason,
-                    'remarks'                        => $finalReason,
-                    'notes'                          => $finalReason ?: ($b->inspection_notes ?? null),
+                    'is_auto_rejected'              => $isAutoRejected,
+                    'auto_reject_winning_reference' => $isAutoRejected ? ($b->auto_reject_winning_reference ?? null) : null,
+                    'rejection_reason'              => $finalReason,
+                    'remarks'                       => $finalReason,
+                    'notes'                         => $finalReason ?: ($b->inspection_notes ?? null),
                 ]);
             });
     }
@@ -246,6 +405,8 @@ class HistoryLogService
                 'inspections.assigned_units as inspection_assigned_units',
                 'inspections.unit_conditions as inspection_unit_conditions',
                 'equipment_borrows.assigned_units as eb_assigned_units',
+                'equipment_borrows.returned_at',
+                'inspections.inspected_at as post_inspected_at',
                 'equipment_borrows.created_at',
                 'equipment_borrows.updated_at'
             )
@@ -349,7 +510,38 @@ class HistoryLogService
 
                 $finalReason = $isCancelledOrRejected ? ($reason ?: ($b->rejection_reason ?? null)) : null;
 
+                // Resolve each assigned unit (key "itemIndex-unitIndex" => barcode) to its real serial number
+                $unitDetails = [];
+                if (is_array($assignedUnits)) {
+                    $barcodes = array_values(array_filter(array_map('strval', array_values($assignedUnits))));
+                    $unitRows = [];
+                    if (!empty($barcodes)) {
+                        try {
+                            $unitRows = DB::table('equipment_units')
+                                ->where(function ($q) use ($barcodes) {
+                                    $q->whereIn('barcode', $barcodes)->orWhereIn('serial_number', $barcodes);
+                                })
+                                ->get()
+                                ->keyBy(fn ($u) => (string) ($u->barcode ?: $u->serial_number));
+                        } catch (\Throwable $th) {}
+                    }
+                    foreach ($assignedUnits as $key => $code) {
+                        $code = (string) $code;
+                        $row = is_object($unitRows) ? ($unitRows[$code] ?? null) : null;
+                        $itemIdx = (int) explode('-', (string) $key)[0];
+                        $unitDetails[] = [
+                            'key'            => (string) $key,
+                            'equipment_name' => $items[$itemIdx]['equipment_name'] ?? ($items[0]['equipment_name'] ?? 'Equipment Item'),
+                            'serial_number'  => $row->serial_number ?? $code,
+                            'barcode'        => $row->barcode ?? $code,
+                            'brand'          => $row->brand ?? null,
+                            'model'          => $row->model ?? null,
+                        ];
+                    }
+                }
+
                 return array_merge($item, [
+                    'unit_details'    => $unitDetails,
                     'record_type'     => 'equipment',
                     'reference_code'  => $b->reference_code ?: "EQ-{$b->id}",
                     'items'           => $items,

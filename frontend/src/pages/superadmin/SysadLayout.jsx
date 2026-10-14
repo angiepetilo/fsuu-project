@@ -474,13 +474,6 @@ export default function SysadLayout() {
 
             {userMenuOpen && (
               <div className="pt-1.5 border-t border-sidebar-border mt-1 space-y-1">
-                <Link
-                  to="/sysad/settings?tab=profile"
-                  onClick={() => setUserMenuOpen(false)}
-                  className="w-full flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted rounded-lg transition-colors cursor-pointer"
-                >
-                  <User size={13} className="text-primary" /> My Profile / Account
-                </Link>
                 <button
                   type="button"
                   onClick={() => setShowLogoutConfirm(true)}

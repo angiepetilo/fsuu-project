@@ -148,6 +148,39 @@
     .callout-danger  { background-color: #fef2f2; border-left: 4px solid #ef4444; color: #991b1b; }
     .callout-external{ background-color: #faf5ff; border-left: 4px solid #a855f7; color: #581c87; }
 
+    .gatepass-card {
+      background-color: #f0fdf4;
+      border: 2px dashed #16a34a;
+      border-radius: 8px;
+      padding: 16px 18px;
+      margin: 18px 0;
+    }
+    .gatepass-header {
+      border-bottom: 1px dashed #86efac;
+      padding-bottom: 10px;
+      margin-bottom: 12px;
+    }
+    .gatepass-title {
+      font-size: 13px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: #15803d;
+      margin: 0;
+    }
+    .gatepass-badge {
+      display: inline-block;
+      background-color: #15803d;
+      color: #ffffff;
+      font-size: 10px;
+      font-weight: 800;
+      padding: 2px 8px;
+      border-radius: 4px;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      margin-top: 4px;
+    }
+
     .track-btn {
       display: inline-block;
       background-color: #0f172a;
@@ -191,6 +224,32 @@
     $isExternal = str_contains($classification, 'external');
     $organization = $booking->program_office ?? $booking->department?->name ?? ($isExternal ? 'External Organization' : 'Department');
 
+    $applicantEmail = $booking->email_address ?? $booking->email ?? $booking->borrower_email ?? $booking->requestor_email ?? 'N/A';
+    $applicantPhone = $booking->contact_number ?? $booking->phone_number ?? $booking->phone ?? 'N/A';
+    $applicantIdentity = ucwords($booking->classification ?? $booking->requestor_identity_type ?? 'Student');
+
+    // Date & time used (check-in / claimed / start of usage)
+    $dateUsedRaw = $booking->claim_timestamp 
+        ?? ($booking->date_of_usage ? ($booking->date_of_usage . ' ' . ($booking->time_start ?? '08:00:00')) : null)
+        ?? $booking->created_at;
+    $dateUsedFormatted = $sched;
+    try {
+        if ($dateUsedRaw) {
+            $dateUsedFormatted = \Carbon\Carbon::parse($dateUsedRaw)->format('M d, Y h:i A');
+        }
+    } catch (\Throwable $e) {}
+
+    // Date & time returned (returned_at / inspection / conclusion)
+    $dateReturnedRaw = $booking->returned_at 
+        ?? ($booking->inspections?->first()?->inspected_at ?? null)
+        ?? now();
+    $dateReturnedFormatted = now()->format('M d, Y h:i A');
+    try {
+        if ($dateReturnedRaw) {
+            $dateReturnedFormatted = \Carbon\Carbon::parse($dateReturnedRaw)->format('M d, Y h:i A');
+        }
+    } catch (\Throwable $e) {}
+
     $normStatus = strtolower(str_replace(['_', '-'], ' ', (string)($status ?? '')));
 
     // Terminal outcomes recorded at return inspection share the clearance-receipt layout,
@@ -212,7 +271,7 @@
         'late'    => 'CLEARED — LATE RETURN LOGGED',
         'damaged' => 'CLEARED — DAMAGE NOTED',
         'lost'    => 'INCOMPLETE — UNIT REPORTED LOST',
-        default   => 'OFFICIALLY CLEARED',
+        default   => 'OFFICIALLY CLEARED & RETURNED',
     };
     $terminalBanner = match ($terminalOutcome) {
         'late'    => 'banner-warning',
@@ -334,6 +393,16 @@
             });
         } catch (\Throwable $e) {}
     }
+
+    // Rule: Campus Gate Pass applies if:
+    // 1. For Equipment Borrowing: ONLY when unique physical equipment units with serial numbers are together with it ($resolvedUnits->isNotEmpty()).
+    //    An equipment borrowing that was only approved WITHOUT unique units will NOT show a gate pass.
+    // 2. For Venue Reservation: External client ($isExternal) OR venue reservation that has unique equipment units assigned ($resolvedUnits->isNotEmpty()).
+    if (!$isVenue) {
+        $hasGatePass = $resolvedUnits->isNotEmpty();
+    } else {
+        $hasGatePass = $isExternal || $resolvedUnits->isNotEmpty();
+    }
 @endphp
 
 <div class="wrapper">
@@ -361,29 +430,33 @@
 
 @elseif(in_array($normStatus, ['completed', 'returned', 'done', 'cleared']))
   <div class="top-banner {{ $terminalBanner }}">
-    <div class="status-badge">{{ $terminalOutcome ? 'Return Recorded — ' . ucfirst($terminalOutcome) : 'Official Clearance' }}</div>
+    <div class="status-badge">{{ $terminalOutcome ? 'Return Recorded — ' . ucfirst($terminalOutcome) : 'Official Clearance Return Receipt' }}</div>
     <div class="banner-title">
-      {{ $isVenue ? 'Facility Turnover Completed &amp; Cleared' : 'Official Return Receipt &amp; Custodial Clearance' }}
+      {{ $isVenue ? 'Facility Turnover Completed Cleared' : 'Official Return Receipt Custodial Clearance' }}
     </div>
-    <div class="sub-title">Father Saturnino Urios University &bull; Audio-Visual Resource Center</div>
+    <div class="sub-title">Father Saturnino Urios University &bull; Audio-Visual Resource Center (AVR / PMO)</div>
   </div>
 
 @elseif(in_array($normStatus, ['on going', 'on-going', 'ongoing', 'released', 'on_going']))
   <div class="top-banner banner-success">
     <div class="status-badge">Active Session / Custody Handover</div>
     <div class="banner-title">
-      {{ $isVenue ? 'Event Check-In Logged — Session Now On-Going' : 'Custody Handover: Equipment Released &amp; Active' }}
+      {{ $isVenue ? 'Event Check-In Logged — Session Now On-Going' : 'Custody Handover: Equipment Released Active' }}
     </div>
-    <div class="sub-title">Father Saturnino Urios University &bull; Audio-Visual Resource Center</div>
+    <div class="sub-title">Father Saturnino Urios University &bull; Audio-Visual Resource Center (AVR / PMO)</div>
   </div>
 
 @elseif(in_array($normStatus, ['approved']))
   <div class="top-banner banner-success">
-    <div class="status-badge">Confirmed &amp; Approved</div>
+    <div class="status-badge">{{ $hasGatePass ? 'Approved • Official Gate Pass' : 'Approved • Reservation Confirmed' }}</div>
     <div class="banner-title">
-      {{ $isVenue ? 'Venue Reservation Confirmed' : 'Equipment Borrowing Request Approved' }}
+      @if($hasGatePass)
+        {!! $isVenue ? 'Venue Reservation Approved &amp; Campus Gate Pass' : 'Equipment Borrowing Approved &amp; Campus Gate Pass' !!}
+      @else
+        {!! $isVenue ? 'Venue Reservation Confirmed' : 'Equipment Borrowing Approved' !!}
+      @endif
     </div>
-    <div class="sub-title">Father Saturnino Urios University &bull; Audio-Visual Resource Center</div>
+    <div class="sub-title">Father Saturnino Urios University &bull; Audio-Visual Resource Center &bull; Physical Plant / PMO</div>
   </div>
 
 @elseif(in_array($normStatus, ['reminder', 'due soon', 'due_soon', 'return reminder', 'return_reminder']))
@@ -575,206 +648,434 @@
   @endif
 
 {{-- =========================================================================
-     3. COMPLETED / RETURNED / CLEARED
+     3. COMPLETED / RETURNED / CLEARED (OFFICIAL RETURN RECEIPT)
    ========================================================================= --}}
 @elseif(in_array($normStatus, ['completed', 'returned', 'done', 'cleared']))
   <p style="margin-top: 0;">Hi <strong>{{ $requestorName }}</strong>,</p>
 
-  @if(!$isVenue && $resolvedUnits->isNotEmpty())
-    <p>All borrowed equipment units under Reference <strong>{{ $ref }}</strong> have been returned, tested, and inspected by the custodial staff.</p>
+  <p>
+    Your {{ $isVenue ? 'venue booking for ' . $venueName : 'equipment borrowing' }} under Reference <strong>{{ $ref }}</strong> has officially concluded and post-event turnover inspection has been finalized by the AVR / PMO staff.
+  </p>
 
-    <div class="ref-card ref-card-success">
-      <div class="ref-label">
-        Custodial Clearance Certificate
-        @if($isExternal)
-          <span class="badge-external">External Cleared</span>
-        @else
-          <span class="badge-internal">FSUU Cleared</span>
-        @endif
-      </div>
-      <div class="ref-value" style="color: #15803d;">{{ $ref }}</div>
-      <div style="font-size: 13px; font-weight: 700; color: #166534; margin-top: 4px;">
-        STATUS: {{ $clearanceLabel }} &bull; {{ now()->format('M d, Y h:i A') }}
-      </div>
+  {{-- Clearance Certificate Banner --}}
+  <div class="ref-card ref-card-success">
+    <div class="ref-label">
+      Custodial Clearance Certificate &bull; Official Return Receipt
+      @if($isExternal)
+        <span class="badge-external">External Cleared</span>
+      @else
+        <span class="badge-internal">FSUU Cleared</span>
+      @endif
     </div>
+    <div class="ref-value" style="color: #15803d;">{{ $ref }}</div>
+    <div style="font-size: 13px; font-weight: 700; color: #166534; margin-top: 4px;">
+      STATUS: {{ $clearanceLabel }} &bull; {{ $dateReturnedFormatted }}
+    </div>
+    <div style="font-size: 11px; color: #047857; margin-top: 2px;">
+      Approved & Certified by: Audio-Visual Resource Center (AVR) Physical Plant / PMO
+    </div>
+  </div>
 
-    <div style="margin: 16px 0;">
+  {{-- Comprehensive Receipt Details Table --}}
+  <table class="data-table">
+    <tr>
+      <td class="data-label">Tracking Number:</td>
+      <td class="data-value" style="font-family: monospace; font-weight: 700; color: #1e40af;">{{ $ref }}</td>
+    </tr>
+    <tr>
+      <td class="data-label">Applicant / Accountable:</td>
+      <td class="data-value"><strong>{{ $requestorName }}</strong></td>
+    </tr>
+    <tr>
+      <td class="data-label">Identity / Role:</td>
+      <td class="data-value">{{ $applicantIdentity }} &bull; {{ $organization }}</td>
+    </tr>
+    <tr>
+      <td class="data-label">Email Address:</td>
+      <td class="data-value">{{ $applicantEmail }}</td>
+    </tr>
+    <tr>
+      <td class="data-label">Phone Number:</td>
+      <td class="data-value">{{ $applicantPhone }}</td>
+    </tr>
+    <tr>
+      <td class="data-label">Selected Venue / Facility:</td>
+      <td class="data-value">
+        @if($isVenue)
+          <strong>{{ $venueName }}</strong> ({{ $venueLocation }})
+        @else
+          AVR Custodial Counter (Place of Use: {{ $booking->place_of_use ?? 'Inside Campus' }})
+        @endif
+      </td>
+    </tr>
+    <tr>
+      <td class="data-label">Date Time Used:</td>
+      <td class="data-value">{{ $dateUsedFormatted }}</td>
+    </tr>
+    <tr>
+      <td class="data-label">Date Time Returned:</td>
+      <td class="data-value"><strong>{{ $dateReturnedFormatted }}</strong></td>
+    </tr>
+    <tr>
+      <td class="data-label">Event Purpose:</td>
+      <td class="data-value">{{ $purpose }}</td>
+    </tr>
+  </table>
+
+  {{-- Returned Equipment Units Table (if assigned/resolved units exist) --}}
+  @if($resolvedUnits->isNotEmpty())
+    <div style="margin: 18px 0;">
       <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #475569; letter-spacing: 0.5px; margin-bottom: 6px;">
-        Returned Unit Inspection Record:
+        Returned Unit Inspection Serial Number Record:
       </div>
       @include('emails.partials.equipment_unit_table', ['units' => $resolvedUnits, 'mode' => 'receipt', 'equipmentList' => $equipmentList ?? [], 'booking' => $booking ?? null])
     </div>
-
-    @if(!empty($remarks))
-      <div class="callout callout-info">
-        <strong style="display:block; margin-bottom: 2px;">Custodial Remarks / Inspection Notes:</strong>
-        <div>{{ $remarks }}</div>
-      </div>
-    @endif
-
-    @if($isExternal)
-      <div class="callout callout-external">
-        <strong style="display:block; margin-bottom: 4px;">🏢 External Account Clearance Notice:</strong>
-        <div>This digital receipt certifies that all institutional assets loaned to {{ $organization }} have been restored to university inventory. You may present this notice to the Cashier / Accounting Office for security deposit release endorsement.</div>
-      </div>
-    @else
-      <p style="font-size: 13px; color: #475569; font-style: italic;">
-        Your custodial accountability record for this borrowing transaction is officially closed in good standing.
-      </p>
-    @endif
-
-  @else
-    {{-- Venue Completed or General Completion --}}
-    <p>Your booking for <strong>{{ $venueName }}</strong> (Reference: <strong>{{ $ref }}</strong>) has concluded and the post-event turnover inspection has been completed.</p>
-
-    <div class="ref-card ref-card-success">
-      <div class="ref-label">Facility Clearance Record</div>
-      <div class="ref-value" style="color: #15803d;">{{ $ref }}</div>
-      <div style="font-size: 13px; font-weight: 700; color: #166534; margin-top: 4px;">
-        Facility Cleared &amp; Restored &bull; {{ now()->format('M d, Y h:i A') }}
-      </div>
+  @elseif(!empty($equipmentList))
+    <div style="margin: 14px 0; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px 16px;">
+      <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #475569; letter-spacing: 0.5px; margin-bottom: 6px;">Returned Equipment Items:</div>
+      @foreach($equipmentList as $eqItem)
+        @php
+          $itemLabel = is_array($eqItem) ? ($eqItem['label'] ?? ($eqItem['name'] ?? 'Equipment Item')) : $eqItem;
+          $builtIns = is_array($eqItem) ? ($eqItem['built_ins'] ?? []) : [];
+        @endphp
+        <div style="font-size: 13px; color: #0f172a; margin-bottom: 4px;">
+          <div>&bull; <strong>{{ $itemLabel }}</strong> <span style="display: inline-block; background-color: #f0fdf4; color: #166534; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 3px; margin-left: 6px;">RETURNED RESTORED</span></div>
+          @if(!empty($builtIns) && count($builtIns) > 0)
+            <div style="margin-left: 14px; margin-top: 2px; font-size: 11.5px; color: #475569;">
+              <span style="font-weight: 700; color: #2563eb;">Built-in:</span>
+              @foreach($builtIns as $bName)
+                <span style="display: inline-block; background-color: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; border-radius: 4px; padding: 1px 6px; font-size: 10.5px; font-weight: 700; margin: 1px 2px;">{{ $bName }}</span>
+              @endforeach
+            </div>
+          @endif
+        </div>
+      @endforeach
     </div>
+  @endif
 
-    @if(!empty($remarks))
-      <div class="callout callout-info">
-        <strong style="display:block; margin-bottom: 2px;">Turnover Remarks:</strong>
-        <div>{{ $remarks }}</div>
-      </div>
-    @endif
+  @if(!empty($remarks))
+    <div class="callout callout-info">
+      <strong style="display:block; margin-bottom: 2px;">Turnover Remarks / Custodial Notes:</strong>
+      <div>{{ $remarks }}</div>
+    </div>
+  @endif
 
-    @if($isExternal)
-      <div class="callout callout-external">
-        <strong style="display:block; margin-bottom: 4px;">🏢 Security Deposit &amp; Exit Clearance:</strong>
-        <div>The facility inspection confirmed the room was returned clean and undamaged. This serves as official clearance for the event security deposit and campus gate exit for any outside production materials.</div>
-      </div>
-    @else
-      <p style="font-size: 13px; color: #475569;">
-        Thank you for leaving the facility clean, orderly, and secured for the next university group.
-      </p>
-    @endif
+  @if($isExternal)
+    <div class="callout callout-external">
+      <strong style="display:block; margin-bottom: 4px;">🏢 External Account Clearance Security Deposit:</strong>
+      <div>This digital receipt certifies that all institutional facilities and assets loaned to <strong>{{ $organization }}</strong> have been restored in good order. You may present this official clearance notice to the Cashier / Accounting Office for security deposit release endorsement and to Campus Security for production gate egress.</div>
+    </div>
+  @else
+    <div class="callout callout-success">
+      <strong style="display:block; margin-bottom: 4px;">✅ Custodial Responsibility Discharged:</strong>
+      <div>Your custodial accountability record for this transaction is officially closed in good standing. No liabilities or equipment clearance holds remain on your university account.</div>
+    </div>
   @endif
 
 {{-- =========================================================================
-     4. APPROVED
+     4. APPROVED (OFFICIAL CAMPUS GATE PASS & CLAIM / INGRESS PERMIT)
    ========================================================================= --}}
 @elseif($normStatus === 'approved')
   <p style="margin-top: 0;">Hi <strong>{{ $requestorName }}</strong>,</p>
 
   @if(!$isVenue)
     {{-- Equipment Approved --}}
-    <p>Your equipment borrowing request has been approved. The gear has been earmarked for your schedule at the AVR counter.</p>
+    @if($hasGatePass)
+      {{-- Equipment WITH Unique Physical Units Assigned (Together with units & serials) --}}
+      <p>Your equipment borrowing request has been approved and unique equipment units have been assigned for your schedule. <strong>This email also serves as your official Campus Gate Pass approved by the AVR / PMO.</strong></p>
 
-    <div class="ref-card ref-card-success">
-      <div class="ref-label">
-        Claim Tracking Code
-        @if($isExternal)
-          <span class="badge-external">External Approved</span>
-        @else
-          <span class="badge-internal">FSUU Approved</span>
-        @endif
-      </div>
-      <div class="ref-value" style="color: #15803d;">{{ $ref }}</div>
-      <div style="font-size: 13px; font-weight: 700; color: #166534; margin-top: 4px;">
-        Schedule: {{ $sched }}
-      </div>
-    </div>
-
-    @if(!empty($equipmentList))
-      <div style="margin: 14px 0; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px 16px;">
-        <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #475569; letter-spacing: 0.5px; margin-bottom: 6px;">Approved Items:</div>
-        @foreach($equipmentList as $eqItem)
-          @php
-            $itemLabel = is_array($eqItem) ? ($eqItem['label'] ?? ($eqItem['name'] ?? 'Equipment Item')) : $eqItem;
-            $builtIns = is_array($eqItem) ? ($eqItem['built_ins'] ?? []) : [];
-          @endphp
-          <div style="font-size: 13px; color: #0f172a; margin-bottom: 4px;">
-            <div>&bull; <strong>{{ $itemLabel }}</strong></div>
-            @if(!empty($builtIns) && count($builtIns) > 0)
-              <div style="margin-left: 14px; margin-top: 2px; font-size: 11.5px; color: #475569;">
-                <span style="font-weight: 700; color: #2563eb;">Built-in:</span>
-                @foreach($builtIns as $bName)
-                  <span style="display: inline-block; background-color: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; border-radius: 4px; padding: 1px 6px; font-size: 10.5px; font-weight: 700; margin: 1px 2px;">{{ $bName }}</span>
-                @endforeach
-              </div>
-            @endif
+      {{-- Official Gate Pass Card --}}
+      <div class="gatepass-card">
+        <div class="gatepass-header">
+          <div>
+            <span class="gatepass-badge">OFFICIAL CAMPUS GATE PASS</span>
+            <h3 class="gatepass-title" style="margin-top: 6px;">Equipment Claim &amp; Access Permit</h3>
+            <div style="font-size: 11px; color: #166534; font-weight: 600; margin-top: 2px;">
+              Authorized by: Audio-Visual Resource Center (AVR) &bull; Physical Plant / PMO
+            </div>
           </div>
-        @endforeach
-      </div>
-    @endif
+        </div>
 
-    @if($isExternal)
-      <div class="callout callout-external">
-        <strong style="display:block; margin-bottom: 4px;">📌 External Pickup Instructions:</strong>
-        <div>1. Report to the AVR Custodial Counter (Main Building, 2nd Floor).</div>
-        <div style="margin-top: 4px;">2. Present your original <strong>Government-Issued Photo ID</strong> or Company ID along with Reference Code <strong>{{ $ref }}</strong>.</div>
-        <div style="margin-top: 4px;">3. If rental charges apply, ensure the Cashier Official Receipt (O.R.) is presented before units are released.</div>
-        <div style="margin-top: 4px;">4. Inspect and test all accessories (adapters, remotes, cords) before signing custody transfer.</div>
+        <table class="data-table" style="margin: 8px 0;">
+          <tr>
+            <td class="data-label" style="width: 32%;">Gate Pass / Ref No.:</td>
+            <td class="data-value" style="font-family: monospace; font-size: 15px; font-weight: 800; color: #15803d;">{{ $ref }}</td>
+          </tr>
+          <tr>
+            <td class="data-label">Authorized Bearer:</td>
+            <td class="data-value"><strong>{{ $requestorName }}</strong> ({{ $applicantIdentity }})</td>
+          </tr>
+          <tr>
+            <td class="data-label">Affiliation:</td>
+            <td class="data-value">{{ $organization }}</td>
+          </tr>
+          <tr>
+            <td class="data-label">Contact Details:</td>
+            <td class="data-value">{{ $applicantPhone }} &bull; {{ $applicantEmail }}</td>
+          </tr>
+          <tr>
+            <td class="data-label">Claim Destination:</td>
+            <td class="data-value">AVR Custodial Counter (Main Building, 2nd Floor)</td>
+          </tr>
+          <tr>
+            <td class="data-label">Valid Schedule:</td>
+            <td class="data-value"><strong>{{ $sched }}</strong></td>
+          </tr>
+          <tr>
+            <td class="data-label">Purpose:</td>
+            <td class="data-value">{{ $purpose }}</td>
+          </tr>
+        </table>
+
+        {{-- Units Table with Serial Numbers and Built-in Serial Numbers --}}
+        <div style="margin: 14px 0 8px 0;">
+          <div style="font-size: 11px; font-weight: 800; text-transform: uppercase; color: #166534; letter-spacing: 0.6px; margin-bottom: 6px;">
+            Authorized Physical Units &amp; Serial Numbers Covered by Gate Pass:
+          </div>
+          @include('emails.partials.equipment_unit_table', [
+            'units' => $resolvedUnits,
+            'mode' => 'release',
+            'equipmentList' => $equipmentList ?? [],
+            'booking' => $booking ?? null
+          ])
+        </div>
+
+        <div class="callout callout-success" style="margin: 10px 0 0 0; background-color: #ecfdf5; border-left: 4px solid #10b981; padding: 10px 14px;">
+          <strong style="display:block; margin-bottom: 2px; color: #065f46; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.5px;">👮 NOTICE TO CAMPUS SECURITY GATE PERSONNEL:</strong>
+          <div style="font-size: 12px; color: #047857; line-height: 1.4;">
+            Please verify the serial numbers listed above against the physical units. Grant entry/exit to the bearer through campus gates upon presentation of this Gate Pass and valid ID for authorized university AV equipment during the scheduled timeframe. Approved by AVR / PMO.
+          </div>
+        </div>
       </div>
+
+      @if($isExternal)
+        <div class="callout callout-external">
+          <strong style="display:block; margin-bottom: 4px;">📌 External Pickup Instructions:</strong>
+          <div>1. Present this Gate Pass and your original <strong>Government-Issued Photo ID</strong> at the university entrance gate.</div>
+          <div style="margin-top: 4px;">2. Report to the AVR Custodial Counter (Main Building, 2nd Floor).</div>
+          <div style="margin-top: 4px;">3. Present the Cashier Official Receipt (O.R.) for rental fees before units are released.</div>
+          <div style="margin-top: 4px;">4. Inspect and test all accessories before signing custody transfer.</div>
+        </div>
+      @else
+        <div class="callout callout-info">
+          <strong style="display:block; margin-bottom: 4px;">📌 Counter Claim Protocols:</strong>
+          <div>&bull; Proceed to the AVR Custodial Counter (Main Building, 2nd Floor).</div>
+          <div>&bull; Present your physical <strong>FSUU School ID</strong> along with this Gate Pass (Reference Code: <strong>{{ $ref }}</strong>).</div>
+          <div>&bull; Arrive 15 minutes before your schedule to complete barcode scanning and power check.</div>
+        </div>
+      @endif
+
     @else
+      {{-- Equipment ONLY Approved (NO Units Assigned Yet -> NO GATE PASS) --}}
+      <p>Your equipment borrowing request has been approved. The gear has been earmarked for your schedule at the AVR counter.</p>
+
+      <div class="ref-card ref-card-success">
+        <div class="ref-label">
+          Borrowing Reference Code
+          @if($isExternal)
+            <span class="badge-external">External Borrower</span>
+          @else
+            <span class="badge-internal">FSUU Account</span>
+          @endif
+        </div>
+        <div class="ref-value" style="color: #15803d;">{{ $ref }}</div>
+        <div style="font-size: 13px; font-weight: 700; color: #166534; margin-top: 4px;">
+          Approved Schedule: {{ $sched }}
+        </div>
+      </div>
+
+      <table class="data-table">
+        <tr>
+          <td class="data-label" style="width: 32%;">Borrower:</td>
+          <td class="data-value"><strong>{{ $requestorName }}</strong> ({{ $applicantIdentity }})</td>
+        </tr>
+        <tr>
+          <td class="data-label">Affiliation:</td>
+          <td class="data-value">{{ $organization }}</td>
+        </tr>
+        <tr>
+          <td class="data-label">Contact Details:</td>
+          <td class="data-value">{{ $applicantPhone }} &bull; {{ $applicantEmail }}</td>
+        </tr>
+        <tr>
+          <td class="data-label">Pickup Location:</td>
+          <td class="data-value">AVR Custodial Counter (Main Building, 2nd Floor)</td>
+        </tr>
+        <tr>
+          <td class="data-label">Purpose:</td>
+          <td class="data-value">{{ $purpose }}</td>
+        </tr>
+      </table>
+
+      @if(!empty($equipmentList))
+        <div style="margin: 14px 0; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px 16px;">
+          <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #475569; letter-spacing: 0.5px; margin-bottom: 6px;">Approved Equipment Items to Claim:</div>
+          @foreach($equipmentList as $eqItem)
+            @php
+              $itemLabel = is_array($eqItem) ? ($eqItem['label'] ?? ($eqItem['name'] ?? 'Equipment Item')) : $eqItem;
+              $builtIns = is_array($eqItem) ? ($eqItem['built_ins'] ?? []) : [];
+            @endphp
+            <div style="font-size: 13px; color: #0f172a; margin-bottom: 4px;">
+              <div>&bull; <strong>{{ $itemLabel }}</strong></div>
+              @if(!empty($builtIns) && count($builtIns) > 0)
+                <div style="margin-left: 14px; margin-top: 2px; font-size: 11.5px; color: #475569;">
+                  <span style="font-weight: 700; color: #2563eb;">Built-in inclusions:</span>
+                  @foreach($builtIns as $bName)
+                    <span style="display: inline-block; background-color: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; border-radius: 4px; padding: 1px 6px; font-size: 10.5px; font-weight: 700; margin: 1px 2px;">{{ $bName }}</span>
+                  @endforeach
+                </div>
+              @endif
+            </div>
+          @endforeach
+        </div>
+      @endif
+
       <div class="callout callout-info">
-        <strong style="display:block; margin-bottom: 4px;">📌 Counter Claim Protocols:</strong>
-        <div>&bull; Proceed to the AVR Custodial Counter (Main Building, 2nd Floor).</div>
-        <div>&bull; Present your physical <strong>FSUU School ID</strong> and Reference Code: <strong>{{ $ref }}</strong>.</div>
-        <div>&bull; Arrive 15 minutes before your schedule to complete barcode scanning and power check.</div>
+        <strong style="display:block; margin-bottom: 4px;">📌 Counter Claim &amp; Unit Assignment Instructions:</strong>
+        <div>&bull; Proceed to the AVR Custodial Counter (Main Building, 2nd Floor) during your scheduled pickup time.</div>
+        <div>&bull; Present your physical <strong>FSUU School / Employee ID</strong> (or Government ID for external clients) and Reference Number: <strong>{{ $ref }}</strong>.</div>
+        <div>&bull; Custodial staff will scan the specific physical units, test their condition, and issue the official hand-over.</div>
+        <div style="margin-top: 6px; font-size: 11.5px; color: #0369a1; border-top: 1px dashed #bae6fd; padding-top: 4px;">
+          ℹ️ <em>Official Campus Gate Pass with individual equipment serial numbers will be issued once physical units are scanned and assigned at the counter.</em>
+        </div>
       </div>
     @endif
 
   @else
     {{-- Venue Approved --}}
-    <p>Your reservation request for <strong>{{ $venueName }}</strong> is confirmed and locked on the university calendar.</p>
+    @if($hasGatePass)
+      {{-- Venue with Gate Pass (External User OR Venue with Equipment Borrowed) --}}
+      <p>Your reservation request for <strong>{{ $venueName }}</strong> is confirmed and locked on the university calendar. <strong>This document now serves as your official Campus Gate Pass & Facility Access Permit approved by the AVR / PMO.</strong></p>
 
-    <div class="ref-card ref-card-success">
-      <div class="ref-label">
-        Confirmed Reservation
-        @if($isExternal)
-          <span class="badge-external">External Reservation</span>
-        @else
-          <span class="badge-internal">FSUU Approved</span>
+      {{-- Official Gate Pass Card --}}
+      <div class="gatepass-card">
+        <div class="gatepass-header">
+          <div>
+            <span class="gatepass-badge">OFFICIAL CAMPUS GATE PASS</span>
+            <h3 class="gatepass-title" style="margin-top: 6px;">Facility Ingress Event Access Permit</h3>
+            <div style="font-size: 11px; color: #166534; font-weight: 600; margin-top: 2px;">
+              Authorized by: Audio-Visual Resource Center (AVR) Physical Plant / PMO
+            </div>
+          </div>
+        </div>
+
+        <table class="data-table" style="margin: 8px 0;">
+          <tr>
+            <td class="data-label" style="width: 32%;">Gate Pass / Ref No.:</td>
+            <td class="data-value" style="font-family: monospace; font-size: 15px; font-weight: 800; color: #15803d;">{{ $ref }}</td>
+          </tr>
+          <tr>
+            <td class="data-label">Authorized Organizer:</td>
+            <td class="data-value"><strong>{{ $requestorName }}</strong> ({{ $applicantIdentity }})</td>
+          </tr>
+          <tr>
+            <td class="data-label">Affiliation / Group:</td>
+            <td class="data-value">{{ $organization }}</td>
+          </tr>
+          <tr>
+            <td class="data-label">Contact Details:</td>
+            <td class="data-value">{{ $applicantPhone }} &bull; {{ $applicantEmail }}</td>
+          </tr>
+          <tr>
+            <td class="data-label">Reserved Facility:</td>
+            <td class="data-value"><strong>{{ $venueName }}</strong> ({{ $venueLocation }})</td>
+          </tr>
+          <tr>
+            <td class="data-label">Authorized Schedule:</td>
+            <td class="data-value"><strong>{{ $sched }}</strong></td>
+          </tr>
+          <tr>
+            <td class="data-label">Event Purpose:</td>
+            <td class="data-value">{{ $purpose }}</td>
+          </tr>
+          <tr>
+            <td class="data-label">Expected Pax:</td>
+            <td class="data-value">{{ $persons }} attendees</td>
+          </tr>
+          @if(!empty($equipmentList))
+          <tr>
+            <td class="data-label">Authorized AV Gear:</td>
+            <td class="data-value">{{ implode(', ', array_map(fn($e) => is_array($e) ? ($e['label'] ?? '') : (string)$e, $equipmentList)) }}</td>
+          </tr>
+          @endif
+        </table>
+
+        @if($resolvedUnits->isNotEmpty())
+        <div style="margin: 14px 0 8px 0;">
+          <div style="font-size: 11px; font-weight: 800; text-transform: uppercase; color: #166534; letter-spacing: 0.6px; margin-bottom: 6px;">
+            Authorized AV Equipment Units &amp; Serial Numbers Covered by Gate Pass:
+          </div>
+          @include('emails.partials.equipment_unit_table', [
+            'units' => $resolvedUnits,
+            'mode' => 'release',
+            'equipmentList' => $equipmentList ?? [],
+            'booking' => $booking ?? null
+          ])
+        </div>
         @endif
-      </div>
-      <div class="ref-value" style="color: #15803d;">{{ $ref }}</div>
-      <div style="font-size: 13px; font-weight: 700; color: #166534; margin-top: 4px;">
-        Schedule: {{ $sched }}
-      </div>
-    </div>
 
-    <table class="data-table">
-      <tr>
-        <td class="data-label">Reserved Facility:</td>
-        <td class="data-value"><strong>{{ $venueName }}</strong> ({{ $venueLocation }})</td>
-      </tr>
-      <tr>
-        <td class="data-label">Organizer:</td>
-        <td class="data-value">{{ $requestorName }} ({{ $organization }})</td>
-      </tr>
-      <tr>
-        <td class="data-label">Event Purpose:</td>
-        <td class="data-value">{{ $purpose }}</td>
-      </tr>
-      <tr>
-        <td class="data-label">Expected Pax:</td>
-        <td class="data-value">{{ $persons }} attendees</td>
-      </tr>
-      @if(!empty($equipmentList))
-      <tr>
-        <td class="data-label">Bundled AV Gear:</td>
-        <td class="data-value">{{ implode(', ', array_map(fn($e) => is_array($e) ? ($e['label'] ?? '') : (string)$e, $equipmentList)) }}</td>
-      </tr>
+        <div class="callout callout-success" style="margin: 10px 0 0 0; background-color: #ecfdf5; border-left: 4px solid #10b981; padding: 10px 14px;">
+          <strong style="display:block; margin-bottom: 2px; color: #065f46; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.5px;">👮 NOTICE TO CAMPUS SECURITY GATE PERSONNEL:</strong>
+          <div style="font-size: 12px; color: #047857; line-height: 1.4;">
+            Please grant entry to the bearer, registered participants, and production personnel through university gates. Clear ingress/egress of authorized event materials and production supplies for the scheduled venue and timeslot. Endorsed & approved by AVR / PMO.
+          </div>
+        </div>
+      </div>
+
+      @if($isExternal)
+        <div class="callout callout-external">
+          <strong style="display:block; margin-bottom: 4px;">🏢 External Client Ingress Cashier Settlement:</strong>
+          <div>1. <strong>Gate Clearance:</strong> Present this Gate Pass and valid Government Photo ID at the campus main security gate for visitor ingress and vehicle parking pass.</div>
+          <div style="margin-top: 4px;">2. <strong>Cashier Payment:</strong> Pay the venue rental and utility fees at the FSUU Cashier (Main Building Ground Floor). Present the Official Receipt (O.R.) to the AVR / PMO custodian upon arrival.</div>
+          <div style="margin-top: 4px;">3. <strong>Facility Turnover:</strong> Meet the PMO custodian 30 minutes before event start for key turnover and equipment check.</div>
+        </div>
+      @else
+        <div class="callout callout-info">
+          <strong style="display:block; margin-bottom: 4px;">🏛️ Room Access Equipment Gate Clearance:</strong>
+          <div>&bull; Present your physical <strong>FSUU School ID</strong> and this Gate Pass when transporting authorized equipment across campus gates / buildings.</div>
+          <div>&bull; Report to the counter 15 minutes before start time to receive room keys and equipment remotes.</div>
+          <div>&bull; Ensure the venue is left clean and secured after use.</div>
+        </div>
       @endif
-    </table>
 
-    @if($isExternal)
-      <div class="callout callout-external">
-        <strong style="display:block; margin-bottom: 4px;">🏢 External Client Settlement &amp; Ingress:</strong>
-        <div>1. <strong>Cashier Payment:</strong> Pay the venue rental and utility fees at the FSUU Cashier (Main Building Ground Floor). Present the Official Receipt (O.R.) to the AVR office.</div>
-        <div style="margin-top: 4px;">2. <strong>Security Gate Pass:</strong> Present this reference code at the main security gate for guest visitor access and vehicle parking passes.</div>
-        <div style="margin-top: 4px;">3. <strong>Photo ID:</strong> The authorized organizer must present a valid Government Photo ID upon room turnover.</div>
-      </div>
     @else
+      {{-- Standard Venue Confirmation (Internal Student/Faculty with Venue ONLY, NO Equipment) --}}
+      <p>Your reservation request for <strong>{{ $venueName }}</strong> is confirmed and locked on the university calendar.</p>
+
+      <div class="ref-card ref-card-success">
+        <div class="ref-label">
+          Confirmed Reservation
+          <span class="badge-internal">FSUU Approved</span>
+        </div>
+        <div class="ref-value" style="color: #15803d;">{{ $ref }}</div>
+        <div style="font-size: 13px; font-weight: 700; color: #166534; margin-top: 4px;">
+          Schedule: {{ $sched }}
+        </div>
+      </div>
+
+      <table class="data-table">
+        <tr>
+          <td class="data-label">Reserved Facility:</td>
+          <td class="data-value"><strong>{{ $venueName }}</strong> ({{ $venueLocation }})</td>
+        </tr>
+        <tr>
+          <td class="data-label">Organizer:</td>
+          <td class="data-value">{{ $requestorName }} ({{ $organization }})</td>
+        </tr>
+        <tr>
+          <td class="data-label">Event Purpose:</td>
+          <td class="data-value">{{ $purpose }}</td>
+        </tr>
+        <tr>
+          <td class="data-label">Expected Pax:</td>
+          <td class="data-value">{{ $persons }} attendees</td>
+        </tr>
+      </table>
+
       <div class="callout callout-info">
-        <strong style="display:block; margin-bottom: 4px;">🏛️ Room Access &amp; Keys:</strong>
-        <div>&bull; Meet the AVR custodian or report to the counter 15 minutes before start time with your physical <strong>FSUU School ID</strong> to receive room keys and equipment remotes.</div>
-        <div>&bull; Ensure the venue is left clean and secured after use.</div>
+        <strong style="display:block; margin-bottom: 4px;">🏛️ Room Access Keys:</strong>
+        <div>&bull; Meet the AVR custodian or report to the counter 15 minutes before start time with your physical <strong>FSUU School ID</strong> to receive room keys and aircon remotes.</div>
+        <div>&bull; Ensure the venue is left clean, orderly, and secured after use.</div>
       </div>
     @endif
   @endif
@@ -810,7 +1111,7 @@
     </div>
 
     <div class="callout callout-info">
-      <strong style="display:block; margin-bottom: 4px;">⏰ Arrival &amp; Setup:</strong>
+      <strong style="display:block; margin-bottom: 4px;">⏰ Arrival Setup:</strong>
       <div>&bull; Room unlocks 15–30 minutes before your scheduled start time.</div>
       <div>&bull; Present your {{ $isExternal ? 'Government ID and Cashier O.R.' : 'FSUU School ID' }} to the custodian on duty.</div>
     </div>
@@ -972,11 +1273,11 @@
   <div class="signoff">
     <strong>{{ $sysSettings->system_name ?: 'AVR Operations Management' }}</strong><br>
     {{ $sysSettings->organization_name ?: 'Father Saturnino Urios University' }} &bull; Audio-Visual Resource Center (AVR / PMO)<br>
-    Location: Main Building, Ground &amp; 2nd Floor &bull; Desk Extension: Local 214<br>
+    Location: Main Building<br>
     @if(!empty($sysSettings->contact_email)) Email: <a href="mailto:{{ $sysSettings->contact_email }}" style="color: #2563eb; text-decoration: none;">{{ $sysSettings->contact_email }}</a> &bull; @endif
     @if(!empty($sysSettings->contact_phone)) Phone: {{ $sysSettings->contact_phone }} @endif
     <div style="margin-top: 8px; font-size: 11px; color: #94a3b8;">
-      This is an automated operational notice generated by the FSUU Venue Reservation &amp; Equipment Lending System.
+      This is an automated operational notice generated by the FSUU Venue Reservation Equipment Lending System.
     </div>
   </div>
 </div>

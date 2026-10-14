@@ -29,6 +29,7 @@ class EmailVerificationController extends Controller
         }
 
         $result = $validatorService->validate($email);
+        \Illuminate\Support\Facades\Log::info("Email verification check: [{$email}] -> " . ($result['valid'] ? 'PASS' : 'FAIL') . " (" . ($result['source'] ?? '') . ") - " . ($result['message'] ?? ''));
 
         $status = $result['valid'] ? 200 : 422;
 

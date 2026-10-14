@@ -109,10 +109,40 @@ export default function EquipBorrowInspectionForm({
           category: catName,
         };
       }
+
+      // If not a physical unit, resolve category/accessory name (e.g. ID 8 -> HDMI)
+      let resolvedTypeName = null;
+      if (Array.isArray(parentUnit.equipmentType?.built_in_names) && parentUnit.equipmentType.built_in_names.length > 0) {
+        const rawIdx = rawList.indexOf(biId);
+        if (rawIdx !== -1 && parentUnit.equipmentType.built_in_names[rawIdx]) {
+          resolvedTypeName = parentUnit.equipmentType.built_in_names[rawIdx];
+        } else {
+          const matchByName = parentUnit.equipmentType.built_in_names.find(
+            (n) => String(n).toLowerCase() === String(biId).toLowerCase()
+          );
+          if (matchByName) resolvedTypeName = matchByName;
+        }
+      }
+      if (!resolvedTypeName && Array.isArray(categoriesToRender)) {
+        const catMatch = categoriesToRender.find(
+          (c) => String(c.id || c.equipment_type_id) === String(biId)
+        );
+        if (catMatch) resolvedTypeName = catMatch.category || catMatch.name;
+      }
+
+      if (resolvedTypeName) {
+        return {
+          id: biId,
+          barcode: resolvedTypeName,
+          name: resolvedTypeName,
+          category: "Built-in Accessory",
+        };
+      }
+
       return {
         id: biId,
         barcode: String(biId),
-        name: `Physical Unit #${biId}`,
+        name: isNaN(Number(biId)) ? String(biId) : `Physical Unit #${biId}`,
         category: "",
       };
     }).filter(Boolean);

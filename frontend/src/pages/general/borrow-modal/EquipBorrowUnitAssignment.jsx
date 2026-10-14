@@ -261,9 +261,17 @@ export default function EquipBorrowUnitAssignment({
 
     if (!unit) return [];
 
-    const rawList = Array.isArray(unit.built_in_units)
+    let rawList = Array.isArray(unit.built_in_units)
       ? unit.built_in_units
       : (typeof unit.built_in_units === "string" ? JSON.parse(unit.built_in_units || "[]") : []);
+
+    if (!Array.isArray(rawList) || rawList.length === 0) {
+      if (Array.isArray(unit.equipmentType?.built_in_units)) {
+        rawList = unit.equipmentType.built_in_units;
+      } else if (Array.isArray(unit.equipment_type?.built_in_units)) {
+        rawList = unit.equipment_type.built_in_units;
+      }
+    }
 
     if (!Array.isArray(rawList) || rawList.length === 0) return [];
 
@@ -282,10 +290,41 @@ export default function EquipBorrowUnitAssignment({
           category: catName,
         };
       }
+
+      // If not a physical unit, resolve category/accessory name (e.g. ID 8 -> HDMI)
+      const eqType = unit.equipmentType || unit.equipment_type;
+      let resolvedTypeName = null;
+      if (Array.isArray(eqType?.built_in_names) && eqType.built_in_names.length > 0) {
+        const rawIdx = rawList.indexOf(biId);
+        if (rawIdx !== -1 && eqType.built_in_names[rawIdx]) {
+          resolvedTypeName = eqType.built_in_names[rawIdx];
+        } else {
+          const matchByName = eqType.built_in_names.find(
+            (n) => String(n).toLowerCase() === String(biId).toLowerCase()
+          );
+          if (matchByName) resolvedTypeName = matchByName;
+        }
+      }
+      if (!resolvedTypeName && Array.isArray(categoriesToRender)) {
+        const catMatch = categoriesToRender.find(
+          (c) => String(c.id || c.equipment_type_id) === String(biId)
+        );
+        if (catMatch) resolvedTypeName = catMatch.category || catMatch.name;
+      }
+
+      if (resolvedTypeName) {
+        return {
+          id: biId,
+          barcode: resolvedTypeName,
+          name: resolvedTypeName,
+          category: "Built-in Accessory",
+        };
+      }
+
       return {
         id: biId,
         barcode: String(biId),
-        name: `Physical Unit #${biId}`,
+        name: isNaN(Number(biId)) ? String(biId) : `Physical Unit #${biId}`,
         category: "",
       };
     }).filter(Boolean);

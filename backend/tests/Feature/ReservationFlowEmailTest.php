@@ -150,6 +150,124 @@ class ReservationFlowEmailTest extends TestCase
         $this->assertStringContainsString('All accessories accounted for.', $completeHtml);
     }
 
+    public function test_equipment_borrowing_only_approved_does_not_show_gatepass(): void
+    {
+        $tracking = TrackingNumber::forceCreate([
+            'reference_code'   => 'EQ-202610-APP01',
+            'reservation_type' => 'equipment_borrow',
+            'reservation_id'   => 10,
+            'status'           => 'approved',
+        ]);
+
+        $borrow = EquipmentBorrow::create([
+            'tracking_number_id'      => $tracking->id,
+            'submission_channel'      => 'online_self',
+            'first_name'              => 'Angie',
+            'last_name'               => 'Petilo',
+            'filer_name'              => 'Angie Petilo',
+            'email_address'           => 'angie.petilo@urios.edu.ph',
+            'contact_number'          => '09123456789',
+            'classification'          => 'student',
+            'requestor_identity_type' => 'student',
+            'program_office'          => 'College of Computing Studies',
+            'purpose'                 => 'Class Capstone Presentation',
+            'date_of_usage'           => now()->addDay()->toDateString(),
+            'time_start'              => '08:00:00',
+            'time_end'                => '12:00:00',
+            'assigned_units'          => [], // NO unique units assigned yet!
+            'status'                  => 'approved',
+        ]);
+
+        $mail = new BookingStatusUpdateMail('equipment', $borrow, 'approved');
+        $envelope = $mail->envelope();
+        $html = $mail->render();
+
+        // 1. Subject should NOT have & GATE PASS
+        $this->assertStringNotContainsString('& GATE PASS', $envelope->subject);
+        $this->assertStringContainsString('READY FOR PICKUP: Equipment Borrowing Approved', $envelope->subject);
+
+        // 2. HTML should NOT have Gate Pass card or Gate Pass header
+        $this->assertStringNotContainsString('OFFICIAL CAMPUS GATE PASS', $html);
+        $this->assertStringNotContainsString('<div class="gatepass-card">', $html);
+        $this->assertStringNotContainsString('Equipment Borrowing Approved &amp; Campus Gate Pass', $html);
+
+        // 3. HTML should show clear approval and counter pickup instructions
+        $this->assertStringContainsString('Equipment Borrowing Approved', $html);
+        $this->assertStringContainsString('AVR Custodial Counter', $html);
+        $this->assertStringContainsString('Official Campus Gate Pass with individual equipment serial numbers will be issued once physical units are scanned', $html);
+    }
+
+    public function test_equipment_borrowing_approved_with_units_shows_gatepass_and_serials(): void
+    {
+        $eqType = EquipmentType::create([
+            'name'        => 'Wireless Microphone System',
+            'eq_name'     => 'Wireless Mic',
+            'status'      => 'available',
+        ]);
+
+        $childUnit = EquipmentUnit::create([
+            'equipment_type_id' => $eqType->id,
+            'brand'             => 'Shure',
+            'model'             => 'Transceiver Unit',
+            'serial_number'     => 'SN-CHILD-8822',
+            'status'            => 'available',
+        ]);
+
+        $parentUnit = EquipmentUnit::create([
+            'equipment_type_id' => $eqType->id,
+            'brand'             => 'Sony',
+            'model'             => 'VPL-DX221',
+            'serial_number'     => 'SN-PARENT-7711',
+            'built_in_units'    => [(int)$childUnit->id],
+            'status'            => 'borrowed',
+        ]);
+
+        $tracking = TrackingNumber::forceCreate([
+            'reference_code'   => 'EQ-202610-APP02',
+            'reservation_type' => 'equipment_borrow',
+            'reservation_id'   => 11,
+            'status'           => 'approved',
+        ]);
+
+        $borrow = EquipmentBorrow::create([
+            'tracking_number_id'      => $tracking->id,
+            'submission_channel'      => 'online_self',
+            'first_name'              => 'Angie',
+            'last_name'               => 'Petilo',
+            'filer_name'              => 'Angie Petilo',
+            'email_address'           => 'angie.petilo@urios.edu.ph',
+            'contact_number'          => '09123456789',
+            'classification'          => 'student',
+            'requestor_identity_type' => 'student',
+            'program_office'          => 'College of Computing Studies',
+            'purpose'                 => 'Class Capstone Presentation',
+            'date_of_usage'           => now()->addDay()->toDateString(),
+            'time_start'              => '08:00:00',
+            'time_end'                => '12:00:00',
+            'assigned_units'          => [$parentUnit->barcode],
+            'status'                  => 'approved',
+        ]);
+
+        $mail = new BookingStatusUpdateMail('equipment', $borrow, 'approved');
+        $envelope = $mail->envelope();
+        $html = $mail->render();
+
+        // 1. Subject should include & GATE PASS
+        $this->assertStringContainsString('READY FOR PICKUP & GATE PASS', $envelope->subject);
+
+        // 2. HTML should have Gate Pass card
+        $this->assertStringContainsString('OFFICIAL CAMPUS GATE PASS', $html);
+
+        // 3. Parent unit serial should be displayed
+        $this->assertStringContainsString('SN-PARENT-7711', $html);
+
+        // 4. Built-in child unit should display with its serial number
+        $this->assertStringContainsString('SN: SN-CHILD-8822', $html);
+
+        // 5. Title must NOT contain double-escaped literal &amp;amp;
+        $this->assertStringNotContainsString('&amp;amp;', $html);
+    }
+
     public function test_venue_reminder_service_dispatches_when_window_approaches(): void
     {
         Mail::fake();

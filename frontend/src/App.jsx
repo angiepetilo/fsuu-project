@@ -197,7 +197,7 @@ function AppContent() {
                 <img src="/fsuu_logo.png" alt="FSUU Seal" className="h-9 sm:h-10 w-auto transition-transform duration-200 group-hover:scale-105" />
                 <div className="flex flex-col">
                   <span className="font-bold text-base sm:text-lg tracking-tight text-foreground leading-tight">
-                    Urios
+                    {publicSettings.header_brand_text || "Urios"}
                   </span>
                   <span className="text-[11px] sm:text-xs text-muted-foreground font-medium">
                     {publicSettings.system_name || "FSUU Facilities & Equipment Booking System"}

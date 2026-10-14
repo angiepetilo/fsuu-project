@@ -26,10 +26,11 @@ class SmsService
             return null;
         }
 
-        $iprogKey = config('services.iprogsms.api_key') ?: env('IPROG_SMS_API_KEY');
+        $settings = \App\Models\SystemSetting::getSettings();
+        $apiKey = $settings->sms_api_key ?: (config('services.iprogsms.api_key') ?: env('IPROG_SMS_API_KEY') ?: env('SMS_API_KEY'));
 
-        if (empty($iprogKey)) {
-            Log::warning("SmsService: IPROG_SMS_API_KEY is not configured in environment.");
+        if (empty($apiKey)) {
+            Log::warning("SmsService: SMS API key is not configured in system settings or environment.");
             return null;
         }
 
@@ -49,35 +50,48 @@ class SmsService
             return null;
         }
 
-        // iPROG SMS Gateway Dispatch
+        // Dispatch via configured SMS Gateway (supports Semaphore, iProg, etc.)
         try {
-            $apiUrl = config('services.iprogsms.api_url') ?: env('IPROG_SMS_API_URL', 'https://sms.iprogtech.com/api/v1/sms_messages');
-            $senderName = config('services.iprogsms.sender_name') ?: env('IPROG_SMS_SENDER_NAME');
+            $apiUrl = $settings->sms_api_url ?: (config('services.iprogsms.api_url') ?: env('IPROG_SMS_API_URL') ?: env('SMS_API_URL', 'https://api.semaphore.co/api/v4/messages'));
+            $senderName = config('services.iprogsms.sender_name') ?: env('IPROG_SMS_SENDER_NAME') ?: env('SMS_SENDER_NAME');
 
-            $payload = [
-                'api_key'      => $iprogKey,
-                'phone_number' => $cleanNumber,
-                'message'      => $message,
-            ];
-            if (!empty($senderName)) {
-                $payload['sender_name'] = $senderName;
+            $isSemaphore = str_contains(strtolower($apiUrl), 'semaphore');
+
+            if ($isSemaphore) {
+                $payload = [
+                    'apikey'  => $apiKey,
+                    'number'  => $cleanNumber,
+                    'message' => $message,
+                ];
+                if (!empty($senderName)) {
+                    $payload['sendername'] = $senderName;
+                }
+                $response = Http::timeout(10)->asForm()->post($apiUrl, $payload);
+            } else {
+                $payload = [
+                    'api_key'      => $apiKey,
+                    'phone_number' => $cleanNumber,
+                    'message'      => $message,
+                ];
+                if (!empty($senderName)) {
+                    $payload['sender_name'] = $senderName;
+                }
+                $response = Http::timeout(10)
+                    ->withHeaders([
+                        'Accept'        => 'application/json',
+                        'Authorization' => "Bearer {$apiKey}",
+                    ])
+                    ->post($apiUrl, $payload);
             }
-
-            $response = Http::timeout(10)
-                ->withHeaders([
-                    'Accept'        => 'application/json',
-                    'Authorization' => "Bearer {$iprogKey}",
-                ])
-                ->post($apiUrl, $payload);
 
             $resJson = $response->json();
-            Log::info("iProgSMS sent to {$cleanNumber}: status={$response->status()} body=" . $response->body());
+            Log::info("SMS Gateway sent to {$cleanNumber}: status={$response->status()} body=" . $response->body());
 
             if ($response->successful() && (!isset($resJson['status']) || $resJson['status'] < 400)) {
-                return $resJson;
+                return is_array($resJson) ? $resJson : ['success' => true, 'raw' => $response->body()];
             }
 
-            Log::warning("iProgSMS error response: " . $response->body());
+            Log::warning("SMS Gateway error response: " . $response->body());
             return $resJson;
         } catch (\Throwable $e) {
             Log::error("iProgSMS failed to send to {$cleanNumber}: " . $e->getMessage());

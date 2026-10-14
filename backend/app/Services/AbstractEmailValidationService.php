@@ -16,16 +16,129 @@ class AbstractEmailValidationService
         'trashmail.com', 'yopmail.com', 'sharklasers.com', 'dispostable.com',
         'getairmail.com', 'fakemailgenerator.com', 'throwawaymail.com', 'generator.email',
         'temp-mail.org', 'tempmailo.com', 'burnermail.io', 'nada.ltd', 'mohmal.com',
-        'crazymailing.com', 'emailondeck.com', 'temp-mail.io', 'mytemp.email'
+        'crazymailing.com', 'emailondeck.com', 'temp-mail.io', 'mytemp.email',
+        'herclan.com', 'cevipsa.com', 'moakt.cc', 'crepeau.me', 'beallgroup.org', 'tempmailgen.com',
+        // AdGuard Temp Mail & modern privacy shield domains
+        'hidingpost.com', 'hidingpost.net', 'hidepost.net', 'hidepost.com',
+        'hidingmail.com', 'hidingmail.net', 'hidebox.net', 'posthiding.com',
+        'shieldedpost.com', 'shieldedpost.net', 'protectsmail.com', 'protectsmail.net',
+        'hidesmail.com', 'hidesit.net', 'flashletter.net', 'expressletter.net',
+        'letterguard.net', 'letterhaven.net', 'letterprotect.com', 'letterprotect.net',
+        'hellomailo.net', 'mxscout.com',
+        // Top search temp-mail providers & alias domains (TempMail.Plus, InstantTempEmail, EmailTemp, etc.)
+        'instanttempemail.com', 'emailtemp.org', 'temp-mail.app', 'tempmail.plus',
+        'fexpost.com', 'fexbox.org', 'fexbox.ru', 'mailbox.in.ua', 'chitthi.in', 'inbox.si',
+        'generator.email', 'tmailor.com', 'smailpro.com', 'internxt.com', 'emailondeck.com',
+        'tempmailo.com', 'crazymailing.com', '10minutemail.net', 'moakt.com', 'fakemailgenerator.net'
     ];
 
     /**
-     * Cached in-memory lookup map for 75,000+ disposable domains.
+     * Cached in-memory lookup map for 99,000+ disposable domains.
      */
     protected static ?array $disposableMapCache = null;
 
     /**
-     * Check if a domain belongs to a disposable/temporary email provider (using the 75k+ dataset).
+     * Check if a domain belongs to an official university or trusted major public email provider.
+     */
+    public static function isTrustedProvider(string $domain): bool
+    {
+        $domain = strtolower(trim($domain));
+        $trusted = [
+            'urios.edu.ph', 'fsuu.edu.ph',
+            'gmail.com', 'googlemail.com',
+            'yahoo.com', 'yahoo.com.ph', 'ymail.com', 'rocketmail.com',
+            'outlook.com', 'hotmail.com', 'live.com', 'msn.com',
+            'icloud.com', 'me.com', 'mac.com',
+            'proton.me', 'protonmail.com',
+            'aol.com', 'aim.com',
+            'zoho.com', 'zohomail.com',
+            'gmx.com', 'gmx.net',
+            'mail.com',
+            'fastmail.com',
+        ];
+
+        return in_array($domain, $trusted, true)
+            || str_ends_with($domain, '.edu.ph')
+            || str_ends_with($domain, '.gov.ph');
+    }
+
+    /**
+     * Heuristic pattern matching for temporary/throwaway email providers.
+     */
+    public static function isDisposablePattern(string $domain): bool
+    {
+        $domain = strtolower(trim($domain));
+
+        if (self::isTrustedProvider($domain)) {
+            return false;
+        }
+
+        $patterns = [
+            // Any combination of "temp" and "mail" or "email"
+            '/temp[-_.]?e?mail/i',
+            '/temporary[-_.]?e?mail/i',
+            '/e?mail[-_.]?temp/i',
+            '/instant[-_.]?temp/i',
+            '/instant[-_.]?e?mail/i',
+            // Universal disposable / throwaway / burner / trash
+            '/throwaway/i',
+            '/dispos/i',
+            '/burner/i',
+            '/trash/i',
+            '/fakemail/i',
+            '/fake[-_.]?e?mail/i',
+            '/fakeinbox/i',
+            '/junk[-_.]?e?mail/i',
+            '/10min/i',
+            '/minutemail/i',
+            '/guerrilla/i',
+            '/mailinator/i',
+            '/inboxkitten/i',
+            '/generator[-_.]?e?mail/i',
+            '/crazymailing/i',
+            '/mytemp/i',
+            '/getairmail/i',
+            '/yopmail/i',
+            '/sharklasers/i',
+            '/emailondeck/i',
+            '/mohmal/i',
+            '/nada\.ltd/i',
+            '/dropmail/i',
+            '/tempinbox/i',
+            '/anonbox/i',
+            '/inboxlv/i',
+            '/fakemailgenerator/i',
+            // TempMail.Plus and international disposable alias networks
+            '/fexpost/i',
+            '/fexbox/i',
+            '/mailbox\.in\.ua/i',
+            '/chitthi\.in/i',
+            '/inbox\.si/i',
+            // AdGuard Temp Mail & privacy alias patterns
+            '/hiding(post|mail|box)/i',
+            '/hide(post|mail|box)/i',
+            '/hides(mail|it)/i',
+            '/posthiding/i',
+            '/shielded(post|mail)/i',
+            '/protectsmail/i',
+            '/letter(guard|haven|protect)/i',
+            '/flashletter/i',
+            '/expressletter/i',
+            '/hellomailo/i',
+            '/mxscout/i',
+        ];
+
+        foreach ($patterns as $pattern) {
+            if (preg_match($pattern, $domain)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Check if a domain belongs to a disposable/temporary email provider (using the 99k+ dataset + heuristics).
      */
     public static function isDisposableDomain(string $domain): bool
     {
@@ -34,36 +147,59 @@ class AbstractEmailValidationService
             return false;
         }
 
-        // 1. Fast in-memory map check (process-level cache)
-        if (self::$disposableMapCache !== null) {
-            return isset(self::$disposableMapCache[$domain]);
+        // Trusted providers bypass immediately
+        if (self::isTrustedProvider($domain)) {
+            return false;
         }
 
-        // 2. Load from file directly (no database cache to avoid max_allowed_packet issues with 75k+ domains)
-        $filePath = storage_path('app/disposable_domains.txt');
-        $domains = [];
+        // Fast pattern check
+        if (self::isDisposablePattern($domain)) {
+            return true;
+        }
 
-        if (file_exists($filePath)) {
-            $content = @file_get_contents($filePath);
-            if ($content) {
-                $lines = preg_split("/\r\n|\n|\r/", $content);
-                foreach ($lines as $line) {
-                    $d = strtolower(trim($line));
-                    if (!empty($d)) {
-                        $domains[$d] = true;
+        // Fast in-memory map check
+        if (self::$disposableMapCache === null) {
+            $filePath = storage_path('app/disposable_domains.txt');
+            $domains = [];
+
+            if (file_exists($filePath)) {
+                $content = @file_get_contents($filePath);
+                if ($content) {
+                    $lines = preg_split("/\r\n|\n|\r/", $content);
+                    foreach ($lines as $line) {
+                        $d = strtolower(trim($line));
+                        if (!empty($d)) {
+                            $domains[$d] = true;
+                        }
                     }
                 }
             }
+
+            // Always ensure core fallback domains are present
+            foreach (self::$coreDisposableDomains as $core) {
+                $domains[strtolower(trim($core))] = true;
+            }
+
+            self::$disposableMapCache = $domains;
         }
 
-        // Always ensure core fallback domains are present
-        foreach (self::$coreDisposableDomains as $core) {
-            $domains[strtolower(trim($core))] = true;
+        if (isset(self::$disposableMapCache[$domain])) {
+            return true;
         }
 
-        // Store in static property for fast subsequent lookups during this request lifecycle
-        self::$disposableMapCache = $domains;
-        return isset(self::$disposableMapCache[$domain]);
+        // Check root domain for subdomains (e.g. mail.herclan.com -> herclan.com)
+        $parts = explode('.', $domain);
+        if (count($parts) > 2) {
+            $rootDomain = implode('.', array_slice($parts, -2));
+            if (isset(self::$disposableMapCache[$rootDomain])) {
+                return true;
+            }
+            if (self::isDisposablePattern($rootDomain)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -113,17 +249,31 @@ class AbstractEmailValidationService
         $isInstitutional = in_array($domain, ['urios.edu.ph', 'fsuu.edu.ph'], true);
 
         // Institutional email policy: Reject emails containing numbers (e.g. 202100452@urios.edu.ph)
-        if ($isInstitutional && preg_match('/[0-9]/', $user)) {
+        if ($isInstitutional) {
+            if (preg_match('/[0-9]/', $user)) {
+                return [
+                    'valid'          => false,
+                    'email'          => $email,
+                    'domain'         => $domain,
+                    'deliverability' => 'UNDELIVERABLE',
+                    'is_disposable'  => false,
+                    'autocorrect'    => null,
+                    'quality_score'  => 0.0,
+                    'message'        => 'Institutional email must be your official name-based university email (e.g. name@urios.edu.ph), not ID numbers.',
+                    'source'         => 'institutional_policy'
+                ];
+            }
+
             return [
-                'valid'          => false,
+                'valid'          => true,
                 'email'          => $email,
                 'domain'         => $domain,
-                'deliverability' => 'UNDELIVERABLE',
+                'deliverability' => 'DELIVERABLE',
                 'is_disposable'  => false,
                 'autocorrect'    => null,
-                'quality_score'  => 0.0,
-                'message'        => 'Institutional email must be your official name-based university email (e.g. name@urios.edu.ph), not ID numbers.',
-                'source'         => 'institutional_policy'
+                'quality_score'  => 1.0,
+                'message'        => "Official institutional email verified (@{$domain}).",
+                'source'         => 'institutional'
             ];
         }
 
@@ -175,17 +325,28 @@ class AbstractEmailValidationService
             ];
         }
 
-        // 4. DNS MX record pre-check
+        // 4. DNS MX record pre-check and Mail Exchange Host verification
         $hasMx = false;
+        $mxHosts = [];
         if ($isInstitutional) {
             $hasMx = true;
         } else {
             try {
-                if (function_exists('checkdnsrr')) {
+                if (function_exists('getmxrr')) {
+                    @getmxrr($domain, $mxHosts);
+                    $hasMx = !empty($mxHosts);
+                }
+                if (!$hasMx) {
+                    $records = @dns_get_record($domain, DNS_MX);
+                    if (is_array($records) && !empty($records)) {
+                        $hasMx = true;
+                        foreach ($records as $r) {
+                            if (!empty($r['target'])) $mxHosts[] = $r['target'];
+                        }
+                    }
+                }
+                if (!$hasMx && function_exists('checkdnsrr')) {
                     $hasMx = checkdnsrr($domain, 'MX') || checkdnsrr($domain, 'A') || checkdnsrr($domain, 'AAAA');
-                } else {
-                    $records = @dns_get_record($domain, DNS_MX | DNS_A | DNS_AAAA);
-                    $hasMx = !empty($records);
                 }
             } catch (\Throwable $e) {
                 $hasMx = true;
@@ -206,8 +367,50 @@ class AbstractEmailValidationService
             ];
         }
 
+        // Check if any MX mail servers point to a known disposable email host or network
+        foreach ($mxHosts as $mxHost) {
+            $cleanMx = strtolower(trim($mxHost));
+            if (self::isDisposableDomain($cleanMx) || self::isDisposablePattern($cleanMx)) {
+                return [
+                    'valid'          => false,
+                    'email'          => $email,
+                    'domain'         => $domain,
+                    'deliverability' => 'UNDELIVERABLE',
+                    'is_disposable'  => true,
+                    'autocorrect'    => null,
+                    'quality_score'  => 0.0,
+                    'message'        => 'Disposable or temporary email addresses (like temp-mail) are not accepted. Please use an active personal email.',
+                    'source'         => 'mx_disposable_detection'
+                ];
+            }
+
+            // Inspect resolved MX IP address for known disposable server subnets
+            $mxIp = @gethostbyname($cleanMx);
+            if (!empty($mxIp) && $mxIp !== $cleanMx) {
+                // AdGuard Temp Mail server subnet: 92.255.56.* & 92.255.57.*
+                if (str_starts_with($mxIp, '92.255.56.') || str_starts_with($mxIp, '92.255.57.')) {
+                    return [
+                        'valid'          => false,
+                        'email'          => $email,
+                        'domain'         => $domain,
+                        'deliverability' => 'UNDELIVERABLE',
+                        'is_disposable'  => true,
+                        'autocorrect'    => null,
+                        'quality_score'  => 0.0,
+                        'message'        => 'Disposable or temporary email addresses (like temp-mail) are not accepted. Please use an active personal email.',
+                        'source'         => 'mx_ip_disposable_detection'
+                    ];
+                }
+            }
+        }
+
         // 5. Abstract API Deep Check (with cache)
-        $apiKey = config('services.abstract.email_validation_key') ?: env('ABSTRACT_EMAIL_API_KEY');
+        $systemSettingKey = null;
+        try {
+            $systemSettingKey = \App\Models\SystemSetting::getSettings()->abstract_email_api_key;
+        } catch (\Throwable $e) {}
+
+        $apiKey = $systemSettingKey ?: config('services.abstract.email_validation_key') ?: env('ABSTRACT_EMAIL_API_KEY');
         $apiUrl = config('services.abstract.api_url', 'https://emailvalidation.abstractapi.com/v1/');
 
         if (empty($apiKey)) {
@@ -247,26 +450,46 @@ class AbstractEmailValidationService
             ];
         }
 
+        $candidateUrls = [
+            'https://emailreputation.abstractapi.com/v1/',
+            'https://emailvalidation.abstractapi.com/v1/'
+        ];
+
         try {
-            $response = Http::timeout(4)
-                ->withoutVerifying()
-                ->get($apiUrl, [
-                    'api_key' => $apiKey,
-                    'email'   => $email,
-                ]);
+            $response = null;
+            $data = null;
 
-            if ($response->successful()) {
-                $data = $response->json();
+            foreach ($candidateUrls as $targetUrl) {
+                $res = Http::timeout(4)
+                    ->withoutVerifying()
+                    ->get($targetUrl, [
+                        'api_key' => $apiKey,
+                        'email'   => $email,
+                    ]);
 
-                $deliverability = strtoupper($data['deliverability'] ?? 'UNKNOWN');
-                $isDisposable = (bool) ($data['is_disposable_email']['value'] ?? false);
-                $isSmtpValid = (bool) ($data['is_smtp_valid']['value'] ?? true);
-                $isMxFound = (bool) ($data['is_mx_found']['value'] ?? true);
-                $qualityScore = (float) ($data['quality_score'] ?? 0.8);
-                $autocorrect = !empty($data['autocorrect']) ? trim($data['autocorrect']) : null;
+                if ($res->successful()) {
+                    $response = $res;
+                    $data = $res->json();
+                    break;
+                } elseif ($res->status() === 429) {
+                    $response = $res;
+                    break;
+                }
+            }
 
-                // Detect disposable
-                if ($isDisposable) {
+            if ($response && $response->successful() && is_array($data)) {
+                $rawDeliverability = $data['email_deliverability']['status'] ?? $data['deliverability'] ?? 'UNKNOWN';
+                $deliverability = strtoupper($rawDeliverability);
+
+                $isDisposable = (bool) ($data['email_quality']['is_disposable'] ?? $data['is_disposable_email']['value'] ?? false);
+                $isSmtpValid = (bool) ($data['email_deliverability']['is_smtp_valid'] ?? $data['is_smtp_valid']['value'] ?? true);
+                $isMxFound = (bool) ($data['email_deliverability']['is_mx_valid'] ?? $data['is_mx_found']['value'] ?? true);
+                $qualityScore = (float) ($data['email_quality']['score'] ?? $data['quality_score'] ?? 0.8);
+                $autocorrect = !empty($data['suggested_correction']) ? trim($data['suggested_correction']) : (!empty($data['autocorrect']) ? trim($data['autocorrect']) : null);
+                $domainRisk = strtolower($data['email_risk']['domain_risk_status'] ?? 'low');
+
+                // Detect disposable or high-risk disposable domains
+                if ($isDisposable || $domainRisk === 'high') {
                     $result = [
                         'valid'          => false,
                         'email'          => $email,
@@ -275,7 +498,7 @@ class AbstractEmailValidationService
                         'is_disposable'  => true,
                         'autocorrect'    => $autocorrect,
                         'quality_score'  => $qualityScore,
-                        'message'        => 'Disposable or temporary email addresses are not accepted. Please provide a real email.',
+                        'message'        => 'Disposable, high-risk, or temporary email addresses are not accepted. Please provide a real personal email.',
                         'source'         => 'abstract_api'
                     ];
                     Cache::put($cacheKey, $result, 86400 * 14);
@@ -333,8 +556,8 @@ class AbstractEmailValidationService
             }
 
             // If Abstract API returned 401, 429, or 500:
-            $statusCode = $response->status();
-            $errBody = $response->json();
+            $statusCode = $response ? $response->status() : 500;
+            $errBody = $response ? $response->json() : [];
             Log::warning("Abstract API email check non-200 status [{$statusCode}]: " . json_encode($errBody));
 
             if ($statusCode === 401) {
@@ -343,32 +566,62 @@ class AbstractEmailValidationService
                 Cache::put($circuitBreakerKey, 'rate_limited', 3600); // 1 hour circuit break
             }
 
-            // Graceful fallback to DNS MX records so reservations are not blocked by third-party errors
+            // Only trusted university & major reputable providers bypass when remote check is unavailable
+            if (self::isTrustedProvider($domain)) {
+                return [
+                    'valid'          => true,
+                    'email'          => $email,
+                    'domain'         => $domain,
+                    'deliverability' => 'DELIVERABLE',
+                    'is_disposable'  => false,
+                    'autocorrect'    => null,
+                    'quality_score'  => 0.85,
+                    'message'        => $isInstitutional ? "Official institutional email verified (@{$domain})." : "Email domain @{$domain} is active and deliverable.",
+                    'source'         => $isInstitutional ? 'institutional' : 'dns_fallback'
+                ];
+            }
+
+            // Unrecognized/unknown domains that cannot be verified by Abstract API are strictly rejected
             return [
-                'valid'          => true,
+                'valid'          => false,
                 'email'          => $email,
                 'domain'         => $domain,
-                'deliverability' => 'DELIVERABLE',
-                'is_disposable'  => false,
+                'deliverability' => 'UNDELIVERABLE',
+                'is_disposable'  => true,
                 'autocorrect'    => null,
-                'quality_score'  => 0.85,
-                'message'        => $isInstitutional ? "Official institutional email verified (@{$domain})." : "Email domain @{$domain} is active and deliverable.",
-                'source'         => $isInstitutional ? 'institutional' : 'dns_fallback'
+                'quality_score'  => 0.0,
+                'message'        => 'Unrecognized or temporary email domain. Please use your official university email or an established personal email (Gmail, Yahoo, Outlook).',
+                'source'         => 'untrusted_domain_shield'
             ];
         } catch (\Throwable $e) {
             Log::warning("Abstract API email validation request exception: " . $e->getMessage());
 
-            // Graceful fallback to DNS verification
+            // Only trusted university & major reputable providers bypass on exception
+            if (self::isTrustedProvider($domain)) {
+                return [
+                    'valid'          => true,
+                    'email'          => $email,
+                    'domain'         => $domain,
+                    'deliverability' => 'DELIVERABLE',
+                    'is_disposable'  => false,
+                    'autocorrect'    => null,
+                    'quality_score'  => 0.85,
+                    'message'        => $isInstitutional ? "Official institutional email verified (@{$domain})." : "Email domain @{$domain} is active and deliverable.",
+                    'source'         => $isInstitutional ? 'institutional' : 'dns_fallback'
+                ];
+            }
+
+            // Unrecognized/unknown domains are rejected
             return [
-                'valid'          => true,
+                'valid'          => false,
                 'email'          => $email,
                 'domain'         => $domain,
-                'deliverability' => 'DELIVERABLE',
-                'is_disposable'  => false,
+                'deliverability' => 'UNDELIVERABLE',
+                'is_disposable'  => true,
                 'autocorrect'    => null,
-                'quality_score'  => 0.85,
-                'message'        => $isInstitutional ? "Official institutional email verified (@{$domain})." : "Email domain @{$domain} is active and deliverable.",
-                'source'         => $isInstitutional ? 'institutional' : 'dns_fallback'
+                'quality_score'  => 0.0,
+                'message'        => 'Unrecognized or temporary email domain. Please use your official university email or an established personal email (Gmail, Yahoo, Outlook).',
+                'source'         => 'untrusted_domain_shield'
             ];
         }
     }
@@ -485,36 +738,52 @@ class AbstractEmailValidationService
             ];
         }
 
-        $apiUrl = config('services.abstract.api_url', 'https://emailvalidation.abstractapi.com/v1/');
+        $candidateUrls = [
+            'https://emailreputation.abstractapi.com/v1/',
+            'https://emailvalidation.abstractapi.com/v1/'
+        ];
 
         try {
             $start = microtime(true);
-            $response = Http::timeout(5)
-                ->withoutVerifying()
-                ->get($apiUrl, [
-                    'api_key' => $apiKey,
-                    'email'   => 'support@urios.edu.ph',
-                ]);
+            $response = null;
+            $lastStatus = 500;
+            $lastBody = null;
+
+            foreach ($candidateUrls as $targetUrl) {
+                $res = Http::timeout(5)
+                    ->withoutVerifying()
+                    ->get($targetUrl, [
+                        'api_key' => $apiKey,
+                        'email'   => 'support@urios.edu.ph',
+                    ]);
+
+                $lastStatus = $res->status();
+                $lastBody = $res->json();
+
+                if ($res->successful()) {
+                    $response = $res;
+                    break;
+                }
+            }
+
             $elapsedMs = round((microtime(true) - $start) * 1000);
 
-            if ($response->successful()) {
+            if ($response && $response->successful()) {
                 // Clear any circuit breaker
                 Cache::forget('abstract_api_circuit_breaker_' . md5($apiKey));
                 return [
                     'success'    => true,
                     'latency_ms' => $elapsedMs,
                     'data'       => $response->json(),
-                    'message'    => "Abstract API connected successfully! Latency: {$elapsedMs}ms",
+                    'message'    => "Abstract API (Email Reputation) connected successfully! Latency: {$elapsedMs}ms",
                 ];
             }
 
-            $status = $response->status();
-            $body = $response->json();
             return [
                 'success' => false,
-                'status'  => $status,
-                'data'    => $body,
-                'message' => $body['error']['message'] ?? "Abstract API returned HTTP {$status}.",
+                'status'  => $lastStatus,
+                'data'    => $lastBody,
+                'message' => $lastBody['error']['message'] ?? "Abstract API returned HTTP {$lastStatus}.",
             ];
         } catch (\Throwable $e) {
             return [

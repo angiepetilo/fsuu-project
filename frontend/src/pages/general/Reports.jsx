@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useOutletContext, useSearchParams } from "react-router-dom";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
@@ -11,9 +11,10 @@ import EquipmentOutTab from "./reports/EquipmentOutTab";
 import IncidentReportsTab from "./reports/IncidentReportsTab";
 import PdfPreviewModal from "./reports/PdfPreviewModal";
 import { downloadReportAsPdf } from "./reports/exportPdfHelper";
+import { exportReportsToExcel } from "./reports/exportReportsExcelHelper";
 import {
   FileBarChart2, FileText, Download, ShieldAlert, PackageOpen, CheckCircle2,
-  Building2, Printer, X, Loader2
+  Building2, Printer, X, Loader2, FileSpreadsheet, ChevronDown, Layers
 } from "lucide-react";
 
 export default function Reports() {
@@ -342,6 +343,55 @@ export default function Reports() {
   const currentEquipNotes = localStorage.getItem("fsuu_report_equipment_notes") || "";
   const currentBreachesNotes = localStorage.getItem("fsuu_report_breaches_notes") || "";
 
+  // ── EXCEL EXPORT (.xlsx) ──
+  const [isExportingExcel, setIsExportingExcel] = useState(false);
+  const [showExcelMenu, setShowExcelMenu] = useState(false);
+  const excelMenuRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (excelMenuRef.current && !excelMenuRef.current.contains(e.target)) {
+        setShowExcelMenu(false);
+      }
+    };
+    if (showExcelMenu) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [showExcelMenu]);
+
+  const selectedTermLabel = useMemo(() => {
+    if (!selectedTermId) return "All Academic Terms";
+    const found = academicTerms.find((t) => String(t.id) === String(selectedTermId));
+    return found?.name || "All Academic Terms";
+  }, [selectedTermId, academicTerms]);
+
+  const handleExportExcel = async (mode = "all") => {
+    setIsExportingExcel(true);
+    try {
+      await exportReportsToExcel({
+        venueBookings: filteredVenueBookings,
+        equipmentBorrowings: filteredEquipmentBorrowings,
+        activeEquipmentBorrowings: filteredActiveEquipmentBorrowings,
+        ruleViolations: filteredRuleViolations,
+        inventoryItems: filteredInventoryItems,
+        equipmentUnits: filteredUnits,
+        termLabel: selectedTermLabel,
+        officeScope: selectedOfficeName || officeScope,
+        activeTab: mode === "active" ? activeTab : "all",
+      });
+      setFeedback(`✅ ${mode === "active" ? tabLabels[activeTab] : "Master Reports Workbook"} exported to Excel (.xlsx).`);
+      setTimeout(() => setFeedback(null), 4000);
+    } catch (err) {
+      console.error("Excel export error in Reports:", err);
+      setFeedback(`❌ Excel export failed: ${err?.message || "Unknown error"}`);
+      setTimeout(() => setFeedback(null), 5000);
+    } finally {
+      setIsExportingExcel(false);
+      setShowExcelMenu(false);
+    }
+  };
+
   if (!hasPermission("reports")) {
     return (
       <div className="p-8 max-w-md mx-auto text-center space-y-3 mt-12 bg-white rounded-3xl border border-slate-200 shadow-xs">
@@ -359,12 +409,73 @@ export default function Reports() {
   return (
     <div className="space-y-6">
       {/* Action Toolbar */}
-      <div className="flex items-center justify-end gap-2 flex-wrap">
+      <div className="flex items-center justify-end gap-2.5 flex-wrap">
+        {/* Export Excel (.xlsx) Split Button & Dropdown */}
+        {(isSuperAdmin || hasPermission("reports.export_pdf") || hasPermission("reports")) && (
+          <div className="relative inline-flex items-center" ref={excelMenuRef}>
+            <button
+              type="button"
+              onClick={() => handleExportExcel("all")}
+              disabled={isExportingExcel}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs rounded-l-xl transition-all shadow-2xs cursor-pointer disabled:opacity-60"
+              title="Export All Report Tabs to Formatted Master Excel (.xlsx)"
+            >
+              {isExportingExcel ? (
+                <Loader2 size={13} className="shrink-0 animate-spin" />
+              ) : (
+                <FileSpreadsheet size={13} className="shrink-0" />
+              )}
+              <span>Export Excel</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowExcelMenu((prev) => !prev)}
+              className="px-2 py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-r-xl border-l border-emerald-500/40 transition-all shadow-2xs cursor-pointer"
+              title="More Excel Export Options"
+              aria-label="Excel export options"
+            >
+              <ChevronDown size={13} className={`transition-transform duration-150 ${showExcelMenu ? "rotate-180" : ""}`} />
+            </button>
+
+            {showExcelMenu && (
+              <div className="absolute right-0 top-full mt-1.5 w-72 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl p-2 z-50 text-xs font-semibold text-slate-700 dark:text-slate-200 space-y-1 animate-in fade-in zoom-in-95">
+                <div className="px-2.5 py-1 text-[10px] font-mono uppercase tracking-wider text-slate-400 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                  <span>Workbook Format: Excel (.xlsx)</span>
+                  <span className="text-emerald-600 font-bold">Multi-Tab</span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => handleExportExcel("all")}
+                  className="w-full text-left px-2.5 py-2 rounded-xl bg-emerald-50/60 dark:bg-emerald-950/30 hover:bg-emerald-100/70 flex items-center justify-between transition-colors cursor-pointer group border border-emerald-200/50"
+                >
+                  <span className="flex items-center gap-2 text-emerald-900 dark:text-emerald-300 font-extrabold">
+                    <Layers size={13} className="text-emerald-600" />
+                    <span>Master Report Workbook <span className="text-[10px] text-emerald-600 font-normal">(All 5 Tabs)</span></span>
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleExportExcel("active")}
+                  className="w-full text-left px-2.5 py-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center justify-between transition-colors cursor-pointer group"
+                >
+                  <span className="flex items-center gap-2 text-slate-800 dark:text-slate-200 font-bold group-hover:text-emerald-700">
+                    <FileSpreadsheet size={13} className="text-slate-400 group-hover:text-emerald-600" />
+                    <span>Active Tab Only <span className="text-[10px] text-slate-400 font-normal">({tabLabels[activeTab]})</span></span>
+                  </span>
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Export PDF Button */}
         {(isSuperAdmin || hasPermission("reports.export_pdf") || hasPermission("reports")) && (
           <button
             type="button"
             onClick={() => setShowPdfModal(true)}
-            className="px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg text-xs font-bold transition-colors cursor-pointer"
+            className="px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-bold transition-colors cursor-pointer"
             title={`Preview / Export ${tabLabels[activeTab]} as PDF`}
           >
             Export PDF
