@@ -596,12 +596,9 @@ class EquipmentBorrowingService
 
     private function assertCancelAllowed(EquipmentBorrow $borrowing, User $actor): void
     {
-        $isWithinFinalWindow = now()->diffInHours($borrowing->start_datetime, false) < 24;
-
-        if ($isWithinFinalWindow && $actor->isStaff()) {
-            throw new BookingActionNotAllowedException(
-                'Staff can no longer cancel this borrowing within 24 hours of the start time. Only Head or Admin can proceed.'
-            );
+        $status = strtolower($borrowing->status ?? '');
+        if (in_array($status, ['completed', 'done', 'returned', 'damaged', 'lost'])) {
+            throw new BookingActionNotAllowedException('Completed or historical borrowings cannot be cancelled.');
         }
     }
 

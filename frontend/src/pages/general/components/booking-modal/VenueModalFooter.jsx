@@ -1,7 +1,9 @@
-import { useState } from "react";
-import { Loader2, Play, FileCheck, Check, ShieldAlert, BellRing, AlertTriangle } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import { Loader2, Play, FileCheck, Check, ShieldAlert, BellRing, AlertTriangle, Clock, ShieldCheck, Ban } from "lucide-react";
 import api from "@/lib/axios";
 import { notify } from "@/lib/notify";
+import { getInspectionEligibility } from "@/lib/dateTimeUtils";
+import ConfirmModal from "@/components/ui/ConfirmModal";
 
 /**
  * VenueModalFooter — Action buttons at the bottom of the venue booking form modal.
@@ -25,6 +27,7 @@ export default function VenueModalFooter({
   canApprove = true,
   canReject = true,
   isStudentAssistant = false,
+  isSuperAdmin = false,
   showIncompleteForm,
   setShowIncompleteForm,
   isPostInspectionSaved = false,
@@ -32,6 +35,33 @@ export default function VenueModalFooter({
   hasInspectionChanges = false,
 }) {
   const [notifyingUrgent, setNotifyingUrgent] = useState(false);
+  const [currentTick, setCurrentTick] = useState(() => Date.now());
+  const [adminEarlyOverride, setAdminEarlyOverride] = useState(false);
+  const [showEarlyOverrideModal, setShowEarlyOverrideModal] = useState(false);
+  const [showCancelApprovedModal, setShowCancelApprovedModal] = useState(false);
+  const [cancelRemarks, setCancelRemarks] = useState("");
+
+  useEffect(() => {
+    if (!isOngoing) return;
+    const interval = setInterval(() => {
+      setCurrentTick(Date.now());
+    }, 10000);
+    return () => clearInterval(interval);
+  }, [isOngoing]);
+
+  const scheduledEndDate = selected?.reservation_end_date 
+    || selected?.extend_reservation_end_date 
+    || selected?.date_of_usage 
+    || selected?.date_of_use 
+    || selected?.start_datetime;
+  const scheduledEndTime = selected?.time_end || selected?.end_datetime || "17:00";
+
+  const inspectionEligibility = useMemo(() => {
+    if (!isOngoing) return { isReady: true, minutesUntilUnlock: 0, unlockTimeStr: "", reason: "" };
+    return getInspectionEligibility(scheduledEndDate, scheduledEndTime, 30);
+  }, [isOngoing, scheduledEndDate, scheduledEndTime, currentTick]);
+
+  const isInspectionReady = isOngoing ? (inspectionEligibility.isReady || adminEarlyOverride) : true;
 
   const handleNotifyUrgent = async () => {
     if (!selected?.id) return;
@@ -62,7 +92,8 @@ export default function VenueModalFooter({
   };
 
   return (
-    <div className="px-6 py-3.5 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-blue-900/50 flex items-center justify-end gap-3 shrink-0">
+    <>
+      <div className="px-6 py-3.5 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-blue-900/50 flex items-center justify-end gap-3 shrink-0">
       {isPending ? (
         <div className="flex items-center gap-2 flex-wrap justify-end">
           {/* Mark Incomplete is available to both Student Assistants and Staff/Admins */}
@@ -119,7 +150,22 @@ export default function VenueModalFooter({
           )}
         </div>
       ) : isApproved ? (
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2.5 flex-wrap justify-end">
+          {canReject && (
+            <button
+              type="button"
+              onClick={() => {
+                setCancelRemarks("");
+                setShowCancelApprovedModal(true);
+              }}
+              disabled={!!actionLoading}
+              className="px-4 py-2.5 bg-rose-50 hover:bg-rose-600 text-rose-700 hover:text-white border border-rose-200 hover:border-rose-600 dark:bg-rose-950/60 dark:hover:bg-rose-600 dark:text-rose-300 dark:hover:text-white dark:border-rose-900/60 font-bold text-xs rounded-xl shadow-2xs transition-all duration-150 cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+              title="Cancel this approved venue reservation"
+            >
+              <Ban size={13} />
+              <span>Cancel Booking</span>
+            </button>
+          )}
           <button
             type="button"
             onClick={() => handleAction(selected.id, "ongoing")}
@@ -147,12 +193,42 @@ export default function VenueModalFooter({
           </button>
         </div>
       ) : isOngoing ? (
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2.5 flex-wrap justify-end">
+          {!isInspectionReady && (
+            <div
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800/70 text-amber-800 dark:text-amber-200 text-xs font-semibold shadow-2xs"
+              title={inspectionEligibility.reason}
+            >
+              <Clock size={14} className="text-amber-600 dark:text-amber-400 shrink-0" />
+              <span>Inspection opens {inspectionEligibility.unlockTimeStr ? `at ${inspectionEligibility.unlockTimeStr}` : "30 mins before end time"}</span>
+              {inspectionEligibility.minutesUntilUnlock > 0 && (
+                <span className="text-[11px] font-bold text-amber-600 dark:text-amber-400">
+                  ({inspectionEligibility.minutesUntilUnlock > 60
+                    ? `${Math.floor(inspectionEligibility.minutesUntilUnlock / 60)}h ${inspectionEligibility.minutesUntilUnlock % 60}m`
+                    : `${inspectionEligibility.minutesUntilUnlock}m`})
+                </span>
+              )}
+            </div>
+          )}
+
+          {isSuperAdmin && !inspectionEligibility.isReady && !adminEarlyOverride && (
+            <button
+              type="button"
+              onClick={() => setShowEarlyOverrideModal(true)}
+              className="px-3 py-2 bg-amber-100 hover:bg-amber-200 dark:bg-amber-900/40 dark:hover:bg-amber-900/60 text-amber-900 dark:text-amber-200 border border-amber-300 dark:border-amber-700/60 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1"
+              title="Super Administrator Early Inspection Override"
+            >
+              <ShieldCheck size={13} className="text-amber-700 dark:text-amber-300" />
+              <span>Admin Override</span>
+            </button>
+          )}
+
           <button
             type="button"
-            onClick={() => handleAction(selected.id, "post-inspection")}
-            disabled={!!actionLoading}
-            className="px-5 py-2.5 bg-amber-600 hover:bg-amber-700 active:bg-amber-800 dark:bg-amber-600 dark:hover:bg-amber-500 disabled:opacity-60 text-white rounded-xl text-xs font-extrabold flex items-center gap-1.5 shadow-xs transition-all duration-150 cursor-pointer"
+            onClick={() => handleAction(selected.id, "post-inspection", adminEarlyOverride ? { force: true } : {})}
+            disabled={!isInspectionReady || !!actionLoading}
+            title={!isInspectionReady ? inspectionEligibility.reason : "Start Post-Event Inspection"}
+            className="px-5 py-2.5 bg-amber-600 hover:bg-amber-700 active:bg-amber-800 dark:bg-amber-600 dark:hover:bg-amber-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl text-xs font-extrabold flex items-center gap-1.5 shadow-xs transition-all duration-150 cursor-pointer"
           >
             {actionLoading === `${selected.id}-post-inspection` ? (
               <>
@@ -213,5 +289,51 @@ export default function VenueModalFooter({
         </button>
       )}
     </div>
+
+    {/* Early Inspection Override Confirmation Modal */}
+    <ConfirmModal
+      open={showEarlyOverrideModal}
+      onClose={() => setShowEarlyOverrideModal(false)}
+      onConfirm={() => {
+        setAdminEarlyOverride(true);
+        setShowEarlyOverrideModal(false);
+      }}
+      variant="shield"
+      title="Early Inspection Override"
+      message="Event schedule has not yet reached the 30-minute pre-end inspection window. As Super Administrator, do you want to override and start early post-event inspection now?"
+      confirmLabel="Override & Proceed"
+      cancelLabel="Cancel"
+    />
+
+    {/* Cancel Approved Venue Booking Confirmation Modal */}
+    <ConfirmModal
+      open={showCancelApprovedModal}
+      onClose={() => setShowCancelApprovedModal(false)}
+      onConfirm={async () => {
+        const finalRemarks = cancelRemarks.trim() || "Approved venue booking cancelled by administrator";
+        setShowCancelApprovedModal(false);
+        await handleAction(selected?.id, "cancel", { remarks: finalRemarks, rejection_reason: finalRemarks });
+      }}
+      variant="danger"
+      title="Cancel Approved Venue Reservation"
+      message="Are you sure you want to cancel this approved venue booking? The reservation will be cancelled, any reserved equipment units will be released back to inventory, and an update notice will be dispatched."
+      confirmLabel="Yes, Cancel Booking"
+      cancelLabel="Keep Reservation"
+      loading={actionLoading === `${selected?.id}-cancel`}
+    >
+      <div className="space-y-1.5 mt-1">
+        <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300">
+          Cancellation Reason (Optional)
+        </label>
+        <textarea
+          rows={2}
+          value={cancelRemarks}
+          onChange={(e) => setCancelRemarks(e.target.value)}
+          placeholder="e.g., Event cancelled by organizing department..."
+          className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-800 dark:text-white focus:outline-none focus:border-rose-500"
+        />
+      </div>
+    </ConfirmModal>
+    </>
   );
 }

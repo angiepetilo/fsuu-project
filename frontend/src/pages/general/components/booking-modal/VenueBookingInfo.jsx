@@ -1,10 +1,34 @@
 import React, { useState, useEffect } from "react";
-import { FileText, ExternalLink, Upload, CheckCircle, CheckCircle2, HardDrive, Check } from "lucide-react";
+import { FileText, ExternalLink, Upload, CheckCircle, CheckCircle2, HardDrive, Check, Shield } from "lucide-react";
 import { resolveStorageUrl, openFileInNewTab } from "@/lib/utils";
 import { formatDateRange, formatTime12 } from "@/lib/dateUtils";
 import api from "@/lib/axios";
 import notify from "@/lib/notify";
 import { formatPhilippineNumber } from "@/lib/phoneValidation";
+import { usePermissions } from "@/hooks/usePermissions";
+import SuperAdminVenueOverrideModal from "./SuperAdminVenueOverrideModal";
+
+export const extractEquipmentNeededRemarks = (booking) => {
+  if (!booking) return "";
+  if (booking.equipment_needed_remarks && typeof booking.equipment_needed_remarks === "string") {
+    return booking.equipment_needed_remarks.trim();
+  }
+  if (booking.equipment_remarks && typeof booking.equipment_remarks === "string") {
+    return booking.equipment_remarks.trim();
+  }
+  const notes = booking.equipment_notes || booking.equipment_inspection_remarks || "";
+  if (typeof notes === "string" && notes.trim()) {
+    if (/Equipment[\s_-]*Needed:\s*/i.test(notes)) {
+      const parts = notes.split(/Equipment[\s_-]*Needed:\s*/i);
+      return parts[parts.length - 1]?.trim() || "";
+    }
+    const hasCategoryQtyPattern = /\b(qty:\s*\d+|\(\d+\s*units?\))/i.test(notes);
+    if (!hasCategoryQtyPattern) {
+      return notes.trim();
+    }
+  }
+  return "";
+};
 
 export default function VenueBookingInfo({
   selected,
@@ -12,7 +36,18 @@ export default function VenueBookingInfo({
   formatDateTimeFiled,
   formatDate,
   requestedCategories = [],
+  setFullImageModal,
+  onBookingUpdated,
 }) {
+  const { isSuperAdmin } = usePermissions();
+  const [showOverrideModal, setShowOverrideModal] = useState(false);
+  const [overrideFocusField, setOverrideFocusField] = useState("venue");
+
+  const handleOpenOverride = (field = "venue") => {
+    setOverrideFocusField(field);
+    setShowOverrideModal(true);
+  };
+
   const storageKeyHardcopy = selected?.id ? `fsuu_hardcopy_${selected.id}` : null;
   const storageKeyNotes = selected?.id ? `fsuu_hardcopy_notes_${selected.id}` : null;
 
@@ -142,6 +177,23 @@ export default function VenueBookingInfo({
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
       {/* Left Column (7/12): Core Request Details */}
       <div className="lg:col-span-7 bg-white dark:bg-slate-900/80 p-4 rounded-2xl border border-slate-200 dark:border-blue-900/50 space-y-2 text-xs">
+        {isSuperAdmin && (
+          <div className="flex items-center justify-between pb-1.5 border-b border-slate-100 dark:border-slate-800/80">
+            <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              Reservation Details
+            </span>
+            <button
+              type="button"
+              onClick={() => handleOpenOverride("venue")}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/60 border border-amber-300 dark:border-amber-700/80 text-[10.5px] font-extrabold transition-all cursor-pointer shadow-2xs"
+              title="Super Admin Override: Reassign Venue, Date & Time"
+            >
+              <Shield size={12} className="text-amber-600 dark:text-amber-400" />
+              <span>Override Venue / Schedule</span>
+            </button>
+          </div>
+        )}
+
         <div className="flex justify-between items-baseline py-1 border-b border-slate-100 dark:border-slate-800/80">
           <span className="text-slate-500 dark:text-slate-400">Applicant Name :</span>
           <span className="font-bold text-slate-900 dark:text-white">{filerFullName}</span>
@@ -181,29 +233,73 @@ export default function VenueBookingInfo({
 
         <div className="flex justify-between items-baseline py-1 border-b border-slate-100 dark:border-slate-800/80">
           <span className="text-slate-500 dark:text-slate-400">Venue Reserved :</span>
-          <span className="font-bold text-slate-900 dark:text-white font-mono">{selected.venue_name || selected.venue?.name || "AVR Hall 1"}</span>
+          <div className="flex items-center gap-1.5">
+            <span className="font-bold text-slate-900 dark:text-white font-mono">{selected.venue_name || selected.venue?.name || "AVR Hall 1"}</span>
+            {isSuperAdmin && (
+              <button
+                type="button"
+                onClick={() => handleOpenOverride("venue")}
+                className="px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-700/80 hover:bg-amber-100 dark:hover:bg-amber-900/60 transition-colors cursor-pointer shadow-2xs"
+                title="Super Admin Override: Reassign Venue"
+              >
+                Override
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="flex justify-between items-baseline py-1 border-b border-slate-100 dark:border-slate-800/80">
           <span className="text-slate-500 dark:text-slate-400">Date Range :</span>
-          <span className="font-mono text-slate-900 dark:text-white font-bold">
-            {formatDateRange(
-              selected.date_of_usage || selected.start_datetime || selected.date,
-              selected.reservation_end_date || selected.end_datetime || selected.end_date
+          <div className="flex items-center gap-1.5">
+            <span className="font-mono text-slate-900 dark:text-white font-bold">
+              {formatDateRange(
+                selected.date_of_usage || selected.start_datetime || selected.date,
+                selected.reservation_end_date || selected.end_datetime || selected.end_date
+              )}
+            </span>
+            {isSuperAdmin && (
+              <button
+                type="button"
+                onClick={() => handleOpenOverride("date")}
+                className="px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-700/80 hover:bg-amber-100 dark:hover:bg-amber-900/60 transition-colors cursor-pointer shadow-2xs"
+                title="Super Admin Override: Change Date Range"
+              >
+                Override
+              </button>
             )}
-          </span>
+          </div>
         </div>
 
         <div className="flex justify-between items-baseline py-1 border-b border-slate-100 dark:border-slate-800/80">
           <span className="text-slate-500 dark:text-slate-400">Time Range :</span>
-          <span className="font-mono text-slate-900 dark:text-white font-bold">
-            {formatRealTime(selected.time_start || selected.start_datetime)} - {formatRealTime(selected.time_end || selected.end_datetime)}
-          </span>
+          <div className="flex items-center gap-1.5">
+            <span className="font-mono text-slate-900 dark:text-white font-bold">
+              {formatRealTime(selected.time_start || selected.start_datetime)} - {formatRealTime(selected.time_end || selected.end_datetime)}
+            </span>
+            {isSuperAdmin && (
+              <button
+                type="button"
+                onClick={() => handleOpenOverride("time")}
+                className="px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-700/80 hover:bg-amber-100 dark:hover:bg-amber-900/60 transition-colors cursor-pointer shadow-2xs"
+                title="Super Admin Override: Change Time Window"
+              >
+                Override
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="flex justify-between items-baseline py-1 border-b border-slate-100 dark:border-slate-800/80">
           <span className="text-slate-500 dark:text-slate-400">Purpose :</span>
           <span className="font-mono text-slate-800 dark:text-slate-200">{selected.purpose || "Event / Meeting"}</span>
+        </div>
+
+        {/* Equipment-Needed Remarks (Optional) - Read-Only Display */}
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-baseline py-1 border-b border-slate-100 dark:border-slate-800/80 gap-1">
+          <span className="text-slate-500 dark:text-slate-400 shrink-0 font-medium">Equipment-Needed Remarks (Optional) :</span>
+          <span className="font-medium text-slate-800 dark:text-slate-200 break-words text-left sm:text-right max-w-sm">
+            {extractEquipmentNeededRemarks(selected) || "None"}
+          </span>
         </div>
 
         {/* Requested Equipment Types Badges */}
@@ -360,6 +456,17 @@ export default function VenueBookingInfo({
           )}
         </div>
       </div>
+
+      {/* Super Admin Venue & Schedule Override Modal */}
+      {isSuperAdmin && showOverrideModal && (
+        <SuperAdminVenueOverrideModal
+          isOpen={showOverrideModal}
+          onClose={() => setShowOverrideModal(false)}
+          booking={selected}
+          onBookingUpdated={onBookingUpdated}
+          initialFocusField={overrideFocusField}
+        />
+      )}
     </div>
   );
 }

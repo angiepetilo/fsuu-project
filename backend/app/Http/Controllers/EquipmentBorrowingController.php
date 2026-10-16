@@ -336,6 +336,43 @@ class EquipmentBorrowingController extends Controller
     public function inspection(\Illuminate\Http\Request $request, EquipmentBorrow $equipmentBorrowing): JsonResponse
     {
         $this->authorize('inspection', $equipmentBorrowing);
+        $user = auth()->user() ?? $request->user();
+
+        // Guard: Post-equipment inspection becomes eligible 30 minutes before scheduled return time (or when ended/overdue)
+        $endDate = $equipmentBorrowing->extend_of_date_returned 
+            ?? $equipmentBorrowing->return_due_date
+            ?? $equipmentBorrowing->expected_return_date
+            ?? $equipmentBorrowing->date_of_usage;
+        $endTime = $equipmentBorrowing->time_end;
+
+        if ($endDate && $endTime) {
+            try {
+                $cleanEndTime = $endTime;
+                if (str_contains($cleanEndTime, '–')) {
+                    $parts = explode('–', $cleanEndTime);
+                    $cleanEndTime = trim(end($parts));
+                } elseif (str_contains($cleanEndTime, ' - ')) {
+                    $parts = explode(' - ', $cleanEndTime);
+                    $cleanEndTime = trim(end($parts));
+                } elseif (str_contains(strtolower($cleanEndTime), ' to ')) {
+                    $parts = preg_split('/ to /i', $cleanEndTime);
+                    $cleanEndTime = trim(end($parts));
+                }
+
+                $endDateStr = $endDate instanceof \DateTimeInterface ? $endDate->format('Y-m-d') : substr((string)$endDate, 0, 10);
+                $endDateTime = \Carbon\Carbon::parse($endDateStr . ' ' . $cleanEndTime, config('app.timezone', 'Asia/Manila'));
+                $unlockTime = $endDateTime->copy()->subMinutes(30);
+
+                if (now(config('app.timezone', 'Asia/Manila'))->lt($unlockTime)) {
+                    $isSuper = $user && method_exists($user, 'isSuperAdmin') && $user->isSuperAdmin();
+                    if (!$isSuper && !$request->boolean('force')) {
+                        return response()->json([
+                            'message' => 'Post-equipment inspection can only be initiated 30 minutes before the scheduled return time (at ' . $unlockTime->format('g:i A') . ').'
+                        ], 422);
+                    }
+                }
+            } catch (\Throwable $t) {}
+        }
 
         if ($equipmentBorrowing->tracking_number_id) {
             \Illuminate\Support\Facades\DB::table('tracking_numbers')->where('id', $equipmentBorrowing->tracking_number_id)->update(['status' => 'inspection']);

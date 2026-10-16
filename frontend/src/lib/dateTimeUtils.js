@@ -36,11 +36,11 @@ export function isPastDateTime(dateStr, timeStr) {
 }
 
 /**
- * Calculates how many minutes overdue an active event or borrowing is.
- * Returns 0 if not overdue, if scheduled end time is in the future, or invalid.
+ * Parse scheduled end datetime from any date and time string format.
+ * Returns a valid local Date object or null if unparseable.
  */
-export function getOverdueMinutes(dateStr, timeStr) {
-  if (!dateStr || !timeStr) return 0;
+export function parseScheduledEndDateTime(dateStr, timeStr) {
+  if (!dateStr || !timeStr) return null;
   try {
     // 1. Extract clean Year, Month (1-12), Day
     let year, month, day;
@@ -60,7 +60,7 @@ export function getOverdueMinutes(dateStr, timeStr) {
           day = d.getDate();
         }
       }
-      
+
       // Fallback: extract YYYY-MM-DD
       if (!year) {
         const dateMatch = rawDateStr.match(/(\d{4})-(\d{1,2})-(\d{1,2})/);
@@ -72,7 +72,7 @@ export function getOverdueMinutes(dateStr, timeStr) {
       }
     }
 
-    if (!year || !month || !day) return 0;
+    if (!year || !month || !day) return null;
 
     // 2. Extract clean Hours & Minutes from time string
     let cleanTime = String(timeStr).trim();
@@ -114,17 +114,103 @@ export function getOverdueMinutes(dateStr, timeStr) {
 
     // 3. Construct local Date object representing the exact scheduled end time
     const endDateTime = new Date(year, month - 1, day, hours, minutes, 0, 0);
-    if (isNaN(endDateTime.getTime())) return 0;
-
-    // 4. Compare with current client time
-    const now = new Date();
-    const diffMs = now.getTime() - endDateTime.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-
-    return diffMins > 0 ? diffMins : 0;
+    return isNaN(endDateTime.getTime()) ? null : endDateTime;
   } catch (e) {
-    return 0;
+    return null;
   }
+}
+
+/**
+ * Calculates how many minutes overdue an active event or borrowing is.
+ * Returns 0 if not overdue, if scheduled end time is in the future, or invalid.
+ */
+export function getOverdueMinutes(dateStr, timeStr) {
+  const endDateTime = parseScheduledEndDateTime(dateStr, timeStr);
+  if (!endDateTime) return 0;
+  const now = new Date();
+  const diffMs = now.getTime() - endDateTime.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  return diffMins > 0 ? diffMins : 0;
+}
+
+/**
+ * Determines whether a booking or equipment borrowing is eligible for post-event inspection.
+ * Rule: Enabled starting 30 minutes before the scheduled end time (and remains enabled thereafter / overdue).
+ * Disabled if current time is more than 30 minutes before the scheduled end time.
+ *
+ * @param {string|Date} dateStr - Scheduled end date or date of usage (e.g. reservation_end_date || date_of_usage)
+ * @param {string} timeStr - Scheduled end time (e.g. time_end)
+ * @param {number} [bufferMinutes=30] - Window before end time when inspection is allowed (default: 30)
+ * @returns {{
+ *   isReady: boolean,
+ *   minutesUntilUnlock: number,
+ *   unlockTimeStr: string,
+ *   endTimeStr: string,
+ *   endDateTime: Date | null,
+ *   unlockDateTime: Date | null,
+ *   reason: string
+ * }}
+ */
+export function getInspectionEligibility(dateStr, timeStr, bufferMinutes = 30) {
+  const endDateTime = parseScheduledEndDateTime(dateStr, timeStr);
+  if (!endDateTime) {
+    return {
+      isReady: true,
+      minutesUntilUnlock: 0,
+      unlockTimeStr: "",
+      endTimeStr: "",
+      endDateTime: null,
+      unlockDateTime: null,
+      reason: "",
+    };
+  }
+
+  const unlockDateTime = new Date(endDateTime.getTime() - bufferMinutes * 60 * 1000);
+  const now = new Date();
+  const diffToUnlockMs = unlockDateTime.getTime() - now.getTime();
+  const isReady = diffToUnlockMs <= 0;
+  const minutesUntilUnlock = isReady ? 0 : Math.ceil(diffToUnlockMs / 60000);
+
+  const formatTime12h = (d) => {
+    let h = d.getHours();
+    const m = String(d.getMinutes()).padStart(2, "0");
+    const ampm = h >= 12 ? "PM" : "AM";
+    h = h % 12 || 12;
+    return `${h}:${m} ${ampm}`;
+  };
+
+  const isToday = unlockDateTime.toDateString() === now.toDateString();
+  const unlockTimeStr = isToday
+    ? formatTime12h(unlockDateTime)
+    : `${unlockDateTime.toLocaleDateString([], { month: "short", day: "numeric" })} at ${formatTime12h(unlockDateTime)}`;
+
+  const endTimeStr = isToday
+    ? formatTime12h(endDateTime)
+    : `${endDateTime.toLocaleDateString([], { month: "short", day: "numeric" })} at ${formatTime12h(endDateTime)}`;
+
+  let reason = "";
+  if (!isReady) {
+    if (minutesUntilUnlock > 60) {
+      const hrs = Math.floor(minutesUntilUnlock / 60);
+      const remMins = minutesUntilUnlock % 60;
+      const durStr = remMins > 0 ? `${hrs}h ${remMins}m` : `${hrs}h`;
+      reason = `Available in ${durStr} (at ${unlockTimeStr}, 30 mins before end time)`;
+    } else if (minutesUntilUnlock === 1) {
+      reason = `Available in 1 minute (at ${unlockTimeStr})`;
+    } else {
+      reason = `Available in ${minutesUntilUnlock} minutes (at ${unlockTimeStr})`;
+    }
+  }
+
+  return {
+    isReady,
+    minutesUntilUnlock,
+    unlockTimeStr,
+    endTimeStr,
+    endDateTime,
+    unlockDateTime,
+    reason,
+  };
 }
 
 /**

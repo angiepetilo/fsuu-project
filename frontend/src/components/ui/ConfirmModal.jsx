@@ -1,4 +1,4 @@
-import { X, AlertTriangle, LogOut, Archive, Ban, CheckCircle2, CircleCheck } from "lucide-react";
+import { X, AlertTriangle, LogOut, Archive, Ban, CheckCircle2, CircleCheck, ShieldCheck } from "lucide-react";
 
 
 const ICONS = {
@@ -10,6 +10,7 @@ const ICONS = {
   save:     { icon: CheckCircle2,  bg: "bg-blue-50 dark:bg-blue-500/15",    border: "border-blue-200 dark:border-blue-500/30",   color: "text-blue-600 dark:text-blue-400",    btn: "bg-blue-600 hover:bg-blue-700 text-white"   },
   primary:  { icon: CheckCircle2,  bg: "bg-blue-50 dark:bg-blue-500/15",    border: "border-blue-200 dark:border-blue-500/30",   color: "text-blue-600 dark:text-blue-400",    btn: "bg-blue-600 hover:bg-blue-700 text-white"   },
   warning:  { icon: AlertTriangle, bg: "bg-amber-50 dark:bg-amber-500/15",   border: "border-amber-200 dark:border-amber-500/30",  color: "text-amber-600 dark:text-amber-400",   btn: "bg-amber-600 hover:bg-amber-700 text-white" },
+  shield:   { icon: ShieldCheck,   bg: "bg-amber-50 dark:bg-amber-500/15",   border: "border-amber-200 dark:border-amber-500/30",  color: "text-amber-600 dark:text-amber-400",   btn: "bg-amber-600 hover:bg-amber-700 text-white" },
   enable:   { icon: CircleCheck,   bg: "bg-emerald-50 dark:bg-emerald-500/15", border: "border-emerald-200 dark:border-emerald-500/30", color: "text-emerald-600 dark:text-emerald-400", btn: "bg-emerald-600 hover:bg-emerald-700 text-white" },
   confirm:  { icon: CheckCircle2,  bg: "bg-emerald-50 dark:bg-emerald-500/15", border: "border-emerald-200 dark:border-emerald-500/30", color: "text-emerald-600 dark:text-emerald-400", btn: "bg-emerald-600 hover:bg-emerald-700 text-white" },
 };
@@ -30,6 +31,7 @@ export default function ConfirmModal({
   cancelLabel,
   cancelText,
   loading = false,
+  children,
 }) {
   if (!open) return null;
 
@@ -70,6 +72,12 @@ export default function ConfirmModal({
           {/* Message */}
           {message && (
             <p className="text-xs text-muted-foreground font-medium leading-relaxed">{message}</p>
+          )}
+
+          {children && (
+            <div className="mt-3.5 text-left">
+              {children}
+            </div>
           )}
         </div>
 

@@ -11,34 +11,34 @@ import { ThemeProvider, useTheme } from "@/context/ThemeContext";
 import LandingPage from "./pages/public/LandingPage/LandingPage";
 
 // All other pages are lazy-loaded — only parsed when the user navigates to them
-const TrackBooking       = lazy(() => import("./pages/public/TrackBooking"));
-const VenueBooking       = lazy(() => import("./pages/public/VenueBooking/VenueBooking"));
+const TrackBooking = lazy(() => import("./pages/public/TrackBooking"));
+const VenueBooking = lazy(() => import("./pages/public/VenueBooking/VenueBooking"));
 const EquipmentBorrowing = lazy(() => import("./pages/public/EquipmentBorrowing/EquipmentBorrowing"));
 
 // Auth pages
-const StaffLogin         = lazy(() => import("./pages/auth/StaffLogin"));
-const GoogleCallback     = lazy(() => import("./pages/auth/GoogleCallback"));
-const AccountActivation  = lazy(() => import("./pages/auth/AccountActivation"));
-const ForgotPassword     = lazy(() => import("./pages/auth/ForgotPassword"));
+const StaffLogin = lazy(() => import("./pages/auth/StaffLogin"));
+const GoogleCallback = lazy(() => import("./pages/auth/GoogleCallback"));
+const AccountActivation = lazy(() => import("./pages/auth/AccountActivation"));
+const ForgotPassword = lazy(() => import("./pages/auth/ForgotPassword"));
 
 // Super Admin pages
-const SysadLayout        = lazy(() => import("./pages/superadmin/SysadLayout"));
-const SysadSettings      = lazy(() => import("./pages/superadmin/SysadSettings"));
+const SysadLayout = lazy(() => import("./pages/superadmin/SysadLayout"));
+const SysadSettings = lazy(() => import("./pages/superadmin/SysadSettings"));
 
 // General Operations (Staff & Student Assistants) pages
-const GeneralLayout      = lazy(() => import("./pages/general/GeneralLayout"));
-const Dashboard          = lazy(() => import("./pages/general/Dashboard"));
-const VenueBookings      = lazy(() => import("./pages/general/VenueBookings"));
+const GeneralLayout = lazy(() => import("./pages/general/GeneralLayout"));
+const Dashboard = lazy(() => import("./pages/general/Dashboard"));
+const VenueBookings = lazy(() => import("./pages/general/VenueBookings"));
 const EquipmentBorrowings = lazy(() => import("./pages/general/EquipmentBorrowings"));
-const ManageEquipments   = lazy(() => import("./pages/general/ManageEquipments"));
-const ManageVenues       = lazy(() => import("./pages/general/ManageVenues"));
-const Reports            = lazy(() => import("./pages/general/Reports"));
-const HistoryLog         = lazy(() => import("./pages/general/HistoryLog"));
-const Settings           = lazy(() => import("./pages/general/Settings"));
-const PortalInterface    = lazy(() => import("./pages/general/PortalInterface"));
-const TodayReservations  = lazy(() => import("./pages/general/operations/TodayReservations"));
-const EquipmentRelease   = lazy(() => import("./pages/general/operations/EquipmentRelease"));
-const EquipmentReturn    = lazy(() => import("./pages/general/operations/EquipmentReturn"));
+const ManageEquipments = lazy(() => import("./pages/general/ManageEquipments"));
+const ManageVenues = lazy(() => import("./pages/general/ManageVenues"));
+const Reports = lazy(() => import("./pages/general/Reports"));
+const HistoryLog = lazy(() => import("./pages/general/HistoryLog"));
+const Settings = lazy(() => import("./pages/general/Settings"));
+const PortalInterface = lazy(() => import("./pages/general/PortalInterface"));
+const TodayReservations = lazy(() => import("./pages/general/operations/TodayReservations"));
+const EquipmentRelease = lazy(() => import("./pages/general/operations/EquipmentRelease"));
+const EquipmentReturn = lazy(() => import("./pages/general/operations/EquipmentReturn"));
 
 import { Toaster } from "@/components/ui/sonner";
 
@@ -106,16 +106,16 @@ function AppContent() {
     }
   };
 
-  const isAuthPage     = location.pathname.startsWith("/login") || location.pathname.startsWith("/auth") || location.pathname.startsWith("/activate") || location.pathname.startsWith("/forgot-password") || location.pathname.startsWith("/reset-password");
-  const isGeneralPage  = location.pathname.startsWith("/general") || location.pathname.startsWith("/admin");
-  const isSysadPage    = location.pathname.startsWith("/sysad");
+  const isAuthPage = location.pathname.startsWith("/login") || location.pathname.startsWith("/auth") || location.pathname.startsWith("/activate") || location.pathname.startsWith("/forgot-password") || location.pathname.startsWith("/reset-password");
+  const isGeneralPage = location.pathname.startsWith("/general") || location.pathname.startsWith("/admin");
+  const isSysadPage = location.pathname.startsWith("/sysad");
   const hideHeaderFooter = isAuthPage || isGeneralPage || isSysadPage;
 
   const [publicSettings, setPublicSettings] = useState(() => {
     try {
       const saved = localStorage.getItem("fsuu_system_settings");
       if (saved) return JSON.parse(saved);
-    } catch {}
+    } catch { }
     return {
       system_name: "FSUU Facilities & Equipment Booking System",
       organization_name: "Father Saturnino Urios University",
@@ -148,7 +148,7 @@ function AppContent() {
           try {
             const saved = localStorage.getItem("fsuu_system_settings");
             if (saved) setPublicSettings(JSON.parse(saved));
-          } catch {}
+          } catch { }
         });
     };
 
@@ -163,7 +163,7 @@ function AppContent() {
         if (saved) {
           setPublicSettings(JSON.parse(saved));
         }
-      } catch {}
+      } catch { }
     };
 
     window.addEventListener("fsuu_system_settings_updated", handleSettingsUpdated);
@@ -234,21 +234,19 @@ function AppContent() {
                 <div className="flex items-center p-1 bg-muted border border-border rounded-lg w-full sm:w-auto justify-center">
                   <Link
                     to="/interface/venue"
-                    className={`flex-1 sm:flex-none text-center px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all ${
-                      location.pathname === "/interface/venue"
-                        ? "bg-primary text-primary-foreground shadow-xs"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
+                    className={`flex-1 sm:flex-none text-center px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all ${location.pathname === "/interface/venue"
+                      ? "bg-primary text-primary-foreground shadow-xs"
+                      : "text-muted-foreground hover:text-foreground"
+                      }`}
                   >
                     Book Venue
                   </Link>
                   <Link
                     to="/interface/equipment"
-                    className={`flex-1 sm:flex-none text-center px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all ${
-                      location.pathname === "/interface/equipment"
-                        ? "bg-primary text-primary-foreground shadow-xs"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
+                    className={`flex-1 sm:flex-none text-center px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all ${location.pathname === "/interface/equipment"
+                      ? "bg-primary text-primary-foreground shadow-xs"
+                      : "text-muted-foreground hover:text-foreground"
+                      }`}
                   >
                     Borrow Equipment
                   </Link>
@@ -297,11 +295,11 @@ function AppContent() {
         <Suspense fallback={<PageLoader />}>
           <Routes>
             {/* Public */}
-            <Route path="/"                     element={<LandingPage />} />
-            <Route path="/track"                element={<TrackBooking />} />
-            <Route path="/track-booking"        element={<TrackBooking />} />
-            <Route path="/book-venue"           element={<VenueBooking />} />
-            <Route path="/borrow-equipment"     element={<EquipmentBorrowing />} />
+            <Route path="/" element={<LandingPage />} />
+            <Route path="/track" element={<TrackBooking />} />
+            <Route path="/track-booking" element={<TrackBooking />} />
+            <Route path="/book-venue" element={<VenueBooking />} />
+            <Route path="/borrow-equipment" element={<EquipmentBorrowing />} />
 
             {/* Interface (Strictly Protected: Unauthenticated users CANNOT locate or access) */}
             <Route path="/interface" element={
@@ -321,11 +319,11 @@ function AppContent() {
             } />
 
             {/* Auth */}
-            <Route path="/login"                 element={<StaffLogin />} />
-            <Route path="/forgot-password"       element={<ForgotPassword />} />
-            <Route path="/reset-password"        element={<ForgotPassword />} />
-            <Route path="/auth/google/callback"  element={<GoogleCallback />} />
-            <Route path="/activate/:token"       element={<AccountActivation />} />
+            <Route path="/login" element={<StaffLogin />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ForgotPassword />} />
+            <Route path="/auth/google/callback" element={<GoogleCallback />} />
+            <Route path="/activate/:token" element={<AccountActivation />} />
 
             {/* SysAd Portal — dedicated route for Super Administrator */}
             <Route path="/sysad" element={
@@ -333,19 +331,19 @@ function AppContent() {
                 <SysadLayout />
               </ProtectedInterfaceRoute>
             }>
-              <Route index              element={<Navigate to="/sysad/dashboard" replace />} />
-              <Route path="dashboard"           element={<Dashboard />} />
-              <Route path="venue-bookings"      element={<VenueBookings />} />
+              <Route index element={<Navigate to="/sysad/dashboard" replace />} />
+              <Route path="dashboard" element={<Dashboard />} />
+              <Route path="venue-bookings" element={<VenueBookings />} />
               <Route path="equipment-borrowing" element={<EquipmentBorrowings />} />
               <Route path="equipment-borrowings" element={<EquipmentBorrowings />} />
-              <Route path="manage-equipments"   element={<ManageEquipments />} />
-              <Route path="manage-venues"       element={<ManageVenues />} />
-              <Route path="reports"             element={<Reports />} />
-              <Route path="history-log"         element={<HistoryLog />} />
-              <Route path="today-reservations"  element={<TodayReservations />} />
-              <Route path="equipment-release"   element={<EquipmentRelease />} />
-              <Route path="equipment-return"    element={<EquipmentReturn />} />
-              <Route path="settings"            element={<SysadSettings />} />
+              <Route path="manage-equipments" element={<ManageEquipments />} />
+              <Route path="manage-venues" element={<ManageVenues />} />
+              <Route path="reports" element={<Reports />} />
+              <Route path="history-log" element={<HistoryLog />} />
+              <Route path="today-reservations" element={<TodayReservations />} />
+              <Route path="equipment-release" element={<EquipmentRelease />} />
+              <Route path="equipment-return" element={<EquipmentReturn />} />
+              <Route path="settings" element={<SysadSettings />} />
             </Route>
 
             {/* General Operations (Staff & Student Assistants) */}
@@ -354,19 +352,19 @@ function AppContent() {
                 <GeneralLayout />
               </ProtectedInterfaceRoute>
             }>
-              <Route index                      element={<Navigate to="/general/dashboard" replace />} />
-              <Route path="dashboard"           element={<Dashboard />} />
-              <Route path="today-reservations"  element={<TodayReservations />} />
-              <Route path="equipment-release"   element={<EquipmentRelease />} />
-              <Route path="equipment-return"    element={<EquipmentReturn />} />
-              <Route path="venue-bookings"      element={<VenueBookings />} />
+              <Route index element={<Navigate to="/general/dashboard" replace />} />
+              <Route path="dashboard" element={<Dashboard />} />
+              <Route path="today-reservations" element={<TodayReservations />} />
+              <Route path="equipment-release" element={<EquipmentRelease />} />
+              <Route path="equipment-return" element={<EquipmentReturn />} />
+              <Route path="venue-bookings" element={<VenueBookings />} />
               <Route path="equipment-borrowing" element={<EquipmentBorrowings />} />
               <Route path="equipment-borrowings" element={<EquipmentBorrowings />} />
-              <Route path="manage-equipments"   element={<ManageEquipments />} />
-              <Route path="manage-venues"       element={<ManageVenues />} />
-              <Route path="reports"             element={<Reports />} />
-              <Route path="history-log"         element={<HistoryLog />} />
-              <Route path="settings"            element={<Settings />} />
+              <Route path="manage-equipments" element={<ManageEquipments />} />
+              <Route path="manage-venues" element={<ManageVenues />} />
+              <Route path="reports" element={<Reports />} />
+              <Route path="history-log" element={<HistoryLog />} />
+              <Route path="settings" element={<Settings />} />
             </Route>
 
             {/* /admin compatibility aliases redirecting to /general */}
@@ -375,16 +373,16 @@ function AppContent() {
                 <GeneralLayout />
               </ProtectedInterfaceRoute>
             }>
-              <Route index                      element={<Navigate to="/general/dashboard" replace />} />
-              <Route path="dashboard"           element={<Navigate to="/general/dashboard" replace />} />
-              <Route path="venue-bookings"      element={<Navigate to="/general/venue-bookings" replace />} />
+              <Route index element={<Navigate to="/general/dashboard" replace />} />
+              <Route path="dashboard" element={<Navigate to="/general/dashboard" replace />} />
+              <Route path="venue-bookings" element={<Navigate to="/general/venue-bookings" replace />} />
               <Route path="equipment-borrowing" element={<Navigate to="/general/equipment-borrowing" replace />} />
               <Route path="equipment-borrowings" element={<Navigate to="/general/equipment-borrowing" replace />} />
-              <Route path="manage-equipments"   element={<Navigate to="/general/manage-equipments" replace />} />
-              <Route path="manage-venues"       element={<Navigate to="/general/manage-venues" replace />} />
-              <Route path="reports"             element={<Navigate to="/general/reports" replace />} />
-              <Route path="history-log"         element={<Navigate to="/general/history-log" replace />} />
-              <Route path="settings"            element={<Navigate to="/general/settings" replace />} />
+              <Route path="manage-equipments" element={<Navigate to="/general/manage-equipments" replace />} />
+              <Route path="manage-venues" element={<Navigate to="/general/manage-venues" replace />} />
+              <Route path="reports" element={<Navigate to="/general/reports" replace />} />
+              <Route path="history-log" element={<Navigate to="/general/history-log" replace />} />
+              <Route path="settings" element={<Navigate to="/general/settings" replace />} />
             </Route>
 
             {/* Fallback */}
@@ -410,7 +408,7 @@ function AppContent() {
               {(publicSettings.facebook_url || "https://www.facebook.com/fsuubutuan") && (
                 <div className="flex items-center gap-1.5">
                   <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="#1877F2">
-                    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
                   </svg>
                   <a
                     href={publicSettings.facebook_url || "https://www.facebook.com/fsuubutuan"}
@@ -427,8 +425,8 @@ function AppContent() {
               {publicSettings.contact_email && (
                 <div className="flex items-center gap-1.5">
                   <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 48 48">
-                    <rect x="2" y="8" width="44" height="32" rx="4" fill="#EA4335"/>
-                    <path d="M2 12l22 14 22-14" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round"/>
+                    <rect x="2" y="8" width="44" height="32" rx="4" fill="#EA4335" />
+                    <path d="M2 12l22 14 22-14" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" />
                   </svg>
                   <a href={`mailto:${publicSettings.contact_email}`} className="hover:text-primary transition-colors text-xs">
                     {publicSettings.contact_email}
@@ -439,8 +437,8 @@ function AppContent() {
               {publicSettings.contact_phone && (
                 <div className="flex items-center gap-1.5">
                   <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 48 48">
-                    <circle cx="24" cy="24" r="22" fill="#25D366"/>
-                    <path d="M33.4 28.9c-.4-.2-2.4-1.2-2.8-1.3-.4-.2-.6-.2-.9.2-.2.4-.9 1.3-1.1 1.5-.2.2-.4.3-.8.1s-1.6-.6-3-1.9c-1.1-1-1.9-2.2-2.1-2.6-.2-.4 0-.6.2-.8l.6-.7c.2-.2.2-.4.4-.6.1-.2 0-.5 0-.7-.1-.2-.9-2.2-1.2-3-.3-.8-.7-.6-.9-.7H20c-.3 0-.7.1-1 .5-.4.4-1.4 1.3-1.4 3.2s1.4 3.7 1.6 4c.2.2 2.8 4.3 6.8 6 .9.4 1.7.6 2.2.8.9.3 1.8.2 2.4.1.7-.1 2.2-.9 2.5-1.8.3-.9.3-1.6.2-1.8-.1-.2-.3-.3-.7-.5z" fill="#fff"/>
+                    <circle cx="24" cy="24" r="22" fill="#25D366" />
+                    <path d="M33.4 28.9c-.4-.2-2.4-1.2-2.8-1.3-.4-.2-.6-.2-.9.2-.2.4-.9 1.3-1.1 1.5-.2.2-.4.3-.8.1s-1.6-.6-3-1.9c-1.1-1-1.9-2.2-2.1-2.6-.2-.4 0-.6.2-.8l.6-.7c.2-.2.2-.4.4-.6.1-.2 0-.5 0-.7-.1-.2-.9-2.2-1.2-3-.3-.8-.7-.6-.9-.7H20c-.3 0-.7.1-1 .5-.4.4-1.4 1.3-1.4 3.2s1.4 3.7 1.6 4c.2.2 2.8 4.3 6.8 6 .9.4 1.7.6 2.2.8.9.3 1.8.2 2.4.1.7-.1 2.2-.9 2.5-1.8.3-.9.3-1.6.2-1.8-.1-.2-.3-.3-.7-.5z" fill="#fff" />
                   </svg>
                   <a href={`tel:${publicSettings.contact_phone}`} className="hover:text-primary transition-colors text-xs">
                     {publicSettings.contact_phone}

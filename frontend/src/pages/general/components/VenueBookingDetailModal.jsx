@@ -1483,6 +1483,7 @@ export default function VenueBookingDetailModal({
                 formatDate={formatDate}
                 requestedCategories={requestedCategories}
                 setFullImageModal={setFullImageModal}
+                onBookingUpdated={setSelected}
               />
               <div className={`p-4 rounded-xl border flex items-start gap-3.5 ${
                 currentStatus.includes("reject")
@@ -1549,6 +1550,7 @@ export default function VenueBookingDetailModal({
                 formatDate={formatDate}
                 requestedCategories={requestedCategories}
                 setFullImageModal={setFullImageModal}
+                onBookingUpdated={setSelected}
               />
 
               {/* Vacant Venue Referral Option */}
@@ -1678,6 +1680,7 @@ export default function VenueBookingDetailModal({
                 formatDate={formatDate}
                 requestedCategories={requestedCategories}
                 setFullImageModal={setFullImageModal}
+                onBookingUpdated={setSelected}
               />
               <div className="w-full">
                 <VenueEquipmentChecklist
@@ -1716,6 +1719,7 @@ export default function VenueBookingDetailModal({
                 formatDate={formatDate}
                 requestedCategories={requestedCategories}
                 setFullImageModal={setFullImageModal}
+                onBookingUpdated={setSelected}
               />
 
               <div className="p-6 bg-white border border-slate-200/90 rounded-2xl text-center space-y-3 flex flex-col items-center justify-center min-h-[160px] shadow-xs">
@@ -1740,6 +1744,7 @@ export default function VenueBookingDetailModal({
                 formatDate={formatDate}
                 requestedCategories={requestedCategories}
                 setFullImageModal={setFullImageModal}
+                onBookingUpdated={setSelected}
               />
 
               {/* Single Inspection Row: Left = Equipment Return Inspection | Right = Venue Facility Post Inspection */}
@@ -2185,6 +2190,7 @@ export default function VenueBookingDetailModal({
           canApprove={canApprove}
           canReject={canReject}
           isStudentAssistant={isStudentAssistant}
+          isSuperAdmin={isSuperAdmin}
           showIncompleteForm={showIncompleteForm}
           setShowIncompleteForm={setShowIncompleteForm}
           isPostInspectionSaved={isPostInspectionSaved}

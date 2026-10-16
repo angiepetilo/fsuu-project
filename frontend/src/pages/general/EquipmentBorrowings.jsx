@@ -268,6 +268,9 @@ export default function EquipmentBorrowings() {
       } else if (type === "reject") {
         notify.error("Borrow Request Rejected", `Borrowing request (${refCode}) rejected and transferred to History Log.`);
         setSelectedId(null);
+      } else if (type === "cancel") {
+        notify.warning("Borrow Request Cancelled", `Borrowing request (${refCode}) cancelled and transferred to History Log.`);
+        setSelectedId(null);
       } else if (type === "approve") {
         notify.success("Borrow Request Approved", `Borrowing request (${refCode}) has been approved.`);
       } else if (type === "ongoing") {

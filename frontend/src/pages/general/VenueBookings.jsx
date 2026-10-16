@@ -282,6 +282,10 @@ export default function VenueBookings() {
         notify.error("Reservation Rejected", `Venue booking (${refCode}) rejected and transferred to History Log.`);
         setSelectedId(null);
         setShowRejectForm(false);
+      } else if (action === "cancel") {
+        notify.warning("Reservation Cancelled", `Venue booking (${refCode}) cancelled and transferred to History Log.`);
+        setSelectedId(null);
+        setShowRejectForm(false);
       } else if (action === "mark-incomplete") {
         notify.warning("Marked Incomplete", `Venue booking (${refCode}) marked incomplete. Alert email sent with 24-48h deadline.`);
       } else if (action === "approve") {

@@ -895,9 +895,11 @@ class VenueBookingService
         $this->assertCancelAllowed($booking, $actor);
 
         return DB::transaction(function () use ($booking, $actor, $remarks) {
-            if (\Illuminate\Support\Facades\Schema::hasColumn('venue_bookings', 'status')) {
-                $booking->forceFill(['status' => 'cancelled'])->save();
+            $fillData = ['status' => 'cancelled'];
+            if (\Illuminate\Support\Facades\Schema::hasColumn('venue_bookings', 'rejection_reason')) {
+                $fillData['rejection_reason'] = $remarks;
             }
+            $booking->forceFill($fillData)->save();
 
             DB::table('tracking_numbers')
                 ->where('id', $booking->tracking_number_id)
@@ -907,22 +909,41 @@ class VenueBookingService
                 })
                 ->update(['status' => 'cancelled']);
 
-            Approval::forceCreate([
-                'reference_type' => 'avr_venue_booking',
-                'reference_id' => $booking->id,
-                'action' => 'cancelled',
-                'remarks' => $remarks,
-                'approved_by' => $actor->id,
-            ]);
+            // Release assigned equipment units back to available
+            $assigned = $booking->assigned_units ?? [];
+            if (is_string($assigned)) {
+                try { $assigned = json_decode($assigned, true); } catch (\Throwable $t) { $assigned = []; }
+            }
+            if (is_array($assigned) && !empty($assigned) && \Illuminate\Support\Facades\Schema::hasTable('equipment_units')) {
+                $unitCodes = array_values(array_filter($assigned));
+                \App\Models\EquipmentUnit::whereIn('barcode', $unitCodes)
+                    ->whereIn('status', ['reserved', 'released'])
+                    ->update(['status' => 'available']);
+            }
+
+            if (\Illuminate\Support\Facades\Schema::hasTable('approvals')) {
+                Approval::forceCreate([
+                    'reference_type' => 'avr_venue_booking',
+                    'reference_id' => $booking->id,
+                    'action' => 'cancelled',
+                    'remarks' => $remarks,
+                    'approved_by' => $actor->id,
+                ]);
+            }
 
             $this->auditLog->log($actor, 'booking_cancelled', 'avr_venue_booking', $booking->id);
+
+            $channel = $booking->contact_preference ?: 'email';
+            $recipient = ($channel === 'sms' && ($booking->contact_number ?: $booking->requestor_contact_number))
+                ? ($booking->contact_number ?: $booking->requestor_contact_number)
+                : ($booking->email_address ?: $booking->requestor_email ?: 'requestor@fsuu.edu.ph');
 
             $this->notification->log(
                 'avr_venue_booking',
                 $booking->id,
                 'booking_cancelled',
-                $booking->contact_preference,
-                $booking->contact_preference === 'email' ? $booking->requestor_email : $booking->requestor_contact_number
+                $channel,
+                $recipient
             );
 
             // Send status update email asynchronously
@@ -1291,16 +1312,18 @@ class VenueBookingService
     {
         return DB::transaction(function () use ($booking, $actor, $data) {
             $updateData = array_filter([
-                'filer_name'      => $data['filer_name'] ?? $data['requestor_name'] ?? null,
-                'email_address'   => $data['email_address'] ?? $data['requestor_email'] ?? null,
-                'contact_number'  => $data['contact_number'] ?? $data['requestor_contact_number'] ?? null,
-                'program_office'  => $data['program_office'] ?? $data['requestor_program_office'] ?? null,
-                'purpose'         => $data['purpose'] ?? null,
-                'no_of_person'    => $data['no_of_person'] ?? $data['number_of_persons'] ?? null,
-                'date_of_usage'   => isset($data['date_of_usage']) ? date('Y-m-d', strtotime($data['date_of_usage'])) : null,
-                'time_start'      => isset($data['time_start']) ? date('H:i:s', strtotime($data['time_start'])) : null,
-                'time_end'        => isset($data['time_end']) ? date('H:i:s', strtotime($data['time_end'])) : null,
-                'equipment_notes' => $data['equipment_notes'] ?? null,
+                'venue_id'             => isset($data['venue_id']) ? (int)$data['venue_id'] : null,
+                'filer_name'           => $data['filer_name'] ?? $data['requestor_name'] ?? null,
+                'email_address'        => $data['email_address'] ?? $data['requestor_email'] ?? null,
+                'contact_number'       => $data['contact_number'] ?? $data['requestor_contact_number'] ?? null,
+                'program_office'       => $data['program_office'] ?? $data['requestor_program_office'] ?? null,
+                'purpose'              => $data['purpose'] ?? null,
+                'no_of_person'         => $data['no_of_person'] ?? $data['number_of_persons'] ?? null,
+                'date_of_usage'        => isset($data['date_of_usage']) ? date('Y-m-d', strtotime($data['date_of_usage'])) : null,
+                'reservation_end_date' => isset($data['reservation_end_date']) ? date('Y-m-d', strtotime($data['reservation_end_date'])) : null,
+                'time_start'           => isset($data['time_start']) ? date('H:i:s', strtotime($data['time_start'])) : null,
+                'time_end'             => isset($data['time_end']) ? date('H:i:s', strtotime($data['time_end'])) : null,
+                'equipment_notes'      => $data['equipment_notes'] ?? null,
             ], fn($v) => !is_null($v));
 
             if (isset($data['start_datetime'])) {
@@ -1309,6 +1332,15 @@ class VenueBookingService
             }
             if (isset($data['end_datetime'])) {
                 $updateData['time_end'] = date('H:i:s', strtotime($data['end_datetime']));
+                if (!isset($updateData['reservation_end_date'])) {
+                    $updateData['reservation_end_date'] = date('Y-m-d', strtotime($data['end_datetime']));
+                }
+            }
+
+            if (isset($updateData['date_of_usage']) && !isset($updateData['reservation_end_date'])) {
+                if (empty($booking->reservation_end_date) || $booking->reservation_end_date === $booking->date_of_usage) {
+                    $updateData['reservation_end_date'] = $updateData['date_of_usage'];
+                }
             }
 
             $booking->update($updateData);
@@ -1326,18 +1358,19 @@ class VenueBookingService
 
             $this->auditLog->log($actor, 'booking_override', 'avr_venue_booking', $booking->id);
 
-            return $booking->fresh(['venue', 'trackingNumber', 'documents']);
+            $fresh = $booking->fresh(['venue', 'trackingNumber', 'documents', 'venueBookingEquipment.equipmentType']);
+            if ($fresh && $fresh->venue) {
+                $fresh->venue_name = $fresh->venue->name;
+            }
+            return $fresh;
         });
     }
 
     private function assertCancelAllowed(VenueBooking $booking, User $actor): void
     {
-        $isWithinFinalWindow = now()->diffInHours($booking->start_datetime, false) < 24;
-
-        if ($isWithinFinalWindow && $actor->isStaff()) {
-            throw new BookingActionNotAllowedException(
-                'Staff can no longer cancel this booking within 24 hours of the event. Only Head or Admin can proceed.'
-            );
+        $status = strtolower($booking->status ?? '');
+        if (in_array($status, ['completed', 'done', 'returned', 'damaged', 'lost'])) {
+            throw new BookingActionNotAllowedException('Completed or historical bookings cannot be cancelled.');
         }
     }
 }

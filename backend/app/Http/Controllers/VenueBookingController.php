@@ -257,6 +257,42 @@ class VenueBookingController extends Controller
     {
         $this->authorize('postInspection', $avrVenueBooking);
         $user = auth()->user() ?? $request->user();
+
+        // Guard: Post-event inspection becomes eligible 30 minutes before scheduled end time (or when ended/overdue)
+        $endDate = $avrVenueBooking->reservation_end_date 
+            ?? $avrVenueBooking->extend_reservation_end_date 
+            ?? $avrVenueBooking->date_of_usage;
+        $endTime = $avrVenueBooking->time_end;
+
+        if ($endDate && $endTime) {
+            try {
+                $cleanEndTime = $endTime;
+                if (str_contains($cleanEndTime, '–')) {
+                    $parts = explode('–', $cleanEndTime);
+                    $cleanEndTime = trim(end($parts));
+                } elseif (str_contains($cleanEndTime, ' - ')) {
+                    $parts = explode(' - ', $cleanEndTime);
+                    $cleanEndTime = trim(end($parts));
+                } elseif (str_contains(strtolower($cleanEndTime), ' to ')) {
+                    $parts = preg_split('/ to /i', $cleanEndTime);
+                    $cleanEndTime = trim(end($parts));
+                }
+
+                $endDateStr = $endDate instanceof \DateTimeInterface ? $endDate->format('Y-m-d') : substr((string)$endDate, 0, 10);
+                $endDateTime = \Carbon\Carbon::parse($endDateStr . ' ' . $cleanEndTime, config('app.timezone', 'Asia/Manila'));
+                $unlockTime = $endDateTime->copy()->subMinutes(30);
+
+                if (now(config('app.timezone', 'Asia/Manila'))->lt($unlockTime)) {
+                    $isSuper = $user && method_exists($user, 'isSuperAdmin') && $user->isSuperAdmin();
+                    if (!$isSuper && !$request->boolean('force')) {
+                        return response()->json([
+                            'message' => 'Post-event inspection can only be initiated 30 minutes before the scheduled end time (at ' . $unlockTime->format('g:i A') . ').'
+                        ], 422);
+                    }
+                }
+            } catch (\Throwable $t) {}
+        }
+
         $booking = $this->service->postInspection($avrVenueBooking, $user);
         return response()->json($booking);
     }
@@ -556,6 +592,17 @@ class VenueBookingController extends Controller
 
         try {
             $ref = $avrVenueBooking->trackingNumber?->reference_code ?? "VB-{$avrVenueBooking->id}";
+            $changes = [];
+            if ($request->has('venue_id')) $changes[] = "venue_id: " . $request->input('venue_id');
+            if ($request->has('date_of_usage')) $changes[] = "date: " . $request->input('date_of_usage');
+            if ($request->has('reservation_end_date')) $changes[] = "end_date: " . $request->input('reservation_end_date');
+            if ($request->has('time_start') || $request->has('time_end')) $changes[] = "time: " . $request->input('time_start') . " - " . $request->input('time_end');
+            if ($request->has('status')) $changes[] = "status: " . $request->input('status');
+
+            $desc = !empty($changes)
+                ? "Venue booking {$ref} overridden (" . implode(', ', $changes) . ") by " . (auth()->user()?->name ?? 'Admin')
+                : "Venue booking {$ref} status overridden to '" . $request->input('status') . "' by " . (auth()->user()?->name ?? 'Admin');
+
             AuditLog::create([
                 'user_id'        => auth()->id(),
                 'action'         => 'VENUE_BOOKING_OVERRIDE',
@@ -564,8 +611,10 @@ class VenueBookingController extends Controller
                 'metadata'       => [
                     'reference_code' => $ref,
                     'filer_name'     => $avrVenueBooking->filer_name,
+                    'changes'        => $changes,
+                    'remarks'        => $request->input('remarks'),
                     'new_status'     => $request->input('status'),
-                    'description'    => "Venue booking {$ref} status overridden to '" . $request->input('status') . "' by " . (auth()->user()?->name ?? 'Staff'),
+                    'description'    => $desc,
                 ],
                 'ip_address'     => request()->ip(),
                 'created_at'     => now(),

@@ -1,13 +1,13 @@
 import { useState, useEffect, useMemo } from "react";
 import {
   X, CheckCircle, CheckCircle2, Clock, Play, Check, Loader2,
-  FileText, Mail, FileCheck, BellRing, ShieldAlert
+  FileText, Mail, FileCheck, BellRing, ShieldAlert, ShieldCheck, Ban
 } from "lucide-react";
 import api from "@/lib/axios";
 import notify from "@/lib/notify";
 import { usePermissions } from "@/hooks/usePermissions";
 import { formatTime12, formatTimeRange12, formatDateTime } from "@/lib/dateUtils";
-import { getOverdueMinutes } from "@/lib/dateTimeUtils";
+import { getOverdueMinutes, getInspectionEligibility } from "@/lib/dateTimeUtils";
 import { resolveStorageUrl } from "@/lib/utils";
 import { formatPhilippineNumber } from "@/lib/phoneValidation";
 import EquipBorrowHeader from "../borrow-modal/EquipBorrowHeader";
@@ -100,12 +100,17 @@ export default function EquipmentBorrowDetailModal({
   // Post-Use Inspection Ready Trigger State
   const [isReadyForPostInspection, setIsReadyForPostInspection] = useState(false);
   const [startingInspection, setStartingInspection] = useState(false);
+  const [adminEarlyOverride, setAdminEarlyOverride] = useState(false);
+  const [currentTick, setCurrentTick] = useState(() => Date.now());
+  const [showEarlyOverrideModal, setShowEarlyOverrideModal] = useState(false);
+  const [showCancelApprovedModal, setShowCancelApprovedModal] = useState(false);
+  const [cancelRemarks, setCancelRemarks] = useState("");
 
   const handleStartInspection = async () => {
     setIsReadyForPostInspection(true);
     setStartingInspection(true);
     try {
-      await api.post(`/avr-equipment-borrowings/${selected.id}/inspection`);
+      await api.post(`/avr-equipment-borrowings/${selected.id}/inspection`, adminEarlyOverride ? { force: true } : {});
       if (selected) {
         const ut = selected.tracking_number ? { ...selected.tracking_number, status: "inspection" } : { status: "inspection" };
         setSelected({ ...selected, status: "inspection", tracking_number: ut, trackingNumber: ut });
@@ -432,6 +437,28 @@ export default function EquipmentBorrowDetailModal({
   const isInspection = currentStatus === "inspection" || currentStatus === "post-inspection";
   const isCompleted = currentStatus === "completed" || currentStatus === "done" || currentStatus === "returned" || currentStatus === "damaged" || currentStatus === "lost" || currentStatus === "late return" || currentStatus === "returned late";
   const isPostUseEligible = isOngoing || isInspection || isCompleted;
+
+  useEffect(() => {
+    if (!isOngoing) return;
+    const interval = setInterval(() => {
+      setCurrentTick(Date.now());
+    }, 10000);
+    return () => clearInterval(interval);
+  }, [isOngoing]);
+
+  const ebScheduledDate = selected?.extend_of_date_returned 
+    || selected?.return_due_date 
+    || selected?.expected_return_date 
+    || selected?.date_of_usage 
+    || selected?.start_datetime;
+  const ebScheduledTime = selected?.time_end || selected?.end_datetime || "17:00";
+
+  const inspectionEligibility = useMemo(() => {
+    if (!isOngoing) return { isReady: true, minutesUntilUnlock: 0, unlockTimeStr: "", reason: "" };
+    return getInspectionEligibility(ebScheduledDate, ebScheduledTime, 30);
+  }, [isOngoing, ebScheduledDate, ebScheduledTime, currentTick]);
+
+  const isInspectionReady = isOngoing ? (inspectionEligibility.isReady || adminEarlyOverride) : true;
 
   const hasLostUnits = Boolean(selected?.is_lost) || String(selected?.condition || '').toLowerCase() === 'lost' || String(selected?.inspection_condition || '').toLowerCase() === 'lost' || Object.values(unitReturnedConditions || {}).some(v => String(v).toLowerCase() === 'lost');
   const hasDamagedUnits = Boolean(selected?.has_damage) || String(selected?.condition || '').toLowerCase() === 'damaged' || String(selected?.inspection_condition || '').toLowerCase() === 'damaged' || Object.values(unitReturnedConditions || {}).some(v => String(v).toLowerCase() === 'damaged');
@@ -1369,15 +1396,48 @@ export default function EquipmentBorrowDetailModal({
                     Borrower is currently utilizing the released items. When returned, click below to initiate post-equipment inspection.
                   </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={handleStartInspection}
-                  disabled={startingInspection}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-xl text-xs font-extrabold flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
-                >
-                  {startingInspection ? <Loader2 size={13} className="animate-spin" /> : <ShieldAlert size={13} />}
-                  <span>Start Post-Equipment Inspection</span>
-                </button>
+
+                {!isInspectionReady && (
+                  <div
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800/70 text-amber-800 dark:text-amber-200 text-xs font-semibold shadow-2xs"
+                    title={inspectionEligibility.reason}
+                  >
+                    <Clock size={14} className="text-amber-600 dark:text-amber-400 shrink-0" />
+                    <span>Inspection opens {inspectionEligibility.unlockTimeStr ? `at ${inspectionEligibility.unlockTimeStr}` : "30 mins before return time"}</span>
+                    {inspectionEligibility.minutesUntilUnlock > 0 && (
+                      <span className="text-[11px] font-bold text-amber-600 dark:text-amber-400">
+                        ({inspectionEligibility.minutesUntilUnlock > 60
+                          ? `${Math.floor(inspectionEligibility.minutesUntilUnlock / 60)}h ${inspectionEligibility.minutesUntilUnlock % 60}m`
+                          : `${inspectionEligibility.minutesUntilUnlock}m`})
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                <div className="flex items-center gap-2">
+                  {isSuperAdmin && !inspectionEligibility.isReady && !adminEarlyOverride && (
+                    <button
+                      type="button"
+                      onClick={() => setShowEarlyOverrideModal(true)}
+                      className="px-3 py-2 bg-amber-100 hover:bg-amber-200 dark:bg-amber-900/40 dark:hover:bg-amber-900/60 text-amber-900 dark:text-amber-200 border border-amber-300 dark:border-amber-700/60 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1"
+                      title="Super Administrator Early Inspection Override"
+                    >
+                      <ShieldCheck size={13} className="text-amber-700 dark:text-amber-300" />
+                      <span>Admin Override</span>
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={handleStartInspection}
+                    disabled={!isInspectionReady || startingInspection}
+                    title={!isInspectionReady ? inspectionEligibility.reason : "Start Post-Equipment Inspection"}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl text-xs font-extrabold flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
+                  >
+                    {startingInspection ? <Loader2 size={13} className="animate-spin" /> : <ShieldAlert size={13} />}
+                    <span>Start Post-Equipment Inspection</span>
+                  </button>
+                </div>
               </div>
             </div>
           ) : null}
@@ -1427,26 +1487,73 @@ export default function EquipmentBorrowDetailModal({
               )}
             </>
           ) : (
-            <div className="flex items-center gap-2.5">
-              {isOngoing && !isInspection && !isReadyForPostInspection && !isCompleted && (
+            <div className="flex items-center gap-2.5 flex-wrap justify-end">
+              {isApproved && (
                 <button
                   type="button"
-                  onClick={handleStartInspection}
-                  disabled={startingInspection}
-                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:opacity-60 text-white rounded-xl text-xs font-extrabold flex items-center gap-1.5 shadow-xs transition-all duration-150 cursor-pointer"
+                  onClick={() => {
+                    setCancelRemarks("");
+                    setShowCancelApprovedModal(true);
+                  }}
+                  disabled={!!actionLoading}
+                  className="px-4 py-2.5 bg-rose-50 hover:bg-rose-600 text-rose-700 hover:text-white border border-rose-200 hover:border-rose-600 dark:bg-rose-950/60 dark:hover:bg-rose-600 dark:text-rose-300 dark:hover:text-white dark:border-rose-900/60 font-bold text-xs rounded-xl shadow-2xs transition-all duration-150 cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+                  title="Cancel this approved borrowing request"
                 >
-                  {startingInspection ? (
-                    <>
-                      <Loader2 size={13} className="animate-spin" />
-                      <span>Opening Inspection...</span>
-                    </>
-                  ) : (
-                    <>
-                      <ShieldAlert size={14} />
-                      <span>Post-Inspection</span>
-                    </>
-                  )}
+                  <Ban size={13} />
+                  <span>Cancel Borrowing</span>
                 </button>
+              )}
+              {isOngoing && !isInspection && !isReadyForPostInspection && !isCompleted && (
+                <>
+                  {!isInspectionReady && (
+                    <div
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800/70 text-amber-800 dark:text-amber-200 text-xs font-semibold shadow-2xs"
+                      title={inspectionEligibility.reason}
+                    >
+                      <Clock size={14} className="text-amber-600 dark:text-amber-400 shrink-0" />
+                      <span>Inspection opens {inspectionEligibility.unlockTimeStr ? `at ${inspectionEligibility.unlockTimeStr}` : "30 mins before return"}</span>
+                      {inspectionEligibility.minutesUntilUnlock > 0 && (
+                        <span className="text-[11px] font-bold text-amber-600 dark:text-amber-400">
+                          ({inspectionEligibility.minutesUntilUnlock > 60
+                            ? `${Math.floor(inspectionEligibility.minutesUntilUnlock / 60)}h ${inspectionEligibility.minutesUntilUnlock % 60}m`
+                            : `${inspectionEligibility.minutesUntilUnlock}m`})
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  {isSuperAdmin && !inspectionEligibility.isReady && !adminEarlyOverride && (
+                    <button
+                      type="button"
+                      onClick={() => setShowEarlyOverrideModal(true)}
+                      className="px-3 py-2 bg-amber-100 hover:bg-amber-200 dark:bg-amber-900/40 dark:hover:bg-amber-900/60 text-amber-900 dark:text-amber-200 border border-amber-300 dark:border-amber-700/60 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1"
+                      title="Super Administrator Early Inspection Override"
+                    >
+                      <ShieldCheck size={13} className="text-amber-700 dark:text-amber-300" />
+                      <span>Admin Override</span>
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={handleStartInspection}
+                    disabled={!isInspectionReady || startingInspection}
+                    title={!isInspectionReady ? inspectionEligibility.reason : "Start Post-Inspection"}
+                    className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl text-xs font-extrabold flex items-center gap-1.5 shadow-xs transition-all duration-150 cursor-pointer"
+                  >
+                    {startingInspection ? (
+                      <>
+                        <Loader2 size={13} className="animate-spin" />
+                        <span>Opening Inspection...</span>
+                      </>
+                    ) : (
+                      <>
+                        <ShieldAlert size={14} />
+                        <span>Post-Inspection</span>
+                      </>
+                    )}
+                  </button>
+                </>
               )}
               {(isInspection || isReadyForPostInspection) && !isCompleted && Boolean(initialPostState) && (
                 <button
@@ -1505,6 +1612,51 @@ export default function EquipmentBorrowDetailModal({
         cancelLabel="No"
         loading={actionLoading === `${selected.id}-complete` || actionLoading === "complete"}
       />
+
+      {/* Early Inspection Override Confirmation Modal */}
+      <ConfirmModal
+        open={showEarlyOverrideModal}
+        onClose={() => setShowEarlyOverrideModal(false)}
+        onConfirm={() => {
+          setAdminEarlyOverride(true);
+          setShowEarlyOverrideModal(false);
+        }}
+        variant="shield"
+        title="Early Inspection Override"
+        message="Return schedule has not yet reached the 30-minute pre-end inspection window. As Super Administrator, do you want to override and start early return inspection now?"
+        confirmLabel="Override & Proceed"
+        cancelLabel="Cancel"
+      />
+
+      {/* Cancel Approved Equipment Borrowing Confirmation Modal */}
+      <ConfirmModal
+        open={showCancelApprovedModal}
+        onClose={() => setShowCancelApprovedModal(false)}
+        onConfirm={async () => {
+          const finalRemarks = cancelRemarks.trim() || "Approved equipment borrowing cancelled by administrator";
+          setShowCancelApprovedModal(false);
+          await handleAction(selected?.id, "cancel", { remarks: finalRemarks, rejection_reason: finalRemarks });
+        }}
+        variant="danger"
+        title="Cancel Approved Equipment Borrowing"
+        message="Are you sure you want to cancel this approved equipment borrowing? The borrowing request will be cancelled, any assigned equipment units will be released back to inventory, and an update notice will be dispatched."
+        confirmLabel="Yes, Cancel Borrowing"
+        cancelLabel="Keep Borrowing"
+        loading={actionLoading === `${selected?.id}-cancel`}
+      >
+        <div className="space-y-1.5 mt-1">
+          <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300">
+            Cancellation Reason (Optional)
+          </label>
+          <textarea
+            rows={2}
+            value={cancelRemarks}
+            onChange={(e) => setCancelRemarks(e.target.value)}
+            placeholder="e.g., Borrowing cancelled by requestor or department..."
+            className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-800 dark:text-white focus:outline-none focus:border-rose-500"
+          />
+        </div>
+      </ConfirmModal>
     </div>
   );
 }
