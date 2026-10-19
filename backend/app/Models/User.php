@@ -84,19 +84,16 @@ class User extends Authenticatable
 
     public function getFullNameAttribute(): string
     {
-        if (!empty($this->attributes['name'])) {
-            return $this->attributes['name'];
-        }
         $parts = array_filter([
-            $this->first_name,
-            $this->middle_name,
-            $this->last_name,
-            $this->suffix,
+            $this->attributes['first_name'] ?? null,
+            $this->attributes['middle_name'] ?? null,
+            $this->attributes['last_name'] ?? null,
+            $this->attributes['suffix'] ?? null,
         ]);
         if (!empty($parts)) {
             return implode(' ', $parts);
         }
-        return '';
+        return $this->attributes['name'] ?? '';
     }
 
     public function getNameAttribute(): string
@@ -107,14 +104,40 @@ class User extends Authenticatable
     public function setNameAttribute($value): void
     {
         $this->attributes['name'] = $value;
-        if (!empty($value)) {
+        if (!empty($value) && empty($this->attributes['first_name']) && empty($this->attributes['last_name'])) {
             $trimmed = trim($value);
             $parts = preg_split('/\s+/', $trimmed);
-            $this->attributes['first_name'] = array_shift($parts) ?: $trimmed;
-            $this->attributes['middle_name'] = null;
-            $this->attributes['suffix'] = null;
-            $this->attributes['last_name'] = !empty($parts) ? implode(' ', $parts) : '';
+            if (count($parts) === 1) {
+                $this->attributes['first_name'] = $parts[0];
+            } elseif (count($parts) === 2) {
+                $this->attributes['first_name'] = $parts[0];
+                $this->attributes['last_name'] = $parts[1];
+            } else {
+                $this->attributes['first_name'] = array_shift($parts);
+                $this->attributes['last_name'] = array_pop($parts);
+                $this->attributes['middle_name'] = implode(' ', $parts);
+            }
         }
+    }
+
+    protected static function booted(): void
+    {
+        static::saving(function (User $user) {
+            $parts = array_filter([
+                $user->first_name,
+                $user->middle_name,
+                $user->last_name,
+                $user->suffix,
+            ]);
+            if (!empty($parts)) {
+                $user->attributes['name'] = implode(' ', $parts);
+            }
+            if (!empty($user->email_address) && empty($user->email)) {
+                $user->email = $user->email_address;
+            } elseif (!empty($user->email) && empty($user->email_address)) {
+                $user->email_address = $user->email;
+            }
+        });
     }
 
     public function role(): BelongsTo

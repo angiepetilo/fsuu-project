@@ -7,10 +7,13 @@ import {
   PackageOpen, Plus, Search, Filter, Edit3, Ban, CheckCircle2,
   AlertTriangle, Barcode, Eye, Copy, Check,
   ChevronLeft, ChevronRight, LayoutGrid, Loader2, MoreVertical,
-  CircleCheck, Layers, PackageCheck, ArrowUpDown
+  CircleCheck, Layers, PackageCheck, ArrowUpDown, Download, Upload,
+  FileSpreadsheet, ChevronDown
 } from "lucide-react";
 import EquipmentDetailModal from "./components/EquipmentDetailModal";
 import EquipmentModal, { generateSequentialBarcodes } from "./components/EquipmentModal";
+import EquipmentImportModal from "./components/EquipmentImportModal";
+import { exportEquipmentList } from "./equipmentExportHelper";
 import ActionPopover from "@/components/ui/action-popover";
 import ConfirmModal from "@/components/ui/ConfirmModal";
 import { PageLoader } from "@/components/ui/page-loader";
@@ -55,6 +58,24 @@ export default function ManageEquipments() {
   const [isEnabling, setIsEnabling] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 10;
+
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExport = async (format) => {
+    setShowExportMenu(false);
+    setIsExporting(true);
+    try {
+      await exportEquipmentList(units, format);
+      notify.success(`Exported ${units.length} equipment units as ${format.toUpperCase()}.`);
+    } catch (e) {
+      console.error(e);
+      notify.error("Failed to export equipment units.");
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   useEffect(() => {
     const handleOutsideClick = (e) => {
@@ -871,10 +892,62 @@ export default function ManageEquipments() {
   return (
     <div className="space-y-6">
       {/* Action Toolbar */}
-      <div className="flex items-center justify-end gap-3">
+      <div className="flex items-center justify-end gap-2.5">
+        {/* Export Dropdown */}
+        <div className="relative">
+          <button
+            type="button"
+            disabled={isExporting || units.length === 0}
+            onClick={() => setShowExportMenu(!showExportMenu)}
+            className="flex items-center gap-1.5 px-3.5 py-2 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold transition-all shadow-2xs cursor-pointer disabled:opacity-50"
+          >
+            {isExporting ? <Loader2 size={15} className="animate-spin text-blue-600" /> : <Download size={15} />}
+            <span>Export</span>
+            <ChevronDown size={14} className="text-slate-400" />
+          </button>
+
+          {showExportMenu && (
+            <>
+              <div
+                className="fixed inset-0 z-40"
+                onClick={() => setShowExportMenu(false)}
+              />
+              <div className="absolute right-0 mt-1.5 w-44 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xl py-1.5 z-50 animate-in fade-in zoom-in-95 duration-150">
+                <button
+                  type="button"
+                  onClick={() => handleExport("xlsx")}
+                  className="w-full text-left px-3.5 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2 cursor-pointer"
+                >
+                  <FileSpreadsheet size={15} className="text-emerald-600" />
+                  <span>Excel (.xlsx)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleExport("csv")}
+                  className="w-full text-left px-3.5 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2 cursor-pointer"
+                >
+                  <Download size={15} className="text-blue-600" />
+                  <span>CSV (.csv)</span>
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Import Button */}
+        <button
+          type="button"
+          onClick={() => setShowImportModal(true)}
+          className="flex items-center gap-1.5 px-3.5 py-2 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold transition-all shadow-2xs cursor-pointer"
+        >
+          <Upload size={15} className="text-blue-600" />
+          <span>Import</span>
+        </button>
+
+        {/* Add Equipment Button */}
         <button
           onClick={handleOpenAddModal}
-          className="flex items-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-extrabold transition-all cursor-pointer"
+          className="flex items-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-extrabold transition-all cursor-pointer shadow-xs"
         >
           <Plus size={16} />
           <span>Add Equipment</span>
@@ -1285,6 +1358,13 @@ export default function ManageEquipments() {
         confirmLabel="Enable Unit"
         cancelLabel="Cancel"
         loading={isEnabling}
+      />
+
+      {/* Equipment Batch Import Modal */}
+      <EquipmentImportModal
+        isOpen={showImportModal}
+        onClose={() => setShowImportModal(false)}
+        onSuccess={() => fetchEquipments(true)}
       />
     </div>
   );

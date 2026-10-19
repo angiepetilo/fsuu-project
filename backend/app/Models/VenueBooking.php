@@ -22,7 +22,9 @@ class VenueBooking extends Model
         'venue_id',
         'submission_channel',
         'first_name',
+        'middle_name',
         'last_name',
+        'suffix',
         'filer_name',
         'email_address',
         'department_id',
@@ -166,7 +168,12 @@ class VenueBooking extends Model
 
     public function getFilerNameAttribute(): string
     {
-        $parts = array_filter([$this->first_name, $this->last_name]);
+        $parts = array_filter([
+            $this->attributes['first_name'] ?? null,
+            $this->attributes['middle_name'] ?? null,
+            $this->attributes['last_name'] ?? null,
+            $this->attributes['suffix'] ?? null,
+        ]);
         if (!empty($parts)) {
             return implode(' ', $parts);
         }
@@ -176,11 +183,34 @@ class VenueBooking extends Model
     public function setFilerNameAttribute($value): void
     {
         $this->attributes['filer_name'] = $value;
-        if (empty($this->attributes['first_name']) && !empty($value)) {
-            $parts = explode(' ', trim($value));
-            $this->attributes['first_name'] = array_shift($parts) ?: $value;
-            $this->attributes['last_name'] = !empty($parts) ? implode(' ', $parts) : '';
+        if (!empty($value) && empty($this->attributes['first_name']) && empty($this->attributes['last_name'])) {
+            $parts = preg_split('/\s+/', trim($value));
+            if (count($parts) === 1) {
+                $this->attributes['first_name'] = $parts[0];
+            } elseif (count($parts) === 2) {
+                $this->attributes['first_name'] = $parts[0];
+                $this->attributes['last_name'] = $parts[1];
+            } else {
+                $this->attributes['first_name'] = array_shift($parts);
+                $this->attributes['last_name'] = array_pop($parts);
+                $this->attributes['middle_name'] = implode(' ', $parts);
+            }
         }
+    }
+
+    protected static function booted(): void
+    {
+        static::saving(function (VenueBooking $booking) {
+            $parts = array_filter([
+                $booking->first_name,
+                $booking->middle_name,
+                $booking->last_name,
+                $booking->suffix,
+            ]);
+            if (!empty($parts)) {
+                $booking->attributes['filer_name'] = implode(' ', $parts);
+            }
+        });
     }
 
     public function getEndorsementUrlAttribute(): ?string

@@ -1001,4 +1001,221 @@ class EquipmentUnitController extends Controller
             \Illuminate\Support\Facades\Log::warning("Failed to sync category stock for type {$typeId}: " . $th->getMessage());
         }
     }
+
+    /**
+     * Bulk import physical equipment units from Excel / CSV parsed payload.
+     */
+    public function bulkImport(Request $request): JsonResponse
+    {
+        $rawUnits = $request->input('units');
+        if (!is_array($rawUnits) || empty($rawUnits)) {
+            return response()->json([
+                'message' => 'No equipment unit data provided for import.',
+                'errors'  => ['units' => ['No records provided.']]
+            ], 422);
+        }
+
+        // Limit to reasonable batch size (e.g., 2,500)
+        if (count($rawUnits) > 2500) {
+            return response()->json([
+                'message' => 'Cannot import more than 2,500 units at a time.',
+            ], 422);
+        }
+
+        $createdUnits = [];
+        $affectedCategoryIds = [];
+        $createdCategoriesCount = 0;
+        $createdBrandsCount = 0;
+
+        // Fetch existing barcodes/serials to ensure uniqueness
+        $existingBarcodes = EquipmentUnit::whereNull('archived_at')
+            ->pluck('barcode')
+            ->map(fn($b) => strtolower(trim((string)$b)))
+            ->filter()
+            ->all();
+        $usedBarcodeSet = array_flip($existingBarcodes);
+
+        // Fetch all categories keyed by lowercase name
+        $categoriesByName = [];
+        foreach (EquipmentType::all() as $cat) {
+            $catName = strtolower(trim($cat->eq_name ?? $cat->name ?? ''));
+            if ($catName !== '') {
+                $categoriesByName[$catName] = $cat;
+            }
+        }
+
+        // Next sequence numbers per category cache
+        $catSeqNumbers = [];
+
+        DB::beginTransaction();
+        try {
+            foreach ($rawUnits as $index => $row) {
+                // 1. Resolve Category
+                $rawCategory = trim((string)($row['category'] ?? $row['equipment_type_id'] ?? $row['category_name'] ?? 'General Equipment'));
+                if ($rawCategory === '') {
+                    $rawCategory = 'General Equipment';
+                }
+
+                $lowerCat = strtolower($rawCategory);
+                if (isset($categoriesByName[$lowerCat])) {
+                    $category = $categoriesByName[$lowerCat];
+                } else {
+                    $category = EquipmentType::firstOrCreate(
+                        ['eq_name' => $rawCategory],
+                        [
+                            'brand'          => $row['brand'] ?? null,
+                            'total_quantity' => 0,
+                            'status'         => 'available',
+                            'is_public'      => true,
+                        ]
+                    );
+                    $categoriesByName[$lowerCat] = $category;
+                    $createdCategoriesCount++;
+                }
+
+                $catId = $category->id;
+                $affectedCategoryIds[$catId] = true;
+
+                // 2. Resolve Brand
+                $rawBrand = trim((string)($row['brand'] ?? ''));
+                if ($rawBrand !== '') {
+                    $existingBrand = Brand::where('equipment_type_id', $catId)
+                        ->whereRaw('LOWER(TRIM(name)) = ?', [strtolower($rawBrand)])
+                        ->first();
+                    if (!$existingBrand) {
+                        Brand::create([
+                            'name'              => $rawBrand,
+                            'equipment_type_id' => $catId,
+                            'status'            => 'active',
+                        ]);
+                        $createdBrandsCount++;
+                    }
+                }
+
+                // 3. Resolve Sequence Number
+                if (!isset($catSeqNumbers[$catId])) {
+                    $allExistingSeqs = EquipmentUnit::where('equipment_type_id', $catId)
+                        ->whereNull('archived_at')
+                        ->pluck('seq_no')
+                        ->map(function ($s) {
+                            if (preg_match('/(\d+)/', (string)$s, $m)) {
+                                return (int)$m[1];
+                            }
+                            return 0;
+                        })
+                        ->toArray();
+                    $catSeqNumbers[$catId] = !empty($allExistingSeqs) ? max($allExistingSeqs) : 0;
+                }
+
+                $explicitSeq = trim((string)($row['seq_no'] ?? ''));
+                if ($explicitSeq !== '') {
+                    $cleanSeq = str_starts_with($explicitSeq, '#') ? $explicitSeq : ('#' . $explicitSeq);
+                } else {
+                    $catSeqNumbers[$catId]++;
+                    $cleanSeq = '#' . str_pad((string)$catSeqNumbers[$catId], 3, '0', STR_PAD_LEFT);
+                }
+
+                // 4. Resolve Serial Number & Barcode
+                $rawSerial = trim((string)($row['serial_number'] ?? $row['barcode'] ?? $row['serial_no'] ?? ''));
+                if ($rawSerial !== '') {
+                    $snCandidate = $rawSerial;
+                    if (isset($usedBarcodeSet[strtolower($snCandidate)])) {
+                        $snCandidate .= '-' . strtoupper(bin2hex(random_bytes(2)));
+                    }
+                } else {
+                    $snCandidate = 'SN-' . date('Ymd') . '-' . strtoupper(bin2hex(random_bytes(2))) . '-' . str_pad((string)($index + 1), 3, '0', STR_PAD_LEFT);
+                    while (isset($usedBarcodeSet[strtolower($snCandidate)])) {
+                        $snCandidate = 'SN-' . date('Ymd') . '-' . strtoupper(bin2hex(random_bytes(3)));
+                    }
+                }
+                $usedBarcodeSet[strtolower($snCandidate)] = true;
+
+                // 5. Condition & Status
+                $rawCond = strtolower(trim((string)($row['condition'] ?? 'Good')));
+                $canonicalCondition = match($rawCond) {
+                    'damaged' => 'Damaged',
+                    'lost' => 'Lost',
+                    'under repair', 'under_repair' => 'Under Repair',
+                    'minor wear', 'worn' => 'Minor Wear',
+                    default => 'Good',
+                };
+
+                $rawStatus = strtolower(trim((string)($row['status'] ?? 'available')));
+                if (!in_array($rawStatus, ['available', 'maintenance', 'archived', 'unavailable', 'damaged', 'lost'])) {
+                    $rawStatus = 'available';
+                }
+
+                // 6. Dates and Lifespan
+                $purchasedAt = null;
+                if (!empty($row['purchased_at']) || !empty($row['date_purchased'])) {
+                    $rawDate = $row['purchased_at'] ?? $row['date_purchased'];
+                    try {
+                        $purchasedAt = \Carbon\Carbon::parse($rawDate)->toDateString();
+                    } catch (\Throwable $e) {
+                        $purchasedAt = now()->toDateString();
+                    }
+                } else {
+                    $purchasedAt = now()->toDateString();
+                }
+
+                $lifespan = (isset($row['eq_lifespan']) || isset($row['lifespan_years']))
+                    ? max(1, (int)($row['eq_lifespan'] ?? $row['lifespan_years']))
+                    : 5;
+
+                $unit = EquipmentUnit::create([
+                    'equipment_type_id' => $catId,
+                    'brand'             => $rawBrand !== '' ? $rawBrand : null,
+                    'model'             => !empty($row['model']) ? trim((string)$row['model']) : null,
+                    'seq_no'            => $cleanSeq,
+                    'serial_number'     => $snCandidate,
+                    'barcode'           => $snCandidate,
+                    'purchased_at'      => $purchasedAt,
+                    'eq_lifespan'       => $lifespan,
+                    'status'            => $rawStatus,
+                    'condition'         => $canonicalCondition,
+                    'description'       => !empty($row['description']) ? trim((string)$row['description']) : null,
+                ]);
+
+                $createdUnits[] = $unit;
+            }
+
+            // Sync stock for all affected categories
+            foreach (array_keys($affectedCategoryIds) as $typeId) {
+                $this->syncCategoryStock($typeId);
+            }
+
+            DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            \Illuminate\Support\Facades\Log::error('EquipmentUnitController bulkImport failed: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Failed to import equipment units: ' . $e->getMessage()
+            ], 500);
+        }
+
+        try {
+            AuditLog::create([
+                'user_id'        => auth()->id(),
+                'action'         => 'EQUIPMENT_UNIT_BULK_IMPORTED',
+                'auditable_type' => 'equipment_units',
+                'auditable_id'   => !empty($createdUnits) ? $createdUnits[0]->id : null,
+                'metadata'       => [
+                    'count'              => count($createdUnits),
+                    'created_categories' => $createdCategoriesCount,
+                    'created_brands'     => $createdBrandsCount,
+                    'description'        => count($createdUnits) . " physical equipment units imported via file by " . (auth()->user()?->name ?? 'Staff'),
+                ],
+                'ip_address'     => request()->ip(),
+                'created_at'     => now(),
+            ]);
+        } catch (\Throwable $e) {}
+
+        return response()->json([
+            'message'            => count($createdUnits) . ' physical equipment units imported successfully.',
+            'count'              => count($createdUnits),
+            'created_categories' => $createdCategoriesCount,
+            'created_brands'     => $createdBrandsCount,
+            'units'              => $createdUnits,
+        ], 201);
+    }
 }

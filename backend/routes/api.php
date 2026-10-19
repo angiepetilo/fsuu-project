@@ -94,6 +94,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('admin/users', UserController::class)->except(['show']);
 
     // ── General: Venues ────────────────────────────────────────────────────────
+    Route::post('/general/venues/bulk-import', [VenueController::class, 'bulkImport']);
+    Route::post('/admin/venues/bulk-import',   [VenueController::class, 'bulkImport']);
     Route::get('/general/venues',         [VenueController::class, 'index']);
     Route::get('/general/venues/{id}',    [VenueController::class, 'show']);
     Route::post('/general/venues',        [VenueController::class, 'store']);
@@ -129,6 +131,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/admin/equipment-types/{id}',      [EquipmentTypeController::class, 'update']);
     Route::delete('/admin/equipment-types/{id}',   [EquipmentTypeController::class, 'destroy']);
 
+    Route::post('/general/equipment-units/bulk-import',     [EquipmentUnitController::class, 'bulkImport']);
+    Route::post('/admin/equipment-units/bulk-import',       [EquipmentUnitController::class, 'bulkImport']);
     Route::post('/general/equipment-units/{id}/enable',     [EquipmentUnitController::class, 'enable']);
     Route::get('/general/equipment-units',                 [EquipmentUnitController::class, 'index']);
     Route::post('/general/equipment-units',                [EquipmentUnitController::class, 'store']);

@@ -243,4 +243,104 @@ class VenueController extends Controller
 
         return response()->json(['message' => "Venue '{$venueName}' deleted successfully."]);
     }
+
+    /**
+     * Bulk import venue facilities from Excel / CSV parsed payload.
+     */
+    public function bulkImport(Request $request): JsonResponse
+    {
+        $this->ensureSchema();
+        $rawVenues = $request->input('venues');
+        if (!is_array($rawVenues) || empty($rawVenues)) {
+            return response()->json([
+                'message' => 'No venue data provided for import.',
+                'errors'  => ['venues' => ['No records provided.']]
+            ], 422);
+        }
+
+        if (count($rawVenues) > 500) {
+            return response()->json([
+                'message' => 'Cannot import more than 500 venues at a time.',
+            ], 422);
+        }
+
+        $createdCount = 0;
+        $updatedCount = 0;
+        $processedVenues = [];
+
+        \Illuminate\Support\Facades\DB::beginTransaction();
+        try {
+            foreach ($rawVenues as $row) {
+                $rawName = trim((string)($row['name'] ?? $row['venue_name'] ?? ''));
+                if ($rawName === '') {
+                    continue; // Skip rows without a name
+                }
+
+                $rawCapacity = (int)($row['capacity'] ?? $row['max_capacity'] ?? 100);
+                if ($rawCapacity <= 0) $rawCapacity = 100;
+                $rawMin = max(1, (int)($row['min_capacity'] ?? 1));
+                $rawMax = max($rawMin, (int)($row['max_capacity'] ?? $rawCapacity));
+
+                $rawStatus = strtolower(trim((string)($row['status'] ?? 'available')));
+                if (!in_array($rawStatus, ['available', 'maintenance', 'archived', 'disabled'])) {
+                    $rawStatus = 'available';
+                }
+
+                $venueData = [
+                    'name'         => $rawName,
+                    'location'     => !empty($row['location']) ? trim((string)$row['location']) : null,
+                    'capacity'     => $rawCapacity,
+                    'min_capacity' => $rawMin,
+                    'max_capacity' => $rawMax,
+                    'status'       => $rawStatus,
+                ];
+
+                if (!empty($row['description']) && Schema::hasColumn('venues', 'description')) {
+                    $venueData['description'] = trim((string)$row['description']);
+                }
+
+                $existing = Venue::whereRaw('LOWER(TRIM(name)) = ?', [strtolower($rawName)])->first();
+                if ($existing) {
+                    $existing->update($venueData);
+                    $processedVenues[] = $existing->fresh();
+                    $updatedCount++;
+                } else {
+                    $newVenue = Venue::create($venueData);
+                    $processedVenues[] = $newVenue;
+                    $createdCount++;
+                }
+            }
+
+            \Illuminate\Support\Facades\DB::commit();
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\DB::rollBack();
+            \Illuminate\Support\Facades\Log::error('VenueController bulkImport failed: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Failed to import venues: ' . $e->getMessage()
+            ], 500);
+        }
+
+        try {
+            app(\App\Services\AuditLogService::class)->log(
+                $request->user(),
+                'VENUE_BULK_IMPORTED',
+                'venues',
+                !empty($processedVenues) ? $processedVenues[0]->id : null,
+                [
+                    'count'         => count($processedVenues),
+                    'created_count' => $createdCount,
+                    'updated_count' => $updatedCount,
+                    'description'   => count($processedVenues) . " venue facilities imported via file by " . (auth()->user()?->name ?? 'Staff'),
+                ]
+            );
+        } catch (\Throwable $e) {}
+
+        return response()->json([
+            'message'       => count($processedVenues) . " venue facilities processed ({$createdCount} added, {$updatedCount} updated).",
+            'count'         => count($processedVenues),
+            'created_count' => $createdCount,
+            'updated_count' => $updatedCount,
+            'venues'        => $processedVenues,
+        ], 201);
+    }
 }

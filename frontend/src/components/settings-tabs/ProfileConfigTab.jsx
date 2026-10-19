@@ -42,6 +42,10 @@ export default function ProfileConfigTab({ showMsg }) {
 
   const [profileData, setProfileData] = useState(() => ({
     name: user?.name || "Super Administrator",
+    first_name: user?.first_name || "",
+    middle_name: user?.middle_name || "",
+    last_name: user?.last_name || "",
+    suffix: user?.suffix || "",
     email: user?.email_address || user?.email || "superadmin@urios.edu.ph",
     avatar: user?.avatar || null,
   }));
@@ -51,6 +55,10 @@ export default function ProfileConfigTab({ showMsg }) {
     if (user) {
       setProfileData({
         name: user.name || "Super Administrator",
+        first_name: user.first_name || "",
+        middle_name: user.middle_name || "",
+        last_name: user.last_name || "",
+        suffix: user.suffix || "",
         email: user.email_address || user.email || "superadmin@urios.edu.ph",
         avatar: user.avatar || null,
       });
@@ -71,6 +79,10 @@ export default function ProfileConfigTab({ showMsg }) {
   };
 
   const hasProfileChanges = Boolean(
+    (profileData.first_name !== (user?.first_name || "")) ||
+    (profileData.middle_name !== (user?.middle_name || "")) ||
+    (profileData.last_name !== (user?.last_name || "")) ||
+    (profileData.suffix !== (user?.suffix || "")) ||
     (profileData.name && profileData.name !== (user?.name || "")) ||
     (profileData.email && profileData.email !== (user?.email_address || user?.email || "")) ||
     avatarPreview !== null
@@ -84,8 +96,13 @@ export default function ProfileConfigTab({ showMsg }) {
       notify.error("Validation Error", "Please enter a valid email address.");
       return;
     }
+    const computedName = [profileData.first_name, profileData.middle_name, profileData.last_name, profileData.suffix].filter(Boolean).join(" ").trim() || profileData.name;
     const payload = {
-      name: profileData.name,
+      name: computedName,
+      first_name: profileData.first_name || undefined,
+      middle_name: profileData.middle_name || undefined,
+      last_name: profileData.last_name || undefined,
+      suffix: profileData.suffix || undefined,
       email: trimmedEmail,
       email_address: trimmedEmail,
       avatar: avatarPreview || profileData.avatar,
@@ -101,6 +118,10 @@ export default function ProfileConfigTab({ showMsg }) {
       if (updatedUser) {
         setProfileData({
           name: updatedUser.name || updatedUser.full_name || payload.name,
+          first_name: updatedUser.first_name || payload.first_name || "",
+          middle_name: updatedUser.middle_name || payload.middle_name || "",
+          last_name: updatedUser.last_name || payload.last_name || "",
+          suffix: updatedUser.suffix || payload.suffix || "",
           email: updatedUser.email_address || updatedUser.email || payload.email,
           avatar: updatedUser.avatar || payload.avatar,
         });
@@ -291,22 +312,106 @@ export default function ProfileConfigTab({ showMsg }) {
             </div>
 
             {/* Profile Form Fields Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Full Name <span className="text-rose-500">*</span>
+                  First Name <span className="text-rose-500">*</span>
                 </label>
                 <input
                   type="text"
                   required
                   disabled={!isEditing}
-                  value={profileData.name}
-                  onChange={(e) => setProfileData({ ...profileData, name: e.target.value })}
+                  value={profileData.first_name}
+                  onChange={(e) => {
+                    const fn = e.target.value;
+                    const full = [fn, profileData.middle_name, profileData.last_name, profileData.suffix].filter(Boolean).join(" ");
+                    setProfileData({ ...profileData, first_name: fn, name: full });
+                  }}
                   className={`w-full p-2.5 border rounded-lg font-medium text-xs transition-colors ${
                     isEditing
                       ? "bg-white border-slate-300 text-slate-900 focus:outline-none focus:border-blue-600"
                       : "bg-slate-50 border-slate-200 text-slate-600 cursor-not-allowed"
                   }`}
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Middle Name <span className="text-slate-400 font-normal">(Optional)</span>
+                </label>
+                <input
+                  type="text"
+                  disabled={!isEditing}
+                  value={profileData.middle_name}
+                  onChange={(e) => {
+                    const mn = e.target.value;
+                    const full = [profileData.first_name, mn, profileData.last_name, profileData.suffix].filter(Boolean).join(" ");
+                    setProfileData({ ...profileData, middle_name: mn, name: full });
+                  }}
+                  placeholder="e.g. Delos"
+                  className={`w-full p-2.5 border rounded-lg font-medium text-xs transition-colors ${
+                    isEditing
+                      ? "bg-white border-slate-300 text-slate-900 focus:outline-none focus:border-blue-600"
+                      : "bg-slate-50 border-slate-200 text-slate-600 cursor-not-allowed"
+                  }`}
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Last Name <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  disabled={!isEditing}
+                  value={profileData.last_name}
+                  onChange={(e) => {
+                    const ln = e.target.value;
+                    const full = [profileData.first_name, profileData.middle_name, ln, profileData.suffix].filter(Boolean).join(" ");
+                    setProfileData({ ...profileData, last_name: ln, name: full });
+                  }}
+                  className={`w-full p-2.5 border rounded-lg font-medium text-xs transition-colors ${
+                    isEditing
+                      ? "bg-white border-slate-300 text-slate-900 focus:outline-none focus:border-blue-600"
+                      : "bg-slate-50 border-slate-200 text-slate-600 cursor-not-allowed"
+                  }`}
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Suffix <span className="text-slate-400 font-normal">(Optional)</span>
+                </label>
+                <input
+                  type="text"
+                  disabled={!isEditing}
+                  value={profileData.suffix}
+                  onChange={(e) => {
+                    const sfx = e.target.value;
+                    const full = [profileData.first_name, profileData.middle_name, profileData.last_name, sfx].filter(Boolean).join(" ");
+                    setProfileData({ ...profileData, suffix: sfx, name: full });
+                  }}
+                  placeholder="e.g. Jr., III"
+                  className={`w-full p-2.5 border rounded-lg font-medium text-xs transition-colors ${
+                    isEditing
+                      ? "bg-white border-slate-300 text-slate-900 focus:outline-none focus:border-blue-600"
+                      : "bg-slate-50 border-slate-200 text-slate-600 cursor-not-allowed"
+                  }`}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Display Full Name (Auto-Synced)
+                </label>
+                <input
+                  type="text"
+                  disabled
+                  value={profileData.name}
+                  className="w-full p-2.5 border rounded-lg font-bold text-xs bg-slate-50 border-slate-200 text-slate-700 cursor-not-allowed"
                 />
               </div>
 

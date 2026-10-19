@@ -322,16 +322,16 @@ class EquipmentAndReservationsSeeder extends Seeder
 
         $venueList = Venue::all();
         $sampleStudents = [
-            ['first' => 'Raven Greg', 'last' => 'Espiritu', 'email' => 'ravengreg.espiritu@urios.edu.ph', 'phone' => '09472750431'],
-            ['first' => 'Angie', 'last' => 'Petilo', 'email' => 'angie.petilo@urios.edu.ph', 'phone' => '09123456789'],
-            ['first' => 'Jay', 'last' => 'Trubias', 'email' => 'jay.trubias@urios.edu.ph', 'phone' => '09987654321'],
-            ['first' => 'Christine', 'last' => 'Alcantara', 'email' => 'christine.alcantara@urios.edu.ph', 'phone' => '09331234567'],
-            ['first' => 'Michael', 'last' => 'Del Rosario', 'email' => 'michael.delrosario@urios.edu.ph', 'phone' => '09456789012'],
-            ['first' => 'Hannah', 'last' => 'Villanueva', 'email' => 'hannah.villanueva@urios.edu.ph', 'phone' => '09228889900'],
-            ['first' => 'Mark Joseph', 'last' => 'Tan', 'email' => 'markjoseph.tan@urios.edu.ph', 'phone' => '09171112233'],
-            ['first' => 'Danica', 'last' => 'Mendoza', 'email' => 'danica.mendoza@urios.edu.ph', 'phone' => '09183334455'],
-            ['first' => 'Joshua', 'last' => 'Castillo', 'email' => 'joshua.castillo@urios.edu.ph', 'phone' => '09275556677'],
-            ['first' => 'Patricia', 'last' => 'Santos', 'email' => 'patricia.santos@urios.edu.ph', 'phone' => '09367778899'],
+            ['first' => 'Raven Greg', 'middle' => 'J.', 'last' => 'Espiritu', 'email' => 'ravengreg.espiritu@urios.edu.ph', 'phone' => '09472750431'],
+            ['first' => 'Angie', 'middle' => 'M.', 'last' => 'Petilo', 'email' => 'angie.petilo@urios.edu.ph', 'phone' => '09123456789'],
+            ['first' => 'Jay', 'middle' => 'B.', 'last' => 'Trubias', 'email' => 'jay.trubias@urios.edu.ph', 'phone' => '09987654321'],
+            ['first' => 'Christine', 'middle' => 'L.', 'last' => 'Alcantara', 'email' => 'christine.alcantara@urios.edu.ph', 'phone' => '09331234567'],
+            ['first' => 'Michael', 'middle' => 'D.', 'last' => 'Del Rosario', 'email' => 'michael.delrosario@urios.edu.ph', 'phone' => '09456789012'],
+            ['first' => 'Hannah', 'middle' => 'V.', 'last' => 'Villanueva', 'email' => 'hannah.villanueva@urios.edu.ph', 'phone' => '09228889900'],
+            ['first' => 'Mark Joseph', 'middle' => 'A.', 'last' => 'Tan', 'email' => 'markjoseph.tan@urios.edu.ph', 'phone' => '09171112233'],
+            ['first' => 'Danica', 'middle' => 'R.', 'last' => 'Mendoza', 'email' => 'danica.mendoza@urios.edu.ph', 'phone' => '09183334455'],
+            ['first' => 'Joshua', 'middle' => 'C.', 'last' => 'Castillo', 'email' => 'joshua.castillo@urios.edu.ph', 'phone' => '09275556677'],
+            ['first' => 'Patricia', 'middle' => 'S.', 'last' => 'Santos', 'email' => 'patricia.santos@urios.edu.ph', 'phone' => '09367778899'],
         ];
 
         $purposes = [
@@ -425,8 +425,9 @@ class EquipmentAndReservationsSeeder extends Seeder
                 'venue_id'                  => $venue->id,
                 'submission_channel'        => 'online_self',
                 'first_name'                => $person['first'],
+                'middle_name'               => $person['middle'] ?? null,
                 'last_name'                 => $person['last'],
-                'filer_name'                => "{$person['first']} {$person['last']}",
+                'filer_name'                => implode(' ', array_filter([$person['first'], $person['middle'] ?? null, $person['last']])),
                 'email_address'             => $person['email'],
                 'department_id'             => $dept?->id,
                 'program_office'            => $deptCode,
@@ -546,8 +547,9 @@ class EquipmentAndReservationsSeeder extends Seeder
                 'tracking_number_id'      => $trackingId,
                 'submission_channel'      => 'online_self',
                 'first_name'              => $person['first'],
+                'middle_name'             => $person['middle'] ?? null,
                 'last_name'               => $person['last'],
-                'filer_name'              => "{$person['first']} {$person['last']}",
+                'filer_name'              => implode(' ', array_filter([$person['first'], $person['middle'] ?? null, $person['last']])),
                 'email_address'           => $person['email'],
                 'department_id'           => $dept?->id,
                 'program_office'          => $deptCode,

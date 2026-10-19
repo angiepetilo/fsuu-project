@@ -1,11 +1,18 @@
 import { useState, useEffect } from "react";
-import { Plus, Edit2, Ban, Power, CheckCircle2, X, Building, Loader2, Image as ImageIcon, Camera, AlertCircle, MoreVertical, Trash2, Pencil } from "lucide-react";
+import {
+  Plus, Edit2, Ban, Power, CheckCircle2, X, Building, Loader2,
+  Image as ImageIcon, Camera, AlertCircle, MoreVertical, Trash2, Pencil,
+  Download, Upload, FileSpreadsheet, ChevronDown
+} from "lucide-react";
 import { usePermissions } from "@/hooks/usePermissions";
 import api, { clearApiCache } from "@/lib/axios";
+import notify from "@/lib/notify";
 import { invalidateCache } from "@/lib/apiCache";
 import ConfirmModal from "@/components/ui/ConfirmModal";
 import ActionPopover from "@/components/ui/action-popover";
 import IosToggle from "@/components/ui/ios-toggle";
+import VenueImportModal from "./VenueImportModal";
+import { exportVenueList } from "@/pages/general/venueExportHelper";
 
 export default function VenuesTab({ showMsg }) {
   const { isSuperAdmin, hasPermission } = usePermissions();
@@ -28,6 +35,24 @@ export default function VenuesTab({ showMsg }) {
   const [actionAnchorEl, setActionAnchorEl] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null); // { id, name }
   const [deleting, setDeleting] = useState(false);
+
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExport = async (format) => {
+    setShowExportMenu(false);
+    setIsExporting(true);
+    try {
+      await exportVenueList(venues, format);
+      notify.success(`Exported ${venues.length} venues as ${format.toUpperCase()}.`);
+    } catch (e) {
+      console.error(e);
+      notify.error("Failed to export venues.");
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   const handleRequestClose = () => {
     if (isFormDirty) {
@@ -357,31 +382,86 @@ export default function VenuesTab({ showMsg }) {
             Create and manage venue listings and configured allowed equipment for public bookings.
           </p>
         </div>
-        {canAdd && (
-          <button
-            onClick={() => {
-              setEditItem(null);
-              setForm({
-                name: "",
-                photo: "",
-                avatar: "",
-                status: "available",
-                location: "",
-                capacity: 100,
-                min_capacity: 1,
-                max_capacity: 100,
-                allowed_equipment: [],
-                equipment_max_qtys: {},
-              });
-              setFormError("");
-              setIsFormDirty(false);
-              setShowModal(true);
-            }}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-extrabold cursor-pointer transition-all"
-          >
-            <Plus size={16} /> Create Venue
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {/* Export Dropdown */}
+          <div className="relative">
+            <button
+              type="button"
+              disabled={isExporting || venues.length === 0}
+              onClick={() => setShowExportMenu(!showExportMenu)}
+              className="flex items-center gap-1.5 px-3 py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold transition-all shadow-2xs cursor-pointer disabled:opacity-50"
+            >
+              {isExporting ? <Loader2 size={15} className="animate-spin text-blue-600" /> : <Download size={15} />}
+              <span>Export</span>
+              <ChevronDown size={14} className="text-slate-400" />
+            </button>
+
+            {showExportMenu && (
+              <>
+                <div
+                  className="fixed inset-0 z-40"
+                  onClick={() => setShowExportMenu(false)}
+                />
+                <div className="absolute right-0 mt-1.5 w-44 bg-white rounded-2xl border border-slate-200 shadow-xl py-1.5 z-50 animate-in fade-in zoom-in-95 duration-150">
+                  <button
+                    type="button"
+                    onClick={() => handleExport("xlsx")}
+                    className="w-full text-left px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 flex items-center gap-2 cursor-pointer"
+                  >
+                    <FileSpreadsheet size={15} className="text-emerald-600" />
+                    <span>Excel (.xlsx)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleExport("csv")}
+                    className="w-full text-left px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 flex items-center gap-2 cursor-pointer"
+                  >
+                    <Download size={15} className="text-blue-600" />
+                    <span>CSV (.csv)</span>
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Import Button */}
+          {canAdd && (
+            <button
+              type="button"
+              onClick={() => setShowImportModal(true)}
+              className="flex items-center gap-1.5 px-3 py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold transition-all shadow-2xs cursor-pointer"
+            >
+              <Upload size={15} className="text-indigo-600" />
+              <span>Import</span>
+            </button>
+          )}
+
+          {canAdd && (
+            <button
+              onClick={() => {
+                setEditItem(null);
+                setForm({
+                  name: "",
+                  photo: "",
+                  avatar: "",
+                  status: "available",
+                  location: "",
+                  capacity: 100,
+                  min_capacity: 1,
+                  max_capacity: 100,
+                  allowed_equipment: [],
+                  equipment_max_qtys: {},
+                });
+                setFormError("");
+                setIsFormDirty(false);
+                setShowModal(true);
+              }}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-extrabold cursor-pointer transition-all shadow-xs"
+            >
+              <Plus size={16} /> Create Venue
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Table: [#, Photo, Venue, Status, Action] */}
@@ -848,6 +928,13 @@ export default function VenuesTab({ showMsg }) {
         confirmText="Delete"
         variant="delete"
         loading={deleting}
+      />
+
+      {/* Venue Batch Import Modal */}
+      <VenueImportModal
+        isOpen={showImportModal}
+        onClose={() => setShowImportModal(false)}
+        onSuccess={fetchData}
       />
     </div>
   );
