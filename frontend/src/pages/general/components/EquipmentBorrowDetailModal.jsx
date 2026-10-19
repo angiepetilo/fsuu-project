@@ -1325,6 +1325,7 @@ export default function EquipmentBorrowDetailModal({
                 categoriesToRender={categoriesToRender}
                 getAvailableUnitsForCategory={getAvailableUnitsForCategory}
                 allUnits={physicalUnits}
+                dbEquipmentTypes={dbEquipmentTypes}
                 assignedUnitSelections={assignedUnitSelections}
                 setAssignedUnitSelections={setAssignedUnitSelections}
                 unitReturnedConditions={unitReturnedConditions}

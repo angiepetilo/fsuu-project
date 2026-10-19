@@ -13,6 +13,8 @@ function BorrowSlotBarcodeSelector({
   currentBarcode,
   availableUnits,
   allUnits = [],
+  dbEquipmentTypes = [],
+  currentReqCat = null,
   assignedUnitSelections,
   onSelectBarcode,
 }) {
@@ -48,17 +50,93 @@ function BorrowSlotBarcodeSelector({
   };
 
   const getUnitBuiltIns = (unit) => {
-    const rawList = Array.isArray(unit.built_in_units)
-      ? unit.built_in_units
-      : (typeof unit.built_in_units === "string" ? JSON.parse(unit.built_in_units || "[]") : []);
-    if (!Array.isArray(rawList) || rawList.length === 0) return [];
-    return rawList.map((biId) => {
-      const match = (allUnits || []).find((u) =>
-        String(u.id) === String(biId) ||
-        String(u.barcode || "").trim().toUpperCase() === String(biId).trim().toUpperCase()
+    let rawList = [];
+    if (Array.isArray(unit?.built_in_units)) {
+      rawList = unit.built_in_units;
+    } else if (typeof unit?.built_in_units === "string") {
+      try { rawList = JSON.parse(unit.built_in_units || "[]"); } catch { rawList = []; }
+    }
+
+    if (!Array.isArray(rawList) || rawList.length === 0) {
+      const eqT = unit?.equipmentType || unit?.equipment_type;
+      if (Array.isArray(eqT?.built_in_units) && eqT.built_in_units.length > 0) {
+        rawList = eqT.built_in_units;
+      } else if (Array.isArray(eqT?.built_in_names) && eqT.built_in_names.length > 0) {
+        rawList = eqT.built_in_names;
+      }
+    }
+
+    if (!Array.isArray(rawList) || rawList.length === 0) {
+      const catBuilt = currentReqCat?.builtInNames || currentReqCat?.built_in_names || currentReqCat?.built_in_units;
+      if (Array.isArray(catBuilt) && catBuilt.length > 0) {
+        rawList = catBuilt;
+      }
+    }
+
+    if (!Array.isArray(rawList) || rawList.length === 0) {
+      const typeId = unit?.equipment_type_id || currentReqCat?.equipment_type_id || currentReqCat?.id;
+      const matchedType = (dbEquipmentTypes || []).find(t =>
+        (typeId && String(t.id) === String(typeId)) ||
+        (categoryName && String(t.eq_name || t.name || '').toLowerCase() === String(categoryName).toLowerCase())
       );
-      return match ? (match.name || [match.brand, match.model].filter(Boolean).join(" ") || match.barcode || `Unit #${biId}`) : `Unit #${biId}`;
-    });
+      if (matchedType) {
+        const typeBuilt = matchedType.built_in_names || matchedType.built_in_units;
+        if (Array.isArray(typeBuilt)) rawList = typeBuilt;
+        else if (typeof typeBuilt === "string") {
+          try { rawList = JSON.parse(typeBuilt || "[]"); } catch {}
+        }
+      }
+    }
+
+    if (!Array.isArray(rawList) || rawList.length === 0) return [];
+
+    return rawList.map((itemRef, itemIdx) => {
+      if (!itemRef) return null;
+      const biKey = (typeof itemRef === 'object' && itemRef !== null)
+        ? String(itemRef.id || itemRef.barcode || itemRef.serial_number || itemRef.code || '').trim().toUpperCase()
+        : String(itemRef).trim().toUpperCase();
+      const biRaw = (typeof itemRef === 'object' && itemRef !== null)
+        ? (itemRef.name || itemRef.eq_name || itemRef.barcode || itemRef.id)
+        : itemRef;
+
+      // Match physical unit in allUnits
+      const match = (allUnits || []).find((u) => {
+        const uId = String(u.id).trim().toUpperCase();
+        const uCandidates = [
+          uId,
+          `UNIT-${uId}`,
+          u.barcode,
+          u.serial_number,
+          u.serial_no,
+          u.code,
+        ].filter(Boolean).map((s) => String(s).trim().toUpperCase());
+        return uCandidates.includes(biKey) || (biKey && uCandidates.includes(biKey.replace(/^UNIT-/i, '')));
+      });
+      if (match) {
+        return match.name || [match.brand, match.model].filter(Boolean).join(" ") || match.barcode || `Unit #${biRaw}`;
+      }
+
+      // Match equipment type name from dbEquipmentTypes
+      const matchedType = (dbEquipmentTypes || []).find(t =>
+        String(t.id) === String(biKey) ||
+        String(t.id) === String(biRaw) ||
+        String(t.eq_name || t.name || '').toLowerCase() === String(biRaw).toLowerCase()
+      );
+      if (matchedType) {
+        return matchedType.eq_name || matchedType.name;
+      }
+
+      const eqT = unit?.equipmentType || unit?.equipment_type;
+      if (Array.isArray(eqT?.built_in_names) && eqT.built_in_names[itemIdx]) {
+        return eqT.built_in_names[itemIdx];
+      }
+      const catBuilt = currentReqCat?.builtInNames || currentReqCat?.built_in_names;
+      if (Array.isArray(catBuilt) && catBuilt[itemIdx]) {
+        return catBuilt[itemIdx];
+      }
+
+      return isNaN(Number(biRaw)) ? String(biRaw) : `Accessory #${biRaw}`;
+    }).filter(Boolean);
   };
 
   const selectedUnit = (availableUnits || []).find(
@@ -273,6 +351,7 @@ export default function EquipBorrowUnitAssignment({
   categoriesToRender,
   getAvailableUnitsForCategory,
   allUnits = [],
+  dbEquipmentTypes = [],
   assignedUnitSelections,
   setAssignedUnitSelections,
   isApproved,
@@ -294,19 +373,25 @@ export default function EquipBorrowUnitAssignment({
 }) {
   const borrowingOfficeId = selected?.office_id || selected?.office?.id || (selected?.items && selected.items[0]?.equipment_type?.office_id);
 
-  const getBuiltInUnitsForBarcode = (barcodeVal) => {
+  const getBuiltInUnitsForBarcode = (barcodeVal, currentReqCat = null) => {
     if (!barcodeVal || barcodeVal === "—") return [];
     const cleanBarcode = String(barcodeVal).trim().toUpperCase();
+    const strippedBarcode = cleanBarcode.replace(/^UNIT-/i, '').trim();
 
     const unit = (allUnits || []).find((u) => {
+      const uId = String(u.id).trim().toUpperCase();
+      const uSeq = u.seq_no ? String(u.seq_no).replace(/^#/, '').trim().toUpperCase() : null;
       const candidates = [
         u.barcode,
         u.serial_number,
+        u.serial_no,
         u.code,
-        String(u.id),
-        u.seq_no ? `#${String(u.seq_no).replace(/^#/, '')}` : null,
+        uId,
+        `UNIT-${uId}`,
+        uSeq ? `#${uSeq}` : null,
+        uSeq,
       ].filter(Boolean).map((s) => String(s).trim().toUpperCase());
-      return candidates.includes(cleanBarcode);
+      return candidates.includes(cleanBarcode) || (strippedBarcode && candidates.includes(strippedBarcode));
     });
 
     let rawList = [];
@@ -317,45 +402,65 @@ export default function EquipBorrowUnitAssignment({
         try { rawList = JSON.parse(unit.built_in_units || "[]"); } catch { rawList = []; }
       }
       if (!Array.isArray(rawList) || rawList.length === 0) {
-        if (Array.isArray(unit.equipmentType?.built_in_units)) {
-          rawList = unit.equipmentType.built_in_units;
-        } else if (Array.isArray(unit.equipment_type?.built_in_units)) {
-          rawList = unit.equipment_type.built_in_units;
+        const eqT = unit.equipmentType || unit.equipment_type;
+        if (Array.isArray(eqT?.built_in_units) && eqT.built_in_units.length > 0) {
+          rawList = eqT.built_in_units;
+        } else if (Array.isArray(eqT?.built_in_names) && eqT.built_in_names.length > 0) {
+          rawList = eqT.built_in_names;
         }
       }
     }
 
-    if ((!Array.isArray(rawList) || rawList.length === 0) && Array.isArray(categoriesToRender)) {
-      const parentCat = categoriesToRender.find((c) => {
+    if (!Array.isArray(rawList) || rawList.length === 0) {
+      const parentCat = currentReqCat || (categoriesToRender || []).find((c) => {
         if (unit && String(c.id || c.equipment_type_id) === String(unit.equipment_type_id)) return true;
         return false;
       });
-      if (parentCat?.built_in_units && Array.isArray(parentCat.built_in_units)) {
-        rawList = parentCat.built_in_units;
-      } else if (parentCat?.built_in_names && Array.isArray(parentCat.built_in_names)) {
-        rawList = parentCat.built_in_names;
+      if (parentCat) {
+        const catBuilt = parentCat.builtInNames || parentCat.built_in_names || parentCat.built_in_units;
+        if (Array.isArray(catBuilt) && catBuilt.length > 0) {
+          rawList = catBuilt;
+        }
+      }
+    }
+
+    if (!Array.isArray(rawList) || rawList.length === 0) {
+      const typeId = unit?.equipment_type_id || currentReqCat?.equipment_type_id || currentReqCat?.id;
+      const matchedType = (dbEquipmentTypes || []).find(t =>
+        (typeId && String(t.id) === String(typeId)) ||
+        (currentReqCat?.category && String(t.eq_name || t.name || '').toLowerCase() === String(currentReqCat.category).toLowerCase())
+      );
+      if (matchedType) {
+        const typeBuilt = matchedType.built_in_names || matchedType.built_in_units;
+        if (Array.isArray(typeBuilt)) rawList = typeBuilt;
+        else if (typeof typeBuilt === "string") {
+          try { rawList = JSON.parse(typeBuilt || "[]"); } catch {}
+        }
       }
     }
 
     if (!Array.isArray(rawList) || rawList.length === 0) return [];
 
-    return rawList.map((itemRef) => {
+    return rawList.map((itemRef, itemIdx) => {
       if (!itemRef) return null;
       const biKey = (typeof itemRef === 'object' && itemRef !== null)
-        ? String(itemRef.id || itemRef.barcode || itemRef.serial_number || '').trim().toUpperCase()
+        ? String(itemRef.id || itemRef.barcode || itemRef.serial_number || itemRef.code || '').trim().toUpperCase()
         : String(itemRef).trim().toUpperCase();
       const biRaw = (typeof itemRef === 'object' && itemRef !== null)
-        ? (itemRef.name || itemRef.barcode || itemRef.id)
+        ? (itemRef.name || itemRef.eq_name || itemRef.barcode || itemRef.id)
         : itemRef;
 
       const match = (allUnits || []).find((u) => {
+        const uId = String(u.id).trim().toUpperCase();
         const uCandidates = [
-          String(u.id),
+          uId,
+          `UNIT-${uId}`,
           u.barcode,
           u.serial_number,
+          u.serial_no,
           u.code,
         ].filter(Boolean).map((s) => String(s).trim().toUpperCase());
-        return uCandidates.includes(biKey);
+        return uCandidates.includes(biKey) || (biKey && uCandidates.includes(biKey.replace(/^UNIT-/i, '')));
       });
 
       if (match) {
@@ -379,17 +484,28 @@ export default function EquipBorrowUnitAssignment({
       }
 
       // If not a physical unit, resolve category/accessory name (e.g. ID 8 -> HDMI)
-      const eqType = unit?.equipmentType || unit?.equipment_type;
       let resolvedTypeName = null;
-      if (Array.isArray(eqType?.built_in_names) && eqType.built_in_names.length > 0) {
-        const rawIdx = rawList.indexOf(itemRef);
-        if (rawIdx !== -1 && eqType.built_in_names[rawIdx]) {
-          resolvedTypeName = eqType.built_in_names[rawIdx];
-        } else {
-          const matchByName = eqType.built_in_names.find(
-            (n) => String(n).toLowerCase() === String(biRaw).toLowerCase()
-          );
-          if (matchByName) resolvedTypeName = matchByName;
+      if (Array.isArray(dbEquipmentTypes)) {
+        const typeMatch = dbEquipmentTypes.find(t =>
+          String(t.id) === String(biKey) ||
+          String(t.id) === String(biRaw) ||
+          String(t.eq_name || t.name || '').toLowerCase() === String(biRaw).toLowerCase()
+        );
+        if (typeMatch) {
+          resolvedTypeName = typeMatch.eq_name || typeMatch.name;
+        }
+      }
+
+      if (!resolvedTypeName) {
+        const eqT = unit?.equipmentType || unit?.equipment_type;
+        if (Array.isArray(eqT?.built_in_names) && eqT.built_in_names[itemIdx]) {
+          resolvedTypeName = eqT.built_in_names[itemIdx];
+        }
+      }
+      if (!resolvedTypeName && currentReqCat) {
+        const catBuilt = currentReqCat.builtInNames || currentReqCat.built_in_names;
+        if (Array.isArray(catBuilt) && catBuilt[itemIdx]) {
+          resolvedTypeName = catBuilt[itemIdx];
         }
       }
       if (!resolvedTypeName && Array.isArray(categoriesToRender)) {
@@ -412,7 +528,7 @@ export default function EquipBorrowUnitAssignment({
         id: biKey || biRaw,
         barcode: String(biRaw),
         name: isNaN(Number(biRaw)) ? String(biRaw) : `Physical Unit #${biRaw}`,
-        category: "",
+        category: "Built-in Component",
       };
     }).filter(Boolean);
   };
@@ -529,7 +645,19 @@ export default function EquipBorrowUnitAssignment({
                             <div className="flex items-center justify-between text-[10.5px] font-bold text-slate-500 dark:text-slate-400">
                               <span>Unit Slot #{uIdx + 1}</span>
                               {val ? (() => {
-                                const match = (allUnits || []).find(u => String(u.barcode || u.id).trim().toUpperCase() === String(val).trim().toUpperCase());
+                                const match = (allUnits || []).find(u => {
+                                  const uId = String(u.id).trim().toUpperCase();
+                                  const uCandidates = [
+                                    uId,
+                                    `UNIT-${uId}`,
+                                    u.barcode,
+                                    u.serial_number,
+                                    u.serial_no,
+                                    u.code,
+                                  ].filter(Boolean).map(s => String(s).trim().toUpperCase());
+                                  const cleanVal = String(val).trim().toUpperCase();
+                                  return uCandidates.includes(cleanVal) || (cleanVal.startsWith("UNIT-") && uCandidates.includes(cleanVal.replace(/^UNIT-/i, "")));
+                                });
                                 const seq = match?.seq_no ? (String(match.seq_no).trim().startsWith("#") ? String(match.seq_no).trim() : `#${String(match.seq_no).trim()}`) : null;
                                 const brand = match?.brand ? String(match.brand).trim() : "";
                                 const model = match?.model ? String(match.model).trim() : "";
@@ -557,6 +685,8 @@ export default function EquipBorrowUnitAssignment({
                               currentBarcode={val}
                               availableUnits={availableUnits}
                               allUnits={allUnits}
+                              dbEquipmentTypes={dbEquipmentTypes}
+                              currentReqCat={reqCat}
                               assignedUnitSelections={assignedUnitSelections}
                               onSelectBarcode={(newBarcode) => {
                                 const updated = { ...assignedUnitSelections, [idxKey]: newBarcode };
@@ -571,7 +701,7 @@ export default function EquipBorrowUnitAssignment({
 
                             {/* Built-in physical units linked to selected physical unit */}
                             {val && (() => {
-                              const slotBuiltIns = getBuiltInUnitsForBarcode(val);
+                              const slotBuiltIns = getBuiltInUnitsForBarcode(val, reqCat);
                               if (!slotBuiltIns || slotBuiltIns.length === 0) return null;
                               return (
                                 <div className="mt-1.5 p-2.5 rounded-xl bg-blue-50/70 dark:bg-slate-900/80 border border-blue-200/80 dark:border-blue-900/50 space-y-1.5 animate-in fade-in">
@@ -635,8 +765,20 @@ export default function EquipBorrowUnitAssignment({
                       ? unitReturnedConditions[val] || unitReturnedConditions[idxKey] || unitReturnedConditions[catKey] || "Complete"
                       : null;
 
-                    const slotBuiltIns = getBuiltInUnitsForBarcode(val);
-                    const match = (allUnits || []).find(u => String(u.barcode || u.id).trim().toUpperCase() === String(val).trim().toUpperCase());
+                    const slotBuiltIns = getBuiltInUnitsForBarcode(val, reqCat);
+                    const match = (allUnits || []).find(u => {
+                      const uId = String(u.id).trim().toUpperCase();
+                      const uCandidates = [
+                        uId,
+                        `UNIT-${uId}`,
+                        u.barcode,
+                        u.serial_number,
+                        u.serial_no,
+                        u.code,
+                      ].filter(Boolean).map(s => String(s).trim().toUpperCase());
+                      const cleanVal = String(val).trim().toUpperCase();
+                      return uCandidates.includes(cleanVal) || (cleanVal.startsWith("UNIT-") && uCandidates.includes(cleanVal.replace(/^UNIT-/i, "")));
+                    });
                     const seq = match?.seq_no ? (String(match.seq_no).trim().startsWith("#") ? String(match.seq_no).trim() : `#${String(match.seq_no).trim()}`) : null;
                     const brand = match?.brand ? String(match.brand).trim() : "";
                     const model = match?.model ? String(match.model).trim() : "";
