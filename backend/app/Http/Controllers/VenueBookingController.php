@@ -550,11 +550,15 @@ class VenueBookingController extends Controller
                 $numIds = array_values(array_filter($barcodes, fn($v) => is_numeric($v) && (int)$v > 0));
                 $uCodes = array_values(array_filter($barcodes, fn($v) => !empty($v)));
 
-                \App\Models\EquipmentUnit::where(function($q) use ($uCodes, $numIds) {
-                    $q->whereIn('barcode', $uCodes)
-                      ->orWhereIn('serial_number', $uCodes);
-                    if (!empty($numIds)) {
-                        $q->orWhereIn('id', array_map('intval', $numIds));
+                $tied = \App\Models\EquipmentUnit::resolveTiedChildAccessories($barcodes);
+                $allTargetCodes = array_merge($uCodes, $tied['child_codes']);
+                $allTargetIds = array_merge($numIds, $tied['child_ids']);
+
+                \App\Models\EquipmentUnit::where(function($q) use ($allTargetCodes, $allTargetIds) {
+                    $q->whereIn('barcode', $allTargetCodes)
+                      ->orWhereIn('serial_number', $allTargetCodes);
+                    if (!empty($allTargetIds)) {
+                        $q->orWhereIn('id', array_map('intval', $allTargetIds));
                     }
                 })
                 ->update(['status' => $newUnitStatus]);

@@ -909,16 +909,38 @@ class VenueBookingService
                 })
                 ->update(['status' => 'cancelled']);
 
-            // Release assigned equipment units back to available
+            // Release assigned equipment units and tied child accessories back to available
             $assigned = $booking->assigned_units ?? [];
             if (is_string($assigned)) {
                 try { $assigned = json_decode($assigned, true); } catch (\Throwable $t) { $assigned = []; }
             }
             if (is_array($assigned) && !empty($assigned) && \Illuminate\Support\Facades\Schema::hasTable('equipment_units')) {
                 $unitCodes = array_values(array_filter($assigned));
-                \App\Models\EquipmentUnit::whereIn('barcode', $unitCodes)
-                    ->whereIn('status', ['reserved', 'released'])
-                    ->update(['status' => 'available']);
+                $tied = \App\Models\EquipmentUnit::resolveTiedChildAccessories($unitCodes);
+                $allCodes = array_merge($unitCodes, $tied['child_codes']);
+                $allIds = $tied['child_ids'];
+
+                \App\Models\EquipmentUnit::where(function($q) use ($allCodes, $allIds) {
+                    $q->whereIn('barcode', $allCodes)
+                      ->orWhereIn('serial_number', $allCodes);
+                    if (!empty($allIds)) {
+                        $q->orWhereIn('id', array_map('intval', $allIds));
+                    }
+                })
+                ->whereIn('status', ['reserved', 'released'])
+                ->update(['status' => 'available']);
+
+                if ($tied['parents']->isNotEmpty()) {
+                    try {
+                        $unitCtrl = app(\App\Http\Controllers\General\EquipmentUnitController::class);
+                        foreach ($tied['parents'] as $pu) {
+                            $freshPu = \App\Models\EquipmentUnit::find($pu->id);
+                            if ($freshPu) {
+                                $unitCtrl->resolveParentAndChildrenStatus($freshPu);
+                            }
+                        }
+                    } catch (\Throwable $e) {}
+                }
             }
 
             if (\Illuminate\Support\Facades\Schema::hasTable('approvals')) {
@@ -997,11 +1019,16 @@ class VenueBookingService
                 $numericIds = array_values(array_filter($barcodes, fn($v) => is_numeric($v) && (int)$v > 0));
                 $unitCodes = array_values(array_filter($barcodes, fn($v) => !empty($v)));
 
-                \App\Models\EquipmentUnit::where(function($q) use ($unitCodes, $numericIds) {
-                    $q->whereIn('barcode', $unitCodes)
-                      ->orWhereIn('serial_number', $unitCodes);
-                    if (!empty($numericIds)) {
-                        $q->orWhereIn('id', array_map('intval', $numericIds));
+                // Resolve tied child accessories (e.g. HDMI cables, power cords inside projector kits)
+                $tied = \App\Models\EquipmentUnit::resolveTiedChildAccessories($barcodes);
+                $allTargetCodes = array_merge($unitCodes, $tied['child_codes']);
+                $allTargetIds = array_merge($numericIds, $tied['child_ids']);
+
+                \App\Models\EquipmentUnit::where(function($q) use ($allTargetCodes, $allTargetIds) {
+                    $q->whereIn('barcode', $allTargetCodes)
+                      ->orWhereIn('serial_number', $allTargetCodes);
+                    if (!empty($allTargetIds)) {
+                        $q->orWhereIn('id', array_map('intval', $allTargetIds));
                     }
                 })->update(['status' => 'released']);
 
@@ -1233,6 +1260,21 @@ class VenueBookingService
                     $goodBarcodes = $barcodes;
                 }
 
+                // Resolve tied child accessories for all returned parent units
+                $tied = \App\Models\EquipmentUnit::resolveTiedChildAccessories($barcodes);
+                foreach ($tied['child_codes'] as $cCode) {
+                    if (!in_array($cCode, $damagedBarcodes) && !in_array($cCode, $lostBarcodes)) {
+                        $goodBarcodes[] = $cCode;
+                    }
+                }
+                foreach ($tied['child_ids'] as $cId) {
+                    $cIdStr = (string)$cId;
+                    if (!in_array($cIdStr, $damagedBarcodes) && !in_array($cIdStr, $lostBarcodes)) {
+                        $goodBarcodes[] = $cIdStr;
+                    }
+                }
+                $goodBarcodes = array_values(array_unique($goodBarcodes));
+
                 $applyStatusUpdate = function(array $codes, string $status, string $condition) {
                     if (empty($codes)) return;
                     $numericIds = array_values(array_filter($codes, fn($v) => is_numeric($v) && (int)$v > 0));
@@ -1250,6 +1292,19 @@ class VenueBookingService
                 $applyStatusUpdate($goodBarcodes, 'available', 'Good');
                 $applyStatusUpdate($damagedBarcodes, 'unavailable', 'Damaged');
                 $applyStatusUpdate($lostBarcodes, 'unavailable', 'Lost');
+
+                // Enforce kit bundle integrity: call resolveParentAndChildrenStatus on all touched parent units
+                if ($tied['parents']->isNotEmpty()) {
+                    try {
+                        $unitCtrl = app(\App\Http\Controllers\General\EquipmentUnitController::class);
+                        foreach ($tied['parents'] as $pu) {
+                            $freshPu = \App\Models\EquipmentUnit::find($pu->id);
+                            if ($freshPu) {
+                                $unitCtrl->resolveParentAndChildrenStatus($freshPu);
+                            }
+                        }
+                    } catch (\Throwable $e) {}
+                }
 
                 try {
                     \App\Services\EquipmentCategoryService::autoSyncUnitConditions();

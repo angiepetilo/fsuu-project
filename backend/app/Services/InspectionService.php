@@ -92,26 +92,32 @@ class InspectionService
 
         $overallCondition = strtolower($data['condition'] ?? 'good');
         $barcodes = array_filter(array_values($assigned));
+        $tied = \App\Models\EquipmentUnit::resolveTiedChildAccessories($barcodes);
 
         // Baseline batch update if no per-unit conditions
         if (!empty($barcodes) && empty($unitConditions)) {
             $numIds = array_values(array_filter($barcodes, fn($v) => is_numeric($v) && (int)$v > 0));
             $uCodes = array_values(array_filter($barcodes, fn($v) => !empty($v)));
 
+            $allCodes = array_merge($uCodes, $tied['child_codes']);
+            $allIds = array_merge($numIds, $tied['child_ids']);
+
             if ($overallCondition === 'good') {
-                \App\Models\EquipmentUnit::where(function ($q) use ($uCodes, $numIds) {
-                    $q->whereIn('barcode', $uCodes);
-                    if (!empty($numIds)) {
-                        $q->orWhereIn('id', array_map('intval', $numIds));
+                \App\Models\EquipmentUnit::where(function ($q) use ($allCodes, $allIds) {
+                    $q->whereIn('barcode', $allCodes)
+                      ->orWhereIn('serial_number', $allCodes);
+                    if (!empty($allIds)) {
+                        $q->orWhereIn('id', array_map('intval', $allIds));
                     }
                 })->update(['status' => 'available', 'condition' => 'Good']);
             } else {
                 $status = $overallCondition === 'lost' ? 'lost' : 'damaged';
                 $cond = $overallCondition === 'lost' ? 'Lost' : 'Damaged';
-                \App\Models\EquipmentUnit::where(function ($q) use ($uCodes, $numIds) {
-                    $q->whereIn('barcode', $uCodes);
-                    if (!empty($numIds)) {
-                        $q->orWhereIn('id', array_map('intval', $numIds));
+                \App\Models\EquipmentUnit::where(function ($q) use ($allCodes, $allIds) {
+                    $q->whereIn('barcode', $allCodes)
+                      ->orWhereIn('serial_number', $allCodes);
+                    if (!empty($allIds)) {
+                        $q->orWhereIn('id', array_map('intval', $allIds));
                     }
                 })->update(['status' => $status, 'condition' => $cond]);
             }
@@ -132,7 +138,8 @@ class InspectionService
                     $uCodes = array_values(array_filter($lookupKeys, fn($v) => !empty($v)));
 
                     \App\Models\EquipmentUnit::where(function ($q) use ($uCodes, $nIds) {
-                        $q->whereIn('barcode', $uCodes);
+                        $q->whereIn('barcode', $uCodes)
+                          ->orWhereIn('serial_number', $uCodes);
                         if (!empty($nIds)) {
                             $q->orWhereIn('id', array_map('intval', $nIds));
                         }
@@ -140,5 +147,23 @@ class InspectionService
                 }
             }
         }
+
+        // Enforce kit bundle integrity on parent units
+        if ($tied['parents']->isNotEmpty()) {
+            try {
+                $unitCtrl = app(\App\Http\Controllers\General\EquipmentUnitController::class);
+                foreach ($tied['parents'] as $pu) {
+                    $freshPu = \App\Models\EquipmentUnit::find($pu->id);
+                    if ($freshPu) {
+                        $unitCtrl->resolveParentAndChildrenStatus($freshPu);
+                    }
+                }
+            } catch (\Throwable $e) {}
+        }
+
+        try {
+            \App\Services\EquipmentCategoryService::autoSyncUnitConditions();
+            \App\Services\EquipmentCategoryService::syncCategoryStock();
+        } catch (\Throwable $e) {}
     }
 }

@@ -75,4 +75,55 @@ class EquipmentUnit extends Model
     {
         return $this->belongsTo(EquipmentType::class);
     }
+
+    /**
+     * Given an array of unit codes (barcodes, serial numbers) or numeric IDs,
+     * fetch all tied child accessory identifiers (IDs and barcodes) from built_in_units.
+     *
+     * @param array $codesOrIds
+     * @return array{child_ids: int[], child_codes: string[], parents: \Illuminate\Database\Eloquent\Collection}
+     */
+    public static function resolveTiedChildAccessories(array $codesOrIds): array
+    {
+        if (empty($codesOrIds)) {
+            return ['child_ids' => [], 'child_codes' => [], 'parents' => collect()];
+        }
+
+        $numericIds = array_values(array_filter($codesOrIds, fn($v) => is_numeric($v) && (int)$v > 0));
+        $unitCodes = array_values(array_filter($codesOrIds, fn($v) => !empty($v)));
+
+        $parents = static::where(function($q) use ($unitCodes, $numericIds) {
+            $q->whereIn('barcode', $unitCodes)
+              ->orWhereIn('serial_number', $unitCodes);
+            if (!empty($numericIds)) {
+                $q->orWhereIn('id', array_map('intval', $numericIds));
+            }
+        })
+        ->whereNotNull('built_in_units')
+        ->whereNull('archived_at')
+        ->get();
+
+        $childIds = [];
+        $childCodes = [];
+
+        foreach ($parents as $pu) {
+            $built = is_string($pu->built_in_units) ? json_decode($pu->built_in_units, true) : $pu->built_in_units;
+            if (is_array($built)) {
+                foreach ($built as $cRef) {
+                    if (is_numeric($cRef) && (int)$cRef > 0) {
+                        $childIds[] = (int)$cRef;
+                    }
+                    if (!empty($cRef)) {
+                        $childCodes[] = trim((string)$cRef);
+                    }
+                }
+            }
+        }
+
+        return [
+            'child_ids'   => array_values(array_unique($childIds)),
+            'child_codes' => array_values(array_unique($childCodes)),
+            'parents'     => $parents,
+        ];
+    }
 }

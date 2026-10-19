@@ -481,16 +481,38 @@ class EquipmentBorrowingService
                 ]);
             }
 
-            // Release assigned units back to available
+            // Release assigned units and tied child accessories back to available
             $assigned = $borrowing->assigned_units ?? [];
             if (is_string($assigned)) {
                 try { $assigned = json_decode($assigned, true); } catch (\Throwable $t) { $assigned = []; }
             }
             if (is_array($assigned) && !empty($assigned) && \Illuminate\Support\Facades\Schema::hasTable('equipment_units')) {
                 $unitCodes = array_values(array_filter($assigned));
-                \App\Models\EquipmentUnit::whereIn('barcode', $unitCodes)
-                    ->whereIn('status', ['reserved', 'released'])
-                    ->update(['status' => 'available']);
+                $tied = \App\Models\EquipmentUnit::resolveTiedChildAccessories($unitCodes);
+                $allCodes = array_merge($unitCodes, $tied['child_codes']);
+                $allIds = $tied['child_ids'];
+
+                \App\Models\EquipmentUnit::where(function($q) use ($allCodes, $allIds) {
+                    $q->whereIn('barcode', $allCodes)
+                      ->orWhereIn('serial_number', $allCodes);
+                    if (!empty($allIds)) {
+                        $q->orWhereIn('id', array_map('intval', $allIds));
+                    }
+                })
+                ->whereIn('status', ['reserved', 'released'])
+                ->update(['status' => 'available']);
+
+                if ($tied['parents']->isNotEmpty()) {
+                    try {
+                        $unitCtrl = app(\App\Http\Controllers\General\EquipmentUnitController::class);
+                        foreach ($tied['parents'] as $pu) {
+                            $freshPu = \App\Models\EquipmentUnit::find($pu->id);
+                            if ($freshPu) {
+                                $unitCtrl->resolveParentAndChildrenStatus($freshPu);
+                            }
+                        }
+                    } catch (\Throwable $e) {}
+                }
             }
 
             if (\Illuminate\Support\Facades\Schema::hasTable('approvals')) {
@@ -550,16 +572,38 @@ class EquipmentBorrowingService
                 DB::table('tracking_numbers')->where('id', $borrowing->tracking_number_id)->update(['status' => 'cancelled']);
             }
 
-            // Release assigned units back to available
+            // Release assigned units and tied child accessories back to available
             $assigned = $borrowing->assigned_units ?? [];
             if (is_string($assigned)) {
                 try { $assigned = json_decode($assigned, true); } catch (\Throwable $t) { $assigned = []; }
             }
             if (is_array($assigned) && !empty($assigned) && \Illuminate\Support\Facades\Schema::hasTable('equipment_units')) {
                 $unitCodes = array_values(array_filter($assigned));
-                \App\Models\EquipmentUnit::whereIn('barcode', $unitCodes)
-                    ->whereIn('status', ['reserved', 'released'])
-                    ->update(['status' => 'available']);
+                $tied = \App\Models\EquipmentUnit::resolveTiedChildAccessories($unitCodes);
+                $allCodes = array_merge($unitCodes, $tied['child_codes']);
+                $allIds = $tied['child_ids'];
+
+                \App\Models\EquipmentUnit::where(function($q) use ($allCodes, $allIds) {
+                    $q->whereIn('barcode', $allCodes)
+                      ->orWhereIn('serial_number', $allCodes);
+                    if (!empty($allIds)) {
+                        $q->orWhereIn('id', array_map('intval', $allIds));
+                    }
+                })
+                ->whereIn('status', ['reserved', 'released'])
+                ->update(['status' => 'available']);
+
+                if ($tied['parents']->isNotEmpty()) {
+                    try {
+                        $unitCtrl = app(\App\Http\Controllers\General\EquipmentUnitController::class);
+                        foreach ($tied['parents'] as $pu) {
+                            $freshPu = \App\Models\EquipmentUnit::find($pu->id);
+                            if ($freshPu) {
+                                $unitCtrl->resolveParentAndChildrenStatus($freshPu);
+                            }
+                        }
+                    } catch (\Throwable $e) {}
+                }
             }
 
             if (\Illuminate\Support\Facades\Schema::hasTable('approvals')) {

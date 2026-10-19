@@ -733,6 +733,29 @@ class EquipmentCategoryService
             $releasedBarcodes = array_unique($releasedBarcodes);
             $reservedBarcodes = array_diff(array_unique($reservedBarcodes), $releasedBarcodes);
 
+            // Automatically resolve tied built-in child accessories for all released and reserved parent units
+            if (!empty($releasedBarcodes)) {
+                $tiedReleased = \App\Models\EquipmentUnit::resolveTiedChildAccessories($releasedBarcodes);
+                foreach ($tiedReleased['child_codes'] as $cCode) {
+                    $releasedBarcodes[] = $cCode;
+                }
+                foreach ($tiedReleased['child_ids'] as $cId) {
+                    $releasedBarcodes[] = (string)$cId;
+                }
+                $releasedBarcodes = array_values(array_unique($releasedBarcodes));
+            }
+
+            if (!empty($reservedBarcodes)) {
+                $tiedReserved = \App\Models\EquipmentUnit::resolveTiedChildAccessories($reservedBarcodes);
+                foreach ($tiedReserved['child_codes'] as $cCode) {
+                    $reservedBarcodes[] = $cCode;
+                }
+                foreach ($tiedReserved['child_ids'] as $cId) {
+                    $reservedBarcodes[] = (string)$cId;
+                }
+                $reservedBarcodes = array_values(array_diff(array_unique($reservedBarcodes), $releasedBarcodes));
+            }
+
             // 3. Mark released physical units
             if (!empty($releasedBarcodes)) {
                 $relNumIds = array_values(array_filter($releasedBarcodes, fn($v) => is_numeric($v) && (int)$v > 0));
@@ -854,7 +877,7 @@ class EquipmentCategoryService
                         ->whereNotIn('status', ['released', 'reserved'])
                         ->update(['status' => 'unavailable', 'updated_at' => now()]);
                 } else {
-                    // All built-in units and parent are Good -> automatically available!
+                    // All built-in units and parent are Good -> parent is available, children are built-in!
                     if (!in_array($pUnit->status, ['released', 'reserved'], true)) {
                         DB::table('equipment_units')
                             ->where('id', $pUnit->id)
@@ -870,8 +893,8 @@ class EquipmentCategoryService
                         })
                         ->whereNotIn(DB::raw("LOWER(COALESCE(equipment_units.condition, 'good'))"), ['lost', 'damaged', 'decommissioned', 'under repair', 'worn', 'minor wear'])
                         ->whereNotIn('status', ['released', 'reserved'])
-                        ->where('status', '!=', 'available')
-                        ->update(['status' => 'available', 'updated_at' => now()]);
+                        ->where('status', '!=', 'built-in')
+                        ->update(['status' => 'built-in', 'updated_at' => now()]);
                 }
             }
 

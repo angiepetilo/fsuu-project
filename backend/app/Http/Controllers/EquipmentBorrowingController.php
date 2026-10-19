@@ -228,44 +228,55 @@ class EquipmentBorrowingController extends Controller
         // Capture previous status BEFORE writes — used as idempotency guard for Email 3
         $prevStatus = strtolower($equipmentBorrowing->status ?? $equipmentBorrowing->trackingNumber?->status ?? '');
 
-        if ($request->has('assigned_units')) {
-            $assignedData = $request->input('assigned_units');
-            if (is_string($assignedData)) {
-                try { $assignedData = json_decode($assignedData, true); } catch (\Throwable $t) { $assignedData = []; }
-            }
-            $equipmentBorrowing->forceFill(['assigned_units' => $assignedData])->save();
-        }
-
-        if ($equipmentBorrowing->tracking_number_id) {
-            \Illuminate\Support\Facades\DB::table('tracking_numbers')->where('id', $equipmentBorrowing->tracking_number_id)->update(['status' => 'on-going']);
-        }
-        if (\Illuminate\Support\Facades\Schema::hasColumn('equipment_borrows', 'status')) {
-            $equipmentBorrowing->forceFill(['status' => 'on-going'])->save();
-        }
-
-        // Mark all assigned physical units as 'released'
-        $assigned = $equipmentBorrowing->assigned_units ?? [];
-        if (is_string($assigned)) {
-            try { $assigned = json_decode($assigned, true); } catch (\Throwable $t) { $assigned = []; }
-        }
-        $barcodes = [];
-        if (is_array($assigned)) {
-            foreach ($assigned as $val) {
-                if ($val) $barcodes[] = trim((string)$val);
-            }
-        }
-        if (!empty($barcodes)) {
-            $numericIds = array_values(array_filter($barcodes, fn($v) => is_numeric($v) && (int)$v > 0));
-            $unitCodes = array_values(array_filter($barcodes, fn($v) => !empty($v)));
-
-            \App\Models\EquipmentUnit::where(function($q) use ($unitCodes, $numericIds) {
-                $q->whereIn('barcode', $unitCodes)
-                  ->orWhereIn('serial_number', $unitCodes);
-                if (!empty($numericIds)) {
-                    $q->orWhereIn('id', array_map('intval', $numericIds));
+        \Illuminate\Support\Facades\DB::transaction(function () use ($equipmentBorrowing, $request) {
+            if ($request->has('assigned_units')) {
+                $assignedData = $request->input('assigned_units');
+                if (is_string($assignedData)) {
+                    try { $assignedData = json_decode($assignedData, true); } catch (\Throwable $t) { $assignedData = []; }
                 }
-            })->update(['status' => 'released']);
-        }
+                $equipmentBorrowing->forceFill(['assigned_units' => $assignedData])->save();
+            }
+
+            if ($equipmentBorrowing->tracking_number_id) {
+                \Illuminate\Support\Facades\DB::table('tracking_numbers')->where('id', $equipmentBorrowing->tracking_number_id)->update(['status' => 'on-going']);
+            }
+            if (\Illuminate\Support\Facades\Schema::hasColumn('equipment_borrows', 'status')) {
+                $equipmentBorrowing->forceFill(['status' => 'on-going'])->save();
+            }
+
+            // Mark all assigned physical units AND their tied built-in child accessories as 'released'
+            $assigned = $equipmentBorrowing->assigned_units ?? [];
+            if (is_string($assigned)) {
+                try { $assigned = json_decode($assigned, true); } catch (\Throwable $t) { $assigned = []; }
+            }
+            $barcodes = [];
+            if (is_array($assigned)) {
+                foreach ($assigned as $val) {
+                    if ($val) $barcodes[] = trim((string)$val);
+                }
+            }
+            if (!empty($barcodes)) {
+                $numericIds = array_values(array_filter($barcodes, fn($v) => is_numeric($v) && (int)$v > 0));
+                $unitCodes = array_values(array_filter($barcodes, fn($v) => !empty($v)));
+
+                // Resolve tied child accessories (e.g., HDMI cables, power cords inside projector kits)
+                $tied = \App\Models\EquipmentUnit::resolveTiedChildAccessories($barcodes);
+                $allTargetCodes = array_merge($unitCodes, $tied['child_codes']);
+                $allTargetIds = array_merge($numericIds, $tied['child_ids']);
+
+                \App\Models\EquipmentUnit::where(function($q) use ($allTargetCodes, $allTargetIds) {
+                    $q->whereIn('barcode', $allTargetCodes)
+                      ->orWhereIn('serial_number', $allTargetCodes);
+                    if (!empty($allTargetIds)) {
+                        $q->orWhereIn('id', array_map('intval', $allTargetIds));
+                    }
+                })->update(['status' => 'released']);
+            }
+
+            \App\Models\EquipmentBorrowItem::where('equipment_borrow_id', $equipmentBorrowing->id)
+                ->whereNull('picked_up_at')
+                ->update(['picked_up_at' => now()]);
+        });
 
         // Synchronize category stock and physical unit statuses across system
         try {
@@ -280,10 +291,6 @@ class EquipmentBorrowingController extends Controller
             }
             event(new \App\Events\InventoryStockUpdated(null, 'released', ['borrow_id' => $equipmentBorrowing->id]));
         } catch (\Throwable $th) {}
-
-        \App\Models\EquipmentBorrowItem::where('equipment_borrow_id', $equipmentBorrowing->id)
-            ->whereNull('picked_up_at')
-            ->update(['picked_up_at' => now()]);
 
         try {
             $ref = $equipmentBorrowing->trackingNumber?->reference_code ?? "EQ-{$equipmentBorrowing->id}";
@@ -521,65 +528,8 @@ class EquipmentBorrowingController extends Controller
                 $finalStatus = 'late return';
             }
 
-            if ($equipmentBorrowing->tracking_number_id) {
-                \Illuminate\Support\Facades\DB::table('tracking_numbers')->where('id', $equipmentBorrowing->tracking_number_id)->update(['status' => $finalStatus]);
-            }
-            if (\Illuminate\Support\Facades\Schema::hasColumn('equipment_borrows', 'status')) {
-                $updatePayload = ['status' => $finalStatus];
-                if (\Illuminate\Support\Facades\Schema::hasColumn('equipment_borrows', 'returned_at')) {
-                    $updatePayload['returned_at'] = now();
-                }
-                $equipmentBorrowing->forceFill($updatePayload)->save();
-            }
-
             $violationType = $request->get('violation_type') ?? ($isLate ? 'Late Equipment Return' : ($condition === 'damaged' ? 'Equipment Damage' : ($condition === 'lost' ? 'Lost Equipment' : null)));
             $notes = $request->get('notes') ?? $request->get('remarks') ?? ($isLate ? "Equipment returned {$minutesLate} minutes late." : ($condition !== 'good' ? "Return inspected: condition={$condition}." : 'Returned safely on time.'));
-
-            // Release physical units back based on return condition.
-            // Always reset assigned (main) barcodes to available first — the per-unit
-            // unit_conditions loop below will then precisely update each individual unit
-            // (including built-in sub-units) to Damaged / Lost / Good as recorded.
-            if (!empty($barcodes) && \Illuminate\Support\Facades\Schema::hasTable('equipment_units')) {
-                $numericIds = array_values(array_filter($barcodes, fn($v) => is_numeric($v) && (int)$v > 0));
-                $unitCodes = array_values(array_filter($barcodes, fn($v) => !empty($v)));
-
-                // Reset all assigned barcodes to available first; unit_conditions will override below
-                \App\Models\EquipmentUnit::where(function($q) use ($unitCodes, $numericIds) {
-                    $q->whereIn('barcode', $unitCodes);
-                    if (!empty($numericIds)) {
-                        $q->orWhereIn('id', array_map('intval', $numericIds));
-                    }
-                })->update(['status' => 'available', 'condition' => 'Good']);
-            }
-
-            // Handle per-unit condition updates if unit_conditions map supplied
-            if (is_array($unitConditions) && \Illuminate\Support\Facades\Schema::hasTable('equipment_units')) {
-                foreach ($unitConditions as $key => $condVal) {
-                    if (is_array($condVal)) {
-                        $rawCondition = $condVal['condition'] ?? $condVal['status'] ?? 'Good';
-                    } else {
-                        $rawCondition = (string)$condVal;
-                    }
-                    $condNormalized = ucfirst(strtolower(trim($rawCondition)));
-                    $uStatus = ($condNormalized === 'Damaged' || $condNormalized === 'Lost') ? 'unavailable' : 'available';
-                    $uCond = $condNormalized === 'Damaged' ? 'Damaged' : ($condNormalized === 'Lost' ? 'Lost' : 'Good');
-
-                    $uBar = $assigned[$key] ?? (is_string($key) || is_numeric($key) ? (string)$key : null);
-                    $lookupKeys = array_filter(array_unique([$key, $uBar]));
-
-                    if (!empty($lookupKeys)) {
-                        $nIds = array_values(array_filter($lookupKeys, fn($v) => is_numeric($v) && (int)$v > 0));
-                        $uCodes = array_values(array_filter($lookupKeys, fn($v) => !empty($v)));
-
-                        \App\Models\EquipmentUnit::where(function($q) use ($uCodes, $nIds) {
-                            $q->whereIn('barcode', $uCodes);
-                            if (!empty($nIds)) {
-                                $q->orWhereIn('id', array_map('intval', $nIds));
-                            }
-                        })->update(['status' => $uStatus, 'condition' => $uCond]);
-                    }
-                }
-            }
 
             // Resolve valid user ID for foreign key constraint
             $authUserId = auth()->id();
@@ -590,46 +540,138 @@ class EquipmentBorrowingController extends Controller
                 $validUserId = \App\Models\User::value('id') ?? 1;
             }
 
-            if (\Illuminate\Support\Facades\Schema::hasTable('inspections')) {
-                $existingInsp = \Illuminate\Support\Facades\DB::table('inspections')
-                    ->where('inspectable_id', $equipmentBorrowing->id)
-                    ->where(function($q) {
-                        $q->where('inspectable_type', \App\Models\EquipmentBorrow::class)
-                          ->orWhere('inspectable_type', 'equipment_borrow')
-                          ->orWhere('inspectable_type', 'avr_equipment_borrowing');
-                    })
-                    ->whereIn('inspection_type', ['post_use', 'post_event'])
-                    ->latest('updated_at')
-                    ->first();
-
-                $inspData = [
-                    'inspectable_type' => \App\Models\EquipmentBorrow::class,
-                    'inspectable_id'   => $equipmentBorrowing->id,
-                    'inspected_by'     => $validUserId,
-                    'inspection_type'  => 'post_event',
-                    'condition'        => $condition,
-                    'is_late'          => $isLate,
-                    'timeliness'       => $timeliness,
-                    'minutes_late'     => $minutesLate,
-                    'violation_type'   => $violationType,
-                    'notes'            => $notes,
-                    'assigned_units'   => is_array($assigned) ? json_encode($assigned) : $assigned,
-                    'unit_conditions'  => is_array($unitConditions) ? json_encode($unitConditions) : $unitConditions,
-                    'inspected_at'     => now(),
-                    'updated_at'       => now(),
-                ];
-
-                if ($existingInsp) {
-                    \Illuminate\Support\Facades\DB::table('inspections')->where('id', $existingInsp->id)->update($inspData);
-                } else {
-                    $inspData['created_at'] = now();
-                    \Illuminate\Support\Facades\DB::table('inspections')->insert($inspData);
+            $parentUnits = collect();
+            \Illuminate\Support\Facades\DB::transaction(function () use ($equipmentBorrowing, $finalStatus, $barcodes, $assigned, $unitConditions, $isLate, $condition, $minutesLate, $timeliness, $violationType, $notes, $validUserId, &$parentUnits) {
+                if ($equipmentBorrowing->tracking_number_id) {
+                    \Illuminate\Support\Facades\DB::table('tracking_numbers')->where('id', $equipmentBorrowing->tracking_number_id)->update(['status' => $finalStatus]);
                 }
-            }
+                if (\Illuminate\Support\Facades\Schema::hasColumn('equipment_borrows', 'status')) {
+                    $updatePayload = ['status' => $finalStatus];
+                    if (\Illuminate\Support\Facades\Schema::hasColumn('equipment_borrows', 'returned_at')) {
+                        $updatePayload['returned_at'] = now();
+                    }
+                    $equipmentBorrowing->forceFill($updatePayload)->save();
+                }
 
-            \App\Models\EquipmentBorrowItem::where('equipment_borrow_id', $equipmentBorrowing->id)
-                ->whereNull('returned_at')
-                ->update(['returned_at' => now()]);
+                // Release physical units back based on return condition.
+                // Reset assigned (main) barcodes AND tied built-in child accessories to available first
+                if (!empty($barcodes) && \Illuminate\Support\Facades\Schema::hasTable('equipment_units')) {
+                    $numericIds = array_values(array_filter($barcodes, fn($v) => is_numeric($v) && (int)$v > 0));
+                    $unitCodes = array_values(array_filter($barcodes, fn($v) => !empty($v)));
+
+                    // Resolve tied child accessories (e.g. HDMI cables, power cords inside projector kits)
+                    $tied = \App\Models\EquipmentUnit::resolveTiedChildAccessories($barcodes);
+                    $parentUnits = $tied['parents'];
+                    $allTargetCodes = array_merge($unitCodes, $tied['child_codes']);
+                    $allTargetIds = array_merge($numericIds, $tied['child_ids']);
+
+                    \App\Models\EquipmentUnit::where(function($q) use ($allTargetCodes, $allTargetIds) {
+                        $q->whereIn('barcode', $allTargetCodes)
+                          ->orWhereIn('serial_number', $allTargetCodes);
+                        if (!empty($allTargetIds)) {
+                            $q->orWhereIn('id', array_map('intval', $allTargetIds));
+                        }
+                    })->update(['status' => 'available', 'condition' => 'Good']);
+                }
+
+                // Handle per-unit condition updates if unit_conditions map supplied
+                if (is_array($unitConditions) && \Illuminate\Support\Facades\Schema::hasTable('equipment_units')) {
+                    foreach ($unitConditions as $key => $condVal) {
+                        if (is_array($condVal)) {
+                            $rawCondition = $condVal['condition'] ?? $condVal['status'] ?? 'Good';
+                        } else {
+                            $rawCondition = (string)$condVal;
+                        }
+                        $condNormalized = ucfirst(strtolower(trim($rawCondition)));
+                        $uStatus = ($condNormalized === 'Damaged' || $condNormalized === 'Lost') ? 'unavailable' : 'available';
+                        $uCond = $condNormalized === 'Damaged' ? 'Damaged' : ($condNormalized === 'Lost' ? 'Lost' : 'Good');
+
+                        $uBar = $assigned[$key] ?? (is_string($key) || is_numeric($key) ? (string)$key : null);
+                        $lookupKeys = array_filter(array_unique([$key, $uBar]));
+
+                        if (!empty($lookupKeys)) {
+                            $nIds = array_values(array_filter($lookupKeys, fn($v) => is_numeric($v) && (int)$v > 0));
+                            $uCodes = array_values(array_filter($lookupKeys, fn($v) => !empty($v)));
+
+                            \App\Models\EquipmentUnit::where(function($q) use ($uCodes, $nIds) {
+                                $q->whereIn('barcode', $uCodes)
+                                  ->orWhereIn('serial_number', $uCodes);
+                                if (!empty($nIds)) {
+                                    $q->orWhereIn('id', array_map('intval', $nIds));
+                                }
+                            })->update(['status' => $uStatus, 'condition' => $uCond]);
+                        }
+                    }
+                }
+
+                // Enforce kit bundle integrity: call resolveParentAndChildrenStatus on all touched parent units
+                if ($parentUnits->isNotEmpty()) {
+                    try {
+                        $unitCtrl = app(\App\Http\Controllers\General\EquipmentUnitController::class);
+                        foreach ($parentUnits as $pu) {
+                            $freshPu = \App\Models\EquipmentUnit::find($pu->id);
+                            if ($freshPu) {
+                                $unitCtrl->resolveParentAndChildrenStatus($freshPu);
+                            }
+                        }
+                    } catch (\Throwable $e) {}
+                }
+
+                if (\Illuminate\Support\Facades\Schema::hasTable('inspections')) {
+                    $existingInsp = \Illuminate\Support\Facades\DB::table('inspections')
+                        ->where('inspectable_id', $equipmentBorrowing->id)
+                        ->where(function($q) {
+                            $q->where('inspectable_type', \App\Models\EquipmentBorrow::class)
+                              ->orWhere('inspectable_type', 'equipment_borrow')
+                              ->orWhere('inspectable_type', 'avr_equipment_borrowing');
+                        })
+                        ->whereIn('inspection_type', ['post_use', 'post_event'])
+                        ->latest('updated_at')
+                        ->first();
+
+                    $inspData = [
+                        'inspectable_type' => \App\Models\EquipmentBorrow::class,
+                        'inspectable_id'   => $equipmentBorrowing->id,
+                        'inspected_by'     => $validUserId,
+                        'inspection_type'  => 'post_event',
+                        'condition'        => $condition,
+                        'is_late'          => $isLate,
+                        'timeliness'       => $timeliness,
+                        'minutes_late'     => $minutesLate,
+                        'violation_type'   => $violationType,
+                        'notes'            => $notes,
+                        'assigned_units'   => is_array($assigned) ? json_encode($assigned) : $assigned,
+                        'unit_conditions'  => is_array($unitConditions) ? json_encode($unitConditions) : $unitConditions,
+                        'inspected_at'     => now(),
+                        'updated_at'       => now(),
+                    ];
+
+                    if ($existingInsp) {
+                        \Illuminate\Support\Facades\DB::table('inspections')->where('id', $existingInsp->id)->update($inspData);
+                    } else {
+                        $inspData['created_at'] = now();
+                        \Illuminate\Support\Facades\DB::table('inspections')->insert($inspData);
+                    }
+                }
+
+                \App\Models\EquipmentBorrowItem::where('equipment_borrow_id', $equipmentBorrowing->id)
+                    ->whereNull('returned_at')
+                    ->update(['returned_at' => now()]);
+            });
+
+            // Synchronize category stock and physical unit statuses across system
+            try {
+                \App\Services\EquipmentCategoryService::autoSyncUnitConditions();
+                $unitController = app(\App\Http\Controllers\General\EquipmentUnitController::class);
+                $typeIds = \App\Models\EquipmentBorrowItem::where('equipment_borrow_id', $equipmentBorrowing->id)
+                    ->pluck('equipment_type_id')
+                    ->filter()
+                    ->unique();
+                foreach ($typeIds as $tId) {
+                    $unitController->syncCategoryStock((int)$tId);
+                }
+                event(new \App\Events\InventoryStockUpdated(null, 'completed', ['borrow_id' => $equipmentBorrowing->id]));
+            } catch (\Throwable $th) {}
 
             try {
                 $ref = $equipmentBorrowing->trackingNumber?->reference_code ?? "EQ-{$equipmentBorrowing->id}";
@@ -959,12 +1001,29 @@ class EquipmentBorrowingController extends Controller
             }
             $unassignedBarcodes = array_values(array_diff($prevBarcodes, $barcodes));
             if (!empty($unassignedBarcodes)) {
-                \App\Models\EquipmentUnit::where(function($q) use ($unassignedBarcodes) {
-                    $q->whereIn('barcode', $unassignedBarcodes)
-                      ->orWhereIn('serial_number', $unassignedBarcodes);
+                $tiedUnassigned = \App\Models\EquipmentUnit::resolveTiedChildAccessories($unassignedBarcodes);
+                $allUnassignedCodes = array_merge($unassignedBarcodes, $tiedUnassigned['child_codes']);
+                $allUnassignedIds = $tiedUnassigned['child_ids'];
+
+                \App\Models\EquipmentUnit::where(function($q) use ($allUnassignedCodes, $allUnassignedIds) {
+                    $q->whereIn('barcode', $allUnassignedCodes)
+                      ->orWhereIn('serial_number', $allUnassignedCodes);
+                    if (!empty($allUnassignedIds)) {
+                        $q->orWhereIn('id', array_map('intval', $allUnassignedIds));
+                    }
                 })
                 ->whereNotIn('status', ['damaged', 'lost', 'under_repair'])
                 ->update(['status' => 'available']);
+
+                if ($tiedUnassigned['parents']->isNotEmpty()) {
+                    $unitCtrl = app(\App\Http\Controllers\General\EquipmentUnitController::class);
+                    foreach ($tiedUnassigned['parents'] as $up) {
+                        $freshUp = \App\Models\EquipmentUnit::find($up->id);
+                        if ($freshUp) {
+                            $unitCtrl->resolveParentAndChildrenStatus($freshUp);
+                        }
+                    }
+                }
             }
         }
 
@@ -973,11 +1032,15 @@ class EquipmentBorrowingController extends Controller
             $numericIds = array_values(array_filter($barcodes, fn($v) => is_numeric($v) && (int)$v > 0));
             $unitCodes = array_values(array_filter($barcodes, fn($v) => !empty($v)));
 
-            \App\Models\EquipmentUnit::where(function($q) use ($unitCodes, $numericIds) {
-                $q->whereIn('barcode', $unitCodes)
-                  ->orWhereIn('serial_number', $unitCodes);
-                if (!empty($numericIds)) {
-                    $q->orWhereIn('id', array_map('intval', $numericIds));
+            $tied = \App\Models\EquipmentUnit::resolveTiedChildAccessories($barcodes);
+            $allTargetCodes = array_merge($unitCodes, $tied['child_codes']);
+            $allTargetIds = array_merge($numericIds, $tied['child_ids']);
+
+            \App\Models\EquipmentUnit::where(function($q) use ($allTargetCodes, $allTargetIds) {
+                $q->whereIn('barcode', $allTargetCodes)
+                  ->orWhereIn('serial_number', $allTargetCodes);
+                if (!empty($allTargetIds)) {
+                    $q->orWhereIn('id', array_map('intval', $allTargetIds));
                 }
             })
             ->update(['status' => $newUnitStatus]);
