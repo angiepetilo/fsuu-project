@@ -67,6 +67,7 @@ export default function EquipBorrowInspectionForm({
     });
 
     if (!unit) return [];
+    const parentUnit = unit;
 
     // built_in_units is stored on the physical unit (equipment_units.built_in_units).
     // Fallback to the equipment type relation if the physical unit doesn't have it set.

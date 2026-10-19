@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useOutletContext } from "react-router-dom";
 import api from "@/lib/axios";
 import { fetchWithCache, invalidateCache } from "@/lib/apiCache";
@@ -80,8 +80,11 @@ export default function EquipmentStockTab({
   const [unitPage, setUnitPage] = useState(1);
   const UNIT_ITEMS_PER_PAGE = 10;
 
-  const fetchUnits = useCallback(async () => {
-    setUnitsLoading(true);
+  const fetchUnits = useCallback(async (opts = false) => {
+    const isSilent = typeof opts === "object" && opts !== null
+      ? Boolean(opts.isSilent || opts.silent || opts.showLoading === false)
+      : Boolean(opts);
+    if (!isSilent) setUnitsLoading(true);
     try {
       invalidateCache('equipment');
       invalidateCache('equipment_units');
@@ -207,7 +210,7 @@ export default function EquipmentStockTab({
       setUnits([]);
       setCategories([]);
     } finally {
-      setUnitsLoading(false);
+      if (!isSilent) setUnitsLoading(false);
     }
   }, []);
 
@@ -282,11 +285,16 @@ export default function EquipmentStockTab({
 
 
 
+  const fetchReportsDataRef = useRef(fetchReportsData);
+  useEffect(() => {
+    fetchReportsDataRef.current = fetchReportsData;
+  }, [fetchReportsData]);
+
   useEffect(() => {
     fetchUnits();
     const handleSync = () => {
-      fetchUnits();
-      if (fetchReportsData) fetchReportsData({ isSilent: true });
+      fetchUnits({ isSilent: true });
+      if (fetchReportsDataRef.current) fetchReportsDataRef.current({ isSilent: true });
     };
     window.addEventListener("equipment_inventory_updated", handleSync);
     window.addEventListener("equipment_updated", handleSync);
@@ -301,7 +309,7 @@ export default function EquipmentStockTab({
       window.removeEventListener("equipment_updated", handleSync);
       window.removeEventListener("storage", handleStorage);
     };
-  }, [fetchUnits, fetchReportsData]);
+  }, [fetchUnits]);
 
   const parentUnitMap = useMemo(() => {
     const map = new Map();

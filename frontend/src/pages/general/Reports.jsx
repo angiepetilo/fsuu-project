@@ -104,7 +104,7 @@ export default function Reports() {
 
   const [equipmentUnits, setEquipmentUnits] = useState([]);
 
-  const fetchReportsData = async (opts = false) => {
+  const fetchReportsData = useCallback(async (opts = false) => {
     if (!hasPermission("reports")) {
       setLoading(false);
       return;
@@ -150,7 +150,7 @@ export default function Reports() {
     } finally {
       if (!isSilent) setLoading(false);
     }
-  };
+  }, [hasPermission, selectedTermId]);
 
   useEffect(() => {
     fetchReportsData();

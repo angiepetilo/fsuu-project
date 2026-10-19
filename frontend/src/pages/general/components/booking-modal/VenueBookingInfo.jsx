@@ -58,6 +58,7 @@ export default function VenueBookingInfo({
   const [isUploading, setIsUploading] = useState(false);
 
   const [hasHardcopySaved, setHasHardcopySaved] = useState(false);
+  const [selectedDocIndex, setSelectedDocIndex] = useState(0);
 
   useEffect(() => {
     setStaffUploadUrl(null);
@@ -140,7 +141,6 @@ export default function VenueBookingInfo({
     return list;
   })();
 
-  const [selectedDocIndex, setSelectedDocIndex] = useState(0);
 
   const getDocumentUrl = () => {
     if (allDocs.length > 0) {

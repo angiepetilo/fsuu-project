@@ -22,14 +22,7 @@ class EquipmentUnitController extends Controller
         $sort = strtolower((string)$request->input('sort', 'oldest'));
 
         $query = EquipmentUnit::withTrashed()
-            ->select([
-                'id', 'equipment_type_id', 'brand', 'model', 'seq_no',
-                'serial_number', 'barcode', 'purchased_at', 'eq_lifespan',
-                'status', 'condition', 'built_in_units', 'archived_at', 'created_at'
-            ])
-            ->with(['equipmentType' => function($q) {
-                $q->select(['id', 'eq_name', 'brand', 'total_quantity', 'available_count', 'status']);
-            }]);
+            ->with('equipmentType');
 
         if ($sort === 'newest') {
             $query->orderBy('created_at', 'desc')->orderBy('id', 'desc');
