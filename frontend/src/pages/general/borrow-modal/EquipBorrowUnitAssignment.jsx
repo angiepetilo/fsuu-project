@@ -299,31 +299,65 @@ export default function EquipBorrowUnitAssignment({
     const cleanBarcode = String(barcodeVal).trim().toUpperCase();
 
     const unit = (allUnits || []).find((u) => {
-      const b = String(u.barcode || u.serial_number || u.code || u.id).trim().toUpperCase();
-      return b === cleanBarcode;
+      const candidates = [
+        u.barcode,
+        u.serial_number,
+        u.code,
+        String(u.id),
+        u.seq_no ? `#${String(u.seq_no).replace(/^#/, '')}` : null,
+      ].filter(Boolean).map((s) => String(s).trim().toUpperCase());
+      return candidates.includes(cleanBarcode);
     });
 
-    if (!unit) return [];
+    let rawList = [];
+    if (unit) {
+      if (Array.isArray(unit.built_in_units)) {
+        rawList = unit.built_in_units;
+      } else if (typeof unit.built_in_units === "string") {
+        try { rawList = JSON.parse(unit.built_in_units || "[]"); } catch { rawList = []; }
+      }
+      if (!Array.isArray(rawList) || rawList.length === 0) {
+        if (Array.isArray(unit.equipmentType?.built_in_units)) {
+          rawList = unit.equipmentType.built_in_units;
+        } else if (Array.isArray(unit.equipment_type?.built_in_units)) {
+          rawList = unit.equipment_type.built_in_units;
+        }
+      }
+    }
 
-    let rawList = Array.isArray(unit.built_in_units)
-      ? unit.built_in_units
-      : (typeof unit.built_in_units === "string" ? JSON.parse(unit.built_in_units || "[]") : []);
-
-    if (!Array.isArray(rawList) || rawList.length === 0) {
-      if (Array.isArray(unit.equipmentType?.built_in_units)) {
-        rawList = unit.equipmentType.built_in_units;
-      } else if (Array.isArray(unit.equipment_type?.built_in_units)) {
-        rawList = unit.equipment_type.built_in_units;
+    if ((!Array.isArray(rawList) || rawList.length === 0) && Array.isArray(categoriesToRender)) {
+      const parentCat = categoriesToRender.find((c) => {
+        if (unit && String(c.id || c.equipment_type_id) === String(unit.equipment_type_id)) return true;
+        return false;
+      });
+      if (parentCat?.built_in_units && Array.isArray(parentCat.built_in_units)) {
+        rawList = parentCat.built_in_units;
+      } else if (parentCat?.built_in_names && Array.isArray(parentCat.built_in_names)) {
+        rawList = parentCat.built_in_names;
       }
     }
 
     if (!Array.isArray(rawList) || rawList.length === 0) return [];
 
-    return rawList.map((biId) => {
-      const match = (allUnits || []).find((u) =>
-        String(u.id) === String(biId) ||
-        String(u.barcode).trim().toUpperCase() === String(biId).trim().toUpperCase()
-      );
+    return rawList.map((itemRef) => {
+      if (!itemRef) return null;
+      const biKey = (typeof itemRef === 'object' && itemRef !== null)
+        ? String(itemRef.id || itemRef.barcode || itemRef.serial_number || '').trim().toUpperCase()
+        : String(itemRef).trim().toUpperCase();
+      const biRaw = (typeof itemRef === 'object' && itemRef !== null)
+        ? (itemRef.name || itemRef.barcode || itemRef.id)
+        : itemRef;
+
+      const match = (allUnits || []).find((u) => {
+        const uCandidates = [
+          String(u.id),
+          u.barcode,
+          u.serial_number,
+          u.code,
+        ].filter(Boolean).map((s) => String(s).trim().toUpperCase());
+        return uCandidates.includes(biKey);
+      });
+
       if (match) {
         const catName = match.equipmentType?.eq_name || match.equipment_type?.eq_name || match.category || "";
         const rawSeq = match.seq_no ?? match.sequence_no;
@@ -335,7 +369,7 @@ export default function EquipBorrowUnitAssignment({
         const brandModel = brand && model ? `${brand} • ${model}` : (brand || model || match.name || "Unit");
         return {
           id: match.id,
-          barcode: match.barcode || `UNIT-${match.id}`,
+          barcode: match.barcode || match.serial_number || `UNIT-${match.id}`,
           name: brandModel,
           brand,
           model,
@@ -345,29 +379,29 @@ export default function EquipBorrowUnitAssignment({
       }
 
       // If not a physical unit, resolve category/accessory name (e.g. ID 8 -> HDMI)
-      const eqType = unit.equipmentType || unit.equipment_type;
+      const eqType = unit?.equipmentType || unit?.equipment_type;
       let resolvedTypeName = null;
       if (Array.isArray(eqType?.built_in_names) && eqType.built_in_names.length > 0) {
-        const rawIdx = rawList.indexOf(biId);
+        const rawIdx = rawList.indexOf(itemRef);
         if (rawIdx !== -1 && eqType.built_in_names[rawIdx]) {
           resolvedTypeName = eqType.built_in_names[rawIdx];
         } else {
           const matchByName = eqType.built_in_names.find(
-            (n) => String(n).toLowerCase() === String(biId).toLowerCase()
+            (n) => String(n).toLowerCase() === String(biRaw).toLowerCase()
           );
           if (matchByName) resolvedTypeName = matchByName;
         }
       }
       if (!resolvedTypeName && Array.isArray(categoriesToRender)) {
         const catMatch = categoriesToRender.find(
-          (c) => String(c.id || c.equipment_type_id) === String(biId)
+          (c) => String(c.id || c.equipment_type_id) === String(biKey) || String(c.category || c.name).toLowerCase() === String(biRaw).toLowerCase()
         );
         if (catMatch) resolvedTypeName = catMatch.category || catMatch.name;
       }
 
       if (resolvedTypeName) {
         return {
-          id: biId,
+          id: biKey || biRaw,
           barcode: resolvedTypeName,
           name: resolvedTypeName,
           category: "Built-in Accessory",
@@ -375,9 +409,9 @@ export default function EquipBorrowUnitAssignment({
       }
 
       return {
-        id: biId,
-        barcode: String(biId),
-        name: isNaN(Number(biId)) ? String(biId) : `Physical Unit #${biId}`,
+        id: biKey || biRaw,
+        barcode: String(biRaw),
+        name: isNaN(Number(biRaw)) ? String(biRaw) : `Physical Unit #${biRaw}`,
         category: "",
       };
     }).filter(Boolean);

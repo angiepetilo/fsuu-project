@@ -82,9 +82,12 @@ export default function EquipmentStockTab({
   const fetchUnits = useCallback(async () => {
     setUnitsLoading(true);
     try {
+      invalidateCache('equipment');
+      invalidateCache('equipment_units');
+      invalidateCache('equipment_types_list');
       const [catData, unitRes] = await Promise.all([
-        api.get('/general/equipment-types').then(r => r.data).catch(() => []),
-        api.get('/general/equipment-units').catch(() => ({ data: [] })),
+        api.get(`/general/equipment-types?_t=${Date.now()}`).then(r => r.data).catch(() => []),
+        api.get(`/general/equipment-units?_t=${Date.now()}`).catch(() => ({ data: [] })),
       ]);
 
       const catList = Array.isArray(catData) ? catData : [];
@@ -455,6 +458,14 @@ export default function EquipmentStockTab({
           }
         }
       });
+
+      const backendReleased = Number(item.released_count || 0);
+      const effectiveReleased = Math.max(currentReleased, backendReleased);
+      if (effectiveReleased > currentReleased) {
+        const unassignedReleased = effectiveReleased - currentReleased;
+        availablePresent = Math.max(0, availablePresent - unassignedReleased);
+        currentReleased = effectiveReleased;
+      }
     } else {
       expectedQty = Math.max(0, typeof item.total_quantity === 'number' ? item.total_quantity : (item.total_units || 0));
       currentDamaged = item.damaged_count || 0;
@@ -837,8 +848,8 @@ export default function EquipmentStockTab({
             <table className="w-full text-sm min-w-[760px]">
               <thead>
                 <tr className="bg-slate-50/80 dark:bg-slate-800/80 border-b border-slate-100 dark:border-slate-800">
-                  {["#", "Serial No.", "Equipment Unit Name", "Built-In", "Status", "Date Purchased", "Lifespan vs Current", "Action"].map((h, i) => (
-                    <th key={h} className={`px-4 py-3.5 text-left text-[11px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap ${i === 0 ? 'rounded-tl-2xl' : i === 7 ? 'rounded-tr-2xl' : ''}`}>
+                  {["#", "Serial No.", "Equipment Unit Name", "Built-In", "Status", "Action"].map((h, i) => (
+                    <th key={h} className={`px-4 py-3.5 text-left text-[11px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap ${i === 0 ? 'rounded-tl-2xl' : i === 5 ? 'rounded-tr-2xl' : ''}`}>
                       {h}
                     </th>
                   ))}
@@ -847,13 +858,13 @@ export default function EquipmentStockTab({
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-xs font-semibold">
                 {unitsLoading ? (
                   <tr>
-                    <td colSpan={8} className="text-center py-12 text-slate-400">
+                    <td colSpan={6} className="text-center py-12 text-slate-400">
                       <Loader2 size={20} className="animate-spin inline mr-2" /> Loading equipment units...
                     </td>
                   </tr>
                 ) : filteredUnits.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="text-center py-12 text-slate-400">
+                    <td colSpan={6} className="text-center py-12 text-slate-400">
                       📦 No physical equipment units found.
                     </td>
                   </tr>
@@ -930,8 +941,6 @@ export default function EquipmentStockTab({
                             return <span className="text-[11px] font-bold text-amber-500 dark:text-amber-400">Unavailable</span>;
                           })()}
                         </td>
-                        <td className="px-4 py-3.5 text-slate-600 dark:text-slate-300 whitespace-nowrap">{item.date_purchased}</td>
-                        <td className="px-4 py-3.5 text-slate-600 dark:text-slate-300 whitespace-nowrap">{ageYears.toFixed(1)} / {lifespanYears} yrs</td>
                         <td className="px-4 py-3.5 relative">
                           <div className="relative action-menu-container inline-block">
                             <button

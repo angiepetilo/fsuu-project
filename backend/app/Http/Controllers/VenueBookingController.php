@@ -230,6 +230,12 @@ class VenueBookingController extends Controller
             $booking = $this->service->ongoing($avrVenueBooking, $user);
 
             try {
+                \App\Services\EquipmentCategoryService::autoSyncUnitConditions();
+                \App\Services\EquipmentCategoryService::syncCategoryStock();
+                event(new \App\Events\InventoryStockUpdated(null, 'released', ['venue_booking_id' => $avrVenueBooking->id]));
+            } catch (\Throwable $t) {}
+
+            try {
                 $ref = $avrVenueBooking->trackingNumber?->reference_code ?? "VB-{$avrVenueBooking->id}";
                 AuditLog::create([
                     'user_id'        => $user?->id ?? auth()->id(),
@@ -545,12 +551,19 @@ class VenueBookingController extends Controller
                 $uCodes = array_values(array_filter($barcodes, fn($v) => !empty($v)));
 
                 \App\Models\EquipmentUnit::where(function($q) use ($uCodes, $numIds) {
-                    $q->whereIn('barcode', $uCodes);
+                    $q->whereIn('barcode', $uCodes)
+                      ->orWhereIn('serial_number', $uCodes);
                     if (!empty($numIds)) {
                         $q->orWhereIn('id', array_map('intval', $numIds));
                     }
                 })
                 ->update(['status' => $newUnitStatus]);
+
+                try {
+                    \App\Services\EquipmentCategoryService::autoSyncUnitConditions();
+                    \App\Services\EquipmentCategoryService::syncCategoryStock();
+                    event(new \App\Events\InventoryStockUpdated(null, 'assigned', ['venue_booking_id' => $avrVenueBooking->id]));
+                } catch (\Throwable $t) {}
             }
 
             return response()->json($avrVenueBooking->fresh(['venue', 'trackingNumber']));

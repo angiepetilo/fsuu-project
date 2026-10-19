@@ -571,6 +571,7 @@ export default function Reports() {
         <div className={activeTab === "equipment_out" ? "block" : "hidden"}>
           <EquipmentOutTab
             equipmentBorrowings={filteredActiveEquipmentBorrowings}
+            equipmentUnits={equipmentUnits}
             loading={loading}
           />
         </div>

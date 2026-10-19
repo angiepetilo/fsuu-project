@@ -998,11 +998,18 @@ class VenueBookingService
                 $unitCodes = array_values(array_filter($barcodes, fn($v) => !empty($v)));
 
                 \App\Models\EquipmentUnit::where(function($q) use ($unitCodes, $numericIds) {
-                    $q->whereIn('barcode', $unitCodes);
+                    $q->whereIn('barcode', $unitCodes)
+                      ->orWhereIn('serial_number', $unitCodes);
                     if (!empty($numericIds)) {
                         $q->orWhereIn('id', array_map('intval', $numericIds));
                     }
                 })->update(['status' => 'released']);
+
+                try {
+                    \App\Services\EquipmentCategoryService::autoSyncUnitConditions();
+                    \App\Services\EquipmentCategoryService::syncCategoryStock();
+                    event(new \App\Events\InventoryStockUpdated(null, 'released', ['venue_booking_id' => $booking->id]));
+                } catch (\Throwable $t) {}
             }
 
             try {
@@ -1232,7 +1239,8 @@ class VenueBookingService
                     $unitCodes = array_values(array_filter($codes, fn($v) => !empty($v)));
 
                     \App\Models\EquipmentUnit::where(function($q) use ($unitCodes, $numericIds) {
-                        $q->whereIn('barcode', $unitCodes);
+                        $q->whereIn('barcode', $unitCodes)
+                          ->orWhereIn('serial_number', $unitCodes);
                         if (!empty($numericIds)) {
                             $q->orWhereIn('id', array_map('intval', $numericIds));
                         }
@@ -1242,6 +1250,12 @@ class VenueBookingService
                 $applyStatusUpdate($goodBarcodes, 'available', 'Good');
                 $applyStatusUpdate($damagedBarcodes, 'unavailable', 'Damaged');
                 $applyStatusUpdate($lostBarcodes, 'unavailable', 'Lost');
+
+                try {
+                    \App\Services\EquipmentCategoryService::autoSyncUnitConditions();
+                    \App\Services\EquipmentCategoryService::syncCategoryStock();
+                    event(new \App\Events\InventoryStockUpdated(null, 'completed', ['venue_booking_id' => $booking->id]));
+                } catch (\Throwable $t) {}
             }
 
             try {

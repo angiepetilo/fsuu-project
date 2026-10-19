@@ -243,15 +243,27 @@ class ListingController extends Controller
             $cleanDate = substr($dateStr, 0, 10);
 
             // 1. Single aggregated query for unreleased overlapping Equipment Borrow Items
-            // Note: Ongoing/released items are already physically marked as released in equipment_units,
-            // so they are already deducted from calculated_available. Only future unreleased reservations are deducted here.
+            // Note: Ongoing items with assigned physical units are already physically marked as released in equipment_units,
+            // so they are excluded from calculated_available. Untagged ongoing items and future unreleased reservations are deducted here.
             $rawBorrowItems = DB::table('equipment_borrow_items')
                 ->join('equipment_borrows', 'equipment_borrow_items.equipment_borrow_id', '=', 'equipment_borrows.id')
                 ->join('tracking_numbers', 'equipment_borrows.tracking_number_id', '=', 'tracking_numbers.id')
-                ->whereRaw("LOWER(COALESCE(tracking_numbers.status, 'pending')) NOT IN ('rejected', 'cancelled', 'completed', 'done', 'damaged', 'lost', 'ongoing', 'on-going', 'released', 'in_use', 'in-use', 'borrowed')")
                 ->where('equipment_borrows.date_of_usage', '=', $cleanDate)
                 ->where('equipment_borrows.time_start', '<', $endTimeStr)
                 ->where('equipment_borrows.time_end', '>', $startTimeStr)
+                ->where(function($q) {
+                    $q->whereRaw("LOWER(COALESCE(tracking_numbers.status, 'pending')) NOT IN ('rejected', 'cancelled', 'completed', 'done', 'damaged', 'lost', 'ongoing', 'on-going', 'released', 'in_use', 'in-use', 'borrowed')")
+                      ->orWhere(function($sub) {
+                          $sub->whereIn(DB::raw("LOWER(COALESCE(tracking_numbers.status, 'pending'))"), ['ongoing', 'on-going', 'borrowed', 'released', 'in_use', 'in-use'])
+                              ->where(function($inner) {
+                                  $inner->whereNull('equipment_borrows.assigned_units')
+                                        ->orWhere('equipment_borrows.assigned_units', '')
+                                        ->orWhere('equipment_borrows.assigned_units', '[]')
+                                        ->orWhere('equipment_borrows.assigned_units', '{}')
+                                        ->orWhere('equipment_borrows.assigned_units', 'null');
+                              });
+                      });
+                })
                 ->select('equipment_borrow_items.equipment_type_id', DB::raw('SUM(equipment_borrow_items.quantity_requested) as total_qty'))
                 ->groupBy('equipment_borrow_items.equipment_type_id')
                 ->get();

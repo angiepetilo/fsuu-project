@@ -3,10 +3,55 @@ import { Search, Clock, CheckCircle2, AlertCircle } from "lucide-react";
 import { formatTime12, formatDate } from "@/lib/dateUtils";
 import { getOverdueMinutes } from "@/lib/dateTimeUtils";
 
-export default function EquipmentOutTab({ equipmentBorrowings = [], loading = false }) {
+export default function EquipmentOutTab({ equipmentBorrowings = [], equipmentUnits = [], loading = false }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [deptFilter, setDeptFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all"); // 'all' | 'out_on_loan' | 'returned' | 'overdue'
+
+  // Helper to extract assigned unit metadata: Seq No, Brand, Model, Serial No
+  const getAssignedUnitsDetails = (b) => {
+    const barcodes = extractBarcodes(b);
+    if (barcodes.length === 0) return [];
+    return barcodes.map((code) => {
+      const cleanCode = String(code).trim().toUpperCase();
+      const matchedUnit = (equipmentUnits || []).find((u) => {
+        const candidates = [
+          u.barcode,
+          u.serial_number,
+          u.code,
+          String(u.id),
+          u.seq_no ? `#${String(u.seq_no).replace(/^#/, '')}` : null,
+        ].filter(Boolean).map((s) => String(s).trim().toUpperCase());
+        return candidates.includes(cleanCode);
+      });
+
+      if (matchedUnit) {
+        const rawSeq = matchedUnit.seq_no ?? matchedUnit.sequence_no;
+        const seqNo = rawSeq !== undefined && rawSeq !== null && String(rawSeq).trim() !== ""
+          ? (String(rawSeq).trim().startsWith("#") ? String(rawSeq).trim() : `#${String(rawSeq).trim()}`)
+          : null;
+        const brand = matchedUnit.brand ? String(matchedUnit.brand).trim() : "";
+        const model = matchedUnit.model ? String(matchedUnit.model).trim() : "";
+        const serialNo = matchedUnit.serial_number || matchedUnit.barcode || code;
+        return {
+          code,
+          serialNo,
+          seqNo,
+          brand,
+          model,
+          category: matchedUnit.category || matchedUnit.name || "",
+        };
+      }
+      return {
+        code,
+        serialNo: code,
+        seqNo: null,
+        brand: "",
+        model: "",
+        category: "",
+      };
+    });
+  };
 
   // Helper to extract assigned unit barcodes without placeholders
   const extractBarcodes = (b) => {
@@ -232,6 +277,7 @@ export default function EquipmentOutTab({ equipmentBorrowings = [], loading = fa
                   const equip = extractEquipmentName(b);
                   const qty = extractUnitsOut(b);
                   const barcodes = extractBarcodes(b);
+                  const assignedDetails = getAssignedUnitsDetails(b);
                   const borrowDate = formatDate(b.date_of_usage || b.start_datetime || b.date);
                   const returnTime = b.time_end ? formatTime12(b.time_end) : "17:00";
                   const overdueMins = getOverdueMinutes(b.date_of_usage || b.start_datetime, b.time_end || b.end_datetime);
@@ -250,7 +296,39 @@ export default function EquipmentOutTab({ equipmentBorrowings = [], loading = fa
                         <p className="font-mono text-[10px] text-slate-400 font-bold">{refCode}</p>
                       </td>
                       <td className="py-3 px-4 font-bold text-slate-700 dark:text-slate-300 text-xs">{dept}</td>
-                      <td className="py-3 px-4 font-extrabold text-slate-900 dark:text-slate-100 text-xs">{equip}</td>
+                      <td className="py-3 px-4 max-w-[320px]">
+                        <p className="font-extrabold text-slate-900 dark:text-slate-100 text-xs">{equip}</p>
+                        {assignedDetails.length > 0 ? (
+                          <div className="flex flex-col gap-1 mt-1">
+                            {assignedDetails.map((u, uIdx) => {
+                              const brandModel = [u.brand, u.model].filter(Boolean).join(" ");
+                              return (
+                                <div key={uIdx} className="flex items-center gap-1.5 flex-wrap text-[11px] font-semibold text-slate-700 dark:text-slate-300">
+                                  {u.seqNo && (
+                                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                                      {u.seqNo}
+                                    </span>
+                                  )}
+                                  {brandModel && (
+                                    <span className="font-bold text-slate-800 dark:text-slate-200">
+                                      {brandModel}
+                                    </span>
+                                  )}
+                                  {u.serialNo && (
+                                    <span className="font-mono text-[10.5px] text-slate-500 dark:text-slate-400">
+                                      (SN: {u.serialNo})
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <span className="text-[10.5px] text-amber-600 dark:text-amber-400 font-medium block mt-0.5">
+                            Pending unit assignment
+                          </span>
+                        )}
+                      </td>
                       <td className="py-3 px-4 text-center font-semibold text-slate-800 dark:text-slate-200 text-xs">
                         {qty}
                       </td>

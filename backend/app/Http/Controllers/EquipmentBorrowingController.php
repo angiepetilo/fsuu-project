@@ -259,12 +259,27 @@ class EquipmentBorrowingController extends Controller
             $unitCodes = array_values(array_filter($barcodes, fn($v) => !empty($v)));
 
             \App\Models\EquipmentUnit::where(function($q) use ($unitCodes, $numericIds) {
-                $q->whereIn('barcode', $unitCodes);
+                $q->whereIn('barcode', $unitCodes)
+                  ->orWhereIn('serial_number', $unitCodes);
                 if (!empty($numericIds)) {
                     $q->orWhereIn('id', array_map('intval', $numericIds));
                 }
             })->update(['status' => 'released']);
         }
+
+        // Synchronize category stock and physical unit statuses across system
+        try {
+            \App\Services\EquipmentCategoryService::autoSyncUnitConditions();
+            $unitController = app(\App\Http\Controllers\General\EquipmentUnitController::class);
+            $typeIds = \App\Models\EquipmentBorrowItem::where('equipment_borrow_id', $equipmentBorrowing->id)
+                ->pluck('equipment_type_id')
+                ->filter()
+                ->unique();
+            foreach ($typeIds as $tId) {
+                $unitController->syncCategoryStock((int)$tId);
+            }
+            event(new \App\Events\InventoryStockUpdated(null, 'released', ['borrow_id' => $equipmentBorrowing->id]));
+        } catch (\Throwable $th) {}
 
         \App\Models\EquipmentBorrowItem::where('equipment_borrow_id', $equipmentBorrowing->id)
             ->whereNull('picked_up_at')
@@ -944,9 +959,12 @@ class EquipmentBorrowingController extends Controller
             }
             $unassignedBarcodes = array_values(array_diff($prevBarcodes, $barcodes));
             if (!empty($unassignedBarcodes)) {
-                \App\Models\EquipmentUnit::whereIn('barcode', $unassignedBarcodes)
-                    ->whereNotIn('status', ['damaged', 'lost', 'under_repair'])
-                    ->update(['status' => 'available']);
+                \App\Models\EquipmentUnit::where(function($q) use ($unassignedBarcodes) {
+                    $q->whereIn('barcode', $unassignedBarcodes)
+                      ->orWhereIn('serial_number', $unassignedBarcodes);
+                })
+                ->whereNotIn('status', ['damaged', 'lost', 'under_repair'])
+                ->update(['status' => 'available']);
             }
         }
 
@@ -956,13 +974,28 @@ class EquipmentBorrowingController extends Controller
             $unitCodes = array_values(array_filter($barcodes, fn($v) => !empty($v)));
 
             \App\Models\EquipmentUnit::where(function($q) use ($unitCodes, $numericIds) {
-                $q->whereIn('barcode', $unitCodes);
+                $q->whereIn('barcode', $unitCodes)
+                  ->orWhereIn('serial_number', $unitCodes);
                 if (!empty($numericIds)) {
                     $q->orWhereIn('id', array_map('intval', $numericIds));
                 }
             })
             ->update(['status' => $newUnitStatus]);
         }
+
+        // Synchronize category stock and physical unit statuses across system
+        try {
+            \App\Services\EquipmentCategoryService::autoSyncUnitConditions();
+            $unitController = app(\App\Http\Controllers\General\EquipmentUnitController::class);
+            $typeIds = \App\Models\EquipmentBorrowItem::where('equipment_borrow_id', $equipmentBorrowing->id)
+                ->pluck('equipment_type_id')
+                ->filter()
+                ->unique();
+            foreach ($typeIds as $tId) {
+                $unitController->syncCategoryStock((int)$tId);
+            }
+            event(new \App\Events\InventoryStockUpdated(null, 'assigned', ['borrow_id' => $equipmentBorrowing->id]));
+        } catch (\Throwable $th) {}
 
         return response()->json($equipmentBorrowing->fresh(['items.equipmentType', 'trackingNumber']));
     }
