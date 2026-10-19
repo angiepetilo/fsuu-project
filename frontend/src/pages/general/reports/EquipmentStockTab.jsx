@@ -71,6 +71,7 @@ export default function EquipmentStockTab({
   const [categories, setCategories] = useState([]);
   const [unitsLoading, setUnitsLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState("all");
+  const [activeStatus, setActiveStatus] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedItem, setSelectedItem] = useState(null);
   const [openActionId, setOpenActionId] = useState(null);
@@ -529,13 +530,38 @@ export default function EquipmentStockTab({
       const matchCategory = activeCategory === "all" || (item.category || "").toLowerCase() === activeCategory.toLowerCase();
       const q = searchQuery.toLowerCase();
       const matchSearch = !searchQuery || (item.name || "").toLowerCase().includes(q) || (item.barcode || "").toLowerCase().includes(q);
-      return matchCategory && matchSearch;
+
+      const statusLower = (item.status || "").toLowerCase();
+      const condLower = (item.condition || "").toLowerCase();
+      let matchStatus = true;
+      if (activeStatus !== "all") {
+        const target = activeStatus.toLowerCase();
+        if (target === "available") {
+          matchStatus = statusLower === "available" && !["damaged", "under repair", "lost"].includes(condLower);
+        } else if (target === "released") {
+          matchStatus = ["released", "in_use", "in-use", "borrowed"].includes(statusLower);
+        } else if (target === "reserved") {
+          matchStatus = statusLower === "reserved";
+        } else if (target === "damaged") {
+          matchStatus = condLower === "damaged" || statusLower === "damaged";
+        } else if (target === "under repair") {
+          matchStatus = ["under repair", "maintenance", "worn"].includes(condLower) || ["maintenance", "under_maintenance"].includes(statusLower);
+        } else if (target === "lost") {
+          matchStatus = condLower === "lost" || statusLower === "lost" || statusLower === "decommissioned";
+        } else if (target === "unavailable") {
+          matchStatus = statusLower === "unavailable" || ["damaged", "under repair", "lost"].includes(condLower);
+        } else {
+          matchStatus = statusLower.includes(target) || condLower.includes(target);
+        }
+      }
+
+      return matchCategory && matchSearch && matchStatus;
     });
-  }, [units, selectedOfficeId, officeScope, activeCategory, searchQuery]);
+  }, [units, selectedOfficeId, officeScope, activeCategory, activeStatus, searchQuery]);
 
   useEffect(() => {
     setUnitPage(1);
-  }, [activeCategory, searchQuery]);
+  }, [activeCategory, activeStatus, searchQuery]);
 
   const totalUnitPages = Math.ceil(filteredUnits.length / UNIT_ITEMS_PER_PAGE) || 1;
   const startUnitIndex = (unitPage - 1) * UNIT_ITEMS_PER_PAGE;
@@ -818,16 +844,35 @@ export default function EquipmentStockTab({
 
         {/* Search & Category Filter */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white dark:bg-[#111827] p-3 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
-          <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-200">
-            <select
-              value={activeCategory}
-              onChange={(e) => setActiveCategory(e.target.value)}
-              className="bg-transparent font-bold text-slate-900 dark:text-white focus:outline-none cursor-pointer text-xs pr-2"
-            >
-              {categoryList.map(t => (
-                <option key={t.id} value={t.id} className="dark:bg-slate-900">{t.label}</option>
-              ))}
-            </select>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-200">
+              <select
+                value={activeCategory}
+                onChange={(e) => setActiveCategory(e.target.value)}
+                className="bg-transparent font-bold text-slate-900 dark:text-white focus:outline-none cursor-pointer text-xs pr-2"
+              >
+                {categoryList.map(t => (
+                  <option key={t.id} value={t.id} className="dark:bg-slate-900">{t.label}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-200">
+              <select
+                value={activeStatus}
+                onChange={(e) => setActiveStatus(e.target.value)}
+                className="bg-transparent font-bold text-slate-900 dark:text-white focus:outline-none cursor-pointer text-xs pr-2"
+              >
+                <option value="all" className="dark:bg-slate-900">All Statuses</option>
+                <option value="available" className="dark:bg-slate-900">Available</option>
+                <option value="released" className="dark:bg-slate-900">Released / In-Use</option>
+                <option value="reserved" className="dark:bg-slate-900">Reserved</option>
+                <option value="damaged" className="dark:bg-slate-900">Damaged</option>
+                <option value="under repair" className="dark:bg-slate-900">Under Repair</option>
+                <option value="lost" className="dark:bg-slate-900">Lost</option>
+                <option value="unavailable" className="dark:bg-slate-900">Unavailable</option>
+              </select>
+            </div>
           </div>
 
           <div className="relative w-full sm:w-64">

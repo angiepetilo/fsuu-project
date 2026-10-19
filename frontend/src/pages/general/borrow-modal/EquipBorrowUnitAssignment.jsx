@@ -168,11 +168,17 @@ function BorrowSlotBarcodeSelector({
     .filter(([k, v]) => k !== unitKey && k !== catKey && Boolean(v))
     .map(([_, v]) => String(v).trim().toUpperCase());
 
-  const slotEligibleUnits = availableUnits.filter((u) => {
-    const bCode = String(u.barcode || u.serial_number || u.code || `UNIT-${u.id}`).trim().toUpperCase();
-    const isCurrent = bCode === String(currentBarcode).trim().toUpperCase();
-    return isCurrent || !otherSelectedBarcodes.includes(bCode);
-  });
+  const slotEligibleUnits = useMemo(() => {
+    const list = availableUnits.filter((u) => {
+      const bCode = String(u.barcode || u.serial_number || u.code || `UNIT-${u.id}`).trim().toUpperCase();
+      const isCurrent = bCode === String(currentBarcode).trim().toUpperCase();
+      return isCurrent || !otherSelectedBarcodes.includes(bCode);
+    });
+    if (selectedUnit && !list.some(u => String(u.id) === String(selectedUnit.id) || String(u.barcode || u.serial_number) === String(selectedUnit.barcode || selectedUnit.serial_number))) {
+      list.unshift(selectedUnit);
+    }
+    return list;
+  }, [availableUnits, currentBarcode, otherSelectedBarcodes, selectedUnit]);
 
   const searchFiltered = slotEligibleUnits.filter((u) => {
     const bCode = String(u.barcode || u.serial_number || u.code || `UNIT-${u.id}`).toLowerCase();
@@ -370,6 +376,7 @@ export default function EquipBorrowUnitAssignment({
   smsMsg,
   smsLoading,
   handleSendOverdueSms,
+  loadingUnits = false,
 }) {
   const borrowingOfficeId = selected?.office_id || selected?.office?.id || (selected?.items && selected.items[0]?.equipment_type?.office_id);
 
@@ -626,12 +633,23 @@ export default function EquipBorrowUnitAssignment({
                     </span>
                   </div>
 
-                  {availableUnits.length === 0 ? (
+                  {loadingUnits ? (
+                    <div className="p-3.5 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl flex items-center justify-center gap-2.5 text-xs font-bold text-slate-500 dark:text-slate-400 animate-pulse">
+                      <Loader2 size={15} className="animate-spin text-blue-600 dark:text-blue-400" />
+                      <span>Loading available units in stock...</span>
+                    </div>
+                  ) : (availableUnits.length === 0 && catAssignedCount === 0) ? (
                     <div className="p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-xl text-xs font-bold text-amber-800 dark:text-amber-300 text-center">
                       No available units in stock for {reqCat.category}.
                     </div>
                   ) : (
                     <div className="space-y-2 pt-1">
+                      {availableUnits.length === 0 && (
+                        <div className="px-2.5 py-1.5 bg-amber-50/80 dark:bg-amber-950/30 border border-amber-200/80 dark:border-amber-800/60 rounded-lg text-[10.5px] font-semibold text-amber-700 dark:text-amber-300 flex items-center gap-1.5">
+                          <AlertCircle size={12} className="shrink-0" />
+                          <span>No additional spare units in stock to swap.</span>
+                        </div>
+                      )}
                       {Array.from({ length: reqCat.quantity }).map((_, uIdx) => {
                         const idxKey = `${catIdx}-${uIdx}`;
                         const catKey = `${reqCat.category}-${uIdx}`;

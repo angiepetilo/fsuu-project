@@ -1338,6 +1338,7 @@ export default function EquipmentBorrowDetailModal({
                 compromisedUnitKeys={compromisedUnitKeys}
                 handleAction={(id, action, customData) => action === "ongoing" ? handleReleaseOngoing() : handleAction(id, action, customData)}
                 actionLoading={actionLoading}
+                loadingUnits={eqLoading}
               />
             </div>
 

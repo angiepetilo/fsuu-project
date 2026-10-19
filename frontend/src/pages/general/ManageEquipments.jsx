@@ -38,6 +38,7 @@ export default function ManageEquipments() {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState("all");
+  const [activeStatus, setActiveStatus] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [sortOrder, setSortOrder] = useState("seq_asc"); // "seq_asc" | "seq_desc" | "oldest" | "newest"
   const [showAddModal, setShowAddModal] = useState(false);
@@ -691,13 +692,26 @@ export default function ManageEquipments() {
         }
       }
       const matchCategory = activeCategory === "all" || (item.category || "").toLowerCase() === activeCategory.toLowerCase();
+      const matchStatus = activeStatus === "all" || (() => {
+        const uStatus = String(item.status || "available").toLowerCase();
+        const uCond = String(item.condition || "good").toLowerCase();
+        const sel = activeStatus.toLowerCase();
+        if (sel === "available") return uStatus === "available" && uCond !== "damaged" && uCond !== "lost" && uCond !== "under repair";
+        if (sel === "released") return ["released", "in_use", "borrowed", "in-use"].includes(uStatus);
+        if (sel === "reserved") return uStatus === "reserved";
+        if (sel === "damaged") return uStatus === "damaged" || uCond === "damaged";
+        if (sel === "under repair") return uCond === "under repair" || uCond === "maintenance" || uStatus === "maintenance";
+        if (sel === "lost") return uStatus === "lost" || uCond === "lost" || uStatus === "decommissioned";
+        if (sel === "unavailable") return ["damaged", "lost", "unavailable", "maintenance", "decommissioned"].includes(uStatus) || ["damaged", "lost", "under repair"].includes(uCond);
+        return uStatus.includes(sel) || uCond.includes(sel);
+      })();
       const q = searchQuery.toLowerCase();
       const matchSearch = !searchQuery ||
         (item.name || "").toLowerCase().includes(q) ||
         (item.serial_number || "").toLowerCase().includes(q) ||
         (item.barcode || "").toLowerCase().includes(q) ||
         (item.seq_no && String(item.seq_no).toLowerCase().includes(q));
-      return matchCategory && matchSearch;
+      return matchCategory && matchStatus && matchSearch;
     });
 
     return list.sort((a, b) => {
@@ -745,7 +759,7 @@ export default function ManageEquipments() {
 
       return sortOrder === "newest" ? -diff : diff;
     });
-  }, [units, selectedOfficeId, officeScope, activeCategory, searchQuery, sortOrder]);
+  }, [units, selectedOfficeId, officeScope, activeCategory, activeStatus, searchQuery, sortOrder]);
 
   const parentUnitMap = useMemo(() => {
     const map = new Map();
@@ -888,16 +902,40 @@ export default function ManageEquipments() {
 
       {/* Search & Category Filter */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white dark:bg-[#111827] p-3 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
-        <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-200 w-full sm:w-auto">
-          <select
-            value={activeCategory}
-            onChange={(e) => setActiveCategory(e.target.value)}
-            className="bg-transparent font-bold text-slate-900 dark:text-white focus:outline-none cursor-pointer text-xs pr-2 w-full sm:w-auto"
-          >
-            {categoryList.map(t => (
-              <option key={t.id} value={t.id} className="dark:bg-slate-900">{t.label}</option>
-            ))}
-          </select>
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+          {/* Category Dropdown */}
+          <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-200 w-full sm:w-auto">
+            <Layers size={14} className="text-slate-400 shrink-0" />
+            <select
+              value={activeCategory}
+              onChange={(e) => setActiveCategory(e.target.value)}
+              className="bg-transparent font-bold text-slate-900 dark:text-white focus:outline-none cursor-pointer text-xs pr-2 w-full sm:w-auto"
+            >
+              {categoryList.map(t => (
+                <option key={t.id} value={t.id} className="dark:bg-slate-900">{t.label}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Status Dropdown */}
+          <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200 w-full sm:w-auto">
+            <Filter size={14} className="text-slate-400 shrink-0" />
+            <span className="text-[11px] text-slate-400 font-bold whitespace-nowrap">Status:</span>
+            <select
+              value={activeStatus}
+              onChange={(e) => setActiveStatus(e.target.value)}
+              className="bg-transparent font-bold text-slate-900 dark:text-white focus:outline-none cursor-pointer text-xs pr-1"
+            >
+              <option value="all" className="dark:bg-slate-900">All Statuses</option>
+              <option value="available" className="dark:bg-slate-900">Available</option>
+              <option value="released" className="dark:bg-slate-900">Released</option>
+              <option value="reserved" className="dark:bg-slate-900">Reserved</option>
+              <option value="damaged" className="dark:bg-slate-900">Damaged</option>
+              <option value="under repair" className="dark:bg-slate-900">Under Repair</option>
+              <option value="lost" className="dark:bg-slate-900">Lost</option>
+              <option value="unavailable" className="dark:bg-slate-900">Unavailable</option>
+            </select>
+          </div>
         </div>
 
         <div className="flex flex-col sm:flex-row items-center gap-2.5 w-full sm:w-auto">

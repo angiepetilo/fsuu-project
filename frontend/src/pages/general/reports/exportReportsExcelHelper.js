@@ -694,38 +694,52 @@ export async function exportReportsToExcel({
       reportTitle: "Active Equipment Out & Loans Tracking",
       termLabel,
       officeScope,
-      maxCol: 9,
+      maxCol: 10,
     });
 
     let curRow = 5;
-    insertSectionHeader(ws4, curRow, "Equipment Out (Released & Active Loans)", activeEquipmentBorrowings.length, 9);
+    insertSectionHeader(ws4, curRow, "Equipment Out (Released & Active Loans)", activeEquipmentBorrowings.length, 10);
     curRow += 1;
 
     const outHeaders = [
-      "#", "BORROWER / REQUESTOR", "DEPARTMENT", "EQUIPMENT ITEM", "UNITS", "BARCODE(S)", "BORROW DATE", "EXPECTED / RETURN TIME", "STATUS"
+      "#", "BORROWER / REQUESTOR", "DEPARTMENT", "CATEGORY", "EQUIPMENT UNIT", "UNITS", "BARCODE(S)", "BORROW DATE", "EXPECTED / RETURN TIME", "STATUS"
     ];
 
     const outRows = activeEquipmentBorrowings.map((b, idx) => {
       const borrower = b.filer_name || b.requestor || "Borrower";
       const dept = b.program_office || b.department || "Academic Dept";
-      const eqItem = b.items?.[0]?.equipmentType?.name || b.equipment_name || "Equipment Item";
-      const unitsCount = b.items?.length || b.quantity || 1;
       
+      let catName = "AV Equipment";
+      let eqItem = b.equipment_name || "Equipment Unit";
+      if (Array.isArray(b.items) && b.items.length > 0) {
+        catName = b.items.map(it => it.equipmentType?.name || it.equipment_type?.name || "Category").filter((v, i, a) => a.indexOf(v) === i).join(", ");
+        eqItem = b.items.map(it => `${it.quantity_requested || it.quantity || 1}x ${it.equipmentType?.name || it.equipment_type?.name || 'Item'}`).join(", ");
+      }
+
       let barcodes = "N/A";
+      let assignedCount = 0;
       if (b.assigned_units) {
         if (typeof b.assigned_units === "object") {
-          barcodes = Object.values(b.assigned_units).filter(Boolean).join(", ");
+          const list = Object.values(b.assigned_units).filter(Boolean);
+          barcodes = list.join(", ");
+          assignedCount = list.length;
         } else {
           barcodes = String(b.assigned_units);
+          assignedCount = 1;
         }
       }
+
+      const reqQty = b.items && b.items.length > 0
+        ? b.items.reduce((s, it) => s + (parseInt(it.quantity_requested || it.quantity, 10) || 1), 0)
+        : (parseInt(b.quantity || b.qty, 10) || 1);
+      const unitsCount = Math.max(assignedCount, reqQty);
 
       const borrowDate = formatDate(b.date_of_usage || b.borrow_date || b.created_at);
       const expectedTime = formatTimeRange12(b.time_start, b.time_end);
       const status = b.status || "Out on Loan";
 
       return [
-        idx + 1, borrower, dept, eqItem, unitsCount, barcodes, borrowDate, expectedTime, status
+        idx + 1, borrower, dept, catName, eqItem, unitsCount, barcodes, borrowDate, expectedTime, status
       ];
     });
 

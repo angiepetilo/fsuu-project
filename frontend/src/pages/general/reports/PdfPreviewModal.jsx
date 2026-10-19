@@ -556,7 +556,8 @@ export default function PdfPreviewModal({
                           <th className="border border-slate-300 p-2.5 text-left">Track No.</th>
                           <th className="border border-slate-300 p-2.5 text-left">Requestor</th>
                           <th className="border border-slate-300 p-2.5 text-left">Department</th>
-                          <th className="border border-slate-300 p-2.5 text-left">Equipment Out</th>
+                          <th className="border border-slate-300 p-2.5 text-left">Category</th>
+                          <th className="border border-slate-300 p-2.5 text-left">Equipment Unit</th>
                           <th className="border border-slate-300 p-2.5 text-center">Units</th>
                           <th className="border border-slate-300 p-2.5 text-left">Barcode</th>
                           <th className="border border-slate-300 p-2.5 text-left">Borrow Date</th>
@@ -567,16 +568,19 @@ export default function PdfPreviewModal({
                       <tbody>
                         {activeOutLoans.length === 0 ? (
                           <tr>
-                            <td colSpan={10} className="border border-slate-300 p-4 text-center text-slate-400 italic">
+                            <td colSpan={11} className="border border-slate-300 p-4 text-center text-slate-400 italic">
                               No active equipment out records at this time.
                             </td>
                           </tr>
                         ) : (
                           activeOutLoans.map((b, i) => {
                             const barcodes = extractBarcodes(b);
-                            const equipName = b.items && b.items.length > 0
-                              ? b.items.map(it => `${it.quantity_requested || 1}x ${it.equipmentType?.name || it.equipment_type?.name || 'Item'}`).join(', ')
-                              : (b.equipment_name || "AV Equipment");
+                            let catName = "AV Equipment";
+                            let equipName = b.equipment_name || "Equipment Unit";
+                            if (b.items && b.items.length > 0) {
+                              catName = b.items.map(it => it.equipmentType?.name || it.equipment_type?.name || "Category").filter((v, idx, arr) => arr.indexOf(v) === idx).join(", ");
+                              equipName = b.items.map(it => `${it.quantity_requested || 1}x ${it.equipmentType?.name || it.equipment_type?.name || 'Item'}`).join(', ');
+                            }
                             const totalQty = b.items && b.items.length > 0
                               ? b.items.reduce((s, it) => s + (parseInt(it.quantity_requested || it.quantity, 10) || 1), 0)
                               : (parseInt(b.quantity || b.qty, 10) || 1);
@@ -589,6 +593,7 @@ export default function PdfPreviewModal({
                                 </td>
                                 <td className="border border-slate-300 p-2.5 font-extrabold text-slate-900">{b.filer_name || b.requestor_name || "—"}</td>
                                 <td className="border border-slate-300 p-2.5 text-slate-700">{b.department || b.program_office || "—"}</td>
+                                <td className="border border-slate-300 p-2.5 font-semibold text-slate-800">{catName}</td>
                                 <td className="border border-slate-300 p-2.5 font-semibold text-slate-800">{equipName}</td>
                                 <td className="border border-slate-300 p-2.5 text-center font-bold text-blue-700">{totalQty}</td>
                                 <td className="border border-slate-300 p-2.5 font-mono text-[11px] font-bold text-slate-700 max-w-[120px] truncate">

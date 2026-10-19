@@ -164,6 +164,67 @@ class EquipmentCategoryService
                             }
                         }
                     }
+
+                    // Count built-ins released along with released parent units
+                    $builtInReleasedByCategory = [];
+                    $releasedParents = DB::table('equipment_units')
+                        ->whereNull('archived_at')
+                        ->whereIn(DB::raw("LOWER(COALESCE(status, ''))"), ['released', 'in_use', 'borrowed', 'in-use'])
+                        ->select('id', 'equipment_type_id', 'built_in_units')
+                        ->get();
+
+                    if ($releasedParents->isNotEmpty()) {
+                        $allChildRefs = [];
+                        foreach ($releasedParents as $rp) {
+                            $rawList = $rp->built_in_units;
+                            if (empty($rawList)) {
+                                // Fallback to parent category level built-in definitions
+                                $parentType = $typeMap[$rp->equipment_type_id] ?? null;
+                                if ($parentType) {
+                                    $catBuilt = $parentType->built_in_units;
+                                    if (is_string($catBuilt)) $catBuilt = json_decode($catBuilt, true) ?: [];
+                                    if (is_array($catBuilt)) {
+                                        foreach ($catBuilt as $cid) {
+                                            if (is_numeric($cid)) {
+                                                $builtInReleasedByCategory[(int)$cid] = ($builtInReleasedByCategory[(int)$cid] ?? 0) + 1;
+                                            }
+                                        }
+                                    }
+                                }
+                                continue;
+                            }
+                            $decoded = is_string($rawList) ? json_decode($rawList, true) : $rawList;
+                            if (is_array($decoded)) {
+                                foreach ($decoded as $ref) {
+                                    if (!empty($ref)) {
+                                        $allChildRefs[] = (string)$ref;
+                                    }
+                                }
+                            }
+                        }
+
+                        if (!empty($allChildRefs)) {
+                            $childUnitRows = DB::table('equipment_units')
+                                ->whereNull('archived_at')
+                                ->where(function($q) use ($allChildRefs) {
+                                    $q->whereIn('id', $allChildRefs)
+                                      ->orWhereIn('barcode', $allChildRefs)
+                                      ->orWhereIn('serial_number', $allChildRefs);
+                                })
+                                ->select('id', 'equipment_type_id', 'status')
+                                ->get();
+
+                            foreach ($childUnitRows as $cu) {
+                                // Only add if child unit wasn't already marked physically released itself to prevent double counting
+                                $cuStatus = strtolower((string)($cu->status ?? ''));
+                                if (!in_array($cuStatus, ['released', 'in_use', 'borrowed', 'in-use'])) {
+                                    if ($cu->equipment_type_id) {
+                                        $builtInReleasedByCategory[$cu->equipment_type_id] = ($builtInReleasedByCategory[$cu->equipment_type_id] ?? 0) + 1;
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             } catch (\Throwable $th) {}
         }
@@ -247,14 +308,15 @@ class EquipmentCategoryService
             $bookingReleased = $b['released'] + $venueReleased;
             $bookingReserved = $b['reserved'] + $venueReserved;
 
+            $builtInRel = (int)($builtInReleasedByCategory[$e->id] ?? 0);
             if (isset($unitsStats[$e->id])) {
-                $releasedTotal = max($u['released'], $bookingReleased);
+                $releasedTotal = max($u['released'], $bookingReleased) + $builtInRel;
                 $reservedTotal = max($u['reserved'], $bookingReserved);
                 $damagedCount = $u['damaged'];
                 $lostCount = $u['lost'];
                 $totalQty = $u['total'];
             } else {
-                $releasedTotal = 0;
+                $releasedTotal = $builtInRel;
                 $reservedTotal = 0;
                 $damagedCount = 0;
                 $lostCount = 0;

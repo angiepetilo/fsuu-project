@@ -33,13 +33,26 @@ export default function EquipmentOutTab({ equipmentBorrowings = [], equipmentUni
         const brand = matchedUnit.brand ? String(matchedUnit.brand).trim() : "";
         const model = matchedUnit.model ? String(matchedUnit.model).trim() : "";
         const serialNo = matchedUnit.serial_number || matchedUnit.barcode || code;
+        const category = matchedUnit.equipment_type?.name
+          || matchedUnit.equipment_type?.eq_name
+          || matchedUnit.equipmentType?.name
+          || matchedUnit.category
+          || matchedUnit.name
+          || "";
+
+        let builtIns = matchedUnit.built_in_units;
+        if (typeof builtIns === "string") {
+          try { builtIns = JSON.parse(builtIns); } catch { builtIns = []; }
+        }
+
         return {
           code,
           serialNo,
           seqNo,
           brand,
           model,
-          category: matchedUnit.category || matchedUnit.name || "",
+          category,
+          built_in_units: Array.isArray(builtIns) ? builtIns : [],
         };
       }
       return {
@@ -49,6 +62,7 @@ export default function EquipmentOutTab({ equipmentBorrowings = [], equipmentUni
         brand: "",
         model: "",
         category: "",
+        built_in_units: [],
       };
     });
   };
@@ -79,6 +93,58 @@ export default function EquipmentOutTab({ equipmentBorrowings = [], equipmentUni
       codes = Array.isArray(b.barcodes) ? b.barcodes.filter(Boolean) : [b.barcodes];
     }
     return Array.from(new Set(codes.map(c => String(c).trim()).filter(Boolean)));
+  };
+
+  // Helper to conclude what equipment categories are under this equipment unit / borrowing
+  const extractEquipmentCategories = (b, assignedDetails = []) => {
+    const catList = [];
+    if (Array.isArray(b.items) && b.items.length > 0) {
+      b.items.forEach(it => {
+        let name = it.equipment_type?.name || it.equipment_type?.eq_name || it.equipmentType?.name || it.equipment_name || it.name || "";
+        if (name) {
+          const hasBuiltIn = Boolean(
+            it.equipment_type?.built_in_units ||
+            it.equipmentType?.built_in_units ||
+            it.has_built_in ||
+            name.toLowerCase().includes("built-in") ||
+            name.toLowerCase().includes("w/ built-in")
+          );
+          if (hasBuiltIn && !name.toLowerCase().includes("built-in")) {
+            name = `${name} w/ built-in`;
+          }
+          catList.push(name);
+        }
+      });
+    }
+
+    if (assignedDetails.length > 0) {
+      assignedDetails.forEach(u => {
+        if (u.category && !catList.some(c => c.toLowerCase() === u.category.toLowerCase())) {
+          catList.push(u.category);
+        }
+      });
+    }
+
+    if (catList.length === 0) {
+      const fallback = b.equipment_name || b.equipment || b.item_name || "AV Equipment";
+      catList.push(fallback);
+    }
+
+    return Array.from(new Set(catList));
+  };
+
+  // Helper to calculate total equipment units released (counting units & linked built-in components)
+  const calculateReleasedUnitsCount = (b, assignedDetails, qty) => {
+    let physicalCount = 0;
+    if (assignedDetails.length > 0) {
+      assignedDetails.forEach(u => {
+        physicalCount += 1;
+        if (Array.isArray(u.built_in_units) && u.built_in_units.length > 0) {
+          physicalCount += u.built_in_units.length;
+        }
+      });
+    }
+    return Math.max(physicalCount, assignedDetails.length, qty);
   };
 
   // Helper to extract clean equipment item name(s)
@@ -169,12 +235,15 @@ export default function EquipmentOutTab({ equipmentBorrowings = [], equipmentUni
       const dept = (b.program_office || b.department?.name || b.department || "").toLowerCase();
       const barcodes = extractBarcodes(b).join(" ").toLowerCase();
 
+      const cats = extractEquipmentCategories(b).join(" ").toLowerCase();
+
       const matchesSearch = !query 
         || filer.includes(query) 
         || equip.includes(query) 
         || ref.includes(query) 
         || dept.includes(query) 
-        || barcodes.includes(query);
+        || barcodes.includes(query)
+        || cats.includes(query);
 
       const currentDept = b.program_office || b.department?.name || b.department;
       const matchesDept = deptFilter === "all" || currentDept === deptFilter;
@@ -241,13 +310,14 @@ export default function EquipmentOutTab({ equipmentBorrowings = [], equipmentUni
       {/* Main Table */}
       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs border-collapse min-w-[850px]">
+          <table className="w-full text-left text-xs border-collapse min-w-[960px]">
             <thead>
               <tr className="bg-slate-50/80 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
                 <th className="py-3.5 px-4">#</th>
                 <th className="py-3.5 px-4">Borrower</th>
                 <th className="py-3.5 px-4">Department</th>
-                <th className="py-3.5 px-4">Equipment Item</th>
+                <th className="py-3.5 px-4">Category</th>
+                <th className="py-3.5 px-4">Equipment Unit</th>
                 <th className="py-3.5 px-4 text-center">Units</th>
                 <th className="py-3.5 px-4">Barcode</th>
                 <th className="py-3.5 px-4">Borrow Date</th>
@@ -258,13 +328,13 @@ export default function EquipmentOutTab({ equipmentBorrowings = [], equipmentUni
             <tbody className="divide-y divide-slate-100 font-medium text-slate-800">
               {loading ? (
                 <tr>
-                  <td colSpan={9} className="py-12 text-center text-slate-400 font-bold">
+                  <td colSpan={10} className="py-12 text-center text-slate-400 font-bold">
                     Loading equipment borrowing records...
                   </td>
                 </tr>
               ) : filteredRecords.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="py-12 text-center text-slate-400 font-medium">
+                  <td colSpan={10} className="py-12 text-center text-slate-400 font-medium">
                     <CheckCircle2 size={24} className="mx-auto text-slate-300 mb-2" />
                     No equipment borrowing records matching the selected criteria.
                   </td>
@@ -278,6 +348,8 @@ export default function EquipmentOutTab({ equipmentBorrowings = [], equipmentUni
                   const qty = extractUnitsOut(b);
                   const barcodes = extractBarcodes(b);
                   const assignedDetails = getAssignedUnitsDetails(b);
+                  const categories = extractEquipmentCategories(b, assignedDetails);
+                  const releasedUnitsCount = calculateReleasedUnitsCount(b, assignedDetails, qty);
                   const borrowDate = formatDate(b.date_of_usage || b.start_datetime || b.date);
                   const returnTime = b.time_end ? formatTime12(b.time_end) : "17:00";
                   const overdueMins = getOverdueMinutes(b.date_of_usage || b.start_datetime, b.time_end || b.end_datetime);
@@ -296,24 +368,35 @@ export default function EquipmentOutTab({ equipmentBorrowings = [], equipmentUni
                         <p className="font-mono text-[10px] text-slate-400 font-bold">{refCode}</p>
                       </td>
                       <td className="py-3 px-4 font-bold text-slate-700 dark:text-slate-300 text-xs">{dept}</td>
-                      <td className="py-3 px-4 max-w-[320px]">
+                      <td className="py-3 px-4 max-w-[200px]">
+                        <div className="flex flex-col gap-1">
+                          {categories.map((cat, cIdx) => (
+                            <span key={cIdx} className="font-bold text-slate-800 dark:text-slate-200 text-xs leading-snug">
+                              {cat}
+                            </span>
+                          ))}
+                        </div>
+                      </td>
+                      <td className="py-3 px-4 max-w-[300px]">
                         <p className="font-extrabold text-slate-900 dark:text-slate-100 text-xs">{equip}</p>
                         {assignedDetails.length > 0 ? (
-                          <div className="flex flex-col gap-1 mt-1">
+                          <div className="flex flex-col gap-1.5 mt-1.5">
                             {assignedDetails.map((u, uIdx) => {
                               const brandModel = [u.brand, u.model].filter(Boolean).join(" ");
                               return (
-                                <div key={uIdx} className="flex items-center gap-1.5 flex-wrap text-[11px] font-semibold text-slate-700 dark:text-slate-300">
-                                  {u.seqNo && (
-                                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
-                                      {u.seqNo}
-                                    </span>
-                                  )}
-                                  {brandModel && (
-                                    <span className="font-bold text-slate-800 dark:text-slate-200">
-                                      {brandModel}
-                                    </span>
-                                  )}
+                                <div key={uIdx} className="flex flex-col gap-0.5 text-xs">
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    {u.seqNo && (
+                                      <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                                        {u.seqNo}
+                                      </span>
+                                    )}
+                                    {brandModel && (
+                                      <span className="font-bold text-slate-800 dark:text-slate-200">
+                                        {brandModel}
+                                      </span>
+                                    )}
+                                  </div>
                                   {u.serialNo && (
                                     <span className="font-mono text-[10.5px] text-slate-500 dark:text-slate-400">
                                       (SN: {u.serialNo})
@@ -329,16 +412,26 @@ export default function EquipmentOutTab({ equipmentBorrowings = [], equipmentUni
                           </span>
                         )}
                       </td>
-                      <td className="py-3 px-4 text-center font-semibold text-slate-800 dark:text-slate-200 text-xs">
-                        {qty}
+                      <td className="py-3 px-4 text-center">
+                        <span className="inline-flex items-center justify-center min-w-[24px] px-2 py-0.5 rounded-full text-xs font-extrabold bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700">
+                          {releasedUnitsCount}
+                        </span>
                       </td>
-                      <td className="py-3 px-4 font-mono text-[11px] text-slate-700 dark:text-slate-300 font-bold max-w-xs truncate">
+                      <td className="py-3 px-4 font-mono text-[11px] text-slate-700 dark:text-slate-300 font-bold max-w-xs">
                         {barcodes.length > 0 ? (
-                          <span title={barcodes.join(", ")} className="text-blue-700 dark:text-blue-400 font-bold">
-                            {barcodes.join(", ")}
-                          </span>
+                          <div className="flex flex-wrap gap-1">
+                            {barcodes.map((bc, bIdx) => (
+                              <span
+                                key={bIdx}
+                                className="text-blue-700 dark:text-blue-400 font-bold hover:underline cursor-pointer"
+                                title={bc}
+                              >
+                                {bc}{bIdx < barcodes.length - 1 ? "," : ""}
+                              </span>
+                            ))}
+                          </div>
                         ) : (
-                          <span className="text-slate-400 italic font-normal">Not Tagged</span>
+                          <span className="text-slate-400 italic font-normal text-xs">Not Tagged</span>
                         )}
                       </td>
                       <td className="py-3 px-4 text-xs font-semibold text-slate-600 dark:text-slate-300 whitespace-nowrap">{borrowDate}</td>
