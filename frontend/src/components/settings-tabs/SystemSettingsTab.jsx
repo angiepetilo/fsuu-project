@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import {
   Loader2, CheckCircle2, Globe, Phone, Mail, RotateCcw, AlertCircle,
   Save, Lock, Eye, EyeOff, MessageSquare, Server, Shield,
-  Send, Sun, Moon, Check
+  Send, Sun, Moon, Check, MapPin, Clock
 } from "lucide-react";
 import api from "@/lib/axios";
 import notify from "@/lib/notify";
@@ -27,6 +27,9 @@ export default function SystemSettingsTab() {
     system_logo: "",
     facebook_url: "https://www.facebook.com/fsuubutuan",
     facebook_name: "Father Saturnino Urios University",
+    office_name: "Audio-Visual Resource Center (AVRC)",
+    office_address: "Main Campus, Father Saturnino Urios University\nSan Francisco Street, Butuan City, Agusan del Norte, 8600",
+    operating_hours: "Monday – Friday: 7:30 AM – 5:00 PM\nSaturday: 8:00 AM – 12:00 PM\nSunday & University Holidays: Closed",
     telephone_no: "(085) 342-1830",
     contact_email: "support.booking@fsuu.edu.ph",
     contact_phone: "(085) 342-1830",
@@ -78,6 +81,9 @@ export default function SystemSettingsTab() {
           header_brand_text: res.data.header_brand_text ?? "",
           facebook_name: res.data.facebook_name ?? "",
           facebook_url: res.data.facebook_url ?? "",
+          office_name: res.data.office_name ?? "Audio-Visual Resource Center (AVRC)",
+          office_address: res.data.office_address ?? "Main Campus, Father Saturnino Urios University\nSan Francisco Street, Butuan City, Agusan del Norte, 8600",
+          operating_hours: res.data.operating_hours ?? "Monday – Friday: 7:30 AM – 5:00 PM\nSaturday: 8:00 AM – 12:00 PM\nSunday & University Holidays: Closed",
           system_name: res.data.system_name ?? "",
           contact_email: res.data.contact_email ?? "",
           smtp_host: res.data.smtp_host ?? "",
@@ -478,6 +484,42 @@ export default function SystemSettingsTab() {
                 className={`${inputCls(isFieldModified("contact_email"))} pl-8`}
               />
             </div>
+          </div>
+
+          <div>
+            <label className={labelCls}>Office / Facility Name</label>
+            <div className="relative">
+              <MapPin size={13} className="absolute left-3 top-3 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Audio-Visual Resource Center (AVRC)"
+                value={settings.office_name || ""}
+                onChange={(e) => handleChange("office_name", e.target.value)}
+                className={`${inputCls(isFieldModified("office_name"))} pl-8`}
+              />
+            </div>
+          </div>
+
+          <div className="sm:col-span-2">
+            <label className={labelCls}>Office &amp; Campus Location</label>
+            <textarea
+              rows={2}
+              placeholder="Main Campus, Father Saturnino Urios University&#10;San Francisco Street, Butuan City, Agusan del Norte, 8600"
+              value={settings.office_address || ""}
+              onChange={(e) => handleChange("office_address", e.target.value)}
+              className={inputCls(isFieldModified("office_address"))}
+            />
+          </div>
+
+          <div className="sm:col-span-2">
+            <label className={labelCls}>Operating Hours Directory</label>
+            <textarea
+              rows={3}
+              placeholder="Monday – Friday: 7:30 AM – 5:00 PM&#10;Saturday: 8:00 AM – 12:00 PM&#10;Sunday &amp; University Holidays: Closed"
+              value={settings.operating_hours || ""}
+              onChange={(e) => handleChange("operating_hours", e.target.value)}
+              className={inputCls(isFieldModified("operating_hours"))}
+            />
           </div>
         </div>
       </div>

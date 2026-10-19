@@ -1,5 +1,6 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Link } from "react-router-dom";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { formatTime } from "@/lib/dateUtils";
 
 export default function TodayReservationsSection({
@@ -92,9 +93,23 @@ export default function TodayReservationsSection({
       const filer = ([item.first_name, item.last_name].filter(Boolean).join(" ") || item.filer_name || item.name || "").toLowerCase();
       const facility = (item.venue?.name || item.venue_name || item.facility_or_item || item.purpose || "").toLowerCase();
       const dept = (item.program_office || item.department || "").toLowerCase();
-      return ref.includes(q) || filer.includes(q) || facility.includes(q) || dept.includes(q);
+    return ref.includes(q) || filer.includes(q) || facility.includes(q) || dept.includes(q);
     });
   }, [activeTab, todayVenues, todayEquipment, searchQuery]);
+
+  // Pagination for side-by-side dashboard balance
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 5;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, searchQuery]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredList.length / ITEMS_PER_PAGE));
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const paginatedList = useMemo(() => {
+    return filteredList.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  }, [filteredList, startIndex]);
 
   const getStatusBadge = (status, item = null) => {
     const s = (status || item?.status || item?.tracking_number?.status || "").toLowerCase().trim();
@@ -226,184 +241,243 @@ export default function TodayReservationsSection({
   };
 
   return (
-    <div className="space-y-4 pt-2">
-      {/* Header with Title and Tabs */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border pb-3">
-        <div>
-          <h2 className="text-base sm:text-lg font-black text-foreground tracking-tight">
-            Today's Scheduled Reservations
-          </h2>
-          <p className="text-xs text-muted-foreground font-normal">
-            Filter and review today's active venue events and equipment requisitions requiring clearance.
-          </p>
+    <div className="bg-card rounded-2xl border border-border shadow-2xs p-5 space-y-3.5 h-full flex flex-col justify-between">
+      <div>
+        {/* Header with Title and Tabs */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border pb-3">
+          <div>
+            <h3 className="font-extrabold text-foreground text-xs sm:text-sm">
+              Today's Scheduled Reservations
+            </h3>
+            <p className="text-[11px] text-muted-foreground font-normal">
+              Filter and review today's active venue events and equipment requisitions requiring clearance.
+            </p>
+          </div>
+
+          {/* Filter Tabs: All, Venues, Equipment */}
+          <div className="flex items-center p-0.5 bg-muted rounded-xl gap-0.5 border border-border self-start sm:self-auto shrink-0">
+            <button
+              type="button"
+              onClick={() => setActiveTab("all")}
+              className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                activeTab === "all"
+                  ? "bg-background text-foreground shadow-xs"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              All ({todayVenues.length + todayEquipment.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("venues")}
+              className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                activeTab === "venues"
+                  ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Venues ({todayVenues.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("equipment")}
+              className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                activeTab === "equipment"
+                  ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Equipment ({todayEquipment.length})
+            </button>
+          </div>
         </div>
 
-        {/* Filter Tabs: All, Venues, Equipment */}
-        <div className="flex items-center p-1 bg-muted rounded-xl gap-1 border border-border self-start sm:self-auto">
-          <button
-            type="button"
-            onClick={() => setActiveTab("all")}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-              activeTab === "all"
-                ? "bg-background text-foreground shadow-xs"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            All ({todayVenues.length + todayEquipment.length})
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab("venues")}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-              activeTab === "venues"
-                ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            Venues ({todayVenues.length})
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab("equipment")}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-              activeTab === "equipment"
-                ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            Equipment ({todayEquipment.length})
-          </button>
+        {/* Search Sub-bar */}
+        <div className="flex items-center justify-between gap-3 pt-3">
+          <div className="flex-1 max-w-sm">
+            <input
+              type="text"
+              placeholder="Search reference, requestor, facility, department..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full h-8 px-3 rounded-lg bg-muted/40 border border-border text-foreground text-xs focus:outline-none focus:border-primary font-medium"
+            />
+          </div>
+          <span className="text-[11px] font-semibold text-muted-foreground shrink-0">
+            {filteredList.length} Items
+          </span>
+        </div>
+
+        {/* Reservations Table */}
+        <div className="overflow-x-auto mt-3 rounded-xl border border-border bg-card">
+          <table className="w-full text-xs text-left">
+            <thead>
+              <tr className="border-b border-border bg-muted/30 text-left text-[10px] font-mono font-bold text-muted-foreground uppercase tracking-wider sticky top-0 z-10">
+                <th className="py-2.5 px-3">REQUESTOR</th>
+                <th className="py-2.5 px-3">TRACKING NO.</th>
+                <th className="py-2.5 px-3">FACILITY / ITEM</th>
+                <th className="py-2.5 px-3">TIME</th>
+                <th className="py-2.5 px-3">STATUS</th>
+                <th className="py-2.5 px-3 text-right">ACTION</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border font-medium">
+              {loading ? (
+                <tr>
+                  <td colSpan={6} className="text-center py-10 text-xs font-semibold text-muted-foreground">
+                    Loading today's reservations...
+                  </td>
+                </tr>
+              ) : paginatedList.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="text-center py-10 text-xs font-semibold text-muted-foreground">
+                    No reservations found for today.
+                  </td>
+                </tr>
+              ) : (
+                paginatedList.map((item) => {
+                  const isVenue = item.itemType === "venue";
+                  const refCode = item.reference_code || item.tracking_number?.reference_code || (item.id ? `TRK-${isVenue ? "VB" : "EB"}-${item.id}` : "TRK-TODAY");
+                  const filer = getRequestorName(item);
+                  const classification = item.classification || item.identity_type || item.requestor_identity_type || "student";
+                  const dept = item.program_office || item.department || item.requestor_program_office || "Academic Dept";
+                  const facilityOrItem = getFacilityOrItem(item, isVenue);
+                  const timeDisplay = `${formatTime(item.time_start || "08:00")} - ${formatTime(item.time_end || "17:00")}`;
+                  const status = (item.status || item.tracking_number?.status || "pending").toLowerCase();
+                  const isCompleted = [
+                    "completed",
+                    "returned",
+                    "done",
+                    "damaged",
+                    "lost",
+                    "late return",
+                    "returned late",
+                    "returned_late",
+                  ].includes(status) || Boolean(item.returned_at);
+
+                  let dutyAction = "Clearance";
+                  if (isCompleted) {
+                    dutyAction = "View";
+                  } else if (status === "pending" || status === "incomplete") {
+                    dutyAction = isVenue ? "Verify" : "Review";
+                  } else if (status === "approved") {
+                    dutyAction = isVenue ? "Inspect" : "Release";
+                  } else if (status === "ongoing" || status === "on-going" || status === "borrowed") {
+                    dutyAction = isVenue ? "Inspect" : "Receive";
+                  }
+
+                  const detailPath = isCompleted
+                    ? (isSysadRoute ? "/sysad/history-log" : "/general/history-log")
+                    : (isVenue
+                        ? (isSysadRoute ? "/sysad/venue-bookings" : "/general/venue-bookings")
+                        : (isSysadRoute ? "/sysad/equipment-borrowing" : "/general/equipment-borrowing"));
+
+                  const linkState = isCompleted
+                    ? { selectedId: item.id, targetType: isVenue ? "venue" : "equipment" }
+                    : { selectedId: item.id };
+
+                  return (
+                    <tr key={`${item.itemType}-${item.id || item.reference_code}`} className="hover:bg-muted/40 transition-colors">
+                      <td className="py-2.5 px-3">
+                        <div className="font-bold text-foreground text-xs">{filer}</div>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          {getClassificationBadge(classification)}
+                          <span className="text-[10px] text-muted-foreground truncate max-w-[120px]">{dept}</span>
+                        </div>
+                      </td>
+                      <td className="py-2.5 px-3 font-mono font-bold text-xs text-foreground whitespace-nowrap">
+                        <Link
+                          to={detailPath}
+                          state={linkState}
+                          className="hover:underline hover:text-primary transition-colors cursor-pointer"
+                        >
+                          {refCode}
+                        </Link>
+                      </td>
+                      <td className="py-2.5 px-3">
+                        <div className="font-semibold text-foreground text-xs truncate max-w-[160px]">{facilityOrItem}</div>
+                        <span className={`text-[10px] font-bold ${
+                          isVenue ? "text-blue-600 dark:text-blue-400" : "text-emerald-600 dark:text-emerald-400"
+                        }`}>
+                          {isVenue ? "Venue" : "Equipment"}
+                        </span>
+                      </td>
+                      <td className="py-2.5 px-3 font-mono text-[11px] text-muted-foreground whitespace-nowrap">
+                        {timeDisplay}
+                      </td>
+                      <td className="py-2.5 px-3">
+                        {getStatusBadge(status, item)}
+                      </td>
+                      <td className="py-2.5 px-3 text-right">
+                        <Link
+                          to={detailPath}
+                          state={linkState}
+                          className="px-2.5 py-1 rounded-lg text-xs font-bold border border-border hover:bg-muted text-foreground transition-colors cursor-pointer inline-block"
+                        >
+                          {dutyAction}
+                        </Link>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
 
-      {/* Search Sub-bar */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-        <div className="flex-1 sm:max-w-md">
-          <input
-            type="text"
-            placeholder="Search reference, requestor, facility, department..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full h-10 px-3 rounded-xl bg-card border border-border text-foreground text-xs focus:outline-none focus:border-primary font-medium"
-          />
-        </div>
-        <span className="text-xs font-semibold text-muted-foreground self-center sm:self-auto">
-          {filteredList.length} Items
+      {/* Pagination Footer */}
+      <div className="flex items-center justify-between border-t border-border pt-3 mt-auto text-xs">
+        <span className="text-[11px] text-muted-foreground font-medium">
+          {filteredList.length === 0 ? (
+            "0 items"
+          ) : (
+            `Showing ${startIndex + 1} to ${Math.min(startIndex + ITEMS_PER_PAGE, filteredList.length)} of ${filteredList.length} items`
+          )}
         </span>
-      </div>
 
-      {/* Reservations Table */}
-      <div className="overflow-x-auto rounded-2xl border border-border bg-card">
-        <table className="w-full text-xs text-left">
-          <thead className="bg-muted/50 border-b border-border text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-            <tr>
-              <th className="py-3.5 px-4">Type</th>
-              <th className="py-3.5 px-4">Reference</th>
-              <th className="py-3.5 px-4">Requestor</th>
-              <th className="py-3.5 px-4">Facility / Item</th>
-              <th className="py-3.5 px-4">Time</th>
-              <th className="py-3.5 px-4">Status</th>
-              <th className="py-3.5 px-4 text-right">Action</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {loading ? (
-              <tr>
-                <td colSpan={7} className="text-center py-12 text-xs font-semibold text-muted-foreground">
-                  Loading today's reservations...
-                </td>
-              </tr>
-            ) : filteredList.length === 0 ? (
-              <tr>
-                <td colSpan={7} className="text-center py-12 text-xs font-semibold text-muted-foreground">
-                  No reservations found for today.
-                </td>
-              </tr>
-            ) : (
-              filteredList.map((item) => {
-                const isVenue = item.itemType === "venue";
-                const refCode = item.reference_code || item.tracking_number?.reference_code || (item.id ? `TRK-${isVenue ? "VB" : "EB"}-${item.id}` : "TRK-TODAY");
-                const filer = getRequestorName(item);
-                const classification = item.classification || item.identity_type || item.requestor_identity_type || "student";
-                const dept = item.program_office || item.department || item.requestor_program_office || "Academic Dept";
-                const facilityOrItem = getFacilityOrItem(item, isVenue);
-                const timeDisplay = `${formatTime(item.time_start || "08:00")} - ${formatTime(item.time_end || "17:00")}`;
-                const status = (item.status || item.tracking_number?.status || "pending").toLowerCase();
-                const isCompleted = [
-                  "completed",
-                  "returned",
-                  "done",
-                  "damaged",
-                  "lost",
-                  "late return",
-                  "returned late",
-                  "returned_late",
-                ].includes(status) || Boolean(item.returned_at);
+        {totalPages > 1 && (
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className="px-2 py-1 rounded-lg border border-border text-foreground hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed transition-colors font-medium flex items-center gap-1 cursor-pointer text-xs"
+              title="Previous page"
+            >
+              <ChevronLeft size={13} />
+              <span className="hidden sm:inline">Prev</span>
+            </button>
 
-                let dutyAction = "Clearance";
-                if (isCompleted) {
-                  dutyAction = "View";
-                } else if (status === "pending" || status === "incomplete") {
-                  dutyAction = isVenue ? "Verify" : "Review";
-                } else if (status === "approved") {
-                  dutyAction = isVenue ? "Inspect" : "Release";
-                } else if (status === "ongoing" || status === "on-going" || status === "borrowed") {
-                  dutyAction = isVenue ? "Inspect" : "Receive";
-                }
+            <div className="flex items-center gap-1">
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                <button
+                  key={page}
+                  type="button"
+                  onClick={() => setCurrentPage(page)}
+                  className={`w-7 h-7 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    currentPage === page
+                      ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-2xs"
+                      : "border border-border text-foreground hover:bg-muted"
+                  }`}
+                >
+                  {page}
+                </button>
+              ))}
+            </div>
 
-                const detailPath = isCompleted
-                  ? (isSysadRoute ? "/sysad/history-log" : "/general/history-log")
-                  : (isVenue
-                      ? (isSysadRoute ? "/sysad/venue-bookings" : "/general/venue-bookings")
-                      : (isSysadRoute ? "/sysad/equipment-borrowing" : "/general/equipment-borrowing"));
-
-                const linkState = isCompleted
-                  ? { selectedId: item.id, targetType: isVenue ? "venue" : "equipment" }
-                  : { selectedId: item.id };
-
-                return (
-                  <tr key={`${item.itemType}-${item.id || item.reference_code}`} className="hover:bg-muted/40 transition-colors">
-                    <td className="py-3.5 px-4">
-                      <span className={`text-xs font-semibold ${
-                        isVenue ? "text-blue-600 dark:text-blue-400" : "text-emerald-600 dark:text-emerald-400"
-                      }`}>
-                        {isVenue ? "Venue" : "Equipment"}
-                      </span>
-                    </td>
-                    <td className="py-3.5 px-4 font-mono font-bold text-foreground">
-                      {refCode}
-                    </td>
-                    <td className="py-3.5 px-4">
-                      <div className="font-bold text-foreground">{filer}</div>
-                      <div className="flex items-center gap-1.5 mt-0.5">
-                        {getClassificationBadge(classification)}
-                        <span className="text-[11px] text-muted-foreground truncate max-w-[130px]">{dept}</span>
-                      </div>
-                    </td>
-                    <td className="py-3.5 px-4 font-medium text-foreground">
-                      {facilityOrItem}
-                    </td>
-                    <td className="py-3.5 px-4 font-mono text-muted-foreground whitespace-nowrap">
-                      {timeDisplay}
-                    </td>
-                    <td className="py-3.5 px-4">
-                      {getStatusBadge(status, item)}
-                    </td>
-                    <td className="py-3.5 px-4 text-right">
-                      <Link
-                        to={detailPath}
-                        state={linkState}
-                        className="px-3 py-1.5 rounded-lg text-xs font-bold border border-border hover:bg-muted text-foreground transition-colors cursor-pointer inline-block"
-                      >
-                        {dutyAction}
-                      </Link>
-                    </td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
+            <button
+              type="button"
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              className="px-2 py-1 rounded-lg border border-border text-foreground hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed transition-colors font-medium flex items-center gap-1 cursor-pointer text-xs"
+              title="Next page"
+            >
+              <span className="hidden sm:inline">Next</span>
+              <ChevronRight size={13} />
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

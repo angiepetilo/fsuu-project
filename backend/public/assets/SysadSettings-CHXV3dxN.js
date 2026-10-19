@@ -1,0 +1,1 @@
+import e from"./Settings-BF-HRD-T.js";export{e as default};

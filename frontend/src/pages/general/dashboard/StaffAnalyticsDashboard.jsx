@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { AlertCircle } from "lucide-react";
 import MetricsOverview from "./MetricsOverview";
 import TodayReservationsSection from "./TodayReservationsSection";
+import DashboardAnalyticsCharts from "./DashboardAnalyticsCharts";
 
 function InventoryBar({ label, value, total, color }) {
   const pct = total > 0 ? Math.round((value / total) * 100) : 0;
@@ -233,6 +234,9 @@ export default function StaffAnalyticsDashboard({
         </div>
       )}
 
+      {/* ── 3.5 Visual Analytics Charts (Demographics, College Utilization, Statuses, Hourly Peak Bands) ── */}
+      {canAnalytics && <DashboardAnalyticsCharts />}
+
       {/* ── 4. Equipment Inventory Status & Recent Inventory Changes ── */}
       {(canInventoryStatus || canInventoryChanges) && (
         <div className={`grid grid-cols-1 ${canInventoryStatus && canInventoryChanges ? "lg:grid-cols-2" : ""} gap-4`}>
@@ -320,77 +324,86 @@ export default function StaffAnalyticsDashboard({
         </div>
       )}
 
-      {/* ── 5. Borrowers with Late Returns ── */}
-      {canLateReturns && (
-        <div className="bg-card rounded-2xl border border-border shadow-2xs p-5 space-y-3.5">
-          <div className="flex items-center justify-between border-b border-border pb-3">
-            <h3 className="font-extrabold text-foreground text-xs sm:text-sm">Borrowers with late returns</h3>
-            <span className="text-[11px] font-semibold text-rose-600 dark:text-rose-400">
-              {uniqueLateBorrowers.length} Incidents
-            </span>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="border-b border-border text-left text-[10px] font-mono font-bold text-muted-foreground uppercase tracking-wider">
-                  <th className="pb-2.5 px-3">BORROWER</th>
-                  <th className="pb-2.5 px-3">DEPARTMENT</th>
-                  <th className="pb-2.5 px-3">TRACKING NO.</th>
-                  <th className="pb-2.5 px-3">TYPE</th>
-                  <th className="pb-2.5 px-3">STATUS</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border font-semibold">
-                {uniqueLateBorrowers.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="text-center py-8 text-emerald-600 dark:text-emerald-400 font-bold">
-                      No active student violations or late returns recorded.
-                    </td>
-                  </tr>
-                ) : (
-                  uniqueLateBorrowers.map((s, idx) => {
-                    const linkPath = s.type === "Venue Booking"
-                      ? (isSysadRoute ? "/sysad/venue-bookings" : "/general/venue-bookings")
-                      : (isSysadRoute ? "/sysad/equipment-borrowing" : "/general/equipment-borrowing");
-                    return (
-                      <tr key={s.id || s.reference_code || idx} className="hover:bg-muted/60 transition-colors">
-                        <td className="py-2.5 px-3 font-bold text-foreground">{s.name}</td>
-                        <td className="py-2.5 px-3 text-muted-foreground">{s.department}</td>
-                        <td className="py-2.5 px-3 font-mono text-foreground">
-                          <Link
-                            to={linkPath}
-                            state={s.record_id ? { selectedId: s.record_id } : undefined}
-                            className="font-bold hover:underline hover:text-primary transition-colors cursor-pointer"
-                          >
-                            {s.reference_code}
-                          </Link>
-                        </td>
-                        <td className="py-2.5 px-3 text-foreground/80">{s.type}</td>
-                        <td className="py-2.5 px-3">
-                          <span className={`text-[11px] font-semibold ${
-                            s.is_late ? "text-amber-600 dark:text-amber-400" : "text-rose-600 dark:text-rose-400"
-                          }`}>
-                            {s.violation}
-                          </span>
-                        </td>
+      {/* ── 5 & 6. Side-by-Side: Borrowers with Late Returns & Today's Scheduled Reservations ── */}
+      {(canLateReturns || canTodayReservations) && (
+        <div className={`grid grid-cols-1 ${canLateReturns && canTodayReservations ? "xl:grid-cols-2" : ""} gap-6 items-start`}>
+          {/* Borrowers with Late Returns Column */}
+          {canLateReturns && (
+            <div className="bg-card rounded-2xl border border-border shadow-2xs p-5 space-y-3.5 h-full flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between border-b border-border pb-3">
+                  <h3 className="font-extrabold text-foreground text-xs sm:text-sm">Borrowers with late returns</h3>
+                  <span className="text-[11px] font-semibold text-rose-600 dark:text-rose-400">
+                    {uniqueLateBorrowers.length} Incidents
+                  </span>
+                </div>
+                <div className="overflow-x-auto max-h-[460px] overflow-y-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b border-border text-left text-[10px] font-mono font-bold text-muted-foreground uppercase tracking-wider sticky top-0 bg-card z-10">
+                        <th className="pb-2.5 px-3">BORROWER</th>
+                        <th className="pb-2.5 px-3">DEPARTMENT</th>
+                        <th className="pb-2.5 px-3">TRACKING NO.</th>
+                        <th className="pb-2.5 px-3">TYPE</th>
+                        <th className="pb-2.5 px-3">STATUS</th>
                       </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
+                    </thead>
+                    <tbody className="divide-y divide-border font-semibold">
+                      {uniqueLateBorrowers.length === 0 ? (
+                        <tr>
+                          <td colSpan={5} className="text-center py-12 text-emerald-600 dark:text-emerald-400 font-bold">
+                            No active student violations or late returns recorded.
+                          </td>
+                        </tr>
+                      ) : (
+                        uniqueLateBorrowers.map((s, idx) => {
+                          const linkPath = s.type === "Venue Booking"
+                            ? (isSysadRoute ? "/sysad/venue-bookings" : "/general/venue-bookings")
+                            : (isSysadRoute ? "/sysad/equipment-borrowing" : "/general/equipment-borrowing");
+                          return (
+                            <tr key={s.id || s.reference_code || idx} className="hover:bg-muted/60 transition-colors">
+                              <td className="py-2.5 px-3 font-bold text-foreground">{s.name}</td>
+                              <td className="py-2.5 px-3 text-muted-foreground">{s.department}</td>
+                              <td className="py-2.5 px-3 font-mono text-foreground">
+                                <Link
+                                  to={linkPath}
+                                  state={s.record_id ? { selectedId: s.record_id } : undefined}
+                                  className="font-bold hover:underline hover:text-primary transition-colors cursor-pointer"
+                                >
+                                  {s.reference_code}
+                                </Link>
+                              </td>
+                              <td className="py-2.5 px-3 text-foreground/80">{s.type}</td>
+                              <td className="py-2.5 px-3">
+                                <span className={`text-[11px] font-semibold ${
+                                  s.is_late ? "text-amber-600 dark:text-amber-400" : "text-rose-600 dark:text-rose-400"
+                                }`}>
+                                  {s.violation}
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
 
-      {/* ── 6. Today's Scheduled Reservations ── */}
-      {canTodayReservations && (
-        <TodayReservationsSection
-          venueBookings={venueBookings}
-          equipBorrowings={equipBorrowings}
-          loading={loading}
-          isSysadRoute={isSysadRoute}
-        />
+          {/* Today's Scheduled Reservations Column */}
+          {canTodayReservations && (
+            <div className="h-full">
+              <TodayReservationsSection
+                venueBookings={venueBookings}
+                equipBorrowings={equipBorrowings}
+                loading={loading}
+                isSysadRoute={isSysadRoute}
+              />
+            </div>
+          )}
+        </div>
       )}
 
       {/* Empty Fallback State if no widgets permitted */}

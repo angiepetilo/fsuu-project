@@ -1,17 +1,28 @@
 import { useState, useEffect } from "react";
-import { Plus, Edit2, Ban, X, Loader2, CheckCircle2, Archive, RefreshCw, Lock, Eye, EyeOff, ShieldAlert } from "lucide-react";
+import { Plus, Edit2, Ban, X, Loader2, CheckCircle2, Archive, RefreshCw, Lock, Eye, EyeOff, ShieldAlert, ChevronLeft, ChevronRight } from "lucide-react";
 import api from "@/lib/axios";
+import ConfirmModal from "@/components/ui/ConfirmModal";
 
 export default function AcademicTermsTab({ showMsg }) {
   const [terms, setTerms] = useState([]);
   const [activeTerm, setActiveTerm] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // Pagination states (Standard 10 items per page)
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
+
   // Modal states
   const [showAddModal, setShowAddModal] = useState(false);
   const [showCloseModal, setShowCloseModal] = useState(false);
   const [editTerm, setEditTerm] = useState(null);
   const [formLoading, setFormLoading] = useState(false);
+
+  // Dirty state tracking & discard modals
+  const [isTermFormDirty, setIsTermFormDirty] = useState(false);
+  const [showDiscardModal, setShowDiscardModal] = useState(false);
+  const [isCloseFormDirty, setIsCloseFormDirty] = useState(false);
+  const [showDiscardCloseModal, setShowDiscardCloseModal] = useState(false);
 
   // Form states
   const [termForm, setTermForm] = useState({
@@ -63,6 +74,16 @@ export default function AcademicTermsTab({ showMsg }) {
     fetchTerms();
   }, []);
 
+  const totalPages = Math.max(1, Math.ceil(terms.length / ITEMS_PER_PAGE));
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const paginatedTerms = terms.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(Math.max(1, totalPages));
+    }
+  }, [totalPages, currentPage]);
+
   const handleOpenAdd = () => {
     setEditTerm(null);
     setTermForm({
@@ -72,6 +93,7 @@ export default function AcademicTermsTab({ showMsg }) {
       end_date: "",
       is_active: terms.length === 0,
     });
+    setIsTermFormDirty(false);
     setShowAddModal(true);
   };
 
@@ -84,7 +106,27 @@ export default function AcademicTermsTab({ showMsg }) {
       end_date: term.end_date || "",
       is_active: term.is_active || false,
     });
+    setIsTermFormDirty(false);
     setShowAddModal(true);
+  };
+
+  const handleRequestCloseAdd = () => {
+    if (isTermFormDirty) {
+      setShowDiscardModal(true);
+    } else {
+      setShowAddModal(false);
+      setEditTerm(null);
+      setIsTermFormDirty(false);
+    }
+  };
+
+  const handleRequestCloseCloseModal = () => {
+    if (isCloseFormDirty) {
+      setShowDiscardCloseModal(true);
+    } else {
+      setShowCloseModal(false);
+      setIsCloseFormDirty(false);
+    }
   };
 
   const handleSaveTerm = async (e) => {
@@ -96,7 +138,7 @@ export default function AcademicTermsTab({ showMsg }) {
       // ── OPTIMISTIC EDIT ─────────────────────────────────────────────────
       const prev = terms;
       setTerms(t => t.map(x => x.id === editTerm.id ? { ...x, ...termForm, name: label, _optimistic: true } : x));
-      setShowAddModal(false); setEditTerm(null);
+      setShowAddModal(false); setEditTerm(null); setIsTermFormDirty(false);
       try {
         await api.put(`/general/academic-terms/${editTerm.id}`, termForm);
         setTerms(t => t.map(x => x.id === editTerm.id ? { ...x, _optimistic: false } : x));
@@ -110,7 +152,7 @@ export default function AcademicTermsTab({ showMsg }) {
       const tempId = `temp-${Date.now()}`;
       const prev = terms;
       setTerms(t => [...t, { ...termForm, id: tempId, name: label, _optimistic: true }]);
-      setShowAddModal(false);
+      setShowAddModal(false); setIsTermFormDirty(false);
       try {
         const res = await api.post("/general/academic-terms", termForm);
         // Response shape: { message, term } — unwrap the actual term object
@@ -288,9 +330,9 @@ export default function AcademicTermsTab({ showMsg }) {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {terms.map((term, index) => (
+              {paginatedTerms.map((term, index) => (
                 <tr key={term.id} className="hover:bg-slate-50/80 transition-colors">
-                  <td className="py-3 px-4 text-slate-400 font-medium">{index + 1}</td>
+                  <td className="py-3 px-4 text-slate-400 font-medium">{startIndex + index + 1}</td>
                   <td className="py-3 px-4 font-bold text-slate-900">{term.name}</td>
                   <td className="py-3 px-4 font-medium text-slate-700">{term.academic_year}</td>
                   <td className="py-3 px-4 font-medium text-slate-700">{term.semester}</td>
@@ -343,6 +385,40 @@ export default function AcademicTermsTab({ showMsg }) {
               ))}
             </tbody>
           </table>
+
+          {/* Pagination Controls (Standard 10 items per page) */}
+          {terms.length > ITEMS_PER_PAGE && (
+            <div className="flex items-center justify-between p-4 border-t border-slate-200 text-xs text-slate-500 bg-slate-50/50">
+              <span>
+                Showing <strong className="text-slate-900">{startIndex + 1}</strong> to{" "}
+                <strong className="text-slate-900">{Math.min(startIndex + ITEMS_PER_PAGE, terms.length)}</strong> of{" "}
+                <strong className="text-slate-900">{terms.length}</strong> terms
+              </span>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed font-bold cursor-pointer transition-colors shadow-2xs"
+                >
+                  <ChevronLeft size={14} />
+                  <span>Prev</span>
+                </button>
+                <span className="px-2 font-bold text-slate-700">
+                  Page {currentPage} of {totalPages}
+                </span>
+                <button
+                  type="button"
+                  disabled={currentPage >= totalPages}
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed font-bold cursor-pointer transition-colors shadow-2xs"
+                >
+                  <span>Next</span>
+                  <ChevronRight size={14} />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -351,13 +427,20 @@ export default function AcademicTermsTab({ showMsg }) {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in duration-100">
           <div className="bg-white rounded-xl border border-slate-200 shadow-2xl max-w-md w-full p-6 space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <h3 className="text-sm font-bold text-slate-900">
-                {editTerm ? "Edit Academic Term" : "Add New Academic Term"}
-              </h3>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-bold text-slate-900">
+                  {editTerm ? "Edit Academic Term" : "Add New Academic Term"}
+                </h3>
+                {isTermFormDirty && (
+                  <span className="px-2 py-0.5 text-[10px] font-bold bg-amber-100 text-amber-800 rounded-full">
+                    Unsaved
+                  </span>
+                )}
+              </div>
               <button
                 type="button"
-                onClick={() => setShowAddModal(false)}
-                className="text-slate-400 hover:text-slate-600 p-1"
+                onClick={handleRequestCloseAdd}
+                className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
               >
                 <X size={16} />
               </button>
@@ -371,7 +454,10 @@ export default function AcademicTermsTab({ showMsg }) {
                   required
                   placeholder="e.g. 2026-2027"
                   value={termForm.academic_year}
-                  onChange={(e) => setTermForm({ ...termForm, academic_year: e.target.value })}
+                  onChange={(e) => {
+                    setIsTermFormDirty(true);
+                    setTermForm({ ...termForm, academic_year: e.target.value });
+                  }}
                   className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:border-blue-500 font-medium"
                 />
               </div>
@@ -380,7 +466,10 @@ export default function AcademicTermsTab({ showMsg }) {
                 <label className="block text-xs font-bold text-slate-700 mb-1">Semester *</label>
                 <select
                   value={termForm.semester}
-                  onChange={(e) => setTermForm({ ...termForm, semester: e.target.value })}
+                  onChange={(e) => {
+                    setIsTermFormDirty(true);
+                    setTermForm({ ...termForm, semester: e.target.value });
+                  }}
                   className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:border-blue-500 bg-white font-medium"
                 >
                   <option value="1st Semester">1st Semester</option>
@@ -396,7 +485,10 @@ export default function AcademicTermsTab({ showMsg }) {
                     type="date"
                     required
                     value={termForm.start_date}
-                    onChange={(e) => setTermForm({ ...termForm, start_date: e.target.value })}
+                    onChange={(e) => {
+                      setIsTermFormDirty(true);
+                      setTermForm({ ...termForm, start_date: e.target.value });
+                    }}
                     className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:border-blue-500"
                   />
                 </div>
@@ -407,7 +499,10 @@ export default function AcademicTermsTab({ showMsg }) {
                     type="date"
                     required
                     value={termForm.end_date}
-                    onChange={(e) => setTermForm({ ...termForm, end_date: e.target.value })}
+                    onChange={(e) => {
+                      setIsTermFormDirty(true);
+                      setTermForm({ ...termForm, end_date: e.target.value });
+                    }}
                     className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:border-blue-500"
                   />
                 </div>
@@ -418,8 +513,11 @@ export default function AcademicTermsTab({ showMsg }) {
                   type="checkbox"
                   id="is_active"
                   checked={termForm.is_active}
-                  onChange={(e) => setTermForm({ ...termForm, is_active: e.target.checked })}
-                  className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                  onChange={(e) => {
+                    setIsTermFormDirty(true);
+                    setTermForm({ ...termForm, is_active: e.target.checked });
+                  }}
+                  className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
                 />
                 <label htmlFor="is_active" className="text-xs font-semibold text-slate-700 cursor-pointer">
                   Set as Active Semester immediately
@@ -429,9 +527,9 @@ export default function AcademicTermsTab({ showMsg }) {
               <div className="flex items-center justify-end gap-2 pt-4 border-t border-slate-100">
                 <button
                   type="button"
-                  onClick={() => setShowAddModal(false)}
+                  onClick={handleRequestCloseAdd}
                   disabled={formLoading}
-                  className="px-3.5 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-lg"
+                  className="px-3.5 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-lg cursor-pointer"
                 >
                   Cancel
                 </button>
@@ -454,12 +552,19 @@ export default function AcademicTermsTab({ showMsg }) {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in duration-100">
           <div className="bg-white rounded-xl border border-slate-200 shadow-2xl max-w-md w-full p-6 space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <h3 className="text-sm font-bold text-slate-900">
-                Close Semester
-              </h3>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-bold text-slate-900">
+                  Close Semester
+                </h3>
+                {isCloseFormDirty && (
+                  <span className="px-2 py-0.5 text-[10px] font-bold bg-amber-100 text-amber-800 rounded-full">
+                    Unsaved
+                  </span>
+                )}
+              </div>
               <button
                 type="button"
-                onClick={() => setShowCloseModal(false)}
+                onClick={handleRequestCloseCloseModal}
                 className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
               >
                 <X size={16} />
@@ -470,28 +575,7 @@ export default function AcademicTermsTab({ showMsg }) {
               This will archive all completed bookings for <strong>{activeTerm?.name}</strong> and initialize the next academic semester for all portals.
             </div>
 
-            <form onSubmit={async (e) => {
-              e.preventDefault();
-              if (!closeForm.start_date || !closeForm.end_date) {
-                notify("Please specify both start and end dates for the next term.");
-                return;
-              }
-              if (closeForm.end_date <= closeForm.start_date) {
-                notify("End date must be after start date.");
-                return;
-              }
-              setFormLoading(true);
-              try {
-                const res = await api.post("/general/academic-terms/close-term", closeForm);
-                notify(res.data.message || "✅ Semester archived and next term launched successfully!");
-                setShowCloseModal(false);
-                fetchTerms();
-              } catch (err) {
-                notify(err.response?.data?.message || "Failed to close semester.");
-              } finally {
-                setFormLoading(false);
-              }
-            }} className="space-y-3">
+            <form onSubmit={handleCloseTermSubmit} className="space-y-3">
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">Next Academic Year *</label>
                 <input
@@ -499,7 +583,10 @@ export default function AcademicTermsTab({ showMsg }) {
                   required
                   placeholder="e.g. 2026-2027"
                   value={closeForm.academic_year}
-                  onChange={(e) => setCloseForm({ ...closeForm, academic_year: e.target.value })}
+                  onChange={(e) => {
+                    setIsCloseFormDirty(true);
+                    setCloseForm({ ...closeForm, academic_year: e.target.value });
+                  }}
                   className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:border-blue-500 font-medium"
                 />
               </div>
@@ -508,7 +595,10 @@ export default function AcademicTermsTab({ showMsg }) {
                 <label className="block text-xs font-bold text-slate-700 mb-1">Next Semester *</label>
                 <select
                   value={closeForm.semester}
-                  onChange={(e) => setCloseForm({ ...closeForm, semester: e.target.value })}
+                  onChange={(e) => {
+                    setIsCloseFormDirty(true);
+                    setCloseForm({ ...closeForm, semester: e.target.value });
+                  }}
                   className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:border-blue-500 bg-white font-medium cursor-pointer"
                 >
                   <option value="1st Semester">1st Semester</option>
@@ -524,7 +614,10 @@ export default function AcademicTermsTab({ showMsg }) {
                     type="date"
                     required
                     value={closeForm.start_date}
-                    onChange={(e) => setCloseForm({ ...closeForm, start_date: e.target.value })}
+                    onChange={(e) => {
+                      setIsCloseFormDirty(true);
+                      setCloseForm({ ...closeForm, start_date: e.target.value });
+                    }}
                     className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:border-blue-500"
                   />
                 </div>
@@ -535,7 +628,10 @@ export default function AcademicTermsTab({ showMsg }) {
                     type="date"
                     required
                     value={closeForm.end_date}
-                    onChange={(e) => setCloseForm({ ...closeForm, end_date: e.target.value })}
+                    onChange={(e) => {
+                      setIsCloseFormDirty(true);
+                      setCloseForm({ ...closeForm, end_date: e.target.value });
+                    }}
                     className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:border-blue-500"
                   />
                 </div>
@@ -544,7 +640,7 @@ export default function AcademicTermsTab({ showMsg }) {
               <div className="flex items-center justify-end gap-2 pt-4 border-t border-slate-100">
                 <button
                   type="button"
-                  onClick={() => setShowCloseModal(false)}
+                  onClick={handleRequestCloseCloseModal}
                   className="px-3.5 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-lg cursor-pointer"
                 >
                   Cancel
@@ -583,7 +679,7 @@ export default function AcademicTermsTab({ showMsg }) {
               <button
                 type="button"
                 onClick={() => setShowPasswordModal(false)}
-                className="text-slate-400 hover:text-slate-600 p-1"
+                className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
               >
                 <X size={16} />
               </button>
@@ -657,6 +753,39 @@ export default function AcademicTermsTab({ showMsg }) {
           </div>
         </div>
       )}
+
+      {/* Discard Changes Confirmation Modal for Add / Edit */}
+      <ConfirmModal
+        open={showDiscardModal}
+        onClose={() => setShowDiscardModal(false)}
+        onConfirm={() => {
+          setShowDiscardModal(false);
+          setShowAddModal(false);
+          setEditTerm(null);
+          setIsTermFormDirty(false);
+        }}
+        title="Discard Unsaved Changes?"
+        message="You have unsaved changes in this academic term form. Are you sure you want to close without saving?"
+        confirmText="Discard Changes"
+        cancelText="Keep Editing"
+        variant="danger"
+      />
+
+      {/* Discard Changes Confirmation Modal for Close Semester */}
+      <ConfirmModal
+        open={showDiscardCloseModal}
+        onClose={() => setShowDiscardCloseModal(false)}
+        onConfirm={() => {
+          setShowDiscardCloseModal(false);
+          setShowCloseModal(false);
+          setIsCloseFormDirty(false);
+        }}
+        title="Discard Unsaved Changes?"
+        message="You have unsaved modifications in the close semester setup. Are you sure you want to close without launching?"
+        confirmText="Discard Changes"
+        cancelText="Keep Editing"
+        variant="danger"
+      />
     </div>
   );
 }

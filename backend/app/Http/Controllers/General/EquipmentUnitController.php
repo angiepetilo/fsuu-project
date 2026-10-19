@@ -19,17 +19,33 @@ class EquipmentUnitController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        \App\Services\EquipmentCategoryService::autoSyncUnitConditions();
-
         $sort = strtolower((string)$request->input('sort', 'oldest'));
 
         $query = EquipmentUnit::withTrashed()
-            ->with('equipmentType');
+            ->select([
+                'id', 'equipment_type_id', 'brand', 'model', 'seq_no',
+                'serial_number', 'barcode', 'purchased_at', 'eq_lifespan',
+                'status', 'condition', 'built_in_units', 'archived_at', 'created_at'
+            ])
+            ->with(['equipmentType' => function($q) {
+                $q->select(['id', 'eq_name', 'brand', 'total_quantity', 'available_count', 'status']);
+            }]);
 
         if ($sort === 'newest') {
             $query->orderBy('created_at', 'desc')->orderBy('id', 'desc');
         } else {
             $query->orderBy('created_at', 'asc')->orderBy('id', 'asc');
+        }
+
+        if ($request->has('page') || $request->boolean('paginate')) {
+            $perPage = max(1, (int)$request->input('per_page', 10));
+            $paginated = $query->paginate($perPage);
+            $paginated->getCollection()->transform(function ($unit) {
+                $arr = $unit->toArray();
+                $arr['is_disabled'] = !is_null($unit->archived_at);
+                return $arr;
+            });
+            return response()->json($paginated);
         }
 
         $units = $query->get()

@@ -86,6 +86,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/verify-password', [AuthController::class, 'verifyPassword']);
     Route::post('/user/profile', [AuthController::class, 'updateProfile']);
     Route::get('/dashboard/stats', [DashboardStatsController::class, 'index']);
+    Route::get('/dashboard/analytics-charts', [DashboardStatsController::class, 'analyticsCharts']);
+    Route::get('/general/dashboard/analytics-charts', [DashboardStatsController::class, 'analyticsCharts']);
 
     // ── General: Users ─────────────────────────────────────────────────────────
     Route::post('/general/users/{id}/resend-invite', [UserController::class, 'resendInvite']);

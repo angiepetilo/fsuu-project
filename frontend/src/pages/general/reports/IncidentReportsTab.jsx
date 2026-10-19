@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import api from "@/lib/axios";
 import notify from "@/lib/notify";
 import { formatDate } from "@/lib/dateUtils";
@@ -15,6 +16,8 @@ export default function IncidentReportsTab({
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
   const [conditionFilter, setConditionFilter] = useState("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
 
   // Modal states
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -124,6 +127,16 @@ export default function IncidentReportsTab({
       return true;
     });
   }, [reports, typeFilter, conditionFilter, searchQuery]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [typeFilter, conditionFilter, searchQuery]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredReports.length / ITEMS_PER_PAGE));
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const paginatedReports = useMemo(() => {
+    return filteredReports.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  }, [filteredReports, startIndex]);
 
   // Counters
   const stats = useMemo(() => {
@@ -470,12 +483,12 @@ export default function IncidentReportsTab({
                   </td>
                 </tr>
               ) : (
-                filteredReports.map((item, idx) => {
+                paginatedReports.map((item, idx) => {
                   const photos = Array.isArray(item.evidence_photos) ? item.evidence_photos : (item.evidence_photo ? [item.evidence_photo] : []);
 
                   return (
                     <tr key={item.id || idx} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors">
-                      <td className="py-3 px-4 font-mono text-slate-400 text-xs">{idx + 1}</td>
+                      <td className="py-3 px-4 font-mono text-slate-400 text-xs">{startIndex + idx + 1}</td>
                       <td className="py-3 px-4 whitespace-nowrap">
                         <span className="font-bold text-slate-900 dark:text-white block text-xs">
                           {formatDate(item.inspected_at || item.created_at)}
@@ -545,6 +558,40 @@ export default function IncidentReportsTab({
             </tbody>
           </table>
         </div>
+
+        {/* Pagination Controls Footer (Standard 10 items per page) */}
+        {filteredReports.length > ITEMS_PER_PAGE && (
+          <div className="flex items-center justify-between p-4 border-t border-slate-200 dark:border-slate-800 text-xs text-slate-500 bg-slate-50/50 dark:bg-slate-800/40">
+            <span>
+              Showing <strong className="text-slate-900 dark:text-white">{startIndex + 1}</strong> to{" "}
+              <strong className="text-slate-900 dark:text-white">{Math.min(startIndex + ITEMS_PER_PAGE, filteredReports.length)}</strong> of{" "}
+              <strong className="text-slate-900 dark:text-white">{filteredReports.length}</strong> reports
+            </span>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed font-bold cursor-pointer transition-colors shadow-2xs"
+              >
+                <ChevronLeft size={14} />
+                <span>Prev</span>
+              </button>
+              <span className="px-2 font-bold text-slate-700 dark:text-slate-300">
+                Page {currentPage} of {totalPages}
+              </span>
+              <button
+                type="button"
+                disabled={currentPage >= totalPages}
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed font-bold cursor-pointer transition-colors shadow-2xs"
+              >
+                <span>Next</span>
+                <ChevronRight size={14} />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ── WRITE / FILE NEW REPORT MODAL (Side-by-Side Design, Plain Text, Flat Design, No Icons) ── */}

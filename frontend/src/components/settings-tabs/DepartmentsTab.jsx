@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { BookOpen, Plus, Edit2, Ban, Power, CheckCircle2, X, Loader2, Lock } from "lucide-react";
+import { BookOpen, Plus, Edit2, Ban, Power, CheckCircle2, X, Loader2, Lock, ChevronLeft, ChevronRight } from "lucide-react";
 import { usePermissions } from "@/hooks/usePermissions";
 import api, { clearApiCache } from "@/lib/axios";
 import { invalidateCache } from "@/lib/apiCache";
@@ -13,6 +13,8 @@ export default function DepartmentsTab({ showMsg }) {
   const canDisable = isSuperAdmin || hasPermission("settings.departments") || hasPermission("settings.disable");
 
   const [departments, setDepartments] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
   const [loading, setLoading] = useState(true);
   const [showAddDeptModal, setShowAddDeptModal] = useState(false);
   const [showDiscardDeptModal, setShowDiscardDeptModal] = useState(false);
@@ -190,75 +192,106 @@ export default function DepartmentsTab({ showMsg }) {
                 </td>
               </tr>
             ) : (
-              departments.map((dept, index) => {
-                const isItemDisabled = dept.status === "disabled" || dept.status === "inactive";
-                return (
-                  <tr key={dept.id || index} className="hover:bg-slate-50/60 transition-colors">
-                    <td className="px-4 py-3.5 font-bold text-slate-400">{index + 1}</td>
-                    <td className="px-4 py-3.5">
-                      <span className="px-2.5 py-1 rounded-lg bg-blue-50 text-blue-700 font-mono font-extrabold text-[11px]">
-                        {dept.code}
-                      </span>
-                    </td>
-                    <td className={`px-4 py-3.5 font-extrabold ${isItemDisabled ? 'text-slate-400 line-through' : 'text-slate-900'}`}>
-                      {dept.name || dept.department_name}
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ${
-                        !isItemDisabled
-                          ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800"
-                          : "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-800"
-                      }`}>
-                        {isItemDisabled && <Ban size={10} className="mr-1" />}
-                        {!isItemDisabled ? "ACTIVE" : "DISABLED"}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3.5 text-right">
-                      {canEdit || canDisable ? (
-                        <div className="flex items-center justify-end gap-2.5">
-                          {canDisable && (
-                            <button
-                              type="button"
-                              onClick={() => setDisableTarget({ id: dept.id, code: dept.code, status: dept.status })}
-                              className={`p-1.5 rounded-xl border transition-all cursor-pointer shadow-2xs ${
-                                !isItemDisabled
-                                  ? "text-rose-600 bg-rose-50 border-rose-200 hover:bg-rose-100 dark:text-rose-400/80 dark:bg-rose-950/40 dark:border-rose-900/40 hover:dark:bg-rose-900/40 hover:dark:text-rose-300"
-                                  : "text-emerald-600 bg-emerald-50 border-emerald-200 hover:bg-emerald-100 dark:text-emerald-400/80 dark:bg-emerald-950/40 dark:border-emerald-900/40 hover:dark:bg-emerald-900/40 hover:dark:text-emerald-300"
-                              }`}
-                              title={isItemDisabled ? "Click to Enable Department" : "Click to Disable Department"}
-                            >
-                              {!isItemDisabled ? <Ban size={13} /> : <CheckCircle2 size={13} />}
-                            </button>
-                          )}
-                          {canEdit && (
-                            <button
-                              onClick={() => {
-                                setEditDept(dept);
-                                setDeptForm({
-                                  code: dept.code || "",
-                                  name: dept.name || dept.department_name || "",
-                                  status: dept.status || "active",
-                                });
-                                setIsDeptFormDirty(false);
-                                setShowAddDeptModal(true);
-                              }}
-                              className="p-1.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 cursor-pointer transition-all shadow-2xs"
-                              title="Edit Department"
-                            >
-                              <Edit2 size={13} />
-                            </button>
-                          )}
-                        </div>
-                      ) : (
-                        <span className="text-[10.5px] font-bold text-slate-400 italic">View Only</span>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })
+              departments
+                .slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
+                .map((dept, index) => {
+                  const isItemDisabled = dept.status === "disabled" || dept.status === "inactive";
+                  const itemNumber = (currentPage - 1) * ITEMS_PER_PAGE + index + 1;
+                  return (
+                    <tr key={dept.id || index} className="hover:bg-slate-50/60 transition-colors">
+                      <td className="px-4 py-3.5 font-bold text-slate-400">{itemNumber}</td>
+                      <td className="px-4 py-3.5">
+                        <span className="px-2.5 py-1 rounded-lg bg-blue-50 text-blue-700 font-mono font-extrabold text-[11px]">
+                          {dept.code}
+                        </span>
+                      </td>
+                      <td className={`px-4 py-3.5 font-extrabold ${isItemDisabled ? 'text-slate-400 line-through' : 'text-slate-900'}`}>
+                        {dept.name || dept.department_name}
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                          !isItemDisabled
+                            ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800"
+                            : "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-800"
+                        }`}>
+                          {isItemDisabled && <Ban size={10} className="mr-1" />}
+                          {!isItemDisabled ? "ACTIVE" : "DISABLED"}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3.5 text-right">
+                        {canEdit || canDisable ? (
+                          <div className="flex items-center justify-end gap-2.5">
+                            {canDisable && (
+                              <button
+                                type="button"
+                                onClick={() => setDisableTarget({ id: dept.id, code: dept.code, status: dept.status })}
+                                className={`p-1.5 rounded-xl border transition-all cursor-pointer shadow-2xs ${
+                                  !isItemDisabled
+                                    ? "text-rose-600 bg-rose-50 border-rose-200 hover:bg-rose-100 dark:text-rose-400/80 dark:bg-rose-950/40 dark:border-rose-900/40 hover:dark:bg-rose-900/40 hover:dark:text-rose-300"
+                                    : "text-emerald-600 bg-emerald-50 border-emerald-200 hover:bg-emerald-100 dark:text-emerald-400/80 dark:bg-emerald-950/40 dark:border-emerald-900/40 hover:dark:bg-emerald-900/40 hover:dark:text-emerald-300"
+                                }`}
+                                title={isItemDisabled ? "Click to Enable Department" : "Click to Disable Department"}
+                              >
+                                {!isItemDisabled ? <Ban size={13} /> : <CheckCircle2 size={13} />}
+                              </button>
+                            )}
+                            {canEdit && (
+                              <button
+                                onClick={() => {
+                                  setEditDept(dept);
+                                  setDeptForm({
+                                    code: dept.code || "",
+                                    name: dept.name || dept.department_name || "",
+                                    status: dept.status || "active",
+                                  });
+                                  setIsDeptFormDirty(false);
+                                  setShowAddDeptModal(true);
+                                }}
+                                className="p-1.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 cursor-pointer transition-all shadow-2xs"
+                                title="Edit Department"
+                              >
+                                <Edit2 size={13} />
+                              </button>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-[10.5px] font-bold text-slate-400 italic">View Only</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })
             )}
           </tbody>
         </table>
+        {departments.length > 0 && (
+          <div className="px-4 py-3 border-t border-slate-100 flex items-center justify-between">
+            <span className="text-[11px] font-bold text-slate-400">
+              Showing {(currentPage - 1) * ITEMS_PER_PAGE + 1} to {Math.min(currentPage * ITEMS_PER_PAGE, departments.length)} of {departments.length}
+            </span>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                disabled={currentPage <= 1}
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+              >
+                <ChevronLeft size={14} />
+              </button>
+              <span className="text-xs font-bold text-slate-600 px-2">
+                {currentPage} / {Math.ceil(departments.length / ITEMS_PER_PAGE) || 1}
+              </span>
+              <button
+                type="button"
+                disabled={currentPage >= Math.ceil(departments.length / ITEMS_PER_PAGE)}
+                onClick={() => setCurrentPage((p) => Math.min(Math.ceil(departments.length / ITEMS_PER_PAGE) || 1, p + 1))}
+                className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+              >
+                <ChevronRight size={14} />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Modal */}

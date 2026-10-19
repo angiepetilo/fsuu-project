@@ -1,10 +1,11 @@
-import { UploadCloud, X, FileText, Image, CheckCircle2, ShieldCheck, Download, Loader2, Camera, Plus, RefreshCw, Check } from "lucide-react";
+import { UploadCloud, X, FileText, Image, CheckCircle2, ShieldCheck, Download, Loader2, Camera, Plus, RefreshCw, Check, Lock, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useRef, useState, useEffect } from "react";
 import api from "@/lib/axios";
 import EndorsementLetterTemplateModal from "@/components/ui/EndorsementLetterTemplateModal";
 import DocxPreviewModal from "@/components/ui/DocxPreviewModal";
 import AlertModal from "@/components/ui/AlertModal";
+import DataPrivacyTermsModal from "@/components/ui/DataPrivacyTermsModal";
 
 export default function Step4Verification({
   filerName,
@@ -33,6 +34,8 @@ export default function Step4Verification({
   const [selectedDocx, setSelectedDocx] = useState({ url: "", name: "", title: "" });
   const [templateType, setTemplateType] = useState("organization");
   const [requirementsList, setRequirementsList] = useState([]);
+  const [showPrivacyModal, setShowPrivacyModal] = useState(false);
+  const [privacyModalTab, setPrivacyModalTab] = useState("privacy");
   const [alertModal, setAlertModal] = useState({ open: false, title: "Notice", message: "" });
   const showAlert = (message, title = "Notice") => setAlertModal({ open: true, title, message });
 
@@ -513,31 +516,68 @@ export default function Step4Verification({
             )}
           </div>
 
-          {/* Terms Agreement Box */}
+          {/* Data Privacy & Terms Agreement Box */}
           <div className="bg-white dark:bg-slate-950/60 p-4 rounded-xl border border-slate-200/80 dark:border-blue-900/40 space-y-3">
+            
+            {/* Quick Data Privacy Disclosure */}
+            <div className="p-3 bg-blue-50/70 dark:bg-blue-950/40 border border-blue-200/70 dark:border-blue-900/40 rounded-xl space-y-1.5 text-[11px] text-blue-950 dark:text-blue-200 leading-relaxed">
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-extrabold text-blue-900 dark:text-blue-300 flex items-center gap-1.5 text-xs">
+                  <Shield size={14} className="text-blue-600 dark:text-blue-400" />
+                  Data Privacy Disclosure (RA 10173)
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPrivacyModalTab("privacy");
+                    setShowPrivacyModal(true);
+                  }}
+                  className="text-[10.5px] font-bold text-blue-700 dark:text-blue-400 hover:underline cursor-pointer flex items-center gap-1"
+                >
+                  <Lock size={11} />
+                  <span>View Details</span>
+                </button>
+              </div>
+              <p className="font-medium text-[10.5px] text-blue-900/80 dark:text-blue-300/80">
+                FSUU collects your name, email, phone number, and event details strictly for reservation tracking, SMS/Email dispatch, security verification, and accountability in compliance with the Data Privacy Act.
+              </p>
+            </div>
+
             <div className="space-y-1.5 text-[11px] text-slate-600 dark:text-slate-300 font-medium leading-relaxed">
-              <p className="font-extrabold text-slate-800 dark:text-slate-200 text-xs">By confirming, the user agrees to:</p>
+              <div className="flex items-center justify-between">
+                <p className="font-extrabold text-slate-800 dark:text-slate-200 text-xs">By confirming, the user agrees to:</p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPrivacyModalTab("terms");
+                    setShowPrivacyModal(true);
+                  }}
+                  className="text-[10.5px] font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
+                >
+                  View Full Terms →
+                </button>
+              </div>
               <ul className="space-y-1.5 pl-0.5 list-none">
                 <li className="flex items-start gap-1.5">
                   <span className="text-blue-600 dark:text-blue-400 font-bold mt-0.5">•</span>
-                  <span>Ensure that all decorations &amp; materials adhere to venue policy and safety regulations.</span>
+                  <span>Ensure all decorations &amp; materials adhere to venue policy and safety regulations.</span>
                 </li>
                 <li className="flex items-start gap-1.5">
                   <span className="text-blue-600 dark:text-blue-400 font-bold mt-0.5">•</span>
-                  <span>Held liable for any physical units used.</span>
+                  <span>Assume full liability for any assigned facilities and physical equipment units.</span>
                 </li>
                 <li className="flex items-start gap-1.5">
                   <span className="text-blue-600 dark:text-blue-400 font-bold mt-0.5">•</span>
-                  <span>Users granted a grace period 15 - 20 mins past their scheduled booking time; if they don't arrive within that time and doesn't have a valid excuse their booking is automatically cancelled.</span>
+                  <span>15-20 min grace period; unexcused delays may trigger automatic cancellation.</span>
                 </li>
                 <li className="flex items-start gap-1.5">
                   <span className="text-blue-600 dark:text-blue-400 font-bold mt-0.5">•</span>
-                  <span>Have the AVR personnel inspect all materials prior to entry and may deny access to any items considered unsafe.</span>
+                  <span>Allow AVR staff inspection prior to entry and deny access to unsafe materials.</span>
                 </li>
               </ul>
             </div>
 
-            <label className="flex items-start gap-3 pt-2 border-t border-slate-100 dark:border-slate-800 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-900/60 -mx-1 px-1 py-1 rounded-lg transition-colors">
+            <label className="flex items-start gap-3 pt-2.5 border-t border-slate-100 dark:border-slate-800 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-900/60 -mx-1 px-1 py-1 rounded-lg transition-colors">
               <input
                 type="checkbox"
                 checked={agreedToPolicy}
@@ -545,7 +585,33 @@ export default function Step4Verification({
                 className="mt-0.5 w-4 h-4 rounded text-blue-600 focus:ring-0 cursor-pointer"
               />
               <span className="text-[11px] text-slate-900 dark:text-white font-bold leading-relaxed">
-                I have read and agree to all venue policies and safety regulations.
+                I have read and agree to the{" "}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setPrivacyModalTab("privacy");
+                    setShowPrivacyModal(true);
+                  }}
+                  className="text-blue-600 dark:text-blue-400 underline hover:text-blue-700 cursor-pointer"
+                >
+                  Privacy Policy
+                </button>{" "}
+                and{" "}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setPrivacyModalTab("terms");
+                    setShowPrivacyModal(true);
+                  }}
+                  className="text-blue-600 dark:text-blue-400 underline hover:text-blue-700 cursor-pointer"
+                >
+                  Terms &amp; Conditions
+                </button>
+                .
               </span>
             </label>
           </div>
@@ -760,6 +826,14 @@ export default function Step4Verification({
           </div>
         </div>
       )}
+
+      {/* Data Privacy & Terms Agreement Modal */}
+      <DataPrivacyTermsModal
+        isOpen={showPrivacyModal}
+        onClose={() => setShowPrivacyModal(false)}
+        onAccept={() => setAgreedToPolicy(true)}
+        initialTab={privacyModalTab}
+      />
 
       {/* Flat In-App Alert Modal (replaces native window.alert()) */}
       <AlertModal

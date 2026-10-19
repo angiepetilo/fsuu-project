@@ -41,8 +41,10 @@ const EquipmentRelease = lazy(() => import("./pages/general/operations/Equipment
 const EquipmentReturn = lazy(() => import("./pages/general/operations/EquipmentReturn"));
 
 import { Toaster } from "@/components/ui/sonner";
-
-import { LayoutDashboard, Sun, Moon } from "lucide-react";
+import { LayoutDashboard, Sun, Moon, Phone } from "lucide-react";
+import ContactUsModal from "@/components/ui/ContactUsModal";
+import DataPrivacyTermsModal from "@/components/ui/DataPrivacyTermsModal";
+import AboutDevelopersModal from "@/components/ui/AboutDevelopersModal";
 
 function ProtectedInterfaceRoute({ children }) {
   const { user, token } = useAuth();
@@ -110,6 +112,11 @@ function AppContent() {
   const isGeneralPage = location.pathname.startsWith("/general") || location.pathname.startsWith("/admin");
   const isSysadPage = location.pathname.startsWith("/sysad");
   const hideHeaderFooter = isAuthPage || isGeneralPage || isSysadPage;
+
+  const [showContactModal, setShowContactModal] = useState(false);
+  const [showPrivacyModal, setShowPrivacyModal] = useState(false);
+  const [showDevelopersModal, setShowDevelopersModal] = useState(false);
+  const [privacyModalTab, setPrivacyModalTab] = useState("privacy");
 
   const [publicSettings, setPublicSettings] = useState(() => {
     try {
@@ -205,8 +212,18 @@ function AppContent() {
                 </div>
               </button>
 
-              {/* Mobile Right Controls: Theme Toggle & Dashboard */}
-              <div className="flex items-center gap-2 sm:hidden">
+              {/* Mobile Right Controls: Contact Us, Theme Toggle & Dashboard */}
+              <div className="flex items-center gap-1.5 sm:hidden">
+                <button
+                  type="button"
+                  onClick={() => setShowContactModal(true)}
+                  aria-label="Contact Us"
+                  className="p-2 rounded-lg border border-border bg-card text-muted-foreground hover:text-foreground transition-colors cursor-pointer min-h-[44px] min-w-[44px] flex items-center justify-center"
+                  title="Contact Us"
+                >
+                  <Phone size={16} />
+                </button>
+
                 <button
                   type="button"
                   onClick={toggleTheme}
@@ -229,7 +246,7 @@ function AppContent() {
             </div>
 
             {/* Desktop Right Header Items */}
-            <div className="flex items-center gap-3 w-full sm:w-auto justify-center sm:justify-end">
+            <div className="flex items-center gap-2.5 w-full sm:w-auto justify-center sm:justify-end">
               {(user || token) && location.pathname.startsWith("/interface") && (
                 <div className="flex items-center p-1 bg-muted border border-border rounded-lg w-full sm:w-auto justify-center">
                   <Link
@@ -252,6 +269,17 @@ function AppContent() {
                   </Link>
                 </div>
               )}
+
+              {/* Desktop Contact Us Link */}
+              <button
+                type="button"
+                onClick={() => setShowContactModal(true)}
+                className="text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors px-3 py-1.5 rounded-lg hover:bg-muted cursor-pointer flex items-center gap-1.5 border border-border/60 bg-card/60 shadow-2xs"
+                title="Contact University Facilities Office"
+              >
+                <Phone size={13} className="text-primary" />
+                <span>Contact Us</span>
+              </button>
 
               {/* Desktop Theme Switcher */}
               <div className="hidden sm:flex items-center">
@@ -392,67 +420,88 @@ function AppContent() {
       </main>
 
       {!hideHeaderFooter && (
-        <footer className="border-t border-border bg-card/80 backdrop-blur-md mt-20 transition-colors">
-          <div className="max-w-[1280px] mx-auto px-6 sm:px-8 py-10 flex flex-col sm:flex-row items-center justify-between gap-6 text-muted-foreground text-xs">
-            <div className="flex flex-col items-center sm:items-start gap-1">
-              <span className="font-bold text-sm text-foreground">
+        <footer className="border-t border-border bg-card/80 backdrop-blur-md mt-16 transition-colors">
+          <div className="max-w-[1280px] mx-auto px-6 sm:px-8 py-8 flex flex-col sm:flex-row items-center justify-between gap-5 text-muted-foreground text-xs">
+            {/* Left: Brand & System */}
+            <div className="flex flex-col items-center sm:items-start gap-0.5 text-center sm:text-left">
+              <span className="font-extrabold text-sm text-foreground">
                 {publicSettings.organization_name || "Father Saturnino Urios University"}
               </span>
-              <span className="text-muted-foreground font-normal">
+              <span className="text-muted-foreground font-medium text-[11px]">
                 {publicSettings.system_name || "Facilities & Equipment Booking System"}
               </span>
             </div>
 
-            <div className="flex flex-wrap items-center justify-center gap-5 font-medium text-muted-foreground">
-              {/* Facebook */}
-              {(publicSettings.facebook_url || "https://www.facebook.com/fsuubutuan") && (
-                <div className="flex items-center gap-1.5">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="#1877F2">
-                    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
-                  </svg>
-                  <a
-                    href={publicSettings.facebook_url || "https://www.facebook.com/fsuubutuan"}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    title="Visit our Facebook page"
-                    className="hover:text-primary transition-colors text-xs"
-                  >
-                    {publicSettings.facebook_name || (publicSettings.facebook_url && publicSettings.facebook_url.includes("facebook.com/") ? publicSettings.facebook_url.split("facebook.com/")[1].replace(/\/$/, '') : null) || "Father Saturnino Urios University"}
-                  </a>
-                </div>
-              )}
-              {/* Email */}
-              {publicSettings.contact_email && (
-                <div className="flex items-center gap-1.5">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 48 48">
-                    <rect x="2" y="8" width="44" height="32" rx="4" fill="#EA4335" />
-                    <path d="M2 12l22 14 22-14" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" />
-                  </svg>
-                  <a href={`mailto:${publicSettings.contact_email}`} className="hover:text-primary transition-colors text-xs">
-                    {publicSettings.contact_email}
-                  </a>
-                </div>
-              )}
-              {/* Phone */}
-              {publicSettings.contact_phone && (
-                <div className="flex items-center gap-1.5">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 48 48">
-                    <circle cx="24" cy="24" r="22" fill="#25D366" />
-                    <path d="M33.4 28.9c-.4-.2-2.4-1.2-2.8-1.3-.4-.2-.6-.2-.9.2-.2.4-.9 1.3-1.1 1.5-.2.2-.4.3-.8.1s-1.6-.6-3-1.9c-1.1-1-1.9-2.2-2.1-2.6-.2-.4 0-.6.2-.8l.6-.7c.2-.2.2-.4.4-.6.1-.2 0-.5 0-.7-.1-.2-.9-2.2-1.2-3-.3-.8-.7-.6-.9-.7H20c-.3 0-.7.1-1 .5-.4.4-1.4 1.3-1.4 3.2s1.4 3.7 1.6 4c.2.2 2.8 4.3 6.8 6 .9.4 1.7.6 2.2.8.9.3 1.8.2 2.4.1.7-.1 2.2-.9 2.5-1.8.3-.9.3-1.6.2-1.8-.1-.2-.3-.3-.7-.5z" fill="#fff" />
-                  </svg>
-                  <a href={`tel:${publicSettings.contact_phone}`} className="hover:text-primary transition-colors text-xs">
-                    {publicSettings.contact_phone}
-                  </a>
-                </div>
-              )}
+            {/* Center: Clean Navigation Links */}
+            <div className="flex flex-wrap items-center justify-center gap-4 text-xs font-semibold text-muted-foreground">
+              <button
+                type="button"
+                onClick={() => setShowContactModal(true)}
+                className="hover:text-primary transition-colors cursor-pointer"
+              >
+                Contact Us
+              </button>
+              <span className="text-muted-foreground/40">•</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setPrivacyModalTab("privacy");
+                  setShowPrivacyModal(true);
+                }}
+                className="hover:text-primary transition-colors cursor-pointer"
+              >
+                Privacy Policy
+              </button>
+              <span className="text-muted-foreground/40">•</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setPrivacyModalTab("terms");
+                  setShowPrivacyModal(true);
+                }}
+                className="hover:text-primary transition-colors cursor-pointer"
+              >
+                Terms &amp; Conditions
+              </button>
             </div>
 
-            <div className="text-center sm:text-right text-muted-foreground font-medium">
-              © {new Date().getFullYear()} All rights reserved.
+            {/* Right: Legal Copyright & Developer Attribution */}
+            <div className="text-center sm:text-right text-muted-foreground font-medium text-[11.5px] leading-relaxed">
+              <div>© {new Date().getFullYear()} {publicSettings.organization_name || "Father Saturnino Urios University"}. All rights reserved.</div>
+              <div>
+                <button
+                  type="button"
+                  onClick={() => setShowDevelopersModal(true)}
+                  className="text-[10.5px] text-muted-foreground/75 hover:text-primary transition-colors cursor-pointer mt-0.5 font-medium underline underline-offset-2 decoration-muted-foreground/30 hover:decoration-primary"
+                  title="Click to view Capstone Development Team credits"
+                >
+                  Developed by FSUU Capstone Team • BSIT
+                </button>
+              </div>
             </div>
           </div>
         </footer>
       )}
+
+      {/* Global Contact Us Modal */}
+      <ContactUsModal
+        isOpen={showContactModal}
+        onClose={() => setShowContactModal(false)}
+        contactSettings={publicSettings}
+      />
+
+      {/* Global About Developers Modal */}
+      <AboutDevelopersModal
+        isOpen={showDevelopersModal}
+        onClose={() => setShowDevelopersModal(false)}
+      />
+
+      {/* Global Data Privacy & Terms Modal */}
+      <DataPrivacyTermsModal
+        isOpen={showPrivacyModal}
+        onClose={() => setShowPrivacyModal(false)}
+        initialTab={privacyModalTab}
+      />
 
       {/* Logout Confirmation when visiting homepage while logged in */}
       <ConfirmModal

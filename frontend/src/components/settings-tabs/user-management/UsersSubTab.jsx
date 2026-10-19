@@ -12,6 +12,8 @@ import {
   AlertCircle,
   CheckCircle2,
   Trash2,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import api from "@/lib/axios";
 import { notify } from "@/lib/notify";
@@ -27,6 +29,8 @@ export default function UsersSubTab({ showMsg }) {
   const [roleFilter, setRoleFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
   const [openActionId, setOpenActionId] = useState(null);
   const [actionAnchorEl, setActionAnchorEl] = useState(null);
   const [resendingId, setResendingId] = useState(null);
@@ -253,6 +257,14 @@ export default function UsersSubTab({ showMsg }) {
     return true;
   });
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [roleFilter, statusFilter, searchQuery]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / ITEMS_PER_PAGE));
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const paginatedUsers = filteredUsers.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
   return (
     <div className="space-y-5">
       {/* Header */}
@@ -357,7 +369,7 @@ export default function UsersSubTab({ showMsg }) {
                   </td>
                 </tr>
               ) : (
-                filteredUsers.map((u) => {
+                paginatedUsers.map((u) => {
                   const roleName = u.role?.name || (u.role_id === 3 ? "student_assistant" : "staff");
                   const isSA = roleName.toLowerCase().includes("student") || roleName.toLowerCase().includes("assistant") || u.role_id === 3;
                   const roleLabel = roleName === "staff" ? "Staff" : roleName === "student_assistant" ? "SA" : roleName.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
@@ -565,6 +577,40 @@ export default function UsersSubTab({ showMsg }) {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination Controls (Standard 10 items per page) */}
+        {filteredUsers.length > ITEMS_PER_PAGE && (
+          <div className="flex items-center justify-between p-4 border-t border-slate-200 text-xs text-slate-500 bg-slate-50/50">
+            <span>
+              Showing <strong className="text-slate-900">{startIndex + 1}</strong> to{" "}
+              <strong className="text-slate-900">{Math.min(startIndex + ITEMS_PER_PAGE, filteredUsers.length)}</strong> of{" "}
+              <strong className="text-slate-900">{filteredUsers.length}</strong> accounts
+            </span>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed font-bold cursor-pointer transition-colors shadow-2xs"
+              >
+                <ChevronLeft size={14} />
+                <span>Prev</span>
+              </button>
+              <span className="px-2 font-bold text-slate-700">
+                Page {currentPage} of {totalPages}
+              </span>
+              <button
+                type="button"
+                disabled={currentPage >= totalPages}
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed font-bold cursor-pointer transition-colors shadow-2xs"
+              >
+                <span>Next</span>
+                <ChevronRight size={14} />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Create / Edit Modal */}

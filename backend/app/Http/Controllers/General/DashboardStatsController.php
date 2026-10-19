@@ -43,17 +43,177 @@ class DashboardStatsController extends Controller
         }
     }
 
+    public function analyticsCharts(Request $request)
+    {
+        try {
+            // Chart 1: User Demographics / Roles
+            $vRoles = DB::table('venue_bookings')
+                ->whereNull('archived_at')
+                ->selectRaw('LOWER(TRIM(COALESCE(classification, "student"))) as role, count(*) as count')
+                ->groupBy('role')
+                ->pluck('count', 'role')
+                ->toArray();
+
+            $eRoles = DB::table('equipment_borrows')
+                ->whereNull('archived_at')
+                ->selectRaw('LOWER(TRIM(COALESCE(classification, "student"))) as role, count(*) as count')
+                ->groupBy('role')
+                ->pluck('count', 'role')
+                ->toArray();
+
+            $mergedRoles = [
+                'Students'           => ($vRoles['student'] ?? 0) + ($eRoles['student'] ?? 0),
+                'Faculty'            => ($vRoles['faculty'] ?? 0) + ($eRoles['faculty'] ?? 0),
+                'Staff'              => ($vRoles['staff'] ?? 0) + ($eRoles['staff'] ?? 0),
+                'Student Assistants' => ($vRoles['student assistant'] ?? 0) + ($eRoles['student assistant'] ?? 0) + ($vRoles['student_assistant'] ?? 0) + ($eRoles['student_assistant'] ?? 0),
+            ];
+
+            $totalRoleCount = max(1, array_sum($mergedRoles));
+            $colors = [
+                'Students'           => '#1E3A8A', // Deep Navy
+                'Faculty'            => '#2563EB', // Blue
+                'Staff'              => '#64748B', // Slate
+                'Student Assistants' => '#0D9488', // Teal
+            ];
+
+            $demographics = [];
+            foreach ($mergedRoles as $roleName => $cnt) {
+                $demographics[] = [
+                    'role'       => $roleName,
+                    'count'      => $cnt,
+                    'percentage' => round(($cnt / $totalRoleCount) * 100, 1),
+                    'color'      => $colors[$roleName] ?? '#94A3B8',
+                ];
+            }
+
+            // Chart 2: Department / College Utilization (Rotated Bar Chart)
+            $vDepts = DB::table('venue_bookings')
+                ->whereNull('archived_at')
+                ->whereNotNull('program_office')
+                ->where('program_office', '!=', '')
+                ->selectRaw('TRIM(program_office) as dept, count(*) as count')
+                ->groupBy('dept')
+                ->pluck('count', 'dept')
+                ->toArray();
+
+            $eDepts = DB::table('equipment_borrows')
+                ->whereNull('archived_at')
+                ->whereNotNull('program_office')
+                ->where('program_office', '!=', '')
+                ->selectRaw('TRIM(program_office) as dept, count(*) as count')
+                ->groupBy('dept')
+                ->pluck('count', 'dept')
+                ->toArray();
+
+            $allDepts = [];
+            foreach (array_unique(array_merge(array_keys($vDepts), array_keys($eDepts))) as $d) {
+                $allDepts[$d] = ($vDepts[$d] ?? 0) + ($eDepts[$d] ?? 0);
+            }
+            arsort($allDepts);
+            $topDepts = array_slice($allDepts, 0, 7, true);
+
+            $departmentData = [];
+            foreach ($topDepts as $deptName => $cnt) {
+                $departmentData[] = [
+                    'name'  => $deptName,
+                    'count' => $cnt,
+                ];
+            }
+
+            // Chart 3: Operational Overview / Status Distribution
+            $vStatuses = DB::table('venue_bookings')
+                ->leftJoin('tracking_numbers', 'venue_bookings.tracking_number_id', '=', 'tracking_numbers.id')
+                ->whereNull('venue_bookings.archived_at')
+                ->selectRaw('LOWER(COALESCE(tracking_numbers.status, venue_bookings.status, "pending")) as st, count(*) as count')
+                ->groupBy('st')
+                ->pluck('count', 'st')
+                ->toArray();
+
+            $eStatuses = DB::table('equipment_borrows')
+                ->leftJoin('tracking_numbers', 'equipment_borrows.tracking_number_id', '=', 'tracking_numbers.id')
+                ->whereNull('equipment_borrows.archived_at')
+                ->selectRaw('LOWER(COALESCE(tracking_numbers.status, equipment_borrows.status, "pending")) as st, count(*) as count')
+                ->groupBy('st')
+                ->pluck('count', 'st')
+                ->toArray();
+
+            $approved = ($vStatuses['approved'] ?? 0) + ($eStatuses['approved'] ?? 0);
+            $inUse    = ($vStatuses['on-going'] ?? 0) + ($vStatuses['ongoing'] ?? 0) + ($eStatuses['borrowed'] ?? 0) + ($eStatuses['released'] ?? 0) + ($eStatuses['in-use'] ?? 0);
+            $completed = ($vStatuses['completed'] ?? 0) + ($eStatuses['returned'] ?? 0) + ($eStatuses['completed'] ?? 0);
+            $late     = ($vStatuses['late return'] ?? 0) + ($vStatuses['late_return'] ?? 0) + ($eStatuses['late return'] ?? 0) + ($eStatuses['late_return'] ?? 0);
+            $cancelled = ($vStatuses['cancelled'] ?? 0) + ($vStatuses['rejected'] ?? 0) + ($eStatuses['cancelled'] ?? 0) + ($eStatuses['rejected'] ?? 0);
+
+            $statusData = [
+                ['status' => 'Approved',             'count' => $approved],
+                ['status' => 'Released / In-Use',    'count' => $inUse],
+                ['status' => 'Completed / Returned', 'count' => $completed],
+                ['status' => 'Late Returns',         'count' => $late],
+                ['status' => 'Cancelled',           'count' => $cancelled],
+            ];
+
+            // Chart 4: Hourly Peak Usage Time Bands
+            $timeSlots = [
+                '7:00 AM - 9:00 AM'   => ['short' => '7-9 AM',   'start' => '07:00:00', 'end' => '09:00:00', 'bookings' => 0, 'units' => 0],
+                '9:00 AM - 11:00 AM'  => ['short' => '9-11 AM',  'start' => '09:00:01', 'end' => '11:00:00', 'bookings' => 0, 'units' => 0],
+                '11:00 AM - 1:00 PM'  => ['short' => '11-1 PM',  'start' => '11:00:01', 'end' => '13:00:00', 'bookings' => 0, 'units' => 0],
+                '1:00 PM - 3:00 PM'   => ['short' => '1-3 PM',   'start' => '13:00:01', 'end' => '15:00:00', 'bookings' => 0, 'units' => 0],
+                '3:00 PM - 5:00 PM'   => ['short' => '3-5 PM',   'start' => '15:00:01', 'end' => '17:00:00', 'bookings' => 0, 'units' => 0],
+                '5:00 PM - 8:00 PM'   => ['short' => '5-8 PM',   'start' => '17:00:01', 'end' => '20:00:00', 'bookings' => 0, 'units' => 0],
+            ];
+
+            $allTimes = DB::table('venue_bookings')
+                ->whereNull('archived_at')
+                ->whereNotNull('time_start')
+                ->select('time_start')
+                ->get()
+                ->concat(
+                    DB::table('equipment_borrows')
+                        ->whereNull('archived_at')
+                        ->whereNotNull('time_start')
+                        ->select('time_start')
+                        ->get()
+                );
+
+            $totalBookingsInBands = 0;
+            foreach ($allTimes as $row) {
+                $rawTime = date('H:i:s', strtotime($row->time_start));
+                foreach ($timeSlots as $bandLabel => &$info) {
+                    if ($rawTime >= $info['start'] && $rawTime <= $info['end']) {
+                        $info['bookings']++;
+                        $info['units'] += 1;
+                        $totalBookingsInBands++;
+                        break;
+                    }
+                }
+            }
+
+            $timeBandsData = [];
+            $denom = max(1, $totalBookingsInBands);
+            foreach ($timeSlots as $bandLabel => $info) {
+                $pct = round(($info['bookings'] / $denom) * 100, 1);
+                $timeBandsData[] = [
+                    'band'       => $bandLabel,
+                    'short'      => $info['short'],
+                    'bookings'   => $info['bookings'],
+                    'units'      => $info['units'],
+                    'percentage' => $pct,
+                ];
+            }
+
+            return response()->json([
+                'demographics' => $demographics,
+                'departments'  => $departmentData,
+                'statuses'     => $statusData,
+                'timeBands'    => $timeBandsData,
+            ]);
+        } catch (\Throwable $e) {
+            Log::error("analyticsCharts error: " . $e->getMessage());
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
+
     private function getAvrStats($user)
     {
-        // 1. Auto-synchronize physical unit condition/status before computing statistics
-        try {
-            EquipmentCategoryService::autoSyncUnitConditions();
-            app(\App\Services\NoShowAutoReleaseService::class)->processNoShows();
-            app(\App\Services\OverdueAndExceededAlertService::class)->processAlerts();
-        } catch (\Throwable $e) {
-            Log::warning("autoSyncUnitConditions warning: " . $e->getMessage());
-        }
-
         $now = Carbon::now();
 
         // ── Resolve the active academic term ──────────────────────────────────

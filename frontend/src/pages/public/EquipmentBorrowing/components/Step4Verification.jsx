@@ -1,6 +1,7 @@
 import React, { useState } from "react";
-import { ShieldCheck, PackageOpen, User, Calendar, MapPin, Mail, Phone, CheckCircle2, Loader2 } from "lucide-react";
+import { ShieldCheck, PackageOpen, User, Calendar, MapPin, Mail, Phone, CheckCircle2, Loader2, Shield, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import DataPrivacyTermsModal from "@/components/ui/DataPrivacyTermsModal";
 
 export default function Step4Verification({
   fullName,
@@ -20,6 +21,8 @@ export default function Step4Verification({
   onBack,
 }) {
   const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [showPrivacyModal, setShowPrivacyModal] = useState(false);
+  const [privacyModalTab, setPrivacyModalTab] = useState("privacy");
   // Find selected equipment item details
   const selectedDetails = selectedItems.map(id => {
     const found = catalog.find(c => String(c.id) === String(id));
@@ -155,21 +158,115 @@ export default function Step4Verification({
             </div>
           </div>
 
-          <label className="flex items-start gap-3 p-3.5 bg-blue-50/80 dark:bg-slate-900/80 hover:bg-blue-100/50 dark:hover:bg-slate-800/80 border border-blue-200 dark:border-blue-900/50 rounded-xl text-[11px] font-semibold text-blue-900 dark:text-slate-300 leading-snug cursor-pointer transition-colors shadow-2xs">
-            <input
-              type="checkbox"
-              checked={agreedToTerms}
-              onChange={(e) => setAgreedToTerms(e.target.checked)}
-              className="mt-0.5 w-4 h-4 rounded border-blue-300 dark:border-blue-700 text-blue-600 focus:ring-0 cursor-pointer shrink-0"
-            />
-            <span>By submitting this requisition, you agree to inspect physical units at the AVR counter upon release and return them in good condition on time.</span>
-          </label>
+          {/* Data Privacy & Terms Agreement Box */}
+          <div className="bg-white dark:bg-slate-950/60 p-4 rounded-xl border border-slate-200/80 dark:border-blue-900/40 space-y-3">
+            
+            {/* Quick Data Privacy Disclosure */}
+            <div className="p-3 bg-blue-50/70 dark:bg-blue-950/40 border border-blue-200/70 dark:border-blue-900/40 rounded-xl space-y-1.5 text-[11px] text-blue-950 dark:text-blue-200 leading-relaxed">
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-extrabold text-blue-900 dark:text-blue-300 flex items-center gap-1.5 text-xs">
+                  <Shield size={14} className="text-blue-600 dark:text-blue-400" />
+                  Data Privacy Disclosure (RA 10173)
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPrivacyModalTab("privacy");
+                    setShowPrivacyModal(true);
+                  }}
+                  className="text-[10.5px] font-bold text-blue-700 dark:text-blue-400 hover:underline cursor-pointer flex items-center gap-1"
+                >
+                  <Lock size={11} />
+                  <span>View Details</span>
+                </button>
+              </div>
+              <p className="font-medium text-[10.5px] text-blue-900/80 dark:text-blue-300/80">
+                FSUU collects your name, email, contact phone, and requisition details exclusively for equipment custody tracking, SMS/Email dispatch, security verification, and accountability under the Data Privacy Act.
+              </p>
+            </div>
+
+            <div className="space-y-1.5 text-[11px] text-slate-600 dark:text-slate-300 font-medium leading-relaxed">
+              <div className="flex items-center justify-between">
+                <p className="font-extrabold text-slate-800 dark:text-slate-200 text-xs">By confirming, the borrower agrees to:</p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPrivacyModalTab("terms");
+                    setShowPrivacyModal(true);
+                  }}
+                  className="text-[10.5px] font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
+                >
+                  View Full Terms →
+                </button>
+              </div>
+              <ul className="space-y-1.5 pl-0.5 list-none">
+                <li className="flex items-start gap-1.5">
+                  <span className="text-blue-600 dark:text-blue-400 font-bold mt-0.5">•</span>
+                  <span>Inspect physical units, serials, and built-ins at the AVR counter upon release.</span>
+                </li>
+                <li className="flex items-start gap-1.5">
+                  <span className="text-blue-600 dark:text-blue-400 font-bold mt-0.5">•</span>
+                  <span>Assume full custody liability and return units in good working condition on time.</span>
+                </li>
+                <li className="flex items-start gap-1.5">
+                  <span className="text-blue-600 dark:text-blue-400 font-bold mt-0.5">•</span>
+                  <span>Observe the 15-20 min grace period; unexcused delays forfeit the requisition.</span>
+                </li>
+              </ul>
+            </div>
+
+            <label className="flex items-start gap-3 pt-2.5 border-t border-slate-100 dark:border-slate-800 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-900/60 -mx-1 px-1 py-1 rounded-lg transition-colors">
+              <input
+                type="checkbox"
+                checked={agreedToTerms}
+                onChange={(e) => setAgreedToTerms(e.target.checked)}
+                className="mt-0.5 w-4 h-4 rounded border-blue-300 dark:border-blue-700 text-blue-600 focus:ring-0 cursor-pointer shrink-0"
+              />
+              <span className="text-[11px] text-slate-900 dark:text-white font-bold leading-relaxed">
+                I have read and agree to the{" "}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setPrivacyModalTab("privacy");
+                    setShowPrivacyModal(true);
+                  }}
+                  className="text-blue-600 dark:text-blue-400 underline hover:text-blue-700 cursor-pointer"
+                >
+                  Privacy Policy
+                </button>{" "}
+                and{" "}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setPrivacyModalTab("terms");
+                    setShowPrivacyModal(true);
+                  }}
+                  className="text-blue-600 dark:text-blue-400 underline hover:text-blue-700 cursor-pointer"
+                >
+                  Terms &amp; Conditions
+                </button>
+                .
+              </span>
+            </label>
+          </div>
 
           {/* Contact Note */}
           <p className="text-[11px] text-slate-400 font-medium text-center">
             Note: Should there be any problem please contact <span className="font-bold text-slate-600 dark:text-slate-400">(085) 342-1830</span>.
           </p>
         </div>
+
+        {/* Data Privacy & Terms Agreement Modal */}
+        <DataPrivacyTermsModal
+          isOpen={showPrivacyModal}
+          onClose={() => setShowPrivacyModal(false)}
+          onAccept={() => setAgreedToTerms(true)}
+          initialTab={privacyModalTab}
+        />
 
       </div>
 

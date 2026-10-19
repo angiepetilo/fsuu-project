@@ -35,6 +35,9 @@ class SystemSetting extends Model
         'abstract_email_api_key',
         'facebook_url',
         'facebook_name',
+        'office_name',
+        'office_address',
+        'operating_hours',
     ];
 
     protected $appends = [

@@ -31,6 +31,9 @@ class SystemSettingController extends Controller
             'max_items_per_borrow'           => $settings->max_items_per_borrow,
             'facebook_url'                   => $settings->facebook_url ?: 'https://www.facebook.com/fsuubutuan',
             'facebook_name'                  => $settings->facebook_name ?: 'Father Saturnino Urios University',
+            'office_name'                    => $settings->office_name ?: 'Audio-Visual Resource Center (AVRC)',
+            'office_address'                 => $settings->office_address ?: "Main Campus, Father Saturnino Urios University\nSan Francisco Street, Butuan City, Agusan del Norte, 8600",
+            'operating_hours'                => $settings->operating_hours ?: "Monday – Friday: 7:30 AM – 5:00 PM\nSaturday: 8:00 AM – 12:00 PM\nSunday & University Holidays: Closed",
         ]);
     }
 
@@ -62,6 +65,9 @@ class SystemSettingController extends Controller
             'telephone_no'                   => 'nullable|string|max:100',
             'facebook_url'                   => 'nullable|string|max:500',
             'facebook_name'                  => 'nullable|string|max:255',
+            'office_name'                    => 'nullable|string|max:255',
+            'office_address'                 => 'nullable|string|max:1000',
+            'operating_hours'                => 'nullable|string|max:1000',
             'timezone'                       => 'nullable|string|max:100',
             'auto_shift_tomorrow_after_hours'=> 'nullable|boolean',
             'allow_advance_equipment_booking'=> 'nullable|boolean',

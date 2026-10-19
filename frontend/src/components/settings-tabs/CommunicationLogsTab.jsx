@@ -28,7 +28,7 @@ export default function CommunicationLogsTab() {
       setLoading(true);
       const params = new URLSearchParams();
       params.append("page", String(page));
-      params.append("per_page", "15");
+      params.append("per_page", "10");
 
       if (channelFilter !== "all") params.append("channel", channelFilter);
       if (categoryFilter !== "all") params.append("category", categoryFilter);

@@ -1,5 +1,5 @@
-import { useState, useMemo } from "react";
-import { Search, Clock, CheckCircle2, AlertCircle } from "lucide-react";
+import { useState, useMemo, useEffect } from "react";
+import { Search, Clock, CheckCircle2, AlertCircle, ChevronLeft, ChevronRight } from "lucide-react";
 import { formatTime12, formatDate } from "@/lib/dateUtils";
 import { getOverdueMinutes } from "@/lib/dateTimeUtils";
 
@@ -7,6 +7,12 @@ export default function EquipmentOutTab({ equipmentBorrowings = [], equipmentUni
   const [searchQuery, setSearchQuery] = useState("");
   const [deptFilter, setDeptFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all"); // 'all' | 'out_on_loan' | 'returned' | 'overdue'
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, deptFilter, statusFilter]);
 
   // Helper to extract assigned unit metadata: Seq No, Brand, Model, Serial No
   const getAssignedUnitsDetails = (b) => {
@@ -308,179 +314,196 @@ export default function EquipmentOutTab({ equipmentBorrowings = [], equipmentUni
       </div>
 
       {/* Main Table */}
-      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-2xs">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs border-collapse min-w-[960px]">
             <thead>
               <tr className="bg-slate-50/80 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                <th className="py-3.5 px-4">#</th>
-                <th className="py-3.5 px-4">Borrower</th>
-                <th className="py-3.5 px-4">Department</th>
-                <th className="py-3.5 px-4">Category</th>
-                <th className="py-3.5 px-4">Equipment Unit</th>
-                <th className="py-3.5 px-4 text-center">Units</th>
-                <th className="py-3.5 px-4">Barcode</th>
-                <th className="py-3.5 px-4">Borrow Date</th>
-                <th className="py-3.5 px-4">Expected / Return Time</th>
-                <th className="py-3.5 px-4 text-center">Status</th>
+                <th className="py-3.5 px-4 w-12">#</th>
+                <th className="py-3.5 px-4 w-48">Borrower</th>
+                <th className="py-3.5 px-4 w-28">Department</th>
+                <th className="py-3.5 px-4">Released Equipment & Units</th>
+                <th className="py-3.5 px-4 text-center w-20">Units</th>
+                <th className="py-3.5 px-4 w-28">Borrow Date</th>
+                <th className="py-3.5 px-4 w-44">Expected / Return Time</th>
+                <th className="py-3.5 px-4 text-center w-28">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 font-medium text-slate-800">
               {loading ? (
                 <tr>
-                  <td colSpan={10} className="py-12 text-center text-slate-400 font-bold">
+                  <td colSpan={8} className="py-12 text-center text-slate-400 font-bold">
                     Loading equipment borrowing records...
                   </td>
                 </tr>
               ) : filteredRecords.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="py-12 text-center text-slate-400 font-medium">
+                  <td colSpan={8} className="py-12 text-center text-slate-400 font-medium">
                     <CheckCircle2 size={24} className="mx-auto text-slate-300 mb-2" />
                     No equipment borrowing records matching the selected criteria.
                   </td>
                 </tr>
               ) : (
-                filteredRecords.map((b, idx) => {
-                  const borrower = b.filer_name || b.requestor || b.applicant_name || "Borrower";
-                  const refCode = b.tracking_number?.reference_code || b.reference_code || `TRK-EQ-${b.id}`;
-                  const dept = b.program_office || b.department?.name || b.department || "Academic Unit";
-                  const equip = extractEquipmentName(b);
-                  const qty = extractUnitsOut(b);
-                  const barcodes = extractBarcodes(b);
-                  const assignedDetails = getAssignedUnitsDetails(b);
-                  const categories = extractEquipmentCategories(b, assignedDetails);
-                  const releasedUnitsCount = calculateReleasedUnitsCount(b, assignedDetails, qty);
-                  const borrowDate = formatDate(b.date_of_usage || b.start_datetime || b.date);
-                  const returnTime = b.time_end ? formatTime12(b.time_end) : "17:00";
-                  const overdueMins = getOverdueMinutes(b.date_of_usage || b.start_datetime, b.time_end || b.end_datetime);
+                filteredRecords
+                  .slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
+                  .map((b, idx) => {
+                    const rowGlobalIdx = (currentPage - 1) * ITEMS_PER_PAGE + idx + 1;
+                    const borrower = b.filer_name || b.requestor || b.applicant_name || "Borrower";
+                    const refCode = b.tracking_number?.reference_code || b.reference_code || `TRK-EQ-${b.id}`;
+                    const dept = b.program_office || b.department?.name || b.department || "Academic Unit";
+                    const equip = extractEquipmentName(b);
+                    const qty = extractUnitsOut(b);
+                    const assignedDetails = getAssignedUnitsDetails(b);
+                    const categories = extractEquipmentCategories(b, assignedDetails);
+                    const releasedUnitsCount = calculateReleasedUnitsCount(b, assignedDetails, qty);
+                    const borrowDate = formatDate(b.date_of_usage || b.start_datetime || b.date);
+                    const returnTime = b.time_end ? formatTime12(b.time_end) : "17:00";
+                    const overdueMins = getOverdueMinutes(b.date_of_usage || b.start_datetime, b.time_end || b.end_datetime);
 
-                  const st = (b.status || b.tracking_number?.status || "").toLowerCase();
-                  const isReturned = ["returned", "completed", "late return", "late_return"].includes(st);
-                  const actualReturnTime = b.actual_return_time ? formatTime12(b.actual_return_time)
-                    : b.returned_time ? formatTime12(b.returned_time)
-                    : formatReturnedAt(b.returned_at || b.post_inspected_at || (isReturned ? b.updated_at : null));
+                    const st = (b.status || b.tracking_number?.status || "").toLowerCase();
+                    const isReturned = ["returned", "completed", "late return", "late_return"].includes(st);
+                    const actualReturnTime = b.actual_return_time ? formatTime12(b.actual_return_time)
+                      : b.returned_time ? formatTime12(b.returned_time)
+                      : formatReturnedAt(b.returned_at || b.post_inspected_at || (isReturned ? b.updated_at : null));
 
-                  return (
-                    <tr key={`eq-out-${b.id || idx}`} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/50 transition-colors">
-                      <td className="py-3 px-4 font-mono text-slate-400 text-xs">{idx + 1}</td>
-                      <td className="py-3 px-4">
-                        <p className="font-extrabold text-slate-900 dark:text-slate-100 text-xs">{borrower}</p>
-                        <p className="font-mono text-[10px] text-slate-400 font-bold">{refCode}</p>
-                      </td>
-                      <td className="py-3 px-4 font-bold text-slate-700 dark:text-slate-300 text-xs">{dept}</td>
-                      <td className="py-3 px-4 max-w-[200px]">
-                        <div className="flex flex-col gap-1">
-                          {categories.map((cat, cIdx) => (
-                            <span key={cIdx} className="font-bold text-slate-800 dark:text-slate-200 text-xs leading-snug">
-                              {cat}
-                            </span>
-                          ))}
-                        </div>
-                      </td>
-                      <td className="py-3 px-4 max-w-[300px]">
-                        <p className="font-extrabold text-slate-900 dark:text-slate-100 text-xs">{equip}</p>
-                        {assignedDetails.length > 0 ? (
-                          <div className="flex flex-col gap-1.5 mt-1.5">
-                            {assignedDetails.map((u, uIdx) => {
-                              const brandModel = [u.brand, u.model].filter(Boolean).join(" ");
-                              return (
-                                <div key={uIdx} className="flex flex-col gap-0.5 text-xs">
-                                  <div className="flex items-center gap-1.5 flex-wrap">
-                                    {u.seqNo && (
-                                      <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
-                                        {u.seqNo}
+                    return (
+                      <tr key={`eq-out-${b.id || idx}`} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/50 transition-colors">
+                        <td className="py-3.5 px-4 font-mono text-slate-400 text-xs">{rowGlobalIdx}</td>
+                        <td className="py-3.5 px-4">
+                          <p className="font-extrabold text-slate-900 dark:text-slate-100 text-xs">{borrower}</p>
+                          <p className="font-mono text-[10px] text-slate-400 font-bold">{refCode}</p>
+                        </td>
+                        <td className="py-3.5 px-4 font-bold text-slate-700 dark:text-slate-300 text-xs">{dept}</td>
+                        <td className="py-3.5 px-4 min-w-[320px]">
+                          {assignedDetails.length > 0 ? (
+                            <div className="flex flex-col gap-2">
+                              {assignedDetails.map((u, uIdx) => {
+                                const brandModel = [u.brand, u.model].filter(Boolean).join(" ");
+                                const catName = u.category || (categories[uIdx] || "Equipment Unit");
+                                return (
+                                  <div
+                                    key={uIdx}
+                                    className="p-2 rounded-xl bg-slate-50/90 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/60 flex flex-col gap-1.5 shadow-2xs"
+                                  >
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-600 shadow-2xs">
+                                        {catName}
                                       </span>
-                                    )}
-                                    {brandModel && (
-                                      <span className="font-bold text-slate-800 dark:text-slate-200">
-                                        {brandModel}
-                                      </span>
+                                      {u.seqNo && (
+                                        <span className="text-[10.5px] font-mono font-extrabold px-1.5 py-0.5 rounded bg-blue-50 dark:bg-blue-950/70 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                                          {u.seqNo}
+                                        </span>
+                                      )}
+                                      {brandModel && (
+                                        <span className="text-xs font-bold text-slate-900 dark:text-slate-100">
+                                          {brandModel}
+                                        </span>
+                                      )}
+                                    </div>
+                                    {u.serialNo && (
+                                      <div className="flex items-center gap-1.5 text-[11px] font-mono text-slate-500 dark:text-slate-400">
+                                        <span className="text-[10px] uppercase font-sans text-slate-400 font-semibold tracking-wider">Barcode:</span>
+                                        <span className="font-bold text-blue-700 dark:text-blue-400 select-all">{u.serialNo}</span>
+                                      </div>
                                     )}
                                   </div>
-                                  {u.serialNo && (
-                                    <span className="font-mono text-[10.5px] text-slate-500 dark:text-slate-400">
-                                      (SN: {u.serialNo})
-                                    </span>
-                                  )}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        ) : (
-                          <span className="text-[10.5px] text-amber-600 dark:text-amber-400 font-medium block mt-0.5">
-                            Pending unit assignment
-                          </span>
-                        )}
-                      </td>
-                      <td className="py-3 px-4 text-center">
-                        <span className="inline-flex items-center justify-center min-w-[24px] px-2 py-0.5 rounded-full text-xs font-extrabold bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700">
-                          {releasedUnitsCount}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 font-mono text-[11px] text-slate-700 dark:text-slate-300 font-bold max-w-xs">
-                        {barcodes.length > 0 ? (
-                          <div className="flex flex-wrap gap-1">
-                            {barcodes.map((bc, bIdx) => (
-                              <span
-                                key={bIdx}
-                                className="text-blue-700 dark:text-blue-400 font-bold hover:underline cursor-pointer"
-                                title={bc}
-                              >
-                                {bc}{bIdx < barcodes.length - 1 ? "," : ""}
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <div className="flex flex-col gap-1">
+                              <p className="font-bold text-slate-800 dark:text-slate-200 text-xs">{equip}</p>
+                              <span className="text-[10.5px] text-amber-600 dark:text-amber-400 font-semibold">
+                                Pending physical unit assignment
                               </span>
-                            ))}
-                          </div>
-                        ) : (
-                          <span className="text-slate-400 italic font-normal text-xs">Not Tagged</span>
-                        )}
-                      </td>
-                      <td className="py-3 px-4 text-xs font-semibold text-slate-600 dark:text-slate-300 whitespace-nowrap">{borrowDate}</td>
-                      <td className="py-3 px-4 text-xs whitespace-nowrap">
-                        {isReturned ? (
-                          <div className="flex flex-col gap-0.5">
-                            <span className="inline-flex items-center gap-1 font-bold text-emerald-600 dark:text-emerald-400">
-                              <CheckCircle2 size={12} className="text-emerald-500 shrink-0" />
-                              Returned: {actualReturnTime || returnTime}
-                            </span>
-                            <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">
-                              Expected: {returnTime} {b.returned_at ? `• ${formatDate(b.returned_at)}` : ""}
-                            </span>
-                          </div>
-                        ) : (
-                          <div className="flex flex-col gap-0.5">
-                            <span className="inline-flex items-center gap-1 text-slate-800 dark:text-slate-200 font-extrabold">
-                              <Clock size={12} className="text-blue-600 dark:text-blue-400 shrink-0" />
-                              Expected: {returnTime}
-                            </span>
-                            <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold">
-                              Out on loan
-                            </span>
-                          </div>
-                        )}
-                      </td>
-                      <td className="py-3 px-4 text-center whitespace-nowrap">
-                        {isReturned ? (
-                          <span className="text-xs font-semibold text-emerald-600">
-                            Returned
+                            </div>
+                          )}
+                        </td>
+                        <td className="py-3.5 px-4 text-center">
+                          <span className="inline-flex items-center justify-center min-w-[24px] px-2 py-0.5 rounded-full text-xs font-extrabold bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700">
+                            {releasedUnitsCount}
                           </span>
-                        ) : overdueMins > 0 ? (
-                          <span className="text-xs font-semibold text-rose-600">
-                            Overdue ({overdueMins}m)
-                          </span>
-                        ) : (
-                          <span className="text-xs font-semibold text-amber-600">
-                            Out on Loan
-                          </span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })
+                        </td>
+                        <td className="py-3.5 px-4 text-xs font-semibold text-slate-600 dark:text-slate-300 whitespace-nowrap">{borrowDate}</td>
+                        <td className="py-3.5 px-4 text-xs whitespace-nowrap">
+                          {isReturned ? (
+                            <div className="flex flex-col gap-0.5">
+                              <span className="inline-flex items-center gap-1 font-bold text-emerald-600 dark:text-emerald-400">
+                                <CheckCircle2 size={12} className="text-emerald-500 shrink-0" />
+                                Returned: {actualReturnTime || returnTime}
+                              </span>
+                              <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">
+                                Expected: {returnTime} {b.returned_at ? `• ${formatDate(b.returned_at)}` : ""}
+                              </span>
+                            </div>
+                          ) : (
+                            <div className="flex flex-col gap-0.5">
+                              <span className="inline-flex items-center gap-1 text-slate-800 dark:text-slate-200 font-extrabold">
+                                <Clock size={12} className="text-blue-600 dark:text-blue-400 shrink-0" />
+                                Expected: {returnTime}
+                              </span>
+                              <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold">
+                                Out on loan
+                              </span>
+                            </div>
+                          )}
+                        </td>
+                        <td className="py-3.5 px-4 text-center whitespace-nowrap">
+                          {isReturned ? (
+                            <span className="text-xs font-semibold text-emerald-600">
+                              Returned
+                            </span>
+                          ) : overdueMins > 0 ? (
+                            <span className="text-xs font-semibold text-rose-600">
+                              Overdue ({overdueMins}m)
+                            </span>
+                          ) : (
+                            <span className="text-xs font-semibold text-amber-600">
+                              Out on Loan
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })
               )}
             </tbody>
           </table>
         </div>
       </div>
+
+      {/* Pagination Bar */}
+      {filteredRecords.length > 0 && (
+        <div className="bg-white dark:bg-slate-900 p-3.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-xs">
+          <p className="text-xs text-slate-500 font-medium">
+            Showing <span className="font-extrabold text-slate-900 dark:text-white">{(currentPage - 1) * ITEMS_PER_PAGE + 1}</span> to{" "}
+            <span className="font-extrabold text-slate-900 dark:text-white">{Math.min(currentPage * ITEMS_PER_PAGE, filteredRecords.length)}</span> of{" "}
+            <span className="font-extrabold text-slate-900 dark:text-white">{filteredRecords.length}</span> records
+          </p>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className="p-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all"
+            >
+              <ChevronLeft size={16} />
+            </button>
+            <span className="text-xs font-bold text-slate-700 dark:text-slate-300 px-2">
+              Page {currentPage} of {Math.max(1, Math.ceil(filteredRecords.length / ITEMS_PER_PAGE))}
+            </span>
+            <button
+              type="button"
+              onClick={() => setCurrentPage((p) => Math.min(Math.max(1, Math.ceil(filteredRecords.length / ITEMS_PER_PAGE)), p + 1))}
+              disabled={currentPage >= Math.ceil(filteredRecords.length / ITEMS_PER_PAGE)}
+              className="p-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all"
+            >
+              <ChevronRight size={16} />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1086,21 +1086,27 @@ export default function Step3Details({
                 )}
               </label>
               <input
-                type="number"
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
                 required
-                min={selectedVenue?.min_capacity || 1}
-                max={selectedVenue?.max_capacity || selectedVenue?.capacity || ""}
                 value={persons}
-                onChange={e => {
-                  let val = e.target.value;
-                  const maxCap = selectedVenue?.max_capacity || selectedVenue?.capacity;
-                  if (val && maxCap && parseInt(val, 10) > maxCap) {
-                    val = maxCap.toString();
+                onKeyDown={(e) => {
+                  if (["e", "E", "+", "-", "."].includes(e.key)) {
+                    e.preventDefault();
                   }
-                  setPersons(val);
+                }}
+                onChange={e => {
+                  const cleaned = e.target.value.replace(/\D/g, "");
+                  const maxCap = selectedVenue?.max_capacity || selectedVenue?.capacity;
+                  if (cleaned && maxCap && parseInt(cleaned, 10) > maxCap) {
+                    setPersons(maxCap.toString());
+                  } else {
+                    setPersons(cleaned);
+                  }
                 }}
                 placeholder={`e.g. ${Math.min(75, selectedVenue?.max_capacity || selectedVenue?.capacity || 75)}`}
-                className="w-full p-3 bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all"
+                className="w-full p-3 bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 transition-all font-mono"
               />
               {persons && selectedVenue?.min_capacity && parseInt(persons, 10) < selectedVenue.min_capacity && (
                 <p className="text-[11px] font-semibold text-amber-600 dark:text-amber-400">

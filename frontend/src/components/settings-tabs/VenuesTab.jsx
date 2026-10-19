@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import {
   Plus, Edit2, Ban, Power, CheckCircle2, X, Building, Loader2,
   Image as ImageIcon, Camera, AlertCircle, MoreVertical, Trash2, Pencil,
-  Download, Upload, FileSpreadsheet, ChevronDown
+  Download, Upload, FileSpreadsheet, ChevronDown, ChevronLeft
 } from "lucide-react";
 import { usePermissions } from "@/hooks/usePermissions";
 import api, { clearApiCache } from "@/lib/axios";
@@ -22,6 +22,8 @@ export default function VenuesTab({ showMsg }) {
   const canDelete = isSuperAdmin || hasPermission("settings.venues") || hasPermission("settings.delete") || hasPermission("manage_venues.delete");
 
   const [venues, setVenues] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
   const [equipmentCatalog, setEquipmentCatalog] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -150,6 +152,16 @@ export default function VenuesTab({ showMsg }) {
       window.removeEventListener("storage", handleStorage);
     };
   }, []);
+
+  const totalPages = Math.max(1, Math.ceil(venues.length / ITEMS_PER_PAGE));
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const paginatedVenues = venues.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(Math.max(1, totalPages));
+    }
+  }, [totalPages, currentPage]);
 
   const handlePhotoUpload = (e) => {
     const file = e.target.files[0];
@@ -493,13 +505,13 @@ export default function VenuesTab({ showMsg }) {
                 </td>
               </tr>
             ) : (
-              venues.map((v, i) => {
+              paginatedVenues.map((v, i) => {
                 const isItemDisabled = v.status === "disabled" || v.status === "inactive" || v.status === "unavailable";
                 const displayPhoto = v.photo || v.avatar;
 
                 return (
                   <tr key={v.id} className="hover:bg-slate-50/70 transition-colors">
-                    <td className="px-4 py-3 text-slate-400 font-mono w-12">{i + 1}</td>
+                    <td className="px-4 py-3 text-slate-400 font-mono w-12">{startIndex + i + 1}</td>
                     
                     {/* Photo Column */}
                     <td className="px-4 py-3 w-16">
@@ -634,6 +646,40 @@ export default function VenuesTab({ showMsg }) {
             )}
           </tbody>
         </table>
+
+        {/* Pagination Controls Footer (Standard 10 items per page) */}
+        {venues.length > ITEMS_PER_PAGE && (
+          <div className="flex items-center justify-between p-4 border-t border-slate-200 text-xs text-slate-500 bg-slate-50/50">
+            <span>
+              Showing <strong className="text-slate-900">{startIndex + 1}</strong> to{" "}
+              <strong className="text-slate-900">{Math.min(startIndex + ITEMS_PER_PAGE, venues.length)}</strong> of{" "}
+              <strong className="text-slate-900">{venues.length}</strong> venues
+            </span>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed font-bold cursor-pointer transition-colors shadow-2xs"
+              >
+                <ChevronLeft size={14} />
+                <span>Prev</span>
+              </button>
+              <span className="px-2 font-bold text-slate-700">
+                Page {currentPage} of {totalPages}
+              </span>
+              <button
+                type="button"
+                disabled={currentPage >= totalPages}
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed font-bold cursor-pointer transition-colors shadow-2xs"
+              >
+                <span>Next</span>
+                <ChevronDown size={14} className="-rotate-90" />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Modal: Create Venue / Edit Venue */}

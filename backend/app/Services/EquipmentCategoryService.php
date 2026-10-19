@@ -24,8 +24,6 @@ class EquipmentCategoryService
             $typeMap[$t->id] = $t;
         }
 
-        self::autoSyncUnitConditions();
-
         // 1. Grouped physical units statistics
         $unitsStats = [];
         $bundledCounts = [];

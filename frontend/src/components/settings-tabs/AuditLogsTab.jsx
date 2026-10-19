@@ -18,7 +18,7 @@ export default function AuditLogsTab() {
     current_page: 1,
     last_page: 1,
     total: 0,
-    per_page: 25,
+    per_page: 10,
   });
 
   const [searchTerm, setSearchTerm] = useState("");
@@ -47,7 +47,7 @@ export default function AuditLogsTab() {
     try {
       const params = {
         page: targetPage,
-        per_page: 25,
+        per_page: 10,
       };
       if (typeof query === "string" && query.trim()) {
         params.search = query.trim();

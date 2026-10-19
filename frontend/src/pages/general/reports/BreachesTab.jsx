@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 export default function BreachesTab({
   ruleViolations = [],
@@ -7,6 +8,8 @@ export default function BreachesTab({
   officeScope = "All Offices",
 }) {
   const [localBreaches, setLocalBreaches] = useState([]);
+  const [incidentPage, setIncidentPage] = useState(1);
+  const INCIDENTS_PER_PAGE = 10;
   const [violationNotes, setViolationNotes] = useState(() => localStorage.getItem("fsuu_report_breaches_notes") || "");
 
   const loadLocalBreaches = () => {
@@ -445,59 +448,90 @@ export default function BreachesTab({
                   </td>
                 </tr>
               ) : (
-                incidentRecords.map((inc) => {
-                  return (
-                    <tr key={inc.id} className="hover:bg-slate-50/70 transition-colors">
-                      {/* Reference Code */}
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <span className="font-mono font-bold text-blue-600 text-xs">
-                          {inc.ref}
-                        </span>
-                      </td>
+                incidentRecords
+                  .slice((incidentPage - 1) * INCIDENTS_PER_PAGE, incidentPage * INCIDENTS_PER_PAGE)
+                  .map((inc) => {
+                    return (
+                      <tr key={inc.id} className="hover:bg-slate-50/70 transition-colors">
+                        {/* Reference Code */}
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <span className="font-mono font-bold text-blue-600 text-xs">
+                            {inc.ref}
+                          </span>
+                        </td>
 
-                      {/* Incident Type Plain Text */}
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <span className={`text-xs font-semibold ${inc.textColor}`}>
-                          {inc.type}
-                        </span>
-                      </td>
+                        {/* Incident Type Plain Text */}
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <span className={`text-xs font-semibold ${inc.textColor}`}>
+                            {inc.type}
+                          </span>
+                        </td>
 
-                      {/* Requestor & Department */}
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <div className="flex flex-col">
-                          <span className="font-bold text-slate-900">{inc.filer}</span>
-                          <span className="text-[10.5px] text-slate-500 font-semibold">{inc.department}</span>
-                        </div>
-                      </td>
+                        {/* Requestor & Department */}
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <div className="flex flex-col">
+                            <span className="font-bold text-slate-900">{inc.filer}</span>
+                            <span className="text-[10.5px] text-slate-500 font-semibold">{inc.department}</span>
+                          </div>
+                        </td>
 
-                      {/* Facility / Item */}
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <span className="font-semibold text-slate-800">{inc.target}</span>
-                      </td>
+                        {/* Facility / Item */}
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <span className="font-semibold text-slate-800">{inc.target}</span>
+                        </td>
 
-                      {/* Breach & Damage Details */}
-                      <td className="px-4 py-3 max-w-sm">
-                        <div className="flex flex-col">
-                          <span className="font-semibold text-slate-800">{inc.details}</span>
-                          {inc.notes && (
-                            <span className="text-[11px] text-slate-500 italic mt-0.5 line-clamp-2">
-                              "{inc.notes}"
-                            </span>
-                          )}
-                        </div>
-                      </td>
+                        {/* Breach & Damage Details */}
+                        <td className="px-4 py-3 max-w-sm">
+                          <div className="flex flex-col">
+                            <span className="font-semibold text-slate-800">{inc.details}</span>
+                            {inc.notes && (
+                              <span className="text-[11px] text-slate-500 italic mt-0.5 line-clamp-2">
+                                "{inc.notes}"
+                              </span>
+                            )}
+                          </div>
+                        </td>
 
-                      {/* Date */}
-                      <td className="px-4 py-3 whitespace-nowrap font-mono text-[11px] text-slate-600">
-                        {inc.date ? new Date(inc.date).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) : "—"}
-                      </td>
-                    </tr>
-                  );
-                })
+                        {/* Date */}
+                        <td className="px-4 py-3 whitespace-nowrap font-mono text-[11px] text-slate-600">
+                          {inc.date ? new Date(inc.date).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) : "—"}
+                        </td>
+                      </tr>
+                    );
+                  })
               )}
             </tbody>
           </table>
         </div>
+
+        {incidentRecords.length > 0 && (
+          <div className="px-4 py-3 border-t border-slate-100 flex items-center justify-between">
+            <span className="text-[11px] font-bold text-slate-400">
+              Showing {(incidentPage - 1) * INCIDENTS_PER_PAGE + 1} to {Math.min(incidentPage * INCIDENTS_PER_PAGE, incidentRecords.length)} of {incidentRecords.length}
+            </span>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                disabled={incidentPage <= 1}
+                onClick={() => setIncidentPage((p) => Math.max(1, p - 1))}
+                className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+              >
+                <ChevronLeft size={14} />
+              </button>
+              <span className="text-xs font-bold text-slate-600 px-2">
+                {incidentPage} / {Math.ceil(incidentRecords.length / INCIDENTS_PER_PAGE) || 1}
+              </span>
+              <button
+                type="button"
+                disabled={incidentPage >= Math.ceil(incidentRecords.length / INCIDENTS_PER_PAGE)}
+                onClick={() => setIncidentPage((p) => Math.min(Math.ceil(incidentRecords.length / INCIDENTS_PER_PAGE) || 1, p + 1))}
+                className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+              >
+                <ChevronRight size={14} />
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* User Violations Report Typing Box */}
         <div className="p-4 sm:p-5 bg-slate-50/70 border-t border-slate-100 space-y-2">

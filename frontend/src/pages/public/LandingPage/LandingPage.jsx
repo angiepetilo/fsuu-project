@@ -1,4 +1,3 @@
-import { Link } from "react-router-dom";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { Loader2, Eye } from "lucide-react";
 import api from "@/lib/axios";
@@ -158,17 +157,6 @@ export default function LandingPage() {
         fileName={selectedDocx.name}
         title={selectedDocx.title}
       />
-
-      {/* Action Links Below Requirements Card */}
-      <div className="flex items-center justify-center gap-6 my-8 text-xs font-medium text-muted-foreground">
-        <Link
-          to="/login"
-          className="flex items-center gap-2 hover:text-foreground transition-colors group py-2 px-3 rounded-lg min-h-[44px]"
-        >
-          <span className="w-1.5 h-1.5 rounded-full bg-primary group-hover:scale-125 transition-transform" />
-          <span>Access Portal</span>
-        </Link>
-      </div>
 
     </div>
   );
