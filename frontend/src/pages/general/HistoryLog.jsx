@@ -703,18 +703,6 @@ export default function HistoryLog() {
                 </div>
               )}
             </div>
-
-            {/* Clear History Button */}
-            <button
-              type="button"
-              onClick={handleClearAllHistory}
-              disabled={activeRecordCount === 0}
-              className="inline-flex items-center gap-1.5 px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:hover:bg-rose-900/60 dark:text-rose-300 font-bold text-xs rounded-xl border border-rose-200 dark:border-rose-900/50 transition-all shadow-2xs cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-              title={`Clear all ${historyType === "venue" ? "Venue Bookings" : "Equipment Borrowings"} history data`}
-            >
-              <Trash2 size={13} className="shrink-0 text-rose-600 dark:text-rose-400" />
-              <span>Clear History</span>
-            </button>
           </div>
         </div>
 
