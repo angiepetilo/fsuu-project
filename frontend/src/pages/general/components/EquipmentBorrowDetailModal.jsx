@@ -1499,11 +1499,20 @@ export default function EquipmentBorrowDetailModal({
                       type="button"
                       onClick={() => setShowEarlyReturnModal(true)}
                       disabled={startingInspection || !!actionLoading}
-                      className="px-4 py-2.5 bg-blue-50 hover:bg-blue-600 text-blue-700 hover:text-white border border-blue-200 hover:border-blue-600 dark:bg-blue-950/60 dark:hover:bg-blue-600 dark:text-blue-300 dark:hover:text-white dark:border-blue-900/60 font-extrabold text-xs rounded-xl shadow-2xs transition-all duration-150 cursor-pointer flex items-center gap-1.5"
-                      title="Return equipment early and begin return inspection"
+                      className="px-4 py-2.5 bg-blue-50 hover:bg-blue-600 text-blue-700 hover:text-white border border-blue-200 hover:border-blue-600 dark:bg-blue-950/60 dark:hover:bg-blue-600 dark:text-blue-300 dark:hover:text-white dark:border-blue-900/60 font-extrabold text-xs rounded-xl shadow-2xs transition-all duration-150 cursor-pointer flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                      title="Return equipment & begin return inspection"
                     >
-                      <PackageCheck size={14} />
-                      <span>Return & Inspect Equipment</span>
+                      {startingInspection ? (
+                        <>
+                          <Loader2 size={13} className="animate-spin" />
+                          <span>Returning...</span>
+                        </>
+                      ) : (
+                        <>
+                          <PackageCheck size={14} />
+                          <span>Return</span>
+                        </>
+                      )}
                     </button>
                   )}
 
@@ -1618,13 +1627,17 @@ export default function EquipmentBorrowDetailModal({
         open={showEarlyReturnModal}
         onClose={() => setShowEarlyReturnModal(false)}
         onConfirm={async () => {
-          setShowEarlyReturnModal(false);
-          await handleStartInspection({ early_return: true, force: true });
+          try {
+            await handleStartInspection({ early_return: true, force: true });
+          } finally {
+            setShowEarlyReturnModal(false);
+          }
         }}
+        loading={startingInspection}
         variant="primary"
-        title="Return Equipment & Start Inspection"
+        title="Return Equipment"
         message={`Has the equipment borrowed by "${selected?.borrower_name || selected?.user?.name || 'the borrower'}" been returned to the AVR for physical condition inspection?`}
-        confirmLabel="Yes, Start Inspection"
+        confirmLabel="Return"
         cancelLabel="Cancel"
       />
 

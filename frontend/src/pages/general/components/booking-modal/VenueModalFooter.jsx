@@ -39,8 +39,11 @@ export default function VenueModalFooter({
   const [adminEarlyOverride, setAdminEarlyOverride] = useState(false);
   const [showEarlyOverrideModal, setShowEarlyOverrideModal] = useState(false);
   const [showEarlyReturnModal, setShowEarlyReturnModal] = useState(false);
+  const [returnLoading, setReturnLoading] = useState(false);
   const [showCancelApprovedModal, setShowCancelApprovedModal] = useState(false);
   const [cancelRemarks, setCancelRemarks] = useState("");
+
+  const isReturning = returnLoading || actionLoading === `${selected?.id}-post-inspection` || actionLoading === "post-inspection";
 
   useEffect(() => {
     if (!isOngoing) return;
@@ -216,12 +219,21 @@ export default function VenueModalFooter({
             <button
               type="button"
               onClick={() => setShowEarlyReturnModal(true)}
-              disabled={!!actionLoading}
-              className="px-4 py-2.5 bg-blue-50 hover:bg-blue-600 text-blue-700 hover:text-white border border-blue-200 hover:border-blue-600 dark:bg-blue-950/60 dark:hover:bg-blue-600 dark:text-blue-300 dark:hover:text-white dark:border-blue-900/60 font-extrabold text-xs rounded-xl shadow-2xs transition-all duration-150 cursor-pointer flex items-center gap-1.5"
-              title="Conclude event early and return equipment for post-event inspection"
+              disabled={isReturning || !!actionLoading}
+              className="px-4 py-2.5 bg-blue-50 hover:bg-blue-600 text-blue-700 hover:text-white border border-blue-200 hover:border-blue-600 dark:bg-blue-950/60 dark:hover:bg-blue-600 dark:text-blue-300 dark:hover:text-white dark:border-blue-900/60 font-extrabold text-xs rounded-xl shadow-2xs transition-all duration-150 cursor-pointer flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Return equipment & begin post-event inspection"
             >
-              <PackageCheck size={14} />
-              <span>Conclude & Return Equipment</span>
+              {isReturning ? (
+                <>
+                  <Loader2 size={13} className="animate-spin" />
+                  <span>Returning...</span>
+                </>
+              ) : (
+                <>
+                  <PackageCheck size={14} />
+                  <span>Return</span>
+                </>
+              )}
             </button>
           )}
 
@@ -354,13 +366,19 @@ export default function VenueModalFooter({
       open={showEarlyReturnModal}
       onClose={() => setShowEarlyReturnModal(false)}
       onConfirm={async () => {
-        setShowEarlyReturnModal(false);
-        await handleAction(selected?.id, "post-inspection", { early_return: true, force: true });
+        setReturnLoading(true);
+        try {
+          await handleAction(selected?.id, "post-inspection", { early_return: true, force: true });
+        } finally {
+          setReturnLoading(false);
+          setShowEarlyReturnModal(false);
+        }
       }}
+      loading={isReturning}
       variant="primary"
-      title="Conclude Event & Start Post-Inspection"
-      message={`Has the event in "${selected?.venue_name || selected?.venue?.name || 'the venue'}" concluded and all assigned equipment been retrieved for physical condition inspection?`}
-      confirmLabel="Yes, Start Post-Inspection"
+      title="Return Equipment"
+      message={`Has the event in "${selected?.venue_name || selected?.venue?.name || 'the venue'}" concluded and all assigned equipment been returned for physical condition inspection?`}
+      confirmLabel="Return"
       cancelLabel="Cancel"
     />
     </>
