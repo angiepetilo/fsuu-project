@@ -590,7 +590,27 @@ class EquipmentCategoryService
      */
     private function calculateVenueEquipmentCount(object $vb, EquipmentType $e): int
     {
+        // 1. If physical units have been assigned to this booking, they are the single authoritative source of truth
+        if (!empty($vb->assigned_units) && Schema::hasTable('equipment_units')) {
+            $assigned = is_string($vb->assigned_units) ? json_decode($vb->assigned_units, true) : $vb->assigned_units;
+            if (is_array($assigned)) {
+                $barcodes = array_values(array_filter(array_map('strval', $assigned)));
+                if (!empty($barcodes)) {
+                    return DB::table('equipment_units')
+                        ->where('equipment_type_id', $e->id)
+                        ->where(function($q) use ($barcodes) {
+                            $q->whereIn('barcode', $barcodes)
+                              ->orWhereIn('serial_number', $barcodes)
+                              ->orWhereIn('id', array_filter($barcodes, 'is_numeric'));
+                        })
+                        ->count();
+                }
+            }
+        }
+
         $count = 0;
+
+        // 2. Structured items from venue_booking_equipment (for bookings before physical units are assigned)
         if (Schema::hasTable('venue_booking_equipment')) {
             try {
                 $structItems = DB::table('venue_booking_equipment')
@@ -600,12 +620,13 @@ class EquipmentCategoryService
                 foreach ($structItems as $item) {
                     if ((int)$item->equipment_type_id === (int)$e->id ||
                         strcasecmp((string)($item->others_specify ?? ''), (string)$e->eq_name) === 0) {
-                        $count += (int) $item->quantity_requested;
+                        $count += (int) ($item->quantity_requested ?? $item->quantity ?? 1);
                     }
                 }
             } catch (\Throwable $t) {}
         }
 
+        // 3. Equipment notes or freeform text (for bookings before physical units are assigned)
         $eqRaw = $vb->equipment_notes ?? '';
         if (is_string($eqRaw) && !empty($eqRaw)) {
             if (str_starts_with(trim($eqRaw), '[') || str_starts_with(trim($eqRaw), '{')) {
@@ -629,6 +650,12 @@ class EquipmentCategoryService
                 $count = max($count, (int)$m[1]);
             } elseif ($typeName && stripos($eqRaw, $e->eq_name) !== false) {
                 $count = max($count, 1);
+            } else {
+                $cleanType = strtolower(trim($e->eq_name ?? ''));
+                // Only match "projector" keyword if the category is specifically an LCD projector, NOT a screen or accessory
+                if ($cleanType === 'standard lcd projector' && !str_contains($cleanType, 'screen') && preg_match('/(\d+)\s*projector(?!.*screen)/i', $eqRaw, $pm)) {
+                    $count = max($count, (int)$pm[1]);
+                }
             }
         }
 
@@ -674,7 +701,7 @@ class EquipmentCategoryService
                     ->whereNotNull('equipment_borrows.assigned_units')
                     ->select(
                         'equipment_borrows.assigned_units',
-                        DB::raw("LOWER(COALESCE(tracking_numbers.status, 'pending')) as current_status")
+                        DB::raw("LOWER(COALESCE(equipment_borrows.status, tracking_numbers.status, 'pending')) as current_status")
                     )
                     ->get();
 
@@ -706,7 +733,7 @@ class EquipmentCategoryService
                     ->whereNotNull('venue_bookings.assigned_units')
                     ->select(
                         'venue_bookings.assigned_units',
-                        DB::raw("LOWER(COALESCE(tracking_numbers.status, 'pending')) as current_status")
+                        DB::raw("LOWER(COALESCE(venue_bookings.status, tracking_numbers.status, 'pending')) as current_status")
                     )
                     ->get();
 
@@ -898,6 +925,24 @@ class EquipmentCategoryService
                 }
             }
 
+        } catch (\Throwable $e) {}
+    }
+
+    /**
+     * Synchronize stock metrics for a single equipment type or all equipment types.
+     */
+    public static function syncCategoryStock(?int $typeId = null): void
+    {
+        try {
+            $unitController = app(\App\Http\Controllers\General\EquipmentUnitController::class);
+            if ($typeId) {
+                $unitController->syncCategoryStock($typeId);
+            } else {
+                $types = EquipmentType::pluck('id');
+                foreach ($types as $id) {
+                    $unitController->syncCategoryStock((int)$id);
+                }
+            }
         } catch (\Throwable $e) {}
     }
 }

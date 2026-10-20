@@ -79,9 +79,15 @@ class InspectionController extends Controller
                 } elseif (str_contains($t, 'unit')) {
                     $targetType = 'equipment_unit';
                     $u = $unitMap->get($ins->inspectable_id);
-                    $targetCode = $u?->serial_number ?: ($u?->barcode ?: ('UNIT-' . $ins->inspectable_id));
-                    $targetName = ($u?->equipmentType?->eq_name ?? 'Equipment') . ($u?->model ? ' (' . $u->model . ')' : '');
-                    $targetFiler = $u?->brand;
+                    $rawSeq = $u?->seq_no;
+                    $seqNo = ($rawSeq !== null && $rawSeq !== '') ? ('#' . ltrim((string)$rawSeq, '#')) : null;
+                    $serial = $u?->serial_number ?: ($u?->barcode ?: ('UNIT-' . $ins->inspectable_id));
+                    $targetCode = $seqNo ? "{$seqNo} • {$serial}" : $serial;
+                    $brandModel = array_filter([$u?->brand, $u?->model]);
+                    $bmStr = !empty($brandModel) ? implode(' • ', $brandModel) : '';
+                    $typeName = $u?->equipmentType?->eq_name ?? $u?->equipmentType?->name ?? 'Equipment Unit';
+                    $targetName = $bmStr ? "{$typeName} ({$bmStr})" : $typeName;
+                    $targetFiler = $u?->brand ?: 'Equipment Inventory';
                 } else {
                     $vb = $vbMap->get($ins->inspectable_id);
                     $targetCode = $vb?->reference_code ?? ('VB-' . $ins->inspectable_id);

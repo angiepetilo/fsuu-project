@@ -117,7 +117,14 @@ class UserController extends Controller
             }
         }
 
-        $targetEmail = trim($validated['email_address'] ?? $validated['email']);
+        $targetEmail = strtolower(trim($validated['email_address'] ?? $validated['email']));
+
+        // Restrict internal staff, student assistant, and administrative accounts strictly to the university domain (@urios.edu.ph)
+        if (!str_ends_with($targetEmail, '@urios.edu.ph')) {
+            return response()->json([
+                'message' => 'Staff and Student Assistant accounts must be registered with an official university Google account (@urios.edu.ph).'
+            ], 422);
+        }
 
         $computedName = trim(($validated['first_name'] ?? '') . ' ' . ($validated['last_name'] ?? ''));
         if (empty($computedName)) {
@@ -225,8 +232,13 @@ class UserController extends Controller
             }
         }
 
-        $newEmail = trim($validated['email_address'] ?? $validated['email'] ?? '');
+        $newEmail = strtolower(trim($validated['email_address'] ?? $validated['email'] ?? ''));
         if (!empty($newEmail)) {
+            if (!str_ends_with($newEmail, '@urios.edu.ph')) {
+                return response()->json([
+                    'message' => 'Staff and Student Assistant accounts must be registered with an official university Google account (@urios.edu.ph).'
+                ], 422);
+            }
             $targetUser->email_address = $newEmail;
             $targetUser->email = $newEmail;
         }

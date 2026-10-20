@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import {
   Plus, Edit2, Ban, Power, CheckCircle2, X, Building, Loader2,
   Image as ImageIcon, Camera, AlertCircle, MoreVertical, Trash2, Pencil,
-  Download, Upload, FileSpreadsheet, ChevronDown, ChevronLeft
+  Download, Upload, FileSpreadsheet, ChevronDown, ChevronLeft, MapPin, Users
 } from "lucide-react";
 import { usePermissions } from "@/hooks/usePermissions";
 import api, { clearApiCache } from "@/lib/axios";
@@ -685,7 +685,7 @@ export default function VenuesTab({ showMsg }) {
       {/* Modal: Create Venue / Edit Venue */}
       {showModal && (
         <div className="fixed inset-0 bg-black/40 z-[1500] flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-xl p-5 max-w-3xl w-full border border-slate-200 max-h-[90vh] flex flex-col my-auto space-y-4">
+          <div className="bg-white rounded-xl p-5 max-w-4xl w-full border border-slate-200 max-h-[90vh] flex flex-col my-auto space-y-4">
             <div className="flex justify-between items-center pb-2.5 border-b border-slate-100 shrink-0">
               <div>
                 <h3 className="font-semibold text-slate-900 text-sm">
@@ -845,16 +845,21 @@ export default function VenuesTab({ showMsg }) {
                     {/* Live Public View Preview */}
                     <div className="pt-2 border-t border-slate-200">
                       <div className="flex items-center justify-between mb-2">
-                        <span className="text-[11px] font-medium text-slate-500">
-                          Public View Card Preview
-                        </span>
+                        <div>
+                          <span className="text-[11px] font-semibold text-slate-700">
+                            Public View Card Preview
+                          </span>
+                          <p className="text-[10px] text-slate-400 font-normal">
+                            How this venue appears to applicants on the booking page
+                          </p>
+                        </div>
                         {/* Photo Resize & Fit Controls */}
                         {(form.photo || form.avatar) && (
                           <div className="flex items-center gap-1.5 bg-white p-0.5 rounded border border-slate-200">
                             <button
                               type="button"
                               onClick={() => setPreviewFit((f) => (f === "contain" ? "cover" : "contain"))}
-                              className="px-1.5 py-0.5 text-[10px] font-normal rounded text-slate-700 hover:bg-slate-100 cursor-pointer"
+                              className="px-1.5 py-0.5 text-[10px] font-medium rounded text-slate-700 hover:bg-slate-100 cursor-pointer"
                               title="Toggle Fit (Contain / Cover)"
                             >
                               {previewFit === "contain" ? "Contain" : "Cover"}
@@ -883,33 +888,61 @@ export default function VenuesTab({ showMsg }) {
                           </div>
                         )}
                       </div>
-                      <div className="max-w-[200px] mx-auto border border-slate-200 rounded-lg p-2.5 bg-white">
-                        <div className="w-full aspect-video bg-slate-50 border border-slate-100 rounded overflow-hidden flex items-center justify-center p-1">
-                          {(form.photo || form.avatar) ? (
-                            <div className="w-full h-full overflow-hidden flex items-center justify-center">
-                              <img
-                                src={form.photo || form.avatar}
-                                alt="Public Preview"
-                                className={`w-full h-full transition-transform duration-200 ${previewFit === "cover" ? "object-cover" : "object-contain"}`}
-                                style={{ transform: `scale(${previewScale / 100})` }}
-                              />
-                            </div>
-                          ) : (
-                            <span className="text-[10px] font-normal text-slate-400">
-                              {form.name || "Preview"}
-                            </span>
-                          )}
-                        </div>
-                        <div className="mt-2">
-                          <p className="font-medium text-xs text-slate-900 truncate">
-                            {form.name || "Venue Name"}
-                          </p>
-                          <div className="mt-0.5">
-                            <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[10px] font-normal text-emerald-700 bg-emerald-50">
-                              <span className="w-1 h-1 rounded-full bg-emerald-500" />
-                              Public View
-                            </span>
+
+                      {/* Expanded Public Card Preview */}
+                      <div className="w-full border border-slate-200 rounded-xl p-3.5 bg-white shadow-xs flex flex-col justify-between">
+                        <div>
+                          {/* Image Container */}
+                          <div className="w-full aspect-video bg-slate-50 border border-slate-100 rounded-lg overflow-hidden flex flex-col items-center justify-center text-center relative group p-1">
+                            {(form.photo || form.avatar) ? (
+                              <div className="w-full h-full overflow-hidden flex items-center justify-center">
+                                <img
+                                  src={form.photo || form.avatar}
+                                  alt="Public Preview"
+                                  className={`w-full h-full transition-transform duration-200 ${previewFit === "cover" ? "object-cover" : "object-contain"}`}
+                                  style={{ transform: `scale(${previewScale / 100})` }}
+                                />
+                              </div>
+                            ) : (
+                              <div className="p-4 flex flex-col items-center justify-center h-full w-full bg-slate-50">
+                                <Building size={28} className="text-slate-300 mb-1" />
+                                <span className="text-slate-700 font-extrabold text-xs sm:text-sm leading-snug line-clamp-2 uppercase tracking-wide">
+                                  {form.name || "VENUE NAME"}
+                                </span>
+                              </div>
+                            )}
                           </div>
+
+                          {/* Metadata */}
+                          <div className="mt-3 space-y-1.5">
+                            <div className="flex items-center justify-between gap-2">
+                              <h4 className="font-bold text-slate-900 text-xs sm:text-sm leading-tight line-clamp-1">
+                                {form.name || "Venue Name"}
+                              </h4>
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 shrink-0">
+                                Available
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-slate-500 font-medium line-clamp-1 flex items-center gap-1.5">
+                              <MapPin size={12} className="shrink-0 text-slate-400" />
+                              <span>{form.location || "Location not specified"}</span>
+                            </p>
+                            <p className="text-[11px] text-slate-600 font-semibold flex items-center gap-1.5">
+                              <Users size={12} className="shrink-0 text-slate-400" />
+                              <span>Min {form.min_capacity || 1} • Max {form.max_capacity || form.capacity || 100} guests</span>
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Interactive Public Action Button (Preview) */}
+                        <div className="mt-3.5 pt-2 border-t border-slate-100">
+                          <button
+                            type="button"
+                            disabled
+                            className="w-full h-8 rounded-lg bg-blue-600 text-white text-xs font-semibold flex items-center justify-center gap-1.5 shadow-xs opacity-95 cursor-default"
+                          >
+                            <span>Select Venue</span>
+                          </button>
                         </div>
                       </div>
                     </div>

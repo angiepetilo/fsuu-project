@@ -387,7 +387,8 @@ class EquipmentBorrowingController extends Controller
 
                 if (now(config('app.timezone', 'Asia/Manila'))->lt($unlockTime)) {
                     $isSuper = $user && method_exists($user, 'isSuperAdmin') && $user->isSuperAdmin();
-                    if (!$isSuper && !$request->boolean('force')) {
+                    $isEarlyReturn = $request->boolean('early_return') || $request->boolean('force');
+                    if (!$isSuper && !$isEarlyReturn) {
                         return response()->json([
                             'message' => 'Post-equipment inspection can only be initiated 30 minutes before the scheduled return time (at ' . $unlockTime->format('g:i A') . ').'
                         ], 422);

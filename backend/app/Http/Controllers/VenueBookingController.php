@@ -39,19 +39,23 @@ class VenueBookingController extends Controller
             $academicTermId = DB::table('academic_terms')->where('is_active', true)->value('id');
         }
 
+        $includeReturned = $request->boolean('include_returned') || $request->query('include_returned') === '1' || $request->query('status') === 'all';
+
         $bookingsQuery = VenueBooking::with(['trackingNumber', 'venue', 'documents', 'venueBookingEquipment.equipmentType'])
-            ->where(function ($q) {
+            ->when(!$includeReturned, function ($query) {
                 $completedStatuses = ['completed', 'done', 'returned', 'damaged', 'lost', 'returned late', 'returned_late'];
-                $q->where(function ($q2) use ($completedStatuses) {
-                    $q2->whereHas('trackingNumber', function ($t) use ($completedStatuses) {
-                        $t->whereNotIn('status', $completedStatuses);
-                    })
-                    ->orWhereNull('tracking_number_id');
+                $query->where(function ($q) use ($completedStatuses) {
+                    $q->where(function ($q2) use ($completedStatuses) {
+                        $q2->whereHas('trackingNumber', function ($t) use ($completedStatuses) {
+                            $t->whereNotIn('status', $completedStatuses);
+                        })
+                        ->orWhereNull('tracking_number_id');
+                    });
+                    
+                    if (\Illuminate\Support\Facades\Schema::hasColumn('venue_bookings', 'status')) {
+                        $q->whereNotIn('status', $completedStatuses);
+                    }
                 });
-                
-                if (\Illuminate\Support\Facades\Schema::hasColumn('venue_bookings', 'status')) {
-                    $q->whereNotIn('status', $completedStatuses);
-                }
             })
             ->when($academicTermId, function ($query) use ($academicTermId) {
                 $query->where('academic_term_id', $academicTermId);
@@ -290,7 +294,8 @@ class VenueBookingController extends Controller
 
                 if (now(config('app.timezone', 'Asia/Manila'))->lt($unlockTime)) {
                     $isSuper = $user && method_exists($user, 'isSuperAdmin') && $user->isSuperAdmin();
-                    if (!$isSuper && !$request->boolean('force')) {
+                    $isEarlyReturn = $request->boolean('early_return') || $request->boolean('force');
+                    if (!$isSuper && !$isEarlyReturn) {
                         return response()->json([
                             'message' => 'Post-event inspection can only be initiated 30 minutes before the scheduled end time (at ' . $unlockTime->format('g:i A') . ').'
                         ], 422);

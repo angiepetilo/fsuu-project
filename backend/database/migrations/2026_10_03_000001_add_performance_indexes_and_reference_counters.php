@@ -99,14 +99,21 @@ return new class extends Migration
         }
 
         if (Schema::hasTable('equipment_units')) {
-            Schema::table('equipment_units', function (Blueprint $table) {
-                if (Schema::hasIndex('equipment_units', 'eu_barcode_idx')) {
-                    $table->dropIndex('eu_barcode_idx');
-                }
-                if (Schema::hasIndex('equipment_units', 'eu_stock_status_idx')) {
-                    $table->dropIndex('eu_stock_status_idx');
-                }
-            });
+            try {
+                Schema::table('equipment_units', function (Blueprint $table) {
+                    if (Schema::hasIndex('equipment_units', 'eu_barcode_idx')) {
+                        $table->dropIndex('eu_barcode_idx');
+                    }
+                    if (Schema::hasIndex('equipment_units', 'eu_stock_status_idx')) {
+                        try {
+                            $table->index('equipment_type_id');
+                        } catch (\Throwable $t) {}
+                        $table->dropIndex('eu_stock_status_idx');
+                    }
+                });
+            } catch (\Throwable $e) {
+                // MySQL 1553: If composite index is needed by foreign key constraint, suppress so rollback continues
+            }
         }
 
         if (Schema::hasTable('equipment_borrows')) {

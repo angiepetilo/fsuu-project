@@ -1105,11 +1105,23 @@ export default function VenueBookingDetailModal({
         return false;
       }
 
-      // 4a. Cascade check: if unit itself or any of its built-ins or parent unit is damaged or lost, it cannot be available or assigned!
       const uIdStr = String(unit.id).trim().toUpperCase();
       const uBarcodeStr = unit.barcode ? String(unit.barcode).trim().toUpperCase() : null;
       const uSerialStr = unit.serial_number ? String(unit.serial_number).trim().toUpperCase() : null;
+      const bCode = String(unit.barcode || unit.serial_number || unit.code || unit.id || "").trim().toUpperCase();
 
+      // Exclude units currently released / in-use unless assigned to this current booking
+      if (["released", "in_use", "in-use", "borrowed"].includes(uStat)) {
+        const isCurrentSlotAssignment = Object.values(assignedUnitSelections || {}).some(
+          v => {
+            const up = String(v).trim().toUpperCase();
+            return up === bCode || up === uIdStr || (uBarcodeStr && up === uBarcodeStr) || (uSerialStr && up === uSerialStr);
+          }
+        );
+        if (!isCurrentSlotAssignment) return false;
+      }
+
+      // 4a. Cascade check: if unit itself or any of its built-ins or parent unit is damaged or lost, it cannot be available or assigned!
       if (
         compromisedUnitKeys.has(uIdStr) ||
         (uBarcodeStr && compromisedUnitKeys.has(uBarcodeStr)) ||
@@ -1130,8 +1142,6 @@ export default function VenueBookingDetailModal({
         );
         if (!isCurrentSlotAssignment) return false;
       }
-
-      const bCode = String(unit.barcode || unit.serial_number || unit.code || unit.id || "").trim().toUpperCase();
 
       // If this unit's barcode is explicitly assigned in another overlapping booking, exclude it
       if (bCode && overlappingReservedBarcodes.has(bCode)) {
@@ -1551,6 +1561,13 @@ export default function VenueBookingDetailModal({
                 requestedCategories={requestedCategories}
                 setFullImageModal={setFullImageModal}
                 onBookingUpdated={setSelected}
+                assignedUnitSelections={assignedUnitSelections}
+                setAssignedUnitSelections={updateAssignedUnitSelections}
+                physicalUnits={physicalUnits}
+                dbEquipmentTypes={dbEquipmentTypes}
+                getAvailableUnitsForCategory={getAvailableUnitsForCategory}
+                isOngoing={isOngoing}
+                isApproved={isApproved}
               />
 
               {/* Vacant Venue Referral Option */}
@@ -1681,6 +1698,13 @@ export default function VenueBookingDetailModal({
                 requestedCategories={requestedCategories}
                 setFullImageModal={setFullImageModal}
                 onBookingUpdated={setSelected}
+                assignedUnitSelections={assignedUnitSelections}
+                setAssignedUnitSelections={updateAssignedUnitSelections}
+                physicalUnits={physicalUnits}
+                dbEquipmentTypes={dbEquipmentTypes}
+                getAvailableUnitsForCategory={getAvailableUnitsForCategory}
+                isOngoing={isOngoing}
+                isApproved={isApproved}
               />
               <div className="w-full">
                 <VenueEquipmentChecklist
@@ -1720,6 +1744,13 @@ export default function VenueBookingDetailModal({
                 requestedCategories={requestedCategories}
                 setFullImageModal={setFullImageModal}
                 onBookingUpdated={setSelected}
+                assignedUnitSelections={assignedUnitSelections}
+                setAssignedUnitSelections={updateAssignedUnitSelections}
+                physicalUnits={physicalUnits}
+                dbEquipmentTypes={dbEquipmentTypes}
+                getAvailableUnitsForCategory={getAvailableUnitsForCategory}
+                isOngoing={isOngoing}
+                isApproved={isApproved}
               />
 
               <div className="p-6 bg-white border border-slate-200/90 rounded-2xl text-center space-y-3 flex flex-col items-center justify-center min-h-[160px] shadow-xs">
@@ -1745,6 +1776,13 @@ export default function VenueBookingDetailModal({
                 requestedCategories={requestedCategories}
                 setFullImageModal={setFullImageModal}
                 onBookingUpdated={setSelected}
+                assignedUnitSelections={assignedUnitSelections}
+                setAssignedUnitSelections={updateAssignedUnitSelections}
+                physicalUnits={physicalUnits}
+                dbEquipmentTypes={dbEquipmentTypes}
+                getAvailableUnitsForCategory={getAvailableUnitsForCategory}
+                isOngoing={isOngoing}
+                isApproved={isApproved}
               />
 
               {/* Single Inspection Row: Left = Equipment Return Inspection | Right = Venue Facility Post Inspection */}

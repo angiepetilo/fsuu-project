@@ -101,7 +101,11 @@ function CategoryBuiltInUnitSelector({
       }
       if (Array.isArray(childIds)) {
         childIds.forEach((cId) => {
-          if (cId) map.set(String(cId), parent);
+          if (!cId) return;
+          const ref = typeof cId === "object" ? (cId.id || cId.barcode || cId.serial_number) : cId;
+          if (ref) {
+            map.set(String(ref).trim().toLowerCase(), parent);
+          }
         });
       }
     });
@@ -210,15 +214,31 @@ function CategoryBuiltInUnitSelector({
 
               // 4. Must not be already assigned as a built-in to another equipment
               const isThisCurrent =
-                String(u.id) === String(currentSelectedId) ||
-                (u.barcode && String(u.barcode) === String(currentSelectedId));
+                (currentSelectedId !== undefined && currentSelectedId !== null && String(currentSelectedId).trim() !== "") && (
+                  String(u.id).toLowerCase() === String(currentSelectedId).trim().toLowerCase() ||
+                  (u.barcode && String(u.barcode).trim().toLowerCase() === String(currentSelectedId).trim().toLowerCase()) ||
+                  (u.serial_number && String(u.serial_number).trim().toLowerCase() === String(currentSelectedId).trim().toLowerCase())
+                );
+
               if (!isThisCurrent) {
-                const uIdKey = String(u.id);
-                const uBarcodeKey = u.barcode ? String(u.barcode) : null;
-                if (assignedToOtherParentMap.has(uIdKey) || (uBarcodeKey && assignedToOtherParentMap.has(uBarcodeKey))) {
+                // If unit status is already built-in, it is physically attached to another parent unit
+                if (stat === "built-in" || stat === "built_in") {
+                  return false;
+                }
+
+                const uIdKey = String(u.id).toLowerCase();
+                const uBarcodeKey = u.barcode ? String(u.barcode).trim().toLowerCase() : null;
+                const uSerialKey = u.serial_number ? String(u.serial_number).trim().toLowerCase() : null;
+
+                if (
+                  assignedToOtherParentMap.has(uIdKey) ||
+                  (uBarcodeKey && assignedToOtherParentMap.has(uBarcodeKey)) ||
+                  (uSerialKey && assignedToOtherParentMap.has(uSerialKey))
+                ) {
                   return false;
                 }
               }
+
               return true;
             });
 
@@ -239,7 +259,7 @@ function CategoryBuiltInUnitSelector({
                   >
                     <option value="">
                       {availableUnits.length === 0
-                        ? `-- No available good units in "${cat.name}" --`
+                        ? `-- No available unassigned units in "${cat.name}" --`
                         : `-- Select ${cat.name} Unit (Optional) --`}
                     </option>
 

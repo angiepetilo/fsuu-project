@@ -73,17 +73,17 @@ export default function EquipmentImportModal({ isOpen, onClose, onSuccess }) {
         };
 
         return {
-          category: findVal("category", "equipmenttype", "categoryname") || "General Equipment",
-          brand: findVal("brand") || "",
-          model: findVal("model") || "",
-          seq_no: findVal("seqno", "sequenceno", "seq", "sequence") || "",
-          serial_number: findVal("serialnumber", "serialno", "serial", "barcode") || "",
+          category: findVal("category", "equipmentcategory", "equipmenttype", "categoryname", "type") || "General Equipment",
+          brand: findVal("brand", "brandname", "make") || "",
+          model: findVal("model", "modelnumber", "item") || "",
+          seq_no: findVal("seqno", "sequenceno", "seq", "sequence", "unitseqno", "unitno", "unit", "itemno") || "",
+          serial_number: findVal("serialnumber", "serialno", "serial", "barcode", "sn") || "",
           barcode: findVal("barcode", "serialnumber") || "",
           status: findVal("status") || "available",
           condition: findVal("condition") || "Good",
-          purchased_at: findVal("datepurchased", "purchasedat", "purchasedate") || "",
-          eq_lifespan: findVal("lifespan", "lifespanyears", "eqlifespan") || "5",
-          description: findVal("description", "notes", "remarks") || "",
+          purchased_at: findVal("datepurchased", "purchasedat", "purchasedate", "dateacquired") || "",
+          eq_lifespan: findVal("lifespan", "lifespanyears", "lifespanyrs", "eqlifespan", "years") || "5",
+          description: findVal("description", "notes", "remarks", "details") || "",
         };
       });
 

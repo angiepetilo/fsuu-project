@@ -253,4 +253,92 @@ class PostInspectionWindowTest extends TestCase
         $res->assertStatus(200);
         $this->assertEquals('inspection', $borrowing->fresh()->status);
     }
+
+    public function test_staff_can_trigger_early_return_for_venue_booking_post_inspection(): void
+    {
+        $venue = Venue::create([
+            'name' => 'AVR Auditorium',
+            'location' => 'Main Campus',
+            'capacity' => 100,
+            'status' => 'available',
+        ]);
+
+        $tracking = TrackingNumber::forceCreate([
+            'reference_code'   => 'VB-TEST-EARLY',
+            'reservation_type' => 'venue_booking',
+            'reservation_id'   => 99,
+            'status'           => 'ongoing',
+        ]);
+
+        // Event ends 4 hours from now
+        $endDate = now()->toDateString();
+        $endTime = now()->addHours(4)->format('H:i:s');
+
+        $booking = VenueBooking::create([
+            'venue_id' => $venue->id,
+            'tracking_number_id' => $tracking->id,
+            'submission_channel' => 'online_self',
+            'first_name' => 'Early',
+            'last_name' => 'Returner',
+            'filer_name' => 'Early Returner',
+            'email_address' => 'early@urios.edu.ph',
+            'contact_number' => '09171234567',
+            'classification' => 'student',
+            'purpose' => 'Early Finished Seminar',
+            'date_of_usage' => $endDate,
+            'time_start' => now()->subHour()->format('H:i:s'),
+            'time_end' => $endTime,
+            'no_of_person' => 20,
+            'status' => 'ongoing',
+        ]);
+        $tracking->update(['reservation_id' => $booking->id]);
+
+        $res = $this->actingAs($this->staffUser)
+            ->postJson("/api/avr-venue-bookings/{$booking->id}/post-inspection", [
+                'early_return' => true,
+            ]);
+
+        $res->assertStatus(200);
+        $this->assertEquals('post-inspection', $booking->fresh()->status);
+    }
+
+    public function test_staff_can_trigger_early_return_for_equipment_borrowing_inspection(): void
+    {
+        $tracking = TrackingNumber::forceCreate([
+            'reference_code'   => 'EQ-TEST-EARLY',
+            'reservation_type' => 'equipment_borrow',
+            'reservation_id'   => 99,
+            'status'           => 'ongoing',
+        ]);
+
+        // Return scheduled 3 hours from now
+        $endDate = now()->toDateString();
+        $endTime = now()->addHours(3)->format('H:i:s');
+
+        $borrowing = EquipmentBorrow::create([
+            'tracking_number_id' => $tracking->id,
+            'submission_channel' => 'online_self',
+            'first_name' => 'Early',
+            'last_name' => 'Borrower',
+            'filer_name' => 'Early Borrower',
+            'email_address' => 'earlyborrower@urios.edu.ph',
+            'contact_number' => '09171234567',
+            'classification' => 'student',
+            'purpose' => 'Project Done Early',
+            'date_of_usage' => $endDate,
+            'time_start' => now()->subHour()->format('H:i:s'),
+            'time_end' => $endTime,
+            'status' => 'ongoing',
+        ]);
+        $tracking->update(['reservation_id' => $borrowing->id]);
+
+        $res = $this->actingAs($this->staffUser)
+            ->postJson("/api/avr-equipment-borrowings/{$borrowing->id}/inspection", [
+                'early_return' => true,
+            ]);
+
+        $res->assertStatus(200);
+        $this->assertEquals('inspection', $borrowing->fresh()->status);
+    }
 }
+

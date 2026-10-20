@@ -27,10 +27,15 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('booking_requirements', function (Blueprint $table) {
-            $table->dropColumnIfExists('template_display_mode');
-            $table->dropColumnIfExists('format_content');
-            $table->dropColumnIfExists('sort_order');
-            $table->dropColumnIfExists('archived_at');
+            $colsToDrop = [];
+            foreach (['template_display_mode', 'format_content', 'sort_order', 'archived_at'] as $col) {
+                if (Schema::hasColumn('booking_requirements', $col)) {
+                    $colsToDrop[] = $col;
+                }
+            }
+            if (!empty($colsToDrop)) {
+                $table->dropColumn($colsToDrop);
+            }
         });
     }
 };

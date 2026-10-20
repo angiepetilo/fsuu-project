@@ -276,6 +276,40 @@ class EquipmentUnitController extends Controller
         }
         $finalBuiltInUnits = array_values(array_filter($builtInUnits, fn($val) => !empty($val)));
 
+        // Guard: Prevent assigning a child unit that is already built-in to another parent
+        if (!empty($finalBuiltInUnits)) {
+            $conflictingParents = EquipmentUnit::whereNotNull('built_in_units')
+                ->whereNull('archived_at')
+                ->get();
+
+            foreach ($finalBuiltInUnits as $childRef) {
+                $refStr = strtolower(trim((string)$childRef));
+                if ($refStr === '') continue;
+
+                foreach ($conflictingParents as $cp) {
+                    $cpList = is_array($cp->built_in_units)
+                        ? $cp->built_in_units
+                        : (is_string($cp->built_in_units) ? json_decode($cp->built_in_units, true) : []);
+                    if (!is_array($cpList)) continue;
+
+                    $cpListClean = array_map(fn($v) => strtolower(trim((string)$v)), $cpList);
+                    if (in_array($refStr, $cpListClean, true)) {
+                        $childUnit = EquipmentUnit::where('id', $childRef)
+                            ->orWhere('barcode', $childRef)
+                            ->orWhere('serial_number', $childRef)
+                            ->first();
+                        $childName = $childUnit ? ($childUnit->serial_number ?: $childUnit->barcode ?: "Unit #{$childUnit->id}") : "Unit {$childRef}";
+                        $parentName = $cp->serial_number ?: $cp->barcode ?: "Unit #{$cp->id}";
+
+                        return response()->json([
+                            'message' => "The unit '{$childName}' is already built-in to another equipment ('{$parentName}'). A physical unit cannot belong to multiple parent units simultaneously.",
+                            'errors'  => ['built_in_units' => ["'{$childName}' is already assigned to '{$parentName}'."]],
+                        ], 422);
+                    }
+                }
+            }
+        }
+
         $unitData = [
             'equipment_type_id' => $validated['equipment_type_id'],
             'brand'             => $validated['brand'] ?? null,
@@ -471,6 +505,51 @@ class EquipmentUnitController extends Controller
                 $validated['built_in_units'] = array_values(array_filter($rawBuiltIn, fn($val) => !empty($val)));
             } else {
                 $validated['built_in_units'] = null;
+            }
+
+            // Guard: Prevent assigning a child unit that is already built-in to another parent
+            if (!empty($validated['built_in_units'])) {
+                $conflictingParents = EquipmentUnit::whereNotNull('built_in_units')
+                    ->where('id', '!=', $unit->id)
+                    ->whereNull('archived_at')
+                    ->get();
+
+                foreach ($validated['built_in_units'] as $childRef) {
+                    $refStr = strtolower(trim((string)$childRef));
+                    if ($refStr === '') continue;
+
+                    // Cannot assign self as child component
+                    if ($refStr === strtolower((string)$unit->id) ||
+                        ($unit->barcode && $refStr === strtolower((string)$unit->barcode)) ||
+                        ($unit->serial_number && $refStr === strtolower((string)$unit->serial_number))) {
+                        return response()->json([
+                            'message' => "An equipment unit cannot be set as a built-in component of itself.",
+                            'errors'  => ['built_in_units' => ["Cannot assign self as built-in component."]],
+                        ], 422);
+                    }
+
+                    foreach ($conflictingParents as $cp) {
+                        $cpList = is_array($cp->built_in_units)
+                            ? $cp->built_in_units
+                            : (is_string($cp->built_in_units) ? json_decode($cp->built_in_units, true) : []);
+                        if (!is_array($cpList)) continue;
+
+                        $cpListClean = array_map(fn($v) => strtolower(trim((string)$v)), $cpList);
+                        if (in_array($refStr, $cpListClean, true)) {
+                            $childUnit = EquipmentUnit::where('id', $childRef)
+                                ->orWhere('barcode', $childRef)
+                                ->orWhere('serial_number', $childRef)
+                                ->first();
+                            $childName = $childUnit ? ($childUnit->serial_number ?: $childUnit->barcode ?: "Unit #{$childUnit->id}") : "Unit {$childRef}";
+                            $parentName = $cp->serial_number ?: $cp->barcode ?: "Unit #{$cp->id}";
+
+                            return response()->json([
+                                'message' => "The unit '{$childName}' is already built-in to another equipment ('{$parentName}'). A physical unit cannot belong to multiple parent units simultaneously.",
+                                'errors'  => ['built_in_units' => ["'{$childName}' is already assigned to '{$parentName}'."]],
+                            ], 422);
+                        }
+                    }
+                }
             }
         }
 
@@ -1053,6 +1132,15 @@ class EquipmentUnitController extends Controller
             }
         }
 
+        // Fetch all brands keyed by lowercase name
+        $brandsByName = [];
+        foreach (Brand::all() as $b) {
+            $bName = strtolower(trim($b->name ?? ''));
+            if ($bName !== '') {
+                $brandsByName[$bName] = $b;
+            }
+        }
+
         // Next sequence numbers per category cache
         $catSeqNumbers = [];
 
@@ -1069,14 +1157,17 @@ class EquipmentUnitController extends Controller
                 if (isset($categoriesByName[$lowerCat])) {
                     $category = $categoriesByName[$lowerCat];
                 } else {
+                    $catPayload = [
+                        'total_quantity' => 0,
+                        'status'         => 'available',
+                        'is_public'      => true,
+                    ];
+                    if (\Illuminate\Support\Facades\Schema::hasColumn('equipment_types', 'brand') && !empty($row['brand'])) {
+                        $catPayload['brand'] = $row['brand'];
+                    }
                     $category = EquipmentType::firstOrCreate(
                         ['eq_name' => $rawCategory],
-                        [
-                            'brand'          => $row['brand'] ?? null,
-                            'total_quantity' => 0,
-                            'status'         => 'available',
-                            'is_public'      => true,
-                        ]
+                        $catPayload
                     );
                     $categoriesByName[$lowerCat] = $category;
                     $createdCategoriesCount++;
@@ -1085,19 +1176,25 @@ class EquipmentUnitController extends Controller
                 $catId = $category->id;
                 $affectedCategoryIds[$catId] = true;
 
-                // 2. Resolve Brand
+                // 2. Resolve Brand (global lookup to respect unique name constraint across all categories)
                 $rawBrand = trim((string)($row['brand'] ?? ''));
                 if ($rawBrand !== '') {
-                    $existingBrand = Brand::where('equipment_type_id', $catId)
-                        ->whereRaw('LOWER(TRIM(name)) = ?', [strtolower($rawBrand)])
-                        ->first();
-                    if (!$existingBrand) {
-                        Brand::create([
-                            'name'              => $rawBrand,
-                            'equipment_type_id' => $catId,
-                            'status'            => 'active',
-                        ]);
-                        $createdBrandsCount++;
+                    $lowerBrand = strtolower($rawBrand);
+                    if (!isset($brandsByName[$lowerBrand])) {
+                        try {
+                            $newBrand = Brand::create([
+                                'name'              => $rawBrand,
+                                'equipment_type_id' => $catId,
+                                'status'            => 'active',
+                            ]);
+                            $brandsByName[$lowerBrand] = $newBrand;
+                            $createdBrandsCount++;
+                        } catch (\Throwable $tb) {
+                            $foundBrand = Brand::whereRaw('LOWER(TRIM(name)) = ?', [$lowerBrand])->first();
+                            if ($foundBrand) {
+                                $brandsByName[$lowerBrand] = $foundBrand;
+                            }
+                        }
                     }
                 }
 

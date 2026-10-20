@@ -15,7 +15,6 @@ class EquipmentType extends Model
 
     protected $fillable = [
         'eq_name',
-        'brand',
         'avatar',
         'total_quantity',
         'available_count',

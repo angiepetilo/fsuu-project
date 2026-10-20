@@ -116,12 +116,13 @@ export default function Reports() {
     if (!isSilent) setLoading(true);
     try {
       const termParam = selectedTermId ? `&academic_term_id=${selectedTermId}` : "";
-      const [histRes, daRes, eqData, unitsRes, activeEbRes] = await Promise.all([
+      const [histRes, daRes, eqData, unitsRes, activeEbRes, activeVbRes] = await Promise.all([
         api.get(`/general/history-log?include_archived=1${termParam}`).catch(() => ({ data: { venue_bookings: [], equipment_borrowings: [] } })),
         api.get(`/general/department-analytics${termParam ? `?academic_term_id=${selectedTermId}` : ''}`).catch(() => ({ data: { rule_violations: [], late_returns: [] } })),
         api.get("/general/equipment-types").then(r => r.data).catch(() => []),
         api.get("/general/equipment-units").then(r => r.data).catch(() => []),
         api.get(`/avr-equipment-borrowings?all=1&include_returned=1${termParam ? `&academic_term_id=${selectedTermId}` : ''}`).catch(() => ({ data: [] })),
+        api.get(`/avr-venue-bookings?all=1&include_returned=1${termParam ? `&academic_term_id=${selectedTermId}` : ''}`).catch(() => ({ data: [] })),
       ]);
 
       // 1. History log venue bookings & equipment borrowings
@@ -130,9 +131,44 @@ export default function Reports() {
       setVenueBookings(vb);
       setEquipmentBorrowings(eb);
 
-      // Active equipment borrowings (live data for Equipment Out tab)
+      // Active equipment borrowings & venue bookings with assigned equipment units (live data for Equipment Out tab)
       const rawActiveEb = activeEbRes.data?.data ?? (Array.isArray(activeEbRes.data) ? activeEbRes.data : []);
-      setActiveEquipmentBorrowings(rawActiveEb);
+      const rawActiveVb = activeVbRes.data?.data ?? (Array.isArray(activeVbRes.data) ? activeVbRes.data : []);
+
+      const venueBookingsWithUnits = rawActiveVb.map(vbItem => {
+        let au = vbItem.assigned_units;
+        if (!au || (typeof au === "object" && Object.keys(au).length === 0)) {
+          try {
+            const stored = localStorage.getItem(`fsuu_assigned_units_${vbItem.id}`) || localStorage.getItem(`fsuu_completed_assigned_units_${vbItem.id}`);
+            if (stored) au = JSON.parse(stored);
+          } catch {}
+        }
+        return { ...vbItem, assigned_units: au };
+      }).filter(vbItem => {
+        const au = vbItem.assigned_units;
+        if (!au) return false;
+        if (Array.isArray(au)) return au.filter(Boolean).length > 0;
+        if (typeof au === "object") return Object.values(au).filter(Boolean).length > 0;
+        if (typeof au === "string") {
+          try {
+            const p = JSON.parse(au);
+            if (Array.isArray(p)) return p.filter(Boolean).length > 0;
+            if (typeof p === "object") return Object.values(p).filter(Boolean).length > 0;
+            return au.trim() !== "" && au !== "[]" && au !== "{}";
+          } catch {
+            return au.trim() !== "";
+          }
+        }
+        return false;
+      }).map(vbItem => ({
+        ...vbItem,
+        is_venue_booking: true,
+        filer_name: vbItem.filer_name || vbItem.requestor_name || vbItem.name || vbItem.requestor?.name || "Venue Client",
+        program_office: vbItem.program_office || (vbItem.venue?.name ? `${vbItem.venue.name} (Venue)` : "Venue Reservation"),
+        equipment_name: vbItem.equipment_notes || vbItem.purpose || "Venue Equipment",
+      }));
+
+      setActiveEquipmentBorrowings([...rawActiveEb, ...venueBookingsWithUnits]);
 
       // 2. Department analytics / violations
       const violations = daRes.data?.rule_violations || [];

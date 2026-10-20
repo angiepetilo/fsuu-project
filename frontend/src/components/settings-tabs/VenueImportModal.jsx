@@ -73,19 +73,39 @@ export default function VenueImportModal({ isOpen, onClose, onSuccess }) {
             return "";
           };
 
-          const name = findVal("venuename", "name", "venue") || "";
-          const cap = parseInt(findVal("capacity", "maxcapacity") || "100", 10) || 100;
-          const minCap = parseInt(findVal("mincapacity", "minimumcapacity") || "1", 10) || 1;
-          const maxCap = parseInt(findVal("maxcapacity", "maximumcapacity") || String(cap), 10) || cap;
+          const name = findVal(
+            "venuename",
+            "name",
+            "venue",
+            "facilityname",
+            "facility",
+            "facilityvenuename",
+            "roomname",
+            "room",
+            "title",
+            "venuetitle"
+          ) || "";
+          const cap = parseInt(
+            findVal("capacity", "maxcapacity", "maximumcapacity", "maxcap", "seats", "seatcapacity", "totalcapacity") || "100",
+            10
+          ) || 100;
+          const minCap = parseInt(
+            findVal("mincapacity", "minimumcapacity", "mincap", "min") || "1",
+            10
+          ) || 1;
+          const maxCap = parseInt(
+            findVal("maxcapacity", "maximumcapacity", "maxcap", "max") || String(cap),
+            10
+          ) || cap;
 
           return {
             name: name.trim(),
-            location: findVal("location", "address", "room") || "",
+            location: findVal("location", "address", "room", "building", "floor", "place", "area", "site") || "",
             capacity: cap,
             min_capacity: minCap,
             max_capacity: maxCap,
-            status: findVal("status") || "available",
-            description: findVal("description", "notes", "remarks") || "",
+            status: findVal("status", "state", "condition", "availability") || "available",
+            description: findVal("description", "notes", "remarks", "details", "desc", "about") || "",
           };
         })
         .filter((v) => v.name !== ""); // Exclude empty name rows

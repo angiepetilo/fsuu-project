@@ -61,18 +61,6 @@ export default function EquipBorrowHeader({
                   <span>Resend Email</span>
                 </button>
 
-                {(isOngoing || isApproved) && (
-                  <button
-                    type="button"
-                    onClick={() => handleSendReturnReminder ? handleSendReturnReminder("both") : handleSendOverdueSms()}
-                    disabled={smsLoading}
-                    className="px-2.5 py-1 text-amber-900 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/60 hover:bg-amber-100/90 dark:hover:bg-amber-900/60 rounded-lg text-[11px] font-extrabold border border-amber-300 dark:border-amber-800/80 flex items-center gap-1 cursor-pointer disabled:opacity-50 transition-colors shadow-2xs"
-                    title="Send return equipment notice to borrower via SMS & Email"
-                  >
-                    {smsLoading ? <Loader2 size={12} className="animate-spin text-amber-700 dark:text-amber-400" /> : <Send size={12} className="text-amber-700 dark:text-amber-400" />}
-                    <span>Return Equipment</span>
-                  </button>
-                )}
 
                 {resendMsg && (
                   <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 font-bold animate-in fade-in">

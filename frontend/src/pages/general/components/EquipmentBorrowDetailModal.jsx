@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import {
   X, CheckCircle, CheckCircle2, Clock, Play, Check, Loader2,
-  FileText, Mail, FileCheck, BellRing, ShieldAlert, ShieldCheck, Ban
+  FileText, Mail, FileCheck, BellRing, ShieldAlert, ShieldCheck, Ban, PackageCheck
 } from "lucide-react";
 import api from "@/lib/axios";
 import notify from "@/lib/notify";
@@ -103,19 +103,21 @@ export default function EquipmentBorrowDetailModal({
   const [adminEarlyOverride, setAdminEarlyOverride] = useState(false);
   const [currentTick, setCurrentTick] = useState(() => Date.now());
   const [showEarlyOverrideModal, setShowEarlyOverrideModal] = useState(false);
+  const [showEarlyReturnModal, setShowEarlyReturnModal] = useState(false);
   const [showCancelApprovedModal, setShowCancelApprovedModal] = useState(false);
   const [cancelRemarks, setCancelRemarks] = useState("");
 
-  const handleStartInspection = async () => {
+  const handleStartInspection = async (forceOptions = {}) => {
     setIsReadyForPostInspection(true);
     setStartingInspection(true);
     try {
-      await api.post(`/avr-equipment-borrowings/${selected.id}/inspection`, adminEarlyOverride ? { force: true } : {});
+      const payload = adminEarlyOverride ? { force: true } : (forceOptions || {});
+      await api.post(`/avr-equipment-borrowings/${selected.id}/inspection`, payload);
       if (selected) {
         const ut = selected.tracking_number ? { ...selected.tracking_number, status: "inspection" } : { status: "inspection" };
         setSelected({ ...selected, status: "inspection", tracking_number: ut, trackingNumber: ut });
       }
-      handleAction(selected.id, "inspection");
+      handleAction(selected.id, "inspection", payload);
     } catch (err) {
       console.warn("Failed to set inspection status:", err);
     } finally {
@@ -742,10 +744,21 @@ export default function EquipmentBorrowDetailModal({
       const uStat = String(unit.status || "available").toLowerCase();
       if (uStat === "damaged" || uStat === "lost" || uStat === "decommissioned" || uStat === "under_maintenance" || uStat === "unavailable") return false;
 
-      // 4a. Cascade check: if unit itself or any of its built-ins or parent unit is damaged or lost, it cannot be available or assigned!
       const uIdStr = String(unit.id).trim().toUpperCase();
       const uBarcodeStr = unit.barcode ? String(unit.barcode).trim().toUpperCase() : null;
       const uSerialStr = unit.serial_number ? String(unit.serial_number).trim().toUpperCase() : null;
+      const bCode = String(unit.barcode || unit.serial_number || unit.code || unit.id || "").trim().toUpperCase();
+
+      // Exclude units currently released / in-use unless assigned to this current borrowing
+      if (["released", "in_use", "in-use", "borrowed"].includes(uStat)) {
+        const isCurrentSlotAssignment = Object.values(assignedUnitSelections || {}).some(
+          (v) => {
+            const up = String(v).trim().toUpperCase();
+            return up === bCode || up === uIdStr || (uBarcodeStr && up === uBarcodeStr) || (uSerialStr && up === uSerialStr);
+          }
+        );
+        if (!isCurrentSlotAssignment) return false;
+      }
 
       if (
         compromisedUnitKeys.has(uIdStr) ||
@@ -768,7 +781,6 @@ export default function EquipmentBorrowDetailModal({
         if (!isCurrentSlotAssignment) return false;
       }
 
-      const bCode = String(unit.barcode || unit.serial_number || unit.code || unit.id || "").trim().toUpperCase();
       if (bCode && overlappingReservedBarcodes.has(bCode)) {
         // Allow if it's already assigned to a slot in this modal
         const isCurrentSlotAssignment = Object.values(assignedUnitSelections || {}).some(
@@ -1387,58 +1399,16 @@ export default function EquipmentBorrowDetailModal({
               })()}
             </div>
           ) : isOngoing ? (
-            <div className="pt-2 border-t border-slate-200">
-              <div className="p-6 bg-slate-50/80 border border-slate-200/90 rounded-2xl text-center space-y-3 flex flex-col items-center justify-center min-h-[160px] shadow-2xs">
-                <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
-                  <Play size={18} className="fill-blue-600 ml-0.5" />
+            <div className="pt-2 border-t border-slate-200 dark:border-blue-900/50">
+              <div className="p-6 bg-slate-50/80 dark:bg-slate-900/80 border border-slate-200/90 dark:border-blue-900/50 rounded-2xl text-center space-y-3 flex flex-col items-center justify-center min-h-[160px] shadow-2xs">
+                <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+                  <Play size={20} className="fill-blue-600 ml-0.5" />
                 </div>
                 <div className="space-y-1">
-                  <h5 className="font-extrabold text-slate-900 text-xs">Equipment Currently In-Use</h5>
-                  <p className="text-[11px] text-slate-500 font-medium max-w-sm mx-auto">
-                    Borrower is currently utilizing the released items. When returned, click below to initiate post-equipment inspection.
+                  <h5 className="font-extrabold text-slate-900 dark:text-white text-sm">Equipment Currently In-Use</h5>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 font-medium max-w-md mx-auto">
+                    Borrower is currently utilizing the released items. When the items are returned, proceed with post-equipment inspection using the button below.
                   </p>
-                </div>
-
-                {!isInspectionReady && (
-                  <div
-                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800/70 text-amber-800 dark:text-amber-200 text-xs font-semibold shadow-2xs"
-                    title={inspectionEligibility.reason}
-                  >
-                    <Clock size={14} className="text-amber-600 dark:text-amber-400 shrink-0" />
-                    <span>Inspection opens {inspectionEligibility.unlockTimeStr ? `at ${inspectionEligibility.unlockTimeStr}` : "30 mins before return time"}</span>
-                    {inspectionEligibility.minutesUntilUnlock > 0 && (
-                      <span className="text-[11px] font-bold text-amber-600 dark:text-amber-400">
-                        ({inspectionEligibility.minutesUntilUnlock > 60
-                          ? `${Math.floor(inspectionEligibility.minutesUntilUnlock / 60)}h ${inspectionEligibility.minutesUntilUnlock % 60}m`
-                          : `${inspectionEligibility.minutesUntilUnlock}m`})
-                      </span>
-                    )}
-                  </div>
-                )}
-
-                <div className="flex items-center gap-2">
-                  {isSuperAdmin && !inspectionEligibility.isReady && !adminEarlyOverride && (
-                    <button
-                      type="button"
-                      onClick={() => setShowEarlyOverrideModal(true)}
-                      className="px-3 py-2 bg-amber-100 hover:bg-amber-200 dark:bg-amber-900/40 dark:hover:bg-amber-900/60 text-amber-900 dark:text-amber-200 border border-amber-300 dark:border-amber-700/60 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1"
-                      title="Super Administrator Early Inspection Override"
-                    >
-                      <ShieldCheck size={13} className="text-amber-700 dark:text-amber-300" />
-                      <span>Admin Override</span>
-                    </button>
-                  )}
-
-                  <button
-                    type="button"
-                    onClick={handleStartInspection}
-                    disabled={!isInspectionReady || startingInspection}
-                    title={!isInspectionReady ? inspectionEligibility.reason : "Start Post-Equipment Inspection"}
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl text-xs font-extrabold flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
-                  >
-                    {startingInspection ? <Loader2 size={13} className="animate-spin" /> : <ShieldAlert size={13} />}
-                    <span>Start Post-Equipment Inspection</span>
-                  </button>
                 </div>
               </div>
             </div>
@@ -1524,6 +1494,19 @@ export default function EquipmentBorrowDetailModal({
                     </div>
                   )}
 
+                  {!isInspectionReady && (
+                    <button
+                      type="button"
+                      onClick={() => setShowEarlyReturnModal(true)}
+                      disabled={startingInspection || !!actionLoading}
+                      className="px-4 py-2.5 bg-blue-50 hover:bg-blue-600 text-blue-700 hover:text-white border border-blue-200 hover:border-blue-600 dark:bg-blue-950/60 dark:hover:bg-blue-600 dark:text-blue-300 dark:hover:text-white dark:border-blue-900/60 font-extrabold text-xs rounded-xl shadow-2xs transition-all duration-150 cursor-pointer flex items-center gap-1.5"
+                      title="Return equipment early and begin return inspection"
+                    >
+                      <PackageCheck size={14} />
+                      <span>Return & Inspect Equipment</span>
+                    </button>
+                  )}
+
                   {isSuperAdmin && !inspectionEligibility.isReady && !adminEarlyOverride && (
                     <button
                       type="button"
@@ -1540,8 +1523,8 @@ export default function EquipmentBorrowDetailModal({
                     type="button"
                     onClick={handleStartInspection}
                     disabled={!isInspectionReady || startingInspection}
-                    title={!isInspectionReady ? inspectionEligibility.reason : "Start Post-Inspection"}
-                    className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl text-xs font-extrabold flex items-center gap-1.5 shadow-xs transition-all duration-150 cursor-pointer"
+                    title={!isInspectionReady ? inspectionEligibility.reason : "Start Post-Equipment Inspection"}
+                    className="px-5 py-2.5 bg-amber-600 hover:bg-amber-700 active:bg-amber-800 dark:bg-amber-600 dark:hover:bg-amber-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl text-xs font-extrabold flex items-center gap-1.5 shadow-xs transition-all duration-150 cursor-pointer"
                   >
                     {startingInspection ? (
                       <>
@@ -1551,7 +1534,7 @@ export default function EquipmentBorrowDetailModal({
                     ) : (
                       <>
                         <ShieldAlert size={14} />
-                        <span>Post-Inspection</span>
+                        <span>Start Post-Equipment Inspection</span>
                       </>
                     )}
                   </button>
@@ -1581,7 +1564,7 @@ export default function EquipmentBorrowDetailModal({
               <button
                 type="button"
                 onClick={() => { setSelected(null); setShowNotifyModal(false); }}
-                className="px-5 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 hover:text-slate-900 dark:text-slate-200 dark:hover:text-white border border-slate-300 dark:border-slate-700 rounded-lg text-xs font-bold transition-all duration-150 cursor-pointer"
+                className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer"
               >
                 Close
               </button>
@@ -1627,6 +1610,21 @@ export default function EquipmentBorrowDetailModal({
         title="Early Inspection Override"
         message="Return schedule has not yet reached the 30-minute pre-end inspection window. As Super Administrator, do you want to override and start early return inspection now?"
         confirmLabel="Override & Proceed"
+        cancelLabel="Cancel"
+      />
+
+      {/* Early Equipment Return Confirmation Modal */}
+      <ConfirmModal
+        open={showEarlyReturnModal}
+        onClose={() => setShowEarlyReturnModal(false)}
+        onConfirm={async () => {
+          setShowEarlyReturnModal(false);
+          await handleStartInspection({ early_return: true, force: true });
+        }}
+        variant="primary"
+        title="Return Equipment & Start Inspection"
+        message={`Has the equipment borrowed by "${selected?.borrower_name || selected?.user?.name || 'the borrower'}" been returned to the AVR for physical condition inspection?`}
+        confirmLabel="Yes, Start Inspection"
         cancelLabel="Cancel"
       />
 

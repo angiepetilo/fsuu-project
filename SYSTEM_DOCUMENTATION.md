@@ -3,7 +3,7 @@
 # System Documentation (v2.7.2)
 
 ## Overview & Architecture
-This platform provides multi-office, role-based reservation management for Father Saturnino Urios University (FSUU). It handles **Venue Bookings** and **Equipment Borrowings** with real-time dynamic timeslot stock computation, physical unit barcode tracking, child built-in unit bundling, department breach analytics, strict schedule collision prevention, transactional email dispatch via Brevo/SMTP with official tracking numbers, Google OAuth role-permission parity, single vs. multi-day date range formatting, and role-based incident alerting.
+This platform provides multi-office, role-based reservation management for Father Saturnino Urios University (FSUU). It handles **Venue Bookings** and **Equipment Borrowings** with real-time dynamic timeslot stock computation, physical unit barcode tracking, child built-in unit bundling, department breach analytics, strict schedule collision prevention, transactional email dispatch via Brevo/SMTP with official tracking numbers, institutional role-based access control, single vs. multi-day date range formatting, and role-based incident alerting.
 
 ---
 
@@ -80,7 +80,7 @@ The **FSUU Automated Venue Reservation & Equipment Borrowing Management System**
 
 ### 2.2. Backend Architecture
 - **Framework**: Laravel 11 running on PHP 8.2+.
-- **Authentication**: Laravel Sanctum (token-based API authentication) and Google OAuth 2.0 institutional login (`@urios.edu.ph`).
+- **Authentication**: Laravel Sanctum (token-based API authentication) with institutional role-based permissions and brute-force lockout.
 - **Authorization**: Granular Policy classes (`VenueBookingPolicy`, `EquipmentBorrowingPolicy`, `UserPolicy`).
 - **Cloud Media Storage**: Cloudinary integration (`MediaUploadService`) with fallback to local public disk.
 - **Mail Pipeline**: Queueable Mails (`BookingConfirmationMail`, `BookingStatusUpdateMail`) with database-backed SMTP configuration (`SystemSetting::configureMailer()`).
@@ -410,8 +410,6 @@ All routes are registered in [backend/routes/api.php](file:///c:/Booking%20syste
 | `POST` | `/change-password` | `AuthController@changePassword` | Updates account password |
 | `POST` | `/verify-password` | `AuthController@verifyPassword` | Re-verifies credentials before sensitive actions |
 | `POST` | `/user/profile` | `AuthController@updateProfile` | Updates personal name, phone, and avatar |
-| `GET`  | `/auth/google/redirect` | `GoogleAuthController@redirect` | Initiates Google OAuth institutional sign-in |
-| `GET`  | `/auth/google/callback` | `GoogleAuthController@callback` | Receives OAuth code and mints Sanctum token |
 | `GET`  | `/auth/invite/{token}` | `AuthController@getInviteDetails` | Validates new staff account invitation link |
 | `POST` | `/auth/activate` | `AuthController@activateAccount` | Sets initial password for invited staff |
 | `POST` | `/auth/forgot-password` | `AuthController@forgotPassword` | Dispatches password reset code |
@@ -540,7 +538,7 @@ All routes are registered in [backend/routes/api.php](file:///c:/Booking%20syste
 ### 10.1. Multi-Tier Security Controls
 1. **Authentication & Identity**:
    - Laravel Sanctum token-based authentication with cryptographically signed bearer tokens.
-   - Google OAuth 2.0 institutional login restricted to `@urios.edu.ph`.
+   - Institutional email authentication with server-side brute-force throttling (5 attempts/min lockout).
    - Strong password hashing with Bcrypt (cost factor 12).
 2. **Access Control (RBAC)**:
    - Granular Laravel Policy classes (`VenueBookingPolicy`, `EquipmentBorrowingPolicy`, `UserPolicy`).

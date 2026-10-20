@@ -63,7 +63,7 @@ src/
 │   └── echo.js         # Laravel Echo WebSocket singleton with offline fallback
 ├── pages/
 │   ├── admin/          # Admin management (Dashboard, Venues, Equipments, Reports, History)
-│   ├── auth/           # Staff login and Google OAuth callback
+│   ├── auth/           # Staff login, activation, and password recovery
 │   ├── public/         # Public portal (Landing, VenueBooking, EquipmentBorrowing, TrackBooking)
 │   └── superadmin/     # Super Admin layout & global settings
 └── App.jsx             # Top-level routing and lazy-loaded code-splitting

@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { FileText, ExternalLink, Upload, CheckCircle, CheckCircle2, HardDrive, Check, Shield } from "lucide-react";
+import React, { useState, useEffect, useMemo } from "react";
+import { FileText, ExternalLink, Upload, CheckCircle, CheckCircle2, HardDrive, Check, Shield, PackageCheck, AlertCircle, X, Loader2 } from "lucide-react";
 import { resolveStorageUrl, openFileInNewTab } from "@/lib/utils";
 import { formatDateRange, formatTime12 } from "@/lib/dateUtils";
 import api from "@/lib/axios";
@@ -38,6 +38,13 @@ export default function VenueBookingInfo({
   requestedCategories = [],
   setFullImageModal,
   onBookingUpdated,
+  assignedUnitSelections = {},
+  setAssignedUnitSelections,
+  physicalUnits = [],
+  dbEquipmentTypes = [],
+  getAvailableUnitsForCategory,
+  isOngoing = false,
+  isApproved = false,
 }) {
   const { isSuperAdmin } = usePermissions();
   const [showOverrideModal, setShowOverrideModal] = useState(false);
@@ -75,6 +82,208 @@ export default function VenueBookingInfo({
   }, [selected?.id, storageKeyHardcopy, storageKeyNotes]);
 
   if (!selected) return null;
+
+  const [assigningUnit, setAssigningUnit] = useState(false);
+  const canAssign = isSuperAdmin || isApproved || isOngoing;
+
+  // Normalize and resolve assigned physical units details
+  const assignedUnitsList = useMemo(() => {
+    let raw = assignedUnitSelections || selected?.assigned_units;
+    if (!raw || (typeof raw === "object" && Object.keys(raw).length === 0)) {
+      if (selected?.assigned_units) raw = selected.assigned_units;
+      else {
+        try {
+          const saved = localStorage.getItem(`fsuu_assigned_units_${selected?.id}`) || localStorage.getItem(`fsuu_completed_assigned_units_${selected?.id}`);
+          if (saved) raw = JSON.parse(saved);
+        } catch {}
+      }
+    }
+    if (!raw) return [];
+
+    let barcodes = [];
+    if (Array.isArray(raw)) {
+      barcodes = raw.filter(Boolean);
+    } else if (typeof raw === "object" && raw !== null) {
+      barcodes = Object.values(raw).filter(Boolean);
+    } else if (typeof raw === "string") {
+      try {
+        const p = JSON.parse(raw);
+        if (Array.isArray(p)) barcodes = p.filter(Boolean);
+        else if (typeof p === "object" && p !== null) barcodes = Object.values(p).filter(Boolean);
+        else barcodes = [raw];
+      } catch {
+        barcodes = [raw];
+      }
+    }
+
+    const uniqueBarcodes = Array.from(new Set(barcodes.map(b => String(b).trim()).filter(b => b && b !== "—" && b !== "-")));
+
+    return uniqueBarcodes.map(bCode => {
+      const cleanUpper = bCode.toUpperCase();
+      const matchedUnit = (physicalUnits || []).find(u => {
+        const candidates = [
+          u.barcode,
+          u.serial_number,
+          u.code,
+          String(u.id),
+          u.seq_no ? `#${String(u.seq_no).replace(/^#/, '')}` : null,
+        ].filter(Boolean).map(s => String(s).trim().toUpperCase());
+        return candidates.includes(cleanUpper);
+      });
+
+      const rawSeq = matchedUnit?.seq_no ?? matchedUnit?.sequence_no;
+      const seqNo = rawSeq !== undefined && rawSeq !== null && String(rawSeq).trim() !== ""
+        ? (String(rawSeq).trim().startsWith("#") ? String(rawSeq).trim() : `#${String(rawSeq).trim()}`)
+        : null;
+      const brand = matchedUnit?.brand ? String(matchedUnit.brand).trim() : "";
+      const model = matchedUnit?.model ? String(matchedUnit.model).trim() : "";
+      const brandModel = brand && model ? `${brand} • ${model}` : (brand || model || matchedUnit?.name || "");
+
+      // Resolve built-in child accessories
+      let builtIns = [];
+      if (matchedUnit) {
+        let rawList = Array.isArray(matchedUnit.built_in_units)
+          ? matchedUnit.built_in_units
+          : (typeof matchedUnit.built_in_units === "string" ? JSON.parse(matchedUnit.built_in_units || "[]") : []);
+        if (!rawList.length) {
+          const eqT = matchedUnit.equipmentType || matchedUnit.equipment_type;
+          if (eqT?.built_in_units) {
+            rawList = Array.isArray(eqT.built_in_units) ? eqT.built_in_units : (typeof eqT.built_in_units === "string" ? JSON.parse(eqT.built_in_units || "[]") : []);
+          }
+        }
+        if (Array.isArray(rawList)) {
+          builtIns = rawList.map(biId => {
+            const m = (physicalUnits || []).find(pu => String(pu.id) === String(biId) || String(pu.barcode || '').toUpperCase() === String(biId).toUpperCase());
+            return m ? (m.name || [m.brand, m.model].filter(Boolean).join(" ") || m.barcode || `Unit #${biId}`) : `Unit #${biId}`;
+          });
+        }
+      }
+
+      const catName = matchedUnit?.equipment_type?.eq_name
+        || matchedUnit?.equipment_type?.name
+        || matchedUnit?.equipmentType?.eq_name
+        || matchedUnit?.category
+        || "";
+
+      let slotKey = null;
+      if (assignedUnitSelections && typeof assignedUnitSelections === "object") {
+        const foundEntry = Object.entries(assignedUnitSelections).find(([, v]) => String(v).trim().toUpperCase() === cleanUpper);
+        if (foundEntry) slotKey = foundEntry[0];
+      }
+
+      return {
+        barcode: matchedUnit?.barcode || bCode,
+        serial: matchedUnit?.serial_number && matchedUnit.serial_number !== (matchedUnit?.barcode || bCode) ? matchedUnit.serial_number : null,
+        seqNo,
+        brandModel,
+        builtIns,
+        categoryName: catName,
+        status: matchedUnit?.status || (isOngoing ? "released" : "reserved"),
+        condition: matchedUnit?.condition || "Good",
+        slotKey,
+        unit: matchedUnit,
+      };
+    });
+  }, [assignedUnitSelections, selected?.assigned_units, selected?.id, physicalUnits, isOngoing]);
+
+  // Determine unassigned slots for requested categories
+  const unassignedSlots = useMemo(() => {
+    if (!requestedCategories || requestedCategories.length === 0) return [];
+    const assignedBarcodesSet = new Set(assignedUnitsList.map(u => u.barcode.toUpperCase()));
+    
+    const slots = [];
+    requestedCategories.forEach((cat, catIdx) => {
+      const catName = cat.name || cat.category || cat.equipment_types_name || "Equipment";
+      const qty = parseInt(cat.quantity || 1, 10) || 1;
+      const typeId = cat.equipment_type_id || cat.id || null;
+
+      for (let uIdx = 0; uIdx < qty; uIdx++) {
+        const slotKey = `${catIdx}-${uIdx}`;
+        const currentBarcode = assignedUnitSelections ? assignedUnitSelections[slotKey] : null;
+        if (!currentBarcode || !assignedBarcodesSet.has(String(currentBarcode).trim().toUpperCase())) {
+          const availableUnits = getAvailableUnitsForCategory 
+            ? getAvailableUnitsForCategory(catName, typeId)
+            : (physicalUnits || []).filter(pu => {
+                const puCat = (pu.equipmentType?.eq_name || pu.equipment_type?.eq_name || pu.category || "").toUpperCase();
+                return puCat === catName.toUpperCase() && pu.status === "available";
+              });
+          
+          slots.push({
+            slotKey,
+            catIdx,
+            uIdx,
+            category: catName,
+            typeId,
+            slotNum: uIdx + 1,
+            availableUnits: availableUnits.filter(u => !assignedBarcodesSet.has(String(u.barcode || u.serial_number || '').trim().toUpperCase())),
+          });
+        }
+      }
+    });
+    return slots;
+  }, [requestedCategories, assignedUnitsList, assignedUnitSelections, getAvailableUnitsForCategory, physicalUnits]);
+
+  const handleQuickAssign = async (slotKey, barcode) => {
+    if (!slotKey || !barcode || !selected?.id) return;
+    setAssigningUnit(true);
+    const nextSelections = { ...(assignedUnitSelections || {}), [slotKey]: barcode };
+    if (setAssignedUnitSelections) {
+      setAssignedUnitSelections(nextSelections);
+    }
+    try {
+      localStorage.setItem(`fsuu_assigned_units_${selected.id}`, JSON.stringify(nextSelections));
+      await api.put(`/avr-venue-bookings/${selected.id}/assign-units`, {
+        assigned_units: nextSelections,
+      });
+      notify.success("Equipment Unit Assigned", `Physical unit ${barcode} assigned to venue booking.`);
+      window.dispatchEvent(new Event("venue_bookings_updated"));
+      window.dispatchEvent(new Event("equipment_inventory_updated"));
+      if (onBookingUpdated) {
+        onBookingUpdated(prev => ({
+          ...prev,
+          assigned_units: nextSelections,
+        }));
+      }
+    } catch (err) {
+      notify.error("Assignment Failed", err.response?.data?.message || "Failed to assign equipment unit.");
+    } finally {
+      setAssigningUnit(false);
+    }
+  };
+
+  const handleQuickUnassign = async (slotKey, barcode) => {
+    if (!selected?.id) return;
+    setAssigningUnit(true);
+    const nextSelections = { ...(assignedUnitSelections || {}) };
+    if (slotKey) delete nextSelections[slotKey];
+    Object.keys(nextSelections).forEach(k => {
+      if (String(nextSelections[k]).toUpperCase() === String(barcode).toUpperCase()) {
+        delete nextSelections[k];
+      }
+    });
+    if (setAssignedUnitSelections) {
+      setAssignedUnitSelections(nextSelections);
+    }
+    try {
+      localStorage.setItem(`fsuu_assigned_units_${selected.id}`, JSON.stringify(nextSelections));
+      await api.put(`/avr-venue-bookings/${selected.id}/assign-units`, {
+        assigned_units: nextSelections,
+      });
+      notify.info("Equipment Unit Unassigned", `Removed unit assignment.`);
+      window.dispatchEvent(new Event("venue_bookings_updated"));
+      window.dispatchEvent(new Event("equipment_inventory_updated"));
+      if (onBookingUpdated) {
+        onBookingUpdated(prev => ({
+          ...prev,
+          assigned_units: nextSelections,
+        }));
+      }
+    } catch (err) {
+      notify.error("Update Failed", err.response?.data?.message || "Failed to update unit assignment.");
+    } finally {
+      setAssigningUnit(false);
+    }
+  };
 
   const handleFileUpload = async (e) => {
     const file = e.target.files?.[0];
@@ -316,6 +525,139 @@ export default function VenueBookingInfo({
                 </span>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* Assigned Physical Equipment Units */}
+        {requestedCategories && requestedCategories.length > 0 && (
+          <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800/80 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-slate-700 dark:text-slate-300 font-extrabold text-xs flex items-center gap-1.5">
+                <PackageCheck size={14} className="text-blue-600 dark:text-blue-400" />
+                Assigned Equipment Units :
+              </span>
+              <span className="text-[10.5px] font-mono font-bold text-slate-500 dark:text-slate-400">
+                {assignedUnitsList.length} of {requestedCategories.reduce((acc, c) => acc + (parseInt(c.quantity || 1, 10) || 1), 0)} unit(s) assigned
+              </span>
+            </div>
+
+            {/* List of successfully assigned physical units */}
+            {assignedUnitsList.length > 0 && (
+              <div className="space-y-1.5">
+                {assignedUnitsList.map((au, aIdx) => (
+                  <div
+                    key={aIdx}
+                    className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700/80 space-y-1.5"
+                  >
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {au.seqNo && (
+                          <span className="font-mono text-[10px] font-black text-amber-800 dark:text-amber-300 bg-amber-100/80 dark:bg-amber-950/70 px-1.5 py-0.5 rounded border border-amber-300 dark:border-amber-700/80 shrink-0">
+                            {au.seqNo}
+                          </span>
+                        )}
+                        <span className="font-extrabold text-xs text-slate-900 dark:text-white">
+                          {au.brandModel || au.categoryName || "Equipment Unit"}
+                        </span>
+                        <span className="font-mono text-[11px] font-bold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/60 px-1.5 py-0.5 rounded border border-blue-200 dark:border-blue-800/80">
+                          {au.barcode}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-1.5">
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold font-mono uppercase ${
+                          isOngoing
+                            ? "bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800"
+                            : "bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800"
+                        }`}>
+                          {isOngoing ? "Released / In-Use" : "Assigned & Reserved"}
+                        </span>
+                        {canAssign && (
+                          <button
+                            type="button"
+                            onClick={() => handleQuickUnassign(au.slotKey, au.barcode)}
+                            disabled={assigningUnit}
+                            className="p-1 text-slate-400 hover:text-rose-600 rounded hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                            title="Unassign this physical unit"
+                          >
+                            <X size={12} />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {au.builtIns && au.builtIns.length > 0 && (
+                      <div className="flex items-center flex-wrap gap-1 pt-0.5">
+                        <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">Tied Accessories:</span>
+                        {au.builtIns.map((biName, biIdx) => (
+                          <span
+                            key={biIdx}
+                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-white dark:bg-slate-700/80 text-slate-700 dark:text-slate-200 text-[10px] font-semibold border border-slate-200 dark:border-slate-600"
+                          >
+                            <CheckCircle2 size={10} className="text-emerald-600 dark:text-emerald-400" />
+                            <span>{biName}</span>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Unassigned slots dropdown to easily select units in the booking form */}
+            {canAssign && unassignedSlots.length > 0 && (
+              <div className="p-2.5 rounded-xl bg-amber-50/70 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 space-y-2">
+                <div className="flex items-center gap-1.5 text-amber-900 dark:text-amber-300 text-xs font-bold">
+                  <AlertCircle size={13} className="shrink-0 text-amber-600 dark:text-amber-400" />
+                  <span>
+                    {assignedUnitsList.length === 0
+                      ? "Select physical equipment unit for this venue reservation:"
+                      : "Unassigned equipment unit slot(s) remaining:"}
+                  </span>
+                </div>
+                <div className="space-y-1.5">
+                  {unassignedSlots.map((uSlot, sIdx) => (
+                    <div key={sIdx} className="flex flex-col sm:flex-row sm:items-center gap-1.5">
+                      <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 shrink-0 min-w-[130px]">
+                        {uSlot.category} (Slot #{uSlot.slotNum}):
+                      </span>
+                      {uSlot.availableUnits.length === 0 ? (
+                        <span className="text-[11px] text-amber-700 dark:text-amber-400 font-medium italic">
+                          No available units currently in stock for this category.
+                        </span>
+                      ) : (
+                        <div className="relative flex-1">
+                          <select
+                            onChange={(e) => handleQuickAssign(uSlot.slotKey, e.target.value)}
+                            defaultValue=""
+                            disabled={assigningUnit}
+                            className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-amber-300 dark:border-amber-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-semibold focus:outline-none focus:ring-1 focus:ring-amber-500 cursor-pointer disabled:opacity-50"
+                          >
+                            <option value="" disabled>Choose physical unit ({uSlot.availableUnits.length} available)...</option>
+                            {uSlot.availableUnits.map((unit) => {
+                              const bCode = unit.barcode || unit.serial_number || unit.code || `UNIT-${unit.id}`;
+                              const rawSeq = unit.seq_no ?? unit.sequence_no;
+                              const seq = rawSeq ? `#${String(rawSeq).replace(/^#/, '')} ` : '';
+                              const brand = unit.brand ? `${unit.brand} ` : '';
+                              const model = unit.model || unit.name || '';
+                              return (
+                                <option key={unit.id} value={bCode}>
+                                  {seq}{brand}{model} [{bCode}]
+                                </option>
+                              );
+                            })}
+                          </select>
+                          {assigningUnit && (
+                            <Loader2 size={12} className="animate-spin text-amber-600 absolute right-6 top-1/2 -translate-y-1/2" />
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

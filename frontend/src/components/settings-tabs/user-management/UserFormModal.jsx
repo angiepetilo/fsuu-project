@@ -58,6 +58,14 @@ export default function UserFormModal({
       return;
     }
 
+    if (!email.endsWith("@urios.edu.ph")) {
+      setEmailStatus({
+        valid: false,
+        message: "Staff and Student Assistant accounts must use an official university Google account (@urios.edu.ph).",
+      });
+      return;
+    }
+
     setEmailChecking(true);
     try {
       const res = await api.post("/public/verify-email-active", { email });
@@ -115,6 +123,14 @@ export default function UserFormModal({
       setEmailStatus({
         valid: false,
         message: "Please enter a valid email address.",
+      });
+      return;
+    }
+
+    if (!targetEmail.endsWith("@urios.edu.ph")) {
+      setEmailStatus({
+        valid: false,
+        message: "Staff and Student Assistant accounts must use an official university Google account (@urios.edu.ph).",
       });
       return;
     }
@@ -275,7 +291,7 @@ export default function UserFormModal({
               <input
                 type="email"
                 required
-                placeholder="e.g. juan.delacruz@urios.edu.ph or name@gmail.com"
+                placeholder="e.g. juan.delacruz@urios.edu.ph"
                 value={form.email_address}
                 onChange={(e) => setForm((f) => ({ ...f, email_address: e.target.value }))}
                 onBlur={checkEmailActive}
@@ -293,7 +309,7 @@ export default function UserFormModal({
                 </div>
               ) : (
                 <p className="text-[11px] text-slate-400 font-medium mt-1">
-                  Must be an active email address capable of receiving messages.
+                  Must be an official university Google Workspace email (@urios.edu.ph).
                 </p>
               )}
             </div>

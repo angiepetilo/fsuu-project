@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Loader2, Play, FileCheck, Check, ShieldAlert, BellRing, AlertTriangle, Clock, ShieldCheck, Ban } from "lucide-react";
+import { Loader2, Play, FileCheck, Check, ShieldAlert, BellRing, AlertTriangle, Clock, ShieldCheck, Ban, PackageCheck } from "lucide-react";
 import api from "@/lib/axios";
 import { notify } from "@/lib/notify";
 import { getInspectionEligibility } from "@/lib/dateTimeUtils";
@@ -38,6 +38,7 @@ export default function VenueModalFooter({
   const [currentTick, setCurrentTick] = useState(() => Date.now());
   const [adminEarlyOverride, setAdminEarlyOverride] = useState(false);
   const [showEarlyOverrideModal, setShowEarlyOverrideModal] = useState(false);
+  const [showEarlyReturnModal, setShowEarlyReturnModal] = useState(false);
   const [showCancelApprovedModal, setShowCancelApprovedModal] = useState(false);
   const [cancelRemarks, setCancelRemarks] = useState("");
 
@@ -211,6 +212,19 @@ export default function VenueModalFooter({
             </div>
           )}
 
+          {!isInspectionReady && (
+            <button
+              type="button"
+              onClick={() => setShowEarlyReturnModal(true)}
+              disabled={!!actionLoading}
+              className="px-4 py-2.5 bg-blue-50 hover:bg-blue-600 text-blue-700 hover:text-white border border-blue-200 hover:border-blue-600 dark:bg-blue-950/60 dark:hover:bg-blue-600 dark:text-blue-300 dark:hover:text-white dark:border-blue-900/60 font-extrabold text-xs rounded-xl shadow-2xs transition-all duration-150 cursor-pointer flex items-center gap-1.5"
+              title="Conclude event early and return equipment for post-event inspection"
+            >
+              <PackageCheck size={14} />
+              <span>Conclude & Return Equipment</span>
+            </button>
+          )}
+
           {isSuperAdmin && !inspectionEligibility.isReady && !adminEarlyOverride && (
             <button
               type="button"
@@ -334,6 +348,21 @@ export default function VenueModalFooter({
         />
       </div>
     </ConfirmModal>
+
+    {/* Early Return / Conclude Event Confirmation Modal */}
+    <ConfirmModal
+      open={showEarlyReturnModal}
+      onClose={() => setShowEarlyReturnModal(false)}
+      onConfirm={async () => {
+        setShowEarlyReturnModal(false);
+        await handleAction(selected?.id, "post-inspection", { early_return: true, force: true });
+      }}
+      variant="primary"
+      title="Conclude Event & Start Post-Inspection"
+      message={`Has the event in "${selected?.venue_name || selected?.venue?.name || 'the venue'}" concluded and all assigned equipment been retrieved for physical condition inspection?`}
+      confirmLabel="Yes, Start Post-Inspection"
+      cancelLabel="Cancel"
+    />
     </>
   );
 }

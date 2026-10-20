@@ -155,6 +155,16 @@ export default function EquipmentOutTab({ equipmentBorrowings = [], equipmentUni
 
   // Helper to extract clean equipment item name(s)
   const extractEquipmentName = (b) => {
+    if (b.is_venue_booking) {
+      const vbeList = b.venue_booking_equipment || b.venueBookingEquipment;
+      if (Array.isArray(vbeList) && vbeList.length > 0) {
+        return vbeList.map(vbe => {
+          const name = vbe.equipment_type?.name || vbe.equipment_type?.eq_name || vbe.equipmentType?.name || vbe.equipment_name || "Equipment";
+          const qty = vbe.quantity || 1;
+          return `${qty}x ${name}`;
+        }).join(", ");
+      }
+    }
     if (Array.isArray(b.items) && b.items.length > 0) {
       if (b.items.length === 1) {
         const it = b.items[0];
@@ -166,11 +176,17 @@ export default function EquipmentOutTab({ equipmentBorrowings = [], equipmentUni
         return `${qty}x ${name}`;
       }).join(", ");
     }
-    return b.equipment_name || b.equipment || b.item_name || "AV Equipment";
+    return b.equipment_name || b.equipment || b.equipment_notes || b.item_name || "AV Equipment";
   };
 
   // Helper to calculate total physical units out
   const extractUnitsOut = (b) => {
+    if (b.is_venue_booking) {
+      const vbeList = b.venue_booking_equipment || b.venueBookingEquipment;
+      if (Array.isArray(vbeList) && vbeList.length > 0) {
+        return vbeList.reduce((sum, it) => sum + (parseInt(it.quantity, 10) || 1), 0);
+      }
+    }
     if (Array.isArray(b.items) && b.items.length > 0) {
       return b.items.reduce((sum, it) => sum + (parseInt(it.quantity_requested || it.quantity, 10) || 1), 0);
     }
@@ -195,7 +211,7 @@ export default function EquipmentOutTab({ equipmentBorrowings = [], equipmentUni
       const st = (b.status || b.tracking_number?.status || "").toLowerCase();
       return [
         "ongoing", "on-going", "borrowed", "claimed", "released", "in_use", "in-use", "overdue",
-        "returned", "completed", "late return", "late_return"
+        "returned", "completed", "late return", "late_return", "inspection", "post-inspection", "post_inspection"
       ].includes(st);
     });
   }, [equipmentBorrowings]);
@@ -218,7 +234,7 @@ export default function EquipmentOutTab({ equipmentBorrowings = [], equipmentUni
 
     validBorrowings.forEach(b => {
       const st = (b.status || b.tracking_number?.status || "").toLowerCase();
-      const isRet = ["returned", "completed", "late return", "late_return"].includes(st);
+      const isRet = ["returned", "completed", "late return", "late_return", "inspection", "post-inspection", "post_inspection"].includes(st);
       if (isRet) {
         retCount++;
       } else {
@@ -235,7 +251,7 @@ export default function EquipmentOutTab({ equipmentBorrowings = [], equipmentUni
   const filteredRecords = useMemo(() => {
     return validBorrowings.filter(b => {
       const query = searchQuery.toLowerCase().trim();
-      const filer = (b.filer_name || b.requestor || b.applicant_name || "").toLowerCase();
+      const filer = (b.filer_name || b.requestor || b.applicant_name || b.requestor_name || b.name || "").toLowerCase();
       const equip = extractEquipmentName(b).toLowerCase();
       const ref = (b.reference_code || b.tracking_number?.reference_code || "").toLowerCase();
       const dept = (b.program_office || b.department?.name || b.department || "").toLowerCase();
@@ -255,7 +271,7 @@ export default function EquipmentOutTab({ equipmentBorrowings = [], equipmentUni
       const matchesDept = deptFilter === "all" || currentDept === deptFilter;
 
       const st = (b.status || b.tracking_number?.status || "").toLowerCase();
-      const isReturned = ["returned", "completed", "late return", "late_return"].includes(st);
+      const isReturned = ["returned", "completed", "late return", "late_return", "inspection", "post-inspection", "post_inspection"].includes(st);
       const isOverdue = !isReturned && getOverdueMinutes(b.date_of_usage || b.start_datetime, b.time_end || b.end_datetime) > 0;
 
       let matchesStatus = true;
@@ -348,7 +364,7 @@ export default function EquipmentOutTab({ equipmentBorrowings = [], equipmentUni
                   .slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
                   .map((b, idx) => {
                     const rowGlobalIdx = (currentPage - 1) * ITEMS_PER_PAGE + idx + 1;
-                    const borrower = b.filer_name || b.requestor || b.applicant_name || "Borrower";
+                    const borrower = b.filer_name || b.requestor || b.applicant_name || b.requestor_name || b.name || "Borrower";
                     const refCode = b.tracking_number?.reference_code || b.reference_code || `TRK-EQ-${b.id}`;
                     const dept = b.program_office || b.department?.name || b.department || "Academic Unit";
                     const equip = extractEquipmentName(b);
@@ -370,10 +386,24 @@ export default function EquipmentOutTab({ equipmentBorrowings = [], equipmentUni
                       <tr key={`eq-out-${b.id || idx}`} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/50 transition-colors">
                         <td className="py-3.5 px-4 font-mono text-slate-400 text-xs">{rowGlobalIdx}</td>
                         <td className="py-3.5 px-4">
-                          <p className="font-extrabold text-slate-900 dark:text-slate-100 text-xs">{borrower}</p>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <p className="font-extrabold text-slate-900 dark:text-slate-100 text-xs">{borrower}</p>
+                            {b.is_venue_booking && (
+                              <span className="px-1.5 py-0.5 rounded text-[9.5px] font-extrabold bg-blue-50 dark:bg-blue-950/70 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                                Venue
+                              </span>
+                            )}
+                          </div>
                           <p className="font-mono text-[10px] text-slate-400 font-bold">{refCode}</p>
                         </td>
-                        <td className="py-3.5 px-4 font-bold text-slate-700 dark:text-slate-300 text-xs">{dept}</td>
+                        <td className="py-3.5 px-4">
+                          <p className="font-bold text-slate-700 dark:text-slate-300 text-xs">{dept}</p>
+                          {b.is_venue_booking && b.venue?.name && (
+                            <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">
+                              Room: {b.venue.name}
+                            </p>
+                          )}
+                        </td>
                         <td className="py-3.5 px-4 min-w-[320px]">
                           {assignedDetails.length > 0 ? (
                             <div className="flex flex-col gap-2">
@@ -443,7 +473,7 @@ export default function EquipmentOutTab({ equipmentBorrowings = [], equipmentUni
                                 Expected: {returnTime}
                               </span>
                               <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold">
-                                Out on loan
+                                {b.is_venue_booking ? "In use at venue" : "Out on loan"}
                               </span>
                             </div>
                           )}
@@ -451,7 +481,7 @@ export default function EquipmentOutTab({ equipmentBorrowings = [], equipmentUni
                         <td className="py-3.5 px-4 text-center whitespace-nowrap">
                           {isReturned ? (
                             <span className="text-xs font-semibold text-emerald-600">
-                              Returned
+                              {b.is_venue_booking ? "Returned from Venue" : "Returned"}
                             </span>
                           ) : overdueMins > 0 ? (
                             <span className="text-xs font-semibold text-rose-600">
@@ -459,7 +489,7 @@ export default function EquipmentOutTab({ equipmentBorrowings = [], equipmentUni
                             </span>
                           ) : (
                             <span className="text-xs font-semibold text-amber-600">
-                              Out on Loan
+                              {b.is_venue_booking ? "In Use at Venue" : "Out on Loan"}
                             </span>
                           )}
                         </td>

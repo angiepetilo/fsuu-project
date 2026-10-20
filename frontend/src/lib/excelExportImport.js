@@ -111,6 +111,78 @@ export function parseCsvText(text) {
 }
 
 /**
+ * Intelligently locates the header row in a 2D matrix of sheet rows.
+ * Accommodates exports and templates that feature merged title banners,
+ * subtitle/date stamps, or instructions across rows 1-3.
+ */
+function detectHeaderRowIndex(rawRows) {
+  if (!rawRows || rawRows.length < 2) return 0;
+
+  const knownKeywords = [
+    "name", "venue", "facility", "room", "category", "equipment", "brand",
+    "model", "serial", "barcode", "location", "capacity", "status", "condition",
+    "description", "notes", "remarks", "date", "purchased", "lifespan", "unit",
+    "seq", "code", "quantity", "qty", "email", "phone", "role"
+  ];
+
+  let bestIndex = 0;
+  let bestScore = -1;
+
+  const scanLimit = Math.min(rawRows.length, 12);
+  for (let i = 0; i < scanLimit; i++) {
+    const row = rawRows[i];
+    if (!Array.isArray(row)) continue;
+
+    const nonEmptyCells = row.filter((c) => c !== null && c !== undefined && String(c).trim() !== "");
+    if (nonEmptyCells.length === 0) continue;
+
+    // Single-cell rows (like merged title banners) are not headers for multi-column tables
+    if (nonEmptyCells.length === 1) {
+      continue;
+    }
+
+    let score = nonEmptyCells.length * 2;
+    let hasLongSentence = false;
+    let keywordMatches = 0;
+
+    for (const cell of nonEmptyCells) {
+      const str = String(cell).trim();
+      if (str.length > 55) {
+        hasLongSentence = true;
+      }
+      const cleaned = str.toLowerCase().replace(/[^a-z0-9]/g, "");
+      if (knownKeywords.some((kw) => cleaned.includes(kw))) {
+        keywordMatches++;
+      }
+      // Penalize title banner indicators
+      if (
+        cleaned.includes("system") ||
+        cleaned.includes("directory") ||
+        cleaned.includes("template") ||
+        cleaned.includes("exportedon") ||
+        cleaned.includes("instruction") ||
+        (cleaned.includes("notes") && str.length > 15)
+      ) {
+        score -= 20;
+      }
+    }
+
+    if (hasLongSentence) {
+      score -= 30;
+    }
+
+    score += keywordMatches * 10;
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestIndex = i;
+    }
+  }
+
+  return bestIndex;
+}
+
+/**
  * Parses either an .xlsx, .xls, or .csv file and returns an array of row objects
  * mapped by header column names.
  */
@@ -152,17 +224,19 @@ export async function parseFileToObjects(file) {
     return [];
   }
 
-  // First row is headers
-  const headers = rawRows[0].map((h) => String(h || "").trim());
-  const dataRows = rawRows.slice(1);
+  const headerIndex = detectHeaderRowIndex(rawRows);
+  const headers = rawRows[headerIndex].map((h) => String(h || "").trim());
+  const dataRows = rawRows.slice(headerIndex + 1);
 
-  return dataRows.map((r, rowIndex) => {
-    const obj = { _rowIndex: rowIndex + 2 };
-    headers.forEach((header, colIdx) => {
-      if (header) {
-        obj[header] = r[colIdx] !== undefined ? r[colIdx] : "";
-      }
+  return dataRows
+    .filter((r) => r.some((c) => c !== null && c !== undefined && String(c).trim() !== ""))
+    .map((r, rowIndex) => {
+      const obj = { _rowIndex: headerIndex + rowIndex + 2 };
+      headers.forEach((header, colIdx) => {
+        if (header) {
+          obj[header] = r[colIdx] !== undefined && r[colIdx] !== null ? String(r[colIdx]).trim() : "";
+        }
+      });
+      return obj;
     });
-    return obj;
-  });
 }

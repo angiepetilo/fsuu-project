@@ -1293,6 +1293,51 @@ class VenueBookingService
                 $applyStatusUpdate($damagedBarcodes, 'unavailable', 'Damaged');
                 $applyStatusUpdate($lostBarcodes, 'unavailable', 'Lost');
 
+                // Record itemized incident inspection rows for physical equipment units damaged/lost during venue booking
+                if (!empty($damagedBarcodes) || !empty($lostBarcodes)) {
+                    $ref = $booking->trackingNumber?->reference_code ?? "VB-{$booking->id}";
+                    $validUserId = ($actor && $actor->id) ? $actor->id : (\App\Models\User::value('id') ?? 1);
+                    $photo = $data['evidence_photo'] ?? $data['evidence_image'] ?? null;
+
+                    foreach ($damagedBarcodes as $dbc) {
+                        $unit = \App\Models\EquipmentUnit::where('barcode', $dbc)->orWhere('serial_number', $dbc)->first();
+                        if ($unit) {
+                            \Illuminate\Support\Facades\DB::table('inspections')->insert([
+                                'inspectable_type' => \App\Models\EquipmentUnit::class,
+                                'inspectable_id'   => $unit->id,
+                                'inspected_by'     => $validUserId,
+                                'inspection_type'  => 'post_event_damage',
+                                'condition'        => 'damaged',
+                                'violation_type'   => 'Physical Equipment Damage',
+                                'notes'            => "Damaged during venue reservation {$ref} (" . ($booking->venue?->name ?? 'Venue') . ") by {$booking->filer_name}. " . ($data['notes'] ?? ''),
+                                'evidence_photo'   => $photo,
+                                'inspected_at'     => now(),
+                                'created_at'       => now(),
+                                'updated_at'       => now(),
+                            ]);
+                        }
+                    }
+
+                    foreach ($lostBarcodes as $lbc) {
+                        $unit = \App\Models\EquipmentUnit::where('barcode', $lbc)->orWhere('serial_number', $lbc)->first();
+                        if ($unit) {
+                            \Illuminate\Support\Facades\DB::table('inspections')->insert([
+                                'inspectable_type' => \App\Models\EquipmentUnit::class,
+                                'inspectable_id'   => $unit->id,
+                                'inspected_by'     => $validUserId,
+                                'inspection_type'  => 'post_event_lost',
+                                'condition'        => 'lost',
+                                'violation_type'   => 'Lost Equipment',
+                                'notes'            => "Lost/Missing during venue reservation {$ref} (" . ($booking->venue?->name ?? 'Venue') . ") by {$booking->filer_name}. " . ($data['notes'] ?? ''),
+                                'evidence_photo'   => $photo,
+                                'inspected_at'     => now(),
+                                'created_at'       => now(),
+                                'updated_at'       => now(),
+                            ]);
+                        }
+                    }
+                }
+
                 // Enforce kit bundle integrity: call resolveParentAndChildrenStatus on all touched parent units
                 if ($tied['parents']->isNotEmpty()) {
                     try {

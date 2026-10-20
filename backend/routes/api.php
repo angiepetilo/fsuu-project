@@ -5,7 +5,6 @@ use Illuminate\Support\Facades\Route;
 
 // ─── Controllers ──────────────────────────────────────────────────────────────
 use App\Http\Controllers\AuthController;
-use App\Http\Controllers\GoogleAuthController;
 
 // ─── SuperAdmin Controllers ───────────────────────────────────────────────────
 use App\Http\Controllers\SuperAdmin\DepartmentController;
@@ -66,8 +65,6 @@ Route::post('/public/cancel-booking', [TrackingController::class, 'cancel'])->mi
 Route::post('/public/resubmit-requirements', [TrackingController::class, 'resubmitRequirements'])->middleware('throttle:30,1');
 
 // ─── Authentication ────────────────────────────────────────────────────────────
-Route::get('/auth/google/redirect', [GoogleAuthController::class, 'redirect']);
-Route::get('/auth/google/callback', [GoogleAuthController::class, 'callback']);
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:login');
 Route::post('/auth/logout-beacon', [AuthController::class, 'logoutBeacon']);
 Route::get('/auth/invite/{token}', [AuthController::class, 'getInviteDetails']);

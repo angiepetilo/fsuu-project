@@ -609,7 +609,7 @@ export default function EquipmentCategoriesTab({ showMsg }) {
       {/* Equipment Category Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black/40 z-[1500] flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-xl p-5 max-w-3xl w-full shadow-sm border border-slate-200 max-h-[90vh] flex flex-col my-auto space-y-4">
+          <div className="bg-white rounded-xl p-5 max-w-4xl w-full shadow-sm border border-slate-200 max-h-[90vh] flex flex-col my-auto space-y-4">
             <div className="flex justify-between items-center pb-2.5 border-b border-slate-100 shrink-0">
               <div>
                 <h3 className="font-semibold text-slate-900 text-sm">
@@ -812,8 +812,8 @@ export default function EquipmentCategoriesTab({ showMsg }) {
                           </div>
                         )}
                       </div>
-                      <div className="max-w-[200px] mx-auto border border-slate-200 rounded-lg p-2.5 bg-white">
-                        <div className="w-full aspect-video bg-slate-50 border border-slate-100 rounded overflow-hidden flex items-center justify-center p-1">
+                      <div className="w-full border border-slate-200 rounded-xl p-3 bg-white shadow-xs">
+                        <div className="w-full aspect-video bg-slate-50 border border-slate-100 rounded-lg overflow-hidden flex items-center justify-center p-1">
                           {(form.photo || form.avatar) ? (
                             <div className="w-full h-full overflow-hidden flex items-center justify-center">
                               <img
@@ -824,23 +824,26 @@ export default function EquipmentCategoriesTab({ showMsg }) {
                               />
                             </div>
                           ) : (
-                            <span className="text-[10px] font-normal text-slate-400">
-                              {form.eq_name || "Preview"}
-                            </span>
+                            <div className="flex flex-col items-center justify-center text-center p-2">
+                              <Package size={24} className="text-slate-300 mb-1" />
+                              <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wide">
+                                {form.eq_name || "EQUIPMENT NAME"}
+                              </span>
+                            </div>
                           )}
                         </div>
-                        <div className="mt-2">
-                          <p className="font-medium text-xs text-slate-900 truncate">
+                        <div className="mt-2.5 space-y-1">
+                          <p className="font-bold text-xs sm:text-sm text-slate-900 truncate">
                             {form.eq_name || "Equipment Name"}
                           </p>
-                          <div className="mt-0.5">
+                          <div>
                             {form.is_public ? (
-                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200">
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200">
                                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                                 Public View Active
                               </span>
                             ) : (
-                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold text-slate-500 bg-slate-100 border border-slate-200">
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold text-slate-500 bg-slate-100 border border-slate-200">
                                 <EyeOff size={10} className="text-slate-400" />
                                 Hidden in Public
                               </span>

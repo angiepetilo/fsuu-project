@@ -43,6 +43,71 @@ const getEndOfWeekStr = () => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 };
 
+export const formatVenueEquipmentTypes = (b) => {
+  if (!b) return "-";
+
+  // 1. Structured relation
+  const structItems = b.venue_booking_equipment || b.venueBookingEquipment || b.equipment_items;
+  if (Array.isArray(structItems) && structItems.length > 0) {
+    const list = structItems.map(item => {
+      const name = item.equipment_type?.eq_name || item.equipment_type?.name || item.others_specify || item.name;
+      const qty = item.quantity_requested || item.quantity;
+      if (!name) return null;
+      return qty && qty > 1 ? `${name} (${qty})` : name;
+    }).filter(Boolean);
+    if (list.length > 0) return list.join(", ");
+  }
+
+  // 2. equipment_types column (array or string)
+  if (b.equipment_types) {
+    if (Array.isArray(b.equipment_types) && b.equipment_types.length > 0) {
+      return b.equipment_types.filter(Boolean).join(", ");
+    }
+    if (typeof b.equipment_types === "string" && b.equipment_types.trim()) {
+      try {
+        const parsed = JSON.parse(b.equipment_types);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed.filter(Boolean).join(", ");
+      } catch {
+        const clean = b.equipment_types.trim();
+        if (clean && !["none", "n/a", "no", "—", "-", "null", "undefined"].includes(clean.toLowerCase())) {
+          return clean;
+        }
+      }
+    }
+  }
+
+  // 3. equipment_notes / equipment_needed_remarks / equipment_remarks
+  const rawNotes = b.equipment_notes || b.equipment_needed_remarks || b.equipment_remarks || "";
+  if (rawNotes && typeof rawNotes === "string") {
+    let clean = rawNotes.trim();
+    // Strip leading "Equipment-Needed:" or "Equipment Needed:"
+    clean = clean.replace(/^equipment[- ]?needed\s*:\s*/i, "").trim();
+    if (clean && !["none", "n/a", "no", "—", "-", "null", "undefined"].includes(clean.toLowerCase())) {
+      return clean;
+    }
+  }
+
+  // 4. Fallback: If assigned_units has barcodes, show count
+  const au = b.assigned_units;
+  if (au) {
+    let barcodes = [];
+    if (Array.isArray(au)) barcodes = au.filter(Boolean);
+    else if (typeof au === "object" && au !== null) barcodes = Object.values(au).filter(Boolean);
+    else if (typeof au === "string") {
+      try {
+        const p = JSON.parse(au);
+        if (Array.isArray(p)) barcodes = p.filter(Boolean);
+        else if (typeof p === "object" && p !== null) barcodes = Object.values(p).filter(Boolean);
+      } catch {}
+    }
+    if (barcodes.length > 0) {
+      return `${barcodes.length} unit${barcodes.length > 1 ? 's' : ''}`;
+    }
+  }
+
+  return "-";
+};
+
 export default function VenueBookings() {
   const { hasPermission } = usePermissions();
   const context = useOutletContext();
@@ -222,7 +287,8 @@ export default function VenueBookings() {
         const dept = (b.program_office || b.department || "").toLowerCase();
         const vName = (b.venue?.name || b.venue_name || "").toLowerCase();
         const purpose = (b.purpose || "").toLowerCase();
-        if (!ref.includes(q) && !filer.includes(q) && !dept.includes(q) && !vName.includes(q) && !purpose.includes(q)) {
+        const eqTypes = formatVenueEquipmentTypes(b).toLowerCase();
+        if (!ref.includes(q) && !filer.includes(q) && !dept.includes(q) && !vName.includes(q) && !purpose.includes(q) && !eqTypes.includes(q)) {
           return false;
         }
       }
@@ -425,7 +491,7 @@ export default function VenueBookings() {
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-slate-50/80 border-b border-slate-100">
-                {["#", "Track Number", "Requestor", "Department", "Venue", "Date", "Time", "Status", "Action"].map(h => (
+                {["#", "Track Number", "Requestor", "Department", "Venue", "Equipment Types", "Date", "Time", "Status", "Action"].map(h => (
                   <th key={h} className="px-4 py-3.5 text-left text-[11px] font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap">
                     {h}
                   </th>
@@ -435,7 +501,7 @@ export default function VenueBookings() {
             <tbody className="divide-y divide-slate-100 text-xs font-semibold">
               {loading && bookings.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="text-center py-12">
+                  <td colSpan={10} className="text-center py-12">
                     <div className="flex items-center justify-center gap-2 text-slate-400">
                       <div className="w-4 h-4 rounded-full border-2 border-slate-200 border-t-blue-500 animate-spin" />
                       <span className="text-xs font-semibold italic">Loading venue bookings...</span>
@@ -444,7 +510,7 @@ export default function VenueBookings() {
                 </tr>
               ) : filteredBookings.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="text-center py-12 text-slate-400 font-semibold">
+                  <td colSpan={10} className="text-center py-12 text-slate-400 font-semibold">
                     No venue bookings found.
                   </td>
                 </tr>
@@ -461,6 +527,7 @@ export default function VenueBookings() {
                   const isOngoingOrInSession = ["ongoing", "on-going", "in_use", "in-use", "approved"].includes(currentStatus.toLowerCase());
                   const scheduledEndDate = b.reservation_end_date || b.date_of_usage || b.start_datetime;
                   const overdueMins = isOngoingOrInSession ? getOverdueMinutes(scheduledEndDate, b.time_end) : 0;
+                  const eqTypes = formatVenueEquipmentTypes(b);
 
                   return (
                     <tr key={`vb-row-${b.id}`} className="hover:bg-slate-50/60 transition-colors">
@@ -471,6 +538,15 @@ export default function VenueBookings() {
                       <td className="px-4 py-3.5 font-extrabold text-slate-900">{requestor}</td>
                       <td className="px-4 py-3.5 text-slate-700">{department}</td>
                       <td className="px-4 py-3.5 font-bold text-blue-700">{venueName}</td>
+                      <td className="px-4 py-3.5 whitespace-nowrap">
+                        {eqTypes !== "-" ? (
+                          <span className="font-extrabold text-blue-700 dark:text-blue-400 bg-blue-50/80 dark:bg-blue-950/40 px-2.5 py-1 rounded-lg border border-blue-200/80 dark:border-blue-800/60 inline-block max-w-[220px] truncate" title={eqTypes}>
+                            {eqTypes}
+                          </span>
+                        ) : (
+                          <span className="font-bold text-slate-400">-</span>
+                        )}
+                      </td>
                       <td className="px-4 py-3.5 text-slate-600 whitespace-nowrap">{usageDate}</td>
                       <td className="px-4 py-3.5 text-slate-600 whitespace-nowrap">{timeRange}</td>
                       <td className="px-4 py-3.5">
@@ -519,6 +595,7 @@ export default function VenueBookings() {
               const isOngoingOrInSession = ["ongoing", "on-going", "in_use", "in-use", "approved"].includes(currentStatus.toLowerCase());
               const scheduledEndDate = b.reservation_end_date || b.date_of_usage || b.start_datetime;
               const overdueMins = isOngoingOrInSession ? getOverdueMinutes(scheduledEndDate, b.time_end) : 0;
+              const eqTypes = formatVenueEquipmentTypes(b);
 
               return (
                 <div key={`vb-card-${b.id}`} className="p-4 space-y-3 bg-white hover:bg-slate-50/50 transition-colors">
@@ -537,6 +614,16 @@ export default function VenueBookings() {
                     <div className="flex justify-between items-center text-slate-700">
                       <span className="text-slate-500 font-medium">Facility / Room:</span>
                       <span className="font-bold text-blue-700">{venueName}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-slate-700">
+                      <span className="text-slate-500 font-medium">Equipment Types:</span>
+                      {eqTypes !== "-" ? (
+                        <span className="font-extrabold text-blue-700 dark:text-blue-400 bg-blue-50/80 dark:bg-blue-950/40 px-2.5 py-0.5 rounded-lg border border-blue-200/80 dark:border-blue-800/60 inline-block max-w-[180px] truncate" title={eqTypes}>
+                          {eqTypes}
+                        </span>
+                      ) : (
+                        <span className="font-bold text-slate-400">-</span>
+                      )}
                     </div>
                     <div className="flex justify-between items-center text-slate-700">
                       <span className="text-slate-500 font-medium">Schedule:</span>

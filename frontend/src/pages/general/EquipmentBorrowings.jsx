@@ -37,6 +37,68 @@ const getEndOfWeekStr = () => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 };
 
+export const formatBorrowEquipmentTypes = (b) => {
+  if (!b) return "-";
+
+  // 1. Check structured items.equipmentType
+  const structItems = b.items || b.equipment_items || b.equipmentItems || b.borrowed_items;
+  if (Array.isArray(structItems) && structItems.length > 0) {
+    const list = structItems.map(item => {
+      const name = item.equipment_type?.eq_name || item.equipment_type?.name || item.equipmentType?.eq_name || item.equipmentType?.name || item.name || item.equipment_name || item.item_name || item.others_specify;
+      const qty = item.quantity_requested || item.quantity;
+      if (!name) return null;
+      return qty && qty > 1 ? `${name} (${qty})` : name;
+    }).filter(Boolean);
+    if (list.length > 0) return list.join(", ");
+  }
+
+  // 2. Direct equipment_type or name fields (excluding fallback generic text)
+  const directName = b.equipment_type?.eq_name || b.equipment_type?.name || b.equipmentType?.eq_name || b.equipmentType?.name || b.equipment_name || b.item_name;
+  if (directName && directName !== "Audio Visual Gear" && directName.trim() !== "") {
+    return directName;
+  }
+
+  // 3. Check equipment_types column (array or string)
+  if (b.equipment_types) {
+    if (Array.isArray(b.equipment_types) && b.equipment_types.length > 0) {
+      return b.equipment_types.filter(Boolean).join(", ");
+    }
+    if (typeof b.equipment_types === "string" && b.equipment_types.trim()) {
+      try {
+        const parsed = JSON.parse(b.equipment_types);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed.filter(Boolean).join(", ");
+      } catch {
+        const clean = b.equipment_types.trim();
+        if (clean && !["none", "n/a", "no", "—", "-", "null", "undefined"].includes(clean.toLowerCase())) {
+          return clean;
+        }
+      }
+    }
+  }
+
+  // 4. Fallback: If assigned_units has barcodes, count them
+  const au = b.assigned_units;
+  if (au) {
+    let barcodes = [];
+    if (Array.isArray(au)) barcodes = au.filter(Boolean);
+    else if (typeof au === "object" && au !== null) barcodes = Object.values(au).filter(Boolean);
+    else if (typeof au === "string") {
+      try {
+        const p = JSON.parse(au);
+        if (Array.isArray(p)) barcodes = p.filter(Boolean);
+        else if (typeof p === "object" && p !== null) barcodes = Object.values(p).filter(Boolean);
+      } catch {}
+    }
+    if (barcodes.length > 0) {
+      return `${barcodes.length} unit${barcodes.length > 1 ? 's' : ''}`;
+    }
+  }
+
+  if (directName) return directName;
+
+  return "-";
+};
+
 export default function EquipmentBorrowings() {
   const { hasPermission } = usePermissions();
   const context = useOutletContext();
@@ -207,9 +269,10 @@ export default function EquipmentBorrowings() {
         const ref = (b.reference_code || b.tracking_number?.reference_code || `EQUIP-REQ-${b.id}`).toLowerCase();
         const borrower = (b.borrower_name || b.filer_name || b.requestor || "").toLowerCase();
         const dept = (b.department || b.program_office || "").toLowerCase();
-        const itemsStr = (b.items || []).map(it => it.equipment_type?.name || it.equipment_unit?.name || it.brand || it.model || "").join(" ").toLowerCase();
+        const itemsStr = (b.items || []).map(it => it.equipment_type?.name || it.equipment_type?.eq_name || it.equipment_unit?.name || it.brand || it.model || "").join(" ").toLowerCase();
         const purpose = (b.purpose || "").toLowerCase();
-        if (!ref.includes(q) && !borrower.includes(q) && !dept.includes(q) && !itemsStr.includes(q) && !purpose.includes(q)) {
+        const eqTypes = formatBorrowEquipmentTypes(b).toLowerCase();
+        if (!ref.includes(q) && !borrower.includes(q) && !dept.includes(q) && !itemsStr.includes(q) && !purpose.includes(q) && !eqTypes.includes(q)) {
           return false;
         }
       }
@@ -368,8 +431,8 @@ export default function EquipmentBorrowings() {
 
 
 
-      {/* Search & Date Controls Bar */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 p-3.5 shadow-xs">
+      {/* Search & Status Controls Bar */}
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-3.5 shadow-xs">
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
           {/* Search Input */}
           <div className="relative flex-1 max-w-md">
@@ -379,7 +442,7 @@ export default function EquipmentBorrowings() {
               placeholder="Search tracking, borrower, department, item..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-8 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:border-blue-500 focus:bg-white transition-all placeholder:text-slate-400"
+              className="w-full pl-9 pr-8 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium focus:outline-none focus:border-blue-500 focus:bg-white dark:focus:bg-slate-900 text-slate-900 dark:text-white transition-all placeholder:text-slate-400"
             />
             {searchQuery && (
               <button
@@ -429,13 +492,13 @@ export default function EquipmentBorrowings() {
       </div>
 
       {/* Table & Mobile Cards Container */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs overflow-hidden">
         {/* Desktop Table (>= md) */}
         <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-slate-50/80 border-b border-slate-100">
-                {["#", "Track Number", "Requestor", "Department", "Equipment", "Date", "Time", "Status", "Action"].map(h => (
+                {["#", "Track Number", "Requestor", "Department", "Equipment Types", "Date", "Time", "Status", "Action"].map(h => (
                   <th key={h} className="px-4 py-3.5 text-left text-[11px] font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap">{h}</th>
                 ))}
               </tr>
@@ -460,7 +523,7 @@ export default function EquipmentBorrowings() {
                 const refCode = b.tracking_number?.reference_code || b.reference_code || `EQUIP-REQ-${b.id}`;
                 const requestor = b.filer_name || b.requestor_name || "—";
                 const department = b.program_office || b.requestor_program_office || "—";
-                const equipment = b.equipment_type?.name || b.equipment_name || b.item_name || "Audio Visual Gear";
+                const eqTypes = formatBorrowEquipmentTypes(b);
                 const usageDate = formatDate(b.date_of_usage || b.start_datetime);
                 const rawStart = b.time_start || b.start_datetime;
                 const rawEnd = b.time_end || b.end_datetime;
@@ -476,7 +539,15 @@ export default function EquipmentBorrowings() {
                     <td className="px-4 py-3.5 font-mono text-xs font-bold text-blue-600 whitespace-nowrap">{refCode}</td>
                     <td className="px-4 py-3.5 font-extrabold text-slate-900">{requestor}</td>
                     <td className="px-4 py-3.5 text-slate-700">{department}</td>
-                    <td className="px-4 py-3.5 font-bold text-blue-700">{equipment}</td>
+                    <td className="px-4 py-3.5 whitespace-nowrap">
+                      {eqTypes !== "-" ? (
+                        <span className="font-extrabold text-blue-700 dark:text-blue-400 bg-blue-50/80 dark:bg-blue-950/40 px-2.5 py-1 rounded-lg border border-blue-200/80 dark:border-blue-800/60 inline-block max-w-[220px] truncate" title={eqTypes}>
+                          {eqTypes}
+                        </span>
+                      ) : (
+                        <span className="font-bold text-slate-400">-</span>
+                      )}
+                    </td>
                     <td className="px-4 py-3.5 text-slate-600 whitespace-nowrap">{usageDate}</td>
                     <td className="px-4 py-3.5 text-slate-600 whitespace-nowrap">{timeRange}</td>
                     <td className="px-4 py-3.5">
@@ -489,7 +560,7 @@ export default function EquipmentBorrowings() {
                       <button
                         onClick={() => setSelectedId(b.id)}
                         title="View Details"
-                        className="p-2 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg font-bold text-xs transition-all cursor-pointer"
+                        className="p-2 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-xl font-extrabold text-xs transition-all cursor-pointer shadow-2xs"
                       >
                         <Eye size={16} />
                       </button>
@@ -517,7 +588,7 @@ export default function EquipmentBorrowings() {
               const refCode = b.tracking_number?.reference_code || b.reference_code || `EQUIP-REQ-${b.id}`;
               const requestor = b.filer_name || b.requestor_name || "—";
               const department = b.program_office || b.requestor_program_office || "—";
-              const equipment = b.equipment_type?.name || b.equipment_name || b.item_name || "Audio Visual Gear";
+              const eqTypes = formatBorrowEquipmentTypes(b);
               const usageDate = formatDate(b.date_of_usage || b.start_datetime);
               const rawStart = b.time_start || b.start_datetime;
               const rawEnd = b.time_end || b.end_datetime;
@@ -541,8 +612,14 @@ export default function EquipmentBorrowings() {
                   </div>
                   <div className="bg-slate-50 p-3 rounded-xl text-xs space-y-1.5 border border-slate-100">
                     <div className="flex justify-between items-center text-slate-700">
-                      <span className="text-slate-500 font-medium">Equipment:</span>
-                      <span className="font-bold text-blue-700">{equipment}</span>
+                      <span className="text-slate-500 font-medium">Equipment Types:</span>
+                      {eqTypes !== "-" ? (
+                        <span className="font-extrabold text-blue-700 dark:text-blue-400 bg-blue-50/80 dark:bg-blue-950/40 px-2.5 py-0.5 rounded-lg border border-blue-200/80 dark:border-blue-800/60 inline-block max-w-[180px] truncate" title={eqTypes}>
+                          {eqTypes}
+                        </span>
+                      ) : (
+                        <span className="font-bold text-slate-400">-</span>
+                      )}
                     </div>
                     <div className="flex justify-between items-center text-slate-700">
                       <span className="text-slate-500 font-medium">Schedule:</span>

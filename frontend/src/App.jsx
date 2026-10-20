@@ -17,7 +17,6 @@ const EquipmentBorrowing = lazy(() => import("./pages/public/EquipmentBorrowing/
 
 // Auth pages
 const StaffLogin = lazy(() => import("./pages/auth/StaffLogin"));
-const GoogleCallback = lazy(() => import("./pages/auth/GoogleCallback"));
 const AccountActivation = lazy(() => import("./pages/auth/AccountActivation"));
 const ForgotPassword = lazy(() => import("./pages/auth/ForgotPassword"));
 
@@ -350,7 +349,6 @@ function AppContent() {
             <Route path="/login" element={<StaffLogin />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ForgotPassword />} />
-            <Route path="/auth/google/callback" element={<GoogleCallback />} />
             <Route path="/activate/:token" element={<AccountActivation />} />
 
             {/* SysAd Portal — dedicated route for Super Administrator */}
