@@ -1,4 +1,4 @@
-import { Loader2, Eye, Pencil, EyeOff, MoreVertical, ChevronLeft, ChevronRight } from "lucide-react";
+import { Loader2, Eye, Pencil, EyeOff, MoreVertical, ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
 
 /**
  * HistoryTable — Renders Venue or Equipment history records table with ActionMenuPopover and pagination.
@@ -399,9 +399,9 @@ export default function HistoryTable({
                           <button
                             type="button"
                             onClick={() => { handleDeleteHistory(b.id, refCode, "venue"); setActiveMenuId(null); }}
-                            className="w-full text-left px-3 py-1.5 rounded-lg hover:bg-slate-100 text-slate-600 flex items-center gap-2 cursor-pointer font-bold"
+                            className="w-full text-left px-3 py-1.5 rounded-lg hover:bg-rose-50 text-rose-600 flex items-center gap-2 cursor-pointer font-bold"
                           >
-                            <EyeOff size={13} /> Disable
+                            <Trash2 size={13} className="text-rose-500" /> Clear / Hide
                           </button>
                         </ActionMenuPopover>
                       </td>
@@ -717,9 +717,9 @@ export default function HistoryTable({
                           <button
                             type="button"
                             onClick={() => { handleDeleteHistory(b.id, refCode, "equipment"); setActiveMenuId(null); }}
-                            className="w-full text-left px-3 py-1.5 rounded-lg hover:bg-slate-100 text-slate-600 flex items-center gap-2 cursor-pointer font-bold"
+                            className="w-full text-left px-3 py-1.5 rounded-lg hover:bg-rose-50 text-rose-600 flex items-center gap-2 cursor-pointer font-bold"
                           >
-                            <EyeOff size={13} /> Disable
+                            <Trash2 size={13} className="text-rose-500" /> Clear / Hide
                           </button>
                         </ActionMenuPopover>
                       </td>

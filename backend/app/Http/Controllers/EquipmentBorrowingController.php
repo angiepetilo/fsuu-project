@@ -98,7 +98,7 @@ class EquipmentBorrowingController extends Controller
     {
         $this->authorize('view', $equipmentBorrowing);
 
-        return response()->json($equipmentBorrowing->load('items.equipmentType'));
+        return response()->json($equipmentBorrowing->load(['trackingNumber', 'items.equipmentType']));
     }
 
     public function store(StoreEquipmentBorrowingRequest $request): JsonResponse
@@ -224,6 +224,18 @@ class EquipmentBorrowingController extends Controller
     public function ongoing(\Illuminate\Http\Request $request, EquipmentBorrow $equipmentBorrowing): JsonResponse
     {
         $this->authorize('ongoing', $equipmentBorrowing);
+
+        $user = auth()->user() ?? $request->user();
+        $isSuperAdmin = $user && (method_exists($user, 'isSuperAdmin') ? $user->isSuperAdmin() : (method_exists($user, 'hasRole') && $user->hasRole('super-admin')));
+        $today = now()->timezone('Asia/Manila')->toDateString();
+        $rawDate = $equipmentBorrowing->date_of_usage ?? $equipmentBorrowing->start_datetime;
+        $borrowDate = $rawDate ? \Carbon\Carbon::parse($rawDate)->format('Y-m-d') : null;
+
+        if (!$isSuperAdmin && $borrowDate && $borrowDate > $today) {
+            return response()->json([
+                'message' => "Cannot release equipment early. Scheduled borrow date is {$borrowDate}."
+            ], 422);
+        }
 
         // Capture previous status BEFORE writes — used as idempotency guard for Email 3
         $prevStatus = strtolower($equipmentBorrowing->status ?? $equipmentBorrowing->trackingNumber?->status ?? '');

@@ -7,7 +7,7 @@ import api from "@/lib/axios";
 import notify from "@/lib/notify";
 import { usePermissions } from "@/hooks/usePermissions";
 import { formatTime12, formatTimeRange12, formatDateTime } from "@/lib/dateUtils";
-import { getOverdueMinutes, getInspectionEligibility } from "@/lib/dateTimeUtils";
+import { getOverdueMinutes, getInspectionEligibility, getTodayISO } from "@/lib/dateTimeUtils";
 import { resolveStorageUrl } from "@/lib/utils";
 import { formatPhilippineNumber } from "@/lib/phoneValidation";
 import EquipBorrowHeader from "../borrow-modal/EquipBorrowHeader";
@@ -967,6 +967,21 @@ export default function EquipmentBorrowDetailModal({
   };
 
   const handleReleaseOngoing = async () => {
+    // Date guard: Cannot release equipment until scheduled borrow date arrives
+    const rawBorrowDate = selected?.date_of_usage 
+      || selected?.date_of_use 
+      || selected?.borrow_date 
+      || (selected?.start_datetime ? selected.start_datetime.slice(0, 10) : null);
+    const scheduledBorrowDate = rawBorrowDate ? String(rawBorrowDate).slice(0, 10) : null;
+    const today = getTodayISO();
+    if (scheduledBorrowDate && scheduledBorrowDate > today && !isSuperAdmin) {
+      notify.error(
+        "Cannot Release Early",
+        `Equipment borrowing is scheduled for ${scheduledBorrowDate}. Equipment cannot be released until the scheduled date arrives.`
+      );
+      return;
+    }
+
     // Check if any assigned unit or linked built-in component is damaged or lost
     const hasCompromisedUnit = Object.values(assignedUnitSelections || {}).some((bCode) => {
       if (!bCode || bCode === "—") return false;
@@ -1361,6 +1376,7 @@ export default function EquipmentBorrowDetailModal({
                 handleAction={(id, action, customData) => action === "ongoing" ? handleReleaseOngoing() : handleAction(id, action, customData)}
                 actionLoading={actionLoading}
                 loadingUnits={eqLoading}
+                isSuperAdmin={isSuperAdmin}
               />
             </div>
 

@@ -181,6 +181,7 @@ export default function EquipmentBorrowing({ isPortal: isPortalProp }) {
         e.key === "fsuu_booking_created_ping" ||
         e.key === "fsuu_booking_status_updated_ping" ||
         e.key === "fsuu_equipment_updated_ping" ||
+        e.key === "fsuu_category_updated_ping" ||
         e.key === "fsuu_realtime_sync_ping"
       ) {
         fetchEquipment();
@@ -188,6 +189,8 @@ export default function EquipmentBorrowing({ isPortal: isPortalProp }) {
     };
 
     window.addEventListener("equipment_inventory_updated", handleSync);
+    window.addEventListener("equipment_categories_updated", handleSync);
+    window.addEventListener("equipment_updated", handleSync);
     window.addEventListener("equipment_borrowings_updated", handleSync);
     window.addEventListener("booking_status_updated", handleSync);
     window.addEventListener("fsuu_booking_created", handleSync);
@@ -196,6 +199,8 @@ export default function EquipmentBorrowing({ isPortal: isPortalProp }) {
     return () => {
       clearInterval(catalogSyncTimer);
       window.removeEventListener("equipment_inventory_updated", handleSync);
+      window.removeEventListener("equipment_categories_updated", handleSync);
+      window.removeEventListener("equipment_updated", handleSync);
       window.removeEventListener("equipment_borrowings_updated", handleSync);
       window.removeEventListener("booking_status_updated", handleSync);
       window.removeEventListener("fsuu_booking_created", handleSync);

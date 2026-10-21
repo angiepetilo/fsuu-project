@@ -437,8 +437,8 @@ export default function OperatingHoursTab({ showMsg }) {
             </button>
             <button
               type="submit"
-              disabled={saveLoading}
-              className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold cursor-pointer transition-colors disabled:opacity-50"
+              disabled={saveLoading || !isDirty}
+              className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {saveLoading ? "Saving" : "Save"}
             </button>

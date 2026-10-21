@@ -202,16 +202,74 @@ export default function EquipmentBorrowings() {
     const params = new URLSearchParams(location.search);
     const targetId = params.get("id") || location.state?.selectedId;
     const targetRef = params.get("trk") || params.get("ref");
-    if ((targetId || targetRef) && borrowings.length > 0) {
+    const paramStatus = params.get("status");
+    if (paramStatus && ["pending", "approved", "ongoing", "incomplete"].includes(paramStatus)) {
+      setStatusFilter(paramStatus);
+    }
+    if (!targetId && !targetRef) return;
+
+    // 1. Try finding in loaded borrowings list
+    if (borrowings.length > 0) {
       const match = borrowings.find(b => 
         (targetId && String(b.id) === String(targetId)) ||
         (targetRef && (b.reference_code === targetRef || b.tracking_number?.reference_code === targetRef))
       );
       if (match) {
         setSelectedId(match.id);
+        const matchStatus = (match.status || match.tracking_number?.status || "").toLowerCase();
+        if (!paramStatus) {
+          if (["pending", "approved", "ongoing", "on-going", "incomplete", "released"].includes(matchStatus)) {
+            setStatusFilter(["ongoing", "on-going", "released"].includes(matchStatus) ? "ongoing" : matchStatus);
+          } else {
+            setStatusFilter("all");
+          }
+        }
+        return;
       }
     }
-  }, [location.search, location.state, borrowings]);
+
+    // 2. Fallback: Fetch specific borrowing directly if not found in active list (e.g. completed, returned, damaged)
+    let isSubscribed = true;
+    const fetchTargetBorrowing = async () => {
+      try {
+        let record = null;
+        if (targetId) {
+          const res = await api.get(`/avr-equipment-borrowings/${targetId}`);
+          record = res.data?.data || res.data;
+        } else if (targetRef) {
+          const res = await api.get("/avr-equipment-borrowings", {
+            params: { search: targetRef, include_returned: 1, academic_term_id: "all", all: 1 }
+          });
+          const list = res.data?.data ?? (Array.isArray(res.data) ? res.data : []);
+          record = list.find(b => b.reference_code === targetRef || b.tracking_number?.reference_code === targetRef) || list[0];
+        }
+
+        if (isSubscribed && record && record.id) {
+          setBorrowings(prev => {
+            if (prev.some(b => String(b.id) === String(record.id))) return prev;
+            return [record, ...prev];
+          });
+          setSelectedId(record.id);
+          const matchStatus = (record.status || record.tracking_number?.status || "").toLowerCase();
+          if (!paramStatus) {
+            if (["pending", "approved", "ongoing", "on-going", "incomplete", "released"].includes(matchStatus)) {
+              setStatusFilter(["ongoing", "on-going", "released"].includes(matchStatus) ? "ongoing" : matchStatus);
+            } else {
+              setStatusFilter("all");
+            }
+          }
+        }
+      } catch (err) {
+        console.warn("Could not deep-link fetch target equipment borrowing:", err);
+      }
+    };
+
+    fetchTargetBorrowing();
+
+    return () => {
+      isSubscribed = false;
+    };
+  }, [location.search, location.state, borrowings.length]);
 
   const selectedOfficeId = context?.selectedOfficeId;
 

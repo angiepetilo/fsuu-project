@@ -213,16 +213,70 @@ export default function VenueBookings() {
     if (paramStatus && ["pending", "approved", "ongoing", "incomplete"].includes(paramStatus)) {
       setStatusFilter(paramStatus);
     }
-    if ((targetId || targetRef) && bookings.length > 0) {
+    if (!targetId && !targetRef) return;
+
+    // 1. Try finding in loaded bookings list
+    if (bookings.length > 0) {
       const match = bookings.find(b => 
         (targetId && String(b.id) === String(targetId)) ||
         (targetRef && (b.reference_code === targetRef || b.tracking_number?.reference_code === targetRef))
       );
       if (match) {
         setSelectedId(match.id);
+        const matchStatus = (match.status || match.tracking_number?.status || "").toLowerCase();
+        if (!paramStatus) {
+          if (["pending", "approved", "ongoing", "on-going", "incomplete"].includes(matchStatus)) {
+            setStatusFilter(matchStatus === "on-going" ? "ongoing" : matchStatus);
+          } else {
+            setStatusFilter("all");
+          }
+        }
+        return;
       }
     }
-  }, [location.search, location.state, bookings]);
+
+    // 2. Fallback: Fetch specific venue booking directly if not found in active list (e.g. completed, post-inspected, violation)
+    let isSubscribed = true;
+    const fetchTargetBooking = async () => {
+      try {
+        let record = null;
+        if (targetId) {
+          const res = await api.get(`/avr-venue-bookings/${targetId}`);
+          record = res.data?.data || res.data;
+        } else if (targetRef) {
+          const res = await api.get("/avr-venue-bookings", {
+            params: { search: targetRef, include_returned: 1, academic_term_id: "all", all: 1 }
+          });
+          const list = res.data?.data ?? (Array.isArray(res.data) ? res.data : []);
+          record = list.find(b => b.reference_code === targetRef || b.tracking_number?.reference_code === targetRef) || list[0];
+        }
+
+        if (isSubscribed && record && record.id) {
+          setBookings(prev => {
+            if (prev.some(b => String(b.id) === String(record.id))) return prev;
+            return [record, ...prev];
+          });
+          setSelectedId(record.id);
+          const matchStatus = (record.status || record.tracking_number?.status || "").toLowerCase();
+          if (!paramStatus) {
+            if (["pending", "approved", "ongoing", "on-going", "incomplete"].includes(matchStatus)) {
+              setStatusFilter(matchStatus === "on-going" ? "ongoing" : matchStatus);
+            } else {
+              setStatusFilter("all");
+            }
+          }
+        }
+      } catch (err) {
+        console.warn("Could not deep-link fetch target venue booking:", err);
+      }
+    };
+
+    fetchTargetBooking();
+
+    return () => {
+      isSubscribed = false;
+    };
+  }, [location.search, location.state, bookings.length]);
 
   const officeScope = context?.adminOffice || context?.selectedOffice || "All Offices";
   const selectedOfficeId = context?.selectedOfficeId;

@@ -362,6 +362,7 @@ class ListingController extends Controller
             }
             $builtInUnits = is_array($rawBuilt) ? array_values(array_filter($rawBuilt, fn($v) => !empty($v))) : [];
 
+            $photoUrl = $e->photo ?? $e->avatar;
             return [
                 'id'              => $e->id,
                 'name'            => $e->eq_name ?? 'Equipment',
@@ -370,6 +371,12 @@ class ListingController extends Controller
                 'brand'           => $e->brand,
                 'description'     => $e->description ?? 'Standard AV Gear',
                 'avatar'          => $e->avatar,
+                'photo'           => $photoUrl,
+                'image'           => $photoUrl,
+                'photo_url'       => $photoUrl,
+                'photo_fit'       => $e->photo_fit ?? 'contain',
+                'photo_scale'     => (int)($e->photo_scale ?? 100),
+                'updated_at'      => $e->updated_at,
                 'total_quantity'  => $total,
                 'present_count'   => $operational,
                 'available_count' => $avail,

@@ -122,6 +122,15 @@ class OtpController extends Controller
             }
 
             $cooldownKey = 'otp_cooldown_sms_' . $cleanPhone;
+            $attemptsKey = 'otp_attempts_sms_' . $cleanPhone;
+            $attempts = (int) Cache::get($attemptsKey, 0);
+
+            if ($attempts >= 3) {
+                return response()->json([
+                    'message' => 'Maximum of 2 resend attempts reached. Please check your mobile messages or contact AVR support.',
+                    'max_attempts' => true,
+                ], 429);
+            }
 
             if (Cache::has($cooldownKey)) {
                 $remaining = Cache::get($cooldownKey) - time();
@@ -159,7 +168,8 @@ class OtpController extends Controller
                 'id'         => $verification->id,
             ], $expiresAt);
 
-            Cache::put($cooldownKey, time() + 60, 60);
+            Cache::put($attemptsKey, $attempts + 1, now()->addMinutes(15));
+            Cache::put($cooldownKey, time() + 30, 30);
 
             // Dispatch SMS via SmsService
             $serviceName = $isEquipment ? 'equipment borrowing' : 'venue booking';
@@ -170,11 +180,13 @@ class OtpController extends Controller
             }
 
             return response()->json([
-                'message'      => 'Verification code sent to your mobile number via SMS.',
-                'channel'      => 'sms',
-                'phone_number' => $cleanPhone,
-                'expires_in'   => 600,
-                'cooldown'     => 60,
+                'message'         => 'Verification code sent to your mobile number via SMS.',
+                'channel'         => 'sms',
+                'phone_number'    => $cleanPhone,
+                'expires_in'      => 600,
+                'cooldown'        => 30,
+                'resend_attempts' => $attempts,
+                'resends_left'    => max(0, 2 - $attempts),
             ]);
         }
 
@@ -264,9 +276,19 @@ class OtpController extends Controller
             }
         }
 
+        $attemptsKey = 'otp_attempts_email_' . hash('sha256', $email);
+        $attempts = (int) Cache::get($attemptsKey, 0);
+
+        if ($attempts >= 3) {
+            return response()->json([
+                'message'      => 'You have reached the maximum of 2 resend attempts. Please wait 15 minutes before requesting a new code.',
+                'max_attempts' => true,
+            ], 429);
+        }
+
         $cooldownKey = 'otp_cooldown_' . hash('sha256', $email);
 
-        // Cooldown check (60 seconds)
+        // Cooldown check (30 seconds)
         if (Cache::has($cooldownKey)) {
             $remaining = Cache::get($cooldownKey) - time();
             if ($remaining > 0) {
@@ -298,8 +320,9 @@ class OtpController extends Controller
             'id'         => $verification->id,
         ], $expiresAt);
 
-        // Set 60-second cooldown
-        Cache::put($cooldownKey, time() + 60, 60);
+        // Set 30-second cooldown and track attempt
+        Cache::put($attemptsKey, $attempts + 1, now()->addMinutes(15));
+        Cache::put($cooldownKey, time() + 30, 30);
 
         $resType = 'venue';
         if ($request->input('reservation_type') === 'equipment' || $request->has('borrow_date') || $request->input('type') === 'equipment') {
@@ -313,10 +336,12 @@ class OtpController extends Controller
         \Illuminate\Support\Facades\Log::info("[OTP] Email verification code for {$email}: {$code}");
 
         $response = [
-            'message'    => 'Verification code sent successfully. Please check your inbox.',
-            'channel'    => 'email',
-            'expires_in' => 600,
-            'cooldown'   => 60,
+            'message'         => 'Verification code sent successfully. Please check your inbox.',
+            'channel'         => 'email',
+            'expires_in'      => 600,
+            'cooldown'        => 30,
+            'resend_attempts' => $attempts,
+            'resends_left'    => max(0, 2 - $attempts),
         ];
 
         if (app()->environment('local')) {
@@ -381,6 +406,8 @@ class OtpController extends Controller
                 ]);
 
             Cache::forget('otp_sms_' . $cleanPhone);
+            Cache::forget('otp_attempts_sms_' . $cleanPhone);
+            Cache::forget('otp_cooldown_sms_' . $cleanPhone);
 
             return response()->json([
                 'verified' => true,
@@ -423,6 +450,8 @@ class OtpController extends Controller
 
         $cacheKey = 'otp_email_' . hash('sha256', $email);
         Cache::forget($cacheKey);
+        Cache::forget('otp_attempts_email_' . hash('sha256', $email));
+        Cache::forget('otp_cooldown_' . hash('sha256', $email));
 
         return response()->json([
             'verified' => true,

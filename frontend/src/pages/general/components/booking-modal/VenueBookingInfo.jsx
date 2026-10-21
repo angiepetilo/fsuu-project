@@ -202,72 +202,7 @@ export default function VenueBookingInfo({
     });
   }, [assignedUnitSelections, selected, physicalUnits, isOngoing]);
 
-  // Determine unassigned slots for requested categories
-  const unassignedSlots = useMemo(() => {
-    if (!selected || !requestedCategories || requestedCategories.length === 0) return [];
-    const assignedBarcodesSet = new Set(assignedUnitsList.map(u => u.barcode.toUpperCase()));
-    
-    const slots = [];
-    requestedCategories.forEach((cat, catIdx) => {
-      const catName = cat.name || cat.category || cat.equipment_types_name || "Equipment";
-      const qty = parseInt(cat.quantity || 1, 10) || 1;
-      const typeId = cat.equipment_type_id || cat.id || null;
-
-      for (let uIdx = 0; uIdx < qty; uIdx++) {
-        const slotKey = `${catIdx}-${uIdx}`;
-        const currentBarcode = assignedUnitSelections ? assignedUnitSelections[slotKey] : null;
-        if (!currentBarcode || !assignedBarcodesSet.has(String(currentBarcode).trim().toUpperCase())) {
-          const availableUnits = getAvailableUnitsForCategory 
-            ? getAvailableUnitsForCategory(catName, typeId)
-            : (physicalUnits || []).filter(pu => {
-                const puCat = (pu.equipmentType?.eq_name || pu.equipment_type?.eq_name || pu.category || "").toUpperCase();
-                return puCat === catName.toUpperCase() && pu.status === "available";
-              });
-          
-          slots.push({
-            slotKey,
-            catIdx,
-            uIdx,
-            category: catName,
-            typeId,
-            slotNum: uIdx + 1,
-            availableUnits: availableUnits.filter(u => !assignedBarcodesSet.has(String(u.barcode || u.serial_number || '').trim().toUpperCase())),
-          });
-        }
-      }
-    });
-    return slots;
-  }, [selected, requestedCategories, assignedUnitsList, assignedUnitSelections, getAvailableUnitsForCategory, physicalUnits]);
-
   if (!selected) return null;
-
-  const handleQuickAssign = async (slotKey, barcode) => {
-    if (!slotKey || !barcode || !selected?.id) return;
-    setAssigningUnit(true);
-    const nextSelections = { ...(assignedUnitSelections || {}), [slotKey]: barcode };
-    if (setAssignedUnitSelections) {
-      setAssignedUnitSelections(nextSelections);
-    }
-    try {
-      localStorage.setItem(`fsuu_assigned_units_${selected.id}`, JSON.stringify(nextSelections));
-      await api.put(`/avr-venue-bookings/${selected.id}/assign-units`, {
-        assigned_units: nextSelections,
-      });
-      notify.success("Equipment Unit Assigned", `Physical unit ${barcode} assigned to venue booking.`);
-      window.dispatchEvent(new Event("venue_bookings_updated"));
-      window.dispatchEvent(new Event("equipment_inventory_updated"));
-      if (onBookingUpdated) {
-        onBookingUpdated(prev => ({
-          ...prev,
-          assigned_units: nextSelections,
-        }));
-      }
-    } catch (err) {
-      notify.error("Assignment Failed", err.response?.data?.message || "Failed to assign equipment unit.");
-    } finally {
-      setAssigningUnit(false);
-    }
-  };
 
   const handleQuickUnassign = async (slotKey, barcode) => {
     if (!selected?.id) return;
@@ -649,66 +584,13 @@ export default function VenueBookingInfo({
               </div>
             )}
 
-            {/* Unassigned slots dropdown to easily select units in the booking form */}
-            {canAssign && unassignedSlots.length > 0 && (
-              <div className="p-2.5 rounded-xl bg-amber-50/70 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 space-y-2">
-                <div className="flex items-center gap-1.5 text-amber-900 dark:text-amber-300 text-xs font-bold">
-                  <AlertCircle size={13} className="shrink-0 text-amber-600 dark:text-amber-400" />
-                  <span>
-                    {assignedUnitsList.length === 0
-                      ? "Select physical equipment unit for this venue reservation:"
-                      : "Unassigned equipment unit slot(s) remaining:"}
-                  </span>
-                </div>
-                <div className="space-y-1.5">
-                  {unassignedSlots.map((uSlot, sIdx) => (
-                    <div key={sIdx} className="flex flex-col sm:flex-row sm:items-center gap-1.5">
-                      <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 shrink-0 min-w-[130px]">
-                        {uSlot.category} (Slot #{uSlot.slotNum}):
-                      </span>
-                      {uSlot.availableUnits.length === 0 ? (
-                        <span className="text-[11px] text-amber-700 dark:text-amber-400 font-medium italic">
-                          No available units currently in stock for this category.
-                        </span>
-                      ) : (
-                        <div className="relative flex-1">
-                          <select
-                            onChange={(e) => handleQuickAssign(uSlot.slotKey, e.target.value)}
-                            defaultValue=""
-                            disabled={assigningUnit}
-                            className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-amber-300 dark:border-amber-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-semibold focus:outline-none focus:ring-1 focus:ring-amber-500 cursor-pointer disabled:opacity-50"
-                          >
-                            <option value="" disabled>Choose physical unit ({uSlot.availableUnits.length} available)...</option>
-                            {uSlot.availableUnits.map((unit) => {
-                              const bCode = unit.barcode || unit.serial_number || unit.code || `UNIT-${unit.id}`;
-                              const rawSeq = unit.seq_no ?? unit.sequence_no;
-                              const seq = rawSeq ? `#${String(rawSeq).replace(/^#/, '')} ` : '';
-                              const brand = unit.brand ? `${unit.brand} ` : '';
-                              const model = unit.model || unit.name || '';
-                              return (
-                                <option key={unit.id} value={bCode}>
-                                  {seq}{brand}{model} [{bCode}]
-                                </option>
-                              );
-                            })}
-                          </select>
-                          {assigningUnit && (
-                            <Loader2 size={12} className="animate-spin text-amber-600 absolute right-6 top-1/2 -translate-y-1/2" />
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
         )}
       </div>
 
       {/* Right Column (5/12): Endorsement Document & Walk-in Hardcopy Management */}
       <div className="lg:col-span-5 bg-white dark:bg-slate-900/80 p-4 rounded-2xl border border-slate-200 dark:border-blue-900/50 flex flex-col justify-between space-y-3">
-        <div className="space-y-2.5">
+        <div className="space-y-2.5 flex-1 flex flex-col">
           {/* Header */}
           <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800/80 pb-2">
             <span className="font-extrabold text-slate-900 dark:text-white text-xs flex items-center gap-1.5">
@@ -742,91 +624,81 @@ export default function VenueBookingInfo({
 
           {/* Compact Document File Card */}
           {docUrl ? (
-            <div className="rounded-xl border border-slate-200 dark:border-blue-900/50 bg-slate-50/80 dark:bg-slate-950/60 p-3 space-y-2.5 transition-all">
-              {/* Direct Inline Image Preview */}
-              {!isPdf && (
-                <div
-                  onClick={() => {
-                    if (setFullImageModal) {
-                      setFullImageModal({ url: docUrl, title: fileName, isPdf: false });
-                    } else {
-                      handleOpenDocument(docUrl);
-                    }
-                  }}
-                  className="relative group w-full max-h-56 rounded-lg overflow-hidden border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-center cursor-pointer shadow-2xs hover:border-blue-400 dark:hover:border-blue-700 transition-colors"
-                  title="Click to view full image"
+            <div className="rounded-xl border border-slate-200 dark:border-blue-900/50 bg-slate-50/80 dark:bg-slate-950/60 p-3 space-y-2.5 transition-all flex-1 flex flex-col justify-between">
+              <div className="space-y-2.5 flex-1 flex flex-col">
+                {/* Direct Inline Image Preview */}
+                {!isPdf && (
+                  <div
+                    onClick={() => {
+                      if (setFullImageModal) {
+                        setFullImageModal({ url: docUrl, title: fileName, isPdf: false });
+                      } else {
+                        handleOpenDocument(docUrl);
+                      }
+                    }}
+                    className="relative group w-full flex-1 min-h-[180px] max-h-80 rounded-lg overflow-hidden border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-center cursor-pointer shadow-2xs hover:border-blue-400 dark:hover:border-blue-700 transition-colors"
+                    title="Click to view full image"
+                  >
+                    <img
+                      src={docUrl}
+                      alt={fileName}
+                      className="max-h-72 w-auto object-contain group-hover:scale-[1.02] transition-transform duration-200 py-1"
+                      loading="lazy"
+                    />
+                    <div className="absolute inset-0 bg-slate-900/0 group-hover:bg-slate-900/20 transition-colors flex items-center justify-center pointer-events-none">
+                      <span className="opacity-0 group-hover:opacity-100 transition-opacity bg-white/95 dark:bg-slate-900/95 text-slate-800 dark:text-slate-100 text-[11px] font-bold px-3 py-1 rounded-full shadow-md flex items-center gap-1.5 backdrop-blur-xs">
+                        <Eye size={12} /> Click to expand
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                <div 
+                  className={`flex items-start gap-3 ${isPdf ? "cursor-pointer hover:opacity-80 transition-opacity" : ""}`}
+                  onClick={() => isPdf && handleOpenDocument(docUrl)}
+                  title={isPdf ? "Click to view PDF" : undefined}
                 >
-                  <img
-                    src={docUrl}
-                    alt={fileName}
-                    className="max-h-56 w-auto object-contain group-hover:scale-[1.02] transition-transform duration-200 py-1"
-                    loading="lazy"
-                  />
-                  <div className="absolute inset-0 bg-slate-900/0 group-hover:bg-slate-900/20 transition-colors flex items-center justify-center pointer-events-none">
-                    <span className="opacity-0 group-hover:opacity-100 transition-opacity bg-white/95 dark:bg-slate-900/95 text-slate-800 dark:text-slate-100 text-[11px] font-bold px-3 py-1 rounded-full shadow-md flex items-center gap-1.5 backdrop-blur-xs">
-                      <Eye size={12} /> Click to expand
-                    </span>
+                  {/* File Icon Badge */}
+                  <div className={`p-2.5 rounded-xl shrink-0 flex items-center justify-center ${
+                    isPdf 
+                      ? "bg-rose-50 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400 border border-rose-200 dark:border-rose-900/60" 
+                      : "bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400 border border-blue-200 dark:border-blue-900/60"
+                  }`}>
+                    {isPdf ? <FileText size={22} /> : <ImageIcon size={22} />}
                   </div>
-                </div>
-              )}
 
-              <div className="flex items-start gap-3">
-                {/* File Icon Badge */}
-                <div className={`p-2.5 rounded-xl shrink-0 flex items-center justify-center ${
-                  isPdf 
-                    ? "bg-rose-50 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400 border border-rose-200 dark:border-rose-900/60" 
-                    : "bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400 border border-blue-200 dark:border-blue-900/60"
-                }`}>
-                  {isPdf ? <FileText size={22} /> : <ImageIcon size={22} />}
-                </div>
+                  {/* File Details */}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-1">
+                      <p className="text-xs font-bold text-slate-900 dark:text-white truncate" title={fileName}>
+                        {fileName}
+                      </p>
+                      <span className={`px-1.5 py-0.5 rounded text-[9.5px] font-mono font-black uppercase shrink-0 ${
+                        isPdf 
+                          ? "bg-rose-100 text-rose-700 dark:bg-rose-900/60 dark:text-rose-300" 
+                          : "bg-blue-100 text-blue-700 dark:bg-blue-900/60 dark:text-blue-300"
+                      }`}>
+                        {fileExtension}
+                      </span>
+                    </div>
 
-                {/* File Details */}
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center justify-between gap-1">
-                    <p className="text-xs font-bold text-slate-900 dark:text-white truncate" title={fileName}>
-                      {fileName}
+                    <p className="text-[10.5px] text-slate-500 dark:text-slate-400 font-medium mt-0.5">
+                      {isPdf ? "Official PDF Endorsement Letter" : "Scanned Endorsement Image"}
                     </p>
-                    <span className={`px-1.5 py-0.5 rounded text-[9.5px] font-mono font-black uppercase shrink-0 ${
-                      isPdf 
-                        ? "bg-rose-100 text-rose-700 dark:bg-rose-900/60 dark:text-rose-300" 
-                        : "bg-blue-100 text-blue-700 dark:bg-blue-900/60 dark:text-blue-300"
-                    }`}>
-                      {fileExtension}
-                    </span>
+
+                    <p className="text-[10px] font-mono text-slate-400 dark:text-slate-500 mt-0.5">
+                      Filed: {formatDateTimeFiled ? formatDateTimeFiled(selected.created_at) : (selected.created_at || "Recent")}
+                    </p>
                   </div>
-
-                  <p className="text-[10.5px] text-slate-500 dark:text-slate-400 font-medium mt-0.5">
-                    {isPdf ? "Official PDF Endorsement Letter" : "Scanned Endorsement Image"}
-                  </p>
-
-                  <p className="text-[10px] font-mono text-slate-400 dark:text-slate-500 mt-0.5">
-                    Filed: {formatDateTimeFiled ? formatDateTimeFiled(selected.created_at) : (selected.created_at || "Recent")}
-                  </p>
                 </div>
               </div>
 
-              {/* Action Buttons: Preview / Zoom & Download */}
-              <div className="flex items-center gap-2 pt-1 border-t border-slate-200/60 dark:border-slate-800/80">
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (setFullImageModal) {
-                      setFullImageModal({ url: docUrl, title: fileName, isPdf });
-                    } else {
-                      handleOpenDocument(docUrl);
-                    }
-                  }}
-                  className="flex-1 py-1.5 px-3 bg-white dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-blue-950/60 text-slate-800 dark:text-slate-200 hover:text-blue-600 dark:hover:text-blue-300 border border-slate-300 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-800 rounded-lg text-xs font-extrabold flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
-                  title="Open full-screen preview"
-                >
-                  <Eye size={13} />
-                  <span>Preview / Zoom</span>
-                </button>
-
+              {/* Action Button: Download */}
+              <div className="pt-2 border-t border-slate-200/60 dark:border-slate-800/80">
                 <button
                   type="button"
                   onClick={() => handleDownloadDocument(docUrl, fileName)}
-                  className="flex-1 py-1.5 px-3 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-700 rounded-lg text-xs font-extrabold flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
+                  className="w-full py-2 px-3 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-700 rounded-lg text-xs font-extrabold flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
                   title="Download endorsement file"
                 >
                   <Download size={13} />

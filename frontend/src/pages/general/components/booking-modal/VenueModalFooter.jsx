@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { Loader2, Play, FileCheck, Check, ShieldAlert, BellRing, AlertTriangle, Clock, ShieldCheck, Ban, PackageCheck } from "lucide-react";
 import api from "@/lib/axios";
 import { notify } from "@/lib/notify";
-import { getInspectionEligibility } from "@/lib/dateTimeUtils";
+import { getInspectionEligibility, getTodayISO } from "@/lib/dateTimeUtils";
 import ConfirmModal from "@/components/ui/ConfirmModal";
 
 /**
@@ -155,39 +155,61 @@ export default function VenueModalFooter({
         </div>
       ) : isApproved ? (
         <div className="flex items-center gap-2.5 flex-wrap justify-end">
-          {canReject && (
-            <button
-              type="button"
-              onClick={() => {
-                setCancelRemarks("");
-                setShowCancelApprovedModal(true);
-              }}
-              disabled={!!actionLoading}
-              className="px-4 py-2.5 bg-rose-50 hover:bg-rose-600 text-rose-700 hover:text-white border border-rose-200 hover:border-rose-600 dark:bg-rose-950/60 dark:hover:bg-rose-600 dark:text-rose-300 dark:hover:text-white dark:border-rose-900/60 font-bold text-xs rounded-xl shadow-2xs transition-all duration-150 cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
-              title="Cancel this approved venue reservation"
-            >
-              <Ban size={13} />
-              <span>Cancel Booking</span>
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={() => handleAction(selected.id, "ongoing")}
-            disabled={!!actionLoading}
-            className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 dark:bg-blue-600 dark:hover:bg-blue-500 disabled:opacity-60 text-white rounded-xl text-xs font-extrabold flex items-center gap-1.5 shadow-xs transition-all duration-150 cursor-pointer"
-          >
-            {actionLoading === `${selected.id}-ongoing` || actionLoading === "ongoing" ? (
+          {(() => {
+            const rawStartDate = selected?.date_of_usage || selected?.date_of_use || (selected?.start_datetime ? selected.start_datetime.slice(0, 10) : null);
+            const scheduledStartDate = rawStartDate ? String(rawStartDate).slice(0, 10) : null;
+            const today = getTodayISO();
+            const isBeforeStartDate = Boolean(scheduledStartDate && scheduledStartDate > today && !isSuperAdmin);
+
+            return (
               <>
-                <Loader2 size={13} className="animate-spin" />
-                <span>Starting Event...</span>
+                {isBeforeStartDate && (
+                  <span className="text-[11px] font-bold text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 px-3 py-2 rounded-xl flex items-center gap-1.5 shadow-2xs">
+                    <Clock size={13} className="shrink-0 text-amber-600 dark:text-amber-400" />
+                    <span>Event scheduled for {scheduledStartDate} (Cannot start early)</span>
+                  </span>
+                )}
+                {canReject && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCancelRemarks("");
+                      setShowCancelApprovedModal(true);
+                    }}
+                    disabled={!!actionLoading}
+                    className="px-4 py-2.5 bg-rose-50 hover:bg-rose-600 text-rose-700 hover:text-white border border-rose-200 hover:border-rose-600 dark:bg-rose-950/60 dark:hover:bg-rose-600 dark:text-rose-300 dark:hover:text-white dark:border-rose-900/60 font-bold text-xs rounded-xl shadow-2xs transition-all duration-150 cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+                    title="Cancel this approved venue reservation"
+                  >
+                    <Ban size={13} />
+                    <span>Cancel Booking</span>
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => handleAction(selected.id, "ongoing")}
+                  disabled={!!actionLoading || isBeforeStartDate}
+                  title={isBeforeStartDate ? `Event is scheduled for ${scheduledStartDate}. You cannot start event ahead of date.` : undefined}
+                  className={`px-5 py-2.5 rounded-xl text-xs font-extrabold flex items-center gap-1.5 transition-all duration-150 ${
+                    isBeforeStartDate
+                      ? "bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-200 dark:border-slate-700 cursor-not-allowed shadow-none"
+                      : "bg-blue-600 hover:bg-blue-700 active:bg-blue-800 dark:bg-blue-600 dark:hover:bg-blue-500 text-white shadow-xs cursor-pointer"
+                  }`}
+                >
+                  {actionLoading === `${selected.id}-ongoing` || actionLoading === "ongoing" ? (
+                    <>
+                      <Loader2 size={13} className="animate-spin" />
+                      <span>Starting Event...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Play size={13} className="fill-white" />
+                      <span>Start Event</span>
+                    </>
+                  )}
+                </button>
               </>
-            ) : (
-              <>
-                <Play size={13} className="fill-white" />
-                <span>Start Event</span>
-              </>
-            )}
-          </button>
+            );
+          })()}
           <button
             type="button"
             onClick={() => { setSelected(null); setShowRejectForm(false); }}

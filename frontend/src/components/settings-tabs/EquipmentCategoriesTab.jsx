@@ -4,6 +4,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 import api, { clearApiCache } from "@/lib/axios";
 import { invalidateCache } from "@/lib/apiCache";
+import { resolveStorageUrl } from "@/lib/utils";
 import notify from "@/lib/notify";
 import ConfirmModal from "@/components/ui/ConfirmModal";
 import ActionPopover from "@/components/ui/action-popover";
@@ -129,6 +130,8 @@ export default function EquipmentCategoriesTab({ showMsg }) {
       description: "",
       built_in_units: [],
     });
+    setPreviewFit("contain");
+    setPreviewScale(100);
     setFormError("");
     setIsFormDirty(false);
     setShowModal(true);
@@ -137,6 +140,8 @@ export default function EquipmentCategoriesTab({ showMsg }) {
   const handleOpenEditModal = (cat) => {
     setEditItem(cat);
     const photoVal = cat.photo || cat.avatar || "";
+    setPreviewFit(cat.photo_fit || "contain");
+    setPreviewScale(cat.photo_scale ? Number(cat.photo_scale) : 100);
     setForm({
       eq_name: cat.eq_name || cat.name || cat.equipment_types_name || "",
       eq_type: cat.eq_type || "AV Equipment",
@@ -168,6 +173,8 @@ export default function EquipmentCategoriesTab({ showMsg }) {
       eq_type: form.eq_type,
       photo: photoData,
       avatar: photoData,
+      photo_fit: previewFit,
+      photo_scale: previewScale,
       description: form.description,
       status: form.status || "available",
       is_public: form.is_public !== undefined ? Boolean(form.is_public) : true,
@@ -392,7 +399,11 @@ export default function EquipmentCategoriesTab({ showMsg }) {
               </tr>
             ) : (
               paginatedCategories.map((cat) => {
-                const displayPhoto = cat.photo || cat.avatar;
+                const rawPhoto = cat.photo || cat.avatar;
+                const resolved = resolveStorageUrl(rawPhoto) || rawPhoto;
+                const displayPhoto = resolved && !resolved.startsWith("data:")
+                  ? `${resolved}${resolved.includes("?") ? "&" : "?"}v=${cat.updated_at ? new Date(cat.updated_at).getTime() : "1"}`
+                  : resolved;
                 const isItemDisabled = cat.status === "disabled" || cat.status === "inactive" || cat.status === "unavailable";
                 const isPublic = cat.is_public !== undefined ? Boolean(cat.is_public) : true;
                 const isToggling = togglingPublicId === cat.id;
@@ -402,7 +413,14 @@ export default function EquipmentCategoriesTab({ showMsg }) {
                     <td className="px-4 py-3">
                       <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 overflow-hidden flex items-center justify-center shadow-inner shrink-0">
                         {displayPhoto ? (
-                          <img src={displayPhoto} alt={cat.eq_name || cat.name} className="w-full h-full object-contain p-0.5" />
+                          <img
+                            src={displayPhoto}
+                            alt={cat.eq_name || cat.name}
+                            className="w-full h-full object-contain p-0.5"
+                            onError={(e) => {
+                              e.currentTarget.style.display = "none";
+                            }}
+                          />
                         ) : (
                           <Package size={18} className="text-slate-400" />
                         )}
@@ -730,11 +748,12 @@ export default function EquipmentCategoriesTab({ showMsg }) {
                     {/* Left Side: Category Photo */}
                     <div className="flex items-center gap-2.5 min-w-0">
                       <div className="w-12 h-12 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 overflow-hidden flex items-center justify-center shrink-0 shadow-2xs">
-                        {(form.photo || form.avatar) ? (
-                          <img src={form.photo || form.avatar} alt="Preview" className="w-full h-full object-contain p-1" />
-                        ) : (
-                          <Package size={18} className="text-slate-400" />
-                        )}
+                        {(() => {
+                          const rawModal = form.photo || form.avatar;
+                          if (!rawModal) return <Package size={18} className="text-slate-400" />;
+                          const resolvedModal = resolveStorageUrl(rawModal) || rawModal;
+                          return <img src={resolvedModal} alt="Preview" className="w-full h-full object-contain p-1" onError={(e) => { e.currentTarget.style.display = "none"; }} />;
+                        })()}
                       </div>
                       <div className="flex-1 min-w-0">
                         <label className="block font-bold text-slate-800 dark:text-slate-200 text-xs mb-1">
@@ -786,7 +805,10 @@ export default function EquipmentCategoriesTab({ showMsg }) {
                         <div className="flex items-center gap-1.5 bg-white dark:bg-slate-900 p-0.5 rounded-lg border border-slate-200 dark:border-slate-700">
                           <button
                             type="button"
-                            onClick={() => setPreviewFit((f) => (f === "contain" ? "cover" : "contain"))}
+                            onClick={() => {
+                              setPreviewFit((f) => (f === "contain" ? "cover" : "contain"));
+                              setIsFormDirty(true);
+                            }}
                             className="px-1.5 py-0.5 text-[10px] font-semibold rounded text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
                             title="Toggle Fit (Contain / Cover)"
                           >
@@ -795,7 +817,10 @@ export default function EquipmentCategoriesTab({ showMsg }) {
                           <div className="flex items-center gap-1 border-l border-slate-200 dark:border-slate-700 pl-1">
                             <button
                               type="button"
-                              onClick={() => setPreviewScale((s) => Math.max(50, s - 10))}
+                              onClick={() => {
+                                setPreviewScale((s) => Math.max(50, s - 10));
+                                setIsFormDirty(true);
+                              }}
                               className="w-4 h-4 flex items-center justify-center text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded cursor-pointer"
                               title="Zoom out"
                             >
@@ -806,7 +831,10 @@ export default function EquipmentCategoriesTab({ showMsg }) {
                             </span>
                             <button
                               type="button"
-                              onClick={() => setPreviewScale((s) => Math.min(150, s + 10))}
+                              onClick={() => {
+                                setPreviewScale((s) => Math.min(150, s + 10));
+                                setIsFormDirty(true);
+                              }}
                               className="w-4 h-4 flex items-center justify-center text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded cursor-pointer"
                               title="Zoom in"
                             >
@@ -819,23 +847,33 @@ export default function EquipmentCategoriesTab({ showMsg }) {
 
                     <div className="w-full border border-slate-200 dark:border-slate-700 rounded-xl p-3 bg-white dark:bg-slate-900 shadow-2xs">
                       <div className="w-full aspect-video bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 rounded-lg overflow-hidden flex items-center justify-center p-1">
-                        {(form.photo || form.avatar) ? (
-                          <div className="w-full h-full overflow-hidden flex items-center justify-center">
-                            <img
-                              src={form.photo || form.avatar}
-                              alt="Public Preview"
-                              className={`w-full h-full transition-transform duration-200 ${previewFit === "cover" ? "object-cover" : "object-contain"}`}
-                              style={{ transform: `scale(${previewScale / 100})` }}
-                            />
-                          </div>
-                        ) : (
-                          <div className="flex flex-col items-center justify-center text-center p-2">
-                            <Package size={24} className="text-slate-300 dark:text-slate-600 mb-1" />
-                            <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
-                              {form.eq_name || "EQUIPMENT NAME"}
-                            </span>
-                          </div>
-                        )}
+                        {(() => {
+                          const rawModal = form.photo || form.avatar;
+                          if (!rawModal) {
+                            return (
+                              <div className="flex flex-col items-center justify-center text-center p-2">
+                                <Package size={24} className="text-slate-300 dark:text-slate-600 mb-1" />
+                                <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
+                                  {form.eq_name || "EQUIPMENT NAME"}
+                                </span>
+                              </div>
+                            );
+                          }
+                          const resolvedModal = resolveStorageUrl(rawModal) || rawModal;
+                          return (
+                            <div className="w-full h-full overflow-hidden flex items-center justify-center">
+                              <img
+                                src={resolvedModal}
+                                alt="Public Preview"
+                                className={`w-full h-full transition-transform duration-200 ${previewFit === "cover" ? "object-cover" : "object-contain"}`}
+                                style={{ transform: `scale(${previewScale / 100})` }}
+                                onError={(e) => {
+                                  e.currentTarget.style.display = "none";
+                                }}
+                              />
+                            </div>
+                          );
+                        })()}
                       </div>
                       <div className="mt-2.5 space-y-1">
                         <p className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white truncate">

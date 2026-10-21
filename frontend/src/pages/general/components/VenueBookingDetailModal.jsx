@@ -855,7 +855,11 @@ export default function VenueBookingDetailModal({
     let categories = [];
     const notesStr = selected.equipment_notes || fetchedEquipmentNotes || "";
 
-    const structList = (Array.isArray(selected.equipment_items) && selected.equipment_items.length > 0) ? selected.equipment_items
+    let rawItems = selected.equipment_items;
+    if (typeof rawItems === 'string') {
+      try { rawItems = JSON.parse(rawItems); } catch {}
+    }
+    const structList = (Array.isArray(rawItems) && rawItems.length > 0) ? rawItems
       : (Array.isArray(selected.equipment_equipment) && selected.equipment_equipment.length > 0) ? selected.equipment_equipment
       : (Array.isArray(selected.venue_booking_equipment) && selected.venue_booking_equipment.length > 0) ? selected.venue_booking_equipment
       : (Array.isArray(selected.items) && selected.items.length > 0) ? selected.items : null;
@@ -866,16 +870,19 @@ export default function VenueBookingDetailModal({
         const typeIdVal = item.equipment_type_id || item.equipment_type?.id || item.equipmentType?.id || null;
         return {
           category: resolveEquipmentName(nameVal),
-          quantity: item.quantity_requested || item.quantity || 1,
+          quantity: parseInt(item.quantity_requested || item.quantity || 1, 10) || 1,
           equipment_type_id: typeIdVal
         };
-      });
-    } else if (notesStr) {
-      categories = notesStr.split(',').map(s => {
+      }).filter(c => c && c.category && c.category !== "None" && c.quantity > 0);
+    } else if (notesStr && notesStr.includes('(Qty:')) {
+      // Only parse structured legacy format "Category (Qty: N)" - ignore free-text remarks
+      const structuredPart = notesStr.split('|')[0] || '';
+      categories = structuredPart.split(',').map(s => {
         const cleanStr = s.trim();
         const match = cleanStr.match(/^(.*?)\s*\(Qty:\s*(\d+)\)/i);
-        const rawName = match ? match[1] : cleanStr;
-        const qty = match ? (parseInt(match[2], 10) || 1) : 1;
+        if (!match) return null;
+        const rawName = match[1].trim();
+        const qty = parseInt(match[2], 10) || 1;
         const cleanLower = rawName.toLowerCase();
         const matchedType = (dbEquipmentTypes || []).find(t => 
           String(t.id) === rawName ||
@@ -886,7 +893,7 @@ export default function VenueBookingDetailModal({
           quantity: qty,
           equipment_type_id: matchedType?.id || null
         };
-      }).filter(c => c.category && c.category !== "None");
+      }).filter(c => c && c.category && c.category !== "None" && c.quantity > 0);
     }
 
     // Fallback: Infer requested categories from assigned units if structured items/notes were omitted

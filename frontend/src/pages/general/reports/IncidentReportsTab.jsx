@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
-import { ChevronLeft, ChevronRight, Layers, Filter } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { ChevronLeft, ChevronRight, Layers, Filter, ExternalLink } from "lucide-react";
 import api from "@/lib/axios";
 import notify from "@/lib/notify";
 import { formatDate } from "@/lib/dateUtils";
@@ -12,6 +13,8 @@ export default function IncidentReportsTab({
   equipmentUnits = [],
   onRefresh,
 }) {
+  const navigate = useNavigate();
+  const basePath = typeof window !== "undefined" && window.location.pathname.startsWith("/sysad") ? "/sysad" : "/general";
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -1004,7 +1007,7 @@ export default function IncidentReportsTab({
               )}
             </div>
 
-            <div className="flex justify-end pt-3 border-t border-slate-200 dark:border-slate-800">
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
               <button
                 type="button"
                 onClick={() => setSelectedReport(null)}
@@ -1012,6 +1015,48 @@ export default function IncidentReportsTab({
               >
                 Close
               </button>
+              {(() => {
+                const targetCode = selectedReport.target_code || "";
+                const isEquip = selectedReport.target_type === "equipment_borrow" || selectedReport.target_type === "equipment_borrowing" || selectedReport.inspectable_type?.includes("EquipmentBorrow") || targetCode.startsWith("EQ-") || targetCode.startsWith("TRK-EB");
+                const isVenue = selectedReport.target_type === "venue_booking" || selectedReport.inspectable_type?.includes("VenueBooking") || targetCode.startsWith("VB-") || targetCode.startsWith("TRK-AVR") || targetCode.startsWith("TRK-");
+                const recId = selectedReport.inspectable_id || selectedReport.target_id || selectedReport.record_id;
+
+                if (isEquip) {
+                  return (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedReport(null);
+                        navigate(`${basePath}/equipment-borrowing?id=${recId || ""}&trk=${encodeURIComponent(targetCode)}`, {
+                          state: { selectedId: recId, trk: targetCode }
+                        });
+                      }}
+                      className="px-4 py-2 rounded-lg text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white transition-colors cursor-pointer flex items-center gap-1.5"
+                    >
+                      <span>View Borrowing Record</span>
+                      <ExternalLink size={13} />
+                    </button>
+                  );
+                }
+                if (isVenue) {
+                  return (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedReport(null);
+                        navigate(`${basePath}/venue-bookings?id=${recId || ""}&trk=${encodeURIComponent(targetCode)}`, {
+                          state: { selectedId: recId, trk: targetCode }
+                        });
+                      }}
+                      className="px-4 py-2 rounded-lg text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white transition-colors cursor-pointer flex items-center gap-1.5"
+                    >
+                      <span>View Venue Booking</span>
+                      <ExternalLink size={13} />
+                    </button>
+                  );
+                }
+                return null;
+              })()}
             </div>
           </div>
         </div>

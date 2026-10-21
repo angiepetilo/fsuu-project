@@ -227,23 +227,20 @@ export default function SuperAdminVenueOverrideModal({
         </div>
 
         {/* Modal Body */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 text-xs">
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto scrollbar-hover p-4 sm:p-5 space-y-3.5 text-xs">
           {errorMessage && (
-            <div className="p-3 bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800 rounded-xl text-rose-800 dark:text-rose-200 flex items-start gap-2 animate-in fade-in">
-              <AlertCircle size={16} className="text-rose-600 shrink-0 mt-0.5" />
+            <div className="p-2.5 bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800 rounded-xl text-rose-800 dark:text-rose-200 flex items-start gap-2 animate-in fade-in">
+              <AlertCircle size={15} className="text-rose-600 shrink-0 mt-0.5" />
               <span className="font-medium text-xs">{errorMessage}</span>
             </div>
           )}
 
           {/* Notice Alert */}
-          <div className="p-3 bg-amber-50/80 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/60 rounded-xl text-amber-900 dark:text-amber-300 flex items-start gap-2.5">
-            <ShieldAlert size={16} className="text-amber-600 shrink-0 mt-0.5" />
-            <div className="space-y-0.5 leading-relaxed text-[11.5px]">
-              <span className="font-bold">Administrative Override Authority:</span>
-              <p className="text-amber-800 dark:text-amber-400 font-medium">
-                Overriding will reassign this reservation to the specified venue and schedule. The action is recorded in the system audit logs.
-              </p>
-            </div>
+          <div className="p-2.5 bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200/80 dark:border-amber-900/50 rounded-xl text-amber-900 dark:text-amber-300 flex items-center gap-2">
+            <ShieldAlert size={15} className="text-amber-600 shrink-0" />
+            <p className="text-[11px] text-amber-800 dark:text-amber-400 font-medium leading-tight">
+              <strong>Admin Authority:</strong> Reassigns venue & schedule. Action is logged in system audit trail.
+            </p>
           </div>
 
           {/* Venue Selection */}
