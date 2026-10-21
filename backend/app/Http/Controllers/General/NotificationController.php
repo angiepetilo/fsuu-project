@@ -46,6 +46,8 @@ class NotificationController extends Controller
 
             $notifs = collect();
 
+            $reportedReservationBarcodes = [];
+
             // 1. Critical Inspection Incidents (Damaged / Lost units, Policy Violations, Late Returns).
             // Each alert is derived from structured inspection data and verified against the CURRENT state of the
             // physical unit / booking so that resolved items no longer produce stale alerts.
@@ -214,86 +216,115 @@ class NotificationController extends Controller
                         'rawDate'        => $rawDate,
                     ];
 
-                    // 1a. Lost Equipment
+                    // One-Notification-Per-Transaction Consolidation:
+                    // Synthesize all issues (damaged, lost, late, policy violation) into exactly ONE unified alert for this transaction.
+                    $effectiveDamagedCodes = [];
+                    $effectiveLostCodes = [];
+                    $hasDamaged = false;
+                    $hasLost = false;
+
                     if ($isLost) {
-                        $codes = $stillFlagged($lostCodes, ['lost', 'missing']);
-                        if (empty($lostCodes) || !empty($codes)) {
-                            $shown = !empty($codes) ? $codes : $unitCodes;
-                            $key = 'general-lost-' . $ins->id;
-                            $notifs->push($base + [
-                                'id'            => $key,
-                                'target_type'   => 'lost_unit',
-                                'incident_type' => 'lost',
-                                'title'         => 'Lost Equipment Incident',
-                                'message'       => (!empty($codes) ? 'Unit ' . implode(', ', $codes) : 'Equipment unit') . " reported LOST for {$refCode} by {$personName} ({$personOffice})",
-                                'item_name'     => !empty($shown) ? implode(', ', $shown) : $itemName,
-                                'barcode'       => $shown[0] ?? null,
-                                'unit_code'     => !empty($shown) ? implode(', ', $shown) : 'N/A',
-                                'notes'         => $ins->notes ?: 'Physical equipment unit not returned / marked lost.',
-                                'priority'      => 'critical',
-                                'is_read'       => $checkIsRead($key, $rawDate),
-                            ]);
+                        $effectiveLostCodes = $stillFlagged($lostCodes, ['lost', 'missing']);
+                        if (empty($lostCodes) || !empty($effectiveLostCodes)) {
+                            $hasLost = true;
+                            $reportedReservationBarcodes = array_merge($reportedReservationBarcodes, $effectiveLostCodes);
                         }
                     }
 
-                    // 1b. Damaged Equipment
                     if ($isDamaged) {
-                        $codes = $stillFlagged($damagedCodes, ['damaged', 'decommissioned']);
-                        if (empty($damagedCodes) || !empty($codes)) {
-                            $shown = !empty($codes) ? $codes : $unitCodes;
-                            $key = 'general-dmg-' . $ins->id;
-                            $notifs->push($base + [
-                                'id'             => $key,
-                                'target_type'    => 'damaged_unit',
-                                'incident_type'  => 'damaged',
-                                'title'          => 'Damaged Equipment Alert',
-                                'message'        => (!empty($codes) ? 'Unit ' . implode(', ', $codes) : 'Equipment unit') . " damaged during reservation {$refCode} by {$personName} ({$personOffice})",
-                                'item_name'      => !empty($shown) ? implode(', ', $shown) : $itemName,
-                                'barcode'        => $shown[0] ?? null,
-                                'unit_code'      => !empty($shown) ? implode(', ', $shown) : 'N/A',
-                                'notes'          => $ins->notes ?: 'Physical unit reported damaged upon post-inspection.',
-                                'evidence_photo' => $ins->evidence_photo ?? null,
-                                'priority'       => 'critical',
-                                'is_read'        => $checkIsRead($key, $rawDate),
-                            ]);
+                        $effectiveDamagedCodes = $stillFlagged($damagedCodes, ['damaged', 'decommissioned']);
+                        if (empty($damagedCodes) || !empty($effectiveDamagedCodes)) {
+                            $hasDamaged = true;
+                            $reportedReservationBarcodes = array_merge($reportedReservationBarcodes, $effectiveDamagedCodes);
                         }
                     }
 
-                    // 1c. Genuine Policy Violation (recorded rule breach)
-                    if ($isPolicyViolation) {
-                        $key = 'general-viol-' . $ins->id;
-                        $notifs->push($base + [
-                            'id'                => $key,
-                            'target_type'       => 'policy_violation',
-                            'incident_type'     => 'policy_violation',
-                            'title'             => $isVenueInsp ? 'Venue Booking Policy Violation' : 'Equipment Policy Violation',
-                            'message'           => implode(", ", $violationCategories) . " recorded for {$personName} ({$personOffice}) on {$refCode}",
-                            'item_name'         => $itemName,
-                            'unit_code'         => !empty($unitCodes) ? implode(', ', $unitCodes) : 'N/A',
-                            'violation_details' => implode(', ', $violationCategories),
-                            'notes'             => $ins->notes ?: "Violation logged: " . implode(", ", $violationCategories),
-                            'priority'          => 'critical',
-                            'is_read'           => $checkIsRead($key, $rawDate),
-                        ]);
+                    $hasViolation = $isPolicyViolation;
+                    $hasLate = $isLate;
+
+                    if (!$hasDamaged && !$hasLost && !$hasViolation && !$hasLate) {
+                        continue;
                     }
 
-                    // 1d. Late Return (reported separately - not a policy violation by itself)
-                    if ($isLate) {
-                        $mins = (int) ($ins->minutes_late ?? 0);
-                        $key = 'general-late-' . $ins->id;
-                        $notifs->push($base + [
-                            'id'            => $key,
-                            'target_type'   => 'late_return',
-                            'incident_type' => 'late_return',
-                            'title'         => $isVenueInsp ? 'Late Venue Turnover' : 'Late Equipment Return',
-                            'message'       => ($mins > 0 ? "Returned {$mins} min late" : 'Returned late') . " for {$refCode} by {$personName} ({$personOffice})",
-                            'item_name'     => $itemName,
-                            'unit_code'     => !empty($unitCodes) ? implode(', ', $unitCodes) : 'N/A',
-                            'notes'         => $ins->notes ?: 'Returned after the scheduled time.',
-                            'priority'      => 'high',
-                            'is_read'       => $checkIsRead($key, $rawDate),
-                        ]);
+                    $flaggedCodes = array_values(array_unique(array_merge($effectiveDamagedCodes, $effectiveLostCodes)));
+                    $shownCodes = !empty($flaggedCodes) ? $flaggedCodes : $unitCodes;
+
+                    // 1. Primary Classification & Badging
+                    if ($hasDamaged) {
+                        $primaryType = 'damaged';
+                        $targetType = 'damaged_unit';
+                        $priority = 'critical';
+                    } elseif ($hasLost) {
+                        $primaryType = 'lost';
+                        $targetType = 'lost_unit';
+                        $priority = 'critical';
+                    } elseif ($hasViolation) {
+                        $primaryType = 'policy_violation';
+                        $targetType = 'policy_violation';
+                        $priority = 'critical';
+                    } else {
+                        $primaryType = 'late_return';
+                        $targetType = 'late_return';
+                        $priority = 'high';
                     }
+
+                    // 2. Cohesive Title
+                    if ($hasDamaged && $hasViolation) {
+                        $title = $isVenueInsp ? 'Venue Damage & Policy Violation' : 'Equipment Damage & Policy Violation';
+                    } elseif ($hasDamaged && $hasLate) {
+                        $title = $isVenueInsp ? 'Venue Damage & Late Turnover' : 'Damaged Unit & Late Return';
+                    } elseif ($hasDamaged) {
+                        $title = $isVenueInsp ? 'Venue Property Damage Alert' : 'Damaged Equipment Alert';
+                    } elseif ($hasLost) {
+                        $title = 'Lost Equipment Incident';
+                    } elseif ($hasViolation && $hasLate) {
+                        $title = $isVenueInsp ? 'Venue Policy Violation & Late Turnover' : 'Equipment Policy Violation & Late Return';
+                    } elseif ($hasViolation) {
+                        $title = $isVenueInsp ? 'Venue Booking Policy Violation' : 'Equipment Policy Violation';
+                    } else {
+                        $title = $isVenueInsp ? 'Late Venue Turnover' : 'Late Equipment Return';
+                    }
+
+                    // 3. Consolidated Message Narrative
+                    $msgParts = [];
+                    if ($hasDamaged) {
+                        $msgParts[] = (!empty($effectiveDamagedCodes) ? 'Unit ' . implode(', ', $effectiveDamagedCodes) : 'Equipment unit') . ' damaged';
+                    }
+                    if ($hasLost) {
+                        $msgParts[] = (!empty($effectiveLostCodes) ? 'Unit ' . implode(', ', $effectiveLostCodes) : 'Equipment unit') . ' reported lost';
+                    }
+                    if ($hasLate) {
+                        $mins = (int) ($ins->minutes_late ?? 0);
+                        $msgParts[] = $mins > 0 ? "returned {$mins} min late" : 'returned late';
+                    }
+                    if ($hasViolation) {
+                        $msgParts[] = 'violation: ' . implode(', ', $violationCategories);
+                    }
+
+                    $combinedSummary = implode('; ', $msgParts) . " for {$refCode} by {$personName} ({$personOffice})";
+
+                    // Single unified notification per inspection transaction
+                    $key = 'general-insp-' . $ins->id;
+                    $notifs->push($base + [
+                        'id'                => $key,
+                        'target_type'       => $targetType,
+                        'incident_type'     => $primaryType,
+                        'title'             => $title,
+                        'message'           => $combinedSummary,
+                        'item_name'         => !empty($shownCodes) ? implode(', ', $shownCodes) : $itemName,
+                        'barcode'           => $shownCodes[0] ?? null,
+                        'unit_code'         => !empty($shownCodes) ? implode(', ', $shownCodes) : 'N/A',
+                        'violation_details' => implode(', ', $violationCategories),
+                        'is_late'           => $hasLate,
+                        'minutes_late'      => (int) ($ins->minutes_late ?? 0),
+                        'has_damaged'       => $hasDamaged,
+                        'has_lost'          => $hasLost,
+                        'has_violation'     => $hasViolation,
+                        'notes'             => $ins->notes ?: $combinedSummary,
+                        'evidence_photo'    => $ins->evidence_photo ?? null,
+                        'priority'          => $priority,
+                        'is_read'           => $checkIsRead($key, $rawDate),
+                    ]);
                 }
             }
 
@@ -315,6 +346,11 @@ class NotificationController extends Controller
                     ->get();
 
                 foreach ($flaggedUnits as $du) {
+                    // Suppress duplicate: if this unit was already reported under an active reservation inspection above, do not spawn a duplicate inventory alert
+                    if (in_array($du->barcode, $reportedReservationBarcodes)) {
+                        continue;
+                    }
+
                     $isUnitLost = strtolower($du->condition ?? '') === 'lost' || strtolower($du->status ?? '') === 'lost';
                     $key = 'general-unit-flag-' . $du->id;
                     $dt = Carbon::parse($du->updated_at ?? $du->created_at ?? now());
@@ -529,6 +565,24 @@ class NotificationController extends Controller
             }
 
             // 7. Overdue Post-Inspection Reminders (Venue Bookings & Equipment Borrowings whose end time passed)
+            $alreadyInspectedVbIds = [];
+            $alreadyInspectedEbIds = [];
+            if (Schema::hasTable('inspections')) {
+                $alreadyInspectedVbIds = DB::table('inspections')
+                    ->where(function ($q) {
+                        $q->whereIn('inspectable_type', ['venue_booking', 'avr_venue_booking'])
+                          ->orWhere('inspectable_type', 'like', '%VenueBooking%');
+                    })
+                    ->pluck('inspectable_id')->all();
+
+                $alreadyInspectedEbIds = DB::table('inspections')
+                    ->where(function ($q) {
+                        $q->whereIn('inspectable_type', ['equipment_borrow', 'avr_equipment_borrowing'])
+                          ->orWhere('inspectable_type', 'like', '%EquipmentBorrow%');
+                    })
+                    ->pluck('inspectable_id')->all();
+            }
+
             if (Schema::hasTable('venue_bookings') && Schema::hasTable('tracking_numbers')) {
                 $now = Carbon::now();
                 $overdueVbInsp = DB::table('venue_bookings')
@@ -546,6 +600,9 @@ class NotificationController extends Controller
                     ->get();
 
                 foreach ($overdueVbInsp as $b) {
+                    if (in_array($b->id, $alreadyInspectedVbIds)) {
+                        continue;
+                    }
                     $ref = $b->reference_code ?? 'TRK-AVR' . $b->id;
                     $endStr = ($b->reservation_end_date ?: $b->date_of_usage ?: $now->toDateString()) . ' ' . ($b->time_end ?: '17:00:00');
                     $endDt = Carbon::parse($endStr);
@@ -592,6 +649,9 @@ class NotificationController extends Controller
                     ->get();
 
                 foreach ($overdueEbInsp as $b) {
+                    if (in_array($b->id, $alreadyInspectedEbIds)) {
+                        continue;
+                    }
                     $ref = $b->reference_code ?? 'TRK-EB' . $b->id;
                     $endStr = ($b->date_of_usage ?: $now->toDateString()) . ' ' . ($b->time_end ?: '17:00:00');
                     $endDt = Carbon::parse($endStr);
@@ -656,7 +716,36 @@ class NotificationController extends Controller
                 }
             }
 
-            $sorted = $notifs->sortByDesc('rawDate')->values();
+            // One-Notification-Per-Transaction Guarantee:
+            // Ensure at most ONE consolidated notification per transaction reference code (e.g. VB-2026-..., EQ-2026-...).
+            // If multiple notifications share the same reference, retain the one with higher severity/priority.
+            $priorityWeights = [
+                'critical' => 5,
+                'urgent'   => 4,
+                'high'     => 3,
+                'medium'   => 2,
+                'low'      => 1,
+                'info'     => 1,
+            ];
+
+            $dedupedByRef = [];
+            foreach ($notifs as $n) {
+                $ref = trim((string)($n['ref'] ?? ''));
+                if ($ref === '' || $ref === 'N/A') {
+                    $dedupedByRef[] = $n;
+                    continue;
+                }
+                if (!isset($dedupedByRef[$ref])) {
+                    $dedupedByRef[$ref] = $n;
+                } else {
+                    $existingWeight = $priorityWeights[$dedupedByRef[$ref]['priority'] ?? 'medium'] ?? 2;
+                    $currentWeight  = $priorityWeights[$n['priority'] ?? 'medium'] ?? 2;
+                    if ($currentWeight > $existingWeight) {
+                        $dedupedByRef[$ref] = $n;
+                    }
+                }
+            }
+            $sorted = collect(array_values($dedupedByRef))->sortByDesc('rawDate')->values();
 
             // Persist notifications into database table
             if (Schema::hasTable('notifications')) {

@@ -114,7 +114,7 @@ class NotificationAccuracyTest extends TestCase
             'unit_conditions' => json_encode(['0-0' => 'Damaged', '0-1' => 'Good']),
         ]);
 
-        $n = $this->fetch()->firstWhere('id', 'general-dmg-' . $insId);
+        $n = $this->fetch()->firstWhere('id', 'general-insp-' . $insId);
 
         $this->assertNotNull($n);
         $this->assertSame('damaged', $n['incident_type']);
@@ -135,7 +135,7 @@ class NotificationAccuracyTest extends TestCase
             'unit_conditions' => json_encode(['0-0' => 'Lost']),
         ]);
 
-        $n = $this->fetch()->firstWhere('id', 'general-lost-' . $insId);
+        $n = $this->fetch()->firstWhere('id', 'general-insp-' . $insId);
 
         $this->assertNotNull($n);
         $this->assertSame('lost', $n['incident_type']);
@@ -154,12 +154,10 @@ class NotificationAccuracyTest extends TestCase
 
         $all = $this->fetch();
 
-        $this->assertNull($all->firstWhere('id', 'general-viol-' . $insId));
-        $this->assertNull($all->firstWhere('id', 'general-dmg-' . $insId));
-
-        $n = $all->firstWhere('id', 'general-late-' . $insId);
+        $n = $all->firstWhere('id', 'general-insp-' . $insId);
         $this->assertNotNull($n);
         $this->assertSame('late_return', $n['incident_type']);
+        $this->assertFalse($n['has_violation']);
     }
 
     public function test_genuine_policy_violation_is_reported(): void
@@ -170,7 +168,7 @@ class NotificationAccuracyTest extends TestCase
             'violation_type' => 'Unauthorized use of equipment',
         ]);
 
-        $n = $this->fetch()->firstWhere('id', 'general-viol-' . $insId);
+        $n = $this->fetch()->firstWhere('id', 'general-insp-' . $insId);
 
         $this->assertNotNull($n);
         $this->assertSame('policy_violation', $n['incident_type']);
@@ -183,9 +181,7 @@ class NotificationAccuracyTest extends TestCase
 
         $ids = $this->fetch()->pluck('id');
 
-        foreach (['dmg', 'lost', 'viol', 'late'] as $kind) {
-            $this->assertFalse($ids->contains("general-{$kind}-{$insId}"));
-        }
+        $this->assertFalse($ids->contains("general-insp-{$insId}"));
     }
 
     public function test_repaired_unit_no_longer_raises_damaged_alert(): void
@@ -199,7 +195,7 @@ class NotificationAccuracyTest extends TestCase
             'unit_conditions' => json_encode(['0-0' => 'Damaged']),
         ]);
 
-        $this->assertNull($this->fetch()->firstWhere('id', 'general-dmg-' . $insId));
+        $this->assertNull($this->fetch()->firstWhere('id', 'general-insp-' . $insId));
     }
 
     private function makeVenueBooking(string $ref): VenueBooking
@@ -239,18 +235,17 @@ class NotificationAccuracyTest extends TestCase
             'updated_at'       => now(),
         ]);
 
-        $n = $this->fetch()->firstWhere('id', 'general-viol-' . $insId);
+        $n = $this->fetch()->firstWhere('id', 'general-insp-' . $insId);
 
         $this->assertNotNull($n);
         $this->assertSame('policy_violation', $n['incident_type']);
         $this->assertStringContainsString('Facility or Property Damage', $n['violation_details']);
         $this->assertStringContainsString('Excessive Noise', $n['violation_details']);
-        // No hardware damaged alert: no physical unit was flagged
-        $this->assertNull($this->fetch()->firstWhere('id', 'general-dmg-' . $insId));
+        $this->assertFalse($n['has_damaged']);
         $this->assertSame($booking->id, $n['record_id']);
     }
 
-    public function test_venue_late_plus_checked_violation_shows_both_alerts(): void
+    public function test_venue_late_plus_checked_violation_consolidates_into_one_notification(): void
     {
         $booking = $this->makeVenueBooking('TRK-AVR-T002');
 
@@ -270,10 +265,19 @@ class NotificationAccuracyTest extends TestCase
         ]);
 
         $all = $this->fetch();
-        $viol = $all->firstWhere('id', 'general-viol-' . $insId);
+        $matches = $all->where('ref', 'TRK-AVR-T002');
 
-        $this->assertNotNull($all->firstWhere('id', 'general-late-' . $insId));
-        $this->assertNotNull($viol);
-        $this->assertSame('Improper Cleanliness or Waste Disposal', $viol['violation_details']);
+        // Exactly ONE consolidated notification for this transaction
+        $this->assertCount(1, $matches);
+
+        $n = $matches->first();
+        $this->assertNotNull($n);
+        $this->assertSame('general-insp-' . $insId, $n['id']);
+        $this->assertSame('policy_violation', $n['incident_type']);
+        $this->assertSame('Improper Cleanliness or Waste Disposal', $n['violation_details']);
+        $this->assertTrue($n['is_late']);
+        $this->assertSame(30, $n['minutes_late']);
+        $this->assertStringContainsString('returned 30 min late', $n['message']);
+        $this->assertStringContainsString('Improper Cleanliness', $n['message']);
     }
 }
