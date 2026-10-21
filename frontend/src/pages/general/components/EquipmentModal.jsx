@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from "react";
-import { X, Loader2, Sparkles, Layers, Barcode as BarcodeIcon } from "lucide-react";
+import { X, Loader2, Sparkles, Layers, Barcode as BarcodeIcon, Search, ChevronDown, Check } from "lucide-react";
 import api from "@/lib/axios";
 import ConfirmModal from "@/components/ui/ConfirmModal";
 
@@ -38,6 +38,252 @@ export function generateSequentialBarcodes(baseBarcode, count) {
     }
   }
   return results;
+}
+
+function BuiltInUnitItemSelector({
+  cat,
+  availableUnits = [],
+  currentSelectedId,
+  currentUnitObj,
+  isCurrentUnitDegraded,
+  onSelect,
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleClickOutside = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setIsOpen(false);
+      }
+    };
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isOpen]);
+
+  const formatUnitInfo = (u) => {
+    if (!u) return { seqNo: "", brand: "", model: "", display: "" };
+    const rawSeq = u.seq_no ?? u.sequence_no;
+    const seqNo = rawSeq !== undefined && rawSeq !== null && String(rawSeq).trim() !== ""
+      ? (String(rawSeq).trim().startsWith("#") ? String(rawSeq).trim() : `#${String(rawSeq).trim()}`)
+      : "";
+    const brand = u.brand ? String(u.brand).trim() : "";
+    let model = u.model ? String(u.model).trim() : "";
+
+    const seqClean = seqNo.replace(/^#/, "").trim().toLowerCase();
+    const modelClean = model.replace(/^#/, "").trim().toLowerCase();
+    const brandClean = brand.toLowerCase();
+    if (!model || modelClean === seqClean || modelClean === brandClean || modelClean === "unit" || modelClean === "default") {
+      model = "";
+    }
+
+    const brandModel = brand && model ? `${brand} • ${model}` : (brand || model || u.name || "Unit");
+    return {
+      seqNo,
+      brand,
+      model,
+      brandModel,
+      display: [seqNo, brandModel].filter(Boolean).join(" "),
+    };
+  };
+
+  const selectedUnit = isCurrentUnitDegraded ? null : (
+    (availableUnits || []).find(u => String(u.id) === String(currentSelectedId)) ||
+    (currentUnitObj && String(currentUnitObj.id) === String(currentSelectedId) ? currentUnitObj : null)
+  );
+
+  const selectedInfo = selectedUnit ? formatUnitInfo(selectedUnit) : null;
+
+  const filteredUnits = useMemo(() => {
+    if (!searchTerm.trim()) return availableUnits;
+    const term = searchTerm.toLowerCase().trim();
+    return availableUnits.filter((u) => {
+      const info = formatUnitInfo(u);
+      return (
+        info.display.toLowerCase().includes(term) ||
+        String(u.barcode || "").toLowerCase().includes(term) ||
+        String(u.serial_number || "").toLowerCase().includes(term)
+      );
+    });
+  }, [availableUnits, searchTerm]);
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      {/* Category Header Badge */}
+      <div className="flex items-center justify-between">
+        <span className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-800 dark:text-slate-200">
+          <Layers size={13} className="text-blue-600 dark:text-blue-400 shrink-0" />
+          <span className="truncate">{cat.name}</span>
+        </span>
+        <span className="text-[10.5px] font-mono text-slate-400 dark:text-slate-500">
+          {availableUnits.length} {availableUnits.length === 1 ? "unit available" : "units available"}
+        </span>
+      </div>
+
+      {/* Simplified Dropdown Control */}
+      <div className="relative w-full" ref={dropdownRef}>
+        <button
+          type="button"
+          onClick={() => setIsOpen(!isOpen)}
+          className={`w-full min-h-[38px] px-3 py-1.5 bg-white dark:bg-slate-800/90 border rounded-xl text-xs font-medium flex items-center justify-between gap-2 transition-all cursor-pointer shadow-2xs ${
+            isOpen
+              ? "border-blue-500 ring-2 ring-blue-500/20 dark:border-blue-500"
+              : "border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600"
+          }`}
+        >
+          {selectedUnit ? (
+            <div className="flex items-center gap-1.5 min-w-0 truncate">
+              {selectedInfo.seqNo && (
+                <span className="font-mono text-[10px] font-black text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 px-1.5 py-0.5 rounded border border-amber-200 dark:border-amber-800/80 shrink-0">
+                  {selectedInfo.seqNo}
+                </span>
+              )}
+              <span className="truncate text-slate-800 dark:text-slate-100 font-bold">
+                {selectedInfo.brand}
+                {selectedInfo.model && <span className="font-semibold text-slate-600 dark:text-slate-300"> • {selectedInfo.model}</span>}
+              </span>
+            </div>
+          ) : (
+            <span className="text-slate-400 dark:text-slate-500 font-normal truncate">
+              {availableUnits.length === 0
+                ? `No units in ${cat.name}`
+                : `-- Select ${cat.name} (Optional) --`}
+            </span>
+          )}
+
+          <div className="flex items-center gap-1 shrink-0">
+            {selectedUnit && (
+              <span
+                role="button"
+                tabIndex={0}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSelect("");
+                }}
+                className="p-1 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
+                title="Unlink component"
+              >
+                <X size={12} />
+              </span>
+            )}
+            <ChevronDown size={14} className={`text-slate-400 transition-transform duration-150 ${isOpen ? "rotate-180 text-blue-500" : ""}`} />
+          </div>
+        </button>
+
+        {/* Simplified In-Card Dropdown Popover */}
+        {isOpen && (
+          <div className="absolute z-50 left-0 right-0 mt-1 max-h-56 overflow-hidden bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl flex flex-col animate-in fade-in zoom-in-95 duration-100">
+            {availableUnits.length > 5 && (
+              <div className="p-1.5 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/90 shrink-0">
+                <div className="relative flex items-center">
+                  <Search size={12} className="absolute left-2.5 text-slate-400 pointer-events-none" />
+                  <input
+                    type="text"
+                    placeholder={`Filter ${cat.name}...`}
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-7 pr-2.5 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-normal text-slate-800 dark:text-slate-100 focus:outline-none focus:border-blue-500 placeholder:text-slate-400"
+                    onClick={(e) => e.stopPropagation()}
+                    autoFocus
+                  />
+                  {searchTerm && (
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); setSearchTerm(""); }}
+                      className="absolute right-2 text-slate-400 hover:text-slate-600 text-xs"
+                    >
+                      <X size={12} />
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Option: None / Unassign */}
+            <div className="overflow-y-auto max-h-44 p-1 space-y-0.5">
+              <button
+                type="button"
+                onClick={() => {
+                  onSelect("");
+                  setIsOpen(false);
+                  setSearchTerm("");
+                }}
+                className={`w-full px-2.5 py-1.5 rounded-lg text-left text-xs font-medium flex items-center justify-between transition-colors cursor-pointer ${
+                  !selectedUnit
+                    ? "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold"
+                    : "text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                }`}
+              >
+                <span>-- None (Unassigned) --</span>
+                {!selectedUnit && <Check size={13} className="text-blue-600 dark:text-blue-400 shrink-0" />}
+              </button>
+
+              {filteredUnits.length === 0 ? (
+                <div className="py-3 text-center text-xs text-slate-400 dark:text-slate-500 font-medium">
+                  No matching units
+                </div>
+              ) : (
+                filteredUnits.map((u) => {
+                  const uInfo = formatUnitInfo(u);
+                  const isSelected = String(u.id) === String(currentSelectedId);
+
+                  return (
+                    <button
+                      key={u.id}
+                      type="button"
+                      onClick={() => {
+                        onSelect(u.id);
+                        setIsOpen(false);
+                        setSearchTerm("");
+                      }}
+                      className={`w-full px-2.5 py-1.5 rounded-lg text-left text-xs font-semibold flex items-center justify-between gap-2 transition-colors cursor-pointer ${
+                        isSelected
+                          ? "bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300"
+                          : "hover:bg-slate-50 dark:hover:bg-slate-800/60 text-slate-800 dark:text-slate-200"
+                      }`}
+                    >
+                      <div className="flex items-center gap-1.5 min-w-0 truncate">
+                        {uInfo.seqNo && (
+                          <span className="font-mono text-[10px] font-black text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 px-1.5 py-0.5 rounded border border-amber-200 dark:border-amber-800/80 shrink-0">
+                            {uInfo.seqNo}
+                          </span>
+                        )}
+                        <span className="truncate">
+                          <span className="font-bold">{uInfo.brand}</span>
+                          {uInfo.model && <span className="font-semibold text-slate-600 dark:text-slate-300"> • {uInfo.model}</span>}
+                        </span>
+                      </div>
+                      {isSelected && <Check size={14} className="text-blue-600 dark:text-blue-400 shrink-0" />}
+                    </button>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Warning if previous built-in unit became damaged or lost */}
+        {isCurrentUnitDegraded && currentUnitObj && (
+          <div className="mt-1.5 flex items-start gap-1.5 text-[11px] font-semibold text-rose-700 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 p-2 rounded-lg leading-tight">
+            <span>
+              ⚠️ Previously linked unit <strong>{currentUnitObj.seq_no ? (String(currentUnitObj.seq_no).startsWith('#') ? currentUnitObj.seq_no : `#${currentUnitObj.seq_no}`) + ' ' : ''}{[currentUnitObj.brand, currentUnitObj.model].filter(Boolean).join(' • ') || currentUnitObj.name}</strong> is marked as <strong>{currentUnitObj.condition || currentUnitObj.status || 'Damaged/Lost'}</strong> and excluded. Please choose another unit in Good condition.
+            </span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
 
 function CategoryBuiltInUnitSelector({
@@ -243,51 +489,15 @@ function CategoryBuiltInUnitSelector({
             });
 
             return (
-              <div key={cat.key} className="flex flex-col gap-2">
-                {/* Category Badge */}
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-blue-50 dark:bg-blue-950/50 border border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-300 text-xs font-semibold shadow-2xs shrink-0 w-full">
-                  <Layers size={13} className="text-blue-600 dark:text-blue-400 shrink-0" />
-                  <span className="truncate">{cat.name}</span>
-                </span>
-
-                {/* Dropdown for units under this category */}
-                <div className="flex-1 min-w-0">
-                  <select
-                    value={isCurrentUnitDegraded ? "" : (currentSelectedId || "")}
-                    onChange={(e) => handleSelectUnit(cat, e.target.value)}
-                    className="w-full h-9 px-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-800 dark:text-white focus:outline-none focus:border-blue-500 dark:focus:border-blue-500 focus:ring-1 focus:ring-blue-300 dark:focus:ring-blue-700 transition-colors cursor-pointer"
-                  >
-                    <option value="">
-                      {availableUnits.length === 0
-                        ? `-- No available unassigned units in "${cat.name}" --`
-                        : `-- Select ${cat.name} Unit (Optional) --`}
-                    </option>
-
-                    {availableUnits.map((u) => {
-                      const label = [
-                        u.serial_number || u.barcode ? `[${u.serial_number || u.barcode}]` : "",
-                        u.name || [u.brand, u.model].filter(Boolean).join(" ") || "Unit",
-                        String(u.id) === String(currentSelectedId) ? "(Current)" : "",
-                      ]
-                        .filter(Boolean)
-                        .join(" ");
-
-                      return (
-                        <option key={u.id} value={u.id}>
-                          {label}
-                        </option>
-                      );
-                    })}
-                  </select>
-
-                  {/* Warning if previous built-in unit became damaged or lost */}
-                  {isCurrentUnitDegraded && (
-                    <div className="mt-1.5 flex items-start gap-1.5 text-[11px] font-semibold text-rose-700 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 p-2 rounded-lg leading-tight">
-                      <span>⚠️ Previously linked unit <strong>[{currentUnitObj.serial_number || currentUnitObj.barcode || currentUnitObj.id}]</strong> is marked as <strong>{currentUnitObj.condition || currentUnitObj.status || 'Damaged/Lost'}</strong> and excluded. Please choose another unit in Good condition.</span>
-                    </div>
-                  )}
-                </div>
-              </div>
+              <BuiltInUnitItemSelector
+                key={cat.key}
+                cat={cat}
+                availableUnits={availableUnits}
+                currentSelectedId={currentSelectedId}
+                currentUnitObj={currentUnitObj}
+                isCurrentUnitDegraded={isCurrentUnitDegraded}
+                onSelect={(unitId) => handleSelectUnit(cat, unitId)}
+              />
             );
           })}
 

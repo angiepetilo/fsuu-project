@@ -886,12 +886,15 @@ export default function Step2Venue({
                   return (
                     <div
                       key={day}
-                      className={`relative h-9 flex items-center justify-center ${hasRange && isInBetween
-                          ? "bg-blue-50 dark:bg-blue-950/40"
-                          : hasRange && (isStart || isEnd)
-                            ? "bg-blue-50 dark:bg-blue-950/40"
-                            : ""
-                        }`}
+                      className={`relative h-9 flex items-center justify-center ${
+                        hasRange && isInBetween
+                          ? "bg-blue-100 dark:bg-blue-950/70"
+                          : hasRange && isStart
+                            ? "bg-blue-100 dark:bg-blue-950/70 rounded-l-xl"
+                            : hasRange && isEnd
+                              ? "bg-blue-100 dark:bg-blue-950/70 rounded-r-xl"
+                              : ""
+                      }`}
                     >
                       <button
                         type="button"
@@ -941,22 +944,28 @@ export default function Step2Venue({
                             setShowPinModal && setShowPinModal(true);
                           }
                         }}
-                        className={`w-9 h-9 rounded-lg text-xs font-semibold flex items-center justify-center mx-auto transition-colors relative z-10 ${
-                          isStart || isEnd
-                            ? "bg-blue-600 text-white font-bold cursor-pointer"
-                            : isToday
-                              ? "border border-blue-600 text-blue-700 dark:text-blue-400 font-bold bg-blue-50/40 dark:bg-blue-500/10 cursor-pointer"
-                              : isClosed
-                                ? "border border-rose-600 bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400 font-semibold cursor-not-allowed"
-                                : isMaintenance
-                                  ? "border border-amber-500 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 font-semibold cursor-not-allowed"
-                                  : isBooked
-                                    ? "border border-blue-500 bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 font-semibold cursor-not-allowed"
-                                    : isShortNotice
-                                      ? `border border-slate-300 dark:border-slate-600 text-slate-500 dark:text-slate-400 font-medium bg-slate-50/50 dark:bg-slate-800/40 ${isPublicBlockedNotice ? "cursor-not-allowed opacity-80" : "hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"}`
-                                      : isPast
-                                        ? "text-slate-300 dark:text-slate-600 font-normal cursor-not-allowed select-none"
-                                        : "border border-emerald-300/80 dark:border-emerald-700/60 bg-emerald-50/20 dark:bg-emerald-950/20 text-slate-700 dark:text-slate-200 font-medium hover:bg-emerald-100/50 cursor-pointer"
+                        className={`w-9 h-9 text-xs font-semibold flex items-center justify-center mx-auto transition-all relative z-10 ${
+                          isStart && hasRange
+                            ? "bg-blue-600 text-white font-black rounded-l-xl shadow-md ring-2 ring-blue-600/40 z-20 cursor-pointer"
+                            : isEnd && hasRange
+                              ? "bg-blue-600 text-white font-black rounded-r-xl shadow-md ring-2 ring-blue-600/40 z-20 cursor-pointer"
+                              : (isStart || isEnd)
+                                ? "bg-blue-600 text-white font-black rounded-xl shadow-md ring-2 ring-blue-600/40 z-20 cursor-pointer"
+                                : isInBetween
+                                  ? "bg-blue-200/90 dark:bg-blue-900/80 text-blue-950 dark:text-blue-100 font-black border-y-2 border-blue-400 dark:border-blue-500 rounded-none w-full hover:bg-blue-300 dark:hover:bg-blue-800 cursor-pointer shadow-2xs"
+                                  : isToday
+                                    ? "border border-blue-600 text-blue-700 dark:text-blue-400 font-bold bg-blue-50/40 dark:bg-blue-500/10 rounded-lg cursor-pointer"
+                                    : isClosed
+                                      ? "border border-rose-600 bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400 font-semibold rounded-lg cursor-not-allowed"
+                                      : isMaintenance
+                                        ? "border border-amber-500 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 font-semibold rounded-lg cursor-not-allowed"
+                                        : isBooked
+                                          ? "border border-blue-500 bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 font-semibold rounded-lg cursor-not-allowed"
+                                          : isShortNotice
+                                            ? `border border-slate-300 dark:border-slate-600 text-slate-500 dark:text-slate-400 font-medium bg-slate-50/50 dark:bg-slate-800/40 rounded-lg ${isPublicBlockedNotice ? "cursor-not-allowed opacity-80" : "hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"}`
+                                            : isPast
+                                              ? "text-slate-300 dark:text-slate-600 font-normal rounded-lg cursor-not-allowed select-none"
+                                              : "border border-emerald-300/80 dark:border-emerald-700/60 bg-emerald-50/20 dark:bg-emerald-950/20 text-slate-700 dark:text-slate-200 font-medium hover:bg-emerald-100/50 rounded-lg cursor-pointer"
                         }`}
                       >
                         <span className="relative">
@@ -970,7 +979,10 @@ export default function Step2Venue({
                           {isMaintenance && (
                             <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-amber-500" />
                           )}
-                          {!isClosed && !isBooked && !isMaintenance && !isPast && !isShortNotice && !isToday && !isStart && !isEnd && (
+                          {isInBetween && (
+                            <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-blue-600 dark:bg-blue-300" />
+                          )}
+                          {!isClosed && !isBooked && !isMaintenance && !isPast && !isShortNotice && !isToday && !isStart && !isEnd && !isInBetween && (
                             <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-emerald-500" />
                           )}
                         </span>

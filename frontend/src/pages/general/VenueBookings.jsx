@@ -692,6 +692,7 @@ export default function VenueBookings() {
           setRejectionComments={setRejectionComments}
           handleAction={handleAction}
           actionLoading={actionLoading}
+          setActionLoading={setActionLoading}
           inspectionStatus={inspectionStatus}
           setInspectionStatus={setInspectionStatus}
           violationNotes={violationNotes}

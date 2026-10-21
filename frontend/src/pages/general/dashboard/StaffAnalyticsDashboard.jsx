@@ -329,65 +329,70 @@ export default function StaffAnalyticsDashboard({
         <div className={`grid grid-cols-1 ${canLateReturns && canTodayReservations ? "xl:grid-cols-2" : ""} gap-6 items-start`}>
           {/* Borrowers with Late Returns Column */}
           {canLateReturns && (
-            <div className="bg-card rounded-2xl border border-border shadow-2xs p-5 space-y-3.5 h-full flex flex-col justify-between">
-              <div>
-                <div className="flex items-center justify-between border-b border-border pb-3">
-                  <h3 className="font-extrabold text-foreground text-xs sm:text-sm">Borrowers with late returns</h3>
-                  <span className="text-[11px] font-semibold text-rose-600 dark:text-rose-400">
-                    {uniqueLateBorrowers.length} Incidents
-                  </span>
-                </div>
-                <div className="overflow-x-auto max-h-[460px] overflow-y-auto">
-                  <table className="w-full text-xs">
-                    <thead>
-                      <tr className="border-b border-border text-left text-[10px] font-mono font-bold text-muted-foreground uppercase tracking-wider sticky top-0 bg-card z-10">
-                        <th className="pb-2.5 px-3">BORROWER</th>
-                        <th className="pb-2.5 px-3">DEPARTMENT</th>
-                        <th className="pb-2.5 px-3">TRACKING NO.</th>
-                        <th className="pb-2.5 px-3">TYPE</th>
-                        <th className="pb-2.5 px-3">STATUS</th>
+            <div className="bg-card rounded-2xl border border-border shadow-2xs p-5 space-y-3.5 flex flex-col">
+              <div className="flex items-center justify-between border-b border-border pb-3">
+                <h3 className="font-extrabold text-foreground text-xs sm:text-sm">Borrowers with late returns</h3>
+                <span className="text-[10.5px] font-bold px-2.5 py-0.5 rounded-full bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900/50">
+                  {uniqueLateBorrowers.length} {uniqueLateBorrowers.length === 1 ? "Incident" : "Incidents"}
+                </span>
+              </div>
+              <div className="overflow-x-auto max-h-[460px] overflow-y-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-border text-left text-[10px] font-mono font-bold text-muted-foreground uppercase tracking-wider sticky top-0 bg-card z-10">
+                      <th className="pb-2.5 px-3">BORROWER</th>
+                      <th className="pb-2.5 px-3">DEPARTMENT</th>
+                      <th className="pb-2.5 px-3">TRACKING NO.</th>
+                      <th className="pb-2.5 px-3">TYPE</th>
+                      <th className="pb-2.5 px-3">STATUS</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border font-semibold">
+                    {uniqueLateBorrowers.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="text-center py-10 text-emerald-600 dark:text-emerald-400 font-bold">
+                          No active student violations or late returns recorded.
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border font-semibold">
-                      {uniqueLateBorrowers.length === 0 ? (
-                        <tr>
-                          <td colSpan={5} className="text-center py-12 text-emerald-600 dark:text-emerald-400 font-bold">
-                            No active student violations or late returns recorded.
-                          </td>
-                        </tr>
-                      ) : (
-                        uniqueLateBorrowers.map((s, idx) => {
-                          const linkPath = s.type === "Venue Booking"
-                            ? (isSysadRoute ? "/sysad/venue-bookings" : "/general/venue-bookings")
-                            : (isSysadRoute ? "/sysad/equipment-borrowing" : "/general/equipment-borrowing");
-                          return (
-                            <tr key={s.id || s.reference_code || idx} className="hover:bg-muted/60 transition-colors">
-                              <td className="py-2.5 px-3 font-bold text-foreground">{s.name}</td>
-                              <td className="py-2.5 px-3 text-muted-foreground">{s.department}</td>
-                              <td className="py-2.5 px-3 font-mono text-foreground">
-                                <Link
-                                  to={linkPath}
-                                  state={s.record_id ? { selectedId: s.record_id } : undefined}
-                                  className="font-bold hover:underline hover:text-primary transition-colors cursor-pointer"
-                                >
-                                  {s.reference_code}
-                                </Link>
-                              </td>
-                              <td className="py-2.5 px-3 text-foreground/80">{s.type}</td>
-                              <td className="py-2.5 px-3">
-                                <span className={`text-[11px] font-semibold ${
-                                  s.is_late ? "text-amber-600 dark:text-amber-400" : "text-rose-600 dark:text-rose-400"
-                                }`}>
-                                  {s.violation}
-                                </span>
-                              </td>
-                            </tr>
-                          );
-                        })
-                      )}
-                    </tbody>
-                  </table>
-                </div>
+                    ) : (
+                      uniqueLateBorrowers.map((s, idx) => {
+                        const linkPath = s.type === "Venue Booking"
+                          ? (isSysadRoute ? "/sysad/venue-bookings" : "/general/venue-bookings")
+                          : (isSysadRoute ? "/sysad/equipment-borrowing" : "/general/equipment-borrowing");
+                        return (
+                          <tr key={s.id || s.reference_code || idx} className="hover:bg-muted/40 transition-colors">
+                            <td className="py-2.5 px-3 font-bold text-foreground text-xs">{s.name}</td>
+                            <td className="py-2.5 px-3">
+                              <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-muted/60 text-muted-foreground border border-border/50">
+                                {s.department || "—"}
+                              </span>
+                            </td>
+                            <td className="py-2.5 px-3 font-mono">
+                              <Link
+                                to={linkPath}
+                                state={s.record_id ? { selectedId: s.record_id } : undefined}
+                                className="font-bold text-blue-600 dark:text-blue-400 hover:underline transition-colors cursor-pointer"
+                              >
+                                {s.reference_code}
+                              </Link>
+                            </td>
+                            <td className="py-2.5 px-3 text-muted-foreground text-xs font-medium">{s.type}</td>
+                            <td className="py-2.5 px-3">
+                              <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10.5px] font-bold border ${
+                                s.is_late
+                                  ? "bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-900/60"
+                                  : "bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-400 border-rose-200 dark:border-rose-900/60"
+                              }`}>
+                                <span className={`w-1.5 h-1.5 rounded-full ${s.is_late ? "bg-amber-500 animate-pulse" : "bg-rose-500"}`} />
+                                <span>{s.violation || (s.is_late ? "Late Return" : "Violation")}</span>
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
               </div>
             </div>
           )}

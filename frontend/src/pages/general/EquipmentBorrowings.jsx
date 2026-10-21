@@ -139,6 +139,7 @@ export default function EquipmentBorrowings() {
   };
   const [currentPage, setCurrentPage] = useState(1);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [physicalUnits, setPhysicalUnits] = useState([]);
   const ITEMS_PER_PAGE = 10;
 
   const fetchBorrowings = useCallback(async (isSilent = false) => {
@@ -149,9 +150,19 @@ export default function EquipmentBorrowings() {
     if (!isSilent) setIsSyncing(true);
     setError(null);
     try {
-      const res = await api.get("/avr-equipment-borrowings");
-      const data = res.data?.data ?? (Array.isArray(res.data) ? res.data : []);
-      setBorrowings(data);
+      const [borrowsRes, unitsRes] = await Promise.allSettled([
+        api.get("/avr-equipment-borrowings"),
+        api.get("/general/equipment-units")
+      ]);
+
+      if (borrowsRes.status === "fulfilled") {
+        const data = borrowsRes.value.data?.data ?? (Array.isArray(borrowsRes.value.data) ? borrowsRes.value.data : []);
+        setBorrowings(data);
+      }
+      if (unitsRes.status === "fulfilled") {
+        const uData = Array.isArray(unitsRes.value.data) ? unitsRes.value.data : (unitsRes.value.data?.data || []);
+        setPhysicalUnits(uData);
+      }
     } catch {
       setError("Unable to sync equipment borrowings data.");
     } finally {
@@ -523,7 +534,6 @@ export default function EquipmentBorrowings() {
                 const refCode = b.tracking_number?.reference_code || b.reference_code || `EQUIP-REQ-${b.id}`;
                 const requestor = b.filer_name || b.requestor_name || "—";
                 const department = b.program_office || b.requestor_program_office || "—";
-                const eqTypes = formatBorrowEquipmentTypes(b);
                 const usageDate = formatDate(b.date_of_usage || b.start_datetime);
                 const rawStart = b.time_start || b.start_datetime;
                 const rawEnd = b.time_end || b.end_datetime;
@@ -532,6 +542,7 @@ export default function EquipmentBorrowings() {
                 const displayIndex = startIndex + idx + 1;
                 const isReleasedOrOngoing = ["ongoing", "on-going", "released", "in_use", "in-use", "borrowed"].includes(currentStatus.toLowerCase());
                 const overdueMins = isReleasedOrOngoing ? getOverdueMinutes(b.date_of_usage || b.start_datetime, rawEnd) : 0;
+                const eqTypes = formatBorrowEquipmentTypes(b);
 
                 return (
                   <tr key={`eb-row-${b.id}`} className="hover:bg-slate-50/60 transition-colors">
@@ -539,14 +550,10 @@ export default function EquipmentBorrowings() {
                     <td className="px-4 py-3.5 font-mono text-xs font-bold text-blue-600 whitespace-nowrap">{refCode}</td>
                     <td className="px-4 py-3.5 font-extrabold text-slate-900">{requestor}</td>
                     <td className="px-4 py-3.5 text-slate-700">{department}</td>
-                    <td className="px-4 py-3.5 whitespace-nowrap">
-                      {eqTypes !== "-" ? (
-                        <span className="font-extrabold text-blue-700 dark:text-blue-400 bg-blue-50/80 dark:bg-blue-950/40 px-2.5 py-1 rounded-lg border border-blue-200/80 dark:border-blue-800/60 inline-block max-w-[220px] truncate" title={eqTypes}>
-                          {eqTypes}
-                        </span>
-                      ) : (
-                        <span className="font-bold text-slate-400">-</span>
-                      )}
+                    <td className="px-4 py-3.5">
+                      <span className="font-semibold text-slate-800 dark:text-slate-200 line-clamp-2 max-w-[220px]" title={eqTypes}>
+                        {eqTypes}
+                      </span>
                     </td>
                     <td className="px-4 py-3.5 text-slate-600 whitespace-nowrap">{usageDate}</td>
                     <td className="px-4 py-3.5 text-slate-600 whitespace-nowrap">{timeRange}</td>
@@ -612,14 +619,8 @@ export default function EquipmentBorrowings() {
                   </div>
                   <div className="bg-slate-50 p-3 rounded-xl text-xs space-y-1.5 border border-slate-100">
                     <div className="flex justify-between items-center text-slate-700">
-                      <span className="text-slate-500 font-medium">Equipment Types:</span>
-                      {eqTypes !== "-" ? (
-                        <span className="font-extrabold text-blue-700 dark:text-blue-400 bg-blue-50/80 dark:bg-blue-950/40 px-2.5 py-0.5 rounded-lg border border-blue-200/80 dark:border-blue-800/60 inline-block max-w-[180px] truncate" title={eqTypes}>
-                          {eqTypes}
-                        </span>
-                      ) : (
-                        <span className="font-bold text-slate-400">-</span>
-                      )}
+                      <span className="text-slate-500 font-medium">Equipment:</span>
+                      <span className="font-bold text-slate-900 truncate max-w-[200px]" title={eqTypes}>{eqTypes}</span>
                     </div>
                     <div className="flex justify-between items-center text-slate-700">
                       <span className="text-slate-500 font-medium">Schedule:</span>
@@ -687,6 +688,7 @@ export default function EquipmentBorrowings() {
           handleSendNotification={handleSendNotification}
           handleAction={handleAction}
           actionLoading={actionLoading}
+          setActionLoading={setActionLoading}
         />
       </Suspense>
     </div>

@@ -19,6 +19,7 @@ const STATUS_CONFIGS = {
   released:          "bg-blue-50 text-blue-700 border-blue-300 dark:bg-blue-500/15 dark:text-blue-400 dark:border-blue-500/30",
   "release / in - use": "bg-blue-50 text-blue-700 border-blue-300 dark:bg-blue-500/15 dark:text-blue-400 dark:border-blue-500/30",
   ready_to_claim:    "bg-purple-50 text-purple-700 border-purple-300 dark:bg-purple-500/15 dark:text-purple-300 dark:border-purple-500/30",
+  inspection:              "bg-purple-50 text-purple-700 border-purple-300 dark:bg-purple-500/15 dark:text-purple-300 dark:border-purple-500/30",
   "post-inspection":       "bg-purple-50 text-purple-700 border-purple-300 dark:bg-purple-500/15 dark:text-purple-300 dark:border-purple-500/30",
   "post-event inspection": "bg-purple-50 text-purple-700 border-purple-300 dark:bg-purple-500/15 dark:text-purple-300 dark:border-purple-500/30",
   "post_inspection":       "bg-purple-50 text-purple-700 border-purple-300 dark:bg-purple-500/15 dark:text-purple-300 dark:border-purple-500/30",
@@ -37,9 +38,17 @@ const STATUS_CONFIGS = {
 };
 
 export function StatusBadge({ status, className, children }) {
-  const normalized = status ? String(status).toLowerCase() : "pending";
+  const normalized = status ? String(status).toLowerCase().trim() : "pending";
   const colorClass = STATUS_CONFIGS[normalized] || "bg-slate-100 text-slate-700 border-slate-300 dark:bg-slate-800/50 dark:text-slate-300 dark:border-slate-700/60";
-  const displayLabel = children || (status ? String(status).replace(/_/g, " ").toUpperCase() : "UNKNOWN");
+
+  let displayLabel = children;
+  if (!displayLabel) {
+    if (["post-inspection", "post-event inspection", "post_inspection", "inspection"].includes(normalized)) {
+      displayLabel = "INSPECTION";
+    } else {
+      displayLabel = status ? String(status).replace(/_/g, " ").toUpperCase() : "UNKNOWN";
+    }
+  }
 
   return (
     <span

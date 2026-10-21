@@ -1,6 +1,7 @@
-import { X, Mail, Loader2, Send } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { X, Mail, Loader2, Send, Clock } from "lucide-react";
 import { OverdueBadge } from "@/components/ui/status-badge";
-import { getOverdueMinutes } from "@/lib/dateTimeUtils";
+import { getOverdueMinutes, getInspectionEligibility, formatCountdownDuration } from "@/lib/dateTimeUtils";
 
 /**
  * EquipBorrowHeader — Top bar of the equipment borrowing modal.
@@ -24,7 +25,31 @@ export default function EquipBorrowHeader({
 }) {
   const currentRawStatus = (currentStatus || selected?.status || selected?.tracking_number?.status || "").toLowerCase();
   const isReleasedOrOngoing = ["ongoing", "on-going", "released", "in_use", "in-use", "borrowed"].includes(currentRawStatus);
-  const overdueMins = isReleasedOrOngoing ? getOverdueMinutes(selected?.date_of_usage || selected?.start_datetime, selected?.time_end || selected?.end_datetime) : 0;
+
+  const [currentTick, setCurrentTick] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (!isReleasedOrOngoing) return;
+    const interval = setInterval(() => {
+      setCurrentTick(Date.now());
+    }, 15000);
+    return () => clearInterval(interval);
+  }, [isReleasedOrOngoing]);
+
+  const scheduledEndDate = selected?.extend_of_date_returned 
+    || selected?.return_due_date 
+    || selected?.expected_return_date 
+    || selected?.date_of_usage 
+    || selected?.start_datetime;
+  const scheduledEndTime = selected?.time_end || selected?.end_datetime || "17:00";
+
+  const overdueMins = isReleasedOrOngoing ? getOverdueMinutes(scheduledEndDate, scheduledEndTime) : 0;
+  const inspectionEligibility = isReleasedOrOngoing
+    ? getInspectionEligibility(scheduledEndDate, scheduledEndTime, 30)
+    : { isReady: false, minutesUntilUnlock: 0, reason: "" };
+
+  // Send Reminder button appears only starting 30 minutes before the end time (or when overdue)
+  const canSendReminder = isReleasedOrOngoing && (inspectionEligibility.isReady || overdueMins > 0);
 
   return (
     <div className="px-6 py-4 bg-white dark:bg-slate-900/80 border-b border-slate-200 dark:border-blue-900/50 shrink-0">
@@ -61,6 +86,19 @@ export default function EquipBorrowHeader({
                   <span>Resend Email</span>
                 </button>
 
+                {canSendReminder && (
+                  <button
+                    type="button"
+                    onClick={() => handleSendReturnReminder ? handleSendReturnReminder("both") : handleSendOverdueSms()}
+                    disabled={smsLoading}
+                    className="px-2.5 py-1 text-amber-900 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/60 hover:bg-amber-100/90 dark:hover:bg-amber-900/60 rounded-lg text-[11px] font-extrabold border border-amber-300 dark:border-amber-800/80 flex items-center gap-1 cursor-pointer disabled:opacity-50 transition-colors shadow-2xs animate-in fade-in"
+                    title="Send return reminder notice to borrower via SMS & Email (Available starting 30 mins before end time)"
+                  >
+                    {smsLoading ? <Loader2 size={12} className="animate-spin text-amber-700 dark:text-amber-400" /> : <Send size={12} className="text-amber-700 dark:text-amber-400" />}
+                    <span>Send Reminder</span>
+                  </button>
+                )}
+
 
                 {resendMsg && (
                   <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 font-bold animate-in fade-in">
@@ -77,29 +115,49 @@ export default function EquipBorrowHeader({
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5 flex-wrap justify-end">
-            <span className="font-mono text-xs font-bold uppercase text-slate-500 dark:text-slate-400">
-              Status:{" "}
-              <span
-                className={`font-black ${
-                  currentStatus === "approved"
-                    ? "text-emerald-600 dark:text-emerald-400"
-                    : currentStatus === "ongoing" || currentStatus === "on-going"
-                    ? "text-blue-600 dark:text-blue-400"
-                    : currentStatus === "inspection" || currentStatus === "post-inspection"
-                    ? "text-purple-600 dark:text-purple-400"
-                    : currentStatus === "completed" || currentStatus === "returned"
-                    ? "text-slate-800 dark:text-slate-200"
-                    : currentStatus === "damaged" || currentStatus === "rejected" || currentStatus === "lost"
-                    ? "text-rose-600 dark:text-rose-400"
-                    : "text-amber-600 dark:text-amber-400"
-                }`}
-              >
-                {currentStatus || selected.status || "pending"}
+        <div className="flex items-start gap-3">
+          <div className="flex flex-col items-end gap-1.5">
+            <div className="flex items-center gap-1.5 flex-wrap justify-end">
+              <span className="font-mono text-xs font-bold uppercase text-slate-500 dark:text-slate-400">
+                Status:{" "}
+                <span
+                  className={`font-black ${
+                    currentStatus === "approved"
+                      ? "text-emerald-600 dark:text-emerald-400"
+                      : currentStatus === "ongoing" || currentStatus === "on-going"
+                      ? "text-blue-600 dark:text-blue-400"
+                      : currentStatus === "inspection" || currentStatus === "post-inspection"
+                      ? "text-purple-600 dark:text-purple-400"
+                      : currentStatus === "completed" || currentStatus === "returned"
+                      ? "text-slate-800 dark:text-slate-200"
+                      : currentStatus === "damaged" || currentStatus === "rejected" || currentStatus === "lost"
+                      ? "text-rose-600 dark:text-rose-400"
+                      : "text-amber-600 dark:text-amber-400"
+                  }`}
+                >
+                  {currentStatus || selected.status || "pending"}
+                </span>
               </span>
-            </span>
-            {overdueMins > 0 && <OverdueBadge minutesOverdue={overdueMins} />}
+              {overdueMins > 0 && <OverdueBadge minutesOverdue={overdueMins} />}
+            </div>
+
+            {/* Inspection opens timer pill displayed below status */}
+            {isReleasedOrOngoing && !inspectionEligibility.isReady && (
+              <div
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 dark:bg-amber-950/60 border border-amber-200/80 dark:border-amber-800/70 text-amber-800 dark:text-amber-200 text-[11px] font-semibold"
+                title={inspectionEligibility.reason}
+              >
+                <Clock size={12} className="text-amber-600 dark:text-amber-400 shrink-0" />
+                <span>
+                  Inspection opens {inspectionEligibility.unlockFormattedLabel || (inspectionEligibility.unlockTimeStr ? `${inspectionEligibility.isToday ? 'at ' : ''}${inspectionEligibility.unlockTimeStr}` : "30 mins before end time")}
+                </span>
+                {inspectionEligibility.minutesUntilUnlock > 0 && (
+                  <span className="font-bold text-amber-600 dark:text-amber-400">
+                    ({inspectionEligibility.countdownDurationStr || (typeof formatCountdownDuration === 'function' ? formatCountdownDuration(inspectionEligibility.minutesUntilUnlock) : `${inspectionEligibility.minutesUntilUnlock}m`)})
+                  </span>
+                )}
+              </div>
+            )}
           </div>
           <button
             type="button"

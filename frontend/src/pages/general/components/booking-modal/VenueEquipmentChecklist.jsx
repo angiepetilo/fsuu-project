@@ -67,7 +67,20 @@ function SlotBarcodeSelector({
         String(u.id) === String(biId) ||
         String(u.barcode || "").trim().toUpperCase() === String(biId).trim().toUpperCase()
       );
-      return match ? (match.name || [match.brand, match.model].filter(Boolean).join(" ") || match.barcode || `Unit #${biId}`) : `Unit #${biId}`;
+      if (!match) return `Unit #${biId}`;
+      const rawSeq = match.seq_no ?? match.sequence_no;
+      const seq = rawSeq !== undefined && rawSeq !== null && String(rawSeq).trim() !== ""
+        ? (String(rawSeq).trim().startsWith("#") ? String(rawSeq).trim() : `#${String(rawSeq).trim()}`)
+        : "";
+      const brand = match.brand ? String(match.brand).trim() : "";
+      let model = match.model ? String(match.model).trim() : "";
+      const seqClean = seq.replace(/^#/, "").trim().toLowerCase();
+      const modelClean = model.replace(/^#/, "").trim().toLowerCase();
+      if (!model || modelClean === seqClean || modelClean === brand.toLowerCase() || modelClean === "unit") {
+        model = "";
+      }
+      const bm = [brand, model].filter(Boolean).join(" • ");
+      return [seq, bm].filter(Boolean).join(" ") || match.name || `Unit #${biId}`;
     });
   };
 
@@ -311,6 +324,7 @@ export default function VenueEquipmentChecklist({
   overrideQuantity = 1,
   setOverrideQuantity,
   dbEquipmentTypes = [],
+  selected = null,
 }) {
   const isAssignmentMode = isApproved || isPreEvent || !isSideBySide;
 
@@ -537,15 +551,15 @@ export default function VenueEquipmentChecklist({
   const allUnitsAssigned = totalRequestedUnits > 0 && totalAssignedUnits >= totalRequestedUnits;
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-4 space-y-4">
+    <div className="bg-white dark:bg-slate-900/80 rounded-xl border border-slate-200 dark:border-blue-900/50 p-4 space-y-4">
       {/* Header Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-200 pb-2.5 gap-2 font-sans">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-200 dark:border-blue-900/50 pb-2.5 gap-2 font-sans">
         <div>
-          <h4 className="text-xs font-bold text-slate-900 tracking-normal flex items-center gap-2">
-            <PackageOpen size={15} className="text-slate-700" />
+          <h4 className="text-xs font-bold text-slate-900 dark:text-white tracking-normal flex items-center gap-2">
+            <PackageOpen size={15} className="text-slate-700 dark:text-slate-300" />
             <span>{isApproved || isPreEvent ? "Equipment Unit Assignment" : "Post Equipment Inspection"}</span>
           </h4>
-          <p className="text-[11px] font-medium text-slate-500 mt-0.5">
+          <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 mt-0.5">
             {isApproved || isPreEvent
               ? "Select equipment category and assign physical equipment units."
               : "Verify returned equipment unit condition."}
@@ -554,7 +568,7 @@ export default function VenueEquipmentChecklist({
 
         <div className="flex items-center gap-2 flex-wrap">
           {totalRequestedUnits > 0 && (
-            <span className="text-[11px] font-mono font-semibold text-slate-700 bg-slate-100 px-2.5 py-0.5 rounded border border-slate-200">
+            <span className="text-[11px] font-mono font-semibold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2.5 py-0.5 rounded border border-slate-200 dark:border-slate-700">
               {totalAssignedUnits} of {totalRequestedUnits} units selected
             </span>
           )}
@@ -563,7 +577,7 @@ export default function VenueEquipmentChecklist({
             <button
               type="button"
               onClick={handleAddOverrideCategory}
-              className="inline-flex items-center gap-1.5 px-3 py-1 bg-white hover:bg-slate-50 text-slate-800 border border-slate-300 rounded text-xs font-semibold transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3 py-1 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-700 rounded text-xs font-semibold transition-colors cursor-pointer"
             >
               <Plus size={13} />
               <span>Add Equipment Category</span>
@@ -574,13 +588,13 @@ export default function VenueEquipmentChecklist({
 
       {/* Equipment Cards */}
       {categoriesToRender.length === 0 ? (
-        <div className="p-6 bg-slate-50 border border-slate-200 rounded-lg text-center space-y-3">
-          <div className="w-10 h-10 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center mx-auto border border-slate-200">
+        <div className="p-6 bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-blue-900/50 rounded-lg text-center space-y-3">
+          <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 flex items-center justify-center mx-auto border border-slate-200 dark:border-slate-700">
             <PackageOpen size={20} />
           </div>
           <div className="space-y-1">
-            <h5 className="font-bold text-slate-900 text-xs">No Equipment Units Attached</h5>
-            <p className="text-[11px] text-slate-500 font-medium max-w-sm mx-auto">
+            <h5 className="font-bold text-slate-900 dark:text-white text-xs">No Equipment Units Attached</h5>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium max-w-sm mx-auto">
               No equipment units or built-ins requested for this venue reservation. You can select and attach equipment categories below.
             </p>
           </div>
@@ -588,7 +602,7 @@ export default function VenueEquipmentChecklist({
             <button
               type="button"
               onClick={handleAddOverrideCategory}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded text-xs font-semibold transition-all cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-slate-900 dark:bg-slate-100 hover:bg-slate-800 dark:hover:bg-white text-white dark:text-slate-900 rounded text-xs font-semibold transition-all cursor-pointer"
             >
               <Plus size={13} />
               <span>Add Equipment Category</span>
@@ -603,16 +617,16 @@ export default function VenueEquipmentChecklist({
             const hasStock = availableUnits.length > 0;
 
             return (
-              <div key={`cat-card-${catIdx}`} className="p-3.5 bg-white border border-slate-200 rounded-lg space-y-3">
+              <div key={`cat-card-${catIdx}`} className="p-3.5 bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-blue-900/50 rounded-lg space-y-3">
                 {/* Category Selection & Quantity Row */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-200 pb-2.5 gap-2">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-200 dark:border-blue-900/50 pb-2.5 gap-2">
                   <div className="flex items-center gap-2">
-                    <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Category:</span>
+                    <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Category:</span>
                     {canOverride && setOverrideCategories && isAssignmentMode ? (
                       <select
                         value={item.category}
                         onChange={(e) => handleUpdateOverrideItem(catIdx, "category", e.target.value)}
-                        className="px-2.5 py-1 bg-white border border-slate-300 rounded text-xs font-semibold text-slate-800 focus:outline-none focus:border-slate-500 cursor-pointer"
+                        className="px-2.5 py-1 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded text-xs font-semibold text-slate-800 dark:text-slate-200 focus:outline-none focus:border-slate-500 cursor-pointer"
                       >
                         {!categoryOptions.some(opt => opt.name.toUpperCase() === String(item.category).toUpperCase()) && (
                           <option value={item.category}>{item.category}</option>
@@ -624,30 +638,30 @@ export default function VenueEquipmentChecklist({
                         ))}
                       </select>
                     ) : (
-                      <span className="text-xs font-bold text-slate-900 font-mono">{item.category}</span>
+                      <span className="text-xs font-bold text-slate-900 dark:text-white font-mono">{item.category}</span>
                     )}
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Quantity:</span>
+                    <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Quantity:</span>
                     {canOverride && setOverrideCategories && isAssignmentMode ? (
                       <div className="flex items-center gap-1">
                         <button
                           type="button"
                           onClick={() => handleUpdateOverrideItem(catIdx, "quantity", Math.max(1, reqQty - 1))}
                           disabled={reqQty <= 1}
-                          className="w-6 h-6 rounded border border-slate-300 bg-white hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center text-slate-700 cursor-pointer"
+                          className="w-6 h-6 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center text-slate-700 dark:text-slate-300 cursor-pointer"
                           title="Decrease units (-1)"
                         >
                           <Minus size={11} />
                         </button>
-                        <span className="min-w-[20px] text-center font-mono text-xs font-bold text-slate-800">
+                        <span className="min-w-[20px] text-center font-mono text-xs font-bold text-slate-800 dark:text-slate-200">
                           {reqQty}
                         </span>
                         <button
                           type="button"
                           onClick={() => handleUpdateOverrideItem(catIdx, "quantity", reqQty + 1)}
-                          className="w-6 h-6 rounded border border-slate-300 bg-white hover:bg-slate-100 flex items-center justify-center text-slate-700 cursor-pointer"
+                          className="w-6 h-6 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center justify-center text-slate-700 dark:text-slate-300 cursor-pointer"
                           title="Increase units (+1)"
                         >
                           <Plus size={11} />
@@ -655,14 +669,14 @@ export default function VenueEquipmentChecklist({
                         <button
                           type="button"
                           onClick={() => handleRemoveOverrideCategory(catIdx)}
-                          className="w-6 h-6 rounded border border-slate-300 bg-white hover:bg-slate-100 text-slate-500 hover:text-rose-600 flex items-center justify-center cursor-pointer ml-1"
+                          className="w-6 h-6 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 hover:text-rose-600 flex items-center justify-center cursor-pointer ml-1"
                           title="Remove category"
                         >
                           <X size={11} />
                         </button>
                       </div>
                     ) : (
-                      <span className="text-xs font-mono font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                      <span className="text-xs font-mono font-bold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700">
                         {reqQty}
                       </span>
                     )}
@@ -674,7 +688,12 @@ export default function VenueEquipmentChecklist({
                   <div className="space-y-2 pt-1">
                     {Array.from({ length: reqQty }).map((_, uIdx) => {
                       const unitKey = `${catIdx}-${uIdx}`;
-                      const assignedBarcode = assignedUnitSelections[unitKey];
+                      const catNameKey = `${item.category}-${uIdx}`;
+                      const assignedBarcode =
+                        assignedUnitSelections[unitKey] ||
+                        assignedUnitSelections[catNameKey] ||
+                        (Array.isArray(assignedUnitSelections) ? assignedUnitSelections[uIdx] : null) ||
+                        (Array.isArray(selected?.assigned_units) ? selected.assigned_units[uIdx] : (selected?.assigned_units?.[unitKey] || selected?.assigned_units?.[catNameKey]));
                       const cond = (assignedBarcode && unitReturnedConditions[assignedBarcode]) || unitReturnedConditions[unitKey] || "Good";
                       const slotBuiltIns = assignedBarcode ? getBuiltInUnitsForBarcode(assignedBarcode) : [];
 
@@ -692,30 +711,30 @@ export default function VenueEquipmentChecklist({
                       const brandModel = brand && model ? `${brand} • ${model}` : (brand || model || match?.name || "");
 
                       return (
-                        <div key={`ret-unit-${catIdx}-${uIdx}`} className="py-2 border-b border-slate-100 last:border-b-0 space-y-1 text-xs">
+                        <div key={`ret-unit-${catIdx}-${uIdx}`} className="py-2 border-b border-slate-100 dark:border-blue-900/30 last:border-b-0 space-y-1 text-xs">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-1.5 flex-wrap">
-                              <span className="text-[11px] font-bold text-slate-700">Unit #{uIdx + 1}</span>
+                              <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300">Unit #{uIdx + 1}</span>
+                              {assignedBarcode && (
+                                <span className="font-mono text-[10.5px] font-bold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/70 px-1.5 py-0.5 rounded border border-blue-200 dark:border-blue-800">
+                                  [{assignedBarcode}]
+                                </span>
+                              )}
                               {seqNo && (
-                                <span className="font-mono text-[10px] font-black text-amber-700 bg-amber-50 px-1.5 py-0.2 rounded border border-amber-200 shrink-0">
+                                <span className="font-mono text-[10px] font-black text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/70 px-1.5 py-0.5 rounded border border-amber-200 dark:border-amber-800 shrink-0">
                                   {seqNo}
                                 </span>
                               )}
                               {brandModel && (
-                                <span className="font-bold text-slate-800 text-xs">
+                                <span className="font-bold text-slate-800 dark:text-slate-200 text-xs">
                                   {brandModel}
-                                </span>
-                              )}
-                              {assignedBarcode && (
-                                <span className="font-mono text-[10.5px] font-bold text-blue-700 bg-blue-50 px-1.5 py-0.2 rounded border border-blue-200">
-                                  [{assignedBarcode}]
                                 </span>
                               )}
                             </div>
 
                             {isHistoryView ? (
                               <span className={`text-xs font-mono font-black uppercase ${
-                                cond === "Damaged" ? "text-rose-600" : (cond === "Lost" ? "text-amber-600" : "text-emerald-600")
+                                cond === "Damaged" ? "text-rose-600 dark:text-rose-400" : (cond === "Lost" ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400")
                               }`}>
                                 {cond}
                               </span>
@@ -726,8 +745,8 @@ export default function VenueEquipmentChecklist({
                                   onClick={() => setUnitReturnedConditions && setUnitReturnedConditions(prev => ({ ...prev, [unitKey]: "Good", ...(assignedBarcode ? { [assignedBarcode]: "Good" } : {}) }))}
                                   className={`px-2.5 py-1 rounded border text-xs font-semibold transition-colors cursor-pointer ${
                                     cond === "Good"
-                                      ? "border-slate-800 bg-slate-900 text-white"
-                                      : "border-slate-300 bg-white text-slate-600 hover:bg-slate-50"
+                                      ? "border-slate-800 dark:border-white bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 shadow-2xs"
+                                      : "border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
                                   }`}
                                 >
                                   Good
@@ -737,8 +756,8 @@ export default function VenueEquipmentChecklist({
                                   onClick={() => setUnitReturnedConditions && setUnitReturnedConditions(prev => ({ ...prev, [unitKey]: "Damaged", ...(assignedBarcode ? { [assignedBarcode]: "Damaged" } : {}) }))}
                                   className={`px-2.5 py-1 rounded border text-xs font-semibold transition-colors cursor-pointer ${
                                     cond === "Damaged"
-                                      ? "border-rose-700 bg-rose-700 text-white"
-                                      : "border-slate-300 bg-white text-slate-600 hover:bg-slate-50"
+                                      ? "border-rose-700 dark:border-rose-500 bg-rose-700 dark:bg-rose-600 text-white shadow-2xs"
+                                      : "border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
                                   }`}
                                 >
                                   Damaged
@@ -748,8 +767,8 @@ export default function VenueEquipmentChecklist({
                                   onClick={() => setUnitReturnedConditions && setUnitReturnedConditions(prev => ({ ...prev, [unitKey]: "Lost", ...(assignedBarcode ? { [assignedBarcode]: "Lost" } : {}) }))}
                                   className={`px-2.5 py-1 rounded border text-xs font-semibold transition-colors cursor-pointer ${
                                     cond === "Lost"
-                                      ? "border-amber-700 bg-amber-700 text-white"
-                                      : "border-slate-300 bg-white text-slate-600 hover:bg-slate-50"
+                                      ? "border-amber-700 dark:border-amber-500 bg-amber-700 dark:bg-amber-600 text-white shadow-2xs"
+                                      : "border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
                                   }`}
                                 >
                                   Lost
@@ -760,21 +779,20 @@ export default function VenueEquipmentChecklist({
 
                           {/* Built-ins in inspection mode */}
                           {slotBuiltIns.length > 0 && (
-                            <div className="mt-1 p-2 rounded bg-slate-50 border border-slate-200 space-y-1">
-                              <span className="text-[10px] font-bold text-slate-700 block">
+                            <div className="mt-1 p-2 rounded bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 space-y-1">
+                              <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300 block">
                                 Linked Built-in Components ({slotBuiltIns.length}):
                               </span>
                               <div className="flex flex-wrap gap-1">
                                 {slotBuiltIns.map((bi) => (
-                                  <span key={bi.id || bi.barcode} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-white border border-slate-300 text-[10px] font-medium text-slate-700">
+                                  <span key={bi.id || bi.barcode} className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-[10px] font-medium text-slate-700 dark:text-slate-300">
                                     <span className="text-slate-400">•</span>
                                     {bi.seq_no && (
-                                      <span className="font-mono text-[9px] font-black text-amber-700 bg-amber-50 px-1 rounded border border-amber-200">
+                                      <span className="font-mono text-[9px] font-black text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/70 px-1 rounded border border-amber-200 dark:border-amber-800">
                                         {bi.seq_no}
                                       </span>
                                     )}
-                                    <span>{bi.name}</span>
-                                    <span className="font-mono text-[9px] text-slate-400">[{bi.barcode}]</span>
+                                    <span className="font-bold">{bi.name}</span>
                                   </span>
                                 ))}
                               </div>
@@ -801,28 +819,28 @@ export default function VenueEquipmentChecklist({
                       const slotBuiltIns = currentSelectedBarcode ? getBuiltInUnitsForBarcode(currentSelectedBarcode) : [];
 
                       return (
-                        <div key={`unit-${catIdx}-${uIdx}`} className="py-2.5 border-b border-slate-100 last:border-b-0 space-y-2 text-xs">
+                        <div key={`unit-${catIdx}-${uIdx}`} className="py-2.5 border-b border-slate-100 dark:border-blue-900/30 last:border-b-0 space-y-2 text-xs">
                           <div className="flex items-center justify-between">
-                            <span className="text-[11px] font-bold text-slate-700">
+                            <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
                               Unit Slot #{uIdx + 1}
                             </span>
                             {currentSelectedBarcode ? (
-                              <span className="text-xs font-mono font-semibold text-slate-700 flex items-center gap-1">
-                                <Check size={12} className="stroke-[3] text-slate-600" /> {prefix ? `${prefix} [${currentSelectedBarcode}]` : `Assigned [${currentSelectedBarcode}]`}
+                              <span className="text-xs font-mono font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1">
+                                <Check size={12} className="stroke-[3] text-slate-600 dark:text-slate-400" /> {prefix ? `${prefix} [${currentSelectedBarcode}]` : `Assigned [${currentSelectedBarcode}]`}
                               </span>
                             ) : (
-                              <span className="text-xs font-mono text-slate-400">
+                              <span className="text-xs font-mono text-slate-400 dark:text-slate-500">
                                 Unassigned
                               </span>
                             )}
                           </div>
 
                           {isHistoryView || (isSideBySide && isPreEvent) ? (
-                            <div className="font-mono text-xs text-slate-800 py-1 flex items-center justify-between">
-                              <span className="font-semibold text-slate-800">
+                            <div className="font-mono text-xs text-slate-800 dark:text-slate-200 py-1 flex items-center justify-between">
+                              <span className="font-semibold text-slate-800 dark:text-slate-200">
                                 {currentSelectedBarcode ? `Barcode: [${currentSelectedBarcode}]` : "Physical Unit Pre-Assigned"}
                               </span>
-                              <span className="text-[10px] font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                              <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700">
                                 Pre-Inspected (Good)
                               </span>
                             </div>
@@ -848,19 +866,23 @@ export default function VenueEquipmentChecklist({
 
                           {/* Built-in physical units linked to selected physical unit */}
                           {currentSelectedBarcode && slotBuiltIns.length > 0 && (
-                            <div className="mt-1.5 p-2.5 rounded bg-slate-50 border border-slate-200 space-y-1.5">
-                              <div className="flex items-center justify-between text-[11px] font-bold text-slate-700">
+                            <div className="mt-1.5 p-2.5 rounded bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 space-y-1.5">
+                              <div className="flex items-center justify-between text-[11px] font-bold text-slate-700 dark:text-slate-300">
                                 <span>Built-in to [{currentSelectedBarcode}]</span>
-                                <span className="text-[10px] text-slate-500 font-medium">
+                                <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">
                                   {slotBuiltIns.length} {slotBuiltIns.length === 1 ? "Unit" : "Units"} Linked
                                 </span>
                               </div>
                               <div className="flex flex-wrap gap-1.5">
                                 {slotBuiltIns.map((bi) => (
-                                  <span key={bi.id || bi.barcode} className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-white border border-slate-300 text-[11px] text-slate-700">
+                                  <span key={bi.id || bi.barcode} className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-[11px] text-slate-700 dark:text-slate-300">
                                     <span className="text-slate-400">•</span>
-                                    <span className="font-semibold">{bi.name}</span>
-                                    <span className="font-mono text-[10px] text-slate-500">[{bi.barcode}]</span>
+                                    {bi.seq_no && (
+                                      <span className="font-mono text-[9.5px] font-black text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/70 px-1 rounded border border-amber-200 dark:border-amber-800">
+                                        {bi.seq_no}
+                                      </span>
+                                    )}
+                                    <span className="font-bold">{bi.name}</span>
                                   </span>
                                 ))}
                               </div>
@@ -870,15 +892,15 @@ export default function VenueEquipmentChecklist({
                           {/* Pre-event physical unit condition inspection */}
                           {setUnitReturnedConditions && !isHistoryView && !isSideBySide && !isApproved && (
                             <div className="flex items-center justify-between pt-1">
-                              <span className="text-[10.5px] font-bold text-slate-500">Unit Condition:</span>
+                              <span className="text-[10.5px] font-bold text-slate-500 dark:text-slate-400">Unit Condition:</span>
                               <div className="flex items-center gap-1.5">
                                 <button
                                   type="button"
                                   onClick={() => setUnitReturnedConditions(prev => ({ ...prev, [unitKey]: "Good", ...(currentSelectedBarcode ? { [currentSelectedBarcode]: "Good" } : {}) }))}
                                   className={`px-2 py-0.5 rounded border text-[11px] font-semibold transition-colors cursor-pointer ${
                                     cond === "Good"
-                                      ? "border-slate-800 bg-slate-900 text-white"
-                                      : "border-slate-300 bg-white text-slate-600 hover:bg-slate-50"
+                                      ? "border-slate-800 dark:border-white bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 shadow-2xs"
+                                      : "border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
                                   }`}
                                 >
                                   Good
@@ -888,8 +910,8 @@ export default function VenueEquipmentChecklist({
                                   onClick={() => setUnitReturnedConditions(prev => ({ ...prev, [unitKey]: "Damaged", ...(currentSelectedBarcode ? { [currentSelectedBarcode]: "Damaged" } : {}) }))}
                                   className={`px-2 py-0.5 rounded border text-[11px] font-semibold transition-colors cursor-pointer ${
                                     cond === "Damaged"
-                                      ? "border-rose-700 bg-rose-700 text-white"
-                                      : "border-slate-300 bg-white text-slate-600 hover:bg-slate-50"
+                                      ? "border-rose-700 dark:border-rose-500 bg-rose-700 dark:bg-rose-600 text-white shadow-2xs"
+                                      : "border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
                                   }`}
                                 >
                                   Damaged
@@ -899,8 +921,8 @@ export default function VenueEquipmentChecklist({
                                   onClick={() => setUnitReturnedConditions(prev => ({ ...prev, [unitKey]: "Lost", ...(currentSelectedBarcode ? { [currentSelectedBarcode]: "Lost" } : {}) }))}
                                   className={`px-2 py-0.5 rounded border text-[11px] font-semibold transition-colors cursor-pointer ${
                                     cond === "Lost"
-                                      ? "border-amber-700 bg-amber-700 text-white"
-                                      : "border-slate-300 bg-white text-slate-600 hover:bg-slate-50"
+                                      ? "border-amber-700 dark:border-amber-500 bg-amber-700 dark:bg-amber-600 text-white shadow-2xs"
+                                      : "border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
                                   }`}
                                 >
                                   Lost
@@ -921,12 +943,12 @@ export default function VenueEquipmentChecklist({
 
       {/* Physical Unit Inspection Remarks */}
       {!isApproved && (
-        <div className="space-y-1.5 pt-2 border-t border-slate-200">
-          <label className="block text-[11px] font-bold text-slate-600 uppercase">
+        <div className="space-y-1.5 pt-2 border-t border-slate-200 dark:border-blue-900/50">
+          <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase">
             Remarks
           </label>
           {isHistoryView || (isSideBySide && isPreEvent) ? (
-            <div className="p-3 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-800 min-h-[50px]">
+            <div className="p-3 bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-blue-900/50 rounded-lg text-xs font-medium text-slate-800 dark:text-slate-200 min-h-[50px]">
               {isPreEvent
                 ? "All physical units inspected and released in satisfactory condition before event."
                 : (equipmentInspectionNotes || "All physical units inspected in satisfactory condition.")}
@@ -937,7 +959,7 @@ export default function VenueEquipmentChecklist({
               placeholder="Provide additional details regarding unit condition, serial/barcode observations, or defects..."
               value={equipmentInspectionNotes || ""}
               onChange={(e) => setEquipmentInspectionNotes && setEquipmentInspectionNotes(e.target.value)}
-              className="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-800 focus:outline-none focus:border-slate-400 transition-all"
+              className="w-full p-2.5 bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-blue-900/50 rounded-lg text-xs font-medium text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:border-slate-400 dark:focus:border-blue-500 transition-all"
             />
           )}
         </div>

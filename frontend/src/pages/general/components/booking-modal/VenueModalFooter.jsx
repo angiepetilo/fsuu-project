@@ -198,22 +198,6 @@ export default function VenueModalFooter({
         </div>
       ) : isOngoing ? (
         <div className="flex items-center gap-2.5 flex-wrap justify-end">
-          {!isInspectionReady && (
-            <div
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800/70 text-amber-800 dark:text-amber-200 text-xs font-semibold shadow-2xs"
-              title={inspectionEligibility.reason}
-            >
-              <Clock size={14} className="text-amber-600 dark:text-amber-400 shrink-0" />
-              <span>Inspection opens {inspectionEligibility.unlockTimeStr ? `at ${inspectionEligibility.unlockTimeStr}` : "30 mins before end time"}</span>
-              {inspectionEligibility.minutesUntilUnlock > 0 && (
-                <span className="text-[11px] font-bold text-amber-600 dark:text-amber-400">
-                  ({inspectionEligibility.minutesUntilUnlock > 60
-                    ? `${Math.floor(inspectionEligibility.minutesUntilUnlock / 60)}h ${inspectionEligibility.minutesUntilUnlock % 60}m`
-                    : `${inspectionEligibility.minutesUntilUnlock}m`})
-                </span>
-              )}
-            </div>
-          )}
 
           {!isInspectionReady && (
             <button
@@ -237,17 +221,7 @@ export default function VenueModalFooter({
             </button>
           )}
 
-          {isSuperAdmin && !inspectionEligibility.isReady && !adminEarlyOverride && (
-            <button
-              type="button"
-              onClick={() => setShowEarlyOverrideModal(true)}
-              className="px-3 py-2 bg-amber-100 hover:bg-amber-200 dark:bg-amber-900/40 dark:hover:bg-amber-900/60 text-amber-900 dark:text-amber-200 border border-amber-300 dark:border-amber-700/60 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1"
-              title="Super Administrator Early Inspection Override"
-            >
-              <ShieldCheck size={13} className="text-amber-700 dark:text-amber-300" />
-              <span>Admin Override</span>
-            </button>
-          )}
+
 
           <button
             type="button"

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { FileText, ExternalLink, Upload, CheckCircle, CheckCircle2, HardDrive, Check, Shield, PackageCheck, AlertCircle, X, Loader2 } from "lucide-react";
+import { FileText, ExternalLink, Upload, CheckCircle, CheckCircle2, HardDrive, Check, Shield, PackageCheck, AlertCircle, X, Loader2, Download, Eye, Image as ImageIcon } from "lucide-react";
 import { resolveStorageUrl, openFileInNewTab } from "@/lib/utils";
 import { formatDateRange, formatTime12 } from "@/lib/dateUtils";
 import api from "@/lib/axios";
@@ -65,21 +65,38 @@ export default function VenueBookingInfo({
   const [isUploading, setIsUploading] = useState(false);
 
   const [hasHardcopySaved, setHasHardcopySaved] = useState(false);
+  const [savedIsHardcopy, setSavedIsHardcopy] = useState(false);
+  const [savedHardcopyNotes, setSavedHardcopyNotes] = useState("");
   const [selectedDocIndex, setSelectedDocIndex] = useState(0);
 
   useEffect(() => {
     setStaffUploadUrl(null);
-    setIsHardcopy(false);
-    setHardcopyNotes("");
-    if (!storageKeyHardcopy) return;
+    if (!storageKeyHardcopy) {
+      setIsHardcopy(false);
+      setHardcopyNotes("");
+      setSavedIsHardcopy(false);
+      setSavedHardcopyNotes("");
+      setHasHardcopySaved(false);
+      return;
+    }
     try {
       const savedHc = localStorage.getItem(storageKeyHardcopy);
       const savedNotes = localStorage.getItem(storageKeyNotes);
       const isHcActive = savedHc === "true" || selected?.physical_hardcopy_received === 1 || selected?.physical_hardcopy_received === true;
+      const initialNotes = savedNotes || "";
       setHasHardcopySaved(isHcActive);
-      if (savedNotes) setHardcopyNotes(savedNotes);
-    } catch {}
+      setIsHardcopy(isHcActive);
+      setHardcopyNotes(initialNotes);
+      setSavedIsHardcopy(isHcActive);
+      setSavedHardcopyNotes(initialNotes);
+    } catch {
+      setIsHardcopy(false);
+      setSavedIsHardcopy(false);
+      setSavedHardcopyNotes("");
+    }
   }, [selected?.id, storageKeyHardcopy, storageKeyNotes]);
+
+  const hasHardcopyChanges = isHardcopy !== savedIsHardcopy || (isHardcopy && hardcopyNotes.trim() !== savedHardcopyNotes.trim());
 
   if (!selected) return null;
 
@@ -316,13 +333,31 @@ export default function VenueBookingInfo({
     }
   };
 
+  const handleToggleHardcopy = (checked) => {
+    setIsHardcopy(checked);
+    if (!checked) {
+      setHasHardcopySaved(false);
+      try {
+        if (storageKeyHardcopy) localStorage.removeItem(storageKeyHardcopy);
+        if (storageKeyNotes) localStorage.removeItem(storageKeyNotes);
+      } catch {}
+      setHardcopyNotes("");
+      setSavedIsHardcopy(false);
+      setSavedHardcopyNotes("");
+      notify.info("Walk-in Endorsement", "Physical hardcopy unverified.");
+    }
+  };
+
   const handleSaveHardcopy = () => {
+    const trimmedNotes = hardcopyNotes.trim();
     try {
-      localStorage.setItem(storageKeyHardcopy, "true");
-      localStorage.setItem(storageKeyNotes, hardcopyNotes);
+      if (storageKeyHardcopy) localStorage.setItem(storageKeyHardcopy, "true");
+      if (storageKeyNotes) localStorage.setItem(storageKeyNotes, trimmedNotes);
     } catch {}
     setHasHardcopySaved(true);
-    setIsHardcopy(false);
+    setIsHardcopy(true); // Keeps checked and intact!
+    setSavedIsHardcopy(true);
+    setSavedHardcopyNotes(trimmedNotes);
     setSaveSuccessMsg("Walk-in endorsement status saved.");
     notify.success("Walk-in Endorsement", "Walk-in endorsement status saved.");
     setTimeout(() => setSaveSuccessMsg(null), 3000);
@@ -374,6 +409,44 @@ export default function VenueBookingInfo({
     openFileInNewTab(url);
   };
 
+  const handleDownloadDocument = async (url, fallbackName) => {
+    if (!url) return;
+    try {
+      const resolved = resolveStorageUrl(url) || url;
+      if (resolved.startsWith("data:")) {
+        const link = document.createElement("a");
+        link.href = resolved;
+        link.download = fallbackName || "endorsement_document";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        return;
+      }
+      const res = await fetch(resolved);
+      if (!res.ok) throw new Error("Fetch failed");
+      const blob = await res.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      link.download = fallbackName || resolved.split("/").pop() || "endorsement_document";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+    } catch {
+      openFileInNewTab(url);
+    }
+  };
+
+  const activeDoc = allDocs[selectedDocIndex] || allDocs[0] || null;
+  const fileName = activeDoc?.label && activeDoc.label !== "Endorsement" && activeDoc.label !== "Attachment"
+    ? `${activeDoc.label}.${isPdf ? "pdf" : "png"}`
+    : (docUrl
+        ? (docUrl.startsWith("data:") ? `Official_Endorsement.${isPdf ? "pdf" : "png"}` : docUrl.split("/").pop().split("?")[0])
+        : "Endorsement_Letter.pdf");
+
+  const fileExtension = fileName.includes(".") ? fileName.split(".").pop().toUpperCase() : (isPdf ? "PDF" : "IMG");
+
   const filerFullName = [selected.first_name, selected.middle_name, selected.last_name, selected.suffix]
     .filter(Boolean)
     .join(" ")
@@ -398,7 +471,7 @@ export default function VenueBookingInfo({
               title="Super Admin Override: Reassign Venue, Date & Time"
             >
               <Shield size={12} className="text-amber-600 dark:text-amber-400" />
-              <span>Override Venue / Schedule</span>
+              <span>Override</span>
             </button>
           </div>
         )}
@@ -444,16 +517,6 @@ export default function VenueBookingInfo({
           <span className="text-slate-500 dark:text-slate-400">Venue Reserved :</span>
           <div className="flex items-center gap-1.5">
             <span className="font-bold text-slate-900 dark:text-white font-mono">{selected.venue_name || selected.venue?.name || "AVR Hall 1"}</span>
-            {isSuperAdmin && (
-              <button
-                type="button"
-                onClick={() => handleOpenOverride("venue")}
-                className="px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-700/80 hover:bg-amber-100 dark:hover:bg-amber-900/60 transition-colors cursor-pointer shadow-2xs"
-                title="Super Admin Override: Reassign Venue"
-              >
-                Override
-              </button>
-            )}
           </div>
         </div>
 
@@ -466,16 +529,6 @@ export default function VenueBookingInfo({
                 selected.reservation_end_date || selected.end_datetime || selected.end_date
               )}
             </span>
-            {isSuperAdmin && (
-              <button
-                type="button"
-                onClick={() => handleOpenOverride("date")}
-                className="px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-700/80 hover:bg-amber-100 dark:hover:bg-amber-900/60 transition-colors cursor-pointer shadow-2xs"
-                title="Super Admin Override: Change Date Range"
-              >
-                Override
-              </button>
-            )}
           </div>
         </div>
 
@@ -485,16 +538,6 @@ export default function VenueBookingInfo({
             <span className="font-mono text-slate-900 dark:text-white font-bold">
               {formatRealTime(selected.time_start || selected.start_datetime)} - {formatRealTime(selected.time_end || selected.end_datetime)}
             </span>
-            {isSuperAdmin && (
-              <button
-                type="button"
-                onClick={() => handleOpenOverride("time")}
-                className="px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-700/80 hover:bg-amber-100 dark:hover:bg-amber-900/60 transition-colors cursor-pointer shadow-2xs"
-                title="Super Admin Override: Change Time Window"
-              >
-                Override
-              </button>
-            )}
           </div>
         </div>
 
@@ -664,7 +707,8 @@ export default function VenueBookingInfo({
 
       {/* Right Column (5/12): Endorsement Document & Walk-in Hardcopy Management */}
       <div className="lg:col-span-5 bg-white dark:bg-slate-900/80 p-4 rounded-2xl border border-slate-200 dark:border-blue-900/50 flex flex-col justify-between space-y-3">
-        <div className="space-y-2">
+        <div className="space-y-2.5">
+          {/* Header */}
           <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800/80 pb-2">
             <span className="font-extrabold text-slate-900 dark:text-white text-xs flex items-center gap-1.5">
               <FileText size={14} className="text-blue-600 dark:text-blue-400" />
@@ -677,88 +721,119 @@ export default function VenueBookingInfo({
 
           {/* Multiple Document Selector Tabs */}
           {allDocs.length > 1 && (
-            <div className="flex items-center gap-1 overflow-x-auto pb-1">
+            <div className="flex items-center gap-1 overflow-x-auto pb-0.5">
               {allDocs.map((doc, idx) => (
                 <button
                   key={idx}
                   type="button"
                   onClick={() => setSelectedDocIndex(idx)}
-                  className={`px-2 py-0.5 rounded text-[10px] font-bold transition-colors cursor-pointer shrink-0 ${
+                  className={`px-2.5 py-1 rounded-md text-[10.5px] font-bold transition-all cursor-pointer shrink-0 ${
                     selectedDocIndex === idx
-                      ? "bg-blue-600 text-white"
+                      ? "bg-blue-600 text-white shadow-xs"
                       : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
                   }`}
                 >
-                  Doc #{idx + 1}
+                  {doc.label || `Doc #${idx + 1}`}
                 </button>
               ))}
             </div>
           )}
 
-          {/* Document Preview Viewport */}
-          <div className="w-full h-[180px] bg-slate-950 rounded-xl overflow-hidden flex items-center justify-center relative group border border-slate-200 dark:border-blue-900/50">
-            {docUrl ? (
-              isPdf ? (
-                <div className="w-full h-full p-4 bg-slate-900 flex flex-col items-center justify-center text-center space-y-2">
-                  <FileText size={32} className="text-blue-400" />
-                  <div>
-                    <p className="text-xs font-bold text-white">Official Endorsement PDF</p>
-                    <p className="text-[10px] font-mono text-slate-400 mt-0.5 truncate max-w-[180px]">
-                      {docUrl.startsWith('data:') ? 'Official Attached PDF' : docUrl.split('/').pop()}
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => handleOpenDocument(docUrl)}
-                    className="px-3.5 py-1.5 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-900 dark:text-white border border-slate-300 dark:border-slate-700 rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
-                  >
-                    <ExternalLink size={13} /> Open in New Tab
-                  </button>
+          {/* Compact Document File Card */}
+          {docUrl ? (
+            <div className="rounded-xl border border-slate-200 dark:border-blue-900/50 bg-slate-50/80 dark:bg-slate-950/60 p-3 space-y-2.5 transition-all">
+              <div className="flex items-start gap-3">
+                {/* File Icon Badge */}
+                <div className={`p-2.5 rounded-xl shrink-0 flex items-center justify-center ${
+                  isPdf 
+                    ? "bg-rose-50 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400 border border-rose-200 dark:border-rose-900/60" 
+                    : "bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400 border border-blue-200 dark:border-blue-900/60"
+                }`}>
+                  {isPdf ? <FileText size={22} /> : <ImageIcon size={22} />}
                 </div>
-              ) : (
-                <>
-                  <img
-                    src={docUrl}
-                    alt="Endorsement Letter"
-                    className="w-full h-full object-contain p-2 group-hover:scale-105 transition-transform"
-                  />
-                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => handleOpenDocument(docUrl)}
-                      className="px-3 py-1.5 bg-white text-slate-900 rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer"
-                    >
-                      <ExternalLink size={12} /> View Full
-                    </button>
+
+                {/* File Details */}
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-1">
+                    <p className="text-xs font-bold text-slate-900 dark:text-white truncate" title={fileName}>
+                      {fileName}
+                    </p>
+                    <span className={`px-1.5 py-0.5 rounded text-[9.5px] font-mono font-black uppercase shrink-0 ${
+                      isPdf 
+                        ? "bg-rose-100 text-rose-700 dark:bg-rose-900/60 dark:text-rose-300" 
+                        : "bg-blue-100 text-blue-700 dark:bg-blue-900/60 dark:text-blue-300"
+                    }`}>
+                      {fileExtension}
+                    </span>
                   </div>
-                </>
-              )
-            ) : (
-              <div className="text-center p-4 space-y-1">
-                <FileText size={28} className="mx-auto text-slate-600 dark:text-slate-500 mb-1" />
-                <p className="text-xs font-bold text-slate-300 dark:text-slate-300">No Endorsement Document</p>
-                <p className="text-[10.5px] text-slate-500 dark:text-slate-400 font-mono">Client may submit physical hardcopy at AVR counter</p>
+
+                  <p className="text-[10.5px] text-slate-500 dark:text-slate-400 font-medium mt-0.5">
+                    {isPdf ? "Official PDF Endorsement Letter" : "Scanned Endorsement Image"}
+                  </p>
+
+                  <p className="text-[10px] font-mono text-slate-400 dark:text-slate-500 mt-0.5">
+                    Filed: {formatDateTimeFiled ? formatDateTimeFiled(selected.created_at) : (selected.created_at || "Recent")}
+                  </p>
+                </div>
               </div>
-            )}
-          </div>
+
+              {/* Action Buttons: Preview / Zoom & Download */}
+              <div className="flex items-center gap-2 pt-1 border-t border-slate-200/60 dark:border-slate-800/80">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (setFullImageModal) {
+                      setFullImageModal({ url: docUrl, title: fileName, isPdf });
+                    } else {
+                      handleOpenDocument(docUrl);
+                    }
+                  }}
+                  className="flex-1 py-1.5 px-3 bg-white dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-blue-950/60 text-slate-800 dark:text-slate-200 hover:text-blue-600 dark:hover:text-blue-300 border border-slate-300 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-800 rounded-lg text-xs font-extrabold flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
+                  title="Open full-screen preview"
+                >
+                  <Eye size={13} />
+                  <span>Preview / Zoom</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleDownloadDocument(docUrl, fileName)}
+                  className="flex-1 py-1.5 px-3 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-700 rounded-lg text-xs font-extrabold flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
+                  title="Download endorsement file"
+                >
+                  <Download size={13} />
+                  <span>Download File</span>
+                </button>
+              </div>
+            </div>
+          ) : (
+            /* Empty State when no file attached */
+            <div className="rounded-xl border border-dashed border-slate-300 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-950/40 p-3.5 text-center space-y-1">
+              <FileText size={24} className="mx-auto text-slate-400 dark:text-slate-500" />
+              <p className="text-xs font-bold text-slate-700 dark:text-slate-300">No Electronic Document Attached</p>
+              <p className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">
+                Verify physical hardcopy submission below or attach file.
+              </p>
+            </div>
+          )}
         </div>
 
-        {/* Walk-in Hardcopy & Staff Upload Actions */}
-        <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800/80">
+        {/* Verification Actions Card: Physical Hardcopy & Staff Upload */}
+        <div className="bg-slate-50 dark:bg-slate-950/60 p-3 rounded-xl border border-slate-200/80 dark:border-blue-900/40 space-y-2.5">
           <div className="flex items-center justify-between">
-            <label className="flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-300 cursor-pointer">
+            <label className="flex items-center gap-2 text-xs font-bold text-slate-800 dark:text-slate-200 cursor-pointer">
               <input
                 type="checkbox"
                 checked={isHardcopy}
-                onChange={(e) => setIsHardcopy(e.target.checked)}
+                onChange={(e) => handleToggleHardcopy(e.target.checked)}
                 className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 dark:border-slate-700 cursor-pointer"
               />
               <span>Physical Hardcopy Received</span>
             </label>
             
-            {/* Attach File is invisible if Hardcopy is already saved/filed */}
+            {/* Attach File Button */}
             {!hasHardcopySaved && (
-              <label className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/60 border border-blue-200 dark:border-blue-800/60 text-[11px] font-bold cursor-pointer transition-colors">
+              <label className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-950/70 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/70 border border-blue-200 dark:border-blue-800 text-[11px] font-bold cursor-pointer transition-colors shadow-2xs">
                 <Upload size={12} />
                 <span>{isUploading ? "Uploading..." : "Attach File"}</span>
                 <input
@@ -779,15 +854,17 @@ export default function VenueBookingInfo({
                 placeholder="Receiver note (e.g. Received signed memo by Prof. Santos)"
                 value={hardcopyNotes}
                 onChange={(e) => setHardcopyNotes(e.target.value)}
-                className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-[11px] font-medium text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-600"
+                className="w-full px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-[11px] font-medium text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-600"
               />
-              <button
-                type="button"
-                onClick={handleSaveHardcopy}
-                className="w-full py-1.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-lg text-xs font-bold cursor-pointer transition-colors shadow-xs"
-              >
-                Save
-              </button>
+              {hasHardcopyChanges && (
+                <button
+                  type="button"
+                  onClick={handleSaveHardcopy}
+                  className="w-full py-1.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-lg text-xs font-bold cursor-pointer transition-colors shadow-xs animate-in fade-in"
+                >
+                  Save
+                </button>
+              )}
             </div>
           )}
 

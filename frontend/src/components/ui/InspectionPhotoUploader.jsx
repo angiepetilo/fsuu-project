@@ -82,19 +82,19 @@ export default function InspectionPhotoUploader({
   };
 
   return (
-    <div className="space-y-2 pt-1">
+    <div className="space-y-2 pt-1 font-sans">
       {/* Header & Photo Count Badge */}
       {(title || normalizedPhotos.length > 0) && (
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5">
             {title && (
-              <label className="text-[11px] font-bold text-slate-700 flex items-center gap-1.5 uppercase">
-                <Camera size={13} className="text-slate-500" />
+              <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5 uppercase tracking-wide">
+                <Camera size={13} className="text-slate-500 dark:text-slate-400" />
                 <span>{title}</span>
               </label>
             )}
             {normalizedPhotos.length > 0 && (
-              <span className="text-[10px] font-mono font-extrabold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
+              <span className="text-[10px] font-mono font-extrabold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
                 {normalizedPhotos.length} {normalizedPhotos.length === 1 ? "Photo" : "Photos"}
               </span>
             )}
@@ -103,7 +103,7 @@ export default function InspectionPhotoUploader({
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="text-[10px] font-bold text-blue-600 hover:text-blue-700 hover:underline flex items-center gap-1 cursor-pointer"
+              className="text-[10px] font-bold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:underline flex items-center gap-1 cursor-pointer"
             >
               <Plus size={11} /> Add More
             </button>
@@ -113,7 +113,7 @@ export default function InspectionPhotoUploader({
 
       {/* Subtitle / Instructions */}
       {!isReadOnly && normalizedPhotos.length === 0 && (
-        <p className="text-[10.5px] text-slate-500">{subtitle}</p>
+        <p className="text-[10.5px] text-slate-500 dark:text-slate-400">{subtitle}</p>
       )}
 
       {/* Hidden File Input */}
@@ -128,13 +128,13 @@ export default function InspectionPhotoUploader({
 
       {/* Photos Thumbnail Gallery */}
       {normalizedPhotos.length > 0 && (
-        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 max-h-48 overflow-y-auto p-1 bg-slate-50 rounded-xl border border-slate-200">
+        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 max-h-48 overflow-y-auto p-1 bg-slate-50 dark:bg-slate-900/60 rounded-xl border border-slate-200 dark:border-blue-900/50">
           {normalizedPhotos.map((photo, index) => {
             const displayUrl = resolveStorageUrl(photo) || photo;
             return (
               <div
                 key={`insp-img-${index}`}
-                className="group relative aspect-square rounded-lg overflow-hidden border border-slate-200 bg-slate-900 shadow-2xs"
+                className="group relative aspect-square rounded-lg overflow-hidden border border-slate-200 dark:border-blue-900/40 bg-slate-900 shadow-2xs"
               >
                 <img
                   src={displayUrl}
@@ -148,7 +148,7 @@ export default function InspectionPhotoUploader({
                     type="button"
                     title="View full photo"
                     onClick={() => handlePhotoClick(photo)}
-                    className="p-1 rounded-md bg-white/90 text-slate-900 hover:bg-white hover:scale-110 transition-all cursor-pointer shadow-xs"
+                    className="p-1 rounded-md bg-white/90 dark:bg-slate-800 text-slate-900 dark:text-white hover:bg-white dark:hover:bg-slate-700 hover:scale-110 transition-all cursor-pointer shadow-xs"
                   >
                     <ZoomIn size={12} />
                   </button>
@@ -180,9 +180,9 @@ export default function InspectionPhotoUploader({
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="aspect-square rounded-lg border-2 border-dashed border-slate-300 hover:border-slate-400 bg-white hover:bg-slate-50 flex flex-col items-center justify-center text-slate-400 hover:text-slate-600 transition-all cursor-pointer group"
+              className="aspect-square rounded-lg border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-600 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 flex flex-col items-center justify-center transition-all cursor-pointer group"
             >
-              <Plus size={18} className="group-hover:scale-110 transition-transform text-slate-400 group-hover:text-slate-600" />
+              <Plus size={18} className="group-hover:scale-110 transition-transform text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300" />
               <span className="text-[9.5px] font-bold mt-1">Add</span>
             </button>
           )}
@@ -198,18 +198,18 @@ export default function InspectionPhotoUploader({
           onClick={() => fileInputRef.current?.click()}
           className={`border-2 border-dashed rounded-xl p-3.5 text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-1.5 ${
             isDragging
-              ? "border-blue-500 bg-blue-50/50"
-              : "border-slate-300 hover:border-slate-400 bg-slate-50/50 hover:bg-slate-50"
+              ? "border-blue-500 bg-blue-50/50 dark:bg-blue-950/40"
+              : "border-slate-300 dark:border-blue-900/60 hover:border-slate-400 dark:hover:border-blue-700 bg-slate-50/50 dark:bg-slate-900/60 hover:bg-slate-50 dark:hover:bg-slate-900/80"
           }`}
         >
-          <div className="p-2 rounded-full bg-white border border-slate-200 text-slate-500 shadow-2xs">
+          <div className="p-2 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-300 shadow-2xs">
             <UploadCloud size={16} />
           </div>
           <div>
-            <p className="text-xs font-bold text-slate-700">
+            <p className="text-xs font-bold text-slate-700 dark:text-slate-200">
               Click or drag photos here to upload
             </p>
-            <p className="text-[10px] text-slate-400 mt-0.5">
+            <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">
               PNG, JPG, WEBP • Select as many photos as needed
             </p>
           </div>
@@ -218,8 +218,8 @@ export default function InspectionPhotoUploader({
 
       {/* Read-Only Empty Notice */}
       {isReadOnly && normalizedPhotos.length === 0 && (
-        <div className="p-2.5 rounded-xl border border-slate-200 bg-slate-50/70 text-center">
-          <p className="text-[11px] text-slate-400 font-medium">No inspection photos attached</p>
+        <div className="p-2.5 rounded-xl border border-slate-200 dark:border-blue-900/50 bg-slate-50/70 dark:bg-slate-900/40 text-center">
+          <p className="text-[11px] text-slate-400 dark:text-slate-500 font-medium">No inspection photos attached</p>
         </div>
       )}
     </div>

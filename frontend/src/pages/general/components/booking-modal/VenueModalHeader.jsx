@@ -1,6 +1,6 @@
-import { X } from "lucide-react";
+import { X, Clock } from "lucide-react";
 import { OverdueBadge } from "@/components/ui/status-badge";
-import { getOverdueMinutes } from "@/lib/dateTimeUtils";
+import { getOverdueMinutes, getInspectionEligibility, formatCountdownDuration } from "@/lib/dateTimeUtils";
 
 /**
  * VenueModalHeader — Top bar of the booking form modal.
@@ -14,13 +14,18 @@ export default function VenueModalHeader({
   formatDateTimeFiled,
 }) {
   const currentRawStatus = (displayStatus || selected?.status || selected?.tracking_number?.status || "").toLowerCase();
+  const isOngoing = ["ongoing", "on-going"].includes(currentRawStatus);
   const isOngoingOrInSession = ["ongoing", "on-going", "in_use", "in-use", "approved"].includes(currentRawStatus);
   const scheduledEndDate = selected?.reservation_end_date || selected?.date_of_usage || selected?.start_datetime;
-  const overdueMins = isOngoingOrInSession ? getOverdueMinutes(scheduledEndDate, selected?.time_end || selected?.end_datetime) : 0;
+  const scheduledEndTime = selected?.time_end || selected?.end_datetime || "17:00";
+  const overdueMins = isOngoingOrInSession ? getOverdueMinutes(scheduledEndDate, scheduledEndTime) : 0;
+  const inspectionEligibility = isOngoing
+    ? getInspectionEligibility(scheduledEndDate, scheduledEndTime, 30)
+    : { isReady: true, minutesUntilUnlock: 0, unlockTimeStr: "", reason: "" };
 
   return (
     <div className="px-6 py-4 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-blue-900/50 shrink-0">
-      <div className="flex items-start justify-between">
+      <div className="flex items-start justify-between gap-4">
         <div>
           <h3 className="text-lg font-extrabold text-slate-900 dark:text-white tracking-tight">Booking Form</h3>
           <div className="text-xs text-slate-500 dark:text-slate-400 font-semibold space-y-0.5 mt-1">
@@ -38,27 +43,47 @@ export default function VenueModalHeader({
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5 flex-wrap justify-end">
-            <span className="font-mono text-xs font-bold uppercase text-slate-500 dark:text-slate-400">
-              Status:{" "}
-              <span
-                className={`font-black ${
-                  displayStatus === "Satisfactory" || displayStatus === "approved"
-                    ? "text-emerald-600 dark:text-emerald-400"
-                    : displayStatus === "ongoing" || displayStatus === "on-going"
-                    ? "text-blue-600 dark:text-blue-400"
-                    : displayStatus === "Completed" || displayStatus === "completed"
-                    ? "text-slate-800 dark:text-slate-200"
-                    : displayStatus === "Policy Violation" || displayStatus === "Policy Breach" || displayStatus === "damaged" || displayStatus === "rejected"
-                    ? "text-rose-600 dark:text-rose-400"
-                    : "text-amber-600 dark:text-amber-400"
-                }`}
-              >
-                {displayStatus}
+        <div className="flex items-start gap-3">
+          <div className="flex flex-col items-end gap-1.5">
+            <div className="flex items-center gap-1.5 flex-wrap justify-end">
+              <span className="font-mono text-xs font-bold uppercase text-slate-500 dark:text-slate-400">
+                Status:{" "}
+                <span
+                  className={`font-black ${
+                    displayStatus === "Satisfactory" || displayStatus === "approved"
+                      ? "text-emerald-600 dark:text-emerald-400"
+                      : displayStatus === "ongoing" || displayStatus === "on-going"
+                      ? "text-blue-600 dark:text-blue-400"
+                      : displayStatus === "Completed" || displayStatus === "completed"
+                      ? "text-slate-800 dark:text-slate-200"
+                      : displayStatus === "Policy Violation" || displayStatus === "Policy Breach" || displayStatus === "damaged" || displayStatus === "rejected"
+                      ? "text-rose-600 dark:text-rose-400"
+                      : "text-amber-600 dark:text-amber-400"
+                  }`}
+                >
+                  {displayStatus}
+                </span>
               </span>
-            </span>
-            {overdueMins > 0 && <OverdueBadge minutesOverdue={overdueMins} />}
+              {overdueMins > 0 && <OverdueBadge minutesOverdue={overdueMins} />}
+            </div>
+
+            {/* Inspection opens timer pill displayed below status */}
+            {isOngoing && !inspectionEligibility.isReady && (
+              <div
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 dark:bg-amber-950/60 border border-amber-200/80 dark:border-amber-800/70 text-amber-800 dark:text-amber-200 text-[11px] font-semibold"
+                title={inspectionEligibility.reason}
+              >
+                <Clock size={12} className="text-amber-600 dark:text-amber-400 shrink-0" />
+                <span>
+                  Inspection opens {inspectionEligibility.unlockFormattedLabel || (inspectionEligibility.unlockTimeStr ? `${inspectionEligibility.isToday ? 'at ' : ''}${inspectionEligibility.unlockTimeStr}` : "30 mins before end time")}
+                </span>
+                {inspectionEligibility.minutesUntilUnlock > 0 && (
+                  <span className="font-bold text-amber-600 dark:text-amber-400">
+                    ({inspectionEligibility.countdownDurationStr || (typeof formatCountdownDuration === 'function' ? formatCountdownDuration(inspectionEligibility.minutesUntilUnlock) : `${inspectionEligibility.minutesUntilUnlock}m`)})
+                  </span>
+                )}
+              </div>
+            )}
           </div>
           <button
             type="button"

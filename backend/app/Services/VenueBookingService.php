@@ -1048,17 +1048,10 @@ class VenueBookingService
             return $booking->fresh(['venue', 'trackingNumber', 'documents']);
         });
 
-        // ── Email 3 (Venue): Equipment unit-list released email ───────────────────
-        // Only send when the booking transitioned from 'approved' and has assigned units.
-        // Failure must NOT break the status transition (already committed above).
+        // ── Email 3 (Venue): Check-in logged / Event in progress email ───────────
+        // Dispatched when the reservation transitions to on-going.
         try {
-            $assignedAfter = $result->assigned_units ?? [];
-            if (is_string($assignedAfter)) {
-                try { $assignedAfter = json_decode($assignedAfter, true) ?? []; } catch (\Throwable $t) { $assignedAfter = []; }
-            }
-            $hasUnits = is_array($assignedAfter) && !empty(array_filter($assignedAfter));
-
-            if ($previousStatus === 'approved' && $hasUnits) {
+            if ($previousStatus !== 'ongoing' && $previousStatus !== 'on-going') {
                 SendBookingStatusUpdateJob::dispatch('venue', $result, 'on-going');
             }
         } catch (\Throwable $e) {

@@ -16,6 +16,7 @@ import {
   FileBarChart2, FileText, Download, ShieldAlert, PackageOpen, CheckCircle2,
   Building2, Printer, X, Loader2, FileSpreadsheet, ChevronDown, Layers
 } from "lucide-react";
+import AcademicTermSelect from "@/components/ui/AcademicTermSelect";
 
 export default function Reports() {
   const { user, isStaff, isSuperAdmin, isStudentAssistant, hasPermission } = usePermissions();
@@ -550,20 +551,12 @@ export default function Reports() {
 
         {/* Semester filter aligned in the 4 tabs on the right side */}
         {academicTerms.length > 0 && (
-          <div className="flex items-center gap-1.5 bg-white border border-slate-200 px-3 py-1.5 rounded-xl shadow-2xs self-end md:self-auto shrink-0">
-            <label className="text-xs font-bold text-slate-600 whitespace-nowrap">Semester :</label>
-            <select
-              value={selectedTermId}
-              onChange={(e) => setSelectedTermId(e.target.value)}
-              className="p-1 bg-transparent border-0 font-bold text-slate-900 text-xs focus:outline-none cursor-pointer"
-            >
-              <option value="">All Terms (TiDB Archive)</option>
-              {academicTerms.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name} {t.is_active ? "(Active)" : "(Archived)"}
-                </option>
-              ))}
-            </select>
+          <div className="self-end md:self-auto shrink-0">
+            <AcademicTermSelect
+              terms={academicTerms}
+              selectedId={selectedTermId}
+              onSelect={(val) => setSelectedTermId(val)}
+            />
           </div>
         )}
       </div>

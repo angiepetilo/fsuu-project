@@ -129,21 +129,21 @@ export default function VenuePostInspectionForm({
   const showRemarks = inspectionStatus === "clean" || selectedCatsArray.some(c => c.toLowerCase().includes("other"));
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 p-4 space-y-4 shadow-xs font-sans">
+    <div className="bg-white dark:bg-slate-900/80 rounded-2xl border border-slate-200 dark:border-blue-900/50 p-4 space-y-4 shadow-xs font-sans">
       {/* Header with Clean Typography */}
-      <div className="flex items-center justify-between pb-2.5 border-b border-slate-200">
+      <div className="flex items-center justify-between pb-2.5 border-b border-slate-200 dark:border-blue-900/50">
         <div>
-          <h4 className="text-xs font-bold text-slate-900 tracking-normal flex items-center gap-2">
-            <ShieldCheck size={16} className="text-blue-600" />
+          <h4 className="text-xs font-bold text-slate-900 dark:text-white tracking-normal flex items-center gap-2">
+            <ShieldCheck size={16} className="text-blue-600 dark:text-blue-400" />
             <span>Post Venue Inspection</span>
           </h4>
-          <p className="text-[11px] font-medium text-slate-500 mt-0.5">
+          <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 mt-0.5">
             {isHistoryView ? "(Read Only History Log)" : "Verify venue condition & policy compliance."}
           </p>
         </div>
 
         {inspectionSuccessMsg && (
-          <span className="text-[11px] font-mono font-bold text-emerald-600">
+          <span className="text-[11px] font-mono font-bold text-emerald-600 dark:text-emerald-400">
             {inspectionSuccessMsg}
           </span>
         )}
@@ -152,7 +152,7 @@ export default function VenuePostInspectionForm({
       {/* Outcome Condition Selection: Good vs Policy Violation */}
       <div className="space-y-2">
         {delayMins > 0 && (
-          <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold">
+          <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-900/60 text-rose-800 dark:text-rose-200 text-xs font-semibold">
             <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse shrink-0" />
             <span>
               <strong>Overtime Turnover:</strong> Facility event ended <strong>{formatOverdueDuration(delayMins)}</strong> past scheduled time.
@@ -160,7 +160,7 @@ export default function VenuePostInspectionForm({
           </div>
         )}
 
-        <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider">
+        <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
           Inspection Outcome Status *
         </label>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -175,8 +175,8 @@ export default function VenuePostInspectionForm({
             }}
             className={`p-2.5 rounded-xl border text-xs font-bold transition-all cursor-pointer flex items-center justify-center ${
               inspectionStatus === "clean"
-                ? "border-emerald-500 bg-emerald-50/50 text-emerald-700 ring-1 ring-emerald-500 shadow-2xs"
-                : "border-slate-200 bg-white text-slate-500 hover:text-slate-700 hover:border-slate-300"
+                ? "border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 ring-1 ring-emerald-500 shadow-2xs"
+                : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/40 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:border-slate-300 dark:hover:border-slate-700"
             } ${isHistoryView ? "cursor-not-allowed opacity-80" : ""}`}
           >
             <span className="font-bold">Satisfactory</span>
@@ -196,8 +196,8 @@ export default function VenuePostInspectionForm({
             }}
             className={`p-2.5 rounded-xl border text-xs font-bold transition-all cursor-pointer flex items-center justify-center ${
               inspectionStatus === "violation"
-                ? "border-rose-500 bg-rose-50/50 text-rose-700 ring-1 ring-rose-500 shadow-2xs"
-                : "border-slate-200 bg-white text-slate-500 hover:text-slate-700 hover:border-slate-300"
+                ? "border-rose-500 bg-rose-50/50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 ring-1 ring-rose-500 shadow-2xs"
+                : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/40 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:border-slate-300 dark:hover:border-slate-700"
             } ${isHistoryView ? "cursor-not-allowed opacity-80" : ""}`}
           >
             <span className="font-bold">Policy Violation</span>
@@ -207,16 +207,16 @@ export default function VenuePostInspectionForm({
 
       {/* Violation Type Section */}
       {inspectionStatus === "violation" && (
-        <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2.5 text-xs transition-all">
+        <div className="p-3.5 bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-blue-900/50 rounded-xl space-y-2.5 text-xs transition-all">
           <div className="flex items-center justify-between">
-            <label className="block text-[11px] font-bold text-slate-700">
+            <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300">
               Violation Category *
             </label>
             {!isHistoryView && (
               <button
                 type="button"
                 onClick={() => setShowAddCustom(!showAddCustom)}
-                className="text-[11px] font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 cursor-pointer transition-colors"
+                className="text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 flex items-center gap-1 cursor-pointer transition-colors"
               >
                 {showAddCustom ? <X size={12} /> : <Edit size={12} />}
                 <span>{showAddCustom ? "Save Editing" : "Edit Category"}</span>
@@ -225,15 +225,15 @@ export default function VenuePostInspectionForm({
           </div>
 
           {showAddCustom && !isHistoryView && (
-            <div className="p-3 bg-white rounded-lg border border-blue-200 shadow-2xs space-y-3 mb-2 animate-in fade-in zoom-in-95 duration-200">
+            <div className="p-3 bg-white dark:bg-slate-900 rounded-lg border border-blue-200 dark:border-blue-900/50 shadow-2xs space-y-3 mb-2 animate-in fade-in zoom-in-95 duration-200">
               <div className="space-y-1 max-h-40 overflow-y-auto pr-1">
                 {categories.map((cat, idx) => (
-                   <div key={`edit-cat-${idx}`} className="flex justify-between items-center text-xs p-1.5 hover:bg-slate-50 rounded border border-transparent hover:border-slate-200 transition-colors">
-                      <span className="font-semibold text-slate-600">{cat}</span>
+                   <div key={`edit-cat-${idx}`} className="flex justify-between items-center text-xs p-1.5 hover:bg-slate-50 dark:hover:bg-slate-800/80 rounded border border-transparent hover:border-slate-200 dark:hover:border-slate-700 transition-colors">
+                      <span className="font-semibold text-slate-600 dark:text-slate-300">{cat}</span>
                       <button 
                         type="button" 
                         onClick={() => handleDeleteCategory(cat)} 
-                        className="text-slate-500 hover:text-rose-600 cursor-pointer p-1 rounded hover:bg-rose-50 transition-colors flex items-center gap-1 font-bold"
+                        className="text-slate-500 hover:text-rose-600 dark:hover:text-rose-400 cursor-pointer p-1 rounded hover:bg-rose-50 dark:hover:bg-rose-950/50 transition-colors flex items-center gap-1 font-bold"
                         title="Remove Category"
                       >
                           <Trash2 size={12} />
@@ -242,19 +242,19 @@ export default function VenuePostInspectionForm({
                    </div>
                 ))}
               </div>
-              <div className="flex items-center gap-2 border-t border-slate-100 pt-3">
+              <div className="flex items-center gap-2 border-t border-slate-100 dark:border-slate-800 pt-3">
                 <input
                   type="text"
                   placeholder="Enter custom violation name..."
                   value={newCatInput}
                   onChange={(e) => setNewCatInput(e.target.value)}
-                  className="flex-1 px-2.5 py-1.5 text-xs border border-slate-200 rounded focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600"
+                  className="flex-1 px-2.5 py-1.5 text-xs bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded focus:outline-none focus:border-blue-600 dark:focus:border-blue-500 focus:ring-1 focus:ring-blue-600"
                 />
                 <button
                   type="button"
                   disabled={savingNewCat || !newCatInput.trim()}
                   onClick={handleAddCustomCategory}
-                  className="px-3 py-1.5 bg-blue-600 text-white rounded text-xs font-bold hover:bg-blue-700 disabled:opacity-50 cursor-pointer flex items-center gap-1 transition-colors shadow-xs"
+                  className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-bold disabled:opacity-50 cursor-pointer flex items-center gap-1 transition-colors shadow-xs"
                 >
                   {savingNewCat ? "..." : <><Plus size={12}/> Add</>}
                 </button>
@@ -263,7 +263,7 @@ export default function VenuePostInspectionForm({
           )}
 
           {isHistoryView ? (
-            <div className="font-mono text-xs font-bold text-rose-600 py-1">
+            <div className="font-mono text-xs font-bold text-rose-600 dark:text-rose-400 py-1">
               {String(selectedViolationType || "Policy Violation Identified")
                 .replace(/Late Return\s*\/\s*Extension/gi, "Late Return, Extension")
                 .replace(/Physical Facility\s*\/\s*Equipment Damage/gi, "Physical Facility, Equipment Damage")
@@ -275,14 +275,14 @@ export default function VenuePostInspectionForm({
               {categories.map((vType, idx) => {
                 const isChecked = selectedCatsArray.includes(vType);
                 return (
-                  <label key={`v-opt-${idx}`} className="flex items-center gap-2.5 cursor-pointer p-2 hover:bg-white rounded-lg border border-transparent hover:border-slate-200 hover:shadow-2xs transition-all">
+                  <label key={`v-opt-${idx}`} className="flex items-center gap-2.5 cursor-pointer p-2 hover:bg-white dark:hover:bg-slate-800/80 rounded-lg border border-transparent hover:border-slate-200 dark:hover:border-slate-700 hover:shadow-2xs transition-all">
                     <input 
                       type="checkbox" 
                       checked={isChecked}
                       onChange={() => handleToggleCategory(vType)}
-                      className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer"
+                      className="w-4 h-4 text-blue-600 rounded border-slate-300 dark:border-slate-600 focus:ring-blue-500 cursor-pointer"
                     />
-                    <span className={`text-xs font-semibold ${isChecked ? 'text-blue-700' : 'text-slate-700'}`}>{vType}</span>
+                    <span className={`text-xs font-semibold ${isChecked ? 'text-blue-700 dark:text-blue-300' : 'text-slate-700 dark:text-slate-300'}`}>{vType}</span>
                   </label>
                 );
               })}
@@ -294,13 +294,13 @@ export default function VenuePostInspectionForm({
       {/* Notes (Conditional when violation) */}
       {showRemarks && (
         <div className="space-y-1.5 animate-in fade-in slide-in-from-top-2 duration-300">
-          <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider">
+          <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
             Remarks
           </label>
           {isHistoryView ? (
-            <div className="p-3 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-800 min-h-[60px]">
+            <div className="p-3 bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-blue-900/50 rounded-lg text-xs font-medium text-slate-800 dark:text-slate-200 min-h-[60px]">
               <span className="font-bold">Inspection Result Notes:</span>
-              <p className="text-emerald-700 italic mt-0.5">
+              <p className="text-emerald-700 dark:text-emerald-400 italic mt-0.5">
                 {violationNotes || "Satisfactory condition recorded. No policy violation notes."}
               </p>
             </div>
@@ -310,7 +310,7 @@ export default function VenuePostInspectionForm({
               placeholder="Provide additional details regarding facility turnover or policy notes..."
               value={violationNotes || ""}
               onChange={(e) => setViolationNotes && setViolationNotes(e.target.value)}
-              className="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-800 focus:outline-none focus:border-blue-600 transition-all"
+              className="w-full p-2.5 bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-blue-900/50 rounded-lg text-xs font-medium text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:border-blue-600 dark:focus:border-blue-500 transition-all"
             />
           )}
         </div>
@@ -318,7 +318,7 @@ export default function VenuePostInspectionForm({
 
       {/* Evidence Photos */}
       <div className="space-y-1.5">
-        <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider">
+        <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
           Evidence Photos
         </label>
         <InspectionPhotoUploader
@@ -331,7 +331,7 @@ export default function VenuePostInspectionForm({
 
       {/* Save Action Button */}
       {!isHistoryView && hasChanges && (
-        <div className="flex flex-wrap items-center justify-end gap-2 pt-2 border-t border-slate-200">
+        <div className="flex flex-wrap items-center justify-end gap-2 pt-2 border-t border-slate-200 dark:border-blue-900/50">
           {handleSavePostInspection && (
             <button
               type="button"

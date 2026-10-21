@@ -113,7 +113,19 @@ function BorrowSlotBarcodeSelector({
         return uCandidates.includes(biKey) || (biKey && uCandidates.includes(biKey.replace(/^UNIT-/i, '')));
       });
       if (match) {
-        return match.name || [match.brand, match.model].filter(Boolean).join(" ") || match.barcode || `Unit #${biRaw}`;
+        const rawSeq = match.seq_no ?? match.sequence_no;
+        const seq = rawSeq !== undefined && rawSeq !== null && String(rawSeq).trim() !== ""
+          ? (String(rawSeq).trim().startsWith("#") ? String(rawSeq).trim() : `#${String(rawSeq).trim()}`)
+          : "";
+        const brand = match.brand ? String(match.brand).trim() : "";
+        let model = match.model ? String(match.model).trim() : "";
+        const seqClean = seq.replace(/^#/, "").trim().toLowerCase();
+        const modelClean = model.replace(/^#/, "").trim().toLowerCase();
+        if (!model || modelClean === seqClean || modelClean === brand.toLowerCase() || modelClean === "unit") {
+          model = "";
+        }
+        const bm = [brand, model].filter(Boolean).join(" • ");
+        return [seq, bm].filter(Boolean).join(" ") || match.name || `Unit #${biRaw}`;
       }
 
       // Match equipment type name from dbEquipmentTypes
@@ -740,20 +752,17 @@ export default function EquipBorrowUnitAssignment({
                                       >
                                         <div className="flex items-center gap-2 flex-wrap">
                                           {biUnit.seq_no && (
-                                            <span className="font-mono font-bold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 px-1.5 py-0.5 rounded border border-amber-200 dark:border-amber-800/80 text-[10.5px]">
+                                            <span className="font-mono font-black text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 px-1.5 py-0.5 rounded border border-amber-200 dark:border-amber-800/80 text-[10.5px]">
                                               {biUnit.seq_no}
                                             </span>
                                           )}
-                                          <span className="font-mono font-bold text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-1.5 py-0.5 rounded border border-blue-200 dark:border-blue-800 text-[11px]">
-                                            {biUnit.barcode}
+                                          <span className="text-slate-800 dark:text-slate-200 font-bold">
+                                            {biUnit.brand && <span>{biUnit.brand}</span>}
+                                            {biUnit.brand && biUnit.model && <span className="text-slate-400 dark:text-slate-500 mx-1">•</span>}
+                                            {biUnit.model && <span className="font-semibold text-slate-700 dark:text-slate-300">{biUnit.model}</span>}
+                                            {!biUnit.brand && !biUnit.model && (biUnit.name || "Built-in Unit")}
                                           </span>
-                                          <span className="text-slate-800 dark:text-slate-200 font-bold">{biUnit.name}</span>
                                         </div>
-                                        {biUnit.category && (
-                                          <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700">
-                                            {biUnit.category}
-                                          </span>
-                                        )}
                                       </div>
                                     ))}
                                   </div>
@@ -865,10 +874,12 @@ export default function EquipBorrowUnitAssignment({
                                         {biUnit.seq_no}
                                       </span>
                                     )}
-                                    <span className="font-mono font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-1 py-0.2 rounded border border-blue-100 dark:border-blue-800 text-[10px]">
-                                      {biUnit.barcode}
+                                    <span className="font-bold">
+                                      {biUnit.brand && <span>{biUnit.brand}</span>}
+                                      {biUnit.brand && biUnit.model && <span className="text-slate-400 mx-1">•</span>}
+                                      {biUnit.model && <span className="font-medium text-slate-600 dark:text-slate-300">{biUnit.model}</span>}
+                                      {!biUnit.brand && !biUnit.model && (biUnit.name || "Unit")}
                                     </span>
-                                    <span>{biUnit.name}</span>
                                     {biCond && biCond.toLowerCase() !== "complete" && biCond.toLowerCase() !== "good" && (
                                       <span className={`text-[10px] uppercase font-black px-1.5 py-0.2 rounded ${isBiLost ? "bg-rose-900 text-white" : "bg-rose-600 text-white"}`}>
                                         {biCond}

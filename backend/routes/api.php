@@ -55,6 +55,7 @@ Route::get('/health', function () {
 });
 
 // ─── Public Operating Hours, Overrides & System Settings ────────────────────
+Route::get('/operating-hours', [OperatingHoursController::class, 'publicShow']);
 Route::get('/public/operating-hours', [OperatingHoursController::class, 'publicShow']);
 Route::get('/public/venue-overrides', [VenueAvailabilityController::class, 'publicOverrides']);
 Route::get('/public/equipment-overrides', [VenueAvailabilityController::class, 'publicEquipmentOverrides']);

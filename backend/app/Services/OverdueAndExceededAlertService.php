@@ -160,13 +160,11 @@ class OverdueAndExceededAlertService
                             if ($borrowModel) {
                                 $refCode = $borrowModel->trackingNumber?->reference_code ?? "EQ-{$borrowModel->id}";
 
-                                $remarks = "The scheduled return time for the equipment unit(s) borrowed under Reference Code {$refCode} has elapsed (was due at " . $endCarbon->format('h:i A') . ", past due by {$minutesPast} minute(s)). This borrowing transaction is now officially marked as Late Return. Please return all physical units and accessories immediately to the PMO / AVR custodial counter to finalize condition clearance and prevent late policy penalties.";
-
                                 SendBookingStatusUpdateJob::dispatch(
                                     'equipment',
                                     $borrowModel,
                                     $statusType,
-                                    $remarks
+                                    null
                                 );
                                 Cache::put($cacheKey, true, now()->addHours(6));
 

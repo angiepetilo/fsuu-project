@@ -250,6 +250,34 @@
         }
     } catch (\Throwable $e) {}
 
+    // Resolve Staff user who released the equipment or logged venue check-in
+    $releasedByName = null;
+    try {
+        $auditRel = \App\Models\AuditLog::with('user')
+            ->where('auditable_id', $booking->id)
+            ->where(function($q) use ($isVenue) {
+                if ($isVenue) {
+                    $q->whereIn('action', ['VENUE_BOOKING_RELEASED', 'booking_ongoing']);
+                } else {
+                    $q->whereIn('action', ['EQUIPMENT_BORROW_RELEASED']);
+                }
+            })
+            ->latest('id')
+            ->first();
+        if ($auditRel) {
+            $releasedByName = $auditRel->user?->name;
+            if (!$releasedByName && !empty($auditRel->metadata['description'])) {
+                if (preg_match('/by\s+(.+)$/i', (string)$auditRel->metadata['description'], $matches)) {
+                    $releasedByName = trim($matches[1]);
+                }
+            }
+        }
+    } catch (\Throwable $e) {}
+
+    if (!$releasedByName && !empty($booking->trackingNumber?->approvedBy?->name)) {
+        $releasedByName = $booking->trackingNumber->approvedBy->name;
+    }
+
     $normStatus = strtolower(str_replace(['_', '-'], ' ', (string)($status ?? '')));
 
     // Terminal outcomes recorded at return inspection share the clearance-receipt layout,
@@ -580,21 +608,25 @@
       <div style="font-size: 13px; font-weight: 700; color: #7f1d1d; margin-top: 4px;">
         Scheduled Return Deadline: {{ $sched }}
       </div>
+      @if(!empty($releasedByName))
+        <div style="font-size: 12px; font-weight: 700; color: #991b1b; margin-top: 6px; border-top: 1px dashed #fca5a5; padding-top: 6px;">
+          Released by: <span style="color: #7f1d1d;">{{ $releasedByName }}</span> (AVR Custodial Staff)
+        </div>
+      @endif
     </div>
-
-    @if(!empty($remarks))
-      <div class="callout callout-danger" style="margin: 14px 0;">
-        <strong style="display:block; margin-bottom: 2px;">⚠️ Custodial Notice:</strong>
-        <div>{{ $remarks }}</div>
-      </div>
-    @endif
 
     @if($resolvedUnits->isNotEmpty())
       <div style="margin: 16px 0;">
         <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #475569; letter-spacing: 0.5px; margin-bottom: 6px;">
           Unreturned Physical Equipment Units:
         </div>
-        @include('emails.partials.equipment_unit_table', ['units' => $resolvedUnits, 'mode' => 'release', 'equipmentList' => $equipmentList ?? [], 'booking' => $booking ?? null])
+        @include('emails.partials.equipment_unit_table', [
+          'units' => $resolvedUnits,
+          'mode' => 'late_cards',
+          'equipmentList' => $equipmentList ?? [],
+          'booking' => $booking ?? null,
+          'releasedByName' => $releasedByName ?? null
+        ])
       </div>
     @endif
 
@@ -624,6 +656,11 @@
       <div style="font-size: 13px; font-weight: 700; color: #7f1d1d; margin-top: 4px;">
         Scheduled Session: {{ $sched }}
       </div>
+      @if(!empty($releasedByName))
+        <div style="font-size: 12px; font-weight: 700; color: #991b1b; margin-top: 6px; border-top: 1px dashed #fca5a5; padding-top: 6px;">
+          Check-in Logged by: <span style="color: #7f1d1d;">{{ $releasedByName }}</span> (AVR Staff)
+        </div>
+      @endif
     </div>
 
     <table class="data-table">
@@ -646,7 +683,13 @@
         <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #475569; letter-spacing: 0.5px; margin-bottom: 6px;">
           Assigned Venue Equipment Units Due for Turnover (Seq No., Serial No., Brand &amp; Model):
         </div>
-        @include('emails.partials.equipment_unit_table', ['units' => $resolvedUnits, 'mode' => 'release', 'equipmentList' => $equipmentList ?? [], 'booking' => $booking ?? null])
+        @include('emails.partials.equipment_unit_table', [
+          'units' => $resolvedUnits,
+          'mode' => 'late_cards',
+          'equipmentList' => $equipmentList ?? [],
+          'booking' => $booking ?? null,
+          'releasedByName' => $releasedByName ?? null
+        ])
       </div>
     @endif
 
@@ -694,6 +737,11 @@
       <div style="font-size: 13px; font-weight: 700; color: #166534; margin-top: 4px;">
         STRICT RETURN DEADLINE: {{ $sched }}
       </div>
+      @if(!empty($releasedByName))
+        <div style="font-size: 12px; font-weight: 700; color: #166534; margin-top: 6px; border-top: 1px dashed #86efac; padding-top: 6px;">
+          Released by: <span style="color: #14532d;">{{ $releasedByName }}</span> (AVR Custodial Staff)
+        </div>
+      @endif
     </div>
 
     <div style="margin: 16px 0;">
@@ -726,6 +774,11 @@
       <div style="font-size: 13px; font-weight: 700; color: #166534; margin-top: 4px;">
         Scheduled Period: {{ $sched }}
       </div>
+      @if(!empty($releasedByName))
+        <div style="font-size: 12px; font-weight: 700; color: #166534; margin-top: 6px; border-top: 1px dashed #86efac; padding-top: 6px;">
+          Check-in Logged by: <span style="color: #14532d;">{{ $releasedByName }}</span> (AVR Staff)
+        </div>
+      @endif
     </div>
 
     <table class="data-table">
@@ -850,6 +903,12 @@
       <td class="data-label">Date Time Returned:</td>
       <td class="data-value"><strong>{{ $dateReturnedFormatted }}</strong></td>
     </tr>
+    @if(!empty($releasedByName))
+    <tr>
+      <td class="data-label">Originally Released By:</td>
+      <td class="data-value"><strong>{{ $releasedByName }}</strong></td>
+    </tr>
+    @endif
     <tr>
       <td class="data-label">Event Purpose:</td>
       <td class="data-value">{{ $purpose }}</td>

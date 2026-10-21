@@ -10,6 +10,7 @@
 @endphp
 
 @if($unitRows->isNotEmpty())
+@if($mode !== 'late_cards')
 <div style="overflow-x: auto; margin: 12px 0;">
   <table style="width: 100%; border-collapse: collapse; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 13px; border: 1px solid #e2e8f0; border-radius: 6px;">
     <thead>
@@ -27,6 +28,9 @@
       </tr>
     </thead>
     <tbody>
+@else
+<div style="margin: 10px 0;">
+@endif
       @foreach($unitRows as $i => $unit)
       @php
           $barcode  = is_object($unit) ? ($unit->barcode ?: ($unit->serial_number ?? 'N/A')) : ($unit['barcode'] ?? $unit['serial_number'] ?? 'N/A');
@@ -242,6 +246,69 @@
 
           $rowBg = ($i % 2 === 0) ? '#ffffff' : '#f8fafc';
       @endphp
+      @if($mode === 'late_cards')
+        <div style="background-color: #ffffff; border: 1.5px solid #fecaca; border-left: 5px solid #dc2626; border-radius: 8px; padding: 14px 16px; margin-bottom: 12px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px;">
+            <div>
+              <div style="font-size: 15px; font-weight: 800; color: #991b1b; letter-spacing: -0.2px;">
+                {{ $equipmentTypeName }}
+              </div>
+              @if(!empty($brandModel) && $brandModel !== 'Standard Unit')
+                <div style="font-size: 13px; font-weight: 700; color: #334155; margin-top: 2px;">
+                  {{ $brandModel }}
+                </div>
+              @endif
+            </div>
+            @if($seqNo)
+              <span style="font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace; font-size: 11px; font-weight: 800; color: #b45309; background-color: #fef3c7; border: 1px solid #fde68a; padding: 3px 8px; border-radius: 4px;">
+                {{ $seqNo }}
+              </span>
+            @endif
+          </div>
+
+          <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 12px; margin-top: 8px;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+              <tr>
+                <td style="width: 50%; padding: 2px 0;">
+                  <span style="font-size: 10.5px; font-weight: 700; color: #64748b; text-transform: uppercase;">Asset Barcode:</span><br>
+                  <span style="font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace; font-weight: 700; color: #1e40af;">{{ $barcode }}</span>
+                </td>
+                <td style="width: 50%; padding: 2px 0;">
+                  <span style="font-size: 10.5px; font-weight: 700; color: #64748b; text-transform: uppercase;">Serial Number:</span><br>
+                  <span style="font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace; font-weight: 700; color: #334155;">{{ $serial }}</span>
+                </td>
+              </tr>
+            </table>
+          </div>
+
+          @if(!empty($builtInItems) && count($builtInItems) > 0)
+            <div style="border-top: 1px dashed #fca5a5; padding-top: 8px; margin-top: 8px;">
+              <div style="font-size: 11px; font-weight: 800; color: #991b1b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">
+                Built-in Accessories / Units:
+              </div>
+              <div style="margin-top: 4px;">
+                @foreach($builtInItems as $bItem)
+                  <div style="background-color: #fef2f2; border: 1px solid #fee2e2; border-radius: 5px; padding: 6px 10px; margin-bottom: 4px; font-size: 12px; color: #7f1d1d; line-height: 1.4;">
+                    &bull; <strong>{{ $bItem['name'] }}</strong>
+                    @if(!empty($bItem['brand']))
+                      <span style="color: #991b1b; font-weight: 700;">[{{ $bItem['brand'] }}]</span>
+                    @endif
+                    @if(!empty($bItem['model']))
+                      <span style="color: #475569;">{{ $bItem['model'] }}</span>
+                    @endif
+                    @if(!empty($bItem['seq_no']))
+                      <span style="font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace; font-size: 10.5px; font-weight: 800; color: #b45309; background-color: #fef3c7; border: 1px solid #fde68a; border-radius: 3px; padding: 1px 5px; margin-left: 4px;">{{ $bItem['seq_no'] }}</span>
+                    @endif
+                    @if(!empty($bItem['serial']))
+                      <span style="font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace; font-size: 11px; color: #047857; font-weight: 700; background-color: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 3px; padding: 1px 5px; margin-left: 4px;">SN: {{ $bItem['serial'] }}</span>
+                    @endif
+                  </div>
+                @endforeach
+              </div>
+            </div>
+          @endif
+        </div>
+      @else
       <tr style="background-color: {{ $rowBg }}; border-bottom: 1px solid #e2e8f0;">
         <td style="text-align: center; padding: 10px 6px; color: #64748b; font-weight: 600; font-size: 12px; border-right: 1px solid #e2e8f0;">
           {{ sprintf('%02d', $i + 1) }}
@@ -311,10 +378,15 @@
         </td>
         @endif
       </tr>
+      @endif
       @endforeach
+@if($mode !== 'late_cards')
     </tbody>
   </table>
 </div>
+@else
+</div>
+@endif
 @else
 <div style="background-color: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 6px; padding: 14px; text-align: center; margin: 12px 0;">
   <span style="color: #64748b; font-size: 13px; font-style: italic;">No individual physical unit serial numbers logged.</span>

@@ -180,9 +180,17 @@ export function getInspectionEligibility(dateStr, timeStr, bufferMinutes = 30) {
   };
 
   const isToday = unlockDateTime.toDateString() === now.toDateString();
+  const unlockFormattedTime = formatTime12h(unlockDateTime);
+  const unlockDateStr = unlockDateTime.toLocaleDateString([], { month: "short", day: "numeric" });
+  
+  // Clean unlock label without duplicate "at" (e.g., "at 9:30 AM" or "Oct 23 at 9:30 AM")
+  const unlockFormattedLabel = isToday
+    ? `at ${unlockFormattedTime}`
+    : `${unlockDateStr} at ${unlockFormattedTime}`;
+
   const unlockTimeStr = isToday
-    ? formatTime12h(unlockDateTime)
-    : `${unlockDateTime.toLocaleDateString([], { month: "short", day: "numeric" })} at ${formatTime12h(unlockDateTime)}`;
+    ? unlockFormattedTime
+    : `${unlockDateStr} at ${unlockFormattedTime}`;
 
   const endTimeStr = isToday
     ? formatTime12h(endDateTime)
@@ -190,27 +198,51 @@ export function getInspectionEligibility(dateStr, timeStr, bufferMinutes = 30) {
 
   let reason = "";
   if (!isReady) {
-    if (minutesUntilUnlock > 60) {
-      const hrs = Math.floor(minutesUntilUnlock / 60);
-      const remMins = minutesUntilUnlock % 60;
-      const durStr = remMins > 0 ? `${hrs}h ${remMins}m` : `${hrs}h`;
-      reason = `Available in ${durStr} (at ${unlockTimeStr}, 30 mins before end time)`;
-    } else if (minutesUntilUnlock === 1) {
-      reason = `Available in 1 minute (at ${unlockTimeStr})`;
-    } else {
-      reason = `Available in ${minutesUntilUnlock} minutes (at ${unlockTimeStr})`;
-    }
+    const durStr = formatCountdownDuration(minutesUntilUnlock);
+    reason = `Available in ${durStr} (${unlockFormattedLabel}, 30 mins before end time)`;
   }
 
   return {
     isReady,
     minutesUntilUnlock,
+    countdownDurationStr: formatCountdownDuration(minutesUntilUnlock),
     unlockTimeStr,
+    unlockFormattedLabel,
+    isToday,
     endTimeStr,
     endDateTime,
     unlockDateTime,
     reason,
   };
+}
+
+/**
+ * Format minutes countdown into standard, human-friendly duration:
+ * e.g. 2860 -> "1d 23h 40m" (instead of non-standard "47h 40m")
+ *      1440 -> "1d"
+ *      1500 -> "1d 1h"
+ *      125  -> "2h 5m"
+ *      45   -> "45m"
+ *      1    -> "1m"
+ */
+export function formatCountdownDuration(minutes) {
+  const m = Math.max(0, Math.round(Number(minutes || 0)));
+  if (m <= 0) return "0m";
+  if (m < 60) return `${m}m`;
+
+  const days = Math.floor(m / 1440);
+  const remMinutesAfterDays = m % 1440;
+  const hours = Math.floor(remMinutesAfterDays / 60);
+  const mins = remMinutesAfterDays % 60;
+
+  if (days >= 1) {
+    if (hours > 0 && mins > 0) return `${days}d ${hours}h ${mins}m`;
+    if (hours > 0) return `${days}d ${hours}h`;
+    if (mins > 0) return `${days}d ${mins}m`;
+    return `${days}d`;
+  }
+
+  return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
 }
 
 /**

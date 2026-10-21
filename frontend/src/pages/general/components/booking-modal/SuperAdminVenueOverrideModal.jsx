@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { Shield, ShieldAlert, ShieldCheck, X, Calendar, Clock, MapPin, Loader2, AlertCircle } from "lucide-react";
+import React, { useState, useEffect, useMemo } from "react";
+import { Shield, ShieldAlert, ShieldCheck, X, Calendar, Clock, MapPin, Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
 import api from "@/lib/axios";
 import notify from "@/lib/notify";
 import { formatTime12, formatDateRange } from "@/lib/dateUtils";
@@ -12,6 +12,7 @@ export default function SuperAdminVenueOverrideModal({
   initialFocusField = "venue",
 }) {
   const [venues, setVenues] = useState([]);
+  const [allBookings, setAllBookings] = useState([]);
   const [loadingVenues, setLoadingVenues] = useState(false);
   const [targetVenueId, setTargetVenueId] = useState("");
   const [dateOfUsage, setDateOfUsage] = useState("");
@@ -55,9 +56,18 @@ export default function SuperAdminVenueOverrideModal({
       : String(endTimeRaw).slice(0, 5);
     setTimeEnd(cleanEnd || "17:00");
 
-    // Fetch venues
+    // Fetch venues and active bookings for conflict checking
     fetchVenues();
+    fetchBookings();
   }, [isOpen, booking]);
+
+  const fetchBookings = async () => {
+    try {
+      const res = await api.get("/avr-venue-bookings?all=1&include_returned=0");
+      const list = res.data?.data || (Array.isArray(res.data) ? res.data : []);
+      setAllBookings(list);
+    } catch {}
+  };
 
   const fetchVenues = async () => {
     setLoadingVenues(true);
@@ -67,7 +77,6 @@ export default function SuperAdminVenueOverrideModal({
       if (list.length > 0) {
         setVenues(list);
       } else {
-        // Fallback to localStorage cache if API returns empty
         const cached = JSON.parse(localStorage.getItem("fsuu_venues") || "[]");
         if (Array.isArray(cached) && cached.length > 0) {
           setVenues(cached);
@@ -82,6 +91,36 @@ export default function SuperAdminVenueOverrideModal({
       setLoadingVenues(false);
     }
   };
+
+  // Compute conflicting venue bookings for the chosen date/time window
+  const venueConflicts = useMemo(() => {
+    if (!dateOfUsage || !timeStart || !timeEnd || allBookings.length === 0) return {};
+    const effectiveEnd = reservationEndDate || dateOfUsage;
+    const conflicts = {};
+
+    allBookings.forEach((b) => {
+      if (String(b.id) === String(booking?.id)) return;
+      const bStatus = (b.status || b.tracking_number?.status || "").toLowerCase();
+      if (["cancelled", "rejected", "completed", "done"].includes(bStatus)) return;
+
+      const bStart = (b.date_of_usage || b.start_datetime || "").slice(0, 10);
+      const bEnd = (b.reservation_end_date || b.end_datetime || bStart).slice(0, 10);
+      if (!bStart) return;
+
+      const dateOverlap = dateOfUsage <= bEnd && effectiveEnd >= bStart;
+      if (!dateOverlap) return;
+
+      const bTimeStart = String(b.time_start || "08:00").slice(0, 5);
+      const bTimeEnd = String(b.time_end || "17:00").slice(0, 5);
+      const timeOverlap = timeStart < bTimeEnd && timeEnd > bTimeStart;
+
+      if (timeOverlap && b.venue_id) {
+        conflicts[b.venue_id] = b;
+      }
+    });
+
+    return conflicts;
+  }, [dateOfUsage, reservationEndDate, timeStart, timeEnd, allBookings, booking?.id]);
 
   if (!isOpen || !booking) return null;
 
@@ -208,27 +247,59 @@ export default function SuperAdminVenueOverrideModal({
 
           {/* Venue Selection */}
           <div className="space-y-1.5">
-            <label className="flex items-center gap-1.5 font-bold text-slate-800 dark:text-slate-200 text-xs">
-              <MapPin size={14} className="text-blue-600 dark:text-blue-400" />
-              <span>Venue Reserved *</span>
-            </label>
+            <div className="flex items-center justify-between">
+              <label className="flex items-center gap-1.5 font-bold text-slate-800 dark:text-slate-200 text-xs">
+                <MapPin size={14} className="text-blue-600 dark:text-blue-400" />
+                <span>Venue Reserved *</span>
+              </label>
+              {selectedVenue && venueConflicts[selectedVenue.id] ? (
+                <span className="text-[10.5px] font-extrabold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/60 px-2 py-0.5 rounded-full border border-rose-200 dark:border-rose-900/60">
+                  ⚠️ Conflict Detected
+                </span>
+              ) : selectedVenue ? (
+                <span className="text-[10.5px] font-extrabold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-900/60 flex items-center gap-1">
+                  <CheckCircle2 size={11} /> Available
+                </span>
+              ) : null}
+            </div>
             <select
               value={targetVenueId}
               onChange={(e) => setTargetVenueId(e.target.value)}
               disabled={loadingVenues || isSubmitting}
-              className="w-full p-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:border-amber-500 cursor-pointer"
+              className={`w-full p-2.5 bg-slate-50 dark:bg-slate-800/80 border rounded-xl text-xs font-bold text-slate-900 dark:text-white focus:outline-none cursor-pointer ${
+                selectedVenue && venueConflicts[selectedVenue.id]
+                  ? "border-rose-400 dark:border-rose-700 bg-rose-50/30"
+                  : "border-slate-200 dark:border-slate-700 focus:border-amber-500"
+              }`}
             >
               <option value="">Select Target Venue...</option>
-              {venues.map((v) => (
-                <option key={v.id} value={v.id}>
-                  {v.name} {v.capacity ? `(Cap: ${v.capacity_min ? `${v.capacity_min}-${v.capacity_max}` : v.capacity})` : ""} {v.location ? `• ${v.location}` : ""}
-                </option>
-              ))}
+              {venues.map((v) => {
+                const conf = venueConflicts[v.id];
+                const confRef = conf ? (conf.tracking_number?.reference_code || conf.reference_code || `TRK-${conf.id}`) : "";
+                const prefix = conf ? `⚠️ [OCCUPIED: ${confRef}] ` : `✓ [AVAILABLE] `;
+                return (
+                  <option key={v.id} value={v.id} className={conf ? "text-rose-600 font-bold" : "text-slate-900 font-semibold"}>
+                    {prefix}{v.name} {v.capacity ? `(Cap: ${v.capacity_min ? `${v.capacity_min}-${v.capacity_max}` : v.capacity})` : ""} {v.location ? `• ${v.location}` : ""}
+                  </option>
+                );
+              })}
             </select>
-            {selectedVenue && (
+            {selectedVenue && venueConflicts[selectedVenue.id] && (
+              <div className="p-2.5 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/80 rounded-xl text-rose-800 dark:text-rose-300 text-[11px] leading-relaxed flex items-start gap-2 animate-in fade-in">
+                <AlertCircle size={14} className="text-rose-600 shrink-0 mt-0.5" />
+                <div>
+                  <strong>Scheduling Conflict:</strong> {selectedVenue.name} is booked on this timeslot by{" "}
+                  <strong>{venueConflicts[selectedVenue.id].filer_name || "another requestor"}</strong> (
+                  {venueConflicts[selectedVenue.id].tracking_number?.reference_code || venueConflicts[selectedVenue.id].reference_code}
+                  {venueConflicts[selectedVenue.id].time_start && ` • ${venueConflicts[selectedVenue.id].time_start.slice(0, 5)} - ${venueConflicts[selectedVenue.id].time_end?.slice(0, 5)}`}).
+                  As Super Admin, overriding will double-book this room unless times are altered.
+                </div>
+              </div>
+            )}
+            {selectedVenue && !venueConflicts[selectedVenue.id] && (
               <p className="text-[11px] text-slate-500 dark:text-slate-400">
                 Selected: <span className="font-bold text-slate-800 dark:text-slate-200">{selectedVenue.name}</span>
-                {selectedVenue.location ? ` (${selectedVenue.location})` : ""}
+                {selectedVenue.location ? ` (${selectedVenue.location})` : ""} &bull; <span className="text-emerald-600 dark:text-emerald-400 font-bold">Open & Available</span>
               </p>
             )}
           </div>

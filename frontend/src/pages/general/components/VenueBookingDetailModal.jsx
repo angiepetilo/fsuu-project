@@ -31,6 +31,7 @@ export default function VenueBookingDetailModal({
   setRejectionComments,
   handleAction,
   actionLoading,
+  setActionLoading,
   inspectionStatus,
   setInspectionStatus,
   violationNotes,
@@ -132,11 +133,12 @@ export default function VenueBookingDetailModal({
 
   // Fetch default grace hours from operating hours setting
   useEffect(() => {
-    api.get("/operating-hours").then(res => {
-      if (res.data?.requirement_grace_hours) {
-        setGraceHoursChoice(parseInt(res.data.requirement_grace_hours, 10));
-      }
-    }).catch(() => {});
+    (api.get("/general/operating-hours").catch(() => api.get("/operating-hours")))
+      .then(res => {
+        if (res.data?.requirement_grace_hours) {
+          setGraceHoursChoice(parseInt(res.data.requirement_grace_hours, 10));
+        }
+      }).catch(() => {});
   }, []);
 
   const handleSubmitIncomplete = async (e) => {
@@ -1373,6 +1375,10 @@ export default function VenueBookingDetailModal({
   };
 
   const handleDoneComplete = async () => {
+    if (setActionLoading && selected?.id) {
+      setActionLoading(`${selected.id}-complete`);
+    }
+
     // 1. Trigger final reconciliation (Good -> Released -1, Available +1; Damaged -> Released -1, Damaged +1; Lost -> Released -1, Lost +1)
     syncInspectedUnitsToInventory(true);
 
@@ -1730,6 +1736,7 @@ export default function VenueBookingDetailModal({
                   overrideQuantity={overrideQuantity}
                   setOverrideQuantity={setOverrideQuantity}
                   dbEquipmentTypes={dbEquipmentTypes}
+                  selected={selected}
                 />
               </div>
             </div>
@@ -1803,6 +1810,7 @@ export default function VenueBookingDetailModal({
                     isApproved={false}
                     isPreEvent={false}
                     dbEquipmentTypes={dbEquipmentTypes}
+                    selected={selected}
                   />
                 </div>
                 <div className="lg:col-span-6">

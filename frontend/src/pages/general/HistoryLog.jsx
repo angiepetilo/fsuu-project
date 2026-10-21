@@ -22,6 +22,7 @@ import {
   exportEquipmentHistoryToExcel,
   exportAllHistoryToExcel,
 } from "./history/exportHistoryExcelHelper";
+import AcademicTermSelect from "@/components/ui/AcademicTermSelect";
 
 const VenueBookingDetailModal = lazy(() => import("./components/VenueBookingDetailModal"));
 const EquipmentBorrowDetailModal = lazy(() => import("./components/EquipmentBorrowDetailModal"));
@@ -563,21 +564,11 @@ export default function HistoryLog() {
             </div>
 
             {academicTerms.length > 0 && (
-              <div className="flex items-center gap-2">
-                <label className="text-xs font-bold text-slate-700 whitespace-nowrap">Semester:</label>
-                <select
-                  value={selectedTermId}
-                  onChange={(e) => setSelectedTermId(e.target.value)}
-                  className="p-2 bg-white border border-slate-200 rounded-xl font-bold text-slate-900 text-xs focus:outline-none focus:border-blue-500 cursor-pointer shadow-2xs"
-                >
-                  <option value="">All Academic Terms (TiDB Archive)</option>
-                  {academicTerms.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.name} {t.is_active ? "(Active)" : "(Archived)"}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <AcademicTermSelect
+                terms={academicTerms}
+                selectedId={selectedTermId}
+                onSelect={(val) => setSelectedTermId(val)}
+              />
             )}
           </div>
 
