@@ -466,7 +466,6 @@ export default function VenueBookings() {
                 { value: "ongoing", label: "Ongoing" },
               ]}
               icon={Filter}
-              label="Status:"
               title="Filter by Booking Status"
             />
             {(statusFilter !== "all" || searchQuery) && (

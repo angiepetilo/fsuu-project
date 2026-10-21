@@ -2,6 +2,7 @@ import React from "react";
 import { Loader2, Clock, Building2, PackageOpen } from "lucide-react";
 import { formatTime12 as formatTime12h } from "../../../lib/dateUtils";
 import CustomTimePicker from "@/components/ui/custom-time-picker";
+import CustomCalendarPicker from "@/components/ui/custom-calendar-picker";
 import IosToggle from "@/components/ui/ios-toggle";
 import CustomSelect from "@/components/ui/CustomSelect";
 
@@ -223,67 +224,115 @@ export default function VenueScheduleForm({
             </div>
           )}
 
-          {/* Multi-Day Reservation Toggle */}
-          <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100/80 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl transition-colors select-none">
-            <div className="flex flex-col">
-              <span className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
-                Multi-Day
-                {Boolean(setupForm.isMultiDay) && (
-                  <span className="bg-blue-600 text-white text-[9px] font-black px-1.5 py-0.2 rounded uppercase">
-                    Active
+          {/* Side-by-side: Multi-Day Toggle & Select Day Dropdown */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {/* Multi-Day Reservation Toggle */}
+            <div className="flex items-center justify-between p-2.5 bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100/80 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl transition-colors select-none">
+              <div className="flex flex-col">
+                <span className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                  Multi-Day
+                  {Boolean(setupForm.isMultiDay) && (
+                    <span className="bg-blue-600 text-white text-[9px] font-black px-1.5 py-0.2 rounded uppercase">
+                      Active
+                    </span>
+                  )}
+                </span>
+                <span className="text-[11px] text-slate-500 dark:text-slate-400">Date range</span>
+              </div>
+              <IosToggle
+                checked={Boolean(setupForm.isMultiDay)}
+                onChange={(enabled) => {
+                  setSetupForm((prev) => ({
+                    ...prev,
+                    isMultiDay: enabled,
+                    endDate: enabled ? prev.endDate || prev.startDate : "",
+                    dayOfWeek: enabled ? "" : (prev.dayOfWeek || ""),
+                  }));
+                }}
+                size="md"
+                title={setupForm.isMultiDay ? "Disable multi-day block" : "Enable multi-day block"}
+              />
+            </div>
+
+            {/* Select Day (Recurring Day) Dropdown */}
+            <div className="p-2.5 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl flex flex-col justify-between">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-bold text-slate-900 dark:text-white">
+                  Select Day
+                </span>
+                {setupForm.dayOfWeek !== undefined && setupForm.dayOfWeek !== "" && (
+                  <span className="bg-amber-600 text-white text-[9px] font-black px-1.5 py-0.2 rounded uppercase">
+                    All
                   </span>
                 )}
-              </span>
-              <span className="text-[11px] text-slate-500 dark:text-slate-400">Date range</span>
+              </div>
+              <CustomSelect
+                value={setupForm.dayOfWeek ?? ""}
+                onChange={(val) => {
+                  setSetupForm((prev) => ({
+                    ...prev,
+                    dayOfWeek: val,
+                    isMultiDay: val !== "" ? false : prev.isMultiDay,
+                  }));
+                }}
+                options={[
+                  { value: "", label: "Specific Date(s)" },
+                  { value: "1", label: "Every Monday" },
+                  { value: "2", label: "Every Tuesday" },
+                  { value: "3", label: "Every Wednesday" },
+                  { value: "4", label: "Every Thursday" },
+                  { value: "5", label: "Every Friday" },
+                  { value: "6", label: "Every Saturday" },
+                  { value: "0", label: "Every Sunday" },
+                ]}
+                placeholder="Select Day..."
+              />
             </div>
-            <IosToggle
-              checked={Boolean(setupForm.isMultiDay)}
-              onChange={(enabled) => {
-                setSetupForm((prev) => ({
-                  ...prev,
-                  isMultiDay: enabled,
-                  endDate: enabled ? prev.endDate || prev.startDate : "",
-                }));
-              }}
-              size="md"
-              title={setupForm.isMultiDay ? "Disable multi-day block" : "Enable multi-day block"}
-            />
           </div>
 
           {/* Target Date(s) */}
-          {setupForm.isMultiDay ? (
+          {setupForm.dayOfWeek !== undefined && setupForm.dayOfWeek !== "" ? (
+            <div className="p-3 bg-amber-50/80 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 rounded-xl text-xs space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-amber-900 dark:text-amber-200 flex items-center gap-1.5">
+                  📅 Recurring Day: Every {["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][Number(setupForm.dayOfWeek)]}
+                </span>
+                <span className="text-[10px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-amber-200 dark:bg-amber-900 text-amber-900 dark:text-amber-200">
+                  Batch Month
+                </span>
+              </div>
+              <p className="text-[11px] text-amber-800 dark:text-amber-300">
+                Status will automatically apply to all {["Sundays", "Mondays", "Tuesdays", "Wednesdays", "Thursdays", "Fridays", "Saturdays"][Number(setupForm.dayOfWeek)]} across the active calendar month.
+              </p>
+            </div>
+          ) : setupForm.isMultiDay ? (
             <div className="space-y-1.5">
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="block text-xs font-bold text-slate-900 dark:text-slate-200 mb-1">
                     Start Date *
                   </label>
-                  <input
-                    type="date"
-                    required
+                  <CustomCalendarPicker
                     value={setupForm.startDate}
-                    onChange={(e) => {
-                      const newStart = e.target.value;
+                    onChange={(newStart) => {
                       setSetupForm((prev) => ({
                         ...prev,
                         startDate: newStart,
                         endDate: prev.endDate && prev.endDate < newStart ? newStart : prev.endDate,
                       }));
                     }}
-                    className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-900 dark:text-white focus:outline-none focus:border-blue-600 text-xs cursor-pointer"
+                    triggerClassName="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 rounded-xl"
                   />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-900 dark:text-slate-200 mb-1">
                     End Date *
                   </label>
-                  <input
-                    type="date"
-                    required
-                    min={setupForm.startDate}
+                  <CustomCalendarPicker
                     value={setupForm.endDate || setupForm.startDate}
-                    onChange={(e) => setSetupForm((prev) => ({ ...prev, endDate: e.target.value }))}
-                    className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-900 dark:text-white focus:outline-none focus:border-blue-600 text-xs cursor-pointer"
+                    minDate={setupForm.startDate}
+                    onChange={(newEnd) => setSetupForm((prev) => ({ ...prev, endDate: newEnd }))}
+                    triggerClassName="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 rounded-xl"
                   />
                 </div>
               </div>
@@ -307,12 +356,10 @@ export default function VenueScheduleForm({
               <label className="block text-xs font-bold text-slate-900 dark:text-slate-200 mb-1">
                 Target Date *
               </label>
-              <input
-                type="date"
-                required
+              <CustomCalendarPicker
                 value={setupForm.startDate}
-                onChange={(e) => setSetupForm({ ...setupForm, startDate: e.target.value })}
-                className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-900 dark:text-white focus:outline-none focus:border-blue-600 text-xs cursor-pointer"
+                onChange={(newDate) => setSetupForm((prev) => ({ ...prev, startDate: newDate }))}
+                triggerClassName="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 rounded-xl"
               />
             </div>
           )}

@@ -91,7 +91,11 @@ export default function TimeSlotMatrix({
           </div>
           <div className="flex items-center gap-1.5">
             <span className="w-2.5 h-2.5 rounded-full bg-blue-600 shrink-0 inline-block shadow-2xs" />
-            <span>Booked / On-Going</span>
+            <span>Booked</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-indigo-600 shrink-0 inline-block shadow-2xs" />
+            <span>On-Going</span>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="w-2.5 h-2.5 rounded-full bg-amber-500 shrink-0 inline-block shadow-2xs" />
@@ -161,18 +165,16 @@ export default function TimeSlotMatrix({
                     </div>
 
                     {/* Right Column: Time-Slot Gantt Timeline Area */}
-                    <div className="relative h-16 bg-white dark:bg-[#111827] group-hover:bg-slate-50/50 dark:group-hover:bg-slate-800/40 transition-colors">
-                      {/* Background Hourly Grid Lines */}
+                    <div className="relative h-20 bg-white dark:bg-[#111827] group-hover:bg-slate-50/50 dark:group-hover:bg-slate-800/40 transition-colors">
+                      {/* Background Hourly Available Slots (Image 3 visual) */}
                       <div
-                        className="absolute inset-0 grid pointer-events-none"
+                        className="absolute inset-0 grid p-1.5 gap-1.5 pointer-events-none"
                         style={{ gridTemplateColumns: `repeat(${hourSlots.length}, minmax(0, 1fr))` }}
                       >
                         {hourSlots.map((h) => (
                           <div
                             key={h}
-                            className={`border-r border-slate-100/90 dark:border-slate-800/80 last:border-r-0 h-full ${
-                              h === 12 ? "bg-slate-50/40 dark:bg-slate-800/30" : ""
-                            }`}
+                            className="h-full rounded-xl bg-emerald-500/15 dark:bg-emerald-500/10 border border-emerald-500/25 dark:border-emerald-500/20"
                           />
                         ))}
                       </div>
@@ -196,11 +198,10 @@ export default function TimeSlotMatrix({
                         const rawStatus = (sched.status || "").toLowerCase();
                         const isClosed = rawStatus === "closed";
                         const isMaintenance = rawStatus === "maintenance" || rawStatus === "damaged";
-                        const isOngoing =
-                          rawStatus === "ongoing" ||
-                          rawStatus === "on-going" ||
-                          rawStatus === "borrowed" ||
+                        const isOngoing = rawStatus === "ongoing" || rawStatus === "on-going";
+                        const isBooked =
                           rawStatus === "booked" ||
+                          rawStatus === "borrowed" ||
                           rawStatus === "approved" ||
                           rawStatus === "reserved";
                         const isPending =
@@ -208,24 +209,34 @@ export default function TimeSlotMatrix({
                           rawStatus === "pending_approval";
                         const isAvailable = rawStatus === "available";
 
-                        let blockStyle = "bg-emerald-600 border-emerald-700 text-white shadow-xs";
-                        let statusBadgeLabel = "RESERVED";
+                        let blockStyle = "bg-blue-100 dark:bg-blue-950/80 border-2 border-blue-500 text-blue-950 dark:text-blue-100";
+                        let statusBadgeLabel = "Booked";
+                        let statusBadgeBg = "bg-blue-600 text-white";
 
                         if (isClosed) {
-                          blockStyle = "bg-rose-600 border-rose-700 text-white shadow-xs";
-                          statusBadgeLabel = "CLOSED";
+                          blockStyle = "bg-rose-500 dark:bg-rose-600 border-2 border-rose-600 text-white shadow-xs";
+                          statusBadgeLabel = "Closed";
+                          statusBadgeBg = "bg-rose-700 text-white";
                         } else if (isMaintenance) {
-                          blockStyle = "bg-amber-500 border-amber-600 text-white shadow-xs";
-                          statusBadgeLabel = "MAINTENANCE";
+                          blockStyle = "bg-amber-100 dark:bg-amber-950/80 border-2 border-amber-500 text-amber-950 dark:text-amber-100 shadow-xs";
+                          statusBadgeLabel = "Maintenance";
+                          statusBadgeBg = "bg-amber-600 text-white";
                         } else if (isOngoing) {
-                          blockStyle = "bg-blue-600 border-blue-700 text-white shadow-xs";
-                          statusBadgeLabel = rawStatus === "booked" ? "BOOKED" : "ON-GOING";
+                          blockStyle = "bg-indigo-100 dark:bg-indigo-950/80 border-2 border-indigo-600 text-indigo-950 dark:text-indigo-100 shadow-xs";
+                          statusBadgeLabel = "On-Going";
+                          statusBadgeBg = "bg-indigo-600 text-white";
+                        } else if (isBooked) {
+                          blockStyle = "bg-blue-100 dark:bg-blue-950/80 border-2 border-blue-600 text-blue-950 dark:text-blue-100 shadow-xs";
+                          statusBadgeLabel = "Booked";
+                          statusBadgeBg = "bg-blue-600 text-white";
                         } else if (isPending) {
-                          blockStyle = "bg-amber-500/90 border-amber-600 text-white shadow-xs";
-                          statusBadgeLabel = "PENDING";
+                          blockStyle = "bg-amber-100/90 dark:bg-amber-950/70 border-2 border-amber-500 text-amber-950 dark:text-amber-100 shadow-xs";
+                          statusBadgeLabel = "Pending";
+                          statusBadgeBg = "bg-amber-600 text-white";
                         } else if (isAvailable) {
-                          blockStyle = "bg-emerald-600 border-emerald-700 text-white shadow-xs";
-                          statusBadgeLabel = "AVAILABLE";
+                          blockStyle = "bg-emerald-500/20 border-2 border-emerald-500 text-emerald-950 dark:text-emerald-100";
+                          statusBadgeLabel = "Available";
+                          statusBadgeBg = "bg-emerald-600 text-white";
                         }
 
                         const sStart = sched?.startTime || sched?.time_start || sched?.start_time || sched?.start || "08:00";
@@ -236,23 +247,50 @@ export default function TimeSlotMatrix({
                           <div
                             key={sched.id || sIdx}
                             style={{
-                              left: `${leftPercent}%`,
-                              width: `${Math.max(6, widthPercent)}%`,
+                              left: `calc(${leftPercent}% + 4px)`,
+                              width: `calc(${Math.max(8, widthPercent)}% - 8px)`,
                             }}
-                            title={`[${statusBadgeLabel}] ${sched.filerName || "Requestor"} | ${sched.title || "Booking"} | Time: ${formattedTimeRange} | Ref: ${sched.refCode || "N/A"}`}
-                            className={`absolute top-1 bottom-1 rounded-xl border px-2 py-0.5 flex flex-col justify-center overflow-hidden z-10 transition-all hover:scale-[1.01] hover:z-20 cursor-pointer shadow-xs ${blockStyle}`}
+                            title={`[${statusBadgeLabel}] ${sched.filerName || "Requestor"} | ${sched.department ? sched.department + ' • ' : ''}${sched.classification || ''} | Time: ${formattedTimeRange} | ${sched.title || ""}`}
+                            className={`absolute top-1.5 bottom-1.5 rounded-xl px-2.5 py-1.5 flex flex-col justify-between overflow-hidden z-10 transition-all hover:scale-[1.01] hover:z-20 cursor-pointer shadow-sm ${blockStyle}`}
                           >
-                            <div className="flex items-center gap-1.5 leading-tight truncate">
-                              <span className="text-[8.5px] font-black uppercase tracking-wider px-1 py-0.2 rounded bg-white/20 border border-white/30 shrink-0">
+                            {/* Line 1: Status Badge + Time */}
+                            <div className="flex items-center justify-between gap-1 leading-tight">
+                              <span className={`text-[8.5px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md shrink-0 shadow-2xs ${statusBadgeBg}`}>
                                 {statusBadgeLabel}
                               </span>
-                              <span className="font-extrabold text-[10.5px] truncate">
-                                {sched.filerName || sched.title || "Scheduled"}
+                              <span className="font-extrabold text-[10.5px] font-mono truncate">
+                                {formattedTimeRange}
                               </span>
                             </div>
-                            <span className="text-[9.5px] font-mono font-bold opacity-95 truncate mt-0.5">
-                              {formattedTimeRange} {sched.refCode ? `• [${sched.refCode}]` : ""}
-                            </span>
+
+                            {/* Line 2: Filer Name + Title */}
+                            <div className="font-extrabold text-[11px] truncate leading-tight mt-0.5">
+                              <span>{sched.filerName || "Scheduled"}</span>
+                              {sched.title && sched.title !== "Venue Reservation" && (
+                                <span className="font-medium opacity-80 ml-1 text-[10px]">
+                                  • {sched.title}
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Line 3: Department + Classification/Identity */}
+                            <div className="flex items-center gap-1.5 text-[9.5px] font-semibold opacity-90 truncate mt-0.5">
+                              {sched.department && (
+                                <span className="px-1.5 py-0.5 rounded bg-black/10 dark:bg-white/10 font-bold shrink-0">
+                                  {sched.department}
+                                </span>
+                              )}
+                              {sched.classification && (
+                                <span className="capitalize truncate">
+                                  {sched.classification}
+                                </span>
+                              )}
+                              {sched.refCode && !sched.department && !sched.classification && (
+                                <span className="font-mono text-[9px]">
+                                  {sched.refCode}
+                                </span>
+                              )}
+                            </div>
                           </div>
                         );
                       })}

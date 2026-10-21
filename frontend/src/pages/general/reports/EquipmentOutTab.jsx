@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { Search, Clock, CheckCircle2, AlertCircle, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, Clock, CheckCircle2, AlertCircle, ChevronLeft, ChevronRight, Building2, Filter } from "lucide-react";
 import { formatTime12, formatDate } from "@/lib/dateUtils";
 import { getOverdueMinutes } from "@/lib/dateTimeUtils";
 import FilterDropdown from "@/components/ui/FilterDropdown";
@@ -314,6 +314,7 @@ export default function EquipmentOutTab({ equipmentBorrowings = [], equipmentUni
               { value: "returned", label: `Returned (${statusCounts.retCount})` },
               { value: "overdue", label: `Overdue (${statusCounts.overdueCount})` },
             ]}
+            icon={Filter}
             title="Filter by Status"
           />
 
@@ -325,6 +326,7 @@ export default function EquipmentOutTab({ equipmentBorrowings = [], equipmentUni
               { value: "all", label: `All Departments (${departments.length})` },
               ...departments.map((d) => ({ value: d, label: d })),
             ]}
+            icon={Building2}
             title="Filter by Department"
           />
         </div>

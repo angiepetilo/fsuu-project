@@ -12,7 +12,8 @@ import {
   KeyRound,
   CheckCircle2,
   AlertCircle,
-  RefreshCw
+  RefreshCw,
+  Clock
 } from "lucide-react";
 import PasswordSecurityStrength, { checkPasswordSecurity } from "@/components/ui/PasswordSecurityStrength";
 
@@ -39,6 +40,7 @@ export default function ForgotPassword() {
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [cooldown, setCooldown] = useState(0);
+  const [expiresMinutes, setExpiresMinutes] = useState(10);
 
   const otpInputsRef = useRef([]);
 
@@ -68,6 +70,9 @@ export default function ForgotPassword() {
 
   // --- Step 1: Submit Email for Reset Code ---
   const handleRequestCode = async (e) => {
+    if (e && typeof e.preventDefault === "function") {
+      e.preventDefault();
+    }
     const trimmedEmail = (email || "").trim().toLowerCase();
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!trimmedEmail || !emailRegex.test(trimmedEmail)) {
@@ -80,9 +85,10 @@ export default function ForgotPassword() {
     setSuccessMessage("");
 
     try {
-      const res = await api.post("/auth/forgot-password", { email: email.trim().toLowerCase() });
+      const res = await api.post("/auth/forgot-password", { email: trimmedEmail });
       setSuccessMessage(res.data?.message || "Verification code dispatched.");
       setCooldown(res.data?.cooldown || 60);
+      setExpiresMinutes(res.data?.expires_minutes || 10);
       setStep(2);
     } catch (err) {
       if (err.response?.status === 429) {
@@ -238,8 +244,8 @@ export default function ForgotPassword() {
             {step === 4 ? "Password Reset" : "Forgot Password"}
           </h2>
           <p className="text-xs text-slate-500 font-semibold mt-1">
-            {step === 1 && "Enter your registered university email to receive a secure code"}
-            {step === 2 && "Enter the 6-digit security code sent to your inbox"}
+            {step === 1 && "Enter your university email to receive a verification code"}
+            {step === 2 && "Enter the 6-digit verification code sent to your inbox"}
             {step === 3 && "Create a strong new password for your account"}
             {step === 4 && "Your credentials have been securely updated"}
           </p>
@@ -269,14 +275,14 @@ export default function ForgotPassword() {
                 University Email Address
               </label>
               <div className="relative">
-                <Mail size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                <Mail size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                 <input
                   type="email"
                   required
                   autoFocus
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="e.g. name@urios.edu.ph or name@gmail.com"
+                  placeholder="e.g. name@urios.edu.ph"
                   className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 bg-slate-50/50 focus:bg-white transition-all"
                 />
               </div>
@@ -310,9 +316,13 @@ export default function ForgotPassword() {
         {/* STEP 2: Verify 6-digit Code */}
         {step === 2 && (
           <form onSubmit={handleVerifyCode} className="space-y-5">
-            <div className="text-center">
-              <span className="text-xs text-slate-600 font-medium">Code dispatched to: </span>
-              <span className="text-xs font-bold text-slate-900">{email}</span>
+            <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3.5 text-center space-y-1 animate-in fade-in">
+              <div className="text-xs text-slate-600 font-medium">
+                Verification code sent to <span className="font-bold text-slate-900">{email}</span>
+              </div>
+              <div className="text-[11px] font-semibold text-slate-500">
+                Code expires in {expiresMinutes} minutes
+              </div>
             </div>
 
             {/* 6 Digit Input Boxes */}

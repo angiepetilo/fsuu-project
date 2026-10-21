@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Loader2, X, Trash2, Filter } from "lucide-react";
+import { Loader2, X, Trash2, Filter, Radio, Layers } from "lucide-react";
 import api from "@/lib/axios";
 import notify from "@/lib/notify";
 import { formatDate } from "@/lib/dateUtils";
@@ -179,7 +179,7 @@ export default function CommunicationLogsTab() {
               { value: "email", label: "Email Dispatches" },
               { value: "sms", label: "SMS Alerts" },
             ]}
-            label="Channel:"
+            icon={Radio}
             title="Filter by Channel"
           />
 
@@ -200,7 +200,7 @@ export default function CommunicationLogsTab() {
               { value: "user_credentials", label: "User Credentials" },
               { value: "test_email", label: "SMTP Tests" },
             ]}
-            label="Category:"
+            icon={Layers}
             title="Filter by Category"
           />
 
@@ -218,7 +218,6 @@ export default function CommunicationLogsTab() {
               { value: "failed", label: "Failed" },
             ]}
             icon={Filter}
-            label="Status:"
             title="Filter by Dispatch Status"
           />
         </div>

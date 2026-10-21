@@ -1166,6 +1166,7 @@ export default function EquipmentBorrowDetailModal({
           handleSendReturnReminder={handleSendReturnReminder}
           isOngoing={isOngoing}
           isApproved={isApproved}
+          timeliness={timeliness}
         />
 
         {/* Modal Body: Organized in Top Details & Side Assignment, Bottom Side-by-Side Inspection */}

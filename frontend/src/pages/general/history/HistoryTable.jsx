@@ -3,6 +3,23 @@ import { Loader2, Eye, Pencil, EyeOff, MoreVertical, ChevronLeft, ChevronRight }
 /**
  * HistoryTable — Renders Venue or Equipment history records table with ActionMenuPopover and pagination.
  */
+function formatReturnTime(b) {
+  const raw = b?.returned_at || b?.post_inspected_at || b?.cleared_at || b?.actual_return_time;
+  if (!raw) return null;
+  try {
+    const d = new Date(raw);
+    if (isNaN(d.getTime())) return String(raw);
+    const usageD = b?.date_of_usage || b?.date || b?.borrow_date;
+    const sameDate = usageD && d.toISOString().slice(0, 10) === String(usageD).slice(0, 10);
+    const timeStr = d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
+    if (sameDate) return timeStr;
+    const monthDay = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    return `${monthDay}, ${timeStr}`;
+  } catch {
+    return String(raw);
+  }
+}
+
 export default function HistoryTable({
   historyType,
   loading,
@@ -333,9 +350,16 @@ export default function HistoryTable({
                             ● Policy Violation
                           </span>
                         ) : isLate ? (
-                          <span className="font-mono text-xs font-bold text-amber-600 uppercase" title={b.notes || b.inspection_notes}>
-                            ● Late Return
-                          </span>
+                          <div className="flex flex-col">
+                            <span className="font-mono text-xs font-bold text-amber-600 uppercase" title={b.notes || b.inspection_notes}>
+                              ● Late Return
+                            </span>
+                            {formatReturnTime(b) && (
+                              <span className="text-[10.5px] font-mono font-bold text-amber-700">
+                                Ret: {formatReturnTime(b)}
+                              </span>
+                            )}
+                          </div>
                         ) : (
                           <span className="font-mono text-xs font-bold text-emerald-600 uppercase" title={b.notes || b.inspection_notes}>
                             ● Satisfactory
@@ -425,35 +449,42 @@ export default function HistoryTable({
                 <div key={`mob-v-${b.id || idx}`} className="p-4 space-y-2.5">
                   <div className="flex items-center justify-between gap-2">
                     <span className="font-mono font-extrabold text-xs text-slate-900">{refCode}</span>
-                    {isRejected && b.is_auto_rejected ? (
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-50 text-rose-700 border border-rose-200">
-                        Rejected (automatic)
-                      </span>
-                    ) : isRejected ? (
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-50 text-rose-700 border border-rose-200">
-                        Rejected
-                      </span>
-                    ) : isCancelled ? (
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-slate-100 text-slate-700 border border-slate-200">
-                        Cancelled
-                      </span>
-                    ) : isSolved ? (
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-blue-50 text-blue-700 border border-blue-200">
-                        Solved
-                      </span>
-                    ) : isBreach ? (
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-50 text-rose-700 border border-rose-200">
-                        Violation
-                      </span>
-                    ) : isLate ? (
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-50 text-amber-800 border border-amber-200">
-                        Late Return
-                      </span>
-                    ) : (
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                        Satisfactory
-                      </span>
-                    )}
+                    <div className="flex flex-col items-end gap-0.5">
+                      {isRejected && b.is_auto_rejected ? (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-50 text-rose-700 border border-rose-200">
+                          Rejected (automatic)
+                        </span>
+                      ) : isRejected ? (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-50 text-rose-700 border border-rose-200">
+                          Rejected
+                        </span>
+                      ) : isCancelled ? (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-slate-100 text-slate-700 border border-slate-200">
+                          Cancelled
+                        </span>
+                      ) : isSolved ? (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-blue-50 text-blue-700 border border-blue-200">
+                          Solved
+                        </span>
+                      ) : isBreach ? (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-50 text-rose-700 border border-rose-200">
+                          Violation
+                        </span>
+                      ) : isLate ? (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-50 text-amber-800 border border-amber-200">
+                          Late Return
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          Satisfactory
+                        </span>
+                      )}
+                      {isLate && formatReturnTime(b) && (
+                        <span className="text-[10px] font-mono font-bold text-amber-700">
+                          Ret: {formatReturnTime(b)}
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   <div>
@@ -632,9 +663,16 @@ export default function HistoryTable({
                             ● Damaged
                           </span>
                         ) : isLate ? (
-                          <span className="font-mono text-xs font-bold text-amber-600 uppercase">
-                            ● Late Returned
-                          </span>
+                          <div className="flex flex-col">
+                            <span className="font-mono text-xs font-bold text-amber-600 uppercase">
+                              ● Late Returned
+                            </span>
+                            {formatReturnTime(b) && (
+                              <span className="font-mono text-[11px] font-bold text-amber-700">
+                                Ret: {formatReturnTime(b)}
+                              </span>
+                            )}
+                          </div>
                         ) : isOtherBreach ? (
                           <span className="font-mono text-xs font-bold text-rose-600 uppercase">
                             ● Policy Violation
@@ -740,35 +778,42 @@ export default function HistoryTable({
                 <div key={`mob-eq-${b.id || idx}`} className="p-4 space-y-2.5">
                   <div className="flex items-center justify-between gap-2">
                     <span className="font-mono font-extrabold text-xs text-slate-900">{refCode}</span>
-                    {isRejected ? (
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-50 text-rose-700 border border-rose-200">
-                        Rejected
-                      </span>
-                    ) : isCancelled ? (
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-slate-100 text-slate-700 border border-slate-200">
-                        Cancelled
-                      </span>
-                    ) : isSolved ? (
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-blue-50 text-blue-700 border border-blue-200">
-                        Solved
-                      </span>
-                    ) : isDamaged ? (
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-50 text-rose-700 border border-rose-200">
-                        Damaged
-                      </span>
-                    ) : isLost ? (
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-50 text-rose-700 border border-rose-200">
-                        Lost
-                      </span>
-                    ) : isLate ? (
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-50 text-amber-800 border border-amber-200">
-                        Late Returned
-                      </span>
-                    ) : (
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                        Good
-                      </span>
-                    )}
+                    <div className="flex flex-col items-end gap-0.5">
+                      {isRejected ? (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-50 text-rose-700 border border-rose-200">
+                          Rejected
+                        </span>
+                      ) : isCancelled ? (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-slate-100 text-slate-700 border border-slate-200">
+                          Cancelled
+                        </span>
+                      ) : isSolved ? (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-blue-50 text-blue-700 border border-blue-200">
+                          Solved
+                        </span>
+                      ) : isDamaged ? (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-50 text-rose-700 border border-rose-200">
+                          Damaged
+                        </span>
+                      ) : isLost ? (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-50 text-rose-700 border border-rose-200">
+                          Lost
+                        </span>
+                      ) : isLate ? (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-50 text-amber-800 border border-amber-200">
+                          Late Returned
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          Good
+                        </span>
+                      )}
+                      {isLate && formatReturnTime(b) && (
+                        <span className="text-[10px] font-mono font-bold text-amber-700">
+                          Ret: {formatReturnTime(b)}
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   <div>

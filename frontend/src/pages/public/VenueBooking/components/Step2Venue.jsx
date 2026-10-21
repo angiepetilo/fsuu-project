@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
 import CustomTimePicker from "@/components/ui/custom-time-picker";
+import { CalendarHeader, DAYS_OF_WEEK } from "@/components/ui/custom-calendar-picker";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import api from "@/lib/axios";
 import { getTodayISO, isPastDate, isPastTimeToday, isPastDateTime } from "@/lib/dateTimeUtils";
@@ -815,42 +816,53 @@ export default function Step2Venue({
             )}
 
             {/* Interactive Calendar Container */}
-            <div className="bg-white dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700 space-y-4">
-              {/* Header: < Month Year > */}
-              <div className="flex items-center justify-between px-1">
-                <button
-                  type="button"
-                  onClick={prevMonth}
-                  className="w-8 h-8 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 flex items-center justify-center transition-colors cursor-pointer text-xs font-bold"
-                >
-                  &lt;
-                </button>
+            <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-4">
+              {/* Header: < [Month ⌵] [Year ⌵] > */}
+              <CalendarHeader
+                currentMonth={calMonth}
+                currentYear={calYear}
+                onPrevMonth={prevMonth}
+                onNextMonth={nextMonth}
+                onSelectMonth={(m) => setCalMonth(m)}
+                onSelectYear={(y) => setCalYear(y)}
+                theme="adaptive"
+                className="mb-2"
+              />
 
-                <span className="text-sm font-bold text-slate-900 dark:text-white">
-                  {monthLabel}
-                </span>
-
-                <button
-                  type="button"
-                  onClick={nextMonth}
-                  className="w-8 h-8 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 flex items-center justify-center transition-colors cursor-pointer text-xs font-bold"
-                >
-                  &gt;
-                </button>
-              </div>
-
-              {/* Day of Week Headers (Mon - Sun) */}
-              <div className="grid grid-cols-7 gap-1 text-center text-xs font-semibold text-slate-400 dark:text-slate-400">
-                {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map(d => (
+              {/* Day of Week Headers (Su - Sa) */}
+              <div className="grid grid-cols-7 gap-1 text-center text-xs font-semibold text-slate-400 dark:text-slate-400 mb-1">
+                {DAYS_OF_WEEK.map((d) => (
                   <div key={d} className="py-1">{d}</div>
                 ))}
               </div>
 
               {/* Calendar Grid */}
               <div className="grid grid-cols-7 gap-y-2 text-center text-xs">
-                {Array.from({ length: (firstDayOfWeek + 6) % 7 }).map((_, i) => (
-                  <div key={`empty-${i}`} className="h-9" />
-                ))}
+                {/* Trailing days from previous month */}
+                {(() => {
+                  const daysInPrevMonth = new Date(calYear, calMonth, 0).getDate();
+                  const prevMonthIdx = calMonth === 0 ? 11 : calMonth - 1;
+                  const prevYear = calMonth === 0 ? calYear - 1 : calYear;
+                  return Array.from({ length: firstDayOfWeek }).map((_, i) => {
+                    const prevDay = daysInPrevMonth - firstDayOfWeek + 1 + i;
+                    const prevDateStr = `${prevYear}-${pad(prevMonthIdx + 1)}-${pad(prevDay)}`;
+                    return (
+                      <div key={`prev-${i}`} className="relative h-9 flex items-center justify-center">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCalMonth(prevMonthIdx);
+                            setCalYear(prevYear);
+                            handleDateSelect(prevDateStr);
+                          }}
+                          className="w-9 h-9 text-xs flex items-center justify-center text-slate-400 dark:text-slate-600 hover:text-slate-700 dark:hover:text-slate-300 transition-colors cursor-pointer"
+                        >
+                          {prevDay}
+                        </button>
+                      </div>
+                    );
+                  });
+                })()}
 
                 {Array.from({ length: daysInMonth }).map((_, i) => {
                   const day = i + 1;
@@ -887,9 +899,9 @@ export default function Step2Venue({
                       className={`relative h-9 flex items-center justify-center ${hasRange && isInBetween
                           ? "bg-blue-100 dark:bg-blue-950/70"
                           : hasRange && isStart
-                            ? "bg-blue-100 dark:bg-blue-950/70 rounded-l-xl"
+                            ? "bg-blue-100 dark:bg-blue-950/70 rounded-l-2xl"
                             : hasRange && isEnd
-                              ? "bg-blue-100 dark:bg-blue-950/70 rounded-r-xl"
+                              ? "bg-blue-100 dark:bg-blue-950/70 rounded-r-2xl"
                               : ""
                         }`}
                     >
@@ -946,26 +958,26 @@ export default function Step2Venue({
                           }
                         }}
                         className={`w-9 h-9 text-xs font-semibold flex items-center justify-center mx-auto transition-all relative z-10 ${isStart && hasRange
-                            ? "bg-blue-600 text-white font-black rounded-l-xl shadow-md ring-2 ring-blue-600/40 z-20 cursor-pointer"
+                            ? "bg-blue-600 text-white font-black rounded-l-2xl shadow-md ring-2 ring-blue-600/40 z-20 cursor-pointer"
                             : isEnd && hasRange
-                              ? "bg-blue-600 text-white font-black rounded-r-xl shadow-md ring-2 ring-blue-600/40 z-20 cursor-pointer"
+                              ? "bg-blue-600 text-white font-black rounded-r-2xl shadow-md ring-2 ring-blue-600/40 z-20 cursor-pointer"
                               : (isStart || isEnd)
-                                ? "bg-blue-600 text-white font-black rounded-xl shadow-md ring-2 ring-blue-600/40 z-20 cursor-pointer"
+                                ? "bg-slate-900 text-white dark:bg-white dark:text-black font-black rounded-2xl shadow-lg ring-2 ring-blue-500/50 z-20 cursor-pointer"
                                 : isInBetween
                                   ? "bg-blue-200/90 dark:bg-blue-900/80 text-blue-950 dark:text-blue-100 font-black border-y-2 border-blue-400 dark:border-blue-500 rounded-none w-full hover:bg-blue-300 dark:hover:bg-blue-800 cursor-pointer shadow-2xs"
                                   : isToday
-                                    ? "border border-blue-600 text-blue-700 dark:text-blue-400 font-bold bg-blue-50/40 dark:bg-blue-500/10 rounded-lg cursor-pointer"
+                                    ? "bg-slate-100 dark:bg-[#252830] text-slate-900 dark:text-slate-100 font-bold rounded-2xl border border-slate-300 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 cursor-pointer"
                                     : isClosed
-                                      ? "border border-rose-600 bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400 font-semibold rounded-lg cursor-not-allowed"
+                                      ? "border border-rose-600 bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400 font-semibold rounded-2xl cursor-not-allowed"
                                       : isMaintenance
-                                        ? "border border-amber-500 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 font-semibold rounded-lg cursor-not-allowed"
+                                        ? "border border-amber-500 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 font-semibold rounded-2xl cursor-not-allowed"
                                         : isBooked
-                                          ? "border border-blue-500 bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 font-semibold rounded-lg cursor-not-allowed"
+                                          ? "border border-blue-500 bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 font-semibold rounded-2xl cursor-not-allowed"
                                           : isShortNotice
-                                            ? `border border-slate-300 dark:border-slate-600 text-slate-500 dark:text-slate-400 font-medium bg-slate-50/50 dark:bg-slate-800/40 rounded-lg ${isPublicBlockedNotice ? "cursor-not-allowed opacity-80" : "hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"}`
+                                            ? `border border-slate-300 dark:border-slate-600 text-slate-500 dark:text-slate-400 font-medium bg-slate-50/50 dark:bg-slate-800/40 rounded-2xl ${isPublicBlockedNotice ? "cursor-not-allowed opacity-80" : "hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"}`
                                             : isPast
-                                              ? "text-slate-300 dark:text-slate-600 font-normal rounded-lg cursor-not-allowed select-none"
-                                              : "border border-emerald-300/80 dark:border-emerald-700/60 bg-emerald-50/20 dark:bg-emerald-950/20 text-slate-700 dark:text-slate-200 font-medium hover:bg-emerald-100/50 rounded-lg cursor-pointer"
+                                              ? "text-slate-300 dark:text-slate-600 font-normal rounded-2xl cursor-not-allowed select-none"
+                                              : "border border-emerald-300/80 dark:border-emerald-700/60 bg-emerald-50/20 dark:bg-emerald-950/20 text-slate-700 dark:text-slate-200 font-medium hover:bg-emerald-100/50 rounded-2xl cursor-pointer"
                           }`}
                       >
                         <span className="relative">
@@ -990,6 +1002,33 @@ export default function Step2Venue({
                     </div>
                   );
                 })}
+
+                {/* Leading days from next month */}
+                {(() => {
+                  const totalSlots = (firstDayOfWeek + daysInMonth <= 35) ? 35 : 42;
+                  const remaining = totalSlots - (firstDayOfWeek + daysInMonth);
+                  const nextMonthIdx = calMonth === 11 ? 0 : calMonth + 1;
+                  const nextYear = calMonth === 11 ? calYear + 1 : calYear;
+                  return Array.from({ length: remaining }).map((_, i) => {
+                    const nextDay = i + 1;
+                    const nextDateStr = `${nextYear}-${pad(nextMonthIdx + 1)}-${pad(nextDay)}`;
+                    return (
+                      <div key={`next-${i}`} className="relative h-9 flex items-center justify-center">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCalMonth(nextMonthIdx);
+                            setCalYear(nextYear);
+                            handleDateSelect(nextDateStr);
+                          }}
+                          className="w-9 h-9 text-xs flex items-center justify-center text-slate-400 dark:text-slate-600 hover:text-slate-700 dark:hover:text-slate-300 transition-colors cursor-pointer"
+                        >
+                          {nextDay}
+                        </button>
+                      </div>
+                    );
+                  });
+                })()}
               </div>
 
               {/* Calendar Quick Legend */}

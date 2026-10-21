@@ -1030,7 +1030,6 @@ export default function ManageEquipments() {
               { value: "unavailable", label: "Unavailable" },
             ]}
             icon={Filter}
-            label="Status:"
             title="Filter by Status"
             className="w-full sm:w-auto"
           />
@@ -1048,7 +1047,6 @@ export default function ManageEquipments() {
               { value: "newest", label: "Date (Newest First)" },
             ]}
             icon={ArrowUpDown}
-            label="Sort:"
             title="Sort Equipment"
             className="w-full sm:w-auto"
           />

@@ -483,7 +483,6 @@ export default function EquipmentBorrowings() {
                 { value: "ongoing", label: "Ongoing" },
               ]}
               icon={Filter}
-              label="Status:"
               title="Filter by Borrowing Status"
             />
             {(statusFilter !== "all" || searchQuery) && (

@@ -93,22 +93,30 @@ class VenueAvailabilityController extends Controller
                 return Carbon::parse($item->override_date)->toDateString();
             });
 
-        // 3. Booking counts per day
-        $bookingCountsQuery = DB::table('venue_bookings')
+        // 3. Active bookings overlapping this month (including multi-day spans)
+        $activeBookingsQuery = DB::table('venue_bookings')
             ->join('tracking_numbers', 'venue_bookings.tracking_number_id', '=', 'tracking_numbers.id')
             ->whereNull('venue_bookings.archived_at')
             ->whereIn('tracking_numbers.status', ['approved', 'ongoing', 'on-going', 'reserved'])
-            ->whereBetween('venue_bookings.date_of_usage', [$startDate->toDateString(), $endDate->toDateString()]);
+            ->where('venue_bookings.date_of_usage', '<=', $endDate->toDateString())
+            ->where(function ($q) use ($startDate) {
+                $q->whereNull('venue_bookings.reservation_end_date')
+                  ->where('venue_bookings.date_of_usage', '>=', $startDate->toDateString())
+                  ->orWhere('venue_bookings.reservation_end_date', '>=', $startDate->toDateString());
+            });
 
         if (!$isAllVenues && $venueId) {
-            $bookingCountsQuery->where('venue_bookings.venue_id', $venueId);
+            $activeBookingsQuery->where('venue_bookings.venue_id', $venueId);
         }
 
-        $bookingCounts = $bookingCountsQuery
-            ->select('venue_bookings.date_of_usage', DB::raw('count(*) as count'))
-            ->groupBy('venue_bookings.date_of_usage')
-            ->get()
-            ->keyBy('date_of_usage');
+        $activeBookings = $activeBookingsQuery
+            ->select(
+                'venue_bookings.venue_id',
+                'venue_bookings.date_of_usage',
+                'venue_bookings.reservation_end_date',
+                'tracking_numbers.status as tracking_status'
+            )
+            ->get();
 
         // Total venues count for "all venues" scope
         $totalVenuesCount = Venue::count();
@@ -118,7 +126,13 @@ class VenueAvailabilityController extends Controller
         $cursor = $startDate->copy();
         while ($cursor->lte($endDate)) {
             $dateStr = $cursor->toDateString();
-            $bookings = $bookingCounts[$dateStr]->count ?? 0;
+            $dayBookings = $activeBookings->filter(function ($b) use ($dateStr) {
+                $start = Carbon::parse($b->date_of_usage)->toDateString();
+                $end = $b->reservation_end_date ? Carbon::parse($b->reservation_end_date)->toDateString() : $start;
+                return $dateStr >= $start && $dateStr <= $end;
+            });
+            $bookings = $dayBookings->count();
+            $hasOngoing = $dayBookings->contains(fn($b) => in_array(strtolower($b->tracking_status), ['ongoing', 'on-going']));
             $eqOverride = $equipOverrides[$dateStr] ?? null;
 
             if ($isAllVenues) {
@@ -137,6 +151,9 @@ class VenueAvailabilityController extends Controller
                 } elseif ($bookings === 0) {
                     $status = 'available';
                     $notes = null;
+                } elseif ($hasOngoing) {
+                    $status = 'ongoing';
+                    $notes = "{$bookings} Active Booking(s) (On-Going)";
                 } else {
                     $status = 'partial';
                     $notes = "{$bookings} Active Booking(s)";
@@ -164,6 +181,9 @@ class VenueAvailabilityController extends Controller
                 } elseif ($bookings === 0) {
                     $status = 'available';
                     $notes = null;
+                } elseif ($hasOngoing) {
+                    $status = 'ongoing';
+                    $notes = "{$bookings} Active Booking(s) (On-Going)";
                 } elseif ($bookings >= 3) {
                     $status = 'fully_booked';
                     $notes = "{$bookings} Bookings (Fully Booked)";

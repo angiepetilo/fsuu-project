@@ -1,6 +1,7 @@
 import { X, Clock } from "lucide-react";
 import { OverdueBadge } from "@/components/ui/status-badge";
-import { getOverdueMinutes, getInspectionEligibility, formatCountdownDuration } from "@/lib/dateTimeUtils";
+import { getOverdueMinutes, getInspectionEligibility, formatCountdownDuration, formatTimeLate } from "@/lib/dateTimeUtils";
+import { formatDateTime } from "@/lib/dateUtils";
 
 /**
  * VenueModalHeader — Top bar of the booking form modal.
@@ -22,6 +23,40 @@ export default function VenueModalHeader({
   const inspectionEligibility = isOngoing
     ? getInspectionEligibility(scheduledEndDate, scheduledEndTime, 30)
     : { isReady: true, minutesUntilUnlock: 0, unlockTimeStr: "", reason: "" };
+
+  const isLateReturn = Boolean(selected?.is_late) ||
+    selected?.is_late === 1 ||
+    selected?.is_late === "1" ||
+    selected?.is_late === true ||
+    (selected?.timeliness || "").toLowerCase().includes("late") ||
+    String(selected?.violation_type || "").toLowerCase().includes("late") ||
+    String(selected?.violation || "").toLowerCase().includes("late") ||
+    Number(selected?.minutes_late || selected?.inspection?.minutes_late || 0) > 0;
+
+  const minutesLateNum = Number(selected?.minutes_late || selected?.inspection?.minutes_late || 0);
+
+  const getReturnTimeFormatted = () => {
+    const raw = selected?.returned_at ||
+      selected?.post_inspected_at ||
+      selected?.cleared_at ||
+      selected?.actual_return_time ||
+      selected?.inspection?.inspected_at ||
+      selected?.inspection?.created_at ||
+      (isLateReturn && ["completed", "returned", "damaged", "lost", "policy violation", "policy breach", "satisfactory"].includes(currentRawStatus) ? selected?.updated_at : null);
+
+    if (!raw) return null;
+    try {
+      const d = new Date(raw);
+      if (!isNaN(d.getTime())) {
+        return formatDateTime(d);
+      }
+      return String(raw);
+    } catch {
+      return String(raw);
+    }
+  };
+
+  const returnTimeStr = getReturnTimeFormatted();
 
   return (
     <div className="px-6 py-4 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-blue-900/50 shrink-0">
@@ -66,6 +101,22 @@ export default function VenueModalHeader({
               </span>
               {overdueMins > 0 && <OverdueBadge minutesOverdue={overdueMins} />}
             </div>
+
+            {/* Late Return Time Badge below Status */}
+            {isLateReturn ? (
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 dark:bg-amber-950/60 border border-amber-300 dark:border-amber-800/80 text-amber-800 dark:text-amber-200 text-xs font-bold animate-in fade-in">
+                <Clock size={12} className="text-amber-600 dark:text-amber-400 shrink-0" />
+                <span>
+                  Late Return{returnTimeStr ? `: ${returnTimeStr}` : ""}
+                  {minutesLateNum > 0 && formatTimeLate(minutesLateNum) !== "—" ? ` (${formatTimeLate(minutesLateNum)} late)` : ""}
+                </span>
+              </div>
+            ) : returnTimeStr && ["completed", "returned", "cleared", "satisfactory"].includes(currentRawStatus) ? (
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold animate-in fade-in">
+                <Clock size={12} className="text-slate-500 shrink-0" />
+                <span>Turned Over: {returnTimeStr}</span>
+              </div>
+            ) : null}
 
             {/* Inspection opens timer pill displayed below status */}
             {isOngoing && !inspectionEligibility.isReady && (

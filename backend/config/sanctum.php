@@ -50,7 +50,7 @@ return [
     |
     */
 
-    'expiration' => env('SANCTUM_EXPIRATION') ? (int) env('SANCTUM_EXPIRATION') : 480, // 8 hours max session lifetime
+    'expiration' => env('SANCTUM_EXPIRATION') ? (int) env('SANCTUM_EXPIRATION') : null, // Uses per-token expires_at (30 days for Remember Me, 8 hours standard)
 
     /*
     |--------------------------------------------------------------------------

@@ -8,10 +8,18 @@ export default function StaffLogin() {
   const { login } = useAuth();
   const navigate = useNavigate();
 
-  const [email, setEmail] = useState("");
+  const savedRememberedEmail = (() => {
+    try {
+      return localStorage.getItem("fsuu_remembered_email") || "";
+    } catch {
+      return "";
+    }
+  })();
+
+  const [email, setEmail] = useState(savedRememberedEmail);
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
+  const [rememberMe, setRememberMe] = useState(Boolean(savedRememberedEmail));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -33,7 +41,21 @@ export default function StaffLogin() {
     setError("");
 
     try {
-      const { data } = await api.post("/login", { email: trimmedEmail, password });
+      const { data } = await api.post("/login", {
+        email: trimmedEmail,
+        password,
+        remember: rememberMe,
+      });
+
+      // Manage saved email for Remember Me convenience
+      try {
+        if (rememberMe) {
+          localStorage.setItem("fsuu_remembered_email", trimmedEmail);
+        } else {
+          localStorage.removeItem("fsuu_remembered_email");
+        }
+      } catch {}
+
       login(data.user, data.token, rememberMe);
 
       const userRoleName = typeof data.user?.role === "object" ? data.user?.role?.name : data.user?.role;

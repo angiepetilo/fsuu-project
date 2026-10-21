@@ -55,6 +55,7 @@ export default function ManageVenues() {
     applyToAll: false,
     closeEquipment: false,
     isMultiDay: false,
+    dayOfWeek: "",
     startDate: getLocalDateString(),
     endDate: "",
     startTime: "07:30",
@@ -65,6 +66,7 @@ export default function ManageVenues() {
 
   const [equipmentForm, setEquipmentForm] = useState({
     isMultiDay: false,
+    dayOfWeek: "",
     startDate: getLocalDateString(),
     endDate: "",
     startTime: "07:30",
@@ -151,7 +153,15 @@ export default function ManageVenues() {
   const [overrides, setOverrides] = useState(() => {
     try {
       const saved = localStorage.getItem("fsuu_venue_overrides");
-      return saved ? JSON.parse(saved) : {};
+      if (!saved) return {};
+      const parsed = JSON.parse(saved);
+      const clean = {};
+      Object.entries(parsed).forEach(([k, v]) => {
+        if (v && ['maintenance', 'closed', 'damaged'].includes((v.status || '').toLowerCase())) {
+          clean[k] = v;
+        }
+      });
+      return clean;
     } catch {
       return {};
     }
@@ -284,7 +294,8 @@ export default function ManageVenues() {
         if (Array.isArray(res.data)) {
           const nextOv = {};
           res.data.forEach(item => {
-            if (item.notes || ['maintenance', 'closed', 'damaged'].includes(item.status)) {
+            const isRealOverride = ['maintenance', 'closed', 'damaged'].includes(item.status) || Boolean(item.override_id);
+            if (isRealOverride) {
               if (isAll) {
                 filteredVenues.forEach(v => {
                   const key = `${v.id}_${item.date}`;
@@ -414,9 +425,20 @@ export default function ManageVenues() {
       ? setupForm.endDate
       : startDateStr;
 
-    // Generate list of dates in range
+    // Generate list of dates in range or by selected recurring day
     const targetDates = [];
-    if (!setupForm.isMultiDay || !setupForm.endDate || setupForm.endDate === startDateStr) {
+    if (setupForm.dayOfWeek !== undefined && setupForm.dayOfWeek !== "" && setupForm.dayOfWeek !== null) {
+      const targetDay = Number(setupForm.dayOfWeek);
+      for (let d = 1; d <= daysInMonth; d++) {
+        const curDateObj = new Date(currentYear, currentMonth, d);
+        if (curDateObj.getDay() === targetDay) {
+          const y = curDateObj.getFullYear();
+          const m = pad(curDateObj.getMonth() + 1);
+          const dayPad = pad(curDateObj.getDate());
+          targetDates.push(`${y}-${m}-${dayPad}`);
+        }
+      }
+    } else if (!setupForm.isMultiDay || !setupForm.endDate || setupForm.endDate === startDateStr) {
       targetDates.push(startDateStr);
     } else {
       const [sy, sm, sd] = startDateStr.split("-").map(Number);
@@ -482,6 +504,7 @@ export default function ManageVenues() {
           ...prev,
           isMultiDay: false,
           endDate: "",
+          dayOfWeek: "",
         }));
         try {
           localStorage.setItem("fsuu_equipment_overrides", JSON.stringify(nextEquipOverrides));
@@ -504,11 +527,11 @@ export default function ManageVenues() {
         const currentDayStatus = getVenueDayStatus(d);
         if (
           (statusVal === "maintenance" || statusVal === "closed") &&
-          (currentDayStatus?.status === "partial" || currentDayStatus?.status === "fully")
+          (currentDayStatus?.status === "partial" || currentDayStatus?.status === "fully" || currentDayStatus?.status === "booked" || currentDayStatus?.status === "ongoing")
         ) {
           notify.error(
             "Action Blocked",
-            `Cannot set "${setupForm.status}" status on ${d}. The venue is already ${currentDayStatus.status} booked!`
+            `Cannot set "${setupForm.status}" status on ${d}. The venue already has an active reservation (${currentDayStatus.status})!`
           );
           return;
         }
@@ -604,6 +627,7 @@ export default function ManageVenues() {
         ...prev,
         isMultiDay: false,
         endDate: "",
+        dayOfWeek: "",
       }));
       try {
         localStorage.setItem("fsuu_venue_overrides", JSON.stringify(nextOverrides));
@@ -639,16 +663,27 @@ export default function ManageVenues() {
         }
       }
 
-      // Check active equipment borrowings
+      // Check active equipment borrowings (including multi-day spans)
       const matchedBorrows = equipBorrows.filter((b) => {
-        let bDate = b.date_of_usage || b.date_of_use || b.date || b.start_datetime || "";
-        if (bDate.includes("T")) bDate = bDate.split("T")[0];
+        let startD = b.date_of_usage || b.date_of_use || b.date || b.start_datetime || "";
+        if (startD.includes("T")) startD = startD.split("T")[0];
+        let endD = b.target_return_date || b.return_due_date || b.expected_return_date || b.reservation_end_date || b.extend_of_date_returned || b.date_of_usage_end || b.end_date || b.end_datetime || startD;
+        if (endD.includes("T")) endD = endD.split("T")[0];
+
         const activeStatus = ['pending', 'approved', 'ongoing', 'on-going', 'reserved'].includes((b.status || '').toLowerCase());
-        return bDate === dateStr && activeStatus;
+        const inRange = startD && (dateStr >= startD && dateStr <= endD);
+        return inRange && activeStatus;
       });
 
       if (matchedBorrows.length > 0) {
-        return { status: "booked", reason: `${matchedBorrows.length} Equipment Borrowing(s) (Borrowed)` };
+        const hasOngoing = matchedBorrows.some((b) => ['ongoing', 'on-going'].includes((b.status || '').toLowerCase()));
+        const displayStatus = hasOngoing ? "ongoing" : "booked";
+        const displayLabel = hasOngoing ? "On-Going" : "Borrowed";
+        return { 
+          status: displayStatus, 
+          reason: `${matchedBorrows.length} Equipment Borrowing(s) (${displayLabel})`,
+          borrows: matchedBorrows,
+        };
       }
 
       return { status: "available", reason: "Open & Available" };
@@ -676,7 +711,7 @@ export default function ManageVenues() {
     const key = `${venId}_${dateStr}`;
     const ov = overrides[key];
 
-    if (ov && String(ov.venue_id || ov.venueId) === String(venId)) {
+    if (ov && String(ov.venue_id || ov.venueId) === String(venId) && ['closed', 'maintenance', 'damaged'].includes((ov.status || '').toLowerCase())) {
       return {
         status: (ov.status || "available").toLowerCase(),
         reason: ov.notes || ov.reason || `Assigned ${ov.status} status`,
@@ -689,18 +724,25 @@ export default function ManageVenues() {
       let startD = b.date_of_usage || b.date_of_use || b.date || b.start_datetime || "";
       if (startD.includes("T")) startD = startD.split("T")[0];
       
-      let endD = b.reservation_end_date || b.date_of_usage_end || b.end_date || b.end_datetime || startD;
+      let endD = b.reservation_end_date || b.extend_reservation_end_date || b.date_of_usage_end || b.end_date || b.end_datetime || startD;
       if (endD.includes("T")) endD = endD.split("T")[0];
 
       const vId = b.venue_id || b.venue?.id;
-      const activeStatus = ['pending', 'approved', 'ongoing', 'reserved'].includes((b.status || '').toLowerCase());
+      const activeStatus = ['pending', 'approved', 'ongoing', 'on-going', 'reserved'].includes((b.status || '').toLowerCase());
       const inRange = startD && (dateStr >= startD && dateStr <= endD);
 
       return inRange && (isAll || String(vId) === String(venId)) && activeStatus;
     });
 
     if (matchedBookings.length > 0) {
-      return { status: "booked", reason: `${matchedBookings.length} Booking(s) (Booked)` };
+      const hasOngoing = matchedBookings.some((b) => ['ongoing', 'on-going'].includes((b.status || '').toLowerCase()));
+      const displayStatus = hasOngoing ? "ongoing" : "booked";
+      const displayLabel = hasOngoing ? "On-Going" : "Booked";
+      return { 
+        status: displayStatus, 
+        reason: `${matchedBookings.length} Booking(s) (${displayLabel})`,
+        bookings: matchedBookings,
+      };
     }
 
     return { status: "available", reason: "Open & Available" };
@@ -718,7 +760,7 @@ export default function ManageVenues() {
       let startD = b.date_of_usage || b.date_of_use || b.date || b.start_datetime || "";
       if (startD.includes("T")) startD = startD.split("T")[0];
 
-      let endD = b.reservation_end_date || b.date_of_usage_end || b.end_date || b.end_datetime || startD;
+      let endD = b.reservation_end_date || b.extend_reservation_end_date || b.date_of_usage_end || b.end_date || b.end_datetime || startD;
       if (endD.includes("T")) endD = endD.split("T")[0];
       
       const inRange = startD && (selectedDateStr >= startD && selectedDateStr <= endD);
@@ -726,7 +768,7 @@ export default function ManageVenues() {
       if (inRange) {
         const vId = b.venue_id || b.venue?.id;
         const st = (b.status || "pending").toLowerCase();
-        if (['pending', 'approved', 'ongoing', 'reserved'].includes(st)) {
+        if (['pending', 'approved', 'ongoing', 'on-going', 'reserved'].includes(st)) {
           const rawStart = b.time_start || b.start_time || (b.start_datetime ? b.start_datetime.split("T")[1]?.substring(0, 5) : "08:00");
           const rawEnd = b.time_end || b.end_time || (b.end_datetime ? b.end_datetime.split("T")[1]?.substring(0, 5) : "12:00");
 
@@ -735,8 +777,10 @@ export default function ManageVenues() {
             itemId: vId,
             startTime: rawStart,
             endTime: rawEnd,
-            filerName: b.filer_name || b.requestor_name || "Requestor",
+            filerName: b.filer_name || b.requestor_name || `${b.first_name || ''} ${b.last_name || ''}`.trim() || "Requestor",
             title: b.event_title || b.purpose || "Venue Reservation",
+            department: b.department?.name || b.program_office || b.department_name || b.department || "",
+            classification: b.classification || b.identity_type || b.role || "",
             refCode: b.tracking_number?.reference_code || b.reference_code,
             status: st,
           });
@@ -781,7 +825,7 @@ export default function ManageVenues() {
       let startD = b.date_of_usage || b.date_of_use || b.date || b.start_datetime || "";
       if (startD.includes("T")) startD = startD.split("T")[0];
 
-      let endD = b.reservation_end_date || b.date_of_usage_end || b.end_date || b.end_datetime || startD;
+      let endD = b.target_return_date || b.return_due_date || b.expected_return_date || b.reservation_end_date || b.extend_of_date_returned || b.date_of_usage_end || b.end_date || b.end_datetime || startD;
       if (endD.includes("T")) endD = endD.split("T")[0];
 
       const inRange = startD && (selectedDateStr >= startD && selectedDateStr <= endD);
@@ -803,6 +847,8 @@ export default function ManageVenues() {
                 endTime: rawEnd,
                 filerName: b.filer_name || b.requestor_name || `${b.first_name || ''} ${b.last_name || ''}`.trim() || "Borrower",
                 title: `${b.purpose || "Equipment Borrow"} (${it.quantity_requested || it.quantity || 1} units)`,
+                department: b.department?.name || b.program_office || b.department_name || b.department || "",
+                classification: b.classification || b.identity_type || b.role || "",
                 refCode: b.tracking_number?.reference_code || b.reference_code,
                 status: st,
               });
@@ -878,6 +924,8 @@ export default function ManageVenues() {
             monthNames={monthNames}
             prevMonth={prevMonth}
             nextMonth={nextMonth}
+            onSelectMonth={(m) => setCurrentMonth(m)}
+            onSelectYear={(y) => setCurrentYear(y)}
             firstDayOfWeek={firstDayOfWeek}
             daysInMonth={daysInMonth}
             getVenueDayStatus={getVenueDayStatus}

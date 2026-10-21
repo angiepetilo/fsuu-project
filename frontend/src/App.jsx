@@ -187,7 +187,7 @@ function AppContent() {
       {!hideHeaderFooter && (
         <header className="fixed top-0 left-0 w-full z-50 bg-card/90 backdrop-blur-md border-b border-border transition-colors shadow-xs">
           <div className="max-w-[1280px] mx-auto px-4 sm:px-8 py-2.5 sm:py-3.5 flex flex-col sm:flex-row justify-between items-center gap-2.5 sm:gap-4">
-            <div className="w-full sm:w-auto flex items-center justify-between">
+            <div className="w-full sm:w-auto flex items-center justify-between gap-2">
               {/* Logo on Left */}
               <button
                 type="button"
@@ -198,59 +198,59 @@ function AppContent() {
                     navigate("/");
                   }
                 }}
-                className="flex items-center gap-2.5 sm:gap-3 text-foreground group bg-transparent border-0 p-0 text-left cursor-pointer"
+                className="flex items-center gap-2 sm:gap-3 text-foreground group bg-transparent border-0 p-0 text-left cursor-pointer min-w-0"
               >
-                <img src="/fsuu_logo.png" alt="FSUU Seal" className="h-9 sm:h-10 w-auto transition-transform duration-200 group-hover:scale-105" />
-                <div className="flex flex-col">
-                  <span className="font-bold text-base sm:text-lg tracking-tight text-foreground leading-tight">
-                    {publicSettings.header_brand_text || "Urios"}
+                <img src="/fsuu_logo.png" alt="FSUU Seal" className="h-8 sm:h-10 w-auto shrink-0 transition-transform duration-200 group-hover:scale-105" />
+                <div className="flex flex-col min-w-0">
+                  <span className="font-extrabold text-xs sm:text-base tracking-tight text-foreground leading-tight truncate">
+                    {publicSettings.header_brand_text || "Father Saturnino Urios University"}
                   </span>
-                  <span className="text-[11px] sm:text-xs text-muted-foreground font-medium">
-                    {publicSettings.system_name || "FSUU Facilities & Equipment Booking System"}
+                  <span className="text-[10px] sm:text-xs text-muted-foreground font-semibold truncate">
+                    {publicSettings.system_name || "FSUU Booking System"}
                   </span>
                 </div>
               </button>
 
               {/* Mobile Right Controls: Contact Us, Theme Toggle & Dashboard */}
-              <div className="flex items-center gap-1.5 sm:hidden">
+              <div className="flex items-center gap-1.5 shrink-0 sm:hidden">
                 <button
                   type="button"
                   onClick={() => setShowContactModal(true)}
                   aria-label="Contact Us"
-                  className="p-2 rounded-lg border border-border bg-card text-muted-foreground hover:text-foreground transition-colors cursor-pointer min-h-[44px] min-w-[44px] flex items-center justify-center"
+                  className="p-1.5 rounded-xl border border-border bg-card text-muted-foreground hover:text-foreground transition-colors cursor-pointer h-9 w-9 flex items-center justify-center shadow-2xs"
                   title="Contact Us"
                 >
-                  <Phone size={16} />
+                  <Phone size={15} />
                 </button>
 
                 <button
                   type="button"
                   onClick={toggleTheme}
                   aria-label="Toggle theme"
-                  className="p-2 rounded-lg border border-border bg-card text-muted-foreground hover:text-foreground transition-colors cursor-pointer min-h-[44px] min-w-[44px] flex items-center justify-center"
+                  className="p-1.5 rounded-xl border border-border bg-card text-muted-foreground hover:text-foreground transition-colors cursor-pointer h-9 w-9 flex items-center justify-center shadow-2xs"
                 >
-                  {isDark ? <Sun size={17} /> : <Moon size={17} />}
+                  {isDark ? <Sun size={15} /> : <Moon size={15} />}
                 </button>
 
                 {(user || token) && (
                   <Link
                     to={userRole === "superadmin" || userRole === "super_admin" ? "/sysad/dashboard" : "/general/dashboard"}
-                    className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold bg-primary hover:opacity-90 text-primary-foreground transition-all shadow-xs min-h-[44px]"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-primary hover:opacity-90 text-primary-foreground transition-all shadow-xs h-9"
                   >
-                    <LayoutDashboard size={14} />
+                    <LayoutDashboard size={13} />
                     <span>Dashboard</span>
                   </Link>
                 )}
               </div>
             </div>
 
-            {/* Desktop Right Header Items */}
+            {/* Desktop Right Header Items & Mode Switcher */}
             <div className="flex items-center gap-2.5 w-full sm:w-auto justify-center sm:justify-end">
               {(user || token) && location.pathname.startsWith("/interface") && (
-                <div className="flex items-center p-1 bg-muted border border-border rounded-lg w-full sm:w-auto justify-center">
+                <div className="flex items-center p-1 bg-muted/80 border border-border rounded-xl w-full sm:w-auto justify-center shadow-2xs">
                   <Link
                     to="/interface/venue"
-                    className={`flex-1 sm:flex-none text-center px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all ${location.pathname === "/interface/venue"
+                    className={`flex-1 sm:flex-none text-center px-4 py-2 sm:py-1.5 rounded-lg text-xs font-bold transition-all ${location.pathname === "/interface/venue"
                       ? "bg-primary text-primary-foreground shadow-xs"
                       : "text-muted-foreground hover:text-foreground"
                       }`}
@@ -259,7 +259,7 @@ function AppContent() {
                   </Link>
                   <Link
                     to="/interface/equipment"
-                    className={`flex-1 sm:flex-none text-center px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all ${location.pathname === "/interface/equipment"
+                    className={`flex-1 sm:flex-none text-center px-4 py-2 sm:py-1.5 rounded-lg text-xs font-bold transition-all ${location.pathname === "/interface/equipment"
                       ? "bg-primary text-primary-foreground shadow-xs"
                       : "text-muted-foreground hover:text-foreground"
                       }`}
@@ -273,7 +273,7 @@ function AppContent() {
               <button
                 type="button"
                 onClick={() => setShowContactModal(true)}
-                className="text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors px-3 py-1.5 rounded-lg hover:bg-muted cursor-pointer flex items-center gap-1.5 border border-border/60 bg-card/60 shadow-2xs"
+                className="hidden sm:flex text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors px-3 py-1.5 rounded-lg hover:bg-muted cursor-pointer items-center gap-1.5 border border-border/60 bg-card/60 shadow-2xs"
                 title="Contact University Facilities Office"
               >
                 <Phone size={13} className="text-primary" />

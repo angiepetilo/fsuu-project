@@ -100,7 +100,10 @@ class AuthController extends Controller
         $ip = $request->ip() ?: '127.0.0.1';
         $deviceName = self::parseDeviceSummary($userAgent);
 
-        $tokenResult = $user->createToken('staff-auth-token');
+        $remember = $request->boolean('remember');
+        $tokenExpiresAt = $remember ? now()->addDays(30) : now()->addHours(8);
+
+        $tokenResult = $user->createToken('staff-auth-token', ['*'], $tokenExpiresAt);
         $tokenResult->accessToken->update([
             'ip_address' => $ip,
             'user_agent' => $userAgent,
@@ -111,8 +114,9 @@ class AuthController extends Controller
         $token = $tokenResult->plainTextToken;
 
         return response()->json([
-            'user' => $user,
-            'token' => $token
+            'user'       => $user,
+            'token'      => $token,
+            'expires_at' => $tokenExpiresAt->toIso8601String(),
         ]);
     }
 
@@ -654,6 +658,8 @@ class AuthController extends Controller
               ->orWhereRaw('LOWER(email) = ?', [$email]);
         })->first();
 
+        $expireMinutes = (int) env('PASSWORD_RESET_EXPIRES_MINUTES', 10);
+
         if ($user && ($user->is_active ?? true) && ($user->status !== 'inactive' && $user->status !== 'suspended')) {
             // Delete any existing unused password reset tokens for this email
             \App\Models\PasswordResetToken::where('email', $email)->whereNull('used_at')->delete();
@@ -667,7 +673,7 @@ class AuthController extends Controller
                 'token_hash'  => hash('sha256', $plainToken),
                 'otp_hash'    => hash('sha256', $plainOtp),
                 'attempts'    => 0,
-                'expires_at'  => now()->addMinutes(10),
+                'expires_at'  => now()->addMinutes($expireMinutes),
                 'ip_address'  => $request->ip(),
                 'user_agent'  => $request->userAgent(),
             ]);
@@ -676,7 +682,7 @@ class AuthController extends Controller
             \Illuminate\Support\Facades\Cache::put($cooldownKey, time() + 60, 60);
 
             // Dispatch async email job with both 6-digit OTP and direct link
-            \App\Jobs\SendPasswordResetEmailJob::dispatch($email, $user->name, $plainOtp, $plainToken);
+            \App\Jobs\SendPasswordResetEmailJob::dispatch($email, $user->name, $plainOtp, $plainToken, $expireMinutes);
 
             try {
                 \App\Models\AuditLog::create([
@@ -698,9 +704,10 @@ class AuthController extends Controller
 
         // Anti-enumeration: return uniform response regardless of account existence
         return response()->json([
-            'message'    => 'If that email address is registered with an active staff account, you will receive a verification code and reset link shortly.',
-            'expires_in' => 600,
-            'cooldown'   => 60,
+            'message'         => 'If that email address is registered with an active staff account, you will receive a verification code and reset link shortly.',
+            'expires_in'      => $expireMinutes * 60,
+            'expires_minutes' => $expireMinutes,
+            'cooldown'        => 60,
         ]);
     }
 

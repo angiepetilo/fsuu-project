@@ -190,7 +190,6 @@ export default function SecurityAlertsTab() {
               { value: "resolved", label: "Resolved" },
             ]}
             icon={Filter}
-            label="Status:"
             title="Filter Security Alerts"
           />
         </div>

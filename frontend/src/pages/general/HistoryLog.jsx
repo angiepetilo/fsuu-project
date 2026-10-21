@@ -531,7 +531,7 @@ export default function HistoryLog() {
                 { value: "venue", label: "Venue Bookings History" },
                 { value: "equipment", label: "Equipment Borrowings History" },
               ]}
-              label="Category Log:"
+              icon={Layers}
               title="Select History Category"
             />
 
@@ -555,7 +555,6 @@ export default function HistoryLog() {
                 { value: "completed_asc", label: "Oldest" },
               ]}
               icon={ArrowUpDown}
-              label="Sort:"
               title="Sort History Records"
             />
 

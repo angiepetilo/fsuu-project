@@ -876,7 +876,6 @@ export default function EquipmentStockTab({
                 { value: "unavailable", label: "Unavailable" },
               ]}
               icon={Filter}
-              label="Status:"
               title="Filter by Equipment Status"
             />
           </div>

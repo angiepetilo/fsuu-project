@@ -319,7 +319,7 @@ export default function UsersSubTab({ showMsg }) {
               };
             }),
           ]}
-          label="Role:"
+          icon={Users}
           title="Filter by Role"
         />
         <FilterDropdown
@@ -335,7 +335,6 @@ export default function UsersSubTab({ showMsg }) {
             { value: "disabled", label: "Disabled" },
           ]}
           icon={Filter}
-          label="Status:"
           title="Filter by Account Status"
         />
       </div>

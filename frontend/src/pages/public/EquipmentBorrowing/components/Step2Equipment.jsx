@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Check, PackageOpen, ChevronLeft, ChevronRight, XCircle, Clock, CalendarDays, AlertTriangle, AlertCircle, Search, Loader2, Home, Wrench, ShieldAlert, Ban } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import CustomTimePicker from "@/components/ui/custom-time-picker";
+import CustomCalendarPicker from "@/components/ui/custom-calendar-picker";
 import api from "@/lib/axios";
 import { getTodayISO, isPastTimeToday, isPastDateTime } from "@/lib/dateTimeUtils";
 import { getEquipmentBlockMessage, getEquipmentBlockInfo } from "@/lib/dateUtils";
@@ -300,8 +301,8 @@ export default function Step2Equipment({
       <div className="p-4 sm:p-6 md:p-8 animate-in fade-in duration-300 max-w-4xl mx-auto space-y-6">
         {/* Primary Blocking Notice Card */}
         <div className={`relative overflow-hidden rounded-[32px] border-2 p-6 sm:p-10 text-center shadow-xl backdrop-blur-xs transition-all ${isActiveMaintenance
-            ? "border-amber-400/80 bg-gradient-to-b from-amber-50/90 via-amber-50/30 to-white dark:from-amber-950/40 dark:via-[#111827] dark:to-[#111827] shadow-amber-500/10"
-            : "border-rose-400/80 bg-gradient-to-b from-rose-50/90 via-rose-50/30 to-white dark:from-rose-950/40 dark:via-[#111827] dark:to-[#111827] shadow-rose-500/10"
+          ? "border-amber-400/80 bg-gradient-to-b from-amber-50/90 via-amber-50/30 to-white dark:from-amber-950/40 dark:via-[#111827] dark:to-[#111827] shadow-amber-500/10"
+          : "border-rose-400/80 bg-gradient-to-b from-rose-50/90 via-rose-50/30 to-white dark:from-rose-950/40 dark:via-[#111827] dark:to-[#111827] shadow-rose-500/10"
           }`}>
           {/* Status Badge */}
           <div className="inline-flex items-center gap-2 px-4 py-1 rounded-full text-[11px] font-black uppercase tracking-wider mb-6 shadow-2xs border">
@@ -321,8 +322,8 @@ export default function Step2Equipment({
           {/* Icon Hero Graphic */}
           <div className="mb-6 flex justify-center">
             <div className={`w-20 h-20 sm:w-24 sm:h-24 rounded-3xl flex items-center justify-center shadow-lg transition-transform hover:scale-105 ${isActiveMaintenance
-                ? "bg-amber-500 text-white shadow-amber-500/30 ring-8 ring-amber-100 dark:ring-amber-950/60"
-                : "bg-rose-600 text-white shadow-rose-600/30 ring-8 ring-rose-100 dark:ring-rose-950/60"
+              ? "bg-amber-500 text-white shadow-amber-500/30 ring-8 ring-amber-100 dark:ring-amber-950/60"
+              : "bg-rose-600 text-white shadow-rose-600/30 ring-8 ring-rose-100 dark:ring-rose-950/60"
               }`}>
               {isActiveMaintenance ? <Wrench size={42} className="stroke-[2.2]" /> : <ShieldAlert size={42} className="stroke-[2.2]" />}
             </div>
@@ -468,19 +469,19 @@ export default function Step2Equipment({
                       if (isAvailable && !isActiveBlocked) handleEquipmentToggle(item.id);
                     }}
                     className={`relative border rounded-2xl p-4 transition-all duration-200 flex flex-col justify-between overflow-hidden ${isActiveBlocked
-                        ? "border-slate-200 bg-slate-50/50 dark:bg-card/50 opacity-60 cursor-not-allowed shadow-none"
-                        : isMaintenance
-                          ? "border-amber-300/80 bg-amber-50/20 opacity-90 cursor-not-allowed shadow-2xs"
-                          : !isAvailable
-                            ? "border-slate-200 bg-white dark:bg-card opacity-90 cursor-pointer"
-                            : isChecked
-                              ? "border-blue-600 bg-white dark:bg-card shadow-md ring-2 ring-blue-500/20 cursor-pointer"
-                              : "border-slate-200 dark:border-border bg-white dark:bg-card hover:border-blue-500/60 hover:shadow-xs cursor-pointer"
+                      ? "border-slate-200 bg-slate-50/50 dark:bg-card/50 opacity-60 cursor-not-allowed shadow-none"
+                      : isMaintenance
+                        ? "border-amber-300/80 bg-amber-50/20 opacity-90 cursor-not-allowed shadow-2xs"
+                        : !isAvailable
+                          ? "border-slate-200 bg-white dark:bg-card opacity-90 cursor-pointer"
+                          : isChecked
+                            ? "border-blue-600 bg-white dark:bg-card shadow-md ring-2 ring-blue-500/20 cursor-pointer"
+                            : "border-slate-200 dark:border-border bg-white dark:bg-card hover:border-blue-500/60 hover:shadow-xs cursor-pointer"
                       }`}
                   >
                     <div>
-                      {/* Top Image Box: Full view, never cropped or cut off */}
-                      <div className="w-full aspect-video bg-white dark:bg-[#1E293B] border border-slate-100 dark:border-slate-800 rounded-xl overflow-hidden flex flex-col items-center justify-center text-center relative group p-2">
+                      {/* Top Image Box: Consistent 4:3 studio presentation */}
+                      <div className="w-full aspect-[4/3] bg-white rounded-xl border border-slate-200/80 dark:border-slate-700/60 overflow-hidden flex flex-col items-center justify-center text-center relative group p-3 shadow-2xs">
                         {item.avatar || item.photo || item.image || item.photo_url ? (
                           <img
                             src={item.avatar || item.photo || item.image || item.photo_url}
@@ -488,8 +489,9 @@ export default function Step2Equipment({
                             className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
                           />
                         ) : (
-                          <div className="p-4 flex flex-col items-center justify-center h-full w-full bg-slate-50 dark:bg-[#0F172A]/70">
-                            <span className="text-slate-900 dark:text-white font-extrabold text-xs sm:text-sm leading-snug line-clamp-2 uppercase tracking-wide" title={item.name}>
+                          <div className="p-3 flex flex-col items-center justify-center h-full w-full bg-slate-50/90 rounded-lg border border-dashed border-slate-200">
+                            <PackageOpen className="w-8 h-8 text-slate-400 mb-1.5 shrink-0" />
+                            <span className="text-slate-600 font-bold text-xs leading-snug line-clamp-2 uppercase tracking-wide text-center" title={item.name}>
                               {item.name}
                             </span>
                           </div>
@@ -501,8 +503,8 @@ export default function Step2Equipment({
                         <h4 className="font-bold text-slate-900 dark:text-[#F8FAFC] text-sm leading-tight truncate" title={item.name}>{item.name}</h4>
                         <div className="pt-1">
                           <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold ${remainingAvailable === 0
-                              ? "bg-amber-500/15 border border-amber-400/30 text-amber-700 dark:text-[#FCD34D]"
-                              : "bg-emerald-500/15 border border-emerald-400/30 text-emerald-700 dark:text-[#6EE7B7]"
+                            ? "bg-amber-500/15 border border-amber-400/30 text-amber-700 dark:text-[#FCD34D]"
+                            : "bg-emerald-500/15 border border-emerald-400/30 text-emerald-700 dark:text-[#6EE7B7]"
                             }`}>
                             <span className={`w-1.5 h-1.5 rounded-full ${remainingAvailable === 0 ? "bg-amber-400" : "bg-emerald-400 animate-pulse"}`} />
                             {remainingAvailable} Available Now
@@ -774,15 +776,13 @@ export default function Step2Equipment({
                   {wishesToExtend && (
                     <div className="flex flex-col gap-1.5 pt-1">
                       <label className="text-xs font-bold text-slate-700 dark:text-[#CBD5E1]">Target Return Date</label>
-                      <input
-                        type="date"
-                        min={activeBorrowDate}
+                      <CustomCalendarPicker
+                        minDate={activeBorrowDate}
                         value={endTime ? endTime.split("T")[0] : activeBorrowDate}
-                        onChange={(e) => {
-                          const newEndDate = e.target.value;
+                        onChange={(newEndDate) => {
                           setEndTime && setEndTime(`${newEndDate}T${endTimeVal}`);
                         }}
-                        className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs font-bold text-slate-900 dark:text-[#F8FAFC] focus:border-blue-600 focus:outline-none shadow-inner"
+                        triggerClassName="w-full px-3.5 py-2.5 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 rounded-2xl text-xs font-bold"
                       />
                     </div>
                   )}

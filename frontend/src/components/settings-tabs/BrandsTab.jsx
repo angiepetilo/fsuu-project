@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { 
   Tag, Plus, Search, Edit2, Ban, CheckCircle2,
   AlertCircle, X, Loader2, ChevronLeft, ChevronRight,
-  MoreVertical, Trash2, Pencil
+  MoreVertical, Trash2, Pencil, Layers
 } from "lucide-react";
 import api, { clearApiCache } from "@/lib/axios";
 import { invalidateCache } from "@/lib/apiCache";
@@ -353,7 +353,7 @@ export default function BrandsTab({ isActive = true }) {
                 label: cat.eq_name || cat.name,
               })),
             ]}
-            label="Category:"
+            icon={Layers}
             title="Filter by Equipment Category"
           />
 

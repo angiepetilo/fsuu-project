@@ -24,7 +24,8 @@ class SendPasswordResetEmailJob implements ShouldQueue
         public readonly string $email,
         public readonly string $userName,
         public readonly string $otpCode,
-        public readonly string $resetToken
+        public readonly string $resetToken,
+        public readonly int $expireMinutes = 10
     ) {}
 
     public function handle(): void
@@ -129,7 +130,7 @@ class SendPasswordResetEmailJob implements ShouldQueue
       <div class="code-box">
         <div class="code-label">6-Digit Security Code</div>
         <div class="code">{$code}</div>
-        <div class="expires">⏱ Code expires in 10 minutes</div>
+        <div class="expires">⏱ Code expires in {$this->expireMinutes} minutes</div>
       </div>
 
       <div>

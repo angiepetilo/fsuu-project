@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Layers, Filter } from "lucide-react";
 import api from "@/lib/axios";
 import notify from "@/lib/notify";
 import { formatDate } from "@/lib/dateUtils";
@@ -424,6 +424,7 @@ export default function IncidentReportsTab({
               { value: "equipment_borrow", label: "Equipment Borrowings" },
               { value: "equipment_unit", label: "Equipment Units" },
             ]}
+            icon={Layers}
             title="Filter by Target Category"
           />
 
@@ -438,6 +439,7 @@ export default function IncidentReportsTab({
               { value: "violation", label: "Violation" },
               { value: "good", label: "Good" },
             ]}
+            icon={Filter}
             title="Filter by Condition"
           />
         </div>
