@@ -80,7 +80,7 @@ function ActionMenuPopover({ buttonEl, isOpen, onClose, children }) {
 import { usePermissions } from "@/hooks/usePermissions";
 
 export default function HistoryLog() {
-  const { hasPermission } = usePermissions();
+  const { hasPermission, isSuperAdmin } = usePermissions();
   const context = useOutletContext();
   const location = useLocation();
   const officeScope = context?.adminOffice || context?.selectedOffice || "All Offices";
@@ -224,10 +224,10 @@ export default function HistoryLog() {
       open: true,
       action: "disable",
       payload: { id, refCode, type },
-      title: "Disable History Record",
-      message: `Disable history record "${refCode}"? It will be hidden from the list.`,
+      title: "Clear History Record",
+      message: `Clear record "${refCode}" from your history view? All statistical reports, analytics, and audit logs remain permanently preserved.`,
       variant: "delete",
-      confirmLabel: "Yes, Disable"
+      confirmLabel: "Yes, Clear from History"
     });
   };
 
@@ -246,13 +246,13 @@ export default function HistoryLog() {
       } else {
         await api.delete(`/general/history-log/equipment/${id}`);
       }
-      setFeedback(`Record "${refCode}" disabled.`);
+      setFeedback(`Record "${refCode}" cleared from history.`);
       setTimeout(() => setFeedback(null), 3000);
     } catch {
       // Rollback
       setVenueHistory(prevVenue);
       setEquipmentHistory(prevEquip);
-      setFeedback(`Failed to disable "${refCode}" — changes reverted.`);
+      setFeedback(`Failed to clear "${refCode}" — changes reverted.`);
       setTimeout(() => setFeedback(null), 3000);
     }
   };
@@ -264,7 +264,7 @@ export default function HistoryLog() {
       action: "clear_all",
       payload: { type: historyType },
       title: `Clear ${targetLabel} History`,
-      message: `Are you sure you want to clear all data in ${targetLabel} history? This will archive all completed and past records so they no longer appear in the history log.`,
+      message: `Are you sure you want to clear completed records in ${targetLabel} history? This removes completed items from this history view while permanently preserving all statistical reports, analytics, and database records.`,
       variant: "delete",
       confirmLabel: "Yes, Clear History"
     });
@@ -566,6 +566,20 @@ export default function HistoryLog() {
               disabled={filteredVenues.length + filteredEquipment.length === 0}
               title="Export History Log to Excel or CSV"
             />
+
+            {/* Clear History Button (Preserves all Reports & DB) */}
+            {(isSuperAdmin || hasPermission("history_log.clear") || hasPermission("history_log")) && (
+              <button
+                type="button"
+                onClick={handleClearAllHistory}
+                disabled={(historyType === "venue" ? filteredVenues.length : filteredEquipment.length) === 0}
+                title={`Clear completed ${historyType === "venue" ? "venue" : "equipment"} history records (Reports remain preserved)`}
+                className="h-9 px-3 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200/80 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <Trash2 size={13} className="text-rose-600" />
+                <span className="hidden sm:inline">Clear History</span>
+              </button>
+            )}
           </div>
         </div>
 

@@ -17,7 +17,8 @@ export default function IncidentDetailModal({ incident, onClose }) {
   const isViolation = incident.incident_type === "policy_violation";
 
   const ref = (incident.ref || "").trim();
-  const isEquipmentRef = ref.startsWith("EQ-") || incident.target_type === "equipment";
+  const recordId = incident.record_id ?? incident.booking_id ?? incident.borrowing_id ?? incident.equipment_borrowing_id ?? incident.equipment_borrow_id ?? incident.venue_booking_id ?? (incident.target_type !== "damaged_unit" && incident.target_type !== "lost_unit" ? incident.target_id : null) ?? null;
+  const isEquipmentRef = ref.startsWith("EQ-") || ref.startsWith("TRK-EB") || incident.target_type === "equipment" || incident.target_type === "equipment_borrow" || incident.record_type === "equipment_borrow";
   const barcode = (incident.barcode || incident.unit_code || "").trim();
   const hasBarcode = Boolean(barcode && barcode !== "N/A");
   const canLocateUnit = (isDamaged || isLost) && hasBarcode;
@@ -41,12 +42,21 @@ export default function IncidentDetailModal({ incident, onClose }) {
         title: "Lost Equipment Incident Report",
       };
     }
+    if (isViolation) {
+      return {
+        badge: isEquipmentRef ? "Equipment Policy Violation" : "Venue Policy Violation",
+        badgeStyle: "bg-violet-50 dark:bg-violet-950/60 text-violet-600 dark:text-violet-400 border-violet-200/80 dark:border-violet-900/60",
+        icon: AlertTriangle,
+        iconStyle: "bg-violet-50 dark:bg-violet-950/60 text-violet-600 dark:text-violet-400 border border-violet-100 dark:border-violet-900/40",
+        title: isEquipmentRef ? "Equipment Policy Violation Report" : "Venue Policy Violation Report",
+      };
+    }
     return {
-      badge: isEquipmentRef ? "Equipment Policy Violation" : "Venue Policy Violation",
-      badgeStyle: "bg-violet-50 dark:bg-violet-950/60 text-violet-600 dark:text-violet-400 border-violet-200/80 dark:border-violet-900/60",
-      icon: AlertTriangle,
-      iconStyle: "bg-violet-50 dark:bg-violet-950/60 text-violet-600 dark:text-violet-400 border border-violet-100 dark:border-violet-900/40",
-      title: isEquipmentRef ? "Equipment Policy Violation Report" : "Venue Policy Violation Report",
+      badge: isEquipmentRef ? "Equipment Inspection Notice" : "Venue Inspection Notice",
+      badgeStyle: "bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-800",
+      icon: Clock,
+      iconStyle: "bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 border border-amber-100 dark:border-amber-900/40",
+      title: isEquipmentRef ? "Equipment Return Notice" : "Venue Post-Inspection Notice",
     };
   };
 
@@ -62,11 +72,11 @@ export default function IncidentDetailModal({ incident, onClose }) {
   let targetUrl = `${basePath}/reports?tab=incidents`;
   let actionLabel = "View in Reports";
 
-  if (ref.startsWith("EQ-")) {
-    targetUrl = `${basePath}/equipment-borrowing?ref=${encodeURIComponent(ref)}`;
+  if (isEquipmentRef) {
+    targetUrl = `${basePath}/equipment-borrowing?id=${recordId || ""}&trk=${encodeURIComponent(ref)}`;
     actionLabel = "View Borrowing Record";
-  } else if (ref.startsWith("VB-")) {
-    targetUrl = `${basePath}/venue-bookings?ref=${encodeURIComponent(ref)}`;
+  } else if (ref.startsWith("VB-") || ref.startsWith("TRK-AVR") || ref.startsWith("TRK-") || incident.target_type === "venue_booking" || incident.record_type === "venue_booking") {
+    targetUrl = `${basePath}/venue-bookings?id=${recordId || ""}&trk=${encodeURIComponent(ref)}`;
     actionLabel = "View Venue Booking";
   } else if (canLocateUnit) {
     targetUrl = `${basePath}/manage-equipments?search=${encodeURIComponent(barcode)}&barcode=${encodeURIComponent(barcode)}`;
@@ -79,7 +89,7 @@ export default function IncidentDetailModal({ incident, onClose }) {
       state: {
         search: barcode,
         highlightBarcode: barcode,
-        selectedId: incident.target_id,
+        selectedId: recordId,
         targetType: incident.target_type,
       },
     });
@@ -89,7 +99,7 @@ export default function IncidentDetailModal({ incident, onClose }) {
     if (onClose) onClose();
     navigate(targetUrl, {
       state: {
-        selectedId: incident.target_id,
+        selectedId: recordId,
         targetType: incident.target_type,
         trk: ref,
         search: barcode || ref,

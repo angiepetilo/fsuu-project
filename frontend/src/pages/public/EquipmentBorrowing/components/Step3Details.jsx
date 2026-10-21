@@ -70,6 +70,7 @@ export default function Step3Details({
   const [otpSuccess, setOtpSuccess] = useState("");
   const [otpCooldown, setOtpCooldown] = useState(0);
   const [otpExpiresIn, setOtpExpiresIn] = useState(0);
+  const [otpResendsLeft, setOtpResendsLeft] = useState(2);
   const [duplicateRef, setDuplicateRef] = useState(null);
 
   const [otpChannel, setOtpChannel] = useState(requirePhoneVerify && !requireEmailVerify ? "sms" : "email");
@@ -293,13 +294,19 @@ export default function Step3Details({
 
       const res = await api.post("/public/send-otp", payload);
       setIsOtpRequested(true);
-      setOtpCooldown(60);
+      setOtpCooldown(res.data?.cooldown ?? 30);
+      if (typeof res.data?.resends_left === "number") {
+        setOtpResendsLeft(res.data.resends_left);
+      }
       setOtpExpiresIn(600);
       const successMsg = res.data?.dev_code
         ? `${res.data?.message || 'Verification code sent.'} (Code: ${res.data.dev_code})`
         : (res.data?.message || (channel === "sms" ? "6-digit verification code sent to your mobile phone via SMS." : "6-digit verification code sent to your inbox."));
       setOtpSuccess(successMsg);
     } catch (err) {
+      if (err.response?.data?.max_attempts) {
+        setOtpResendsLeft(0);
+      }
       if (err.response?.data?.duplicate) {
         setDuplicateRef(err.response.data.reference_code || null);
       } else {
@@ -335,6 +342,8 @@ export default function Step3Details({
       if (res.data?.verified) {
         if (setIsEmailVerified) setIsEmailVerified(true);
         setIsOtpRequested(false);
+        setOtpResendsLeft(2);
+        setOtpCooldown(0);
         setOtpSuccess(otpChannel === "sms" ? "Mobile number verified successfully via SMS!" : "Email verified successfully!");
       } else {
         setOtpError("Verification failed. Please try again.");
@@ -652,9 +661,15 @@ export default function Step3Details({
                   <Button
                     type="button"
                     size="sm"
-                    disabled={isSendingOtp || !email || !email.trim() || emailCheckStatus !== "valid"}
+                    disabled={
+                      isSendingOtp ||
+                      !email ||
+                      !email.trim() ||
+                      emailCheckStatus !== "valid" ||
+                      (isOtpRequested && (otpCooldown > 0 || otpResendsLeft <= 0))
+                    }
                     onClick={() => handleRequestOtp("email")}
-                    className={`h-8 px-3 rounded-lg text-xs font-black shadow-xs transition-all ${!email || !email.trim() || emailCheckStatus !== "valid"
+                    className={`h-8 px-3 rounded-lg text-xs font-black shadow-xs transition-all ${!email || !email.trim() || emailCheckStatus !== "valid" || (isOtpRequested && (otpCooldown > 0 || otpResendsLeft <= 0))
                         ? "bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-200 dark:border-slate-700 cursor-not-allowed opacity-60"
                         : "bg-blue-600 hover:bg-blue-700 text-white shadow-blue-600/20 active:scale-95 cursor-pointer"
                       }`}
@@ -665,7 +680,11 @@ export default function Step3Details({
                         Sending...
                       </span>
                     ) : isOtpRequested ? (
-                      "Resend"
+                      otpCooldown > 0
+                        ? `Wait ${otpCooldown}s`
+                        : otpResendsLeft <= 0
+                        ? "Limit Reached"
+                        : `Resend (${otpResendsLeft})`
                     ) : (
                       "Verify"
                     )}
@@ -809,7 +828,11 @@ export default function Step3Details({
                 <div className="shrink-0 pl-2">
                   {otpCooldown > 0 ? (
                     <span className="text-[11px] text-slate-400 dark:text-slate-400 font-semibold">
-                      Resend in {otpCooldown}s
+                      Resend in {otpCooldown}s {otpResendsLeft < 2 ? `(${otpResendsLeft} left)` : ''}
+                    </span>
+                  ) : otpResendsLeft <= 0 ? (
+                    <span className="text-[11px] text-rose-500 dark:text-rose-400 font-bold">
+                      Limit reached (Wait 15m)
                     </span>
                   ) : (
                     <button
@@ -818,7 +841,7 @@ export default function Step3Details({
                       disabled={isSendingOtp}
                       className="text-[11px] font-extrabold text-blue-700 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 underline cursor-pointer"
                     >
-                      Resend OTP Code
+                      Resend OTP Code ({otpResendsLeft} left)
                     </button>
                   )}
                 </div>
@@ -886,9 +909,13 @@ export default function Step3Details({
                   <Button
                     type="button"
                     size="sm"
-                    disabled={!phoneInfo.isValid || isSendingOtp}
+                    disabled={
+                      !phoneInfo.isValid ||
+                      isSendingOtp ||
+                      (isOtpRequested && (otpCooldown > 0 || otpResendsLeft <= 0))
+                    }
                     onClick={() => handleRequestOtp("sms")}
-                    className={`h-8 px-3 rounded-lg text-xs font-black shadow-xs transition-all cursor-pointer ${phoneInfo.isValid
+                    className={`h-8 px-3 rounded-lg text-xs font-black shadow-xs transition-all cursor-pointer ${phoneInfo.isValid && (!isOtpRequested || (otpCooldown === 0 && otpResendsLeft > 0))
                         ? "bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500 text-white shadow-blue-600/20"
                         : "bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-200 dark:border-slate-700 cursor-not-allowed shadow-none"
                       }`}
@@ -899,7 +926,11 @@ export default function Step3Details({
                         Sending...
                       </span>
                     ) : isOtpRequested ? (
-                      "Resend"
+                      otpCooldown > 0
+                        ? `Wait ${otpCooldown}s`
+                        : otpResendsLeft <= 0
+                        ? "Limit Reached"
+                        : `Resend (${otpResendsLeft})`
                     ) : (
                       "Verify SMS"
                     )}
@@ -994,7 +1025,11 @@ export default function Step3Details({
                 <div className="shrink-0 pl-2">
                   {otpCooldown > 0 ? (
                     <span className="text-[11px] text-slate-400 dark:text-slate-500 font-semibold">
-                      Resend in {otpCooldown}s
+                      Resend in {otpCooldown}s {otpResendsLeft < 2 ? `(${otpResendsLeft} left)` : ''}
+                    </span>
+                  ) : otpResendsLeft <= 0 ? (
+                    <span className="text-[11px] text-rose-500 dark:text-rose-400 font-bold">
+                      Limit reached (Wait 15m)
                     </span>
                   ) : (
                     <button
@@ -1003,7 +1038,7 @@ export default function Step3Details({
                       disabled={isSendingOtp}
                       className="text-[11px] font-extrabold text-blue-700 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 underline cursor-pointer"
                     >
-                      Resend SMS Code
+                      Resend SMS Code ({otpResendsLeft} left)
                     </button>
                   )}
                 </div>

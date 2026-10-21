@@ -237,10 +237,17 @@ html.dark input:focus, html.dark select:focus, html.dark textarea:focus { border
 html.dark input::placeholder, html.dark textarea::placeholder { color: var(--text-muted) !important; }
 html.dark option { background-color: var(--layer-float) !important; color: var(--text-primary) !important; }
 
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.35); border-radius: 9999px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(100, 116, 139, 0.65); }
+
 html.dark ::-webkit-scrollbar { width: 6px; height: 6px; }
-html.dark ::-webkit-scrollbar-track { background: var(--layer-base); }
-html.dark ::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 3px; }
-html.dark ::-webkit-scrollbar-thumb:hover { background: #3B4A5E; }
+html.dark ::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
+html.dark ::-webkit-scrollbar-track { background: transparent; }
+html.dark ::-webkit-scrollbar-thumb { background: rgba(100, 116, 139, 0.45); border-radius: 9999px; }
+html.dark ::-webkit-scrollbar-thumb:hover { background: rgba(148, 163, 184, 0.7); }
 html.dark ::selection { background: rgba(59,130,246,0.35); color: var(--text-primary); }
 
 /* Scrollbar that ONLY shows when hovered, scrolling, or active */

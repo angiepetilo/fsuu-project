@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useMemo } from "react";
-import { Loader2, Play, Mail, CheckCircle2, PackageCheck, AlertCircle, Smartphone, ChevronDown, X, Check } from "lucide-react";
+import { Loader2, Play, Mail, CheckCircle2, PackageCheck, AlertCircle, Smartphone, ChevronDown, X, Check, Clock } from "lucide-react";
 import api from "@/lib/axios";
+import { getTodayISO } from "@/lib/dateTimeUtils";
 
 /**
  * Typeable & Selectable Combobox for Borrow Unit Slot (Model Selection + Built-in components)
@@ -389,6 +390,7 @@ export default function EquipBorrowUnitAssignment({
   smsLoading,
   handleSendOverdueSms,
   loadingUnits = false,
+  isSuperAdmin = false,
 }) {
   const borrowingOfficeId = selected?.office_id || selected?.office?.id || (selected?.items && selected.items[0]?.equipment_type?.office_id);
 
@@ -576,7 +578,16 @@ export default function EquipBorrowUnitAssignment({
     return Boolean(compromisedUnitKeys && compromisedUnitKeys.has(cleanCode));
   });
 
-  const canRelease = allUnitsAssigned && !hasCompromisedUnits;
+  const rawBorrowDate = selected?.date_of_usage 
+    || selected?.date_of_use 
+    || selected?.borrow_date 
+    || (selected?.start_datetime ? selected.start_datetime.slice(0, 10) : null);
+  const scheduledBorrowDate = rawBorrowDate ? String(rawBorrowDate).slice(0, 10) : null;
+  const today = getTodayISO();
+  const isBeforeBorrowDate = Boolean(scheduledBorrowDate && scheduledBorrowDate > today);
+  const isDateBlocked = isBeforeBorrowDate && !isSuperAdmin;
+
+  const canRelease = allUnitsAssigned && !hasCompromisedUnits && !isDateBlocked;
 
   return (
     <div className="lg:col-span-5 p-6 space-y-4">
@@ -910,12 +921,16 @@ export default function EquipBorrowUnitAssignment({
               <span className={`text-xs font-extrabold ${
                 hasCompromisedUnits
                   ? "text-rose-600 dark:text-rose-400"
+                  : isDateBlocked
+                  ? "text-amber-600 dark:text-amber-400"
                   : allUnitsAssigned
                   ? "text-emerald-600 dark:text-emerald-400"
                   : "text-amber-600 dark:text-amber-400"
               }`}>
                 {hasCompromisedUnits
                   ? "Unit / Built-in Damaged or Lost"
+                  : isDateBlocked
+                  ? `Scheduled for ${scheduledBorrowDate}`
                   : allUnitsAssigned
                   ? "Ready for Release"
                   : "Units Pending Assignment"}
@@ -927,18 +942,25 @@ export default function EquipBorrowUnitAssignment({
                 <span>One or more assigned units or linked built-in components are damaged or lost. The equipment cannot be released until the damaged component or unit is replaced.</span>
               </div>
             )}
+            {isDateBlocked && (
+              <div className="p-2.5 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60 rounded-xl text-[11px] font-semibold text-amber-800 dark:text-amber-300 flex items-start gap-2">
+                <Clock size={14} className="text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                <span>Borrowing scheduled for <strong>{scheduledBorrowDate}</strong>. Equipment cannot be released until the scheduled date arrives.</span>
+              </div>
+            )}
             <button
               type="button"
               onClick={() => handleAction(selected.id, "ongoing")}
               disabled={!canRelease || !!actionLoading}
+              title={isDateBlocked ? `Locked until ${scheduledBorrowDate}` : undefined}
               className={`w-full py-2.5 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition-all shadow-xs ${
                 canRelease
                   ? "bg-slate-900 hover:bg-slate-800 text-white dark:bg-blue-600 dark:hover:bg-blue-700 dark:text-white cursor-pointer active:scale-[0.99]"
                   : "bg-slate-200 dark:bg-slate-800/80 text-slate-400 dark:text-slate-500 border border-slate-300 dark:border-slate-700/80 cursor-not-allowed"
               }`}
             >
-              {actionLoading === `${selected.id}-ongoing` ? <Loader2 size={13} className="animate-spin" /> : <Play size={13} />}
-              Release Equipment (Mark On-Going)
+              {actionLoading === `${selected.id}-ongoing` ? <Loader2 size={13} className="animate-spin" /> : isDateBlocked ? <Clock size={13} /> : <Play size={13} />}
+              {isDateBlocked ? `Locked Until ${scheduledBorrowDate}` : "Release Equipment (Mark On-Going)"}
             </button>
           </div>
         )}

@@ -41,7 +41,7 @@ class VenueBookingController extends Controller
 
         $includeReturned = $request->boolean('include_returned') || $request->query('include_returned') === '1' || $request->query('status') === 'all';
 
-        $bookingsQuery = VenueBooking::with(['trackingNumber', 'venue', 'documents', 'venueBookingEquipment.equipmentType'])
+        $bookingsQuery = VenueBooking::with(['trackingNumber', 'venue', 'documents', 'venueBookingEquipment.equipmentType', 'inspections'])
             ->when(!$includeReturned, function ($query) {
                 $completedStatuses = ['completed', 'done', 'returned', 'damaged', 'lost', 'returned late', 'returned_late'];
                 $query->where(function ($q) use ($completedStatuses) {
@@ -75,7 +75,7 @@ class VenueBookingController extends Controller
     {
         $this->authorize('view', $avrVenueBooking);
 
-        $relations = ['venue', 'documents'];
+        $relations = ['trackingNumber', 'venue', 'documents', 'inspections'];
         if (\Illuminate\Support\Facades\Schema::hasTable('venue_booking_equipment')) {
             $relations[] = 'venueBookingEquipment.equipmentType';
         }
@@ -231,6 +231,16 @@ class VenueBookingController extends Controller
             }
 
             $user = auth()->user() ?? $request->user();
+            $isSuperAdmin = $user && (method_exists($user, 'isSuperAdmin') ? $user->isSuperAdmin() : (method_exists($user, 'hasRole') && $user->hasRole('super-admin')));
+            $today = now()->timezone('Asia/Manila')->toDateString();
+            $startDate = $avrVenueBooking->date_of_usage ? \Carbon\Carbon::parse($avrVenueBooking->date_of_usage)->format('Y-m-d') : null;
+
+            if (!$isSuperAdmin && $startDate && $startDate > $today) {
+                return response()->json([
+                    'message' => "Cannot start event early. Event is scheduled for {$startDate}."
+                ], 422);
+            }
+
             $booking = $this->service->ongoing($avrVenueBooking, $user);
 
             try {

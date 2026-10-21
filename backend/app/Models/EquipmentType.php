@@ -16,6 +16,8 @@ class EquipmentType extends Model
     protected $fillable = [
         'eq_name',
         'avatar',
+        'photo_fit',
+        'photo_scale',
         'total_quantity',
         'available_count',
         'built_in_count',

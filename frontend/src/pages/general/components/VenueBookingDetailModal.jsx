@@ -470,103 +470,121 @@ export default function VenueBookingDetailModal({
         return;
       }
 
+      const applyPostUse = (postUse) => {
+        if (!postUse) return;
+        const hasBreach = isDamagedStatus || Boolean(postUse.has_damage) || postUse.condition === "damaged" || Boolean(postUse.violation_type) || String(postUse.notes || "").includes("[");
+        
+        setInspectionStatus(hasBreach ? "violation" : "clean");
+        let existingNotes = postUse.notes || "";
+        let foundType = initialViolationType;
+        if (existingNotes.startsWith("[")) {
+          const match = existingNotes.match(/^\[(.*?)\](.*)/);
+          if (match) {
+            if (!postUse.violation_type && match[1]) {
+              foundType = sanitizeViolation(match[1]);
+              setSelectedViolationType(foundType);
+            }
+            existingNotes = match[2].trim();
+            if (existingNotes === "Post-event inspection breach.") {
+              existingNotes = "";
+            }
+          }
+        } else if (postUse.violation_type) {
+          foundType = sanitizeViolation(postUse.violation_type);
+          setSelectedViolationType(foundType);
+        }
+        
+        setViolationNotes(existingNotes);
+
+        // Hydrate multi-photo evidence
+        const rawPhoto = postUse.evidence_photos || postUse.evidence_photo || postUse.evidence_image || selected.evidence_photos || selected.evidence_photo || selected.evidence_image;
+        const photoList = normalizePhotosList(rawPhoto);
+        if (setEvidencePhoto) setEvidencePhoto(photoList);
+
+        // Hydrate DB unit assignments and per-unit outcomes if persisted
+        if (postUse.assigned_units && typeof postUse.assigned_units === 'object') {
+          setAssignedUnitSelections(postUse.assigned_units);
+        } else if (selected.assigned_units && typeof selected.assigned_units === 'object') {
+          setAssignedUnitSelections(selected.assigned_units);
+        }
+        let postConds = initialUnitConds;
+        if (postUse.unit_conditions && typeof postUse.unit_conditions === 'object') {
+          postConds = postUse.unit_conditions;
+          setUnitReturnedConditions(postConds);
+        }
+        let postEqNotes = initialEqNotes;
+        if (postUse.equipment_notes) {
+          postEqNotes = postUse.equipment_notes;
+          setEquipmentInspectionNotes(postEqNotes);
+        }
+        setInitialInspectionState({
+          status: hasBreach ? "violation" : "clean",
+          notes: existingNotes,
+          type: postUse.violation_type ? sanitizeViolation(postUse.violation_type) : foundType,
+          photos: JSON.stringify(photoList || []),
+          conditions: JSON.stringify(postConds || {}),
+          equipmentNotes: postEqNotes || "",
+          saved: true
+        });
+      };
+
+      const applyPreUse = (preUse) => {
+        if (!preUse) return;
+        const hasBreach = preUse.condition === "damaged" || Boolean(preUse.violation_type) || String(preUse.notes || "").includes("[");
+        setPreInspectionStatus(hasBreach ? "violation" : "clean");
+        let existingNotes = preUse.notes || "";
+        if (existingNotes.startsWith("[")) {
+          const match = existingNotes.match(/^\[(.*?)\](.*)/);
+          if (match) {
+            if (!preUse.violation_type && match[1]) {
+              setPreSelectedViolationType(match[1]);
+            }
+            existingNotes = match[2].trim();
+          }
+        } else if (preUse.violation_type) {
+          setPreSelectedViolationType(preUse.violation_type);
+        }
+        setPreViolationNotes(existingNotes);
+        if (preUse.equipment_notes) {
+          setPreEquipmentInspectionNotes(preUse.equipment_notes);
+        }
+
+        // Hydrate pre-inspection multi-photo evidence
+        const rawPrePhoto = preUse.evidence_photos || preUse.evidence_photo || preUse.evidence_image;
+        let prePhotoList = [];
+        if (Array.isArray(rawPrePhoto)) {
+          prePhotoList = rawPrePhoto.filter(Boolean);
+        } else if (typeof rawPrePhoto === 'string' && (rawPrePhoto.startsWith('[') || rawPrePhoto.startsWith('{'))) {
+          try {
+            const parsed = JSON.parse(rawPrePhoto);
+            prePhotoList = Array.isArray(parsed) ? parsed.filter(Boolean) : [rawPrePhoto];
+          } catch {
+            prePhotoList = [rawPrePhoto];
+          }
+        } else if (rawPrePhoto) {
+          prePhotoList = [rawPrePhoto];
+        }
+        setPreEvidencePhoto(prePhotoList);
+      };
+
+      // 1. Immediately apply if inspections were already eager-loaded on selected (eliminates 3s delay & prevents flashing default values)
+      const existingList = Array.isArray(selected.inspections) ? selected.inspections : (selected.inspection ? [selected.inspection] : []);
+      if (existingList.length > 0) {
+        const syncPost = existingList.find(i => String(i.reference_id || i.inspectable_id) === String(selected.id) && (!i.inspection_type || i.inspection_type === 'post_event')) || existingList[0];
+        const syncPre = existingList.find(i => String(i.reference_id || i.inspectable_id) === String(selected.id) && i.inspection_type === 'pre_event');
+        if (syncPost) applyPostUse(syncPost);
+        if (syncPre) applyPreUse(syncPre);
+      }
+
+      // 2. Background fresh fetch from API
       api.get(`/inspections?reference_id=${selected.id}&reference_type=avr_venue_booking`)
         .then((res) => {
           const list = Array.isArray(res.data) ? res.data : (res.data?.data ?? []);
           const postUse = list.find(i => String(i.reference_id || i.inspectable_id) === String(selected.id) && (!i.inspection_type || i.inspection_type === 'post_event')) || list[0];
           const preUse = list.find(i => String(i.reference_id || i.inspectable_id) === String(selected.id) && i.inspection_type === 'pre_event');
           
-          if (postUse) {
-            const hasBreach = isDamagedStatus || Boolean(postUse.has_damage) || postUse.condition === "damaged" || Boolean(postUse.violation_type) || String(postUse.notes || "").includes("[");
-            
-            setInspectionStatus(hasBreach ? "violation" : "clean");
-            let existingNotes = postUse.notes || "";
-            if (existingNotes.startsWith("[")) {
-              const match = existingNotes.match(/^\[(.*?)\](.*)/);
-              if (match) {
-                if (!postUse.violation_type && match[1]) {
-                  setSelectedViolationType(sanitizeViolation(match[1]));
-                }
-                existingNotes = match[2].trim();
-                if (existingNotes === "Post-event inspection breach.") {
-                  existingNotes = "";
-                }
-              }
-            } else if (postUse.violation_type) {
-              setSelectedViolationType(sanitizeViolation(postUse.violation_type));
-            }
-            
-            setViolationNotes(existingNotes);
-
-            // Hydrate multi-photo evidence
-            const rawPhoto = postUse.evidence_photos || postUse.evidence_photo || postUse.evidence_image || selected.evidence_photos || selected.evidence_photo || selected.evidence_image;
-            const photoList = normalizePhotosList(rawPhoto);
-            if (setEvidencePhoto) setEvidencePhoto(photoList);
-
-            // Hydrate DB unit assignments and per-unit outcomes if persisted
-            if (postUse.assigned_units && typeof postUse.assigned_units === 'object') {
-              setAssignedUnitSelections(postUse.assigned_units);
-            } else if (selected.assigned_units && typeof selected.assigned_units === 'object') {
-              setAssignedUnitSelections(selected.assigned_units);
-            }
-            let postConds = initialUnitConds;
-            if (postUse.unit_conditions && typeof postUse.unit_conditions === 'object') {
-              postConds = postUse.unit_conditions;
-              setUnitReturnedConditions(postConds);
-            }
-            let postEqNotes = initialEqNotes;
-            if (postUse.equipment_notes) {
-              postEqNotes = postUse.equipment_notes;
-              setEquipmentInspectionNotes(postEqNotes);
-            }
-            setInitialInspectionState({
-              status: hasBreach ? "violation" : "clean",
-              notes: existingNotes,
-              type: postUse.violation_type ? sanitizeViolation(postUse.violation_type) : initialViolationType,
-              photos: JSON.stringify(photoList || []),
-              conditions: JSON.stringify(postConds || {}),
-              equipmentNotes: postEqNotes || "",
-              saved: true
-            });
-          }
-
-          if (preUse) {
-            const hasBreach = preUse.condition === "damaged" || Boolean(preUse.violation_type) || String(preUse.notes || "").includes("[");
-            setPreInspectionStatus(hasBreach ? "violation" : "clean");
-            let existingNotes = preUse.notes || "";
-            if (existingNotes.startsWith("[")) {
-              const match = existingNotes.match(/^\[(.*?)\](.*)/);
-              if (match) {
-                if (!preUse.violation_type && match[1]) {
-                  setPreSelectedViolationType(match[1]);
-                }
-                existingNotes = match[2].trim();
-              }
-            } else if (preUse.violation_type) {
-              setPreSelectedViolationType(preUse.violation_type);
-            }
-            setPreViolationNotes(existingNotes);
-            if (preUse.equipment_notes) {
-              setPreEquipmentInspectionNotes(preUse.equipment_notes);
-            }
-
-            // Hydrate pre-inspection multi-photo evidence
-            const rawPrePhoto = preUse.evidence_photos || preUse.evidence_photo || preUse.evidence_image;
-            let prePhotoList = [];
-            if (Array.isArray(rawPrePhoto)) {
-              prePhotoList = rawPrePhoto.filter(Boolean);
-            } else if (typeof rawPrePhoto === 'string' && (rawPrePhoto.startsWith('[') || rawPrePhoto.startsWith('{'))) {
-              try {
-                const parsed = JSON.parse(rawPrePhoto);
-                prePhotoList = Array.isArray(parsed) ? parsed.filter(Boolean) : [rawPrePhoto];
-              } catch {
-                prePhotoList = [rawPrePhoto];
-              }
-            } else if (rawPrePhoto) {
-              prePhotoList = [rawPrePhoto];
-            }
-            setPreEvidencePhoto(prePhotoList);
-          }
+          if (postUse) applyPostUse(postUse);
+          if (preUse) applyPreUse(preUse);
         })
         .catch(() => {
           if (selected?.assigned_units && typeof selected.assigned_units === 'object') {
@@ -855,7 +873,11 @@ export default function VenueBookingDetailModal({
     let categories = [];
     const notesStr = selected.equipment_notes || fetchedEquipmentNotes || "";
 
-    const structList = (Array.isArray(selected.equipment_items) && selected.equipment_items.length > 0) ? selected.equipment_items
+    let rawItems = selected.equipment_items;
+    if (typeof rawItems === 'string') {
+      try { rawItems = JSON.parse(rawItems); } catch {}
+    }
+    const structList = (Array.isArray(rawItems) && rawItems.length > 0) ? rawItems
       : (Array.isArray(selected.equipment_equipment) && selected.equipment_equipment.length > 0) ? selected.equipment_equipment
       : (Array.isArray(selected.venue_booking_equipment) && selected.venue_booking_equipment.length > 0) ? selected.venue_booking_equipment
       : (Array.isArray(selected.items) && selected.items.length > 0) ? selected.items : null;
@@ -866,16 +888,19 @@ export default function VenueBookingDetailModal({
         const typeIdVal = item.equipment_type_id || item.equipment_type?.id || item.equipmentType?.id || null;
         return {
           category: resolveEquipmentName(nameVal),
-          quantity: item.quantity_requested || item.quantity || 1,
+          quantity: parseInt(item.quantity_requested || item.quantity || 1, 10) || 1,
           equipment_type_id: typeIdVal
         };
-      });
-    } else if (notesStr) {
-      categories = notesStr.split(',').map(s => {
+      }).filter(c => c && c.category && c.category !== "None" && c.quantity > 0);
+    } else if (notesStr && notesStr.includes('(Qty:')) {
+      // Only parse structured legacy format "Category (Qty: N)" - ignore free-text remarks
+      const structuredPart = notesStr.split('|')[0] || '';
+      categories = structuredPart.split(',').map(s => {
         const cleanStr = s.trim();
         const match = cleanStr.match(/^(.*?)\s*\(Qty:\s*(\d+)\)/i);
-        const rawName = match ? match[1] : cleanStr;
-        const qty = match ? (parseInt(match[2], 10) || 1) : 1;
+        if (!match) return null;
+        const rawName = match[1].trim();
+        const qty = parseInt(match[2], 10) || 1;
         const cleanLower = rawName.toLowerCase();
         const matchedType = (dbEquipmentTypes || []).find(t => 
           String(t.id) === rawName ||
@@ -886,7 +911,7 @@ export default function VenueBookingDetailModal({
           quantity: qty,
           equipment_type_id: matchedType?.id || null
         };
-      }).filter(c => c.category && c.category !== "None");
+      }).filter(c => c && c.category && c.category !== "None" && c.quantity > 0);
     }
 
     // Fallback: Infer requested categories from assigned units if structured items/notes were omitted

@@ -310,11 +310,11 @@ export default function SystemSettingsTab() {
             <button
               type="button"
               onClick={handleSave}
-              disabled={saving}
-              className={`flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-xl transition-all shadow-xs text-white cursor-pointer active:scale-98 ${
+              disabled={saving || !hasChanges}
+              className={`flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-xl transition-all shadow-xs ${
                 hasChanges
-                  ? "bg-blue-600 hover:bg-blue-700 ring-2 ring-blue-300"
-                  : "bg-blue-600 hover:bg-blue-700"
+                  ? "bg-blue-600 hover:bg-blue-700 text-white cursor-pointer active:scale-98 ring-2 ring-blue-300 dark:ring-blue-800"
+                  : "bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-200 dark:border-slate-700 cursor-not-allowed shadow-none"
               }`}
             >
               {saving ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}

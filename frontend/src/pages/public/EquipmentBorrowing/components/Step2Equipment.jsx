@@ -5,8 +5,48 @@ import { Button } from "@/components/ui/button";
 import CustomTimePicker from "@/components/ui/custom-time-picker";
 import CustomCalendarPicker from "@/components/ui/custom-calendar-picker";
 import api from "@/lib/axios";
+import { resolveStorageUrl } from "@/lib/utils";
 import { getTodayISO, isPastTimeToday, isPastDateTime } from "@/lib/dateTimeUtils";
 import { getEquipmentBlockMessage, getEquipmentBlockInfo } from "@/lib/dateUtils";
+
+function CategoryItemImage({ item }) {
+  const [imgError, setImgError] = useState(false);
+  const rawImg = item?.avatar || item?.photo || item?.image || item?.photo_url;
+  const isCover = item?.photo_fit === "cover";
+  const scale = item?.photo_scale ? Number(item.photo_scale) / 100 : 1;
+
+  useEffect(() => {
+    setImgError(false);
+  }, [rawImg, item?.updated_at, item?.photo_fit, item?.photo_scale]);
+
+  if (!rawImg || imgError) {
+    return (
+      <div className="p-3 flex flex-col items-center justify-center h-full w-full bg-slate-50/90 dark:bg-slate-800/60 rounded-lg border border-dashed border-slate-200 dark:border-slate-700">
+        <PackageOpen className="w-8 h-8 text-slate-400 mb-1.5 shrink-0" />
+        <span className="text-slate-600 dark:text-slate-300 font-bold text-xs leading-snug line-clamp-2 uppercase tracking-wide text-center" title={item?.name}>
+          {item?.name}
+        </span>
+      </div>
+    );
+  }
+
+  const resolved = resolveStorageUrl(rawImg) || rawImg;
+  const srcUrl = resolved.startsWith("data:")
+    ? resolved
+    : `${resolved}${resolved.includes("?") ? "&" : "?"}v=${item?.updated_at ? new Date(item.updated_at).getTime() : "1"}`;
+
+  return (
+    <div className="w-full h-full overflow-hidden flex items-center justify-center">
+      <img
+        src={srcUrl}
+        alt={item?.name || "Equipment"}
+        className={`w-full h-full transition-transform duration-300 ${isCover ? "object-cover" : "object-contain"}`}
+        style={{ transform: `scale(${scale})` }}
+        onError={() => setImgError(true)}
+      />
+    </div>
+  );
+}
 
 export default function Step2Equipment({
   identity,
@@ -480,22 +520,11 @@ export default function Step2Equipment({
                       }`}
                   >
                     <div>
-                      {/* Top Image Box: Consistent 4:3 studio presentation */}
-                      <div className="w-full aspect-[4/3] bg-white rounded-xl border border-slate-200/80 dark:border-slate-700/60 overflow-hidden flex flex-col items-center justify-center text-center relative group p-3 shadow-2xs">
-                        {item.avatar || item.photo || item.image || item.photo_url ? (
-                          <img
-                            src={item.avatar || item.photo || item.image || item.photo_url}
-                            alt={item.name}
-                            className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
-                          />
-                        ) : (
-                          <div className="p-3 flex flex-col items-center justify-center h-full w-full bg-slate-50/90 rounded-lg border border-dashed border-slate-200">
-                            <PackageOpen className="w-8 h-8 text-slate-400 mb-1.5 shrink-0" />
-                            <span className="text-slate-600 font-bold text-xs leading-snug line-clamp-2 uppercase tracking-wide text-center" title={item.name}>
-                              {item.name}
-                            </span>
-                          </div>
-                        )}
+                      {/* Top Image Box: Syncs with Public View Card Preview in Category Settings */}
+                      <div className={`w-full aspect-video bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200/80 dark:border-slate-700/60 overflow-hidden flex flex-col items-center justify-center text-center relative group shadow-2xs ${
+                        item?.photo_fit === "cover" ? "p-0" : "p-2"
+                      }`}>
+                        <CategoryItemImage item={item} />
                       </div>
 
                       {/* Equipment Metadata */}

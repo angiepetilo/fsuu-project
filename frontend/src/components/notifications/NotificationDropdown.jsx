@@ -5,26 +5,56 @@ import { useNavigate } from "react-router-dom";
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 const STORAGE_KEY = "fsuu_archived_notifications";
 
+// Incident rows (damaged/lost/violation) use the inspection id as target_id; the real booking/borrowing id is record_id.
+const INCIDENT_TARGETS = ["damaged_unit", "lost_unit", "policy_violation", "late_return"];
+const getRecordId = (n) => n.record_id ?? n.booking_id ?? n.borrowing_id ?? n.equipment_borrowing_id ?? n.equipment_borrow_id ?? n.venue_booking_id ?? (INCIDENT_TARGETS.includes(n.target_type) ? null : n.target_id);
+
 const getNotificationColorConfig = (n) => {
   const incType = String(n.incident_type || n.target_type || n.type || "").toLowerCase();
+  const notifType = String(n.type || "").toLowerCase();
   const title = String(n.title || "").toLowerCase();
   const msg = String(n.message || "").toLowerCase();
 
-  // 0. Urgent Approval
-  if (incType.includes("urgent") || title.includes("urgent") || msg.includes("urgent")) {
+  // 1. Post-Event / Equipment Return Inspection Needed (reminders when time passed)
+  if (
+    notifType === "overdue_post_inspection" ||
+    title.includes("inspection needed") ||
+    title.includes("inspection pending") ||
+    msg.includes("inspection has not been completed") ||
+    msg.includes("check-in inspection is pending")
+  ) {
     return {
       border: "border-l-4 border-l-amber-500",
-      bgUnread: "bg-amber-50/50 hover:bg-amber-50/80",
-      badgeBg: "bg-amber-100 text-amber-900 border-amber-300 font-black",
-      badgeText: "URGENT APPROVAL",
-      iconBg: "bg-amber-100 text-amber-700",
-      dot: "bg-amber-600",
-      Icon: AlertCircle,
+      bgUnread: "bg-amber-50/40 hover:bg-amber-50/70 dark:bg-amber-950/20 dark:hover:bg-amber-950/35",
+      badgeBg: "bg-amber-100 dark:bg-amber-950/70 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-800 font-extrabold",
+      badgeText: "NEEDS INSPECTION",
+      iconBg: "bg-amber-100 dark:bg-amber-950/70 text-amber-700 dark:text-amber-400",
+      dot: "bg-amber-600 dark:bg-amber-500",
+      Icon: Clock,
     };
   }
 
-  // 1. Damaged Physical Unit / Damage Incident
-  if (incType.includes("damage") || title.includes("damage") || msg.includes("damaged")) {
+  // 2. Urgent / Unassigned Units Alert
+  if (
+    notifType === "unassigned_units_warning" ||
+    title.includes("unassigned") ||
+    title.includes("urgent") ||
+    incType.includes("urgent") ||
+    msg.includes("urgent")
+  ) {
+    return {
+      border: "border-l-4 border-l-orange-500",
+      bgUnread: "bg-orange-50/50 hover:bg-orange-50/80 dark:bg-orange-950/20 dark:hover:bg-orange-950/35",
+      badgeBg: "bg-orange-100 dark:bg-orange-950/70 text-orange-900 dark:text-orange-300 border-orange-300 dark:border-orange-800 font-black",
+      badgeText: "UNASSIGNED UNITS",
+      iconBg: "bg-orange-100 dark:bg-orange-950/70 text-orange-700 dark:text-orange-400",
+      dot: "bg-orange-600 dark:bg-orange-500",
+      Icon: AlertTriangle,
+    };
+  }
+
+  // 3. Damaged Physical Unit / Damage Incident
+  if (incType.includes("damage") || notifType.includes("damage") || title.includes("damage") || msg.includes("damaged")) {
     return {
       border: "border-l-4 border-l-rose-500",
       bgUnread: "bg-rose-50/40 hover:bg-rose-50/70 dark:bg-rose-950/20 dark:hover:bg-rose-950/35",
@@ -36,8 +66,8 @@ const getNotificationColorConfig = (n) => {
     };
   }
 
-  // 2. Lost Physical Unit / Missing
-  if (incType.includes("lost") || title.includes("lost") || msg.includes("lost") || title.includes("missing")) {
+  // 4. Lost Physical Unit / Missing
+  if (incType.includes("lost") || notifType.includes("lost") || title.includes("lost") || msg.includes("lost") || title.includes("missing")) {
     return {
       border: "border-l-4 border-l-amber-500",
       bgUnread: "bg-amber-50/40 hover:bg-amber-50/70 dark:bg-amber-950/20 dark:hover:bg-amber-950/35",
@@ -49,8 +79,8 @@ const getNotificationColorConfig = (n) => {
     };
   }
 
-  // 3. Policy Violation / Facility Rule Breach
-  if (incType.includes("violation") || title.includes("violation") || msg.includes("violation") || title.includes("breach")) {
+  // 5. Policy Violation / Facility Rule Breach
+  if (incType.includes("violation") || notifType.includes("violation") || title.includes("violation") || msg.includes("violation") || title.includes("breach")) {
     return {
       border: "border-l-4 border-l-purple-500",
       bgUnread: "bg-purple-50/40 hover:bg-purple-50/70 dark:bg-purple-950/20 dark:hover:bg-purple-950/35",
@@ -62,33 +92,61 @@ const getNotificationColorConfig = (n) => {
     };
   }
 
-  // 4. Overdue / Late Return
+  // 6. Overdue / Late Return
   if (incType.includes("late") || title.includes("late") || msg.includes("late") || title.includes("overdue") || msg.includes("overdue")) {
     return {
       border: "border-l-4 border-l-orange-500",
       bgUnread: "bg-orange-50/40 hover:bg-orange-50/70 dark:bg-orange-950/20 dark:hover:bg-orange-950/35",
       badgeBg: "bg-orange-100 dark:bg-orange-950/70 text-orange-800 dark:text-orange-300 border-orange-200 dark:border-orange-800",
-      badgeText: "OVERDUE",
+      badgeText: incType.includes("late_return") ? "LATE RETURN" : "OVERDUE",
       iconBg: "bg-orange-100 dark:bg-orange-950/70 text-orange-600 dark:text-orange-400",
       dot: "bg-orange-600 dark:bg-orange-500",
       Icon: Clock,
     };
   }
 
-  // 5. Approved / Completed
-  if (title.includes("approved") || msg.includes("approved") || title.includes("complete") || msg.includes("complete")) {
+  // 7. Student Assistant Category Request
+  if (notifType === "student_assistant_request" || title.includes("category request") || incType.includes("request")) {
+    return {
+      border: "border-l-4 border-l-indigo-500",
+      bgUnread: "bg-indigo-50/40 hover:bg-indigo-50/70 dark:bg-indigo-950/20 dark:hover:bg-indigo-950/35",
+      badgeBg: "bg-indigo-100 dark:bg-indigo-950/70 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800",
+      badgeText: "REQUEST",
+      iconBg: "bg-indigo-100 dark:bg-indigo-950/70 text-indigo-600 dark:text-indigo-400",
+      dot: "bg-indigo-600 dark:bg-indigo-500",
+      Icon: Bell,
+    };
+  }
+
+  // 8. New Pending Venue Booking or Equipment Borrowing
+  if (notifType.includes("pending") || title.includes("new venue booking") || title.includes("new equipment borrow") || title.includes("pending")) {
+    return {
+      border: "border-l-4 border-l-blue-500",
+      bgUnread: "bg-blue-50/30 hover:bg-blue-50/60 dark:bg-blue-950/20 dark:hover:bg-blue-950/35",
+      badgeBg: "bg-blue-100 dark:bg-blue-950/70 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800",
+      badgeText: "PENDING",
+      iconBg: "bg-blue-100 dark:bg-blue-950/70 text-blue-600 dark:text-blue-400",
+      dot: "bg-blue-600 dark:bg-blue-500",
+      Icon: Bell,
+    };
+  }
+
+  // 9. Truly Approved / Completed (Safe check without false-positives like "not completed")
+  const isTrulyApproved = (title.includes("approved") || msg.includes(" approved ")) && !msg.includes("not been") && !title.includes("needed");
+  const isTrulyCompleted = (title.includes("completed") || msg.includes("completed successfully")) && !msg.includes("not been") && !msg.includes("has not");
+  if (isTrulyApproved || isTrulyCompleted) {
     return {
       border: "border-l-4 border-l-emerald-500",
       bgUnread: "bg-emerald-50/40 hover:bg-emerald-50/70 dark:bg-emerald-950/20 dark:hover:bg-emerald-950/35",
       badgeBg: "bg-emerald-100 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800",
-      badgeText: "APPROVED",
+      badgeText: isTrulyCompleted ? "COMPLETED" : "APPROVED",
       iconBg: "bg-emerald-100 dark:bg-emerald-950/70 text-emerald-600 dark:text-emerald-400",
       dot: "bg-emerald-600 dark:bg-emerald-500",
       Icon: CheckCircle2,
     };
   }
 
-  // 6. Rejected / Cancelled
+  // 10. Rejected / Cancelled
   if (title.includes("reject") || msg.includes("reject") || title.includes("cancel") || msg.includes("cancel")) {
     return {
       border: "border-l-4 border-l-rose-500",
@@ -101,12 +159,12 @@ const getNotificationColorConfig = (n) => {
     };
   }
 
-  // Default: Pending / Info
+  // Default: Notice / Info
   return {
     border: "border-l-4 border-l-blue-500",
     bgUnread: "bg-blue-50/30 hover:bg-blue-50/60 dark:bg-blue-950/20 dark:hover:bg-blue-950/35",
     badgeBg: "bg-blue-100 dark:bg-blue-950/70 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800",
-    badgeText: "PENDING",
+    badgeText: "NOTICE",
     iconBg: "bg-blue-100 dark:bg-blue-950/70 text-blue-600 dark:text-blue-400",
     dot: "bg-blue-600 dark:bg-blue-500",
     Icon: Bell,
@@ -186,7 +244,13 @@ export default function NotificationDropdown({
     const targetHighlightBarcode = isHardwareIncident ? barcode : null;
 
     if (n.url) {
-      navigate(n.url, { state: { selectedId: n.target_id, targetType: n.target_type, trk: ref, search: barcode || ref, highlightBarcode: targetHighlightBarcode } });
+      let navUrl = n.url;
+      if (isSuperAdmin && navUrl.startsWith("/general/")) {
+        navUrl = navUrl.replace(/^\/general\//, "/sysad/");
+      } else if (!isSuperAdmin && navUrl.startsWith("/sysad/")) {
+        navUrl = navUrl.replace(/^\/sysad\//, "/general/");
+      }
+      navigate(navUrl, { state: { selectedId: getRecordId(n), targetType: n.target_type, trk: ref, search: barcode || ref, highlightBarcode: targetHighlightBarcode } });
       return;
     }
 
@@ -197,13 +261,13 @@ export default function NotificationDropdown({
       return;
     }
 
-    if (ref.startsWith("EQ-")) {
-      navigate(`${basePath}/equipment-borrowing?ref=${encodeURIComponent(ref)}`, {
-        state: { targetRef: ref, search: ref, selectedId: n.target_id },
+    if (ref.startsWith("EQ-") || ref.startsWith("TRK-EB") || n.target_type === "equipment_borrow" || n.record_type === "equipment_borrow") {
+      navigate(`${basePath}/equipment-borrowing?id=${getRecordId(n) || ""}&trk=${encodeURIComponent(ref)}`, {
+        state: { targetRef: ref, search: ref, selectedId: getRecordId(n) },
       });
-    } else if (ref.startsWith("VB-")) {
-      navigate(`${basePath}/venue-bookings?ref=${encodeURIComponent(ref)}`, {
-        state: { targetRef: ref, search: ref, selectedId: n.target_id },
+    } else if (ref.startsWith("VB-") || ref.startsWith("TRK-AVR") || ref.startsWith("TRK-") || n.target_type === "venue_booking" || n.record_type === "venue_booking") {
+      navigate(`${basePath}/venue-bookings?id=${getRecordId(n) || ""}&trk=${encodeURIComponent(ref)}`, {
+        state: { targetRef: ref, search: ref, selectedId: getRecordId(n) },
       });
     } else if (isHardwareIncident && barcode && barcode !== "N/A") {
       navigate(`${basePath}/manage-equipments?search=${encodeURIComponent(barcode)}&barcode=${encodeURIComponent(barcode)}`, {
@@ -218,15 +282,49 @@ export default function NotificationDropdown({
     if (markAsRead) markAsRead(n.id);
     setIsOpen(false);
 
-    if (n.incident_type === "damaged" || n.incident_type === "lost" || n.incident_type === "policy_violation" || isSuperAdmin) {
-      if (onSelectIncident) {
-        onSelectIncident(n);
-        return;
-      }
+    const isRealIncident =
+      n.incident_type === "damaged" ||
+      n.incident_type === "lost" ||
+      n.incident_type === "policy_violation" ||
+      n.target_type === "damaged_unit" ||
+      n.target_type === "lost_unit";
+
+    if (isRealIncident && onSelectIncident) {
+      onSelectIncident(n);
+      return;
     }
 
-    if (n.url) {
-      navigate(n.url, { state: { selectedId: n.target_id, targetType: n.target_type, trk: n.ref } });
+    const basePath = isSuperAdmin ? "/sysad" : "/general";
+    const ref = (n.ref || "").trim();
+    const barcode = (n.barcode || n.unit_code || "").trim();
+    const isHardwareIncident = n.incident_type === "damaged" || n.incident_type === "lost";
+    const targetHighlightBarcode = isHardwareIncident ? barcode : null;
+
+    let targetUrl = n.url;
+    if (targetUrl) {
+      if (isSuperAdmin && targetUrl.startsWith("/general/")) {
+        targetUrl = targetUrl.replace(/^\/general\//, "/sysad/");
+      } else if (!isSuperAdmin && targetUrl.startsWith("/sysad/")) {
+        targetUrl = targetUrl.replace(/^\/sysad\//, "/general/");
+      }
+    } else if (ref.startsWith("EQ-") || ref.startsWith("TRK-EB") || n.target_type === "equipment_borrow" || n.record_type === "equipment_borrow") {
+      targetUrl = `${basePath}/equipment-borrowing?id=${getRecordId(n) || ""}&trk=${encodeURIComponent(ref)}`;
+    } else if (ref.startsWith("VB-") || ref.startsWith("TRK-AVR") || ref.startsWith("TRK-") || n.target_type === "venue_booking" || n.record_type === "venue_booking") {
+      targetUrl = `${basePath}/venue-bookings?id=${getRecordId(n) || ""}&trk=${encodeURIComponent(ref)}`;
+    } else if (barcode && barcode !== "N/A") {
+      targetUrl = `${basePath}/manage-equipments?search=${encodeURIComponent(barcode)}&barcode=${encodeURIComponent(barcode)}`;
+    }
+
+    if (targetUrl) {
+      navigate(targetUrl, {
+        state: {
+          selectedId: getRecordId(n),
+          targetType: n.target_type,
+          trk: ref,
+          search: barcode || ref,
+          highlightBarcode: targetHighlightBarcode,
+        },
+      });
     }
   };
 
